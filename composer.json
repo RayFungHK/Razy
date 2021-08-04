@@ -1,0 +1,23 @@
+{
+  "name": "RayFungHK/Razy",
+  "description": "A PHP framework for web development, high performance and flexibility. Perfect for team development and code maintenance.",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Ray Fung",
+      "email": "hello@rayfung.hk"
+    }
+  ],
+  "require": {
+    "php": "^7.4 || ^8.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Razy\\": "src/library/Razy/"
+    }
+  },
+  "bin": [
+    "Razy"
+  ]
+}
