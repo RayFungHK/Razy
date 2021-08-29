@@ -807,6 +807,16 @@ class Module
 		return $this->controller->__onRoute($args);
 	}
 
+    /**
+     * Trigger __onDispatch event when the application has routed into a module
+     */
+    public function standby(string $moduleCode): void
+    {
+        if (self::STATUS_LOADED === $this->status) {
+            $this->controller->__onDispatch($moduleCode);
+        }
+    }
+
 	/**
 	 * Redirect to the specified url when all modules are ready.
 	 *

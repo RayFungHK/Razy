@@ -394,7 +394,7 @@ class Distributor
 	}
 
 	/**
-	 * Match the each registered route and execute the matched path.
+	 * Match the registered route and execute the matched path.
 	 *
 	 * @throws Throwable
 	 *
@@ -425,6 +425,7 @@ class Distributor
 					}
 
 					if ($module->prepare($matches)) {
+					    $this->dispatch($module);
 						$this->routedPath = $this->urlQuery;
 						call_user_func_array($closure, $matches);
 					}
@@ -451,6 +452,7 @@ class Distributor
 					}
 
 					if ($module->prepare($args)) {
+                        $this->dispatch($module);
 						$this->routedPath = $route;
 						call_user_func_array($closure, $args);
 					}
@@ -462,6 +464,22 @@ class Distributor
 
 		return false;
 	}
+
+    /**
+     * Trigger all module __onDispatch event when the Application before route into a module.
+     *
+     * @param Module $target
+     */
+	private function dispatch(Module $target)
+    {
+        if ($this->domain) {
+            foreach ($this->modules as $module) {
+                if (Module::STATUS_LOADED === $module->getStatus()) {
+                    $module->standby($target->getCode());
+                }
+            }
+        }
+    }
 
 	/**
 	 * Put the current distributor into stacking list.

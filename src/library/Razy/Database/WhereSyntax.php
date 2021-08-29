@@ -87,8 +87,7 @@ class WhereSyntax
 							$parsed[] = $this->parseExpr($clip, $negative);
 							$negative = false;
 						} else {
-							// TODO: throw error, invalid syntax
-							return '';
+						    throw new Error('Invalid Where syntax');
 						}
 					}
 				}
@@ -96,8 +95,7 @@ class WhereSyntax
 				$operand = array_shift($extracted);
 				if ($operand) {
 					if (!preg_match('/^[,|]$/', $operand)) {
-						// TODO: throw error, invalid syntax
-						return '';
+                        throw new Error('Invalid Where syntax');
 					}
 					$parsed[] = self::OPERAND_TYPE[$operand];
 				}
@@ -157,7 +155,7 @@ class WhereSyntax
 			if ('auto' === $rightOperand['type']) {
 				if ('column' === $leftOperand['type']) {
 					$value = $this->statement->getValue($leftOperand['column_name']);
-					if (null === $value || !is_scalar($value)) {
+					if (null === $value) {
 						$rightOperand = [
 							'type' => 'null',
 							'expr' => 'NULL',
@@ -335,7 +333,7 @@ class WhereSyntax
 			if ('~=' === $operator) {
 				if ('text' == $rightOperand['type'] || ('parameter' == $rightOperand['type'] && is_scalar($rightOperand['value']))) {
 					$rightExpr = '\'"' . addslashes($rightOperand['text'] ?? $rightOperand['value']) . '"\'';
-					$operand   = 'JSON_CONTAINS(JSON_EXTRACT(' . $leftExpr . ', \'$.*\'), ' . $rightExpr . ') = 1';
+					$operand   = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ') = 1';
 				} else {
 					$operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $this->castAsJSON($rightOperand, true) . ') = 1';
 				}

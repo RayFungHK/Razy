@@ -20,6 +20,7 @@
 namespace Razy;
 
 use Closure;
+use Razy\Template\Source;
 use Throwable;
 
 abstract class Controller
@@ -58,7 +59,7 @@ abstract class Controller
 	}
 
 	/**
-	 * Controller Event __onRoute, will be executed before the route closure is execute. Return false to route is not
+	 * Controller Event __onRoute, will be executed before the route closure is executed. Return false to route is not
 	 * accept.
 	 *
 	 * @param array $args
@@ -156,6 +157,18 @@ abstract class Controller
 	{
 		return true;
 	}
+
+    /**
+     * __onDispatch event, all modules will be executed before the routed method execute
+     *
+     * @param string $moduleCode
+     *
+     * @return void
+     */
+	public function __onDispatch(string $moduleCode): void
+    {
+
+    }
 
 	/**
 	 * Get the Module version.
@@ -264,9 +277,9 @@ abstract class Controller
 	/**
 	 * @param string $path
 	 *
-	 * @throws \Throwable
-	 *
-	 * @return \Razy\Template\Source
+	 * @return Source
+     *
+     * @throws Throwable
 	 */
 	final public function load(string $path): Template\Source
 	{
@@ -287,15 +300,15 @@ abstract class Controller
 	/**
 	 * @param array $sources
 	 *
-	 * @throws \Throwable
-	 */
+	 * @throws Throwable
+     */
 	final public function view(array $sources)
 	{
 		echo $this->module->getTemplateEngine()->outputQueued($sources);
 	}
 
 	/**
-	 * @return \Razy\Template
+	 * @return Template
 	 */
 	final public function getTemplate(): Template
 	{
@@ -305,22 +318,22 @@ abstract class Controller
 	/**
 	 * Get the Configuration entity.
 	 *
-	 * @throws \Razy\Error
+	 * @throws Error
 	 *
-	 * @return \Razy\Configuration
+	 * @return Configuration
 	 */
 	final public function getModuleConfig(): Configuration
 	{
 		return $this->module->loadConfig();
 	}
 
-	/**
-	 * Send a handshake to one or a list of modules, return true if the module is available.
-	 *
-	 * @param string $modules
-	 *
-	 * @return bool
-	 */
+    /**
+     * Send a handshake to one or a list of modules, return true if the module is available.
+     *
+     * @param string $modules
+     * @param string $message
+     * @return bool
+     */
 	final public function handshake(string $modules, string $message = ''): bool
 	{
 		$modules = explode(',', $modules);
@@ -337,7 +350,7 @@ abstract class Controller
 	/**
 	 * Get the XHR entity.
 	 *
-	 * @return \Razy\XHR
+	 * @return XHR
 	 */
 	final public function xhr(): XHR
 	{

@@ -30,7 +30,7 @@ class Application
 	private static array $alias = [];
 
 	/**
-	 * @var null|\Razy\Application
+	 * @var null|Application
 	 */
 	private static ?Application $master = null;
 
@@ -40,12 +40,12 @@ class Application
 	private static array $instances = [];
 
 	/**
-	 * @var null|\Razy\Domain
+	 * @var null|Domain
 	 */
 	private ?Domain $domain = null;
 
 	/**
-	 * @var null|\Razy\Application
+	 * @var null|Application
 	 */
 	private ?Application $peer = null;
 
@@ -378,7 +378,7 @@ class Application
 	}
 
 	/**
-	 * @return null|\Razy\Application
+	 * @return null|Application
 	 */
 	public static function GetMaster(): ?Application
 	{
