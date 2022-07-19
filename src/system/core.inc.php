@@ -58,7 +58,7 @@ if (PHP_SAPI === 'cli' || defined('STDIN')) {
 
 	// Declare `HOSTNAME`
 	// The hostname, if the REQUEST PATH is http://yoursite.com:8080/Razy, the HOSTNAME will declare as yoursite.com
-	define('HOSTNAME', $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'UNKNOWN'));
+	define('HOSTNAME', $_SERVER['SERVER_NAME'] ?? 'UNKNOWN');
 
 	// Declare `RELATIVE_ROOT`
 	define('RELATIVE_ROOT', preg_replace('/\\\\+/', '/', substr(SYSTEM_ROOT, strpos(SYSTEM_ROOT, $_SERVER['DOCUMENT_ROOT']) + \strlen($_SERVER['DOCUMENT_ROOT']))));

@@ -36,7 +36,7 @@ Application::UpdateSites();
 if (PHP_SAPI !== 'cli') {
 	Error::SetDebug(DEBUG);
 	// Create an Application with HOSTNAME
-	$app = new Application(HOSTNAME);
+	$app = new Application(HOSTNAME . ((PORT !== 80) ? ':' . PORT : ''));
 	if (!$app->query(URL_QUERY)) {
 		Error::Show404();
 	}

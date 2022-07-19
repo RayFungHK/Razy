@@ -20,9 +20,9 @@ use Exception;
  *
  * @return bool Return TRUE if the string is a FQDN
  */
-function is_fqdn(string $domain): bool
+function is_fqdn(string $domain, bool $withPort = false): bool
 {
-	return 1 === preg_match('/^(?:(?:(?:[a-z0-9][\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|\*)(\.|$)){4})$/', $domain);
+	return 1 === preg_match('/^(?:(?:(?:[a-z0-9][\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|\*)(\.|$)){4})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
 }
 
 /**

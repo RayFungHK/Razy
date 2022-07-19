@@ -15,7 +15,7 @@ use Exception;
 use Throwable;
 
 /**
- * A app class used to isolate a system or routed site, for internal site-to-site communication.
+ * An app class used to isolate a system or routed site, for internal site-to-site communication.
  */
 class Application
 {
@@ -72,7 +72,7 @@ class Application
 		// If the FQDN is empty, determine Application is called via CLI
 		if (!empty($fqdn)) {
 			$fqdn = format_fqdn($fqdn);
-			if (!is_fqdn($fqdn)) {
+			if (!is_fqdn($fqdn, true)) {
 				throw new Error('Invalid domain format, it should be a string in FQDN format.');
 			}
 		}
@@ -110,11 +110,11 @@ class Application
 
 	/**
 	 * @param string   $code
-	 * @param \Closure $closure
-	 *
-	 * @throws Throwable
+	 * @param Closure $closure
 	 *
 	 * @return bool
+	 * @throws Throwable
+	 *
 	 */
 	public static function ValidatePackage(string $code, Closure $closure): bool
 	{
@@ -153,7 +153,7 @@ class Application
 				if (is_string($domain)) {
 					$domain = format_fqdn($domain);
 					$alias  = format_fqdn($alias);
-					if (is_fqdn($domain) && is_fqdn($alias)) {
+					if (is_fqdn($domain, true) && is_fqdn($alias, true)) {
 						$aliasMapping[$domain]   = $aliasMapping[$domain] ?? [];
 						$aliasMapping[$domain][] = $alias;
 						self::$alias[$alias]     = $domain;
@@ -165,7 +165,7 @@ class Application
 		if (is_array($config['domains'] ?? null)) {
 			foreach ($config['domains'] as $domain => $pathSet) {
 				$domain = format_fqdn($domain);
-				if (is_fqdn($domain) && is_array($pathSet)) {
+				if (is_fqdn($domain, true) && is_array($pathSet)) {
 					foreach ($pathSet as $urlPath => $distPath) {
 						// Validate the distributor directory has the configuration file
 						($validate = function ($distPath, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
@@ -316,11 +316,11 @@ class Application
 
 	/**
 	 * @param string   $code
-	 * @param \Closure $closure
-	 *
-	 * @throws Throwable
+	 * @param Closure $closure
 	 *
 	 * @return int
+	 *@throws Throwable
+	 *
 	 */
 	public static function UnpackAsset(string $code, Closure $closure): int
 	{
@@ -406,7 +406,7 @@ class Application
 		}
 
 		foreach (self::$multisite as $pattern => $path) {
-			if (is_fqdn($pattern)) {
+			if (is_fqdn($pattern, true)) {
 				// If the FQDN string contains * (wildcard)
 				if ('*' !== $pattern && false !== strpos($pattern, '*')) {
 					$wildcard = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $pattern);
