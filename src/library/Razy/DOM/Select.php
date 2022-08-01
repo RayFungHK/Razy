@@ -17,111 +17,111 @@ use Razy\Error;
 
 class Select extends DOM
 {
-	/**
-	 * Select constructor.
-	 */
-	public function __construct(string $id = '')
-	{
-		parent::__construct($id);
-		$this->setTag('select');
-	}
+    /**
+     * Select constructor.
+     */
+    public function __construct(string $id = '')
+    {
+        parent::__construct($id);
+        $this->setTag('select');
+    }
 
-	/**
-	 * Get the value.
-	 *
-	 * @return mixed The value of the control
-	 */
-	public function getValue()
-	{
-		foreach ($this->nodes as $node) {
-			if ($node instanceof DOM) {
-				if ($node->hasAttribute('selected')) {
-					return $node->getAttribute('selected');
-				}
-			}
-		}
+    /**
+     * Get the value.
+     *
+     * @return mixed The value of the control
+     */
+    public function getValue()
+    {
+        foreach ($this->nodes as $node) {
+            if ($node instanceof DOM) {
+                if ($node->hasAttribute('selected')) {
+                    return $node->getAttribute('selected');
+                }
+            }
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	/**
-	 * Set the value.
-	 *
-	 * @param mixed $value The value of the control
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return self Chainable
-	 */
-	public function setValue(string $value): DOM
-	{
-		foreach ($this->nodes as $node) {
-			if ($node instanceof DOM) {
-				if ($node->getAttribute('value') == $value) {
-					$node->setAttribute('selected', 'selected');
-				} else {
-					$node->removeAttribute('selected');
-				}
-			}
-		}
+    /**
+     * Set the value.
+     *
+     * @param mixed $value The value of the control
+     *
+     * @return self Chainable
+     *@throws Error
+     *
+     */
+    public function setValue(string $value): DOM
+    {
+        foreach ($this->nodes as $node) {
+            if ($node instanceof DOM) {
+                if ($node->getAttribute('value') == $value) {
+                    $node->setAttribute('selected', 'selected');
+                } else {
+                    $node->removeAttribute('selected');
+                }
+            }
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * @param bool $enable
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return $this
-	 */
-	public function isMultiple(bool $enable): Select
-	{
-		if ($enable) {
-			$this->setAttribute('multiple', 'multiple');
-		} else {
-			$this->removeAttribute('multiple');
-		}
+    /**
+     * @param bool $enable
+     *
+     * @return $this
+     *@throws Error
+     *
+     */
+    public function isMultiple(bool $enable): Select
+    {
+        if ($enable) {
+            $this->setAttribute('multiple', 'multiple');
+        } else {
+            $this->removeAttribute('multiple');
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Apply a bulk of options by given array.
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return $this
-	 */
-	public function applyOptions(array $dataset, Closure $convertor = null): self
-	{
-		foreach ($dataset as $key => $value) {
-			$option = $this->addOption();
-			if ($convertor) {
-				call_user_func($convertor, $option, $key, $value);
-			} else {
-				if (is_string($value)) {
-					$option->setText($value)->setAttribute('value', $key);
-				} else {
-					throw new Error('The option value must be a string');
-				}
-			}
-		}
+    /**
+     * Apply a bulk of options by given array.
+     *
+     * @return $this
+     *@throws Error
+     *
+     */
+    public function applyOptions(array $dataset, Closure $convertor = null): self
+    {
+        foreach ($dataset as $key => $value) {
+            $option = $this->addOption();
+            if ($convertor) {
+                call_user_func($convertor, $option, $key, $value);
+            } else {
+                if (is_string($value)) {
+                    $option->setText($value)->setAttribute('value', $key);
+                } else {
+                    throw new Error('The option value must be a string');
+                }
+            }
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Add and append an option DOM.
-	 *
-	 * @throws \Razy\Error
-	 */
-	public function addOption(string $label = '', string $value = ''): DOM
-	{
-		$option = new DOM();
-		$option->setTag('option')->setText($label)->setAttribute('value', $value);
-		$this->append($option);
+    /**
+     * Add and append an option DOM.
+     *
+     * @throws Error
+     */
+    public function addOption(string $label = '', string $value = ''): DOM
+    {
+        $option = new DOM();
+        $option->setTag('option')->setText($label)->setAttribute('value', $value);
+        $this->append($option);
 
-		return $option;
-	}
+        return $option;
+    }
 }

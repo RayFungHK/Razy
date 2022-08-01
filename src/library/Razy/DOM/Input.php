@@ -15,13 +15,13 @@ use Razy\DOM;
 
 class Input extends DOM
 {
-	/**
-	 * Input constructor.
-	 *
-	 * @param string $id the attribute "id" value
-	 */
-	public function __construct(string $id = '')
-	{
-		parent::__construct('input', $id);
-	}
+    /**
+     * Input constructor.
+     *
+     * @param string $id the attribute "id" value
+     */
+    public function __construct(string $id = '')
+    {
+        parent::__construct('input', $id);
+    }
 }

@@ -10,7 +10,7 @@
  */
 
 return [
-	'processor' => function ($value) {
-		return nl2br($value);
-	},
+    'processor' => function ($value) {
+        return nl2br($value);
+    },
 ];

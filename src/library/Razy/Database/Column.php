@@ -17,7 +17,7 @@ use function Razy\guid;
 class Column
 {
     /**
-     * @var null|\Razy\Database\Table
+     * @var null|Table
      */
     private ?Table $table;
 
@@ -41,9 +41,9 @@ class Column
      *
      * @param string $columnName
      * @param string $configSyntax
-     * @param null|\Razy\Database\Table $table
+     * @param null|Table $table
      *
-     * @throws \Razy\Error
+     * @throws Error
      */
     public function __construct(string $columnName, string $configSyntax = '', ?Table $table = null)
     {
@@ -75,13 +75,13 @@ class Column
      *
      * @param array $parameters
      *
-     * @return \Razy\Database\Column
-     * @throws \Razy\Error
+     * @return Column
+     * @throws Error
      *
      */
     public function configure(array $parameters): Column
     {
-        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'create', 'key', 'oncurrent'] as $method) {
+        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'create', 'key', 'oncurrent', 'default'] as $method) {
             if (!array_key_exists($method, $parameters)) {
                 continue;
             }
@@ -97,7 +97,7 @@ class Column
             } elseif ('zerofill' == $method) {
                 $this->isZerofill(true);
             } elseif ('nullable' == $method) {
-                $this->setNullable(true);
+                $this->setNullable();
             } elseif ('charset' == $method) {
                 if (null !== $arguments && isset($arguments[0])) {
                     $this->setCharset($arguments[0]);
@@ -141,7 +141,7 @@ class Column
      * @param string $type
      *
      * @return $this
-     * @throws \Razy\Error
+     * @throws Error
      *
      */
     public function setType(string $type): Column
@@ -229,7 +229,7 @@ class Column
      *
      * @param bool $enable
      *
-     * @return \Razy\Database\Column
+     * @return Column
      */
     public function isZerofill(bool $enable): Column
     {
@@ -258,13 +258,13 @@ class Column
      * @param string $charset
      *
      * @return $this
-     * @throws \Razy\Error
+     * @throws Error
      *
      */
     public function setCharset(string $charset): Column
     {
         $charset = trim($charset);
-        if ($charset && !preg_match('/\w+^$/', $charset)) {
+        if ($charset && !preg_match('/^\w+$/', $charset)) {
             throw new Error($charset . ' is not in a correct character set format.');
         }
         $this->parameters['charset'] = $charset;
@@ -314,10 +314,10 @@ class Column
     /**
      * Rebind the table.
      *
-     * @param \Razy\Database\Table $table
+     * @param Table $table
      *
      * @return $this
-     * @throws \Razy\Error
+     * @throws Error
      *
      */
     public function bindTo(Table $table): Column
@@ -336,7 +336,7 @@ class Column
      * @param string $collation
      *
      * @return $this
-     * @throws \Razy\Error
+     * @throws Error
      *
      */
     public function setCollation(string $collation): Column
@@ -356,7 +356,7 @@ class Column
      * @param string $columnName
      *
      * @return $this
-     * @throws \Razy\Error
+     * @throws Error
      *
      */
     public function insertAfter(string $columnName = ''): Column
@@ -465,7 +465,7 @@ class Column
     /**
      * Generate the alter SQL statement by the different with specified column.
      *
-     * @param \Razy\Database\Column $column
+     * @param Column $column
      * @param bool $reordered
      *
      * @return string
@@ -521,7 +521,7 @@ class Column
      * @param string $columnName
      *
      * @return $this
-     * @throws \Razy\Error
+     * @throws Error
      *
      */
     public function setName(string $columnName): Column
@@ -581,7 +581,6 @@ class Column
      * @param string $syntax
      *
      * @return array
-     * @throws \Razy\Error
      *
      */
     private function parseSyntax(string $syntax): array

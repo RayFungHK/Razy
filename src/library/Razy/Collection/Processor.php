@@ -16,73 +16,73 @@ use Throwable;
 
 class Processor
 {
-	/**
-	 * @var array
-	 */
-	private array $reference;
+    /**
+     * @var array
+     */
+    private array $reference;
 
-	/**
-	 * @var Collection
-	 */
-	private Collection $collection;
+    /**
+     * @var Collection
+     */
+    private Collection $collection;
 
-	/**
-	 * Processor constructor.
-	 *
-	 * @param Collection $collection
-	 * @param array      $reference
-	 */
-	public function __construct(Collection $collection, array $reference = [])
-	{
-		$this->reference  = $reference;
-		$this->collection = $collection;
-	}
+    /**
+     * Processor constructor.
+     *
+     * @param Collection $collection
+     * @param array      $reference
+     */
+    public function __construct(Collection $collection, array $reference = [])
+    {
+        $this->reference  = $reference;
+        $this->collection = $collection;
+    }
 
-	/**
-	 * Implement magic method __call to pass the value to the processor by the method name and its arguments.
-	 *
-	 * @param string $method
-	 * @param array  $arguments
-	 *
-	 * @throws Throwable
-	 *
-	 * @return Processor $this
-	 */
-	public function __call(string $method, array $arguments): Processor
-	{
-		foreach ($this->reference as &$data) {
-			$plugin = $this->collection->loadPlugin('processor', $method);
-			if ($plugin) {
-				$data = call_user_func_array($plugin, array_merge([&$data], $arguments));
-			}
-		}
+    /**
+     * Implement magic method __call to pass the value to the processor by the method name and its arguments.
+     *
+     * @param string $method
+     * @param array  $arguments
+     *
+     * @throws Throwable
+     *
+     * @return Processor $this
+     */
+    public function __call(string $method, array $arguments): Processor
+    {
+        foreach ($this->reference as &$data) {
+            $plugin = $this->collection->loadPlugin('processor', $method);
+            if ($plugin) {
+                $data = call_user_func_array($plugin, array_merge([&$data], $arguments));
+            }
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Return an array with the selected values.
-	 *
-	 * @return array
-	 */
-	public function getArray(): array
-	{
-		return $this->get()->array();
-	}
+    /**
+     * Return an array with the selected values.
+     *
+     * @return array
+     */
+    public function getArray(): array
+    {
+        return $this->get()->array();
+    }
 
-	/**
-	 * Return a new Collection with the selected values.
-	 *
-	 * @return Collection
-	 */
-	public function get(): Collection
-	{
-		// Prevent convert reference into the Collection
-		$values = [];
-		foreach ($this->reference as $index => $value) {
-			$values[$index] = $value;
-		}
+    /**
+     * Return a new Collection with the selected values.
+     *
+     * @return Collection
+     */
+    public function get(): Collection
+    {
+        // Prevent convert reference into the Collection
+        $values = [];
+        foreach ($this->reference as $index => $value) {
+            $values[$index] = $value;
+        }
 
-		return new Collection($values);
-	}
+        return new Collection($values);
+    }
 }

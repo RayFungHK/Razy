@@ -10,9 +10,9 @@
  */
 
 return function ($value) {
-	if (is_scalar($value)) {
-		return (int) $value;
-	}
+    if (is_scalar($value)) {
+        return (int) $value;
+    }
 
-	return $value;
+    return $value;
 };

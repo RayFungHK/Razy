@@ -14,33 +14,33 @@ use Throwable;
 
 class API
 {
-	/**
-	 * @var \Razy\Distributor
-	 */
-	private Distributor $distributor;
+    /**
+     * @var Distributor
+     */
+    private Distributor $distributor;
 
-	/**
-	 * API constructor.
-	 *
-	 * @param Distributor $distributor The Distributor instance
-	 */
-	public function __construct(Distributor $distributor)
-	{
-		$this->distributor = $distributor;
-	}
+    /**
+     * API constructor.
+     *
+     * @param Distributor $distributor The Distributor instance
+     */
+    public function __construct(Distributor $distributor)
+    {
+        $this->distributor = $distributor;
+    }
 
-	/**
-	 * Execute the API command.
-	 *
-	 * @param string $command The API command
-	 * @param mixed  ...$args The arguments will pass to the API command
-	 *
-	 * @throws Throwable
-	 *
-	 * @return null|mixed
-	 */
-	public function api(string $command, ...$args)
-	{
-		return $this->distributor->execute($command, $args);
-	}
+    /**
+     * Execute the API command.
+     *
+     * @param string $command The API command
+     * @param mixed  ...$args The arguments will pass to the API command
+     *
+     * @throws Throwable
+     *
+     * @return null|mixed
+     */
+    public function api(string $command, ...$args)
+    {
+        return $this->distributor->execute($command, $args);
+    }
 }

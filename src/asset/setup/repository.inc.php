@@ -10,5 +10,5 @@
  */
 
 return [
-	'https://github.com/RayFungHK/Razy-Repository/' => 'master',
+    'https://github.com/RayFungHK/Razy-Repository/' => 'master',
 ];

@@ -11,23 +11,24 @@
 
 namespace Razy;
 
+use Exception;
 use Phar;
 
 $pharPath = './Razy.phar';
 if (is_file('./config.inc.php')) {
-	try {
-		$razyConfig = require './config.inc.php';
-		$pharPath   = realpath(($razyConfig['phar_location'] ?? '.') . '/Razy.phar');
-		if (!is_file($pharPath)) {
-			echo 'No configuration file has found.';
+    try {
+        $razyConfig = require './config.inc.php';
+        $pharPath   = realpath(($razyConfig['phar_location'] ?? '.') . '/Razy.phar');
+        if (!is_file($pharPath)) {
+            echo 'No configuration file has found.';
 
-			exit;
-		}
-	} catch (\Exception $e) {
-		echo 'No configuration file has found.';
+            exit;
+        }
+    } catch (Exception $e) {
+        echo 'No configuration file has found.';
 
-		exit;
-	}
+        exit;
+    }
 }
 
 // Load the phar file and start the application in web mode

@@ -10,17 +10,17 @@
  */
 
 return [
-	'enclose_content' => false,
-	'bypass_parser'   => false,
-	'parameters'      => [
-		'length' => 1,
-	],
-	'processor' => function (string $content, array $parameters) {
-		$parameters['length'] = (int) $parameters['length'];
-		if ($parameters['length'] < 0) {
-			$parameters['length'] = 0;
-		}
+    'enclose_content' => false,
+    'bypass_parser'   => false,
+    'parameters'      => [
+        'length' => 1,
+    ],
+    'processor' => function (string $content, array $parameters) {
+        $parameters['length'] = (int) $parameters['length'];
+        if ($parameters['length'] < 0) {
+            $parameters['length'] = 0;
+        }
 
-		return ($parameters['length'] > 0) ? str_repeat($content, $parameters['length']) : '';
-	},
+        return ($parameters['length'] > 0) ? str_repeat($content, $parameters['length']) : '';
+    },
 ];

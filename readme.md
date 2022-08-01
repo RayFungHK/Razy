@@ -90,7 +90,7 @@ $this->addLazyRoute([
 ]);
 
 /**
- * The route `domain.com/regex/get-abc/page-1/tester` will link to ./controller/Route.regex.php
+ * The route `domain.com/regex/get-abc/page-1/tester` will link to ./controller/Route.regex.php,
  * and it will pass the parameters `abc`, `1` and `tester` to the controller
  */
 $this->addRoute('/regex/get-(:a)/page-(:d)/(:[a-z0-9_-]{3,})', 'regex');
@@ -385,7 +385,7 @@ $columnA->type('auto');
 $columnB = $table->addColumn('column_b');
 $columnB->type('int')->length('11')->default('1');
 
-// Generate the create table syntax
+// Generate the `CREATE` table syntax
 echo $table->getSyntax();
 /**
  * Result:

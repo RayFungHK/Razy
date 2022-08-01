@@ -15,7 +15,7 @@ return [
 		 * The key is the domain and the value is the string of distribution path.
 		 * You can set the value as an array for advanced distribution setup.
 		 *
-		 * The distribution folder must contains a dist.php
+		 * The distribution folder must contain a dist.php
 		 *
 		 * Basic usage:
 		 * 'domain.name' => (string) The module distribution path

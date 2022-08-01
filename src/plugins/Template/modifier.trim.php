@@ -10,7 +10,7 @@
  */
 
 return [
-	'processor' => function ($value) {
-		return trim($value);
-	},
+    'processor' => function ($value) {
+        return trim($value);
+    },
 ];

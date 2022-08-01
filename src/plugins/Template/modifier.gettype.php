@@ -10,7 +10,7 @@
  */
 
 return [
-	'processor' => function ($value) {
-		return gettype($value);
-	},
+    'processor' => function ($value) {
+        return gettype($value);
+    },
 ];

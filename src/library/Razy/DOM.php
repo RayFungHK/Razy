@@ -13,395 +13,395 @@ namespace Razy;
 
 class DOM
 {
-	/**
-	 * @var mixed
-	 */
-	protected $value;
+    /**
+     * @var mixed
+     */
+    protected $value;
 
-	/**
-	 * @var string
-	 */
-	protected string $tag = '';
+    /**
+     * @var string
+     */
+    protected string $tag = '';
 
-	/**
-	 * @var string
-	 */
-	protected string $name = '';
+    /**
+     * @var string
+     */
+    protected string $name = '';
 
-	/**
-	 * @var array
-	 */
-	protected array $className = [];
+    /**
+     * @var array
+     */
+    protected array $className = [];
 
-	/**
-	 * @var array
-	 */
-	protected array $attribute = [];
+    /**
+     * @var array
+     */
+    protected array $attribute = [];
 
-	/**
-	 * @var string
-	 */
-	protected string $id = '';
+    /**
+     * @var string
+     */
+    protected string $id = '';
 
-	/**
-	 * @var array
-	 */
-	protected array $dataset = [];
+    /**
+     * @var array
+     */
+    protected array $dataset = [];
 
-	/**
-	 * @var string
-	 */
-	protected string $text = '';
+    /**
+     * @var string
+     */
+    protected string $text = '';
 
-	/**
-	 * @var bool
-	 */
-	protected bool $isVoid = false;
+    /**
+     * @var bool
+     */
+    protected bool $isVoid = false;
 
-	/**
-	 * @var array
-	 */
-	protected array $nodes = [];
+    /**
+     * @var array
+     */
+    protected array $nodes = [];
 
-	/**
-	 * Control constructor.
-	 *
-	 * @param string $name the name "id" value
-	 * @param string $id   the attribute "id" value
-	 */
-	public function __construct(string $name = '', string $id = '')
-	{
-		$name       = trim($name);
-		$this->name = $name;
+    /**
+     * Control constructor.
+     *
+     * @param string $name the name "id" value
+     * @param string $id   the attribute "id" value
+     */
+    public function __construct(string $name = '', string $id = '')
+    {
+        $name       = trim($name);
+        $this->name = $name;
 
-		$id       = trim($id);
-		$this->id = $id;
-	}
+        $id       = trim($id);
+        $this->id = $id;
+    }
 
-	/**
-	 * Set the attribute `name` value.
-	 *
-	 * @param mixed $value The value of the name
-	 *
-	 * @return self Chainable
-	 */
-	final public function setName($value): DOM
-	{
-		$value      = trim($value);
-		$this->name = $value;
+    /**
+     * Set the attribute `name` value.
+     *
+     * @param mixed $value The value of the name
+     *
+     * @return self Chainable
+     */
+    final public function setName($value): DOM
+    {
+        $value      = trim($value);
+        $this->name = $value;
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Set the text.
-	 *
-	 * @param mixed $text
-	 *
-	 * @return self Chainable
-	 */
-	final public function setText(string $text): DOM
-	{
-		if (empty($this->nodes)) {
-			$this->nodes[] = $text;
-		} else {
-			$node = &$this->nodes[count($this->nodes) - 1];
-			if (is_string($node)) {
-				$node = $text;
-			} else {
-				$this->nodes[] = $text;
-			}
-		}
+    /**
+     * Set the text.
+     *
+     * @param mixed $text
+     *
+     * @return self Chainable
+     */
+    final public function setText(string $text): DOM
+    {
+        if (empty($this->nodes)) {
+            $this->nodes[] = $text;
+        } else {
+            $node = &$this->nodes[count($this->nodes) - 1];
+            if (is_string($node)) {
+                $node = $text;
+            } else {
+                $this->nodes[] = $text;
+            }
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Set the Tag.
-	 *
-	 * @param string $tag
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return $this
-	 */
-	public function setTag(string $tag): DOM
-	{
-		$tag = trim($tag);
-		if (!preg_match('/^[a-z]+$/i', $tag)) {
-			throw new Error('The tag name is not valid.');
-		}
-		$this->tag = $tag;
+    /**
+     * Set the Tag.
+     *
+     * @param string $tag
+     *
+     * @return $this
+     *@throws Error
+     *
+     */
+    public function setTag(string $tag): DOM
+    {
+        $tag = trim($tag);
+        if (!preg_match('/^[a-z]+$/i', $tag)) {
+            throw new Error('The tag name is not valid.');
+        }
+        $this->tag = $tag;
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Get the tag.
-	 * Get the tag.
-	 *
-	 * @return string
-	 */
-	public function getTag(): string
-	{
-		return $this->tag;
-	}
+    /**
+     * Get the tag.
+     * Get the tag.
+     *
+     * @return string
+     */
+    public function getTag(): string
+    {
+        return $this->tag;
+    }
 
-	/**
-	 * Set the Control is void element, default.
-	 *
-	 * @param bool $enable Set true to set the Control as void element
-	 *
-	 * @return self Chainable
-	 */
-	final public function setVoidElement(bool $enable): DOM
-	{
-		$this->isVoid = $enable;
+    /**
+     * Set the Control is void element, default.
+     *
+     * @param bool $enable Set true to set the Control as void element
+     *
+     * @return self Chainable
+     */
+    final public function setVoidElement(bool $enable): DOM
+    {
+        $this->isVoid = $enable;
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Add a class name.
-	 *
-	 * @param array|string $className A string of the class name or an array contains the class name
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return self Chainable
-	 */
-	final public function addClass($className): DOM
-	{
-		if (is_string($className)) {
-			$className = trim($className);
-			if ($className) {
-				$this->className[$className] = true;
-			}
-		} elseif (is_array($className)) {
-			foreach ($className as $name) {
-				$this->addClass($name);
-			}
-		} else {
-			throw new Error(gettype($className) . ' is not a valid data type.');
-		}
+    /**
+     * Add a class name.
+     *
+     * @param array|string $className A string of the class name or an array contains the class name
+     *
+     * @return self Chainable
+     *@throws Error
+     *
+     */
+    final public function addClass($className): DOM
+    {
+        if (is_string($className)) {
+            $className = trim($className);
+            if ($className) {
+                $this->className[$className] = true;
+            }
+        } elseif (is_array($className)) {
+            foreach ($className as $name) {
+                $this->addClass($name);
+            }
+        } else {
+            throw new Error(gettype($className) . ' is not a valid data type.');
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Remove a class name.
-	 *
-	 * @param array|string $className A string of the class name or an array contains the class name
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return self Chainable
-	 */
-	final public function removeClass($className): DOM
-	{
-		if (is_string($className)) {
-			$className = trim($className);
-			if ($className) {
-				unset($this->className[$className]);
-			}
-		} elseif (is_array($className)) {
-			foreach ($className as $name) {
-				$this->removeClass($name);
-			}
-		} else {
-			throw new Error(gettype($className) . ' is not a valid data type.');
-		}
+    /**
+     * Remove a class name.
+     *
+     * @param array|string $className A string of the class name or an array contains the class name
+     *
+     * @return self Chainable
+     *@throws Error
+     *
+     */
+    final public function removeClass($className): DOM
+    {
+        if (is_string($className)) {
+            $className = trim($className);
+            if ($className) {
+                unset($this->className[$className]);
+            }
+        } elseif (is_array($className)) {
+            foreach ($className as $name) {
+                $this->removeClass($name);
+            }
+        } else {
+            throw new Error(gettype($className) . ' is not a valid data type.');
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Set the dataset value.
-	 *
-	 * @param array|string $parameter The parameter name or an array contains the dataset value
-	 * @param mixed        $value     The value of the dataset
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return self Chainable
-	 */
-	final public function setDataset($parameter, $value = null): DOM
-	{
-		if (is_string($parameter)) {
-			$parameter = trim($parameter);
-			if ($parameter) {
-				$this->dataset[$parameter] = $value;
-			}
-		} elseif (is_array($parameter)) {
-			foreach ($parameter as $param => $value) {
-				$this->setDataset($param, $value);
-			}
-		} else {
-			throw new Error(gettype($parameter) . ' is not a valid data type.');
-		}
+    /**
+     * Set the dataset value.
+     *
+     * @param array|string $parameter The parameter name or an array contains the dataset value
+     * @param mixed        $value     The value of the dataset
+     *
+     * @return self Chainable
+     *@throws Error
+     *
+     */
+    final public function setDataset($parameter, $value = null): DOM
+    {
+        if (is_string($parameter)) {
+            $parameter = trim($parameter);
+            if ($parameter) {
+                $this->dataset[$parameter] = $value;
+            }
+        } elseif (is_array($parameter)) {
+            foreach ($parameter as $param => $value) {
+                $this->setDataset($param, $value);
+            }
+        } else {
+            throw new Error(gettype($parameter) . ' is not a valid data type.');
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Set the attribute.
-	 *
-	 * @param array|string $attribute The attribute name or an array contains the attribute value
-	 * @param mixed        $value     The value of the attribute
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return self Chainable
-	 */
-	final public function setAttribute($attribute, $value = null): DOM
-	{
-		if (is_string($attribute)) {
-			$attribute = trim($attribute);
-			if ($attribute) {
-				$this->attribute[$attribute] = $value;
-			}
-		} elseif (is_array($attribute)) {
-			foreach ($attribute as $attr => $value) {
-				$this->setAttribute($attr, $value);
-			}
-		} else {
-			throw new Error(gettype($attribute) . ' is not a valid data type.');
-		}
+    /**
+     * Set the attribute.
+     *
+     * @param array|string $attribute The attribute name or an array contains the attribute value
+     * @param mixed        $value     The value of the attribute
+     *
+     * @return self Chainable
+     *@throws Error
+     *
+     */
+    final public function setAttribute($attribute, $value = null): DOM
+    {
+        if (is_string($attribute)) {
+            $attribute = trim($attribute);
+            if ($attribute) {
+                $this->attribute[$attribute] = $value;
+            }
+        } elseif (is_array($attribute)) {
+            foreach ($attribute as $attr => $value) {
+                $this->setAttribute($attr, $value);
+            }
+        } else {
+            throw new Error(gettype($attribute) . ' is not a valid data type.');
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Get the attribute.
-	 *
-	 * @param string $attribute
-	 *
-	 * @return mixed
-	 */
-	final public function getAttribute(string $attribute)
-	{
-		return $this->attribute[$attribute] ?? null;
-	}
+    /**
+     * Get the attribute.
+     *
+     * @param string $attribute
+     *
+     * @return mixed
+     */
+    final public function getAttribute(string $attribute)
+    {
+        return $this->attribute[$attribute] ?? null;
+    }
 
-	/**
-	 * Check if the attribute is set.
-	 *
-	 * @param string $attribute
-	 *
-	 * @return bool
-	 */
-	final public function hasAttribute(string $attribute): bool
-	{
-		return isset($this->attribute[$attribute]);
-	}
+    /**
+     * Check if the attribute is set.
+     *
+     * @param string $attribute
+     *
+     * @return bool
+     */
+    final public function hasAttribute(string $attribute): bool
+    {
+        return isset($this->attribute[$attribute]);
+    }
 
-	/**
-	 * Remove an attribute.
-	 *
-	 * @param string $attribute The attribute name
-	 *
-	 * @return self Chainable
-	 */
-	final public function removeAttribute(string $attribute): DOM
-	{
-		unset($this->attribute[$attribute]);
+    /**
+     * Remove an attribute.
+     *
+     * @param string $attribute The attribute name
+     *
+     * @return self Chainable
+     */
+    final public function removeAttribute(string $attribute): DOM
+    {
+        unset($this->attribute[$attribute]);
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Generate the HTML code of the Control.
-	 *
-	 * @return string The HTML code
-	 */
-	public function saveHTML(): string
-	{
-		$control = '<' . $this->tag;
-		if ($this->name) {
-			$control .= ' name="' . $this->name . '"';
-		}
+    /**
+     * Generate the HTML code of the Control.
+     *
+     * @return string The HTML code
+     */
+    public function saveHTML(): string
+    {
+        $control = '<' . $this->tag;
+        if ($this->name) {
+            $control .= ' name="' . $this->name . '"';
+        }
 
-		if ($this->id) {
-			$control .= ' id="' . $this->id . '"';
-		}
+        if ($this->id) {
+            $control .= ' id="' . $this->id . '"';
+        }
 
-		if (count($this->attribute)) {
-			foreach ($this->attribute as $attr => $value) {
-				$control .= ' ' . $attr;
-				if (null !== $value) {
-					$control .= '="' . $this->getHTMLValue($value) . '"';
-				}
-			}
-		}
+        if (count($this->attribute)) {
+            foreach ($this->attribute as $attr => $value) {
+                $control .= ' ' . $attr;
+                if (null !== $value) {
+                    $control .= '="' . $this->getHTMLValue($value) . '"';
+                }
+            }
+        }
 
-		if (count($this->dataset)) {
-			foreach ($this->dataset as $name => $value) {
-				$control .= ' data-' . $name . '="' . $this->getHTMLValue($value) . '"';
-			}
-		}
+        if (count($this->dataset)) {
+            foreach ($this->dataset as $name => $value) {
+                $control .= ' data-' . $name . '="' . $this->getHTMLValue($value) . '"';
+            }
+        }
 
-		if (count($this->className)) {
-			$control .= ' class="' . implode(' ', $this->className) . '"';
-		}
+        if (count($this->className)) {
+            $control .= ' class="' . implode(' ', $this->className) . '"';
+        }
 
-		if (!$this->isVoid) {
-			$control .= '>';
-			foreach ($this->nodes as $node) {
-				$control .= (is_string($node)) ? $node : $node->saveHTML();
-			}
-			$control .= '</' . $this->tag . '>';
-		} else {
-			$control .= ' />';
-		}
+        if (!$this->isVoid) {
+            $control .= '>';
+            foreach ($this->nodes as $node) {
+                $control .= (is_string($node)) ? $node : $node->saveHTML();
+            }
+            $control .= '</' . $this->tag . '>';
+        } else {
+            $control .= ' />';
+        }
 
-		return $control;
-	}
+        return $control;
+    }
 
-	/**
-	 * The value used to convert as HTML value.
-	 *
-	 * @param mixed $value The object to convert as HTML value
-	 *
-	 * @return string The value of HTML value
-	 */
-	final public function getHTMLValue($value): string
-	{
-		if (is_scalar($value)) {
-			return htmlspecialchars((string) $value);
-		}
+    /**
+     * The value used to convert as HTML value.
+     *
+     * @param mixed $value The object to convert as HTML value
+     *
+     * @return string The value of HTML value
+     */
+    final public function getHTMLValue($value): string
+    {
+        if (is_scalar($value)) {
+            return htmlspecialchars((string) $value);
+        }
 
-		if (!is_resource($value)) {
-			return htmlspecialchars(json_encode($value));
-		}
+        if (!is_resource($value)) {
+            return htmlspecialchars(json_encode($value));
+        }
 
-		return '';
-	}
+        return '';
+    }
 
-	/**
-	 * Append DOM node.
-	 *
-	 * @param \Razy\DOM $dom
-	 *
-	 * @return $this
-	 */
-	final public function append(DOM $dom): DOM
-	{
-		$this->nodes[] = $dom;
+    /**
+     * Append DOM node.
+     *
+     * @param DOM $dom
+     *
+     * @return $this
+     */
+    final public function append(DOM $dom): DOM
+    {
+        $this->nodes[] = $dom;
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Prepend DOM node.
-	 *
-	 * @param \Razy\DOM $dom
-	 *
-	 * @return $this
-	 */
-	final public function prepend(DOM $dom): DOM
-	{
-		array_unshift($this->nodes, $dom);
+    /**
+     * Prepend DOM node.
+     *
+     * @param DOM $dom
+     *
+     * @return $this
+     */
+    final public function prepend(DOM $dom): DOM
+    {
+        array_unshift($this->nodes, $dom);
 
-		return $this;
-	}
+        return $this;
+    }
 }

@@ -10,7 +10,7 @@
  */
 
 return [
-	'processor' => function ($value) {
-		return strtolower($value);
-	},
+    'processor' => function ($value) {
+        return strtolower($value);
+    },
 ];

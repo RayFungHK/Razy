@@ -10,23 +10,23 @@
  */
 
 return [
-	'enclose_content' => false,
-	'bypass_parser'   => false,
-	'parameters'      => [
-		'name'  => '',
-		'value' => '',
-	],
-	'processor' => function (string $content, array $parameters) {
-		$parameters['name'] = trim($parameters['name']);
+    'enclose_content' => false,
+    'bypass_parser'   => false,
+    'parameters'      => [
+        'name'  => '',
+        'value' => '',
+    ],
+    'processor' => function (string $content, array $parameters) {
+        $parameters['name'] = trim($parameters['name']);
 
-		if (!$parameters['name']) {
-			return '';
-		}
+        if (!$parameters['name']) {
+            return '';
+        }
 
-		$this->assign([
-			$parameters['name'] => $parameters['value'] ?? null,
-		]);
+        $this->assign([
+            $parameters['name'] => $parameters['value'] ?? null,
+        ]);
 
-		return '';
-	},
+        return '';
+    },
 ];

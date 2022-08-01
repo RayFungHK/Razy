@@ -10,7 +10,7 @@
  */
 
 return function ($value, string $type = '') {
-	$type = strtolower($type);
+    $type = strtolower($type);
 
-	return gettype($value) === $type;
+    return gettype($value) === $type;
 };

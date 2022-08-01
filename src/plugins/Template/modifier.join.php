@@ -10,7 +10,7 @@
  */
 
 return [
-	'processor' => function ($value, string $separator = ',') {
-		return implode($separator, $value);
-	},
+    'processor' => function ($value, string $separator = ',') {
+        return implode($separator, $value);
+    },
 ];

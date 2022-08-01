@@ -10,9 +10,9 @@
  */
 
 return function ($value) {
-	if (is_string($value)) {
-		return trim($value);
-	}
+    if (is_string($value)) {
+        return trim($value);
+    }
 
-	return $value;
+    return $value;
 };

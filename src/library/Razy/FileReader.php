@@ -15,81 +15,81 @@ use SplFileObject;
 
 class FileReader
 {
-	/**
-	 * @var SplFileObject[]
-	 */
-	private array $generator = [];
+    /**
+     * @var SplFileObject[]
+     */
+    private array $generator = [];
 
-	/**
-	 * FileReader constructor.
-	 *
-	 * @param string $filepath
-	 *
-	 * @throws \Razy\Error
-	 */
-	public function __construct(string $filepath)
-	{
-		if (!is_file($filepath)) {
-			throw new Error('The file ' . $filepath . ' does not exists.');
-		}
+    /**
+     * FileReader constructor.
+     *
+     * @param string $filepath
+     *
+     * @throws Error
+     */
+    public function __construct(string $filepath)
+    {
+        if (!is_file($filepath)) {
+            throw new Error('The file ' . $filepath . ' does not exists.');
+        }
 
-		$this->generator[] = new SplFileObject($filepath);
-	}
+        $this->generator[] = new SplFileObject($filepath);
+    }
 
-	/**
-	 * Prepend a new file into generator.
-	 *
-	 * @param string $filepath
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return \Razy\FileReader
-	 */
-	public function prepend(string $filepath): FileReader
-	{
-		if (!is_file($filepath)) {
-			throw new Error('The file ' . $filepath . ' does not exists.');
-		}
+    /**
+     * Prepend a new file into generator.
+     *
+     * @param string $filepath
+     *
+     * @return FileReader
+     *@throws Error
+     *
+     */
+    public function prepend(string $filepath): FileReader
+    {
+        if (!is_file($filepath)) {
+            throw new Error('The file ' . $filepath . ' does not exists.');
+        }
 
-		array_unshift($this->generator, new SplFileObject($filepath));
+        array_unshift($this->generator, new SplFileObject($filepath));
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Append a new file into generator.
-	 *
-	 * @param string $filepath
-	 *
-	 * @throws \Razy\Error
-	 *
-	 * @return \Razy\FileReader
-	 */
-	public function append(string $filepath): FileReader
-	{
-		if (!is_file($filepath)) {
-			throw new Error('The file ' . $filepath . ' does not exists.');
-		}
+    /**
+     * Append a new file into generator.
+     *
+     * @param string $filepath
+     *
+     * @return FileReader
+     *@throws Error
+     *
+     */
+    public function append(string $filepath): FileReader
+    {
+        if (!is_file($filepath)) {
+            throw new Error('The file ' . $filepath . ' does not exists.');
+        }
 
-		$this->generator[] = new SplFileObject($filepath);
+        $this->generator[] = new SplFileObject($filepath);
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Fetch the next line of the files in queue.
-	 *
-	 * @return null|string
-	 */
-	public function fetch(): ?string
-	{
-		while (!$this->generator[0]->valid()) {
-			array_shift($this->generator);
-			if (empty($this->generator)) {
-				return null;
-			}
-		}
+    /**
+     * Fetch the next line of the files in queue.
+     *
+     * @return null|string
+     */
+    public function fetch(): ?string
+    {
+        while (!$this->generator[0]->valid()) {
+            array_shift($this->generator);
+            if (empty($this->generator)) {
+                return null;
+            }
+        }
 
-		return $this->generator[0]->fgets();
-	}
+        return $this->generator[0]->fgets();
+    }
 }

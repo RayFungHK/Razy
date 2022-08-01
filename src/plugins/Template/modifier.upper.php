@@ -10,7 +10,7 @@
  */
 
 return [
-	'processor' => function ($value) {
-		return strtoupper($value);
-	},
+    'processor' => function ($value) {
+        return strtoupper($value);
+    },
 ];

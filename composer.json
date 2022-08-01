@@ -10,7 +10,11 @@
     }
   ],
   "require": {
-    "php": "^7.4 || ^8.0"
+    "php": "^7.4 || ^8.0",
+    "ext-zip": "*",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "friendsofphp/php-cs-fixer": "*",
   },
   "autoload": {
     "psr-4": {

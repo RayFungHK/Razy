@@ -16,87 +16,87 @@ use PDOStatement;
 
 class Query
 {
-	/**
-	 * @var Statement
-	 */
-	private Statement $statement;
+    /**
+     * @var Statement
+     */
+    private Statement $statement;
 
-	/**
-	 * @var PDOStatement
-	 */
-	private PDOStatement $pdoStatement;
+    /**
+     * @var PDOStatement
+     */
+    private PDOStatement $pdoStatement;
 
-	/**
-	 * Query constructor.
-	 *
-	 * @param Statement    $statement
-	 * @param PDOStatement $pdoStatement
-	 */
-	public function __construct(Statement $statement, PDOStatement $pdoStatement)
-	{
-		$this->statement    = $statement;
-		$this->pdoStatement = $pdoStatement;
-	}
+    /**
+     * Query constructor.
+     *
+     * @param Statement    $statement
+     * @param PDOStatement $pdoStatement
+     */
+    public function __construct(Statement $statement, PDOStatement $pdoStatement)
+    {
+        $this->statement    = $statement;
+        $this->pdoStatement = $pdoStatement;
+    }
 
-	/**
-	 * Fetch all result.
-	 *
-	 * @param string $type the type of the result will be returned
-	 *
-	 * @return array
-	 */
-	public function fetchAll(string $type = ''): array
-	{
-		if ('group' === $type) {
-			return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
-		}
+    /**
+     * Fetch all result.
+     *
+     * @param string $type the type of the result will be returned
+     *
+     * @return array
+     */
+    public function fetchAll(string $type = ''): array
+    {
+        if ('group' === $type) {
+            return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
+        }
 
-		if ('keypair' === $type) {
-			return $this->pdoStatement->fetchAll(PDO::FETCH_KEY_PAIR);
-		}
+        if ('keypair' === $type) {
+            return $this->pdoStatement->fetchAll(PDO::FETCH_KEY_PAIR);
+        }
 
-		return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC);
-	}
+        return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+    }
 
-	/**
-	 * Fetch the result.
-	 *
-	 * @param array $mapping a set of column would be fetched as result
-	 *
-	 * @return mixed
-	 */
-	public function fetch(array $mapping = [])
-	{
-		if (count($mapping) > 0) {
-			foreach ($mapping as $name => $column) {
-				$mapping[$name] = null;
-				$this->pdoStatement->bindColumn($column, $mapping[$name]);
-			}
-			$this->pdoStatement->fetch(PDO::FETCH_BOUND);
+    /**
+     * Fetch the result.
+     *
+     * @param array $mapping a set of column would be fetched as result
+     *
+     * @return mixed
+     */
+    public function fetch(array $mapping = [])
+    {
+        if (count($mapping) > 0) {
+            foreach ($mapping as $name => $column) {
+                $mapping[$name] = null;
+                $this->pdoStatement->bindColumn($column, $mapping[$name]);
+            }
+            $this->pdoStatement->fetch(PDO::FETCH_BOUND);
 
-			return $mapping;
-		}
+            return $mapping;
+        }
 
-		return $this->pdoStatement->fetch(PDO::FETCH_ASSOC);
-	}
+        return $this->pdoStatement->fetch(PDO::FETCH_ASSOC);
+    }
 
-	/**
-	 * Get the affected row.
-	 *
-	 * @return int
-	 */
-	public function affected(): int
-	{
-		return $this->pdoStatement->rowCount();
-	}
+    /**
+     * Get the affected row.
+     *
+     * @return int
+     */
+    public function affected(): int
+    {
+        return $this->pdoStatement->rowCount();
+    }
 
-	/**
-	 * Get the Statement object.
-	 *
-	 * @return Statement
-	 */
-	public function getStatement(): Statement
-	{
-		return $this->statement;
-	}
+    /**
+     * Get the Statement object.
+     *
+     * @return Statement
+     */
+    public function getStatement(): Statement
+    {
+        return $this->statement;
+    }
 }
