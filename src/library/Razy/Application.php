@@ -119,7 +119,7 @@ class Application
         self::$multisite = [];
         self::$registeredDist = [];
         // Load the site configuration file
-        $config = require SYSTEM_ROOT . DIRECTORY_SEPARATOR . 'sites.inc.php';
+        $config = include SYSTEM_ROOT . DIRECTORY_SEPARATOR . 'sites.inc.php';
 
         // Load extra alias and map to configured domain
         $aliasMapping = [];

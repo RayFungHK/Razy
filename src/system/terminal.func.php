@@ -43,7 +43,7 @@ function writeSiteConfig(string $configFilePath, array $config): bool
     }
 
     try {
-        $file = fopen($configFilePath, 'c');
+        $file = fopen($configFilePath, 'w');
         if (!$file) {
             throw new Exception("Can't create lock file!");
         }
