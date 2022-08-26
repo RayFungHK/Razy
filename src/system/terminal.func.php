@@ -146,7 +146,7 @@ function executeTerminal(string $command, array $argv = [], array $parameters = 
     if (is_file($closureFilePath)) {
         try {
             $closure = include $closureFilePath;
-            (new Terminal($command))->setProcessor($closure)->run($argv);
+            (new Terminal($command))->run($closure, $argv, $parameters);
         } catch (Exception $e) {
             return false;
         }

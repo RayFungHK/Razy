@@ -14,6 +14,7 @@ use Closure;
 use DateTime;
 use Exception;
 use Razy\Terminal\Table;
+use Razy\Terminal\Processor;
 
 class Terminal
 {
@@ -63,11 +64,6 @@ class Terminal
      * @var null|Terminal
      */
     private ?Terminal $parent;
-
-    /**
-     * @var Closure
-     */
-    private Closure $processor;
 
     /**
      * @var bool
@@ -129,24 +125,13 @@ class Terminal
 
     /**
      * @param Closure $callback
-     *
-     * @return $this
-     */
-    public function setProcessor(Closure $callback): Terminal
-    {
-        $this->processor = $callback->bindTo($this);
-
-        return $this;
-    }
-
-    /**
      * @param array $args
-     *
+     * @param array $parameters
      * @return $this
      */
-    public function run(array $args = []): Terminal
+    public function run(Closure $callback, array $args = [], array $parameters = []): Terminal
     {
-        call_user_func_array($this->processor, $args);
+        (new Processor($callback, $parameters))->run($args);
 
         return $this;
     }
