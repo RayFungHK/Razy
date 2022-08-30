@@ -322,9 +322,11 @@ class Application
                     0 => 'Disabled',
                     1 => 'Initialing',
                     2 => 'Enabled',
-                    3 => 'Loaded',
-                    4 => 'Disabled',
-                    5 => 'Failed',
+                    3 => 'Waiting Validation',
+                    4 => 'Preloading',
+                    5 => 'Loaded',
+                    -1 => 'Unloaded',
+                    -2 => 'Failed',
                 ];
                 foreach ($modules as $module) {
                     $info[] = [

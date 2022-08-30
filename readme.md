@@ -489,12 +489,14 @@ The following table is the injection and the path between each class.
 
 * There is a `Pilot` object used to configure route, API or event on `__onInit()` stage. When the `Controller` method is called, `Module` will bind the closure to `Controller`'s inherited object instead of the abstract class of `Controller`. It can prevent the inherited `Controller` object includes its closure to access private method or property in abstract class.
 
-## Controller Event
-|Event|Description
-|---|---|
-|__onInit(): bool|Trigger after the module is loaded, return false to mark the module as unloaded
-|__onReady(): void|When all modules are loaded, API and Event will enable and all the modules will be triggered once.
-|__onRoute(): bool|Only trigger when the module route is matched with the URL query, return false to refuse the matching.
-|__onAPICall(): bool|Only trigger when the module's API is called, return false to refuse the API.
-|__onTrigger(): bool|Only trigger when the module's listening event is called, return false to refuse the event trigger.
-|__onError(): void|Only trigger when the module's throw any error.
+## Controller Event & Priority
+| Event                |Description
+|----------------------|---|
+| __onValidate(): bool |Trigger after the module is loaded, return false to put the module into the preload stage.
+| __onPreload(): bool  |Trigger when the module has returned false in `__onValidate()`. Return false to refuse to enter routing stage.
+| __onInit(): bool     |Trigger when all modules are validated, return false to mark the module as unloaded
+| __onReady(): void    |When all modules are loaded, API and Event will enable and all the modules will be triggered once.
+| __onRoute(): bool    |Only trigger when the module route is matched with the URL query, return false to refuse the matching.
+| __onAPICall(): bool  |Only trigger when the module's API is called, return false to refuse the API.
+| __onTrigger(): bool  |Only trigger when the module's listening event is called, return false to refuse the event trigger.
+| __onError(): void    |Only trigger when the module's throw any error.

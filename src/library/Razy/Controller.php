@@ -46,6 +46,26 @@ abstract class Controller
     }
 
     /**
+     * Trigger before routing stage, return false to put the module into preload stage.
+     * @param Pilot $pilot
+     * @return bool
+     */
+    public function __onValidate(Pilot $pilot): bool
+    {
+        return true;
+    }
+
+    /**
+     * Trigger in preload stage, used to setup the module. Return false to prevent enter the routing stage, the remaining modules in queue will not trigger the preload event.
+     * @param Pilot $pilot
+     * @return bool
+     */
+    public function __onPreload(Pilot $pilot): bool
+    {
+        return true;
+    }
+
+    /**
      * Controller Event __onInit, will be executed if the module is loaded. Return false to mark the module loaded
      * failed.
      *
@@ -81,7 +101,7 @@ abstract class Controller
     /**
      * Handling the error of the closure.
      *
-     * @param string    $path
+     * @param string $path
      * @param Throwable $exception
      *
      * @throws Throwable
@@ -97,7 +117,7 @@ abstract class Controller
      *
      * @param string $module The module code that is accessed via API
      * @param string $method The command method will be called via API
-     * @param string $fqdn   The well-formatted FQDN string include the domain name and distributor code
+     * @param string $fqdn The well-formatted FQDN string include the domain name and distributor code
      *
      * @return bool Return false to refuse API access
      */
@@ -110,12 +130,12 @@ abstract class Controller
      * Controller method bridge. When the method called which is not declared, Controller will
      * inject the Closure from the specified path that configured in __onInit state.
      *
-     * @param string $method    The string of the method name which is called
-     * @param array  $arguments The arguments will pass to the method
-     *
-     * @throws Throwable
+     * @param string $method The string of the method name which is called
+     * @param array $arguments The arguments will pass to the method
      *
      * @return mixed The return result of the method
+     * @throws Throwable
+     *
      */
     final public function __call(string $method, array $arguments)
     {
@@ -128,7 +148,7 @@ abstract class Controller
         $path = append($this->module->getPath(), 'controller', $this->module->getCode() . '.' . $method . '.php');
         if (is_file($path)) {
             /** @var Closure $closure */
-	        $closure = require $path;
+            $closure = require $path;
             if (!is_callable($closure) && $closure instanceof Closure) {
                 throw new Error('The object is not a Closure.');
             }
@@ -182,11 +202,11 @@ abstract class Controller
      * Execute the API command.
      *
      * @param string $command The API command
-     * @param mixed  ...$args The arguments will pass to the API
-     *
-     * @throws Throwable
+     * @param mixed ...$args The arguments will pass to the API
      *
      * @return mixed Return the result from the API command
+     * @throws Throwable
+     *
      */
     final public function api(string $command, ...$args)
     {
@@ -196,7 +216,7 @@ abstract class Controller
     /**
      * Prepare the EventEmitter to trigger the event.
      *
-     * @param string   $event    The name of the event
+     * @param string $event The name of the event
      * @param callable $callback the callback to execute when the EventEmitter start to resolve
      *
      * @return EventEmitter The EventEmitter instance
@@ -211,9 +231,9 @@ abstract class Controller
      *
      * @param string $fqdn The well-formatted FQDN string
      *
+     * @return null|API return the API instance if the Application is connected successfully
      * @throws Throwable
      *
-     * @return null|API return the API instance if the Application is connected successfully
      */
     final public function connect(string $fqdn): ?API
     {
@@ -281,7 +301,7 @@ abstract class Controller
      */
     final public function load(string $path): Template\Source
     {
-        $path     = append($this->module->getPath(), 'view', $path);
+        $path = append($this->module->getPath(), 'view', $path);
         $filename = basename($path);
         if (!preg_match('/[^.]+\..+/', $filename)) {
             $path .= '.tpl';
@@ -316,9 +336,9 @@ abstract class Controller
     /**
      * Get the Configuration entity.
      *
+     * @return Configuration
      * @throws Error
      *
-     * @return Configuration
      */
     final public function getModuleConfig(): Configuration
     {
@@ -353,6 +373,26 @@ abstract class Controller
     final public function xhr(): XHR
     {
         return new XHR();
+    }
+
+    /**
+     * @return string
+     */
+    final public function landing(): string
+    {
+        return $this->module->landing();
+    }
+
+    /**
+     * Redirect to specified path in the module
+     *
+     * @param string $path
+     * @return void
+     */
+    final public function goto(string $path)
+    {
+        header('location: ' . append($this->getLazyRootURL(), $path), true, 301);
+        exit;
     }
 
     /**

@@ -107,18 +107,18 @@ class Distributor
     /**
      * Distributor constructor.
      *
-     * @param string      $folderPath The folder path of the distributor
-     * @param null|Domain $domain     The Domain Instance
-     * @param string      $urlPath    The URL path of the distributor
-     * @param string      $urlQuery   The URL Query string
+     * @param string $folderPath The folder path of the distributor
+     * @param null|Domain $domain The Domain Instance
+     * @param string $urlPath The URL path of the distributor
+     * @param string $urlQuery The URL Query string
      *
      * @throws Throwable
      */
     public function __construct(string $folderPath, ?Domain $domain = null, string $urlPath = '', string $urlQuery = '/')
     {
         $this->folderPath = append(SITES_FOLDER, $folderPath);
-        $this->urlPath    = $urlPath;
-        $this->urlQuery   = tidy($urlQuery, false, '/');
+        $this->urlPath = $urlPath;
+        $this->urlQuery = tidy($urlQuery, false, '/');
         if (!$this->urlQuery) {
             $this->urlQuery = '/';
         }
@@ -148,7 +148,7 @@ class Distributor
                 // Remove self
                 array_pop(self::$stacking);
 
-                $peerDomain       = $peer->getDomain()->getDomainName();
+                $peerDomain = $peer->getDomain()->getDomainName();
                 $acceptConnection = false;
                 // Load the external config in data path by its distribution folder: $this->getDataPath()
                 foreach ($config['whitelist'] ?? [] as $whitelist) {
@@ -180,17 +180,17 @@ class Distributor
         if (is_array($config['enable_module'])) {
             foreach ($config['enable_module'] as $moduleCode => $version) {
                 $moduleCode = trim($moduleCode);
-                $version    = trim($version);
+                $version = trim($version);
                 if (strlen($moduleCode) > 0 && strlen($version) > 0) {
                     $this->enableModules[$moduleCode] = $version;
                 }
             }
         }
 
-        $config['autoload_shared'] = (bool) ($config['autoload_shared'] ?? false);
-        $this->autoloadShared      = $config['autoload_shared'];
+        $config['autoload_shared'] = (bool)($config['autoload_shared'] ?? false);
+        $this->autoloadShared = $config['autoload_shared'];
 
-        $this->greedy = (bool) ($config['greedy'] ?? false);
+        $this->greedy = (bool)($config['greedy'] ?? false);
 
         // Load all modules into the pending list
         $this->loadModule($this->folderPath);
@@ -210,38 +210,58 @@ class Distributor
             }
         }
 
+        $preloadQueue = [];
+        // Validate all modules
+        foreach ($this->modules as $module) {
+            if (!$module->validate()) {
+                $preloadQueue[] = $module;
+            }
+        }
+
         $this->setSession();
-        // If the distributor is under a domain, initial all modules.
-        if ($this->domain) {
-            foreach ($this->modules as $module) {
-                if (Module::STATUS_READY === $module->getStatus()) {
-                    // Notify module that the system is ready
-                    $module->notify();
+
+        // Preload all modules, if the module preload event return false, the preload queue will stop and not enter the routing stage.
+        $allSettled = true;
+        if (!empty($preloadQueue)) {
+            foreach ($preloadQueue as $module) {
+                if (!$module->preload()) {
+                    $allSettled = false;
+                    break;
                 }
             }
         }
 
-        // Convert the regex route
-        $regexRoute       = $this->regexRoute;
-        $this->regexRoute = [];
-
-        sort_path_level($regexRoute);
-        foreach ($regexRoute as $route => $data) {
-            $route = tidy($route, true, '/');
-            $route = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
-                if (strlen($matches[2] ?? '') > 0) {
-                    $regex = $matches[2];
-                } else {
-                    $regex = ('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1];
+        if ($allSettled) {
+            // If the distributor is under a domain, initial all modules.
+            if ($this->domain) {
+                foreach ($this->modules as $module) {
+                    // Notify module that the system is ready
+                    $module->notify();
                 }
+            }
 
-                $regex .= (0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+';
+            // Convert the regex route
+            $regexRoute = $this->regexRoute;
+            $this->regexRoute = [];
 
-                return $regex;
-            }, $route);
+            sort_path_level($regexRoute);
+            foreach ($regexRoute as $route => $data) {
+                $route = tidy($route, true, '/');
+                $route = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
+                    if (strlen($matches[2] ?? '') > 0) {
+                        $regex = $matches[2];
+                    } else {
+                        $regex = ('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1];
+                    }
 
-            $route                    = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
-            $this->regexRoute[$route] = $data;
+                    $regex .= (0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+';
+
+                    return $regex;
+                }, $route);
+
+                $route = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
+                $this->regexRoute[$route] = $data;
+            }
         }
     }
 
@@ -301,11 +321,11 @@ class Distributor
     {
         if (preg_match('/^Razy\\\\(?:Module\\\\' . $this->code . '|Shared)\\\\([^\\\\]+)\\\\(.+)/', $className, $matches)) {
             $moduleCode = $matches[1];
-            $className  = $matches[2];
+            $className = $matches[2];
             // Try to load the class from the module library
             if (isset($this->modules[$moduleCode])) {
                 $module = $this->modules[$moduleCode];
-                $path   = append($module->getPath(), 'library');
+                $path = append($module->getPath(), 'library');
                 if (is_dir($path)) {
                     $libraryPath = append($path, $className . '.php');
                     if (is_file($libraryPath)) {
@@ -392,11 +412,37 @@ class Distributor
     }
 
     /**
+     * @param Module $module
+     * @return string
+     */
+    public function landing(Module $module): string
+    {
+        sort_path_level($this->lazyRoute);
+        foreach ($this->regexRoute as $regex => $data) {
+            if ($data['module']->getCode() === $module->getCode()) {
+                if (1 === preg_match($regex, $this->urlQuery, $matches)) {
+                    return $regex;
+                }
+            }
+        }
+
+        $urlQuery = $this->urlQuery;
+        foreach ($this->lazyRoute as $route => $data) {
+            if ($data['module']->getCode() === $module->getCode()) {
+                if (0 === strpos($urlQuery, $route)) {
+                    return $route;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Match the registered route and execute the matched path.
      *
-     * @throws Throwable
-     *
      * @return bool
+     * @throws Throwable
      */
     public function matchRoute(): bool
     {
@@ -439,7 +485,7 @@ class Distributor
             if (0 === strpos($urlQuery, $route)) {
                 // Extract the url query string when the route is matched
                 $urlQuery = rtrim(substr($urlQuery, strlen($route)), '/');
-                $args     = explode('/', $urlQuery);
+                $args = explode('/', $urlQuery);
 
                 /** @var Module $module */
                 $module = $data['module'];
@@ -495,8 +541,8 @@ class Distributor
      * Set up the lazy route.
      *
      * @param Module $module The module entity
-     * @param string $route  The route path string
-     * @param string $path   The closure path of method
+     * @param string $route The route path string
+     * @param string $path The closure path of method
      *
      * @return $this
      */
@@ -504,7 +550,7 @@ class Distributor
     {
         $this->lazyRoute[$route] = [
             'module' => $module,
-            'path'   => $path,
+            'path' => $path,
         ];
 
         return $this;
@@ -523,7 +569,7 @@ class Distributor
     {
         $this->regexRoute[$route] = [
             'module' => $module,
-            'path'   => $path,
+            'path' => $path,
         ];
 
         return $this;
@@ -555,11 +601,11 @@ class Distributor
      * Extract the command and pass the arguments to matched module.
      *
      * @param string $command The API command
-     * @param array  $args    The arguments will pass to API command
-     *
-     * @throws Throwable
+     * @param array $args The arguments will pass to API command
      *
      * @return null|mixed
+     * @throws Throwable
+     *
      */
     public function execute(string $command, array $args)
     {
@@ -569,7 +615,7 @@ class Distributor
         }
 
         [$moduleCode, $command] = explode('.', $command);
-        $module                 = $this->enabledModule[$moduleCode] ?? null;
+        $module = $this->enabledModule[$moduleCode] ?? null;
 
         if (null !== $module) {
             /** @var Module $module */
@@ -629,9 +675,9 @@ class Distributor
      *
      * @param string $fqdn The well-formatted FQDN string
      *
+     * @return null|API
      * @throws Throwable
      *
-     * @return null|API
      */
     public function connect(string $fqdn): ?API
     {
@@ -641,8 +687,8 @@ class Distributor
     /**
      * Create an EventEmitter.
      *
-     * @param Module   $module   The module instance
-     * @param string   $event    The event name
+     * @param Module $module The module instance
+     * @param string $event The event name
      * @param callable $callback The callback will be executed when the event is resolved
      *
      * @return EventEmitter
@@ -690,9 +736,9 @@ class Distributor
      *
      * @param Closure $closure
      *
+     * @return bool
      * @throws Error
      *
-     * @return bool
      */
     public function validatePackage(Closure $closure): bool
     {
@@ -924,7 +970,6 @@ class Distributor
      *
      * @return bool
      * @throws Throwable
-     *
      */
     private function activate(Module $module): bool
     {

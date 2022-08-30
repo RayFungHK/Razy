@@ -42,10 +42,6 @@ class Pilot
      */
     public function addAPI($command, ?string $path = null): self
     {
-        if (Module::STATUS_INITIALING !== $this->module->getStatus()) {
-            throw new Error('The module is not in initialize status');
-        }
-
         if (is_array($command)) {
             foreach ($command as $_command => $_path) {
                 if (is_string($_path)) {
@@ -76,10 +72,6 @@ class Pilot
      */
     public function listen($event, ?string $path = null): self
     {
-        if (Module::STATUS_INITIALING !== $this->module->getStatus()) {
-            throw new Error('The module is not in initialize status');
-        }
-
         if (is_array($event)) {
             foreach ($event as $_event => $_path) {
                 $this->listen($_event, $_path);
@@ -119,10 +111,6 @@ class Pilot
      */
     public function addRoute($route, $path = null): self
     {
-        if (Module::STATUS_INITIALING !== $this->module->getStatus()) {
-            throw new Error('The module is not in initialize status');
-        }
-
         if (is_array($route)) {
             foreach ($route as $_route => $_method) {
                 if (is_string($_method)) {
@@ -161,10 +149,6 @@ class Pilot
      */
     public function addLazyRoute($route, $path = null): self
     {
-        if (Module::STATUS_INITIALING !== $this->module->getStatus()) {
-            throw new Error('The module is not in initialize status');
-        }
-
         if (is_array($route)) {
             foreach ($route as $_route => $_method) {
                 $this->addLazyRoute($_route, $_method);
@@ -206,15 +190,10 @@ class Pilot
      * @param null|string  $path
      *
      * @return $this
-     *@throws Error
-     *
+     * @throws Error
      */
     public function bind($method, ?string $path = null): Pilot
     {
-        if (Module::STATUS_INITIALING !== $this->module->getStatus()) {
-            throw new Error('The module is not in initialize status');
-        }
-
         if (is_array($method)) {
             foreach ($method as $_method => $_path) {
                 $this->bind($_method, $_path);

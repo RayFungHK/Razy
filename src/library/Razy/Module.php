@@ -33,19 +33,29 @@ class Module
     public const STATUS_READY = 2;
 
     /**
-     * The module is loaded successfully.
+     * Some error cause, the module is not loaded.
      */
-    public const STATUS_LOADED = 3;
-
-    /**
-     * The module is unloaded, version not match the requirement or not in whitelist.
-     */
-    public const STATUS_UNLOADED = 4;
+    public const STATUS_WAITING_VALIDATE = 3;
 
     /**
      * Some error cause, the module is not loaded.
      */
-    public const STATUS_FAILED = 5;
+    public const STATUS_PRELOADING = 4;
+
+    /**
+     * The module is loaded successfully.
+     */
+    public const STATUS_LOADED = 5;
+
+    /**
+     * The module is unloaded, version not match the requirement or not in whitelist.
+     */
+    public const STATUS_UNLOADED = -1;
+
+    /**
+     * Some error cause, the module is not loaded.
+     */
+    public const STATUS_FAILED = -2;
 
     /**
      * @var Distributor
@@ -345,8 +355,10 @@ class Module
                     }
 
                     $this->status = self::STATUS_INITIALING;
-                    $this->status = (!$this->controller->__onInit($this->pilot)) ? self::STATUS_FAILED : self::STATUS_LOADED;
+                    $this->status = (!$this->controller->__onInit($this->pilot)) ? self::STATUS_FAILED : self::STATUS_WAITING_VALIDATE;
 
+                    // Seal the pilot
+                    $this->pilot = clone $this->pilot;
                     return true;
                 }
 
@@ -357,6 +369,24 @@ class Module
         }
 
         return true;
+    }
+
+    /**
+     * Validate the module is ready to initial, if the event return false, it will put the module into preload list.
+     * @return bool
+     */
+    public function validate(): bool
+    {
+        if (!$this->controller->__onValidate($this->pilot)) {
+            $this->status = self::STATUS_PRELOADING;
+            return false;
+        }
+        return true;
+    }
+
+    public function preload(): bool
+    {
+        return $this->controller->__onPreload($this->pilot);
     }
 
     /**
@@ -372,10 +402,8 @@ class Module
      */
     public function notify(): void
     {
-        if (self::STATUS_READY === $this->status) {
-            $this->controller->__onReady();
-            $this->status = self::STATUS_LOADED;
-        }
+        $this->controller->__onReady();
+        $this->status = self::STATUS_LOADED;
     }
 
     /**
@@ -828,6 +856,14 @@ class Module
         $this->distributor->setRedirect($url);
 
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function landing(): string
+    {
+        return $this->distributor->landing($this);
     }
 
     /**
