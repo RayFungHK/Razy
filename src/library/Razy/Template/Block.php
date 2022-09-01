@@ -231,7 +231,7 @@ class Block
      *
      * @return Block The Block object
      */
-    public function getBlock(string $name): Block
+    public function getBlock(string $name, bool $templateOnly = true): Block
     {
         $name = trim($name);
         if (!$this->hasBlock($name)) {
@@ -259,6 +259,39 @@ class Block
     public function getStructure(): array
     {
         return $this->structure;
+    }
+
+    /**
+     * Get the template block by given name
+     *
+     * @param string $name
+     * @return Block|null
+     * @throws Throwable
+     */
+    public function getTemplate(string $name): ?Block
+    {
+        $parent = $this;
+        do {
+            if ($parent->hasBlock($name)) {
+                $block = $parent->getBlock($name);
+                // Only template block is readonly
+                if ($block->isReadonly()) {
+                    return $block;
+                }
+            }
+        } while (($parent = $this->parent) !== null);
+
+        return null;
+    }
+
+    /**
+     * Return a new Entity object related on this Block
+     *
+     * @return Entity
+     */
+    public function newEntity(): Entity
+    {
+        return new Entity($this);
     }
 
     /**

@@ -24,48 +24,42 @@ class Entity
     /**
      * The Block object.
      *
-     * @var Block
      */
     private Block $block;
 
     /**
      * The parent entity.
      *
-     * @var null|Entity
      */
     private ?Entity $parent;
 
     /**
      * The entity id.
      *
-     * @var string
      */
     private string $id;
 
     /**
      * An array contains the entity parameters.
      *
-     * @var array
      */
     private array $parameters = [];
 
     /**
      * An array contains the sub entity under current entity.
      *
-     * @var array
      */
     private array $entities = [];
 
     /**
-     * @var array
      */
     private array $caches = [];
 
     /**
      * Entity constructor.
      *
-     * @param Block     $block  The Block object
-     * @param string    $id     The entity id
+     * @param Block $block The Block object
+     * @param string $id The entity id
      * @param null|self $parent The parent Entity object
      */
     public function __construct(Block $block, string $id = '', self $parent = null)
@@ -105,7 +99,7 @@ class Entity
      * Remove the entity by given block name and entity id.
      *
      * @param string $blockName The block name under current block level
-     * @param string $id        The entity id
+     * @param string $id The entity id
      *
      * @return self Chainable
      */
@@ -134,11 +128,11 @@ class Entity
      * Create a new block or return the Entity instance by the given id that the Entity is matched.
      *
      * @param string $blockName The block name under current block level
-     * @param string $id        The entity id
-     *
-     * @throws Throwable
+     * @param string $id The entity id
      *
      * @return Entity The Entity object
+     * @throws Throwable
+     *
      */
     public function newBlock(string $blockName, string $id = ''): Entity
     {
@@ -166,11 +160,11 @@ class Entity
      * Assign the entity level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value     The parameter value
-     *
-     * @throws Throwable
+     * @param mixed $value The parameter value
      *
      * @return self Chainable
+     * @throws Throwable
+     *
      */
     public function assign($parameter, $value = null): Entity
     {
@@ -194,11 +188,10 @@ class Entity
     }
 
     /**
-     * @param string $parameter
-     * @param null   $value
+     * @param null $value
      *
      * @return $this
-     *@throws Throwable
+     * @throws Throwable
      *
      */
     public function bind(string $parameter, &$value): Entity
@@ -211,9 +204,9 @@ class Entity
     /**
      * Process and return the block content, and the parameter tag and function tag will be replaced.
      *
+     * @return string The processed block content
      * @throws Throwable
      *
-     * @return string The processed block content
      */
     public function process(): string
     {
@@ -237,9 +230,9 @@ class Entity
      *
      * @param string $content A clip of block content
      *
+     * @return string The block content which has replaced the parameter tag
      * @throws Throwable
      *
-     * @return string The block content which has replaced the parameter tag
      */
     public function parseText(string $content): string
     {
@@ -255,11 +248,8 @@ class Entity
     /**
      * Parse the text or parameter pattern into a value.
      *
-     * @param string $content
-     *
-     * @throws Throwable
-     *
      * @return mixed The value of the parameter
+     * @throws Throwable
      */
     public function parseValue(string $content)
     {
@@ -286,7 +276,7 @@ class Entity
      * Return the parameter value.
      *
      * @param string $parameter The parameter name
-     * @param bool   $recursion Enable to get the value recursively
+     * @param bool $recursion Enable to get the value recursively
      *
      * @return mixed The parameter value
      */
@@ -335,7 +325,7 @@ class Entity
      * @param string $path The block path
      *
      * @return array An array contains matched entity
-     *@throws Error
+     * @throws Error
      *
      */
     public function find(string $path): array
@@ -419,7 +409,7 @@ class Entity
      * Check if current contains specified entity by the given block name.
      *
      * @param string $blockName The block name to obtain its entity
-     * @param string $identity  The identity of the entity
+     * @param string $identity The identity of the entity
      *
      * @return bool Return true if exists
      */
@@ -437,7 +427,6 @@ class Entity
      *
      * @param string $blockName The block name to obtain its entity
      *
-     * @return int
      */
     public function getEntityCount(string $blockName): int
     {
@@ -448,7 +437,7 @@ class Entity
      * Get specify entity by the given block name and identity.
      *
      * @param string $blockName The block name to obtain its entity
-     * @param string $identity  The identity of the entity
+     * @param string $identity The identity of the entity
      *
      * @return Entity A sub-block Entity
      */
@@ -458,11 +447,25 @@ class Entity
     }
 
     /**
-     * @return string Get the template file location
+     * Get the template file location
+     *
+     * @return string
      */
     public function getFileLocation(): string
     {
         return $this->block->getFileLocation();
+    }
+
+    /**
+     * Get the template block content by given name
+     *
+     * @param string $name
+     * @return Block|null
+     * @throws Throwable
+     */
+    public function getTemplate(string $name): ?Block
+    {
+        return $this->block->getTemplate($name);
     }
 
     /**
@@ -489,12 +492,12 @@ class Entity
     /**
      * Parse the function tag if the specified plugin is loaded.
      *
-     * @param string      $content   A clip of block content
+     * @param string $content A clip of block content
      * @param null|Plugin $enclosure The enclosure Plugin instance
      *
+     * @return string The block content which has replaced the function tag
      * @throws Throwable
      *
-     * @return string The block content which has replaced the function tag
      */
     private function parseFunctionTag(string &$content, Plugin $enclosure = null): string
     {
@@ -557,13 +560,13 @@ class Entity
     /**
      * Get the value by given parameter name, path and modifier.
      *
-     * @param string $name     The name of the parameter
-     * @param string $path     The path of the array to obtain the value
+     * @param string $name The name of the parameter
+     * @param string $path The path of the array to obtain the value
      * @param string $modifier The modifier syntax
      *
+     * @return null|mixed
      * @throws Throwable
      *
-     * @return null|mixed
      */
     private function parseParameter(string $name, string $path = '', string $modifier = '')
     {

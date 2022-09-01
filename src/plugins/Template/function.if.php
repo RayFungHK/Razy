@@ -21,18 +21,18 @@ return [
     'parameters'      => [],
     'processor'       => function (string $content, array $parameters) {
         $paramText = array_shift($parameters);
-        $clips = SimpleSyntax::ParseParens($paramText);
+        $clips     = SimpleSyntax::ParseParens($paramText);
         /** @var Entity $entity */
         $entity = $this;
 
-        $recursive = function (array $clips) use (&$recursive, $entity) {
-            $value = null;
+        $recursive   = function (array $clips) use (&$recursive, $entity) {
+            $value   = null;
             $reverse = false;
             while ($clip = array_shift($clips)) {
                 if (is_array($clip)) {
                     $value = $recursive($clip);
                     if ($reverse) {
-                        $value = !$value;
+                        $value   = !$value;
                         $reverse = false;
                     }
                 } else {
@@ -40,7 +40,7 @@ return [
                         $operand = $entity->parseValue($matches['value'][0]);
                         if (isset($matches[6]) && strlen($matches[6][0])) {
                             $compare = $entity->parseValue($matches[6][0]);
-                            $value = comparison($operand, $compare, $matches[5][0]);
+                            $value   = comparison($operand, $compare, $matches[5][0]);
                         } else {
                             $value = (is_scalar($operand) && $operand) || (is_array($operand) && !empty($operand));
                         }
@@ -51,7 +51,7 @@ return [
 
                         // If the negative operator is given, reverse the bool of the result
                         if ($reverse) {
-                            $value = !$value;
+                            $value   = !$value;
                             $reverse = false;
                         }
 
@@ -80,8 +80,8 @@ return [
             return $value;
         };
 
-        $split = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $content, 2);
-        $trueText = $split[0];
+        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $content, 2);
+        $trueText  = $split[0];
         $falseText = $split[1] ?? '';
 
         return $this->parseText(($recursive($clips)) ? $trueText : $falseText);

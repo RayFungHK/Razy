@@ -17,32 +17,28 @@ use Throwable;
 class Plugin
 {
     /**
-     * @var bool
      */
     private bool $isLoaded = true;
 
     /**
-     * @var bool
      */
     private bool $enclose = false;
 
     /**
-     * @var array
      */
     private array $parameters = [];
 
     /**
-     * @var Closure
      */
     private Closure $processor;
 
     /**
-     * @var bool
      */
     private bool $bypassParser;
 
+    private bool $extendedParameter;
+
     /**
-     * @var string
      */
     private string $name;
 
@@ -62,8 +58,9 @@ class Plugin
             $this->name = $name;
 
             if ('function' === $type) {
-                $this->enclose      = (bool) ($settings['enclose_content'] ?? false);
-                $this->bypassParser = (bool) ($settings['bypass_parser'] ?? '');
+                $this->enclose           = (bool) ($settings['enclose_content']    ?? false);
+                $this->bypassParser      = (bool) ($settings['bypass_parser']      ?? '');
+                $this->extendedParameter = (bool) ($settings['extended_parameter'] ?? '');
 
                 if (isset($settings['parameters'])) {
                     if (!is_array($settings['parameters'])) {
@@ -85,7 +82,6 @@ class Plugin
     /**
      * Return true if the plugin is an enclosure tag.
      *
-     * @return bool
      */
     public function isEnclose(): bool
     {
@@ -95,7 +91,6 @@ class Plugin
     /**
      * Return true if the plugin is loaded successfully, else the function tag in template file will not be parsed.
      *
-     * @return bool
      */
     public function isLoaded(): bool
     {
@@ -105,7 +100,6 @@ class Plugin
     /**
      * Get the name of the plugin.
      *
-     * @return string
      */
     public function getName(): string
     {
@@ -154,7 +148,7 @@ class Plugin
                 $parameters = $this->parameters;
             } else {
                 $paramText = ' ' . $paramText;
-                if (preg_match('/((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)/', $paramText, $matches)) {
+                if (preg_match('/^((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)$/', $paramText, $matches)) {
                     $parameters = $this->parameters;
                     $paramText  = trim($paramText);
                     $clips      = preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\.)(*SKIP)(*FAIL)|\s+/', $paramText);
@@ -174,7 +168,7 @@ class Plugin
                         preg_match_all('/\s+(\w+)=(?:(\$\w+(?:\.(?:\w+|(?P>rq)))*)|true|false|(-?\d+(?:\.\d+)?)|(?<rq>(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText, $matches, PREG_SET_ORDER);
                         foreach ($clips as $param) {
                             [$parameter, $value] = explode('=', $param);
-                            if (array_key_exists($parameter, $this->parameters)) {
+                            if ($this->extendedParameter || array_key_exists($parameter, $this->parameters)) {
                                 $parameters[$parameter] = $entity->parseValue($value);
                             }
                         }
