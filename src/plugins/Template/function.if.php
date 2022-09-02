@@ -80,7 +80,7 @@ return [
             return $value;
         };
 
-        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $container->getContent(), 2);
+        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $this->parseText($container->getContent()), 2);
         $trueText  = $split[0];
         $falseText = $split[1] ?? '';
 
