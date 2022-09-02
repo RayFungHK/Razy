@@ -12,6 +12,7 @@
 namespace Razy\Template;
 
 use Closure;
+use Razy\Template\Plugin\Container;
 use Throwable;
 
 class Plugin
@@ -140,6 +141,7 @@ class Plugin
     public function process(Entity $entity, string $paramText = '', string $wrappedText = '')
     {
         $parameters = [];
+        $arguments  = [];
         if ($this->bypassParser) {
             $parameters = ['param_text' => $paramText];
         } else {
@@ -148,12 +150,13 @@ class Plugin
                 $parameters = $this->parameters;
             } else {
                 $paramText = ' ' . $paramText;
-                if (preg_match('/^((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)$/', $paramText, $matches)) {
+                if (preg_match('/^\s((?::\w+)*)((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)$/', $paramText, $matches)) {
                     $parameters = $this->parameters;
-                    $paramText  = trim($paramText);
+                    $arguments  = explode(':', ltrim(trim($matches[1]), ':'));
+                    $paramText  = trim($matches[2]);
                     $clips      = preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\.)(*SKIP)(*FAIL)|\s+/', $paramText);
 
-                    if (isset($matches[5])) {
+                    if (isset($matches[6])) {
                         foreach ($parameters as &$value) {
                             if (count($clips) > 0) {
                                 $clip  = array_shift($clips);
@@ -177,6 +180,6 @@ class Plugin
             }
         }
 
-        return call_user_func_array($this->processor->bindTo($entity), [$wrappedText, $parameters]);
+        return call_user_func($this->processor->bindTo($entity), new Container($entity, $parameters, $arguments, $wrappedText));
     }
 }

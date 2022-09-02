@@ -301,18 +301,28 @@ abstract class Controller
      */
     final public function load(string $path): Template\Source
     {
-        $path = append($this->module->getPath(), 'view', $path);
-        $filename = basename($path);
-        if (!preg_match('/[^.]+\..+/', $filename)) {
-            $path .= '.tpl';
-        }
-
+        $path = $this->getViewFile($path);
         if (!is_file($path)) {
             throw new Error('The path ' . $path . ' is not a valid path.');
         }
         $template = $this->module->getTemplateEngine();
 
         return $template->load($path);
+    }
+
+    /**
+     * @param string $path
+     * @return string
+     */
+    final public function getViewFile(string $path): string
+    {
+        $path     = append($this->module->getPath(), 'view', $path);
+        $filename = basename($path);
+        if (!preg_match('/[^.]+\..+/', $filename)) {
+            $path .= '.tpl';
+        }
+
+        return $path;
     }
 
     /**

@@ -9,6 +9,8 @@
  * with this source code in the file LICENSE.
  */
 
+use Razy\Template\Plugin\Container;
+
 return [
     'enclose_content' => true,
     'bypass_parser'   => false,
@@ -16,7 +18,8 @@ return [
         'source' => '',
         'as'     => 'kvp',
     ],
-    'processor' => function (string $content, array $parameters) {
+    'processor' => function (Container $container) {
+        $parameters = $container->getParameters();
         if (!is_array($parameters['source'])) {
             return '';
         }
@@ -32,7 +35,7 @@ return [
                 'key'   => $key,
                 'value' => $value,
             ]);
-            $result .= $this->parseText($content ?? '');
+            $result .= $this->parseText($container->getContent() ?? '');
         }
 
         return $result;

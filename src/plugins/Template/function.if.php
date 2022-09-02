@@ -12,16 +12,16 @@
 namespace Razy;
 
 use Razy\Template\Entity;
-use function is_array;
-use function strlen;
+use Razy\Template\Plugin\Container;
 
 return [
     'enclose_content' => true,
     'bypass_parser'   => true,
     'parameters'      => [],
-    'processor'       => function (string $content, array $parameters) {
-        $paramText = array_shift($parameters);
-        $clips     = SimpleSyntax::ParseParens($paramText);
+    'processor'       => function (Container $container) {
+        $parameters = $container->getParameters();
+        $paramText  = array_shift($parameters);
+        $clips      = SimpleSyntax::ParseParens($paramText);
         /** @var Entity $entity */
         $entity = $this;
 
@@ -80,7 +80,7 @@ return [
             return $value;
         };
 
-        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $content, 2);
+        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $container->getContent(), 2);
         $trueText  = $split[0];
         $falseText = $split[1] ?? '';
 

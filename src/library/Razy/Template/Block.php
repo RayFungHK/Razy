@@ -77,20 +77,20 @@ class Block
     /**
      * Block constructor.
      *
-     * @param Source     $source    The Source object
-     * @param string     $blockName The block name
-     * @param FileReader $reader    The FileReader of the template file reader
-     * @param bool       $readonly
-     * @param null|self  $parent    Current block parent
+     * @param Source $source The Source object
+     * @param string $blockName The block name
+     * @param FileReader $reader The FileReader of the template file reader
+     * @param bool $readonly
+     * @param null|self $parent Current block parent
      *
      * @throws Throwable
      */
     public function __construct(Source $source, string $blockName, FileReader $reader, bool $readonly = false, self $parent = null)
     {
-        $this->source    = $source;
+        $this->source = $source;
         $this->blockName = $blockName;
-        $this->parent    = $parent;
-        $this->readonly  = $readonly;
+        $this->parent = $parent;
+        $this->readonly = $readonly;
 
         if (!$parent) {
             $this->path = '/';
@@ -109,7 +109,7 @@ class Block
                     } else {
                         if ($concat) {
                             $this->structure[] = $concat;
-                            $concat            = '';
+                            $concat = '';
                         }
 
                         if ('INCLUDE' === $matches[1]) {
@@ -123,21 +123,21 @@ class Block
                                 throw new Error('The block ' . $this->path . '/' . $matches[3] . ' is already exists.');
                             }
 
-                            $this->blocks[$matches[3]]    = new self($this->source, $matches[3], $reader, 'TEMPLATE' === $matches[1], $this);
+                            $this->blocks[$matches[3]] = new self($this->source, $matches[3], $reader, 'TEMPLATE' === $matches[1], $this);
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
                         } elseif ('RECURSION' === $matches[1]) {
                             if (!($parent = $this->getClosest($matches[3]))) {
                                 throw new Error('No parent block ' . $matches[3] . ' is found to declare as a recursion block.');
                             }
 
-                            $this->blocks[$matches[3]]    = $parent;
+                            $this->blocks[$matches[3]] = $parent;
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
                         } elseif (preg_match('/^USE /', $matches[1])) {
                             $found = false;
                             while (($parent = $this->parent) !== null) {
                                 if ($parent->hasBlock($matches[2])) {
-                                    $found                        = true;
-                                    $this->blocks[$matches[3]]    = $parent->getBlock($matches[2]);
+                                    $found = true;
+                                    $this->blocks[$matches[3]] = $parent->getBlock($matches[2]);
                                     $this->structure[$matches[3]] = $this->blocks[$matches[3]];
 
                                     break;
@@ -227,11 +227,11 @@ class Block
      *
      * @param string $name The block name
      *
+     * @return Block The Block object
      * @throws Throwable
      *
-     * @return Block The Block object
      */
-    public function getBlock(string $name, bool $templateOnly = true): Block
+    public function getBlock(string $name): Block
     {
         $name = trim($name);
         if (!$this->hasBlock($name)) {
@@ -281,7 +281,8 @@ class Block
             }
         } while (($parent = $this->parent) !== null);
 
-        return null;
+        // Get the global Template Block
+        return $this->source->getTemplate($name);
     }
 
     /**
@@ -308,7 +309,7 @@ class Block
      * Return the parameter value.
      *
      * @param string $parameter The parameter name
-     * @param bool   $recursion
+     * @param bool $recursion
      *
      * @return mixed The parameter value
      */
@@ -339,11 +340,11 @@ class Block
      * Assign the block level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value     The parameter value
-     *
-     * @throws Throwable
+     * @param mixed $value The parameter value
      *
      * @return self Chainable
+     * @throws Throwable
+     *
      */
     public function assign($parameter, $value = null): Block
     {
@@ -367,11 +368,11 @@ class Block
 
     /**
      * @param string $parameter
-     * @param null   $value
-     *
-     * @throws Throwable
+     * @param null $value
      *
      * @return $this
+     * @throws Throwable
+     *
      */
     public function bind(string $parameter, &$value): Block
     {
@@ -384,9 +385,9 @@ class Block
      * @param string $type
      * @param string $name
      *
+     * @return null|Plugin
      * @throws Throwable
      *
-     * @return null|Plugin
      */
     public function loadPlugin(string $type, string $name): ?Plugin
     {

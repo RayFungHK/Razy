@@ -25,9 +25,14 @@ class Source
     /**
      * The root Entity object.
      *
-     * @var Entity
+     * @var ?Entity
      */
-    private $root = [];
+    private ?Entity $rootEntity = null;
+
+    /**
+     * @var Block|null
+     */
+    private ?Block $rootBlock = null;
 
     /**
      * An array contains the Source parameters.
@@ -67,7 +72,7 @@ class Source
         $this->fileDirectory = dirname(realpath($tplPath));
         $this->template      = $template;
 
-        $this->root = new Entity(new Block($this, '_ROOT', new FileReader($tplPath)));
+        $this->rootEntity = new Entity(($this->rootBlock = new Block($this, '_ROOT', new FileReader($tplPath))));
     }
 
     /**
@@ -119,8 +124,7 @@ class Source
      * @param null   $value
      *
      * @return $this
-     *@throws Throwable
-     *
+     * @throws Throwable
      */
     public function bind(string $parameter, &$value): Source
     {
@@ -187,9 +191,19 @@ class Source
      *
      * @return Entity The root entity object
      */
-    public function getRootBlock()
+    public function getRoot(): ?Entity
     {
-        return $this->root;
+        return $this->rootEntity;
+    }
+
+    /**
+     * Get the root entity.
+     *
+     * @return Block|null The root block object
+     */
+    public function getRootBlock(): ?Block
+    {
+        return $this->rootBlock;
     }
 
     /**
@@ -206,12 +220,11 @@ class Source
      * Return the entity content.
      *
      * @return string The entity content
-     *@throws Throwable
-     *
+     * @throws Throwable
      */
     public function output(): string
     {
-        return $this->root->process();
+        return $this->rootEntity->process();
     }
 
     /**
@@ -225,5 +238,16 @@ class Source
     public function loadPlugin(string $type, string $name): ?Plugin
     {
         return $this->template->loadPlugin($type, $name);
+    }
+
+    /**
+     * Get the template block
+     *
+     * @param string $name
+     * @return Block|null
+     */
+    public function getTemplate(string $name): ?Block
+    {
+        return $this->template->getTemplate($name);
     }
 }

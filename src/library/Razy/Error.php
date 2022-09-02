@@ -73,7 +73,7 @@ class Error extends Exception
 
             $template = new Template();
             $source   = $template->load($tplFile);
-            $root     = $source->getRootBlock();
+            $root     = $source->getRoot();
 
             $root->assign([
                 'file'    => $exception->getFile(),

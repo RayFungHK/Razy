@@ -9,6 +9,8 @@
  * with this source code in the file LICENSE.
  */
 
+use Razy\Template\Plugin\Container;
+
 return [
     'enclose_content' => false,
     'bypass_parser'   => false,
@@ -16,7 +18,8 @@ return [
         'name'  => '',
         'value' => '',
     ],
-    'processor' => function (string $content, array $parameters) {
+    'processor' => function (Container $container) {
+        $parameters         = $container->getParameters();
         $parameters['name'] = trim($parameters['name']);
 
         if (!$parameters['name']) {

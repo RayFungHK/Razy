@@ -10,22 +10,23 @@
  */
 
 use Razy\Template\Block;
+use Razy\Template\Plugin\Container;
 
 return [
     'enclose_content'    => false,
     'bypass_parser'      => false,
     'extended_parameter' => true,
     'parameters'         => [],
-    'processor'          => function (string $content, array $parameters) {
-        $parameters['name'] = trim($parameters['name']);
+    'processor'          => function (Container $container) {
+        $parameters = $container->getParameters();
+        $arguments  = $container->getArguments();
+        $tplName    = $arguments[0] ?? '';
 
-        if (!$parameters['name']) {
+        if (!$tplName) {
             return '';
         }
-        $template = $this->getTemplate($parameters['name']);
-        unset($parameters['name']);
-
-        if (!($template instanceof Block) || !$template->isReadonly()) {
+        $template = $this->getTemplate($tplName);
+        if (!($template instanceof Block)) {
             return '';
         }
 

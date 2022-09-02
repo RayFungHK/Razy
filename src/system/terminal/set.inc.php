@@ -24,16 +24,16 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
 
     // Load default config setting
     $configFilePath = append(RAZY_PATH, 'sites.inc.php');
-    $config = loadSiteConfig($configFilePath);
+    $config         = loadSiteConfig($configFilePath);
 
     // Extract the domain and the path from the FQDN string
     $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
     if (false === strpos($fqdn, '/')) {
         $domain = $fqdn;
-        $path = '/';
+        $path   = '/';
     } else {
         [$domain, $path] = explode('/', $fqdn, 2);
-        $path = '/' . $path;
+        $path            = '/' . $path;
     }
 
     if (!is_array($config['domains'][$domain] ?? null)) {
@@ -55,11 +55,11 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
         if (!is_dir($distFolder)) {
             if (mkdir($distFolder, 0777, true)) {
                 $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/dist.php.tpl');
-                $root = $source->getRootBlock();
+                $root   = $source->getRoot();
                 $root->assign([
                     'dist_code' => $code,
-                    'autoload' => 'true',
-                    'greedy' => 'true',
+                    'autoload'  => 'true',
+                    'greedy'    => 'true',
                 ]);
 
                 try {

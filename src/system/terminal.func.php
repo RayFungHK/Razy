@@ -18,13 +18,13 @@ function writeSiteConfig(string $configFilePath, array $config): bool
 {
     // Write the config file
     $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/sites.inc.php.tpl');
-    $root = $source->getRootBlock();
+    $root   = $source->getRoot();
 
     foreach ($config['domains'] as $domainName => $sites) {
         $domainBlock = $root->newBlock('domain')->assign('domain', $domainName);
         foreach ($sites as $path => $code) {
             $domainBlock->newBlock('site')->assign([
-                'path' => $path,
+                'path'      => $path,
                 'dist_code' => $code,
             ]);
         }
@@ -35,7 +35,7 @@ function writeSiteConfig(string $configFilePath, array $config): bool
             $domain = trim($domain);
             if ($domain) {
                 $root->newBlock('alias')->assign([
-                    'alias' => $alias,
+                    'alias'  => $alias,
                     'domain' => $domain,
                 ]);
             }
@@ -45,7 +45,7 @@ function writeSiteConfig(string $configFilePath, array $config): bool
     try {
         $file = fopen($configFilePath, 'w');
         if (!$file) {
-            throw new Exception("Can't create lock file!");
+            throw new Exception('Can\'t create lock file!');
         }
         if (flock($file, LOCK_EX)) {
             ftruncate($file, 0);
@@ -72,7 +72,7 @@ function loadSiteConfig(string $configFilePath): array
     // Load default config setting
     $config = [
         'domains' => [],
-        'alias' => [],
+        'alias'   => [],
     ];
 
     // Import the config file setting
@@ -108,19 +108,19 @@ function loadSiteConfig(string $configFilePath): array
 function updateRewriteRules(string $path): bool
 {
     try {
-        $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/htaccess.tpl');
-        $rootBlock = $source->getRootBlock();
+        $source    = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/htaccess.tpl');
+        $rootBlock = $source->getRoot();
         foreach (Application::GetDistributors() as $distCode => $info) {
             $rootBlock->newBlock('rewrite')->assign([
-                'domain' => preg_quote($info['domain']),
-                'dist_code' => $distCode,
+                'domain'     => preg_quote($info['domain']),
+                'dist_code'  => $distCode,
                 'route_path' => trim($info['url_path'], '/'),
             ]);
             if (count($info['alias'])) {
                 foreach ($info['alias'] as $alias) {
                     $rootBlock->newBlock('rewrite')->assign([
-                        'domain' => preg_quote($alias),
-                        'dist_code' => $distCode,
+                        'domain'     => preg_quote($alias),
+                        'dist_code'  => $distCode,
                         'route_path' => trim($info['url_path'], '/'),
                     ]);
                 }

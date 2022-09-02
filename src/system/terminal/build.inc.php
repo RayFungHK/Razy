@@ -42,7 +42,7 @@ return function () {
         // Writing sites.inc.php
         $source  = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/sites.inc.php.tpl');
         $message = 'Writing File sites.inc.php... ';
-        $source->getRootBlock()->newBlock('domain')->assign([
+        $source->getRoot()->newBlock('domain')->assign([
             'domain' => 'localhost',
         ])->newBlock('site')->assign([
             'path'      => '/',
@@ -79,7 +79,7 @@ return function () {
 
         if ($installSuccess) {
             $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/config.inc.php.tpl');
-            $source->getRootBlock()->assign([
+            $source->getRoot()->assign([
                 'install_path' => $path,
             ]);
             file_put_contents(append($path, 'config.inc.php'), $source->output());

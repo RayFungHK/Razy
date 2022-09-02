@@ -9,18 +9,21 @@
  * with this source code in the file LICENSE.
  */
 
+use Razy\Template\Plugin\Container;
+
 return [
     'enclose_content' => false,
     'bypass_parser'   => false,
     'parameters'      => [
         'length' => 1,
     ],
-    'processor' => function (string $content, array $parameters) {
+    'processor' => function (Container $container) {
+        $parameters           = $container->getParameters();
         $parameters['length'] = (int) $parameters['length'];
         if ($parameters['length'] < 0) {
             $parameters['length'] = 0;
         }
 
-        return ($parameters['length'] > 0) ? str_repeat($content, $parameters['length']) : '';
+        return ($parameters['length'] > 0) ? str_repeat($container->getContent(), $parameters['length']) : '';
     },
 ];
