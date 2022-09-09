@@ -117,8 +117,8 @@ class Distributor
     public function __construct(string $folderPath, ?Domain $domain = null, string $urlPath = '', string $urlQuery = '/')
     {
         $this->folderPath = append(SITES_FOLDER, $folderPath);
-        $this->urlPath = $urlPath;
-        $this->urlQuery = tidy($urlQuery, false, '/');
+        $this->urlPath    = $urlPath;
+        $this->urlQuery   = tidy($urlQuery, false, '/');
         if (!$this->urlQuery) {
             $this->urlQuery = '/';
         }
@@ -148,7 +148,7 @@ class Distributor
                 // Remove self
                 array_pop(self::$stacking);
 
-                $peerDomain = $peer->getDomain()->getDomainName();
+                $peerDomain       = $peer->getDomain()->getDomainName();
                 $acceptConnection = false;
                 // Load the external config in data path by its distribution folder: $this->getDataPath()
                 foreach ($config['whitelist'] ?? [] as $whitelist) {
@@ -180,7 +180,7 @@ class Distributor
         if (is_array($config['enable_module'])) {
             foreach ($config['enable_module'] as $moduleCode => $version) {
                 $moduleCode = trim($moduleCode);
-                $version = trim($version);
+                $version    = trim($version);
                 if (strlen($moduleCode) > 0 && strlen($version) > 0) {
                     $this->enableModules[$moduleCode] = $version;
                 }
@@ -188,7 +188,7 @@ class Distributor
         }
 
         $config['autoload_shared'] = (bool)($config['autoload_shared'] ?? false);
-        $this->autoloadShared = $config['autoload_shared'];
+        $this->autoloadShared      = $config['autoload_shared'];
 
         $this->greedy = (bool)($config['greedy'] ?? false);
 
@@ -241,7 +241,7 @@ class Distributor
             }
 
             // Convert the regex route
-            $regexRoute = $this->regexRoute;
+            $regexRoute       = $this->regexRoute;
             $this->regexRoute = [];
 
             sort_path_level($regexRoute);
@@ -259,7 +259,8 @@ class Distributor
                     return $regex;
                 }, $route);
 
-                $route = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
+                $data['route']            = $route;
+                $route                    = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
                 $this->regexRoute[$route] = $data;
             }
         }
@@ -321,11 +322,11 @@ class Distributor
     {
         if (preg_match('/^Razy\\\\(?:Module\\\\' . $this->code . '|Shared)\\\\([^\\\\]+)\\\\(.+)/', $className, $matches)) {
             $moduleCode = $matches[1];
-            $className = $matches[2];
+            $className  = $matches[2];
             // Try to load the class from the module library
             if (isset($this->modules[$moduleCode])) {
                 $module = $this->modules[$moduleCode];
-                $path = append($module->getPath(), 'library');
+                $path   = append($module->getPath(), 'library');
                 if (is_dir($path)) {
                     $libraryPath = append($path, $className . '.php');
                     if (is_file($libraryPath)) {
@@ -421,7 +422,7 @@ class Distributor
         foreach ($this->regexRoute as $regex => $data) {
             if ($data['module']->getCode() === $module->getCode()) {
                 if (1 === preg_match($regex, $this->urlQuery, $matches)) {
-                    return $regex;
+                    return $module->getCode() . ':' . $data['route'];
                 }
             }
         }
@@ -485,7 +486,7 @@ class Distributor
             if (0 === strpos($urlQuery, $route)) {
                 // Extract the url query string when the route is matched
                 $urlQuery = rtrim(substr($urlQuery, strlen($route)), '/');
-                $args = explode('/', $urlQuery);
+                $args     = explode('/', $urlQuery);
 
                 /** @var Module $module */
                 $module = $data['module'];
@@ -550,7 +551,7 @@ class Distributor
     {
         $this->lazyRoute[$route] = [
             'module' => $module,
-            'path' => $path,
+            'path'   => $path,
         ];
 
         return $this;
@@ -569,7 +570,7 @@ class Distributor
     {
         $this->regexRoute[$route] = [
             'module' => $module,
-            'path' => $path,
+            'path'   => $path,
         ];
 
         return $this;
@@ -615,7 +616,7 @@ class Distributor
         }
 
         [$moduleCode, $command] = explode('.', $command);
-        $module = $this->enabledModule[$moduleCode] ?? null;
+        $module                 = $this->enabledModule[$moduleCode] ?? null;
 
         if (null !== $module) {
             /** @var Module $module */

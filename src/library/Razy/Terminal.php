@@ -70,6 +70,8 @@ class Terminal
      */
     private bool $logging = false;
 
+    private array $parameters = [];
+
     /**
      * @var array
      */
@@ -96,31 +98,9 @@ class Terminal
     /**
      * @return string
      */
-    public static function read(): string
-    {
-        $response = trim(fgets(STDIN));
-        // Remove arrow character to prevent character overlap
-        if (preg_match('/\\033\[[ABCD]/', $response)) {
-            return preg_replace('/(?:\\033\[[ABCD])+/', '', $response);
-        }
-
-        return $response;
-    }
-
-    /**
-     * @return string
-     */
     public function getCode(): string
     {
         return $this->code;
-    }
-
-    /**
-     * @return Terminal
-     */
-    public function showNavigation(): Terminal
-    {
-        return $this;
     }
 
     /**
@@ -131,7 +111,8 @@ class Terminal
      */
     public function run(Closure $callback, array $args = [], array $parameters = []): Terminal
     {
-        (new Processor($callback, $parameters))->run($args);
+        $this->parameters = $parameters;
+        call_user_func_array($callback->bindTo($this), $args);
 
         return $this;
     }
@@ -181,7 +162,7 @@ class Terminal
                     [$style, $value] = explode(':', $clip, 2);
                     if ('c' == $style || 'b' === $style) {
                         // Font color style
-                        $value = strtoupper($value);
+                        $value    = strtoupper($value);
                         $constant = __CLASS__ . '::' . (('c' === $style) ? 'COLOR' : 'BACKGROUND') . '_' . $value;
                         if (defined($constant)) {
                             $styleString .= constant($constant);
@@ -264,26 +245,6 @@ class Terminal
     }
 
     /**
-     * @param string $message
-     * @param bool   $resetStyle
-     * @param string $format
-     *
-     * @return $this
-     */
-    public function writeLine(string $message, bool $resetStyle = false, string $format = ''): Terminal
-    {
-        $message = str_replace("\t", '    ', $message);
-        $format  = trim($format);
-        $message = ($format) ? sprintf($format, $message) : $message;
-        echo $this->format($message) . ($resetStyle ? self::RESET_STLYE : '') . PHP_EOL;
-        if ($this->logging) {
-            $this->addLog($message);
-        }
-
-        return $this;
-    }
-
-    /**
      * @param bool $enable
      *
      * @return $this
@@ -361,6 +322,26 @@ class Terminal
     }
 
     /**
+     * @param string $message
+     * @param bool   $resetStyle
+     * @param string $format
+     *
+     * @return $this
+     */
+    public function writeLine(string $message, bool $resetStyle = false, string $format = ''): Terminal
+    {
+        $message = str_replace("\t", '    ', $message);
+        $format  = trim($format);
+        $message = ($format) ? sprintf($format, $message) : $message;
+        echo $this->format($message) . ($resetStyle ? self::RESET_STLYE : '') . PHP_EOL;
+        if ($this->logging) {
+            $this->addLog($message);
+        }
+
+        return $this;
+    }
+
+    /**
      * @return int
      */
     public function getScreenWidth(): int
@@ -379,5 +360,13 @@ class Terminal
         }
 
         return (int) shell_exec('tput cols');
+    }
+
+    /**
+     * @return array
+     */
+    public function getParameters(): array
+    {
+        return $this->parameters;
     }
 }

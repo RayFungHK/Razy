@@ -328,6 +328,38 @@ class Statement
     }
 
     /**
+     * Execute the statement and group the result as the key value pair.
+     *
+     * @param string $keyColumn
+     * @param string $valueColumn
+     * @param array $parameters
+     * @return array
+     * @throws Error
+     * @throws Throwable
+     */
+    public function lazyKeyValuePair(string $keyColumn, string $valueColumn, array $parameters = []): array
+    {
+        $keyColumn   = trim($keyColumn);
+        $valueColumn = trim($valueColumn);
+        if (!$valueColumn || !$keyColumn) {
+            throw new Error('The key or value column name cannot be empty.');
+        }
+        $result = [];
+        $query  = $this->query($parameters);
+        while ($row = $query->fetch()) {
+            if (!isset($row[$keyColumn])) {
+                throw new Error('The key column `' . $keyColumn . '` cannot found in fetched result.');
+            }
+            if (!isset($row[$valueColumn])) {
+                throw new Error('The key column `' . $keyColumn . '` cannot found in fetched result.');
+            }
+            $result[$row[$keyColumn]] = $row[$valueColumn];
+        }
+
+        return $result;
+    }
+
+    /**
      * Assign parameters for generating SQL statement.
      *
      * @param array $parameters
@@ -627,7 +659,7 @@ class Statement
      */
     private function getUpdateSyntax(array $updateSyntax, string $column): string
     {
-        $parser = function (array &$extracted) use (&$parser, $column) {
+        $parser      = function (array &$extracted) use (&$parser, $column) {
             $parsed  = [];
             $operand = '';
             while ($clip = array_shift($extracted)) {

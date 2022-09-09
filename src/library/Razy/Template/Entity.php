@@ -238,10 +238,19 @@ class Entity
     {
         $content = $this->parseFunctionTag($content);
 
-        return preg_replace_callback('/{(\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)}/', function ($matches) {
-            $value = $this->parseValue($matches[1]) ?? '';
+        return preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?2))*)}/', function ($matches) {
+            $clips = preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+            foreach ($clips as $clip) {
+                $value = $this->parseValue($clip) ?? '';
+                if (is_scalar($value) || method_exists($value, '__toString')) {
+                    $value = strval($value);
+                    if ($value) {
+                        return $value;
+                    }
+                }
+            }
 
-            return (is_iterable($value) || (is_object($value) && !method_exists($value, '__toString'))) ? '' : $value;
+            return '';
         }, $content);
     }
 
