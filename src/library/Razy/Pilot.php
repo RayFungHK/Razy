@@ -122,8 +122,8 @@ class Pilot
                 throw new Error('The route must be a string or an array');
             }
 
-            $route = trim($route);
-            $path = trim(tidy($path, false, '/'), '/');
+            $route  = trim($route);
+            $path   = trim(tidy($path, false, '/'), '/');
             $method = $path;
 
             if (strlen($method) > 0 && strlen($path) > 0) {
@@ -229,7 +229,7 @@ class Pilot
      *
      * @return Pilot
      */
-    public function redirect(string $url): Pilot
+    public function redirect(string $url): self
     {
         $this->module->redirect($url);
         return $this;

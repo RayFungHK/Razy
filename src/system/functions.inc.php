@@ -61,10 +61,10 @@ function tidy(string $path, bool $ending = false, string $separator = DIRECTORY_
 function append(string $path, ...$extra): string
 {
     $separator = DIRECTORY_SEPARATOR;
-    $protocol = '';
+    $protocol  = '';
     if (preg_match('/^(https?:\/\/)(.*)/', $path, $matches)) {
-        $protocol = $matches[1];
-        $path = $matches[2];
+        $protocol  = $matches[1];
+        $path      = $matches[2];
         $separator = '/';
     }
 
@@ -113,9 +113,9 @@ function versionStandardize(string $version, bool $wildcard = false)
     }
 
     $versions = [];
-    $clips = explode('.', $version);
+    $clips    = explode('.', $version);
     for ($i = 0; $i < 4; ++$i) {
-        $clip = $clips[$i] ?? 0;
+        $clip       = $clips[$i] ?? 0;
         $versions[] = ('*' == $clip) ? $clip : (int)$clip;
     }
 
@@ -144,7 +144,7 @@ function vc(string $requirement, string $version): bool
     $requirement = preg_replace('/\s*\|\|\s*/', '|', $requirement);
     $requirement = preg_replace('/\s*-\s*(*SKIP)(*FAIL)|\s*,\s*|\s+/', ',', $requirement);
 
-    $clips = SimpleSyntax::ParseSyntax($requirement);
+    $clips  = SimpleSyntax::ParseSyntax($requirement);
     $parser = function (array &$extracted) use (&$parser, $version) {
         $result = false;
 
@@ -155,18 +155,18 @@ function vc(string $requirement, string $version): bool
                 $clip = trim($clip);
                 if (preg_match('/^((\d+)(?:\.\d+){0,3})\s*-\s*((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
                     // Version Range
-                    $min = versionStandardize($matches[1]);
-                    $max = versionStandardize($matches[3]);
+                    $min    = versionStandardize($matches[1]);
+                    $max    = versionStandardize($matches[3]);
                     $result = version_compare($version, $min, '>=') && version_compare($version, $max, '<');
                 } elseif (preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
-                    $major = (int)$matches[3];
+                    $major      = (int)$matches[3];
                     $constraint = $matches[1] ?? '';
-                    $vs = versionStandardize($matches[2]);
+                    $vs         = versionStandardize($matches[2]);
 
                     if ('^' == $constraint) {
                         // Caret Version Range
                         if (0 == $major) {
-                            $splits = explode('.', $vs);
+                            $splits  = explode('.', $vs);
                             $compare = '0.' . $splits[1] . '.' . $splits[2] . '.' . $splits[3];
                         } else {
                             $compare = ($major + 1) . '.0.0.0';
@@ -218,7 +218,7 @@ function vc(string $requirement, string $version): bool
                     $compare = versionStandardize($clip, true);
                     if (false !== strpos($compare, '*')) {
                         $compare = str_replace(['*', '.'], ['\d+', '\\.'], $compare);
-                        $result = preg_match('/^' . $compare . '$/', $version);
+                        $result  = preg_match('/^' . $compare . '$/', $version);
                     } else {
                         $result = $compare == $version;
                     }
@@ -264,9 +264,9 @@ function is_ssl(): bool
 function getFilesizeString(float $size, int $decPoint = 2, bool $upperCase = false, string $separator = ''): string
 {
     $unitScale = ['byte', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
-    $unit = 'byte';
-    $scale = 0;
-    $decPoint = ($decPoint < 1) ? 0 : $decPoint;
+    $unit      = 'byte';
+    $scale     = 0;
+    $decPoint  = ($decPoint < 1) ? 0 : $decPoint;
 
     while ($size >= 1024 && isset($unitScale[$scale + 1])) {
         $size /= 1024;
@@ -309,6 +309,63 @@ function getIP(): string
 }
 
 /**
+ * Check the IP is in the range
+ *
+ * @param string $ip
+ * @param string $cidr
+ * @return bool
+ */
+function ipInRange(string $ip, string $cidr): bool
+{
+    if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip)) {
+        return false;
+    }
+
+    if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$/', $cidr)) {
+        return false;
+    }
+
+    if (strpos($cidr, '/') === false) {
+        $cidr .= '/32';
+    }
+
+    list($range, $netmask) = explode('/', $cidr, 2);
+    $rangeDecimal          = ip2long($range);
+    $ipDecimal             = ip2long($ip);
+    $wildcardDecimal       = pow(2, (32 - $netmask)) - 1;
+    $netmaskDecimal        = ~$wildcardDecimal;
+    return (($ipDecimal & $netmaskDecimal) === ($rangeDecimal & $netmask_decimal));
+}
+
+/**
+ * Merge one or more arrays recursively by following the structure
+ *
+ * @param array $structure
+ * @param array ...$sources
+ * @return array
+ */
+function construct(array $structure, array ...$sources): array
+{
+    $recursive = function ($source, $structure) use (&$recursive) {
+        foreach ($structure as $key => $value) {
+            if (is_array($value) && !empty($value)) {
+                $structure[$key] = $recursive($source[$key], $value);
+            } else {
+                $structure[$key] = $source[$key] ?? $value;
+            }
+        }
+
+        return $structure;
+    };
+
+    foreach ($sources as $source) {
+        $structure = $recursive($structure, $source);
+    }
+
+    return $structure;
+}
+
+/**
  * Refactor an array of data into a new data set by given key set.
  *
  * @param array $source An array of data
@@ -319,7 +376,7 @@ function getIP(): string
 function refactor(array $source, string ...$keys): array
 {
     $result = [];
-    $kvp = array_keys($source);
+    $kvp    = array_keys($source);
     if (count($keys)) {
         $kvp = array_intersect($kvp, $keys);
     }
@@ -415,7 +472,7 @@ function comparison($valueA = null, $valueB = null, string $operator = '=', bool
  */
 function guid(int $length = 4): string
 {
-    $length = max(1, $length);
+    $length  = max(1, $length);
     $pattern = '%04X';
     if ($length > 1) {
         $pattern .= str_repeat('-%04X', $length - 1);
@@ -453,7 +510,7 @@ function collect($data): Collection
  */
 function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $relative = false)
 {
-    $path = trim($path);
+    $path        = trim($path);
     $isDirectory = false;
     if (is_dir_path($path)) {
         // If the path ending is a slash or backslash
@@ -463,7 +520,7 @@ function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $r
         $isDirectory = true;
     }
 
-    $clips = explode($separator, rtrim(tidy($path, false, $separator), $separator));
+    $clips   = explode($separator, rtrim(tidy($path, false, $separator), $separator));
     $pathAry = [];
     foreach ($clips as $index => $clip) {
         if ($index > 0) {
@@ -511,7 +568,7 @@ function is_dir_path(string $path): bool
  */
 function xremove(string $path): bool
 {
-    $path = tidy($path);
+    $path     = tidy($path);
     $basePath = $path;
 
     try {
@@ -552,7 +609,7 @@ function xremove(string $path): bool
 function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpacked = []): bool
 {
     $source = tidy($source);
-    $dest = tidy($dest);
+    $dest   = tidy($dest);
     if (!is_file($source) && !is_dir($source)) {
         return false;
     }
@@ -610,12 +667,12 @@ function autoload(string $className, string $path = ''): bool
     if (is_dir($path)) {
         $libraryPath = append($path, $className . '.php');
         if (!is_file($libraryPath)) {
-            $splits = explode('\\', $className);
+            $splits      = explode('\\', $className);
             $libraryPath = append($path, $className, end($splits) . '.php');
             if (!is_file($libraryPath)) {
                 // Psr-0
                 if (false !== strpos($className, '_')) {
-                    $splits = explode('_', $className);
+                    $splits      = explode('_', $className);
                     $classFolder = append($path, reset($splits));
                     if (is_dir($classFolder)) {
                         $libraryPath = append($classFolder, implode(DIRECTORY_SEPARATOR, $splits) . '.php');

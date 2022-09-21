@@ -146,7 +146,16 @@ class Module
      * @var array
      */
     private array $binding = [];
+
+    /**
+     * @var array
+     */
     private array $closures = [];
+
+    /**
+     * @var array
+     */
+    private array $waitingList = [];
 
     /**
      * Module constructor.
@@ -160,11 +169,11 @@ class Module
      */
     public function __construct(Distributor $distributor, string $path, array $settings, bool $sharedModule = false)
     {
-        $this->distributor = $distributor;
-        $this->modulePath = $path;
+        $this->distributor  = $distributor;
+        $this->modulePath   = $path;
         $this->sharedModule = $sharedModule;
         if (0 === strpos($path, SYSTEM_ROOT)) {
-            $relative = substr($path, strlen(SYSTEM_ROOT));
+            $relative                 = substr($path, strlen(SYSTEM_ROOT));
             $this->moduleRelativePath = ($relative) ?: '/';
         }
 
@@ -178,8 +187,8 @@ class Module
                 throw new Error('The module code ' . $code . ' is not a correct format.');
             }
 
-            $this->code = $code;
-            $extracted = explode('.', $code);
+            $this->code      = $code;
+            $extracted       = explode('.', $code);
             $this->className = end($extracted);
         } else {
             throw new Error('Missing module code.');
@@ -754,7 +763,7 @@ class Module
         }
 
         $unpackedAsset = [];
-        $folder = append(trim($folder), $this->code);
+        $folder        = append(trim($folder), $this->code);
         if (!is_dir($folder)) {
             try {
                 mkdir($folder, 0777, true);

@@ -214,6 +214,16 @@ Now in v0.4
 ```html
 {$parameter.path.of.the.value->mod:"param":"here"->othermod}
 ```
+As I changed the format of the modifier, user can use the `|` operator to print the variable by order until the variable is not empty.
+```html
+$emptyvar       = '';
+$stringvar      = 'Hello World';
+$otherstringvar = 'Razy!';
+
+// Support Modifier too
+// It will print `HELLO WORLD`
+{$emptyvar|$stringvar->upper|$otherstringvar}
+```
 
 So we can use the parameter with the modifier syntax in `if` function tag!
 

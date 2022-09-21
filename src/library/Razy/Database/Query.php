@@ -67,17 +67,20 @@ class Query
      */
     public function fetch(array $mapping = [])
     {
+        $result = [];
         if (count($mapping) > 0) {
             foreach ($mapping as $name => $column) {
                 $mapping[$name] = null;
                 $this->pdoStatement->bindColumn($column, $mapping[$name]);
             }
             $this->pdoStatement->fetch(PDO::FETCH_BOUND);
-
-            return $mapping;
+            $result = $mapping;
+        } else {
+            $result = $this->pdoStatement->fetch(PDO::FETCH_ASSOC);
         }
 
-        return $this->pdoStatement->fetch(PDO::FETCH_ASSOC);
+        if ($this)
+        return $result;
     }
 
     /**

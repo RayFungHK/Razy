@@ -124,10 +124,10 @@ class WhereSyntax
         $splits = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!:@~&]?=|(?<![\->])[><]=?)\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
         if (1 == count($splits)) {
             $expr = $this->parseOperand($clip);
-            if ('null' == $expr['type']) {
+            if ('null' === $expr['type']) {
                 return ($negative) ? '1' : '0';
             }
-            if ('column' == $expr['type']) {
+            if ('column' === $expr['type']) {
                 return (($negative) ? '!' : '') . $expr['expr'];
             }
 
@@ -137,6 +137,7 @@ class WhereSyntax
 
             return $expr['expr'];
         }
+
         if (3 == count($splits)) {
             if ($splits[0] == $splits[2]) {
                 if ('?' === $splits[0]) {
@@ -193,6 +194,7 @@ class WhereSyntax
                 'type' => 'auto',
             ];
         }
+
         if ('null' !== strtolower($expr)) {
             if (preg_match('/^((?<column>`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/', $expr, $matches)) {
                 $table_alias = '';
@@ -344,11 +346,18 @@ class WhereSyntax
 
         // Basic operator
         if (!$operand) {
-            if ('!=' === $operator) {
-                return $leftOperand['expr'] . ' ' . (($negative) ? '=' : '<>') . ' ' . $rightOperand['expr'];
-            }
-            if ('=' === $operator) {
-                return $leftOperand['expr'] . ' ' . (($negative) ? '<>' : '=') . ' ' . $rightOperand['expr'];
+            if ('!=' === $operator || '=' === $operator) {
+                if ('!=' === $operator) {
+                    $negative = !$negative;
+                }
+
+                if ($leftOperand['type'] === 'null' || $rightOperand['type'] === 'null') {
+                    $operator = ($negative) ? 'IS NOT' : 'IS';
+                } else {
+                    $operator = ($negative) ? '<>' : '=';
+                }
+
+                return $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
             }
 
             $operand = $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];

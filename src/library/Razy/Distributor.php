@@ -221,17 +221,17 @@ class Distributor
         $this->setSession();
 
         // Preload all modules, if the module preload event return false, the preload queue will stop and not enter the routing stage.
-        $allSettled = true;
+        $readyToRoute = true;
         if (!empty($preloadQueue)) {
             foreach ($preloadQueue as $module) {
                 if (!$module->preload()) {
-                    $allSettled = false;
+                    $readyToRoute = false;
                     break;
                 }
             }
         }
 
-        if ($allSettled) {
+        if ($readyToRoute) {
             // If the distributor is under a domain, initial all modules.
             if ($this->domain) {
                 foreach ($this->modules as $module) {
