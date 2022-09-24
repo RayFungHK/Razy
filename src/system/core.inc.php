@@ -65,7 +65,7 @@ if (PHP_SAPI === 'cli' || defined('STDIN')) {
 
     // Declare `PORT`
     // The protocol, if the REQUEST PATH is http://yoursite.com:8080/Razy, the PORT will declare as 8080
-    define('PORT', $_SERVER['SERVER_PORT']);
+    define('PORT', (int) $_SERVER['SERVER_PORT']);
 
     // Declare `SITE_URL_ROOT`
     $protocol = (is_ssl()) ? 'https' : 'http';

@@ -116,7 +116,7 @@ class Application
             throw new Error('SYSTEM_ROOT is not defined, initialize failed.');
         }
 
-        self::$multisite = [];
+        self::$multisite      = [];
         self::$registeredDist = [];
         // Load the site configuration file
         $config = include SYSTEM_ROOT . DIRECTORY_SEPARATOR . 'sites.inc.php';
@@ -127,11 +127,11 @@ class Application
             foreach ($config['alias'] as $alias => $domain) {
                 if (is_string($domain)) {
                     $domain = format_fqdn($domain);
-                    $alias = format_fqdn($alias);
+                    $alias  = format_fqdn($alias);
                     if (is_fqdn($domain, true) && is_fqdn($alias, true)) {
-                        $aliasMapping[$domain] = $aliasMapping[$domain] ?? [];
+                        $aliasMapping[$domain]   = $aliasMapping[$domain] ?? [];
                         $aliasMapping[$domain][] = $alias;
-                        self::$alias[$alias] = $domain;
+                        self::$alias[$alias]     = $domain;
                     }
                 }
             }
@@ -168,9 +168,9 @@ class Application
 
                                                 self::$registeredDist[$distConfig['dist']] = [
                                                     'distributor_path' => $distPath,
-                                                    'url_path' => $urlPath,
-                                                    'domain' => $domain,
-                                                    'alias' => $aliasMapping[$domain] ?? [],
+                                                    'url_path'         => $urlPath,
+                                                    'domain'           => $domain,
+                                                    'alias'            => $aliasMapping[$domain] ?? [],
                                                 ];
                                             }
                                         }
@@ -221,7 +221,7 @@ class Application
         if (!$this->domain) {
             throw new Error('No domain was matched that allowed to connect.');
         }
-        $fqdn = tidy($fqdn, true, '/');
+        $fqdn                = tidy($fqdn, true, '/');
         [$domain, $urlQuery] = explode('/', $fqdn, 2);
 
         // If the domain is not matched or other error occurred, return null
@@ -317,14 +317,14 @@ class Application
         if (CLI_MODE) {
             if (self::distributorExists($code)) {
                 $modules = self::createDistributor(self::$registeredDist[$code])->getAllModules();
-                $info = [];
-                $status = [
-                    0 => 'Disabled',
-                    1 => 'Initialing',
-                    2 => 'Enabled',
-                    3 => 'Waiting Validation',
-                    4 => 'Preloading',
-                    5 => 'Loaded',
+                $info    = [];
+                $status  = [
+                    0  => 'Disabled',
+                    1  => 'Initialing',
+                    2  => 'Enabled',
+                    3  => 'Waiting Validation',
+                    4  => 'Preloading',
+                    5  => 'Loaded',
                     -1 => 'Unloaded',
                     -2 => 'Failed',
                 ];
@@ -359,20 +359,29 @@ class Application
      * Get the Domain instance by given FQDN string.
      *
      * @param string $fqdn The well-formatted FQDN string used to match the domain
-     *
      * @return Domain|null Return the matched Domain instance or return null if no FQDN has matched
      *
      * @throws Throwable
      */
     private function matchDomain(string $fqdn): ?Domain
     {
+        [$domain, $port] = explode(':', $fqdn, 2);
+
         // Get the path value from the multisite and alias list by th current domain
         if (array_key_exists($fqdn, self::$multisite)) {
             return new Domain($this, $fqdn, '', self::$multisite[$fqdn]);
         }
 
+        if (array_key_exists($domain, self::$multisite)) {
+            return new Domain($this, $domain, '', self::$multisite[$domain]);
+        }
+
         if (array_key_exists($fqdn, self::$alias) && isset(self::$multisite[self::$alias[$fqdn]])) {
             return new Domain($this, self::$alias[$fqdn], $fqdn, self::$multisite[self::$alias[$fqdn]]);
+        }
+
+        if (array_key_exists($domain, self::$alias) && isset(self::$multisite[self::$alias[$domain]])) {
+            return new Domain($this, self::$alias[$domain], $domain, self::$multisite[self::$alias[$domain]]);
         }
 
         foreach (self::$multisite as $pattern => $path) {

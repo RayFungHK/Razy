@@ -30,6 +30,7 @@ return function () {
                 $message .= '{@c:green}Checked';
             } else {
                 if (mkdir($dirPath)) {
+                    chmod($dirPath, 0777);
                     $message .= '{@c:green}Success';
                 } else {
                     $message .= '{@:red}Failed';

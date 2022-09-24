@@ -66,8 +66,8 @@ class DOM
     /**
      * Control constructor.
      *
-     * @param string $name the name "id" value
-     * @param string $id   the attribute "id" value
+     * @param string $name the attribute "name" value
+     * @param string $id the attribute "id" value
      */
     public function __construct(string $name = '', string $id = '')
     {
@@ -122,8 +122,7 @@ class DOM
      * @param string $tag
      *
      * @return $this
-     *@throws Error
-     *
+     * @throws Error
      */
     public function setTag(string $tag): DOM
     {
@@ -137,7 +136,6 @@ class DOM
     }
 
     /**
-     * Get the tag.
      * Get the tag.
      *
      * @return string
@@ -167,7 +165,7 @@ class DOM
      * @param array|string $className A string of the class name or an array contains the class name
      *
      * @return self Chainable
-     *@throws Error
+     * @throws Error
      *
      */
     final public function addClass($className): DOM
@@ -194,7 +192,7 @@ class DOM
      * @param array|string $className A string of the class name or an array contains the class name
      *
      * @return self Chainable
-     *@throws Error
+     * @throws Error
      *
      */
     final public function removeClass($className): DOM
@@ -219,10 +217,10 @@ class DOM
      * Set the dataset value.
      *
      * @param array|string $parameter The parameter name or an array contains the dataset value
-     * @param mixed        $value     The value of the dataset
+     * @param mixed $value The value of the dataset
      *
      * @return self Chainable
-     *@throws Error
+     * @throws Error
      *
      */
     final public function setDataset($parameter, $value = null): DOM
@@ -247,10 +245,10 @@ class DOM
      * Set the attribute.
      *
      * @param array|string $attribute The attribute name or an array contains the attribute value
-     * @param mixed        $value     The value of the attribute
+     * @param mixed $value The value of the attribute
      *
      * @return self Chainable
-     *@throws Error
+     * @throws Error
      *
      */
     final public function setAttribute($attribute, $value = null): DOM
@@ -367,7 +365,7 @@ class DOM
     final public function getHTMLValue($value): string
     {
         if (is_scalar($value)) {
-            return htmlspecialchars((string) $value);
+            return htmlspecialchars((string)$value);
         }
 
         if (!is_resource($value)) {

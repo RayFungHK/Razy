@@ -218,8 +218,6 @@ class Distributor
             }
         }
 
-        $this->setSession();
-
         // Preload all modules, if the module preload event return false, the preload queue will stop and not enter the routing stage.
         $readyToRoute = true;
         if (!empty($preloadQueue)) {
@@ -231,37 +229,41 @@ class Distributor
             }
         }
 
-        if ($readyToRoute) {
-            // If the distributor is under a domain, initial all modules.
-            if ($this->domain) {
-                foreach ($this->modules as $module) {
-                    // Notify module that the system is ready
-                    $module->notify();
-                }
-            }
+        if (WEB_MODE) {
+            $this->setSession();
 
-            // Convert the regex route
-            $regexRoute       = $this->regexRoute;
-            $this->regexRoute = [];
-
-            sort_path_level($regexRoute);
-            foreach ($regexRoute as $route => $data) {
-                $route = tidy($route, true, '/');
-                $route = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
-                    if (strlen($matches[2] ?? '') > 0) {
-                        $regex = $matches[2];
-                    } else {
-                        $regex = ('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1];
+            if ($readyToRoute) {
+                // If the distributor is under a domain, initial all modules.
+                if ($this->domain) {
+                    foreach ($this->modules as $module) {
+                        // Notify module that the system is ready
+                        $module->notify();
                     }
+                }
 
-                    $regex .= (0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+';
+                // Convert the regex route
+                $regexRoute       = $this->regexRoute;
+                $this->regexRoute = [];
 
-                    return $regex;
-                }, $route);
+                sort_path_level($regexRoute);
+                foreach ($regexRoute as $route => $data) {
+                    $route = tidy($route, true, '/');
+                    $route = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
+                        if (strlen($matches[2] ?? '') > 0) {
+                            $regex = $matches[2];
+                        } else {
+                            $regex = ('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1];
+                        }
 
-                $data['route']            = $route;
-                $route                    = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
-                $this->regexRoute[$route] = $data;
+                        $regex .= (0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+';
+
+                        return $regex;
+                    }, $route);
+
+                    $data['route']            = $route;
+                    $route                    = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
+                    $this->regexRoute[$route] = $data;
+                }
             }
         }
     }
@@ -399,7 +401,7 @@ class Distributor
      */
     public function getURLPath(): string
     {
-        return append(RAZY_URL_ROOT, $this->urlPath);
+        return (defined('RAZY_URL_ROOT')) ? append(RAZY_URL_ROOT, $this->urlPath) : '';
     }
 
     /**

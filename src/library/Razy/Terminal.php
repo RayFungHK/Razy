@@ -146,6 +146,22 @@ class Terminal
     }
 
     /**
+     * Read the input.
+     *
+     * @return string
+     */
+    public static function read(): string
+    {
+        $response = trim(fgets(STDIN));
+        // Remove arrow character to prevent character overlap
+        if (preg_match('/\\033\[[ABCD]/', $response)) {
+            return preg_replace('/(?:\\033\[[ABCD])+/', '', $response);
+        }
+
+        return $response;
+    }
+
+    /**
      * Format the CLI text by using CLI styling tag.
      *
      * @param string $message
