@@ -21,46 +21,46 @@ class PackageManager
     public const TYPE_UPDATED           = 'updated';
     public const TYPE_ERROR             = 'error';
     public const TYPE_DOWNLOAD          = 'start_download';
-
     /**
-     * @var null|array
-     */
-    private static ?array $versionLock = null;
-
-    /**
-     * @var null|Closure
-     */
-    private static ?Closure $inspector = null;
-
-    /**
+     * The storage of the cached packages
      * @var array
      */
     private static array $cached = [];
-
     /**
-     * @var array
+     * The inspector closure
+     * @var null|Closure
      */
-    private array $package = [];
-
+    private static ?Closure $inspector = null;
     /**
-     * @var string
+     * The version lock value
+     * @var null|array
      */
-    private string $name;
-
+    private static ?array $versionLock = null;
     /**
-     * @var string
-     */
-    private string $versionRequired;
-
-    /**
-     * @var int
-     */
-    private int $status = self::STATUS_PENDING;
-
-    /**
+     * The Distributor entity
      * @var Distributor
      */
     private Distributor $distributor;
+    /**
+     * The package name
+     * @var string
+     */
+    private string $name;
+    /**
+     * The storage of the packages
+     * @var array
+     */
+    private array $package = [];
+    /**
+     * The status of the package
+     * @var int
+     */
+    private int $status = self::STATUS_PENDING;
+    /**
+     * The required version
+     * @var string
+     */
+    private string $versionRequired;
 
     /**
      * PackageManager constructor.
@@ -124,11 +124,20 @@ class PackageManager
     }
 
     /**
+     * Get the package manager status.
+     *
+     * @return int
+     */
+    public function getStatus(): int
+    {
+        return $this->status;
+    }
+
+    /**
      * Validate the package and update to the newest version.
      *
      * @return bool
-     *@throws Error
-     *
+     * @throws Error
      */
     public function validate(): bool
     {
@@ -226,6 +235,19 @@ class PackageManager
     }
 
     /**
+     * Send notify message to the inspector.
+     *
+     * @param string $type
+     * @param array  $args
+     */
+    private static function notify(string $type, array $args = [])
+    {
+        if (null !== self::$inspector) {
+            call_user_func_array(self::$inspector, array_merge([$type], $args));
+        }
+    }
+
+    /**
      * Fetch the latest packages info from repo.
      *
      * @throws Error
@@ -276,6 +298,24 @@ class PackageManager
     }
 
     /**
+     * Extract the response code.
+     *
+     * @param array $http_response_header
+     *
+     * @return int
+     */
+    private function parseResponseCode(array $http_response_header): int
+    {
+        foreach ($http_response_header as $header) {
+            if (preg_match('/^HTTP\\/[\d\\.]+\\s+(\d+)/', $header, $matches)) {
+                return intval($matches[1]);
+            }
+        }
+
+        return 0;
+    }
+
+    /**
      * Get the package name.
      *
      * @return string
@@ -293,46 +333,5 @@ class PackageManager
     public function getVersion(): string
     {
         return $this->package['version'] ?? '';
-    }
-
-    /**
-     * Get the package manager status.
-     *
-     * @return int
-     */
-    public function getStatus(): int
-    {
-        return $this->status;
-    }
-
-    /**
-     * Send notify message to the inspector.
-     *
-     * @param string $type
-     * @param array  $args
-     */
-    private static function notify(string $type, array $args = [])
-    {
-        if (null !== self::$inspector) {
-            call_user_func_array(self::$inspector, array_merge([$type], $args));
-        }
-    }
-
-    /**
-     * Extract the response code.
-     *
-     * @param array $http_response_header
-     *
-     * @return int
-     */
-    private function parseResponseCode(array $http_response_header): int
-    {
-        foreach ($http_response_header as $header) {
-            if (preg_match('/^HTTP\\/[\d\\.]+\\s+(\d+)/', $header, $matches)) {
-                return intval($matches[1]);
-            }
-        }
-
-        return 0;
     }
 }

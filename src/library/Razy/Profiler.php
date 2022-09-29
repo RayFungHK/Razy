@@ -14,6 +14,12 @@ namespace Razy;
 class Profiler
 {
     /**
+     * An array contains each check point statistic.
+     *
+     * @var array
+     */
+    private array $checkpoints = [];
+    /**
      * An array contains initialize statistic.
      *
      * @var array
@@ -21,18 +27,34 @@ class Profiler
     private array $init;
 
     /**
-     * An array contains each check point statistic.
-     *
-     * @var array
-     */
-    private array $checkpoints = [];
-
-    /**
      * Profiler constructor.
      */
     public function __construct()
     {
         $this->init = $this->createSample();
+    }
+
+    /**
+     * Create a new statistic sample.
+     *
+     * @return array An array contains the statistic details
+     */
+    private function createSample(): array
+    {
+        $ru                = getrusage();
+        $defined_functions = get_defined_functions(true);
+
+        return [
+            'index'             => count($this->checkpoints),
+            'memory_usage'      => memory_get_usage(),
+            'memory_allocated'  => memory_get_usage(true),
+            'output_buffer'     => ob_get_length(),
+            'user_mode_time'    => (int) $ru['ru_utime.tv_sec'] + ((int) $ru['ru_utime.tv_usec'] / 1000000),
+            'system_mode_time'  => (int) $ru['ru_stime.tv_sec'] + ((int) $ru['ru_stime.tv_usec'] / 1000000),
+            'execution_time'    => microtime(true),
+            'defined_functions' => $defined_functions['user'] ?? [],
+            'declared_classes'  => get_declared_classes(),
+        ];
     }
 
     /**
@@ -58,38 +80,6 @@ class Profiler
         $this->checkpoints[$label] = $this->createSample();
 
         return $this;
-    }
-
-    /**
-     * Get the report that compare the given label with the initialized checkpoint.
-     *
-     * @param string $label
-     *
-     * @return array
-     * @throws Error
-     *
-     */
-    public function reportTo(string $label): array
-    {
-        if (!isset($this->checkpoints[$label])) {
-            throw new Error('Checkpoint ' . $label . ' was not found.');
-        }
-
-        $compare = $this->checkpoints[$label];
-        $report  = [];
-        foreach ($this->init as $parameter => $value) {
-            if ('index' === $parameter || !array_key_exists($parameter, $compare)) {
-                continue;
-            }
-
-            if (is_numeric($value)) {
-                $report[$parameter] = $compare[$parameter] - $value;
-            } elseif (is_array($value)) {
-                $report[$parameter] = array_diff($compare[$parameter], $value);
-            }
-        }
-
-        return $report;
     }
 
     /**
@@ -182,25 +172,34 @@ class Profiler
     }
 
     /**
-     * Create a new statistic sample.
+     * Get the report that compare the given label with the initialized checkpoint.
      *
-     * @return array An array contains the statistic details
+     * @param string $label
+     *
+     * @return array
+     * @throws Error
+     *
      */
-    private function createSample(): array
+    public function reportTo(string $label): array
     {
-        $ru                = getrusage();
-        $defined_functions = get_defined_functions(true);
+        if (!isset($this->checkpoints[$label])) {
+            throw new Error('Checkpoint ' . $label . ' was not found.');
+        }
 
-        return [
-            'index'             => count($this->checkpoints),
-            'memory_usage'      => memory_get_usage(),
-            'memory_allocated'  => memory_get_usage(true),
-            'output_buffer'     => ob_get_length(),
-            'user_mode_time'    => (int) $ru['ru_utime.tv_sec'] + ((int) $ru['ru_utime.tv_usec'] / 1000000),
-            'system_mode_time'  => (int) $ru['ru_stime.tv_sec'] + ((int) $ru['ru_stime.tv_usec'] / 1000000),
-            'execution_time'    => microtime(true),
-            'defined_functions' => $defined_functions['user'] ?? [],
-            'declared_classes'  => get_declared_classes(),
-        ];
+        $compare = $this->checkpoints[$label];
+        $report  = [];
+        foreach ($this->init as $parameter => $value) {
+            if ('index' === $parameter || !array_key_exists($parameter, $compare)) {
+                continue;
+            }
+
+            if (is_numeric($value)) {
+                $report[$parameter] = $compare[$parameter] - $value;
+            } elseif (is_array($value)) {
+                $report[$parameter] = array_diff($compare[$parameter], $value);
+            }
+        }
+
+        return $report;
     }
 }

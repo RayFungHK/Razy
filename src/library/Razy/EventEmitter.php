@@ -22,29 +22,30 @@ use Throwable;
 class EventEmitter
 {
     /**
-     * @var Module
-     */
-    private Module $module;
-
-    /**
-     * @var string
-     */
-    private string $event;
-
-    /**
-     * @var null|callable|Closure
+     * The closure of the event
+     * @var null|Closure
      */
     private ?Closure $callback;
-
     /**
-     * @var array
-     */
-    private array $responses = [];
-
-    /**
+     * The Distributor entity
      * @var null|Distributor
      */
     private ?Distributor $distributor;
+    /**
+     * Event name
+     * @var string
+     */
+    private string $event;
+    /**
+     * The Module entity
+     * @var Module
+     */
+    private Module $module;
+    /**
+     * The storage of the responses from other Modules
+     * @var array
+     */
+    private array $responses = [];
 
     /**
      * API constructor.
@@ -60,6 +61,16 @@ class EventEmitter
         $this->event       = $event;
         $this->callback    = $callback;
         $this->distributor = $distributor;
+    }
+
+    /**
+     * Get all responses from listeners after the event is resolved.
+     *
+     * @return array
+     */
+    public function getAllResponse(): array
+    {
+        return $this->responses;
     }
 
     /**
@@ -84,15 +95,5 @@ class EventEmitter
         }
 
         return $this;
-    }
-
-    /**
-     * Get all responses from listeners after the event is resolved.
-     *
-     * @return array
-     */
-    public function getAllResponse(): array
-    {
-        return $this->responses;
     }
 }

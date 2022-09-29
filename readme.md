@@ -35,11 +35,9 @@ Above list of asset will be cloned into under `view\{$dist_code}` directory by `
 
 ### New rule for naming module class
 
-In order to prevent redeclaration error between accessing module in the different distributor via internal API, Razy has
-new naming rule of each `Module`. All modules must have the namespace beginning
-with `Razy\Module\{Distributor_Code}\{Module_Class}`.
+First, the module code must contains the `vendor` name, such as `vendor/package`, it is very useful to update the package from repository and prevent module code conflict.
 
-Assume the `Distributor Code` is `Main` and the `Module Code` is `root`：
+So, in v0.4 you don't need to declare the namespace in the controller anymore, but required to return an anonymous class. This changes can let developer move or clone entire package into other distributor or in shared module folder without any renaming or refactor.
 
 Before v0.4
 
@@ -50,21 +48,9 @@ namespace \Razy\Module\root;
 After v0.4
 
 ```php
-namespace \Razy\Module\Main\root;
-/**
- * Now you can also use fqdn format as the module code like `this.is.root`,
- * and the namespace of the module class should be:
- */
-namespace \Razy\Module\Main\this\is\root;
-```
-
-Beware that the `Distributor` code format should be alphabet and numeric only.
-
-Razy v0.4 has a new feature that you can load the shared module in different `Distributor`, to prevent redeclare class
-error cause, you should use the namespace as:
-
-```php
-namespace \Razy\Shared\this\is\root;
+return new class extends \Razy\Controller {
+    // blah blah blah...
+}
 ```
 
 ### URL Query Route
@@ -100,29 +86,11 @@ $this->addRoute('/regex/get-(:a)/page-(:d)/(:[a-z0-9_-]{3,})', 'regex');
 
 Previously, when you have created multiple `Distributor` under a Razy structure, the API is not allowed to access between the `Distributor` directly, yet you can access another `Distributor` API via CURL, but it may increase the execution time. Definitely, copying the same function to all `Distributor` module would be implemented is a dumb solution, but it is the only way to implement the function in each `Distributor`. Back to the original intention, Razy is designed for better coding management and prevent merge conflict in development. The responsible developer or team of the `Module` should maintain the API to allow other `Module` access for, to prevent let other developer try to modify your code to fulfill their requirements. 
 
-In v0.4, Razy `Controller` provides a `connect()` method which can let developer access other `Distributor` API directly. Also, you can configure the `Distributor` whitelist that allow to connect, or restrict access in `Controller::__onAPICall()`.
+In v0.4, Razy `Controller` provides a `connect()` method which can let developer access another `Distributor` API directly. Also, you can configure the `Distributor` whitelist that allow to connect, or restrict access in `Controller::__onAPICall()`. Indeed, even calling the API internally or across the distributor, it will return an object `API` object. Developer should call the `API::request()` to obtain the module's API Emitter, in order to execute the API command directly.
 
 ```php
 $connection = $this->connect('domain.name.in.razy.com');
-$connection->api('api.function', 'Developer', 'Friendly');
-```
-
-### Namespace module code
-
-You can use namespace to name your module code that it could prevent name conflict with other modules, such
-as `Author.Package.ClassName`. Your class file should contain a class under the namespace `Razy\Module\Author\Package\ClassName`, and the `Lazy Route` will start from `ClassName` or an alias you
-provided.
-
-```php
-/**
- * If the module code is named `Author\Sample\Route`, the class should be declared as below
- */
-namespace Razy\Module\Author\Sample;
-
-class Route
-{
-    // bla bla bla...
-}
+$connection->request('vender/package')->function('Developer', 'Friendly');
 ```
 
 ### Force to Enable/Disable Module
@@ -316,6 +284,23 @@ for load the external template file or re-use the template block in any child bl
 
 The last thing to say, the Template Engine rewritten the code to use the Generator to fetch the content of the template file, as it will save a lot of memory due to Razy will load all the file content in memory previously.
 
+Also, developer allowed to load the template file from inline template block or which are defined in template engine either. Remind that, the loaded template is not able to access the parameters value from the caller, that you must pass the parameter in the function tag `template`.
+
+```php
+$tpl = $this->getTemplate();
+
+$tpl->loadTemplate([
+    'SampleA' => $this->getViewFile('include/SampleA'),
+    'SampleB' => $this->getViewFile('include/SampleB'),
+]);
+```
+
+You can load it in the template file by the function tag `template`:
+```html
+{@template:SampleA paramA="test" paramB=$parameter.value.in.array}
+```
+Furthermore, developer also can load the template inside the template nest by nest, just beware that to pass the parameter correctly.
+
 ### Database Statement Simple Syntax
 In v0.3 Razy WhereSyntax and TableJoinSyntax provides clear and shorten syntax to generate the MySQL Statement. It is very helpful for maintaining complex MySQL statement, also it can generate the multiple MySQL JSON_* function combination just using a simple operator such as `~=` and `:=`. In v0.4 Razy enhanced the TableJoinSyntax and WhereSyntax to make it more accurate to parse the syntax, to prevent user provides an invalid syntax format to generate the incomplete or invalid statement. Besides, WhereSyntax also enhanced for parsing the operand more accurate, it will detect the type of the operand to generate different statements.
 
@@ -458,23 +443,9 @@ Update or install Module and composer package by below command:
 php Razy.phar validate distCode
 ```
 
-Finally, Razy v0.4 also changed the autoloader logic of the `Module` library, now under the `Module` library classes should be under the `Module` namespace:
+Finally, Razy v0.4 also changed the autoloader logic of the `Module` library, now it will autoload the class under in `library` folder the module's folder.
 
-```php
-/**
- * The ABC Module namespace
- */
-namespace Razy\Module\distCode\ABC;
-namespace Razy\Shared\ABC;
-
-/**
- * The Sample classes under the ABC module
- */
-namespace Razy\Module\distCode\ABC\Sample;
-namespace Razy\Shared\ABC\Sample;
-```
-
-Above changes are completely isolate the `composer package`, `custom classes`, `distributor classes` and `module classes` to prevent any mismatch version classes conflict, class name conflict, confusing and coding management confusion.
+Above changes are completely isolate the `composer package`, `custom classes`, `controller class` used to prevent any mismatch version classes conflict, class name conflict, confusing and coding management confusion.
 
 Additionally, Razy v0.4 support Psr-0 autoload now.
 
@@ -506,6 +477,7 @@ The following table is the injection and the path between each class.
 | __onPreload(): bool  |Trigger when the module has returned false in `__onValidate()`. Return false to refuse to enter routing stage.
 | __onInit(): bool     |Trigger when all modules are validated, return false to mark the module as unloaded
 | __onReady(): void    |When all modules are loaded, API and Event will enable and all the modules will be triggered once.
+| __onDispatch(): void |Trigger all the modules that not routed in when the application has routed successfully
 | __onRoute(): bool    |Only trigger when the module route is matched with the URL query, return false to refuse the matching.
 | __onAPICall(): bool  |Only trigger when the module's API is called, return false to refuse the API.
 | __onTrigger(): bool  |Only trigger when the module's listening event is called, return false to refuse the event trigger.

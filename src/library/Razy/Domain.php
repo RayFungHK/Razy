@@ -16,29 +16,30 @@ use Throwable;
 class Domain
 {
     /**
-     * @var string
-     */
-    private string $domain;
-
-    /**
+     * The domain's alias
      * @var string
      */
     private string $alias;
-
     /**
-     * @var string[]
-     */
-    private array $path = [];
-
-    /**
+     * The Application entity
      * @var Application
      */
     private Application $app;
-
     /**
+     * The matched Distributor entity
      * @var null|Distributor
      */
     private ?Distributor $distributor = null;
+    /**
+     * The FQDN format string
+     * @var string
+     */
+    private string $domain;
+    /**
+     * The storage of the distributor's path
+     * @var string[]
+     */
+    private array $path = [];
 
     /**
      * Domain constructor.
@@ -82,6 +83,16 @@ class Domain
     }
 
     /**
+     * Get the API instance.
+     *
+     * @return null|API
+     */
+    public function getAPI(): ?API
+    {
+        return ($this->distributor) ? $this->distributor->createAPI() : null;
+    }
+
+    /**
      * Get the domain alias.
      *
      * @return string
@@ -89,6 +100,24 @@ class Domain
     public function getAlias(): string
     {
         return $this->alias;
+    }
+
+    /**
+     * Get the string of the domain name.
+     *
+     * @return string
+     */
+    public function getDomainName(): string
+    {
+        return $this->domain;
+    }
+
+    /**
+     * @return null|Application
+     */
+    public function getPeer(): ?Application
+    {
+        return $this->app->getPeer();
     }
 
     /**
@@ -119,33 +148,5 @@ class Domain
         }
 
         return null;
-    }
-
-    /**
-     * Get the string of the domain name.
-     *
-     * @return string
-     */
-    public function getDomainName(): string
-    {
-        return $this->domain;
-    }
-
-    /**
-     * @return null|Application
-     */
-    public function getPeer(): ?Application
-    {
-        return $this->app->getPeer();
-    }
-
-    /**
-     * Get the API instance.
-     *
-     * @return null|API
-     */
-    public function getAPI(): ?API
-    {
-        return ($this->distributor) ? $this->distributor->createAPI() : null;
     }
 }

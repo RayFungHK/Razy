@@ -23,37 +23,33 @@ use Throwable;
 class Source
 {
     /**
-     * The root Entity object.
+     * The template source located directory.
      *
-     * @var ?Entity
+     * @var string
      */
-    private ?Entity $rootEntity = null;
-
-    /**
-     * @var Block|null
-     */
-    private ?Block $rootBlock = null;
-
+    private string $fileDirectory = '';
     /**
      * An array contains the Source parameters.
      *
      * @var array
      */
     private array $parameters = [];
-
+    /**
+     * @var Block|null
+     */
+    private ?Block $rootBlock = null;
+    /**
+     * The root Entity object.
+     *
+     * @var ?Entity
+     */
+    private ?Entity $rootEntity = null;
     /**
      * The Template object.
      *
      * @var Template
      */
     private Template $template;
-
-    /**
-     * The template source located directory.
-     *
-     * @var string
-     */
-    private string $fileDirectory = '';
 
     /**
      * Template Source constructor.
@@ -76,28 +72,14 @@ class Source
     }
 
     /**
-     * Link to a specified template engine entity.
-     *
-     * @param Template $template
-     *
-     * @return $this
-     */
-    public function link(Template $template): Source
-    {
-        $this->template = $template;
-
-        return $this;
-    }
-
-    /**
      * Assign the source level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
      * @param mixed $value     The parameter value
      *
+     * @return self Chainable
      * @throws Throwable
      *
-     * @return self Chainable
      */
     public function assign($parameter, $value = null): Source
     {
@@ -120,6 +102,8 @@ class Source
     }
 
     /**
+     * Bind reference parameter
+     *
      * @param string $parameter
      * @param null   $value
      *
@@ -134,11 +118,55 @@ class Source
     }
 
     /**
+     * Get the template file located directory.
+     *
+     * @return string The directory of the template file
+     */
+    public function getFileDirectory(): string
+    {
+        return $this->fileDirectory;
+    }
+
+    /**
+     * Get the instance hash ID
+     *
      * @return string
      */
     public function getID(): string
     {
         return spl_object_hash($this);
+    }
+
+    /**
+     * Get the root entity.
+     *
+     * @return Entity The root entity object
+     */
+    public function getRoot(): ?Entity
+    {
+        return $this->rootEntity;
+    }
+
+    /**
+     * Get the root entity.
+     *
+     * @return Block|null The root block object
+     */
+    public function getRootBlock(): ?Block
+    {
+        return $this->rootBlock;
+    }
+
+    /**
+     * Get the template block
+     *
+     * @param string $name
+     *
+     * @return Block|null
+     */
+    public function getTemplate(string $name): ?Block
+    {
+        return $this->template->getTemplate($name);
     }
 
     /**
@@ -173,47 +201,31 @@ class Source
     }
 
     /**
-     * Add current template source into queue list.
+     * Link to a specified template engine entity.
      *
-     * @param string $name The section name
+     * @param Template $template
      *
-     * @return Source
+     * @return $this
      */
-    public function queue(string $name = ''): Source
+    public function link(Template $template): Source
     {
-        $this->template->addQueue($this, $name);
+        $this->template = $template;
 
         return $this;
     }
 
     /**
-     * Get the root entity.
+     * Load the plugin from the plugin function by given name
      *
-     * @return Entity The root entity object
-     */
-    public function getRoot(): ?Entity
-    {
-        return $this->rootEntity;
-    }
-
-    /**
-     * Get the root entity.
+     * @param string $type
+     * @param string $name
      *
-     * @return Block|null The root block object
+     * @return null|Closure
+     * @throws Throwable
      */
-    public function getRootBlock(): ?Block
+    public function loadPlugin(string $type, string $name): ?Plugin
     {
-        return $this->rootBlock;
-    }
-
-    /**
-     * Get the template file located directory.
-     *
-     * @return string The directory of the template file
-     */
-    public function getFileDirectory(): string
-    {
-        return $this->fileDirectory;
+        return $this->template->loadPlugin($type, $name);
     }
 
     /**
@@ -228,26 +240,16 @@ class Source
     }
 
     /**
-     * @param string $type
-     * @param string $name
+     * Add current template source into queue list.
      *
-     * @throws Throwable
+     * @param string $name The section name
      *
-     * @return null|Closure
+     * @return Source
      */
-    public function loadPlugin(string $type, string $name): ?Plugin
+    public function queue(string $name = ''): Source
     {
-        return $this->template->loadPlugin($type, $name);
-    }
+        $this->template->addQueue($this, $name);
 
-    /**
-     * Get the template block
-     *
-     * @param string $name
-     * @return Block|null
-     */
-    public function getTemplate(string $name): ?Block
-    {
-        return $this->template->getTemplate($name);
+        return $this;
     }
 }

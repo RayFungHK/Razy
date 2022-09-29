@@ -16,6 +16,10 @@ class SimpleSyntax
     /**
      * Parse the Simple Syntax by given delimiter.
      *
+     * @param string $syntax
+     * @param string $delimiter
+     * @param string $negativeLookahead
+     * @return array
      * @throws Error
      */
     public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = ''): array
@@ -27,6 +31,9 @@ class SimpleSyntax
 
     /**
      * Extract the string that containing `(` and `)` into a nested array.
+     *
+     * @param string $text
+     * @return array
      */
     public static function ParseParens(string $text): array
     {
@@ -59,6 +66,12 @@ class SimpleSyntax
     }
 
     /**
+     * Extract the expression into array.
+     *
+     * @param array $clips
+     * @param string $delimiter
+     * @param string $negativeLookahead
+     * @return array
      * @throws Error
      */
     public static function ExtractExpr(array $clips, string $delimiter = ',|', string $negativeLookahead = ''): array

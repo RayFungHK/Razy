@@ -14,54 +14,50 @@ namespace Razy;
 class DOM
 {
     /**
-     * @var mixed
-     */
-    protected $value;
-
-    /**
-     * @var string
-     */
-    protected string $tag = '';
-
-    /**
-     * @var string
-     */
-    protected string $name = '';
-
-    /**
-     * @var array
-     */
-    protected array $className = [];
-
-    /**
+     * The storage of the attribute
      * @var array
      */
     protected array $attribute = [];
-
     /**
-     * @var string
+     * The storage of the class name
+     * @var array
      */
-    protected string $id = '';
-
+    protected array $className = [];
     /**
+     * The storage of DOM's dataset
      * @var array
      */
     protected array $dataset = [];
-
     /**
+     * The DOM id attribute value
      * @var string
      */
-    protected string $text = '';
-
+    protected string $id = '';
     /**
+     * Is DOM element a void element
      * @var bool
      */
     protected bool $isVoid = false;
-
     /**
+     * The name attribute value
+     * @var string
+     */
+    protected string $name = '';
+    /**
+     * The storage of the nodes
      * @var array
      */
     protected array $nodes = [];
+    /**
+     * The tag name
+     * @var string
+     */
+    protected string $tag = '';
+    /**
+     * The text of the DOM as a text-node
+     * @var string
+     */
+    protected string $text = '';
 
     /**
      * Control constructor.
@@ -71,240 +67,21 @@ class DOM
      */
     public function __construct(string $name = '', string $id = '')
     {
-        $name       = trim($name);
+        $name = trim($name);
         $this->name = $name;
 
-        $id       = trim($id);
+        $id = trim($id);
         $this->id = $id;
     }
 
     /**
-     * Set the attribute `name` value.
-     *
-     * @param mixed $value The value of the name
-     *
-     * @return self Chainable
-     */
-    final public function setName($value): DOM
-    {
-        $value      = trim($value);
-        $this->name = $value;
-
-        return $this;
-    }
-
-    /**
-     * Set the text.
-     *
-     * @param mixed $text
-     *
-     * @return self Chainable
-     */
-    final public function setText(string $text): DOM
-    {
-        if (empty($this->nodes)) {
-            $this->nodes[] = $text;
-        } else {
-            $node = &$this->nodes[count($this->nodes) - 1];
-            if (is_string($node)) {
-                $node = $text;
-            } else {
-                $this->nodes[] = $text;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set the Tag.
-     *
-     * @param string $tag
-     *
-     * @return $this
-     * @throws Error
-     */
-    public function setTag(string $tag): DOM
-    {
-        $tag = trim($tag);
-        if (!preg_match('/^[a-z]+$/i', $tag)) {
-            throw new Error('The tag name is not valid.');
-        }
-        $this->tag = $tag;
-
-        return $this;
-    }
-
-    /**
-     * Get the tag.
+     * Call saveHTML() when trigger toString.
      *
      * @return string
      */
-    public function getTag(): string
+    final public function __toString(): string
     {
-        return $this->tag;
-    }
-
-    /**
-     * Set the Control is void element, default.
-     *
-     * @param bool $enable Set true to set the Control as void element
-     *
-     * @return self Chainable
-     */
-    final public function setVoidElement(bool $enable): DOM
-    {
-        $this->isVoid = $enable;
-
-        return $this;
-    }
-
-    /**
-     * Add a class name.
-     *
-     * @param array|string $className A string of the class name or an array contains the class name
-     *
-     * @return self Chainable
-     * @throws Error
-     *
-     */
-    final public function addClass($className): DOM
-    {
-        if (is_string($className)) {
-            $className = trim($className);
-            if ($className) {
-                $this->className[$className] = true;
-            }
-        } elseif (is_array($className)) {
-            foreach ($className as $name) {
-                $this->addClass($name);
-            }
-        } else {
-            throw new Error(gettype($className) . ' is not a valid data type.');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Remove a class name.
-     *
-     * @param array|string $className A string of the class name or an array contains the class name
-     *
-     * @return self Chainable
-     * @throws Error
-     *
-     */
-    final public function removeClass($className): DOM
-    {
-        if (is_string($className)) {
-            $className = trim($className);
-            if ($className) {
-                unset($this->className[$className]);
-            }
-        } elseif (is_array($className)) {
-            foreach ($className as $name) {
-                $this->removeClass($name);
-            }
-        } else {
-            throw new Error(gettype($className) . ' is not a valid data type.');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set the dataset value.
-     *
-     * @param array|string $parameter The parameter name or an array contains the dataset value
-     * @param mixed $value The value of the dataset
-     *
-     * @return self Chainable
-     * @throws Error
-     *
-     */
-    final public function setDataset($parameter, $value = null): DOM
-    {
-        if (is_string($parameter)) {
-            $parameter = trim($parameter);
-            if ($parameter) {
-                $this->dataset[$parameter] = $value;
-            }
-        } elseif (is_array($parameter)) {
-            foreach ($parameter as $param => $value) {
-                $this->setDataset($param, $value);
-            }
-        } else {
-            throw new Error(gettype($parameter) . ' is not a valid data type.');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set the attribute.
-     *
-     * @param array|string $attribute The attribute name or an array contains the attribute value
-     * @param mixed $value The value of the attribute
-     *
-     * @return self Chainable
-     * @throws Error
-     *
-     */
-    final public function setAttribute($attribute, $value = null): DOM
-    {
-        if (is_string($attribute)) {
-            $attribute = trim($attribute);
-            if ($attribute) {
-                $this->attribute[$attribute] = $value;
-            }
-        } elseif (is_array($attribute)) {
-            foreach ($attribute as $attr => $value) {
-                $this->setAttribute($attr, $value);
-            }
-        } else {
-            throw new Error(gettype($attribute) . ' is not a valid data type.');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Get the attribute.
-     *
-     * @param string $attribute
-     *
-     * @return mixed
-     */
-    final public function getAttribute(string $attribute)
-    {
-        return $this->attribute[$attribute] ?? null;
-    }
-
-    /**
-     * Check if the attribute is set.
-     *
-     * @param string $attribute
-     *
-     * @return bool
-     */
-    final public function hasAttribute(string $attribute): bool
-    {
-        return isset($this->attribute[$attribute]);
-    }
-
-    /**
-     * Remove an attribute.
-     *
-     * @param string $attribute The attribute name
-     *
-     * @return self Chainable
-     */
-    final public function removeAttribute(string $attribute): DOM
-    {
-        unset($this->attribute[$attribute]);
-
-        return $this;
+        return $this->saveHTML();
     }
 
     /**
@@ -376,6 +153,33 @@ class DOM
     }
 
     /**
+     * Add a class name.
+     *
+     * @param array|string $className A string of the class name or an array contains the class name
+     *
+     * @return self Chainable
+     * @throws Error
+     *
+     */
+    final public function addClass($className): DOM
+    {
+        if (is_string($className)) {
+            $className = trim($className);
+            if ($className) {
+                $this->className[$className] = true;
+            }
+        } elseif (is_array($className)) {
+            foreach ($className as $name) {
+                $this->addClass($name);
+            }
+        } else {
+            throw new Error(gettype($className) . ' is not a valid data type.');
+        }
+
+        return $this;
+    }
+
+    /**
      * Append DOM node.
      *
      * @param DOM $dom
@@ -390,6 +194,87 @@ class DOM
     }
 
     /**
+     * Get the attribute.
+     *
+     * @param string $attribute
+     *
+     * @return mixed
+     */
+    final public function getAttribute(string $attribute)
+    {
+        return $this->attribute[$attribute] ?? null;
+    }
+
+    /**
+     * Set the attribute.
+     *
+     * @param array|string $attribute The attribute name or an array contains the attribute value
+     * @param mixed $value The value of the attribute
+     *
+     * @return self Chainable
+     * @throws Error
+     *
+     */
+    final public function setAttribute($attribute, $value = null): DOM
+    {
+        if (is_string($attribute)) {
+            $attribute = trim($attribute);
+            if ($attribute) {
+                $this->attribute[$attribute] = $value;
+            }
+        } elseif (is_array($attribute)) {
+            foreach ($attribute as $attr => $value) {
+                $this->setAttribute($attr, $value);
+            }
+        } else {
+            throw new Error(gettype($attribute) . ' is not a valid data type.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the tag.
+     *
+     * @return string
+     */
+    public function getTag(): string
+    {
+        return $this->tag;
+    }
+
+    /**
+     * Set the Tag.
+     *
+     * @param string $tag
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function setTag(string $tag): DOM
+    {
+        $tag = trim($tag);
+        if (!preg_match('/^[a-z]+$/i', $tag)) {
+            throw new Error('The tag name is not valid.');
+        }
+        $this->tag = $tag;
+
+        return $this;
+    }
+
+    /**
+     * Check if the attribute is set.
+     *
+     * @param string $attribute
+     *
+     * @return bool
+     */
+    final public function hasAttribute(string $attribute): bool
+    {
+        return isset($this->attribute[$attribute]);
+    }
+
+    /**
      * Prepend DOM node.
      *
      * @param DOM $dom
@@ -399,6 +284,127 @@ class DOM
     final public function prepend(DOM $dom): DOM
     {
         array_unshift($this->nodes, $dom);
+
+        return $this;
+    }
+
+    /**
+     * Remove an attribute.
+     *
+     * @param string $attribute The attribute name
+     *
+     * @return self Chainable
+     */
+    final public function removeAttribute(string $attribute): DOM
+    {
+        unset($this->attribute[$attribute]);
+
+        return $this;
+    }
+
+    /**
+     * Remove a class name.
+     *
+     * @param array|string $className A string of the class name or an array contains the class name
+     *
+     * @return self Chainable
+     * @throws Error
+     *
+     */
+    final public function removeClass($className): DOM
+    {
+        if (is_string($className)) {
+            $className = trim($className);
+            if ($className) {
+                unset($this->className[$className]);
+            }
+        } elseif (is_array($className)) {
+            foreach ($className as $name) {
+                $this->removeClass($name);
+            }
+        } else {
+            throw new Error(gettype($className) . ' is not a valid data type.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the dataset value.
+     *
+     * @param array|string $parameter The parameter name or an array contains the dataset value
+     * @param mixed $value The value of the dataset
+     *
+     * @return self Chainable
+     * @throws Error
+     *
+     */
+    final public function setDataset($parameter, $value = null): DOM
+    {
+        if (is_string($parameter)) {
+            $parameter = trim($parameter);
+            if ($parameter) {
+                $this->dataset[$parameter] = $value;
+            }
+        } elseif (is_array($parameter)) {
+            foreach ($parameter as $param => $value) {
+                $this->setDataset($param, $value);
+            }
+        } else {
+            throw new Error(gettype($parameter) . ' is not a valid data type.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the attribute `name` value.
+     *
+     * @param mixed $value The value of the name
+     *
+     * @return self Chainable
+     */
+    final public function setName($value): DOM
+    {
+        $value = trim($value);
+        $this->name = $value;
+
+        return $this;
+    }
+
+    /**
+     * Set the text.
+     *
+     * @param mixed $text
+     *
+     * @return self Chainable
+     */
+    final public function setText(string $text): DOM
+    {
+        if (empty($this->nodes)) {
+            $this->nodes[] = $text;
+        } else {
+            $node = &$this->nodes[count($this->nodes) - 1];
+            if (is_string($node)) {
+                $node = $text;
+            } else {
+                $this->nodes[] = $text;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the Control is void element, default.
+     *
+     * @param bool $enable Set true to set the Control as void element
+     *
+     * @return self Chainable
+     */
+    final public function setVoidElement(bool $enable): DOM
+    {
+        $this->isVoid = $enable;
 
         return $this;
     }

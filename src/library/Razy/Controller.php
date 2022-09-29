@@ -26,116 +26,32 @@ use Throwable;
 abstract class Controller
 {
     /**
-     * @var Module
-     */
-    private Module $module;
-
-    /**
+     * The storage of the external closures
+     *
      * @var array
      */
     private array $externalClosure = [];
-
     /**
-     * Controller constructor.
+     * The Module entity
      *
-     * @param Module $module
+     * @var ?Module
      */
-    final public function __construct(Module $module)
+    private ?Module $module = null;
+
+    final public function __construct(?Module $module = null)
     {
         $this->module = $module;
-    }
-
-    /**
-     * Trigger before routing stage, return false to put the module into preload stage.
-     * @param Pilot $pilot
-     * @return bool
-     */
-    public function __onValidate(Pilot $pilot): bool
-    {
-        return true;
-    }
-
-    /**
-     * Trigger in preload stage, used to setup the module. Return false to prevent enter the routing stage, the remaining modules in queue will not trigger the preload event.
-     * @param Pilot $pilot
-     * @return bool
-     */
-    public function __onPreload(Pilot $pilot): bool
-    {
-        return true;
-    }
-
-    /**
-     * Controller Event __onInit, will be executed if the module is loaded. Return false to mark the module loaded
-     * failed.
-     *
-     * @param Pilot $pilot
-     *
-     * @return bool Return true if the module is loaded, or return false to mark the module status as "Failed"
-     */
-    public function __onInit(Pilot $pilot): bool
-    {
-        return true;
-    }
-
-    /**
-     * Controller Event __onRoute, will be executed before the route closure is executed. Return false to route is not
-     * accept.
-     *
-     * @param array $args
-     *
-     * @return bool
-     */
-    public function __onRoute(array $args): bool
-    {
-        return true;
-    }
-
-    /**
-     * Controller Event __onReady, will be executed if all modules are loaded in system.
-     */
-    public function __onReady(): void
-    {
-    }
-
-    /**
-     * Handling the error of the closure.
-     *
-     * @param string $path
-     * @param Throwable $exception
-     *
-     * @throws Throwable
-     */
-    public function __onError(string $path, Throwable $exception): void
-    {
-        Error::ShowException($exception);
-    }
-
-    /**
-     * Controller Event __onAPICall, will be executed if the module is accessed via API. Return false to refuse API
-     * access.
-     *
-     * @param string $module The module code that is accessed via API
-     * @param string $method The command method will be called via API
-     * @param string $fqdn The well-formatted FQDN string include the domain name and distributor code
-     *
-     * @return bool Return false to refuse API access
-     */
-    public function __onAPICall(string $module, string $method, string $fqdn = ''): bool
-    {
-        return true;
     }
 
     /**
      * Controller method bridge. When the method called which is not declared, Controller will
      * inject the Closure from the specified path that configured in __onInit state.
      *
-     * @param string $method The string of the method name which is called
-     * @param array $arguments The arguments will pass to the method
+     * @param string $method    The string of the method name which is called
+     * @param array  $arguments The arguments will pass to the method
      *
      * @return mixed The return result of the method
      * @throws Throwable
-     *
      */
     final public function __call(string $method, array $arguments)
     {
@@ -145,7 +61,7 @@ abstract class Controller
             }
         }
 
-        $path = append($this->module->getPath(), 'controller', $this->module->getCode() . '.' . $method . '.php');
+        $path = append($this->module->getPath(), 'controller', $this->module->getClassName() . '.' . $method . '.php');
         if (is_file($path)) {
             /** @var Closure $closure */
             $closure = require $path;
@@ -164,15 +80,16 @@ abstract class Controller
     }
 
     /**
-     * __onTouch event, handling touch request from other module.
+     * Controller Event __onAPICall, will be executed if the module is accessed via API. Return false to refuse API
+     * access.
      *
-     * @param string $moduleCode
-     * @param string $version
-     * @param string $message
+     * @param string $module The module code that is accessed via API
+     * @param string $method The command method will be called via API
+     * @param string $fqdn   The well-formatted FQDN string include the domain name and distributor code
      *
-     * @return bool
+     * @return bool Return false to refuse API access
      */
-    public function __onTouch(string $moduleCode, string $version, string $message = ''): bool
+    public function __onAPICall(string $module, string $method, string $fqdn = ''): bool
     {
         return true;
     }
@@ -189,41 +106,99 @@ abstract class Controller
     }
 
     /**
-     * Get the Module version.
+     * Handling the error of the closure.
      *
-     * @return string
-     */
-    final public function getModuleVersion(): string
-    {
-        return $this->module->getVersion();
-    }
-
-    /**
-     * Execute the API command.
+     * @param string    $path
+     * @param Throwable $exception
      *
-     * @param string $command The API command
-     * @param mixed ...$args The arguments will pass to the API
-     *
-     * @return mixed Return the result from the API command
      * @throws Throwable
-     *
      */
-    final public function api(string $command, ...$args)
+    public function __onError(string $path, Throwable $exception): void
     {
-        return $this->module->execute($command, $args);
+        Error::ShowException($exception);
     }
 
     /**
-     * Prepare the EventEmitter to trigger the event.
+     * Controller Event __onInit, will be executed if the module is loaded. Return false to mark the module loaded
+     * failed.
      *
-     * @param string $event The name of the event
-     * @param callable $callback the callback to execute when the EventEmitter start to resolve
+     * @param Pilot $pilot
      *
-     * @return EventEmitter The EventEmitter instance
+     * @return bool Return true if the module is loaded, or return false to mark the module status as "Failed"
      */
-    final public function trigger(string $event, callable $callback): EventEmitter
+    public function __onInit(Pilot $pilot): bool
     {
-        return $this->module->propagate($event, $callback);
+        return true;
+    }
+
+    /**
+     * Trigger in preload stage, used to setup the module. Return false to prevent enter the routing stage, the remaining modules in queue will not trigger the preload event.
+     *
+     * @param Pilot $pilot
+     *
+     * @return bool
+     */
+    public function __onPreload(Pilot $pilot): bool
+    {
+        return true;
+    }
+
+    /**
+     * Controller Event __onReady, will be executed if all modules are loaded in system.
+     */
+    public function __onReady(): void
+    {
+    }
+
+    /**
+     * Controller Event __onRoute, will be executed before the route closure is executed. Return false to route is not
+     * accept.
+     *
+     * @param array $args
+     *
+     * @return bool
+     */
+    public function __onRoute(array $args): bool
+    {
+        return true;
+    }
+
+    /**
+     * __onTouch event, handling touch request from other module.
+     *
+     * @param string $moduleCode
+     * @param string $version
+     * @param string $message
+     *
+     * @return bool
+     */
+    public function __onTouch(string $moduleCode, string $version, string $message = ''): bool
+    {
+        return true;
+    }
+
+    /**
+     * Trigger before routing stage, return false to put the module into preload stage.
+     *
+     * @param Pilot $pilot
+     *
+     * @return bool
+     */
+    public function __onValidate(Pilot $pilot): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the API Emitter.
+     *
+     * @param string $moduleCode
+     *
+     * @return API\Emitter
+     */
+    final public function api(string $moduleCode): API\Emitter
+    {
+        return $this->module->getEmitter($moduleCode);
     }
 
     /**
@@ -233,7 +208,6 @@ abstract class Controller
      *
      * @return null|API return the API instance if the Application is connected successfully
      * @throws Throwable
-     *
      */
     final public function connect(string $fqdn): ?API
     {
@@ -245,14 +219,28 @@ abstract class Controller
     }
 
     /**
+     * Get the module's shared asset URL.
+     *
      * @return string
      */
-    final public function getModulePath(): string
+    final public function getAssetPath(): string
     {
-        return $this->module->getPath();
+        return append($this->module->getSiteURL(), 'view', $this->module->getAlias()) . '/';
     }
 
     /**
+     * Get the root URL of the distributor.
+     *
+     * @return string
+     */
+    final public function getSiteURL(): string
+    {
+        return $this->module->getSiteURL();
+    }
+
+    /**
+     * Get the module code.
+     *
      * @return string
      */
     final public function getModuleCode(): string
@@ -261,81 +249,49 @@ abstract class Controller
     }
 
     /**
-     * @return string
-     */
-    final public function getRootURL(): string
-    {
-        return $this->module->getRootURL();
-    }
-
-    /**
-     * @return string
-     */
-    final public function getLazyRootURL(): string
-    {
-        return append($this->module->getRootURL(), $this->module->getCode()) . '/';
-    }
-
-    /**
-     * @return string
-     */
-    final public function getAssetPath(): string
-    {
-        return append($this->module->getRootURL(), 'view', $this->module->getCode()) . '/';
-    }
-
-    /**
-     * @return string
-     */
-    final public function getViewPath(): string
-    {
-        return append($this->module->getURLPath(), 'view');
-    }
-
-    /**
-     * @param string $path
+     * Get the Configuration entity.
      *
-     * @return Source
-     *
-     * @throws Throwable
+     * @return Configuration
+     * @throws Error
      */
-    final public function load(string $path): Template\Source
+    final public function getModuleConfig(): Configuration
     {
-        $path = $this->getViewFile($path);
-        if (!is_file($path)) {
-            throw new Error('The path ' . $path . ' is not a valid path.');
-        }
-        $template = $this->module->getTemplateEngine();
-
-        return $template->load($path);
+        return $this->module->loadConfig();
     }
 
     /**
-     * @param string $path
+     * Get the module system path.
+     *
      * @return string
      */
-    final public function getViewFile(string $path): string
+    final public function getModulePath(): string
     {
-        $path     = append($this->module->getPath(), 'view', $path);
-        $filename = basename($path);
-        if (!preg_match('/[^.]+\..+/', $filename)) {
-            $path .= '.tpl';
-        }
-
-        return $path;
+        return $this->module->getPath();
     }
 
     /**
-     * @param array $sources
+     * Get the Module version.
      *
-     * @throws Throwable
+     * @return string
      */
-    final public function view(array $sources)
+    final public function getModuleVersion(): string
     {
-        echo $this->module->getTemplateEngine()->outputQueued($sources);
+        return $this->module->getVersion();
     }
 
     /**
+     * Get the routed information.
+     *
+     * @return array
+     */
+    final public function getRoutedInfo(): array
+    {
+        return $this->module->getRoutedInfo();
+    }
+
+    /**
+     * Get the template engine entity.
+     *
      * @return Template
      */
     final public function getTemplate(): Template
@@ -344,15 +300,46 @@ abstract class Controller
     }
 
     /**
-     * Get the Configuration entity.
+     * Get the URLQuery string.
      *
-     * @return Configuration
-     * @throws Error
-     *
+     * @return string
      */
-    final public function getModuleConfig(): Configuration
+    final public function getURLQuery(): string
     {
-        return $this->module->loadConfig();
+        return $this->module->getURLQuery();
+    }
+
+    /**
+     * Get the module's view URL.
+     *
+     * @return string
+     */
+    final public function getViewPath(): string
+    {
+        return append($this->module->getBaseURL(), 'view');
+    }
+
+    /**
+     * Get the root URL of the module.
+     *
+     * @return string
+     */
+    final public function getBaseURL(): string
+    {
+        return $this->module->getBaseURL();
+    }
+
+    /**
+     * Redirect to specified path in the module
+     *
+     * @param string $path
+     *
+     * @return void
+     */
+    final public function goto(string $path)
+    {
+        header('location: ' . append($this->getBaseURL(), $path), true, 301);
+        exit;
     }
 
     /**
@@ -360,6 +347,7 @@ abstract class Controller
      *
      * @param string $modules
      * @param string $message
+     *
      * @return bool
      */
     final public function handshake(string $modules, string $message = ''): bool
@@ -376,6 +364,68 @@ abstract class Controller
     }
 
     /**
+     * Load the template file.
+     *
+     * @param string $path
+     *
+     * @return Source
+     * @throws Throwable
+     */
+    final public function load(string $path): Template\Source
+    {
+        $path = $this->getViewFile($path);
+        if (!is_file($path)) {
+            throw new Error('The path ' . $path . ' is not a valid path.');
+        }
+        $template = $this->module->getTemplateEngine();
+
+        return $template->load($path);
+    }
+
+    /**
+     * Get the view file system path.
+     *
+     * @param string $path
+     *
+     * @return string
+     */
+    final public function getViewFile(string $path): string
+    {
+        $path     = append($this->module->getPath(), 'view', $path);
+        $filename = basename($path);
+        if (!preg_match('/[^.]+\..+/', $filename)) {
+            $path .= '.tpl';
+        }
+
+        return $path;
+    }
+
+    /**
+     * Prepare the EventEmitter to trigger the event.
+     *
+     * @param string   $event    The name of the event
+     * @param callable $callback the callback to execute when the EventEmitter start to resolve
+     *
+     * @return EventEmitter The EventEmitter instance
+     */
+    final public function trigger(string $event, callable $callback): EventEmitter
+    {
+        return $this->module->propagate($event, $callback);
+    }
+
+    /**
+     * Get the parsed template content by given list of sources.
+     *
+     * @param array $sources
+     *
+     * @throws Throwable
+     */
+    final public function view(array $sources)
+    {
+        echo $this->module->getTemplateEngine()->outputQueued($sources);
+    }
+
+    /**
      * Get the XHR entity.
      *
      * @return XHR
@@ -383,45 +433,5 @@ abstract class Controller
     final public function xhr(): XHR
     {
         return new XHR();
-    }
-
-    /**
-     * @return string
-     */
-    final public function landing(): string
-    {
-        return $this->module->landing();
-    }
-
-    /**
-     * Redirect to specified path in the module
-     *
-     * @param string $path
-     * @return void
-     */
-    final public function goto(string $path)
-    {
-        header('location: ' . append($this->getLazyRootURL(), $path), true, 301);
-        exit;
-    }
-
-    /**
-     * Get the routed path.
-     *
-     * @return string
-     */
-    final public function getRoutedPath(): string
-    {
-        return $this->module->getRoutedPath();
-    }
-
-    /**
-     * Get the URLQuery string.
-     *
-     * @return string
-     */
-    final public function getURLQuery(): string
-    {
-        return $this->module->getURLQuery();
     }
 }

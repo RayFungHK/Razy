@@ -17,26 +17,26 @@ use Throwable;
 class Error extends Exception
 {
     public const DEFAULT_HEADING = 'There seems to is something wrong...';
-
     /**
-     * @var bool
-     */
-    private static bool $debug = false;
-
-    /**
+     * The cache buffer output
      * @var string
      */
     private static string $cached = '';
-
     /**
-     * @var string
+     * The setting of debug mode
+     * @var bool
      */
-    private string $heading;
-
+    private static bool $debug = false;
     /**
+     * The debug message
      * @var string
      */
     private string $debugMessage;
+    /**
+     * The heading text
+     * @var string
+     */
+    private string $heading;
 
     /**
      * Error constructor.
@@ -52,6 +52,41 @@ class Error extends Exception
         $this->heading      = $heading;
         $this->debugMessage = $debugMessage;
         parent::__construct($message, $statusCode, $exception);
+    }
+
+    /**
+     * Get the cached buffer content
+     *
+     * @return string
+     */
+    public static function GetCached(): string
+    {
+        return self::$cached;
+    }
+
+    /**
+     * Enable debug to display the detail backtrack.
+     *
+     * @param bool $enable
+     */
+    public static function SetDebug(bool $enable): void
+    {
+        self::$debug = $enable;
+    }
+
+    /**
+     * Display 404 Not Found error page.
+     *
+     * @return void
+     */
+    public static function Show404(): void
+    {
+        ob_clean();
+        header('HTTP/1.0 404 Not Found');
+        echo '<h1>404 Not Found</h1>';
+        echo 'The requested URL was not found on this server.';
+
+        exit();
     }
 
     /**
@@ -116,14 +151,6 @@ class Error extends Exception
     }
 
     /**
-     * @return string
-     */
-    public static function GetCached(): string
-    {
-        return self::$cached;
-    }
-
-    /**
      * Get the heading.
      *
      * @return string The exception page heading
@@ -141,28 +168,5 @@ class Error extends Exception
     public function getDebugMessage(): string
     {
         return $this->debugMessage;
-    }
-
-    /**
-     * Enable debug to display the detail backtrack.
-     *
-     * @param bool $enable
-     */
-    public static function SetDebug(bool $enable): void
-    {
-        self::$debug = $enable;
-    }
-
-    /**
-     * Display 404 Not Found error page.
-     */
-    public static function Show404(): void
-    {
-        ob_clean();
-        header('HTTP/1.0 404 Not Found');
-        echo '<h1>404 Not Found</h1>';
-        echo 'The requested URL was not found on this server.';
-
-        exit();
     }
 }

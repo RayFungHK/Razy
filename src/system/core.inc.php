@@ -17,7 +17,7 @@ use const PHP_SAPI;
 
 header_remove('X-Powered-By');
 
-define('RAZY_VERSION', '0.4.0-55');
+define('RAZY_VERSION', '0.4.1-206');
 define('PLUGIN_FOLDER', append(SYSTEM_ROOT, 'plugins'));
 define('PHAR_PLUGIN_FOLDER', append(PHAR_PATH, 'plugins'));
 define('SITES_FOLDER', append(SYSTEM_ROOT, 'sites'));

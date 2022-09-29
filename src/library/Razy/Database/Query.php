@@ -17,14 +17,15 @@ use PDOStatement;
 class Query
 {
     /**
-     * @var Statement
-     */
-    private Statement $statement;
-
-    /**
+     * The PDOStatement entity
      * @var PDOStatement
      */
     private PDOStatement $pdoStatement;
+    /**
+     * The Statement entity
+     * @var Statement
+     */
+    private Statement $statement;
 
     /**
      * Query constructor.
@@ -39,23 +40,13 @@ class Query
     }
 
     /**
-     * Fetch all result.
+     * Get the affected row.
      *
-     * @param string $type the type of the result will be returned
-     *
-     * @return array
+     * @return int
      */
-    public function fetchAll(string $type = ''): array
+    public function affected(): int
     {
-        if ('group' === $type) {
-            return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
-        }
-
-        if ('keypair' === $type) {
-            return $this->pdoStatement->fetchAll(PDO::FETCH_KEY_PAIR);
-        }
-
-        return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        return $this->pdoStatement->rowCount();
     }
 
     /**
@@ -84,13 +75,23 @@ class Query
     }
 
     /**
-     * Get the affected row.
+     * Fetch all result.
      *
-     * @return int
+     * @param string $type the type of the result will be returned
+     *
+     * @return array
      */
-    public function affected(): int
+    public function fetchAll(string $type = ''): array
     {
-        return $this->pdoStatement->rowCount();
+        if ('group' === $type) {
+            return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
+        }
+
+        if ('keypair' === $type) {
+            return $this->pdoStatement->fetchAll(PDO::FETCH_KEY_PAIR);
+        }
+
+        return $this->pdoStatement->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**

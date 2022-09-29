@@ -18,6 +18,9 @@ use Razy\Terminal\Processor;
 
 class Terminal
 {
+    /**
+     * List of font color
+     */
     public const COLOR_DEFAULT      = "\033[39m";
     public const COLOR_BLACK        = "\033[30m";
     public const COLOR_RED          = "\033[31m";
@@ -37,6 +40,9 @@ class Terminal
     public const COLOR_WHITE        = "\033[97m";
     public const RESET_STLYE        = "\033[0m";
 
+    /**
+     * List of background color
+     */
     public const BACKGROUND_BLACK      = "\033[40m";
     public const BACKGROUND_RED        = "\033[41m";
     public const BACKGROUND_GREEN      = "\033[42m";
@@ -51,31 +57,35 @@ class Terminal
     public const TEXT_BLINK = "\033[5m";
 
     /**
+     * The terminal code
      * @var string
      */
     private string $code = '';
-
     /**
-     * @var Terminal[]
-     */
-    private array $navigation = [];
-
-    /**
-     * @var null|Terminal
-     */
-    private ?Terminal $parent;
-
-    /**
+     * Enable logging
      * @var bool
      */
     private bool $logging = false;
-
-    private array $parameters = [];
-
     /**
+     * The storage of the logs
      * @var array
      */
     private array $logs = [];
+    /**
+     * The storage of the Terminal entity
+     * @var Terminal[]
+     */
+    private array $navigation = [];
+    /**
+     * The storage of the parameters
+     * @var array
+     */
+    private array $parameters = [];
+    /**
+     * The Terminal parent
+     * @var null|Terminal
+     */
+    private ?Terminal $parent;
 
     /**
      * Terminal constructor.
@@ -96,36 +106,24 @@ class Terminal
     }
 
     /**
+     * Read the input.
+     *
      * @return string
      */
-    public function getCode(): string
+    public static function read(): string
     {
-        return $this->code;
+        $response = trim(fgets(STDIN));
+        // Remove arrow character to prevent character overlap
+        if (preg_match('/\\033\[[ABCD]/', $response)) {
+            return preg_replace('/(?:\\033\[[ABCD])+/', '', $response);
+        }
+
+        return $response;
     }
 
     /**
-     * @param Closure $callback
-     * @param array $args
-     * @param array $parameters
-     * @return $this
-     */
-    public function run(Closure $callback, array $args = [], array $parameters = []): Terminal
-    {
-        $this->parameters = $parameters;
-        call_user_func_array($callback->bindTo($this), $args);
-
-        return $this;
-    }
-
-    /**
-     * @return null|Terminal
-     */
-    public function getParent(): ?Terminal
-    {
-        return $this->parent;
-    }
-
-    /**
+     * Display the header
+     *
      * @param string $message
      * @param int    $length
      *
@@ -146,19 +144,155 @@ class Terminal
     }
 
     /**
-     * Read the input.
+     * Get the Terminal code
      *
      * @return string
      */
-    public static function read(): string
+    public function getCode(): string
     {
-        $response = trim(fgets(STDIN));
-        // Remove arrow character to prevent character overlap
-        if (preg_match('/\\033\[[ABCD]/', $response)) {
-            return preg_replace('/(?:\\033\[[ABCD])+/', '', $response);
+        return $this->code;
+    }
+
+    /**
+     * Get the parameters
+     *
+     * @return array
+     */
+    public function getParameters(): array
+    {
+        return $this->parameters;
+    }
+
+    /**
+     * Get the parent
+     *
+     * @return null|Terminal
+     */
+    public function getParent(): ?Terminal
+    {
+        return $this->parent;
+    }
+
+    /**
+     * Get the console screen width
+     *
+     * @return int
+     */
+    public function getScreenWidth(): int
+    {
+        if ('WIN' === strtoupper(substr(PHP_OS, 0, 3))) {
+            $setting      = shell_exec('mode');
+            $clips        = preg_split('/\-+/', $setting, -1, PREG_SPLIT_NO_EMPTY);
+            $terminalInfo = explode("\n", trim(end($clips)));
+            if (count($terminalInfo) >= 2) {
+                [, $value] = explode(':', trim($terminalInfo[1]), 2);
+
+                return (int) $value;
+            }
+
+            return 0;
         }
 
-        return $response;
+        return (int) shell_exec('tput cols');
+    }
+
+    /**
+     * Get the parsed text length.
+     *
+     * @param string   $text
+     * @param null|int $escaped
+     *
+     * @return int
+     */
+    public function length(string $text, ?int &$escaped = 0): int
+    {
+        $escaped = 0;
+        if (preg_match_all("/\e\\[(?:\\d+m|[ABCD])/", $text, $matches)) {
+            array_walk($matches[0], function (&$value) use (&$lengthOfEscape, &$escaped) {
+                $escaped += strlen($value);
+            });
+        }
+
+        return strlen($text) - $escaped;
+    }
+
+    /**
+     * Enable or disable logging
+     *
+     * @param bool $enable
+     *
+     * @return $this
+     */
+    public function logging(bool $enable): Terminal
+    {
+        $this->logging = $enable;
+
+        return $this;
+    }
+
+    /**
+     * Execute the command and pass the arguments and parameters into closure.
+     *
+     * @param Closure $callback
+     * @param array $args
+     * @param array $parameters
+     * @return $this
+     */
+    public function run(Closure $callback, array $args = [], array $parameters = []): Terminal
+    {
+        $this->parameters = $parameters;
+        call_user_func_array($callback->bindTo($this), $args);
+
+        return $this;
+    }
+
+    /**
+     * Save the log into file.
+     *
+     * @param string $path
+     *
+     * @return bool
+     */
+    public function saveLog(string $path): bool
+    {
+        $length  = 20;
+        $content = '';
+        $path    = fix_path($path);
+        foreach ($this->logs as $log) {
+            $content .= sprintf('%-22s%s', '[' . $log[0] . ']', $log[1]) . PHP_EOL;
+        }
+
+        $realPath = realpath($path);
+        if ($realPath) {
+            // If the path is a valid file or directory
+            if (is_dir($realPath)) {
+                $path = append($path, (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt');
+            }
+        } else {
+            // If the path is not exists, extract the directory and the file name
+            // If no file name is provided, use default file name
+            $fileName = (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt';
+            if (!is_dir_path($path)) {
+                $fileName = basename($path);
+                $path     = dirname($path);
+            }
+
+            try {
+                // Create directory
+                mkdir($path, 0777, true);
+            } catch (Exception $e) {
+                return false;
+            }
+            $path = append($path, $fileName);
+        }
+
+        try {
+            file_put_contents($path, $content);
+        } catch (Exception $e) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -243,101 +377,18 @@ class Terminal
     }
 
     /**
-     * @param string   $text
-     * @param null|int $escaped
+     * Get the Table entity
      *
-     * @return int
+     * @return Table
      */
-    public function length(string $text, ?int &$escaped = 0): int
-    {
-        $escaped = 0;
-        if (preg_match_all("/\e\\[(?:\\d+m|[ABCD])/", $text, $matches)) {
-            array_walk($matches[0], function (&$value) use (&$lengthOfEscape, &$escaped) {
-                $escaped += strlen($value);
-            });
-        }
-
-        return strlen($text) - $escaped;
-    }
-
-    /**
-     * @param bool $enable
-     *
-     * @return $this
-     */
-    public function logging(bool $enable): Terminal
-    {
-        $this->logging = $enable;
-
-        return $this;
-    }
-
-    /**
-     * @param string $path
-     *
-     * @return bool
-     */
-    public function saveLog(string $path): bool
-    {
-        $length  = 20;
-        $content = '';
-        $path    = fix_path($path);
-        foreach ($this->logs as $log) {
-            $content .= sprintf('%-22s%s', '[' . $log[0] . ']', $log[1]) . PHP_EOL;
-        }
-
-        $realPath = realpath($path);
-        if ($realPath) {
-            // If the path is a valid file or directory
-            if (is_dir($realPath)) {
-                $path = append($path, (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt');
-            }
-        } else {
-            // If the path is not exists, extract the directory and the file name
-            // If no file name is provided, use default file name
-            $fileName = (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt';
-            if (!is_dir_path($path)) {
-                $fileName = basename($path);
-                $path     = dirname($path);
-            }
-
-            try {
-                // Create directory
-                mkdir($path, 0777, true);
-            } catch (Exception $e) {
-                return false;
-            }
-            $path = append($path, $fileName);
-        }
-
-        try {
-            file_put_contents($path, $content);
-        } catch (Exception $e) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * @param string $message
-     *
-     * @return $this
-     */
-    public function addLog(string $message): Terminal
-    {
-        $message      = trim($message);
-        $this->logs[] = [(new DateTime())->format('Y-m-d H:i:s'), $message];
-
-        return $this;
-    }
-
     public function table(): Table
     {
         return new Table($this);
     }
 
     /**
+     * Out a line of message.
+     *
      * @param string $message
      * @param bool   $resetStyle
      * @param string $format
@@ -358,31 +409,17 @@ class Terminal
     }
 
     /**
-     * @return int
+     * Add a new log message
+     *
+     * @param string $message
+     *
+     * @return $this
      */
-    public function getScreenWidth(): int
+    public function addLog(string $message): Terminal
     {
-        if ('WIN' === strtoupper(substr(PHP_OS, 0, 3))) {
-            $setting      = shell_exec('mode');
-            $clips        = preg_split('/\-+/', $setting, -1, PREG_SPLIT_NO_EMPTY);
-            $terminalInfo = explode("\n", trim(end($clips)));
-            if (count($terminalInfo) >= 2) {
-                [, $value] = explode(':', trim($terminalInfo[1]), 2);
+        $message      = trim($message);
+        $this->logs[] = [(new DateTime())->format('Y-m-d H:i:s'), $message];
 
-                return (int) $value;
-            }
-
-            return 0;
-        }
-
-        return (int) shell_exec('tput cols');
-    }
-
-    /**
-     * @return array
-     */
-    public function getParameters(): array
-    {
-        return $this->parameters;
+        return $this;
     }
 }

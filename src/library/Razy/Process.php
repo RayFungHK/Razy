@@ -4,12 +4,17 @@ namespace Razy;
 
 class Process
 {
-    private $process = null;
-
     private array $pipes = [];
+    private $process = null;
 
     public function __construct()
     {
+    }
+
+    public function send(string $data): string
+    {
+        fwrite($this->pipes[0], "Your data here...");
+        return stream_get_contents($this->pipes[1]);
     }
 
     public function start(string $path)
@@ -21,11 +26,5 @@ class Process
         );
 
         $this->process = proc_open('php ' . $path, $descriptors, $this->pipes);
-    }
-
-    public function send(string $data): string
-    {
-        fwrite($this->pipes[0], "Your data here...");
-        return stream_get_contents($this->pipes[1]);
     }
 }

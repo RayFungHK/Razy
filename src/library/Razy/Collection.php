@@ -13,29 +13,36 @@ namespace Razy;
 
 use ArrayObject;
 use Closure;
-use Razy\Collection\Processor;
 use Throwable;
+use Razy\Collection\Processor;
 
 class Collection extends ArrayObject
 {
     /**
+     * The storage of the plugin folder.
+     *
      * @var array
      */
     private static array $pluginFolder = [];
 
     /**
+     * The storage of the plugin closure.
+     *
      * @var array
      */
     private array $plugins = [];
 
     /**
-     * Collection constructor.
+     * Add a plugin folder.
      *
-     * @param $data
+     * @param string $path
      */
-    public function __construct($data)
+    public static function addPluginFolder(string $path)
     {
-        parent::__construct($data);
+        $path = tidy(trim($path));
+        if ($path && is_dir($path)) {
+            self::$pluginFolder[] = $path;
+        }
     }
 
     /**
@@ -43,9 +50,8 @@ class Collection extends ArrayObject
      *
      * @param string $filter
      *
-     * @throws Throwable
-     *
      * @return Processor
+     * @throws Throwable
      */
     public function __invoke(string $filter): Processor
     {
@@ -69,123 +75,12 @@ class Collection extends ArrayObject
     }
 
     /**
-     * Implement __serialize to support serialize() function.
-     *
-     * @return array
-     */
-    public function __serialize(): array
-    {
-        return $this->array();
-    }
-
-    /**
-     * Implement __unserialize to support the unserialize() function
-     * * Cannot provide type hinting of the parameter due to the ArrayObject::__unserialize($serialized) cannot be
-     * override.
-     *
-     * @param array $data
-     */
-    public function __unserialize($data): void
-    {
-        $this->__construct($data);
-    }
-
-    /**
-     * @param string $path
-     */
-    public static function addPluginFolder(string $path)
-    {
-        $path = tidy(trim($path));
-        if ($path && is_dir($path)) {
-            self::$pluginFolder[] = $path;
-        }
-    }
-
-    /**
-     * Implement offsetGet method.
-     *
-     * @param mixed $key
-     *
-     * @return mixed
-     */
-    public function &offsetGet($key)
-    {
-        $iterator = $this->getIterator();
-        $result   = null;
-        if (array_key_exists($key, (array) $iterator)) {
-            $result = &$iterator[$key];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Load the plugin.
-     *
-     * @param string $type
-     * @param string $name
-     *
-     * @throws Throwable
-     *
-     * @return null|Closure
-     */
-    public function loadPlugin(string $type, string $name): ?Closure
-    {
-        $name     = strtolower($name);
-        $identify = $type . '.' . $name;
-
-        if (!isset($this->plugins[$identify])) {
-            $this->plugins[$identify] = null;
-            foreach (self::$pluginFolder as $folder) {
-                $pluginFile = append($folder, $identify . '.php');
-
-                if (is_file($pluginFile)) {
-                    try {
-                        $closure = require $pluginFile;
-                        if ($closure instanceof Closure) {
-                            $this->plugins[$identify] = $closure;
-
-                            return $this->plugins[$identify];
-                        }
-                    } catch (Throwable $exception) {
-                        throw new Error('Missing or invalid Closure.');
-                    }
-                }
-            }
-        }
-
-        return $this->plugins[$identify];
-    }
-
-    /**
-     * Export all collected element into an array. It will also walk through the array and convert the Collection
-     * object into an array too.
-     *
-     * @return array
-     */
-    public function array(): array
-    {
-        $recursion = function (&$aryData) use (&$recursion) {
-            foreach ($aryData as &$data) {
-                if ($data instanceof Collection) {
-                    $recursion($data);
-                    $data = $data->array();
-                }
-            }
-        };
-        $recursion($this);
-
-        return (array) $this->getIterator();
-    }
-
-    /**
      * Filter the value by the path and the filter functions.
      *
      * @param array $selectors
      *
-     * @throws Throwable
-     *
      * @return array
+     * @throws Throwable
      */
     private function parseSelector(array $selectors): array
     {
@@ -208,7 +103,7 @@ class Collection extends ArrayObject
                             }
                         } else {
                             // If the key is exists, put the specified value into the list
-                            if (array_key_exists($matches['key'], (array) $element)) {
+                            if (array_key_exists($matches['key'], (array)$element)) {
                                 $_filtered[$parent . '.' . quotemeta($matches['key'])] = &$element[$matches['key']];
                             }
                         }
@@ -231,6 +126,8 @@ class Collection extends ArrayObject
     }
 
     /**
+     * Filter the collection by the filter syntax.
+     *
      * @param array  $filtered
      * @param string $filterSyntax
      *
@@ -275,5 +172,114 @@ class Collection extends ArrayObject
             // If the syntax is not in correct pattern, empty the matched values list
             $filtered = new Collection([]);
         }
+    }
+
+    /**
+     * Load the plugin.
+     *
+     * @param string $type
+     * @param string $name
+     *
+     * @return null|Closure
+     * @throws Throwable
+     *
+     */
+    public function loadPlugin(string $type, string $name): ?Closure
+    {
+        $name     = strtolower($name);
+        $identify = $type . '.' . $name;
+
+        if (!isset($this->plugins[$identify])) {
+            $this->plugins[$identify] = null;
+            foreach (self::$pluginFolder as $folder) {
+                $pluginFile = append($folder, $identify . '.php');
+
+                if (is_file($pluginFile)) {
+                    try {
+                        $closure = require $pluginFile;
+                        if ($closure instanceof Closure) {
+                            $this->plugins[$identify] = $closure;
+
+                            return $this->plugins[$identify];
+                        }
+                    } catch (Throwable $exception) {
+                        throw new Error('Missing or invalid Closure.');
+                    }
+                }
+            }
+        }
+
+        return $this->plugins[$identify];
+    }
+
+    /**
+     * Implement __serialize to support serialize() function.
+     *
+     * @return array
+     */
+    public function __serialize(): array
+    {
+        return $this->array();
+    }
+
+    /**
+     * Export all collected element into an array. It will also walk through the array and convert the Collection
+     * object into an array too.
+     *
+     * @return array
+     */
+    public function array(): array
+    {
+        $recursion = function (&$aryData) use (&$recursion) {
+            foreach ($aryData as &$data) {
+                if ($data instanceof Collection) {
+                    $recursion($data);
+                    $data = $data->array();
+                }
+            }
+        };
+        $recursion($this);
+
+        return (array)$this->getIterator();
+    }
+
+    /**
+     * Implement __unserialize to support the unserialize() function
+     * * Cannot provide type hinting of the parameter due to the ArrayObject::__unserialize($serialized) cannot be
+     * override.
+     *
+     * @param array $data
+     */
+    public function __unserialize($data): void
+    {
+        $this->__construct($data);
+    }
+
+    /**
+     * Collection constructor.
+     *
+     * @param $data
+     */
+    public function __construct($data)
+    {
+        parent::__construct($data);
+    }
+
+    /**
+     * Implement offsetGet method.
+     *
+     * @param mixed $key
+     *
+     * @return mixed
+     */
+    public function &offsetGet($key)
+    {
+        $iterator = $this->getIterator();
+        $result   = null;
+        if (array_key_exists($key, (array)$iterator)) {
+            $result = &$iterator[$key];
+        }
+
+        return $result;
     }
 }

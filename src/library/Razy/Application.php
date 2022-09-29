@@ -19,26 +19,59 @@ use Throwable;
  */
 class Application
 {
-    private static array $multisite = [];
-
+    /**
+     * The storage of the site alias
+     *
+     * @var array
+     */
     private static array $alias = [];
-
-    private static ?Application $master = null;
-
+    /**
+     * The storage of the created Application instances
+     *
+     * @var array
+     */
     private static array $instances = [];
-
-    private ?Domain $domain = null;
-
-    private ?Application $peer = null;
-
+    /**
+     * The primary application instances
+     *
+     * @var Application|null
+     */
+    private static ?Application $master = null;
+    /**
+     * The storage of the site config
+     *
+     * @var array
+     */
+    private static array $multisite = [];
+    /**
+     * The registered distributor
+     *
+     * @var array
+     */
     private static array $registeredDist = [];
-
+    /**
+     * The Domain entity
+     *
+     * @var Domain|null
+     */
+    private ?Domain $domain = null;
+    /**
+     * The unique ID
+     *
+     * @var string
+     */
     private string $guid;
+    /**
+     * The Application entity that connected in via API
+     *
+     * @var Application|null
+     */
+    private ?Application $peer = null;
 
     /**
      * Container constructor.
      *
-     * @param string $fqdn the well-formatted FQDN string
+     * @param string           $fqdn the well-formatted FQDN string
      * @param Application|null $peer The Application instance which is connected
      *
      * @throws Throwable
@@ -85,18 +118,80 @@ class Application
     }
 
     /**
-     * @param string $code
-     * @param Closure $closure
-     * @return bool
-     * @throws Error
+     * Get the Domain instance by given FQDN string.
+     *
+     * @param string $fqdn The well-formatted FQDN string used to match the domain
+     *
+     * @return Domain|null Return the matched Domain instance or return null if no FQDN has matched
+     *
      * @throws Throwable
      */
-    public static function ValidatePackage(string $code, Closure $closure): bool
+    private function matchDomain(string $fqdn): ?Domain
+    {
+        [$domain, $port] = explode(':', $fqdn, 2);
+
+        // Get the path value from the multisite and alias list by th current domain
+        if (array_key_exists($fqdn, self::$multisite)) {
+            return new Domain($this, $fqdn, '', self::$multisite[$fqdn]);
+        }
+
+        if (array_key_exists($domain, self::$multisite)) {
+            return new Domain($this, $domain, '', self::$multisite[$domain]);
+        }
+
+        if (array_key_exists($fqdn, self::$alias) && isset(self::$multisite[self::$alias[$fqdn]])) {
+            return new Domain($this, self::$alias[$fqdn], $fqdn, self::$multisite[self::$alias[$fqdn]]);
+        }
+
+        if (array_key_exists($domain, self::$alias) && isset(self::$multisite[self::$alias[$domain]])) {
+            return new Domain($this, self::$alias[$domain], $domain, self::$multisite[self::$alias[$domain]]);
+        }
+
+        foreach (self::$multisite as $pattern => $path) {
+            if (is_fqdn($pattern, true)) {
+                // If the FQDN string contains * (wildcard)
+                if ('*' !== $pattern && false !== strpos($pattern, '*')) {
+                    $wildcard = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $pattern);
+                    if (preg_match('/^' . $wildcard . '$/', $fqdn)) {
+                        return new Domain($this, $pattern, $fqdn, self::$multisite[$fqdn]);
+                    }
+                }
+            }
+        }
+
+        if (isset(self::$multisite['*'])) {
+            // If there is a wildcard domain exists
+            return new Domain($this, '*', $fqdn, self::$multisite['*']);
+        }
+
+        // Return null if no domain has matched
+        return null;
+    }
+
+    /**
+     * @return array
+     */
+    public static function GetDistributors(): array
+    {
+        return self::$registeredDist;
+    }
+
+    /**
+     * Unpack the distributor asset to the shared view.
+     *
+     * @param string  $code
+     * @param Closure $closure
+     *
+     * @return int
+     *
+     * @throws Throwable
+     */
+    public static function UnpackAsset(string $code, Closure $closure): int
     {
         $code = trim($code);
         if (CLI_MODE) {
             if (self::distributorExists($code)) {
-                return self::createDistributor(self::$registeredDist[$code])->validatePackage($closure);
+                return self::createDistributor(self::$registeredDist[$code])->unpackAllAsset($closure);
             }
 
             throw new Error('Distributor `' . $code . '` is not found.');
@@ -190,21 +285,97 @@ class Application
     }
 
     /**
-     * @return array
+     * @param string  $code
+     * @param Closure $closure
+     *
+     * @return bool
+     *
+     * @throws Throwable
      */
-    public static function GetDistributors(): array
+    public static function ValidatePackage(string $code, Closure $closure): bool
     {
-        return self::$registeredDist;
+        $code = trim($code);
+        if (CLI_MODE) {
+            if (self::distributorExists($code)) {
+                return self::createDistributor(self::$registeredDist[$code])->validatePackage($closure);
+            }
+
+            throw new Error('Distributor `' . $code . '` is not found.');
+        }
+
+        throw new Error('You can only access unpackAsset method via CLI.');
     }
 
     /**
-     * Get the Application instance.
+     * Check if the distributor is exists by given distributor code.
      *
-     * @return Application|null The Application instance which is connected
+     * @param string $code
+     *
+     * @return bool
      */
-    public function getPeer(): ?self
+    public static function distributorExists(string $code): bool
     {
-        return $this->peer;
+        return isset(self::$registeredDist[$code]);
+    }
+
+    /**
+     * Create the Distributor entity.
+     *
+     * @param array $distInfo
+     *
+     * @return mixed|Distributor
+     * @throws Throwable
+     */
+    private static function createDistributor(array &$distInfo)
+    {
+        $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path']);
+
+        return $distInfo['entity'];
+    }
+
+    /**
+     * Get the distributor's module information by given distributor code.
+     *
+     * @param string $code
+     *
+     * @return array
+     *
+     * @throws Throwable
+     */
+    public static function getDistributorModules(string $code): array
+    {
+        $code = trim($code);
+        if (CLI_MODE) {
+            if (self::distributorExists($code)) {
+                $modules = self::createDistributor(self::$registeredDist[$code])->getAllModules();
+                $info    = [];
+                $status  = [
+                    0  => 'Disabled',
+                    1  => 'Initialing',
+                    2  => 'Enabled',
+                    3  => 'Waiting Validation',
+                    4  => 'Preloading',
+                    5  => 'Loaded',
+                    -1 => 'Unloaded',
+                    -2 => 'Failed',
+                ];
+                foreach ($modules as $module) {
+                    $info[] = [
+                        $module->getCode(),
+                        $status[$module->getStatus()],
+                        $module->getVersion(),
+                        $module->getAuthor(),
+                        $module->getAPICode(),
+                    ];
+                }
+
+                return $info;
+            }
+
+            throw new Error('Distributor `' . $code . '` is not found.');
+        }
+
+        throw new Error('You can only access unpackAsset method via CLI.');
     }
 
     /**
@@ -253,7 +424,7 @@ class Application
      * Start query the distributor by the URL query.
      *
      * @param string $urlQuery The URL query string
-     * @param bool $exactly Match the Distributor path exactly
+     * @param bool   $exactly  Match the Distributor path exactly
      *
      * @return bool Return true if Distributor is matched
      *
@@ -279,141 +450,13 @@ class Application
         return true;
     }
 
-    public static function distributorExists(string $code): bool
-    {
-        return isset(self::$registeredDist[$code]);
-    }
-
     /**
-     * @param string $code
-     * @param Closure $closure
-     * @return int
-     * @throws Error
-     * @throws Throwable
-     */
-    public static function UnpackAsset(string $code, Closure $closure): int
-    {
-        $code = trim($code);
-        if (CLI_MODE) {
-            if (self::distributorExists($code)) {
-                return self::createDistributor(self::$registeredDist[$code])->unpackAllAsset($closure);
-            }
-
-            throw new Error('Distributor `' . $code . '` is not found.');
-        }
-
-        throw new Error('You can only access unpackAsset method via CLI.');
-    }
-
-    /**
-     * @param string $code
-     * @return array
-     * @throws Error
-     * @throws Throwable
-     */
-    public static function getDistributorModules(string $code): array
-    {
-        $code = trim($code);
-        if (CLI_MODE) {
-            if (self::distributorExists($code)) {
-                $modules = self::createDistributor(self::$registeredDist[$code])->getAllModules();
-                $info    = [];
-                $status  = [
-                    0  => 'Disabled',
-                    1  => 'Initialing',
-                    2  => 'Enabled',
-                    3  => 'Waiting Validation',
-                    4  => 'Preloading',
-                    5  => 'Loaded',
-                    -1 => 'Unloaded',
-                    -2 => 'Failed',
-                ];
-                foreach ($modules as $module) {
-                    $info[] = [
-                        $module->getCode(),
-                        $status[$module->getStatus()],
-                        $module->getVersion(),
-                        $module->getAuthor(),
-                        $module->getAPICode(),
-                    ];
-                }
-
-                return $info;
-            }
-
-            throw new Error('Distributor `' . $code . '` is not found.');
-        }
-
-        throw new Error('You can only access unpackAsset method via CLI.');
-    }
-
-    /**
-     * @return Application|null
-     */
-    public static function GetMaster(): ?Application
-    {
-        return self::$master;
-    }
-
-    /**
-     * Get the Domain instance by given FQDN string.
+     * Get the Application instance.
      *
-     * @param string $fqdn The well-formatted FQDN string used to match the domain
-     * @return Domain|null Return the matched Domain instance or return null if no FQDN has matched
-     *
-     * @throws Throwable
+     * @return Application|null The Application instance which is connected
      */
-    private function matchDomain(string $fqdn): ?Domain
+    public function getPeer(): ?self
     {
-        [$domain, $port] = explode(':', $fqdn, 2);
-
-        // Get the path value from the multisite and alias list by th current domain
-        if (array_key_exists($fqdn, self::$multisite)) {
-            return new Domain($this, $fqdn, '', self::$multisite[$fqdn]);
-        }
-
-        if (array_key_exists($domain, self::$multisite)) {
-            return new Domain($this, $domain, '', self::$multisite[$domain]);
-        }
-
-        if (array_key_exists($fqdn, self::$alias) && isset(self::$multisite[self::$alias[$fqdn]])) {
-            return new Domain($this, self::$alias[$fqdn], $fqdn, self::$multisite[self::$alias[$fqdn]]);
-        }
-
-        if (array_key_exists($domain, self::$alias) && isset(self::$multisite[self::$alias[$domain]])) {
-            return new Domain($this, self::$alias[$domain], $domain, self::$multisite[self::$alias[$domain]]);
-        }
-
-        foreach (self::$multisite as $pattern => $path) {
-            if (is_fqdn($pattern, true)) {
-                // If the FQDN string contains * (wildcard)
-                if ('*' !== $pattern && false !== strpos($pattern, '*')) {
-                    $wildcard = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $pattern);
-                    if (preg_match('/^' . $wildcard . '$/', $fqdn)) {
-                        return new Domain($this, $pattern, $fqdn, self::$multisite[$fqdn]);
-                    }
-                }
-            }
-        }
-
-        if (isset(self::$multisite['*'])) {
-            // If there is a wildcard domain exists
-            return new Domain($this, '*', $fqdn, self::$multisite['*']);
-        }
-
-        // Return null if no domain has matched
-        return null;
-    }
-
-    /**
-     * @param array $distInfo
-     * @return mixed|Distributor
-     * @throws Throwable
-     */
-    private static function createDistributor(array &$distInfo)
-    {
-        $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path']);
-
-        return $distInfo['entity'];
+        return $this->peer;
     }
 }

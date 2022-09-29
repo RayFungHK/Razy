@@ -37,33 +37,12 @@ class FileReader
     }
 
     /**
-     * Prepend a new file into generator.
-     *
-     * @param string $filepath
-     *
-     * @return FileReader
-     *@throws Error
-     *
-     */
-    public function prepend(string $filepath): FileReader
-    {
-        if (!is_file($filepath)) {
-            throw new Error('The file ' . $filepath . ' does not exists.');
-        }
-
-        array_unshift($this->generator, new SplFileObject($filepath));
-
-        return $this;
-    }
-
-    /**
      * Append a new file into generator.
      *
      * @param string $filepath
      *
      * @return FileReader
-     *@throws Error
-     *
+     * @throws Error
      */
     public function append(string $filepath): FileReader
     {
@@ -91,5 +70,24 @@ class FileReader
         }
 
         return $this->generator[0]->fgets();
+    }
+
+    /**
+     * Prepend a new file into generator.
+     *
+     * @param string $filepath
+     *
+     * @return FileReader
+     * @throws Error
+     */
+    public function prepend(string $filepath): FileReader
+    {
+        if (!is_file($filepath)) {
+            throw new Error('The file ' . $filepath . ' does not exists.');
+        }
+
+        array_unshift($this->generator, new SplFileObject($filepath));
+
+        return $this;
     }
 }

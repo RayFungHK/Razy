@@ -27,16 +27,22 @@ class TableJoinSyntax
     ];
 
     /**
+     * The storage of extracted syntax
+     *
      * @var array
      */
     private array $extracted = [];
 
     /**
+     * The Statement entity
+     *
      * @var Statement
      */
     private Statement $statement;
 
     /**
+     * The storage of table alias
+     *
      * @var Statement[]
      */
     private array $tableAlias = [];
@@ -52,28 +58,27 @@ class TableJoinSyntax
     }
 
     /**
-     * Parse the TableJoin Simple Syntax.
+     * Get or create the TableJoinSyntax instance by the name, it will replace the table name as a sub query in the
+     * Table Join Syntax.
      *
-     * @param string $syntax
+     * @param string $tableName
      *
-     * @throws Error
-     *
-     * @return $this
+     * @return Statement
      */
-    public function parseSyntax(string $syntax): TableJoinSyntax
+    public function getAlias(string $tableName): Statement
     {
-        $syntax          = trim($syntax);
-        $this->extracted = SimpleSyntax::parseSyntax($syntax, '-<>+');
+        if (!isset($this->tableAlias[$tableName])) {
+            $this->tableAlias[$tableName] = new Statement($this->statement->getDatabase());
+        }
 
-        return $this;
+        return $this->tableAlias[$tableName];
     }
 
     /**
      * Generate the FROM statement.
      *
-     * @throws Throwable
-     *
      * @return string
+     * @throws Throwable
      */
     public function getSyntax(): string
     {
@@ -134,32 +139,14 @@ class TableJoinSyntax
     }
 
     /**
-     * Get or create the TableJoinSyntax instance by the name, it will replace the table name as a sub query in the
-     * Table Join Syntax.
-     *
-     * @param string $tableName
-     *
-     * @return Statement
-     */
-    public function getAlias(string $tableName): Statement
-    {
-        if (!isset($this->tableAlias[$tableName])) {
-            $this->tableAlias[$tableName] = new Statement($this->statement->getDatabase());
-        }
-
-        return $this->tableAlias[$tableName];
-    }
-
-    /**
      * Parse the Where Simple Syntax in TableJoin condition.
      *
      * @param string $syntax
      * @param string $source
      * @param string $alias
      *
-     * @throws Throwable
-     *
      * @return string
+     * @throws Throwable
      */
     private function parseCondition(string $syntax, string $source = '', string $alias = ''): string
     {
@@ -197,5 +184,21 @@ class TableJoinSyntax
         }
         // TODO: invalid condition syntax
         return '';
+    }
+
+    /**
+     * Parse the TableJoin Simple Syntax.
+     *
+     * @param string $syntax
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function parseSyntax(string $syntax): TableJoinSyntax
+    {
+        $syntax          = trim($syntax);
+        $this->extracted = SimpleSyntax::parseSyntax($syntax, '-<>+');
+
+        return $this;
     }
 }

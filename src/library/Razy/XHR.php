@@ -7,31 +7,28 @@ class XHR
     public const CORP_SAME_SITE    = 'same-site';
     public const CORP_SAME_ORIGIN  = 'same-origin';
     public const CORP_CROSS_ORIGIN = 'cross-origin';
-
-    /**
-     * @var array
-     */
-    private array $parameters = [];
-
-    /**
-     * @var mixed
-     */
-    private $content = '';
-
-    /**
-     * @var string
-     */
-    private string $hash;
-
-    /**
-     * @var string
-     */
-    private string $corp = self::CORP_CROSS_ORIGIN;
-
     /**
      * @var string
      */
     private string $allowOrigin = SITE_URL_ROOT;
+    /**
+     * The content of the XHR
+     * @var mixed
+     */
+    private $content = '';
+    /**
+     * @var string
+     */
+    private string $corp = self::CORP_CROSS_ORIGIN;
+    /**
+     * @var string
+     */
+    private string $hash;
+    /**
+     * The storage of the parameters
+     * @var array
+     */
+    private array $parameters = [];
 
     /**
      * XHR constructor.
@@ -39,80 +36,6 @@ class XHR
     public function __construct()
     {
         $this->hash = guid(1);
-    }
-
-    /**
-     * Set the parameters and its value.
-     *
-     * @param $dataset
-     *
-     * @return $this
-     */
-    public function data($dataset): XHR
-    {
-        $this->content = $this->parse($dataset);
-
-        return $this;
-    }
-
-    /**
-     * Set the Cross-Origin Resource Policy (CORP).
-     *
-     * @param string $type
-     *
-     * @return $this
-     */
-    public function corp(string $type = ''): XHR
-    {
-        $this->corp = $type;
-
-        return $this;
-    }
-
-    /**
-     * Set the parameters and its value.
-     *
-     * @param string $name
-     * @param        $dataset
-     *
-     * @throws Error
-     *
-     * @return $this
-     */
-    public function set(string $name, $dataset): XHR
-    {
-        $name = trim($name);
-        if (!$name) {
-            throw new Error('The name of the parameter cannot be empty.');
-        }
-        $this->parameters[$name] = $this->parse($dataset);
-
-        return $this;
-    }
-
-    /**
-     * Send the response to client side.
-     *
-     * @param bool   $success
-     * @param string $message
-     */
-    public function send(bool $success = true, string $message = '')
-    {
-        $response = [
-            'result'    => $success,
-            'hash'      => $this->hash,
-            'timestamp' => time(),
-            'response'  => $this->content,
-        ];
-        $message = trim($message);
-        if ($message) {
-            $response['message'] = $message;
-        }
-
-        if (!empty($this->parameters)) {
-            $response['params'] = $this->parameters;
-        }
-        $this->output($response);
     }
 
     /**
@@ -140,6 +63,34 @@ class XHR
                 $this->allowOrigin = implode(',', $clips);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * Set the Cross-Origin Resource Policy (CORP).
+     *
+     * @param string $type
+     *
+     * @return $this
+     */
+    public function corp(string $type = ''): XHR
+    {
+        $this->corp = $type;
+
+        return $this;
+    }
+
+    /**
+     * Set the parameters and its value.
+     *
+     * @param $dataset
+     *
+     * @return $this
+     */
+    public function data($dataset): XHR
+    {
+        $this->content = $this->parse($dataset);
 
         return $this;
     }
@@ -173,6 +124,31 @@ class XHR
     }
 
     /**
+     * Send the response to client side.
+     *
+     * @param bool   $success
+     * @param string $message
+     */
+    public function send(bool $success = true, string $message = '')
+    {
+        $response = [
+            'result'    => $success,
+            'hash'      => $this->hash,
+            'timestamp' => time(),
+            'response'  => $this->content,
+        ];
+        $message = trim($message);
+        if ($message) {
+            $response['message'] = $message;
+        }
+
+        if (!empty($this->parameters)) {
+            $response['params'] = $this->parameters;
+        }
+        $this->output($response);
+    }
+
+    /**
      * Output the response to the screen.
      *
      * @param array $data
@@ -187,5 +163,26 @@ class XHR
         echo json_encode($data);
 
         exit;
+    }
+
+    /**
+     * Set the parameters and its value.
+     *
+     * @param string $name
+     * @param        $dataset
+     *
+     * @throws Error
+     *
+     * @return $this
+     */
+    public function set(string $name, $dataset): XHR
+    {
+        $name = trim($name);
+        if (!$name) {
+            throw new Error('The name of the parameter cannot be empty.');
+        }
+        $this->parameters[$name] = $this->parse($dataset);
+
+        return $this;
     }
 }

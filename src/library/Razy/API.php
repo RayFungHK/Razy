@@ -10,7 +10,7 @@
 
 namespace Razy;
 
-use Throwable;
+use Razy\API\Emitter;
 
 class API
 {
@@ -30,17 +30,18 @@ class API
     }
 
     /**
-     * Execute the API command.
+     * Get the emitter by given module code.
      *
-     * @param string $command The API command
-     * @param mixed  ...$args The arguments will pass to the API command
+     * @param string $moduleCode
      *
-     * @throws Throwable
-     *
-     * @return null|mixed
+     * @return Emitter|null
      */
-    public function api(string $command, ...$args)
+    public function request(string $moduleCode): ?Emitter
     {
-        return $this->distributor->execute($command, $args);
+        $module = $this->distributor->requestModule($moduleCode);
+        if ($module) {
+            return new Emitter($module);
+        }
+        return new Emitter();
     }
 }

@@ -21,26 +21,45 @@ use function Razy\append;
 class Block
 {
     /**
-     * The Source object.
-     *
-     * @var Source
-     */
-    private Source $source;
-
-    /**
      * The block name.
      *
      * @var string
      */
     private string $blockName;
-
+    /**
+     * An array contains the sub blocks.
+     *
+     * @var Block[]
+     */
+    private array $blocks = [];
+    /**
+     * An array contains the block parameters.
+     *
+     * @var array
+     */
+    private array $parameters = [];
+    /**
+     * The parent block.
+     *
+     * @var null|Block
+     */
+    private ?Block $parent;
     /**
      * The block path.
      *
      * @var string
      */
     private string $path;
-
+    /**
+     * @var bool
+     */
+    private bool $readonly;
+    /**
+     * The Source object.
+     *
+     * @var Source
+     */
+    private Source $source;
     /**
      * The complete structure of the Block object.
      *
@@ -49,48 +68,22 @@ class Block
     private array $structure = [];
 
     /**
-     * An array contains the sub blocks.
-     *
-     * @var Block[]
-     */
-    private array $blocks = [];
-
-    /**
-     * An array contains the block parameters.
-     *
-     * @var array
-     */
-    private array $parameters = [];
-
-    /**
-     * The parent block.
-     *
-     * @var null|Block
-     */
-    private ?Block $parent;
-
-    /**
-     * @var bool
-     */
-    private bool $readonly;
-
-    /**
      * Block constructor.
      *
-     * @param Source $source The Source object
-     * @param string $blockName The block name
-     * @param FileReader $reader The FileReader of the template file reader
-     * @param bool $readonly
-     * @param null|self $parent Current block parent
+     * @param Source     $source    The Source object
+     * @param string     $blockName The block name
+     * @param FileReader $reader    The FileReader of the template file reader
+     * @param bool       $readonly
+     * @param null|self  $parent    Current block parent
      *
      * @throws Throwable
      */
     public function __construct(Source $source, string $blockName, FileReader $reader, bool $readonly = false, self $parent = null)
     {
-        $this->source = $source;
+        $this->source    = $source;
         $this->blockName = $blockName;
-        $this->parent = $parent;
-        $this->readonly = $readonly;
+        $this->parent    = $parent;
+        $this->readonly  = $readonly;
 
         if (!$parent) {
             $this->path = '/';
@@ -109,7 +102,7 @@ class Block
                     } else {
                         if ($concat) {
                             $this->structure[] = $concat;
-                            $concat = '';
+                            $concat            = '';
                         }
 
                         if ('INCLUDE' === $matches[1]) {
@@ -123,21 +116,21 @@ class Block
                                 throw new Error('The block ' . $this->path . '/' . $matches[3] . ' is already exists.');
                             }
 
-                            $this->blocks[$matches[3]] = new self($this->source, $matches[3], $reader, 'TEMPLATE' === $matches[1], $this);
+                            $this->blocks[$matches[3]]    = new self($this->source, $matches[3], $reader, 'TEMPLATE' === $matches[1], $this);
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
                         } elseif ('RECURSION' === $matches[1]) {
                             if (!($parent = $this->getClosest($matches[3]))) {
                                 throw new Error('No parent block ' . $matches[3] . ' is found to declare as a recursion block.');
                             }
 
-                            $this->blocks[$matches[3]] = $parent;
+                            $this->blocks[$matches[3]]    = $parent;
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
                         } elseif (preg_match('/^USE /', $matches[1])) {
                             $found = false;
                             while (($parent = $this->parent) !== null) {
                                 if ($parent->hasBlock($matches[2])) {
-                                    $found = true;
-                                    $this->blocks[$matches[3]] = $parent->getBlock($matches[2]);
+                                    $found                        = true;
+                                    $this->blocks[$matches[3]]    = $parent->getBlock($matches[2]);
                                     $this->structure[$matches[3]] = $this->blocks[$matches[3]];
 
                                     break;
@@ -229,7 +222,6 @@ class Block
      *
      * @return Block The Block object
      * @throws Throwable
-     *
      */
     public function getBlock(string $name): Block
     {
@@ -239,6 +231,61 @@ class Block
         }
 
         return $this->blocks[$name];
+    }
+
+    /**
+     * Assign the block level parameter value.
+     *
+     * @param mixed $parameter The parameter name or an array of parameters
+     * @param mixed $value     The parameter value
+     *
+     * @return self Chainable
+     * @throws Throwable
+     */
+    public function assign($parameter, $value = null): Block
+    {
+        if (is_array($parameter)) {
+            foreach ($parameter as $index => $value) {
+                $this->assign($index, $value);
+            }
+        } elseif (is_string($parameter)) {
+            if ($value instanceof Closure) {
+                // If the value is closure, pass the current value to closure
+                $this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
+            } else {
+                $this->parameters[$parameter] = $value;
+            }
+        } else {
+            throw new Error('Invalid parameter name');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Bind the reference variable
+     *
+     * @param string $parameter
+     * @param null   $value
+     *
+     * @return $this
+     * @throws Throwable
+     */
+    public function bind(string $parameter, &$value): Block
+    {
+        $this->parameters[$parameter] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Get the template file located system path
+     *
+     * @return string Get the template file location
+     */
+    public function getFileLocation(): string
+    {
+        return $this->source->getFileDirectory();
     }
 
     /**
@@ -265,6 +312,7 @@ class Block
      * Get the template block by given name
      *
      * @param string $name
+     *
      * @return Block|null
      * @throws Throwable
      */
@@ -286,16 +334,6 @@ class Block
     }
 
     /**
-     * Return a new Entity object related on this Block
-     *
-     * @return Entity
-     */
-    public function newEntity(): Entity
-    {
-        return new Entity($this);
-    }
-
-    /**
      * Get the type is readonly or not.
      *
      * @return bool
@@ -309,7 +347,7 @@ class Block
      * Return the parameter value.
      *
      * @param string $parameter The parameter name
-     * @param bool $recursion
+     * @param bool   $recursion
      *
      * @return mixed The parameter value
      */
@@ -337,57 +375,13 @@ class Block
     }
 
     /**
-     * Assign the block level parameter value.
+     * Load the plugin from registered plugin folder
      *
-     * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value The parameter value
-     *
-     * @return self Chainable
-     * @throws Throwable
-     *
-     */
-    public function assign($parameter, $value = null): Block
-    {
-        if (is_array($parameter)) {
-            foreach ($parameter as $index => $value) {
-                $this->assign($index, $value);
-            }
-        } elseif (is_string($parameter)) {
-            if ($value instanceof Closure) {
-                // If the value is closure, pass the current value to closure
-                $this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
-            } else {
-                $this->parameters[$parameter] = $value;
-            }
-        } else {
-            throw new Error('Invalid parameter name');
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param string $parameter
-     * @param null $value
-     *
-     * @return $this
-     * @throws Throwable
-     *
-     */
-    public function bind(string $parameter, &$value): Block
-    {
-        $this->parameters[$parameter] = $value;
-
-        return $this;
-    }
-
-    /**
      * @param string $type
      * @param string $name
      *
      * @return null|Plugin
      * @throws Throwable
-     *
      */
     public function loadPlugin(string $type, string $name): ?Plugin
     {
@@ -395,10 +389,12 @@ class Block
     }
 
     /**
-     * @return string Get the template file location
+     * Return a new Entity object related on this Block
+     *
+     * @return Entity
      */
-    public function getFileLocation(): string
+    public function newEntity(): Entity
     {
-        return $this->source->getFileDirectory();
+        return new Entity($this);
     }
 }

@@ -17,14 +17,15 @@ use Throwable;
 class Processor
 {
     /**
-     * @var array
-     */
-    private array $reference;
-
-    /**
+     * The Collection entity
      * @var Collection
      */
     private Collection $collection;
+    /**
+     * The storage of reference variable
+     * @var array
+     */
+    private array $reference;
 
     /**
      * Processor constructor.
@@ -44,9 +45,8 @@ class Processor
      * @param string $method
      * @param array  $arguments
      *
+     * @return Processor $this=
      * @throws Throwable
-     *
-     * @return Processor $this
      */
     public function __call(string $method, array $arguments): Processor
     {

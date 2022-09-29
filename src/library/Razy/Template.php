@@ -25,32 +25,34 @@ use Throwable;
 class Template
 {
     /**
+     * The storage of the plugin folder
+     * @var string[]
+     */
+    private static array $pluginFolder = [];
+    /**
+     * An array contains the manager level parameter.
+     */
+    private array $parameters = [];
+    /**
+     * The storage of the plugin's closure
+     * @var ?Closure[]
+     */
+    private array $plugins = [];
+    /**
+     * The storage of the source
+     * @var Source[]
+     */
+    private array $queue = [];
+    /**
      * An array contains the source object.
      *
      * @var Source[]
      */
     private array $sources = [];
-
     /**
-     * An array contains the manager level parameter.
+     * The storage of the template content
+     * @var array
      */
-    private array $parameters = [];
-
-    /**
-     * @var Source[]
-     */
-    private array $queue = [];
-
-    /**
-     * @var ?Closure[]
-     */
-    private array $plugins = [];
-
-    /**
-     * @var string[]
-     */
-    private static array $pluginFolder = [];
-
     private array $templates = [];
 
     /**
@@ -63,6 +65,10 @@ class Template
     }
 
     /**
+     * Add a plugin folder which the plugin is load
+     *
+     * @param string $folder
+     * @return void
      */
     public static function addPluginFolder(string $folder)
     {
@@ -74,6 +80,57 @@ class Template
     }
 
     /**
+     * Load the template file without any plugin folder setup and return as Source object.
+     *
+     * @param string $path
+     * @return Source
+     * @throws Throwable
+     */
+    public static function LoadFile(string $path): Source
+    {
+        return (new Template())->load($path);
+    }
+
+    /**
+     * Load the template file and return as Source object.
+     *
+     * @param string $path The file path
+     *
+     * @return Source The Source object
+     * @throws Throwable
+     */
+    public function load(string $path): Source
+    {
+        $source                          = new Source($path, $this);
+        $this->sources[$source->getID()] = $source;
+
+        return $source;
+    }
+
+    /**
+     * Add a source to queue list.
+     *
+     * @param Source $source
+     * @param string $name
+     * @return $this
+     */
+    public function addQueue(Source $source, string $name): Template
+    {
+        $exists = $this->sources[$source->getID()] ?? null;
+        if (!$exists || $exists !== $source) {
+            // If the Source entity is not under the Template engine, skip adding queue list.
+            return $this;
+        }
+        $name = trim($name);
+        if (!$name) {
+            $name = sprintf('%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff));
+        }
+        $this->queue[$name] = $source;
+
+        return $this;
+    }
+
+    /**
      * Assign the manager level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
@@ -81,7 +138,6 @@ class Template
      *
      * @return self Chainable
      * @throws Throwable
-     *
      */
     public function assign($parameter, $value = null): Template
     {
@@ -104,17 +160,28 @@ class Template
     }
 
     /**
-     * @param null $value
+     * Bind the reference variable
      *
+     * @param string $parameter
+     * @param $value
      * @return $this
-     * @throws Throwable
-     *
      */
     public function bind(string $parameter, &$value): Template
     {
         $this->parameters[$parameter] = $value;
 
         return $this;
+    }
+
+    /**
+     * Get the template content by given name
+     *
+     * @param string $name
+     * @return Block|null
+     */
+    public function getTemplate(string $name): ?Block
+    {
+        return $this->templates[$name] ?? null;
     }
 
     /**
@@ -130,59 +197,9 @@ class Template
     }
 
     /**
-     * Load the template file and return as Source object.
-     *
-     * @param string $path The file path
-     *
-     * @return Source The Source object
-     * @throws Throwable
-     *
-     */
-    public function load(string $path): Source
-    {
-        $source = new Source($path, $this);
-        $this->sources[$source->getID()] = $source;
-
-        return $source;
-    }
-
-    /**
-     * Load the template file without any plugin folder setup and return as Source object.
-     *
-     *
-     * @throws Throwable
-     *
-     */
-    public static function LoadFile(string $path): Source
-    {
-        return (new Template())->load($path);
-    }
-
-    /**
-     * Return the entity content in queue list by given section name.
-     *
-     * @param array $sections An array contains section name
-     *
-     * @throws Throwable
-     *
-     */
-    public function outputQueued(array $sections): string
-    {
-        $content = '';
-        foreach ($sections as $section) {
-            if (isset($this->queue[$section])) {
-                $content .= $this->queue[$section]->output();
-            }
-        }
-        $this->queue = [];
-
-        return $content;
-    }
-
-    /**
      * Insert other Source entity into template engine.
      *
-     *
+     * @param Source $source
      * @return $this
      */
     public function insert(Source $source): Template
@@ -201,11 +218,10 @@ class Template
      *
      * @return null|Plugin The plugin
      * @throws Throwable
-     *
      */
     public function loadPlugin(string $type, string $name): ?Plugin
     {
-        $name = strtolower($name);
+        $name     = strtolower($name);
         $identify = $type . '.' . $name;
 
         if (!isset($this->plugins[$identify])) {
@@ -233,35 +249,11 @@ class Template
     }
 
     /**
-     * Add a source to queue list.
-     *
-     * @param Source $source The Source object
-     * @param string $name The queue name
-     *
-     */
-    public function addQueue(Source $source, string $name): Template
-    {
-        $exists = $this->sources[$source->getID()] ?? null;
-        if (!$exists || $exists !== $source) {
-            // If the Source entity is not under the Template engine, skip adding queue list.
-            return $this;
-        }
-        $name = trim($name);
-        if (!$name) {
-            $name = sprintf('%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff));
-        }
-        $this->queue[$name] = $source;
-
-        return $this;
-    }
-
-    /**
      * Load the template file as a global template block
      *
      * @param $name
      * @param string|null $path
      * @return $this
-     * @throws Error
      * @throws Throwable
      */
     public function loadTemplate($name, ?string $path = null): Template
@@ -285,11 +277,21 @@ class Template
     }
 
     /**
-     * Get the template block
+     * Return the entity content in queue list by given section name.
      *
+     * @param array $sections An array contains section name
+     * @throws Throwable
      */
-    public function getTemplate(string $name): ?Block
+    public function outputQueued(array $sections): string
     {
-        return $this->templates[$name] ?? null;
+        $content = '';
+        foreach ($sections as $section) {
+            if (isset($this->queue[$section])) {
+                $content .= $this->queue[$section]->output();
+            }
+        }
+        $this->queue = [];
+
+        return $content;
     }
 }

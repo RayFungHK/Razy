@@ -16,31 +16,38 @@ use Razy\Error;
 class Table
 {
     /**
-     * @var string
-     */
-    private string $name;
-
-    /**
-     * @var Column[]
-     */
-    private array $columns = [];
-
-    /**
+     * The default charset
+     *
      * @var string
      */
     private string $charset = 'utf8mb4';
-
     /**
+     * The default collation
+     *
      * @var string
      */
     private string $collation = 'utf8mb4_general_ci';
-
     /**
+     * The storage of columns
+     *
+     * @var Column[]
+     */
+    private array $columns = [];
+    /**
+     * The committed Table entity
+     *
      * @var null|Table
      */
     private ?Table $committed = null;
-
     /**
+     * The name of Table
+     *
+     * @var string
+     */
+    private string $name;
+    /**
+     * The storage of reordered columns
+     *
      * @var array
      */
     private array $reordered = [];
@@ -64,15 +71,33 @@ class Table
     }
 
     /**
-     * @throws Error
+     * Parse the config syntax.
+     *
+     * @param string $syntax
+     *
+     * @return array
      */
-    public function __clone()
+    private function parseSyntax(string $syntax): array
     {
-        $columns       = $this->columns;
-        $this->columns = [];
-        foreach ($columns as $column) {
-            $this->columns[] = (clone $column)->bindTo($this);
+        $parameters = [];
+        $clips      = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
+        foreach ($clips as $clip) {
+            if (preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
+                if (!isset($parameters[$matches[1]])) {
+                    $parameters[$matches[1]] = null;
+                }
+
+                if ($matches[2] ?? '') {
+                    $parameters[$matches[1]] = [];
+                    while (preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
+                        $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
+                        $matches[2]                = substr($matches[2], strlen($extracted[0]));
+                    }
+                }
+            }
         }
+
+        return $parameters;
     }
 
     /**
@@ -104,7 +129,7 @@ class Table
      * @param string $syntax
      *
      * @return Table
-     *@throws Error
+     * @throws Error
      *
      */
     public static function Import(string $syntax): Table
@@ -133,7 +158,7 @@ class Table
      * @param string $after
      *
      * @return Column
-     *@throws Error
+     * @throws Error
      *
      */
     public function addColumn(string $columnSyntax, string $after = ''): Column
@@ -166,21 +191,30 @@ class Table
     }
 
     /**
+     * Get the table name.
+     *
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
      * Reorder the column after the specified column.
      *
      * @param string $selected
      * @param string $dest
      *
      * @return $this
-     *@throws Error
-     *
+     * @throws Error
      */
     public function moveColumnAfter(string $selected, string $dest = ''): Table
     {
         $selected       = trim($selected);
         $selectedColumn = null;
         foreach ($this->columns as $index => $column) {
-            if ($column->getName() === $selected) {
+            if ($column->getName() == $selected) {
                 unset($this->columns[$index]);
                 $selectedColumn = $column;
 
@@ -212,8 +246,7 @@ class Table
      * Update the column order setting.
      *
      * @return Table
-     *@throws Error
-     *
+     * @throws Error
      */
     public function validate(): Table
     {
@@ -228,30 +261,22 @@ class Table
     }
 
     /**
-     * Get the column by the name.
-     *
-     * @param string $columnName
-     *
-     * @return null|Column
+     * @throws Error
      */
-    public function getColumn(string $columnName): ?Column
+    public function __clone()
     {
-        $columnName = trim($columnName);
-        foreach ($this->columns as $column) {
-            if ($column->getName() == $columnName) {
-                return $column;
-            }
+        $columns       = $this->columns;
+        $this->columns = [];
+        foreach ($columns as $column) {
+            $this->columns[] = (clone $column)->bindTo($this);
         }
-
-        return null;
     }
 
     /**
      * Commit the update and generate the SQL statement.
      *
      * @return string
-     *@throws Error
-     *
+     * @throws Error
      */
     public function commit(): string
     {
@@ -298,16 +323,6 @@ class Table
     }
 
     /**
-     * Get the table name.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
      * Get the table charset.
      *
      * @return string
@@ -323,8 +338,7 @@ class Table
      * @param string $charset
      *
      * @return $this
-     *@throws Error
-     *
+     * @throws Error
      */
     public function setCharset(string $charset): Table
     {
@@ -353,8 +367,7 @@ class Table
      * @param string $collation
      *
      * @return $this
-     *@throws Error
-     *
+     * @throws Error
      */
     public function setCollation(string $collation): Table
     {
@@ -396,8 +409,7 @@ class Table
      * Generate the statement of the table create.
      *
      * @return string
-     *@throws Error
-     *
+     * @throws Error
      */
     public function getSyntax(): string
     {
@@ -446,70 +458,6 @@ class Table
     }
 
     /**
-     * Remove the column by the unique id.
-     *
-     * @param string $id
-     *
-     * @return $this
-     */
-    public function removeColumnById(string $id): Table
-    {
-        $id = trim($id);
-        foreach ($this->columns as $index => $column) {
-            if ($column->getID() == $id) {
-                unset($this->columns[$index]);
-
-                return $this;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Remove the column by the name.
-     *
-     * @param string $columnName
-     *
-     * @return $this
-     */
-    public function removeColumn(string $columnName): Table
-    {
-        $columnName = trim($columnName);
-        foreach ($this->columns as $index => $column) {
-            if ($column->getName() == $columnName) {
-                unset($this->columns[$index]);
-
-                return $this;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Insert the Column entity into the table.
-     *
-     * @param Column $newColumn
-     *
-     * @return Table
-     *@throws Error
-     *
-     */
-    public function insertColumn(Column $newColumn): Table
-    {
-        foreach ($this->columns as $column) {
-            if ($column->getID() == $newColumn->getID()) {
-                return $this;
-            }
-        }
-        $this->columns[] = $newColumn;
-        $this->validate();
-
-        return $this;
-    }
-
-    /**
      * Export the table config.
      *
      * @return string
@@ -542,32 +490,84 @@ class Table
     }
 
     /**
-     * Parse the config syntax.
+     * Get the column by the name.
      *
-     * @param string $syntax
+     * @param string $columnName
      *
-     * @return array
+     * @return null|Column
      */
-    private function parseSyntax(string $syntax): array
+    public function getColumn(string $columnName): ?Column
     {
-        $parameters = [];
-        $clips      = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($clips as $clip) {
-            if (preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
-                if (!isset($parameters[$matches[1]])) {
-                    $parameters[$matches[1]] = null;
-                }
-
-                if ($matches[2] ?? '') {
-                    $parameters[$matches[1]] = [];
-                    while (preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
-                        $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
-                        $matches[2]                = substr($matches[2], strlen($extracted[0]));
-                    }
-                }
+        $columnName = trim($columnName);
+        foreach ($this->columns as $column) {
+            if ($column->getName() == $columnName) {
+                return $column;
             }
         }
 
-        return $parameters;
+        return null;
+    }
+
+    /**
+     * Insert the Column entity into the table.
+     *
+     * @param Column $newColumn
+     *
+     * @return Table
+     * @throws Error
+     */
+    public function insertColumn(Column $newColumn): Table
+    {
+        foreach ($this->columns as $column) {
+            if ($column->getID() == $newColumn->getID()) {
+                return $this;
+            }
+        }
+        $this->columns[] = $newColumn;
+        $this->validate();
+
+        return $this;
+    }
+
+    /**
+     * Remove the column by the name.
+     *
+     * @param string $columnName
+     *
+     * @return $this
+     */
+    public function removeColumn(string $columnName): Table
+    {
+        $columnName = trim($columnName);
+        foreach ($this->columns as $index => $column) {
+            if ($column->getName() == $columnName) {
+                unset($this->columns[$index]);
+
+                return $this;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Remove the column by the unique id.
+     *
+     * @param string $id
+     *
+     * @return $this
+     */
+    public function removeColumnById(string $id): Table
+    {
+        $id = trim($id);
+        foreach ($this->columns as $index => $column) {
+            if ($column->getID() == $id) {
+                unset($this->columns[$index]);
+
+                return $this;
+            }
+        }
+
+        return $this;
     }
 }

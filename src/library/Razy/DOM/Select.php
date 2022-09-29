@@ -27,71 +27,13 @@ class Select extends DOM
     }
 
     /**
-     * Get the value.
-     *
-     * @return mixed The value of the control
-     */
-    public function getValue()
-    {
-        foreach ($this->nodes as $node) {
-            if ($node instanceof DOM) {
-                if ($node->hasAttribute('selected')) {
-                    return $node->getAttribute('selected');
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Set the value.
-     *
-     * @param mixed $value The value of the control
-     *
-     * @return self Chainable
-     *@throws Error
-     *
-     */
-    public function setValue(string $value): DOM
-    {
-        foreach ($this->nodes as $node) {
-            if ($node instanceof DOM) {
-                if ($node->getAttribute('value') == $value) {
-                    $node->setAttribute('selected', 'selected');
-                } else {
-                    $node->removeAttribute('selected');
-                }
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param bool $enable
-     *
-     * @return $this
-     *@throws Error
-     *
-     */
-    public function isMultiple(bool $enable): Select
-    {
-        if ($enable) {
-            $this->setAttribute('multiple', 'multiple');
-        } else {
-            $this->removeAttribute('multiple');
-        }
-
-        return $this;
-    }
-
-    /**
      * Apply a bulk of options by given array.
      *
-     * @return $this
-     *@throws Error
+     * @param array        $dataset
+     * @param Closure|null $convertor
      *
+     * @return $this
+     * @throws Error
      */
     public function applyOptions(array $dataset, Closure $convertor = null): self
     {
@@ -114,6 +56,10 @@ class Select extends DOM
     /**
      * Add and append an option DOM.
      *
+     * @param string $label
+     * @param string $value
+     *
+     * @return DOM
      * @throws Error
      */
     public function addOption(string $label = '', string $value = ''): DOM
@@ -123,5 +69,65 @@ class Select extends DOM
         $this->append($option);
 
         return $option;
+    }
+
+    /**
+     * Get the value.
+     *
+     * @return mixed The value of the control
+     */
+    public function getValue()
+    {
+        foreach ($this->nodes as $node) {
+            if ($node instanceof DOM) {
+                if ($node->hasAttribute('selected')) {
+                    return $node->getAttribute('selected');
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Enable or disable multiple attribute
+     *
+     * @param bool $enable
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function isMultiple(bool $enable): Select
+    {
+        if ($enable) {
+            $this->setAttribute('multiple', 'multiple');
+        } else {
+            $this->removeAttribute('multiple');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the value.
+     *
+     * @param mixed $value The value of the control
+     *
+     * @return self Chainable
+     * @throws Error
+     */
+    public function setValue(string $value): DOM
+    {
+        foreach ($this->nodes as $node) {
+            if ($node instanceof DOM) {
+                if ($node->getAttribute('value') == $value) {
+                    $node->setAttribute('selected', 'selected');
+                } else {
+                    $node->removeAttribute('selected');
+                }
+            }
+        }
+
+        return $this;
     }
 }

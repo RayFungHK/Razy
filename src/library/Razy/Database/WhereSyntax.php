@@ -23,14 +23,16 @@ class WhereSyntax
     ];
 
     /**
-     * @var Statement
-     */
-    private Statement $statement;
-
-    /**
+     * The storage of extracted syntax
      * @var array
      */
     private array $extracted = [];
+
+    /**
+     * The Statement entity
+     * @var Statement
+     */
+    private Statement $statement;
 
     /**
      * WhereSyntax constructor.
@@ -40,23 +42,6 @@ class WhereSyntax
     public function __construct(Statement $statement)
     {
         $this->statement = $statement;
-    }
-
-    /**
-     * Parse the Where Simple Syntax.
-     *
-     * @param string $syntax
-     *
-     * @throws Error
-     *
-     * @return $this
-     */
-    public function parseSyntax(string $syntax): WhereSyntax
-    {
-        $syntax          = trim($syntax);
-        $this->extracted = SimpleSyntax::ParseSyntax($syntax, ',|', '=');
-
-        return $this;
     }
 
     /**
@@ -183,6 +168,8 @@ class WhereSyntax
     }
 
     /**
+     * Parse the operand syntax
+     *
      * @param string $expr
      *
      * @return array
@@ -257,7 +244,13 @@ class WhereSyntax
     /**
      * Generate the operand by given left and right operand with the operator.
      *
-     * @throws Throwable
+     * @param string $operator
+     * @param array  $leftOperand
+     * @param array  $rightOperand
+     * @param bool   $negative
+     *
+     * @return string
+     * @throws Error
      */
     private function comparison(string $operator, array $leftOperand, array $rightOperand, bool $negative): string
     {
@@ -367,6 +360,8 @@ class WhereSyntax
     }
 
     /**
+     * Convert the value as cast as JSON
+     *
      * @param array $operand
      * @param bool  $acceptObject
      *
@@ -392,6 +387,8 @@ class WhereSyntax
     }
 
     /**
+     * Insert wildcard into string
+     *
      * @param string $value
      * @param string $type
      *
@@ -407,5 +404,22 @@ class WhereSyntax
         }
 
         return '\'' . $value . '\'';
+    }
+
+    /**
+     * Parse the Where Simple Syntax.
+     *
+     * @param string $syntax
+     *
+     * @throws Error
+     *
+     * @return $this
+     */
+    public function parseSyntax(string $syntax): WhereSyntax
+    {
+        $syntax          = trim($syntax);
+        $this->extracted = SimpleSyntax::ParseSyntax($syntax, ',|', '=');
+
+        return $this;
     }
 }

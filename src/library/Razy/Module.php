@@ -13,6 +13,8 @@ namespace Razy;
 
 use Closure;
 use Exception;
+use Razy\API\Emitter;
+use ReflectionClass;
 use Throwable;
 
 class Module
@@ -33,12 +35,12 @@ class Module
     public const STATUS_READY = 2;
 
     /**
-     * Some error cause, the module is not loaded.
+     * The module is waiting for validation
      */
     public const STATUS_WAITING_VALIDATE = 3;
 
     /**
-     * Some error cause, the module is not loaded.
+     * The module is in the preloading stage
      */
     public const STATUS_PRELOADING = 4;
 
@@ -56,106 +58,94 @@ class Module
      * Some error cause, the module is not loaded.
      */
     public const STATUS_FAILED = -2;
-
     /**
-     * @var Distributor
-     */
-    private Distributor $distributor;
-
-    /**
-     * @var string
-     */
-    private string $modulePath;
-
-    /**
-     * @var string
-     */
-    private string $moduleRelativePath;
-
-    /**
-     * @var string
-     */
-    private string $code;
-
-    /**
-     * @var string
-     */
-    private string $version;
-
-    /**
-     * @var string
-     */
-    private string $author;
-
-    /**
-     * @var string[]
-     */
-    private array $require = [];
-
-    /**
-     * @var null|Controller
-     */
-    private ?Controller $controller = null;
-
-    /**
-     * @var int
-     */
-    private int $status = self::STATUS_DISABLED;
-
-    /**
-     * @var mixed|string
-     */
-    private string $className = '';
-
-    /**
+     * The alias of the module, default as package name
      * @var string
      */
     private string $alias = '';
-
     /**
+     * The API command alias
      * @var string
      */
-    private string $apiCode = '';
-
+    private string $apiAlias = '';
     /**
-     * @var bool[]
-     */
-    private array $commands = [];
-
-    /**
-     * @var bool[]
-     */
-    private array $events = [];
-
-    /**
-     * @var bool
-     */
-    private bool $sharedModule;
-
-    /**
-     * @var Pilot
-     */
-    private Pilot $pilot;
-
-    /**
+     * The storage of the assets
      * @var array
      */
     private array $assets = [];
-
+    /**
+     * The module author
+     * @var string
+     */
+    private string $author;
     /**
      * @var array
      */
     private array $binding = [];
-
     /**
      * @var array
      */
     private array $closures = [];
-
     /**
-     * @var array
+     * The module code
+     * @var string
      */
-    private array $waitingList = [];
+    private string $code;
+    /**
+     * The storage of the API commands
+     * @var bool[]
+     */
+    private array $commands = [];
+    /**
+     * The Controller entity
+     * @var null|Controller
+     */
+    private ?Controller $controller = null;
+    /**
+     * The Distributor entity
+     * @var Distributor
+     */
+    private Distributor $distributor;
+    /**
+     * The storage of the events
+     * @var bool[]
+     */
+    private array $events = [];
+    /**
+     * The module package folder system path
+     * @var string
+     */
+    private string $modulePath;
+    /**
+     * The package name
+     * @var string
+     */
+    private string $packageName = '';
+    /**
+     * The Pilot entity
+     * @var Pilot
+     */
+    private Pilot $pilot;
+    /**
+     * The storage of the required modules
+     * @var string[]
+     */
+    private array $require = [];
+    /**
+     * Is the module a shared module
+     * @var bool
+     */
+    private bool $sharedModule = false;
+    /**
+     * The status of the module
+     * @var int
+     */
+    private int $status = self::STATUS_DISABLED;
+    /**
+     * The module version
+     * @var string
+     */
+    private string $version;
 
     /**
      * Module constructor.
@@ -172,10 +162,6 @@ class Module
         $this->distributor  = $distributor;
         $this->modulePath   = $path;
         $this->sharedModule = $sharedModule;
-        if (0 === strpos($path, SYSTEM_ROOT)) {
-            $relative                 = substr($path, strlen(SYSTEM_ROOT));
-            $this->moduleRelativePath = ($relative) ?: '/';
-        }
 
         if (isset($settings['module_code'])) {
             if (!is_string($settings['module_code'])) {
@@ -183,13 +169,13 @@ class Module
             }
             $code = trim($settings['module_code']);
 
-            if (!preg_match('/^([a-z]\w*)(\.[a-z]\w*)*$/i', $code)) {
-                throw new Error('The module code ' . $code . ' is not a correct format.');
+            if (!preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $code)) {
+                throw new Error('The module code ' . $code . ' is not a correct format, it should be `vendor/package`.');
             }
 
             $this->code      = $code;
-            $extracted       = explode('.', $code);
-            $this->className = end($extracted);
+            [, $package]     = explode('/', $code);
+            $this->packageName = $package;
         } else {
             throw new Error('Missing module code.');
         }
@@ -205,8 +191,8 @@ class Module
         }
 
         $this->alias = trim($settings['alias'] ?? '');
-        if (0 === strlen($this->alias)) {
-            $this->alias = $this->className;
+        if (empty($this->alias)) {
+            $this->alias = $this->packageName;
         }
 
         if (!is_array($settings['assets'] = $settings['assets'] ?? [])) {
@@ -228,9 +214,9 @@ class Module
             }
         }
 
-        $this->apiCode = trim($settings['api'] ?? '');
-        if (strlen($this->apiCode) > 0) {
-            if (!preg_match('/^[a-z]\w*$/i', $this->apiCode)) {
+        $this->apiAlias = trim($settings['api'] ?? '');
+        if (strlen($this->apiAlias) > 0) {
+            if (!preg_match('/^[a-z]\w*$/i', $this->apiAlias)) {
                 throw new Error('Invalid API code format.');
             }
             $this->distributor->enableAPI($this);
@@ -239,7 +225,7 @@ class Module
         if (isset($settings['require']) && is_array($settings['require'])) {
             foreach ($settings['require'] as $moduleCode => $version) {
                 $moduleCode = trim($moduleCode);
-                if (preg_match('/^([a-z]\w*)(\.[a-z]\w*)*$/', $moduleCode) && is_string($version)) {
+                if (preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $moduleCode) && is_string($version)) {
                     $this->require[$moduleCode] = trim($version);
                 }
             }
@@ -249,200 +235,22 @@ class Module
     }
 
     /**
-     * Return the module version.
+     * Register the API command.
      *
-     * @return string
-     */
-    public function getVersion(): string
-    {
-        return $this->version;
-    }
-
-    /**
-     * Return the module author.
+     * @param string $command The API command will register
      *
-     * @return string
-     */
-    public function getAuthor(): string
-    {
-        return $this->author;
-    }
-
-    /**
-     * Return true if the module is initialized.
-     *
-     * @return bool
-     */
-    public function isInitialized(): bool
-    {
-        return self::STATUS_DISABLED !== $this->status;
-    }
-
-    /**
-     * Get the `require` list of the module.
-     *
-     * @return array
-     */
-    public function getRequire(): array
-    {
-        return $this->require;
-    }
-
-    /**
-     * @return Template
-     */
-    public function getTemplateEngine(): Template
-    {
-        return $this->distributor->getTemplateEngine();
-    }
-
-    /**
-     * Execute API command.
-     *
-     * @param string $command The API command
-     * @param array $args The arguments will pass to API command
-     *
-     * @return mixed
+     * @return $this
      * @throws Throwable
      *
      */
-    public function execute(string $command, array $args)
+    public function addAPI(string $command, string $path): self
     {
-        return $this->distributor->execute($command, $args);
-    }
-
-    /**
-     * @return string
-     */
-    public function getDistCode(): string
-    {
-        return $this->distributor->getDistCode();
-    }
-
-    /**
-     * Start initial the module. If the controller is missing or the module cannot
-     * initialize (__onInit event), the module will not add into the loaded module list.
-     *
-     * @return bool
-     * @throws Throwable
-     *
-     */
-    public function initialize(): bool
-    {
-        // If the Controller entity does not initialize
-        if (null === $this->controller) {
-            // TODO: Require
-            // Load the controller
-            $controllerPath = append($this->modulePath, 'controller', $this->className . '.php');
-
-            if (is_file($controllerPath)) {
-                if ($this->sharedModule) {
-                    $prefix = 'Razy\\Shared\\';
-                } else {
-                    $prefix = 'Razy\\Module\\' . $this->distributor->getDistCode() . '\\';
-                }
-                // Replace dot into slash to convert as a namespace
-                $namespace = $prefix . str_replace('.', '\\', $this->code);
-
-                if (class_exists($namespace)) {
-                    throw new Error('The module has already declared');
-                }
-
-                // Import the class file.
-                // The module controller class must extend Controller abstract class
-                include $controllerPath;
-                if (!class_exists($namespace)) {
-                    throw new Error('The class ' . $namespace . ' does not declared.');
-                }
-
-                if (class_exists($namespace)) {
-                    // Create controller instance, the routing, event and API will be configured in controller
-                    $this->controller = new $namespace($this);
-                    // Ensure the controller is inherited by Controller class
-                    if (!$this->controller instanceof Controller) {
-                        throw new Error('The controller must instance of Controller');
-                    }
-
-                    $this->status = self::STATUS_INITIALING;
-                    $this->status = (!$this->controller->__onInit($this->pilot)) ? self::STATUS_FAILED : self::STATUS_WAITING_VALIDATE;
-
-                    // Seal the pilot
-                    $this->pilot = clone $this->pilot;
-                    return true;
-                }
-
-                throw new Error('The class ' . $namespace . ' does not declared.');
-            }
-
-            throw new Error('The controller ' . $controllerPath . ' does not exists.');
+        if (array_key_exists($command, $this->commands)) {
+            throw new Error('The command `' . $command . '` is already registered.');
         }
+        $this->commands[$command] = $path;
 
-        return true;
-    }
-
-    /**
-     * Validate the module is ready to initial, if the event return false, it will put the module into preload list.
-     * @return bool
-     */
-    public function validate(): bool
-    {
-        if (!$this->controller->__onValidate($this->pilot)) {
-            $this->status = self::STATUS_PRELOADING;
-            return false;
-        }
-        return true;
-    }
-
-    public function preload(): bool
-    {
-        return $this->controller->__onPreload($this->pilot);
-    }
-
-    /**
-     * Set the module is ready.
-     */
-    public function ready(): void
-    {
-        $this->status = self::STATUS_READY;
-    }
-
-    /**
-     * Trigger __onReady event when all modules have loaded.
-     */
-    public function notify(): void
-    {
-        $this->controller->__onReady();
-        $this->status = self::STATUS_LOADED;
-    }
-
-    /**
-     * Get the module code.
-     *
-     * @return string
-     */
-    public function getCode(): string
-    {
-        return $this->code;
-    }
-
-    /**
-     * Get the module class name.
-     *
-     * @return string
-     */
-    public function getClassName(): string
-    {
-        return $this->className;
-    }
-
-    /**
-     * Get the module status.
-     *
-     * @return int
-     */
-    public function getStatus(): int
-    {
-        return $this->status;
+        return $this;
     }
 
     /**
@@ -455,20 +263,9 @@ class Module
      */
     public function addLazyRoute(string $route, string $path): self
     {
-        $route = '/' . tidy(append($this->getAlias(), $route), true, '/');
         $this->distributor->setLazyRoute($this, $route, $path);
 
         return $this;
-    }
-
-    /**
-     * Get the module alias.
-     *
-     * @return string
-     */
-    public function getAlias(): string
-    {
-        return $this->alias;
     }
 
     /**
@@ -494,53 +291,6 @@ class Module
     }
 
     /**
-     * Start listen the event.
-     *
-     * @param string $event The event name
-     *
-     * @return $this
-     * @throws Throwable
-     *
-     */
-    public function listen(string $event, string $path): self
-    {
-        if (array_key_exists($event, $this->events)) {
-            throw new Error('The event `' . $event . '` is already registered.');
-        }
-        $this->events[$event] = $path;
-
-        return $this;
-    }
-
-    /**
-     * Get the module file path.
-     *
-     * @return string
-     */
-    public function getPath(): string
-    {
-        return $this->modulePath;
-    }
-
-    /**
-     * Get the module relative URL path.
-     *
-     * @return string
-     */
-    public function getURLPath(): string
-    {
-        return append($this->distributor->getURLPath(), $this->moduleRelativePath);
-    }
-
-    /**
-     * @return string
-     */
-    public function getRootURL(): string
-    {
-        return $this->distributor->getURLPath();
-    }
-
-    /**
      * Bind the specified closure file to a method.
      *
      * @param string $method
@@ -561,25 +311,44 @@ class Module
     }
 
     /**
-     * Get the module's controller.
+     * Connect another domain API.
      *
-     * @return Controller
+     * @param string $fqdn The well-formatted FQDN
+     *
+     * @return null|API
+     * @throws Throwable
+     *
      */
-    public function getController(): Controller
+    public function connect(string $fqdn): ?API
     {
-        return $this->controller;
+        return $this->distributor->connect($fqdn);
     }
 
     /**
-     * Get the module bound closure.
+     * Check the event is dispatched.
      *
-     * @param string $method
+     * @param string $event The event name
      *
-     * @return string
+     * @return bool
      */
-    public function getBinding(string $method): string
+    public function eventDispatched(string $event): bool
     {
-        return $this->binding[$method] ?? '';
+        return array_key_exists($event, $this->events);
+    }
+
+    /**
+     * Execute API command.
+     *
+     * @param string $command The API command
+     * @param array $args The arguments will pass to API command
+     *
+     * @return mixed
+     * @throws Throwable
+     *
+     */
+    public function execute(string $command, array $args)
+    {
+        return $this->accessAPI($command, $args);
     }
 
     /**
@@ -594,46 +363,20 @@ class Module
      */
     public function accessAPI(string $command, array $args)
     {
+        $result = null;
+        $this->distributor->attention();
         try {
             if (array_key_exists($command, $this->commands)) {
                 if (($closure = $this->getClosure($this->commands[$command])) !== null) {
-                    return call_user_func_array($closure->bindTo($this->controller), $args);
+                    $result = call_user_func_array($closure->bindTo($this->controller), $args);
                 }
             }
         } catch (Throwable $exception) {
             $this->controller->__onError($command, $exception);
-
-            return null;
         }
+        $this->distributor->rest();
 
-        return null;
-    }
-
-    /**
-     * Trigger the event.
-     *
-     * @param string $event The event name
-     * @param array $args The arguments will pass to listener
-     *
-     * @return null|mixed
-     * @throws Throwable
-     *
-     */
-    public function fireEvent(string $event, array $args)
-    {
-        try {
-            if (array_key_exists($event, $this->events)) {
-                if (($closure = $this->getClosure($this->events[$event])) !== null) {
-                    return call_user_func_array($closure, $args);
-                }
-            }
-        } catch (Throwable $exception) {
-            $this->controller->__onError($event, $exception);
-
-            return null;
-        }
-
-        return null;
+        return $result;
     }
 
     /**
@@ -668,22 +411,49 @@ class Module
     }
 
     /**
-     * Register the API command.
+     * Get the module class name.
      *
-     * @param string $command The API command will register
-     *
-     * @return $this
-     * @throws Throwable
-     *
+     * @return string
      */
-    public function addAPI(string $command, string $path): self
+    public function getClassName(): string
     {
-        if (array_key_exists($command, $this->commands)) {
-            throw new Error('The command `' . $command . '` is already registered.');
-        }
-        $this->commands[$command] = $path;
+        return $this->packageName;
+    }
 
-        return $this;
+    /**
+     * Get the module file path.
+     *
+     * @return string
+     */
+    public function getPath(): string
+    {
+        return $this->modulePath;
+    }
+
+    /**
+     * Trigger the event.
+     *
+     * @param string $event The event name
+     * @param array $args The arguments will pass to listener
+     *
+     * @return null|mixed
+     * @throws Throwable
+     */
+    public function fireEvent(string $event, array $args)
+    {
+        try {
+            if (array_key_exists($event, $this->events)) {
+                if (($closure = $this->getClosure($this->events[$event])) !== null) {
+                    return call_user_func_array($closure, $args);
+                }
+            }
+        } catch (Throwable $exception) {
+            $this->controller->__onError($event, $exception);
+
+            return null;
+        }
+
+        return null;
     }
 
     /**
@@ -693,7 +463,294 @@ class Module
      */
     public function getAPICode(): string
     {
-        return $this->apiCode;
+        return $this->apiAlias;
+    }
+
+    /**
+     * Get the module alias.
+     *
+     * @return string
+     */
+    public function getAlias(): string
+    {
+        return $this->alias;
+    }
+
+    /**
+     * Return the module author.
+     *
+     * @return string
+     */
+    public function getAuthor(): string
+    {
+        return $this->author;
+    }
+
+    /**
+     * Get the module bound closure.
+     *
+     * @param string $method
+     *
+     * @return string
+     */
+    public function getBinding(string $method): string
+    {
+        return $this->binding[$method] ?? '';
+    }
+
+    /**
+     * Get the module code.
+     *
+     * @return string
+     */
+    public function getCode(): string
+    {
+        return $this->code;
+    }
+
+    /**
+     * Get the module's controller.
+     *
+     * @return Controller
+     */
+    public function getController(): Controller
+    {
+        return $this->controller;
+    }
+
+    /**
+     * Get the module's API Emitter.
+     *
+     * @param string $moduleCode
+     * @return Emitter
+     */
+    public function getEmitter(string $moduleCode): API\Emitter
+    {
+        return $this->distributor->createAPI()->request($moduleCode);
+    }
+
+    /**
+     * Get the `require` list of the module.
+     *
+     * @return array
+     */
+    public function getRequire(): array
+    {
+        return $this->require;
+    }
+
+    /**
+     * Get the routed information.
+     *
+     * @return array
+     */
+    public function getRoutedInfo(): array
+    {
+        return $this->distributor->getRoutedInfo();
+    }
+
+    /**
+     * Get the syy
+     *
+     * @return string
+     */
+    public function getSiteURL(): string
+    {
+        return $this->distributor->getBaseURL();
+    }
+
+    /**
+     * Get the module relative URL path.
+     *
+     * @return string
+     */
+    public function getBaseURL(): string
+    {
+        return tidy(append($this->distributor->getBaseURL(), $this->alias), true, '/');
+    }
+
+    /**
+     * Get the module status.
+     *
+     * @return int
+     */
+    public function getStatus(): int
+    {
+        return $this->status;
+    }
+
+    /**
+     * @return Template
+     */
+    public function getTemplateEngine(): Template
+    {
+        return $this->distributor->getTemplateEngine();
+    }
+
+    /**
+     * Get the URLQuery string.
+     *
+     * @return string
+     */
+    public function getURLQuery(): string
+    {
+        return $this->distributor->getURLQuery();
+    }
+
+    /**
+     * Return the module version.
+     *
+     * @return string
+     */
+    public function getVersion(): string
+    {
+        return $this->version;
+    }
+
+    /**
+     * Send a handshake to specified module to determine it is available.
+     *
+     * @param string $moduleCode
+     * @param string $message
+     *
+     * @return bool
+     */
+    public function handshake(string $moduleCode, string $message = ''): bool
+    {
+        return $this->distributor->handshakeTo($moduleCode, $this->code, $this->version, $message);
+    }
+
+    /**
+     * Start initial the module. If the controller is missing or the module cannot
+     * initialize (__onInit event), the module will not add into the loaded module list.
+     *
+     * @return bool
+     * @throws Throwable
+     */
+    public function initialize(): bool
+    {
+        // If the Controller entity does not initialize
+        if (null === $this->controller) {
+            // TODO: Require
+            // Load the controller
+            $controllerPath = append($this->modulePath, 'controller', $this->packageName . '.php');
+
+            if (is_file($controllerPath)) {
+                // Import the anonymous class file.
+                // The module controller object must extend Controller abstract class
+                $controller = include $controllerPath;
+
+                $reflected = new ReflectionClass($controller);
+
+                if ($reflected->isAnonymous()) {
+                    // Create controller instance, the routing, event and API will be configured in controller
+                    $this->controller = $reflected->newInstance($this);
+
+                    // Ensure the controller is inherited by Controller class
+                    if (!$this->controller instanceof Controller) {
+                        throw new Error('The controller must instance of Controller');
+                    }
+
+                    $this->status = self::STATUS_INITIALING;
+                    $this->status = (!$this->controller->__onInit($this->pilot)) ? self::STATUS_FAILED : self::STATUS_WAITING_VALIDATE;
+
+                    // Seal the pilot
+                    $this->pilot = clone $this->pilot;
+                    return true;
+                }
+
+                throw new Error('No controller is found in module package');
+            }
+
+            throw new Error('The controller ' . $controllerPath . ' does not exists.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Return true if the module is initialized.
+     *
+     * @return bool
+     */
+    public function isInitialized(): bool
+    {
+        return self::STATUS_DISABLED !== $this->status;
+    }
+
+    /**
+     * Return true if the module is a shared module.
+     *
+     * @return bool
+     */
+    public function isShared(): bool
+    {
+        return $this->sharedModule;
+    }
+
+    /**
+     * Start listen the event.
+     *
+     * @param string $event The event name
+     *
+     * @return $this
+     * @throws Throwable
+     *
+     */
+    public function listen(string $event, string $path): self
+    {
+        if (array_key_exists($event, $this->events)) {
+            throw new Error('The event `' . $event . '` is already registered.');
+        }
+        $this->events[$event] = $path;
+
+        return $this;
+    }
+
+    /**
+     * Load the module configuration file.
+     *
+     * @throws Error
+     */
+    public function loadConfig(): Configuration
+    {
+        $path = append(SYSTEM_ROOT, 'config', $this->distributor->getDistCode(), $this->packageName . '.php');
+
+        return new Configuration($path);
+    }
+
+    /**
+     * @return string
+     */
+    public function getDistCode(): string
+    {
+        return $this->distributor->getDistCode();
+    }
+
+    /**
+     * Trigger __onReady event when all modules have loaded.
+     */
+    public function notify(): void
+    {
+        $this->controller->__onReady();
+        $this->status = self::STATUS_LOADED;
+    }
+
+    public function preload(): bool
+    {
+        return $this->controller->__onPreload($this->pilot);
+    }
+
+    /**
+     * Send the signal to controller that the distributor trying to route in. Return false to refuse.
+     *
+     * @param array $args
+     *
+     * @return bool
+     */
+    public function prepare(array $args): bool
+    {
+        return $this->controller->__onRoute($args);
     }
 
     /**
@@ -710,29 +767,35 @@ class Module
     }
 
     /**
-     * Check the event is dispatched.
-     *
-     * @param string $event The event name
-     *
-     * @return bool
+     * Set the module is ready.
      */
-    public function eventDispatched(string $event): bool
+    public function ready(): void
     {
-        return array_key_exists($event, $this->events);
+        $this->status = self::STATUS_READY;
     }
 
     /**
-     * Connect another domain API.
-     *
-     * @param string $fqdn The well-formatted FQDN
-     *
-     * @return null|API
-     * @throws Throwable
-     *
+     * Trigger __onDispatch event when the application has routed into a module
      */
-    public function connect(string $fqdn): ?API
+    public function standby(string $moduleCode): void
     {
-        return $this->distributor->connect($fqdn);
+        if (self::STATUS_LOADED === $this->status) {
+            $this->controller->__onDispatch($moduleCode);
+        }
+    }
+
+    /**
+     * Touch to inform it has handshake from other module.
+     *
+     * @param string $moduleCode
+     * @param string $version
+     * @param string $message
+     *
+     * @return bool
+     */
+    public function touch(string $moduleCode, string $version, string $message): bool
+    {
+        return $this->controller->__onTouch($moduleCode, $version, $message);
     }
 
     /**
@@ -763,7 +826,7 @@ class Module
         }
 
         $unpackedAsset = [];
-        $folder        = append(trim($folder), $this->code);
+        $folder        = append(trim($folder), $this->alias);
         if (!is_dir($folder)) {
             try {
                 mkdir($folder, 0777, true);
@@ -781,117 +844,15 @@ class Module
     }
 
     /**
-     * Load the module configuration file.
-     *
-     * @throws Error
-     */
-    public function loadConfig(): Configuration
-    {
-        $path = append(SYSTEM_ROOT, 'config', $this->distributor->getDistCode(), $this->code . '.php');
-
-        return new Configuration($path);
-    }
-
-    /**
-     * Send a handshake to specified module to determine it is available.
-     *
-     * @param string $moduleCode
-     * @param string $message
-     *
+     * Validate the module is ready to initial, if the event return false, it will put the module into preload list.
      * @return bool
      */
-    public function handshake(string $moduleCode, string $message = ''): bool
+    public function validate(): bool
     {
-        return $this->distributor->handshakeTo($moduleCode, $this->code, $this->version, $message);
-    }
-
-    /**
-     * Touch to inform it has handshake from other module.
-     *
-     * @param string $moduleCode
-     * @param string $version
-     * @param string $message
-     *
-     * @return bool
-     */
-    public function touch(string $moduleCode, string $version, string $message): bool
-    {
-        return $this->controller->__onTouch($moduleCode, $version, $message);
-    }
-
-    /**
-     * Check the route is conflicted and return the conflicted module code.
-     *
-     * @param string $urlQuery
-     *
-     * @return string
-     */
-    public function conflict(string $urlQuery): string
-    {
-        return $this->distributor->simulate($urlQuery, $this->code);
-    }
-
-    /**
-     * Send the signal to controller that the distributor trying to route in. Return false to refuse.
-     *
-     * @param array $args
-     *
-     * @return bool
-     */
-    public function prepare(array $args): bool
-    {
-        return $this->controller->__onRoute($args);
-    }
-
-    /**
-     * Trigger __onDispatch event when the application has routed into a module
-     */
-    public function standby(string $moduleCode): void
-    {
-        if (self::STATUS_LOADED === $this->status) {
-            $this->controller->__onDispatch($moduleCode);
+        if (!$this->controller->__onValidate($this->pilot)) {
+            $this->status = self::STATUS_PRELOADING;
+            return false;
         }
-    }
-
-    /**
-     * Redirect to the specified url when all modules are ready.
-     *
-     * @param string $url
-     *
-     * @return $this
-     */
-    public function redirect(string $url): Module
-    {
-        $this->distributor->setRedirect($url);
-
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function landing(): string
-    {
-        return $this->distributor->landing($this);
-    }
-
-    /**
-     * Get the routed path.
-     *
-     * @return string
-     */
-    public function getRoutedPath(): string
-    {
-        return $this->distributor->getRoutedPath();
-    }
-
-    /**
-     * Get the URLQuery string.
-     *
-     * @return string
-     */
-    public function getURLQuery(): string
-    {
-        return $this->distributor->getURLQuery();
+        return true;
     }
 }

@@ -18,30 +18,40 @@ use Throwable;
 class Plugin
 {
     /**
-     */
-    private bool $isLoaded = true;
-
-    /**
-     */
-    private bool $enclose = false;
-
-    /**
-     */
-    private array $parameters = [];
-
-    /**
-     */
-    private Closure $processor;
-
-    /**
+     * Is bypass the parser
+     * @var bool
      */
     private bool $bypassParser;
-
-    private bool $extendedParameter;
-
     /**
+     * Is the Plugin's support enclose
+     * @var bool
+     */
+    private bool $enclose = false;
+    /**
+     * Is support extended parameter
+     * @var bool
+     */
+    private bool $extendedParameter;
+    /**
+     * Is the Plugin loaded
+     * @var bool
+     */
+    private bool $isLoaded = true;
+    /**
+     * The plugin name
+     * @var string
      */
     private string $name;
+    /**
+     * The storage of the parameters
+     * @var array
+     */
+    private array $parameters = [];
+    /**
+     * The closure of the plugin
+     * @var Closure
+     */
+    private Closure $processor;
 
     /**
      * Plugin constructor.
@@ -59,9 +69,9 @@ class Plugin
             $this->name = $name;
 
             if ('function' === $type) {
-                $this->enclose           = (bool) ($settings['enclose_content']    ?? false);
-                $this->bypassParser      = (bool) ($settings['bypass_parser']      ?? '');
-                $this->extendedParameter = (bool) ($settings['extended_parameter'] ?? '');
+                $this->enclose           = (bool)($settings['enclose_content'] ?? false);
+                $this->bypassParser      = (bool)($settings['bypass_parser'] ?? '');
+                $this->extendedParameter = (bool)($settings['extended_parameter'] ?? '');
 
                 if (isset($settings['parameters'])) {
                     if (!is_array($settings['parameters'])) {
@@ -81,8 +91,19 @@ class Plugin
     }
 
     /**
+     * Get the name of the plugin.
+     *
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
      * Return true if the plugin is an enclosure tag.
      *
+     * @return bool
      */
     public function isEnclose(): bool
     {
@@ -92,19 +113,11 @@ class Plugin
     /**
      * Return true if the plugin is loaded successfully, else the function tag in template file will not be parsed.
      *
+     * @return bool
      */
     public function isLoaded(): bool
     {
         return $this->isLoaded;
-    }
-
-    /**
-     * Get the name of the plugin.
-     *
-     */
-    public function getName(): string
-    {
-        return $this->name;
     }
 
     /**
@@ -134,9 +147,8 @@ class Plugin
      * @param string $paramText   The well-formatted function's parameter string
      * @param string $wrappedText The wrapped content if the plugin is an enclosure tag
      *
-     * @throws Throwable
-     *
      * @return mixed
+     * @throws Throwable
      */
     public function process(Entity $entity, string $paramText = '', string $wrappedText = '')
     {

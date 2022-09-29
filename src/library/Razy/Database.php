@@ -21,39 +21,40 @@ use Throwable;
 class Database
 {
     /**
+     * The storage of the Database instances
      * @var array
      */
     private static array $instances = [];
-
     /**
-     * @var bool
-     */
-    private bool $connected = false;
-
-    /**
-     * @var string
-     */
-    private string $name;
-
-    /**
+     * The PDO entity
      * @var PDO
      */
     private PDO $adapter;
-
     /**
+     * The charset setting of the database connection
      * @var array
      */
     private array $charset = [];
-
     /**
-     * @var array
+     * The connection status of the adapter
+     * @var bool
      */
-    private array $queried;
-
+    private bool $connected = false;
     /**
+     * The name of the database entity
+     * @var string
+     */
+    private string $name;
+    /**
+     * The table prefix
      * @var string
      */
     private string $prefix = '';
+    /**
+     * The storage of the queried SQL statement
+     * @var array
+     */
+    private array $queried = [];
 
     /**
      * Database constructor.
@@ -71,28 +72,8 @@ class Database
     }
 
     /**
-     * Set the table prefix
+     * Get the Database instance by given name
      *
-     * @param string $prefix
-     * @return $this
-     */
-    public function setPrefix(string $prefix): Database
-    {
-        $this->prefix = $prefix;
-        return $this;
-    }
-
-    /**
-     * Get the table prefix
-     *
-     * @return string
-     */
-    public function getPrefix(): string
-    {
-        return $this->prefix;
-    }
-
-    /**
      * @param string $name
      *
      * @return null|Database
@@ -107,14 +88,20 @@ class Database
     }
 
     /**
-     * @return string
+     * Clear the executed SQL statement history.
+     *
+     * @return self Chainable
      */
-    public function getName(): string
+    public function clearQueried(): Database
     {
-        return $this->name;
+        $this->queried = [];
+
+        return $this;
     }
 
     /**
+     * Start connect to database.
+     *
      * @param string $host
      * @param string $username
      * @param string $password
@@ -141,117 +128,29 @@ class Database
     }
 
     /**
-     * @return bool
-     */
-    public function isConnected(): bool
-    {
-        return $this->connected;
-    }
-
-    /**
-     * Return the last insert id.
+     * Execute the Statement entity.
      *
-     * @return int The last insert id
-     */
-    public function lastID(): int
-    {
-        return $this->adapter->lastInsertId();
-    }
-
-    /**
-     * Get the latest executed SQL statement.
+     * @param Statement $statement
      *
-     * @return string The SQL statement
-     */
-    public function getLastQueried(): string
-    {
-        return end($this->queried);
-    }
-
-    /**
-     * Clear the executed SQL statement history.
-     *
-     * @return self Chainable
-     */
-    public function clearQueried(): Database
-    {
-        $this->queried = [];
-
-        return $this;
-    }
-
-    /**
-     * Get a list of the executed SQL statement.
-     *
-     * @return array An array contains the executed SQL statement
-     */
-    public function getQueried(): array
-    {
-        return $this->queried;
-    }
-
-    /**
-     * Get the database adapter resource.
-     *
-     * @return PDO The database adapter resource
-     */
-    public function getDBAdapter(): PDO
-    {
-        return $this->adapter;
-    }
-
-    /**
-     * Create an insert statement.
-     *
-     * @param string $tableName The table name
-     * @param array  $dataset   An array contains the column name and its value
-     *
-     * @return Statement The Statement object
-     *@throws Error
-     *
-     */
-    public function insert(string $tableName, array $dataset): Statement
-    {
-        return $this->prepare()->insert($tableName, $dataset);
-    }
-
-    /**
-     * @param string $sql
-     *
-     * @return Statement
-     */
-    public function prepare(string $sql = ''): Statement
-    {
-        /*
-        if ($sql instanceof Table) {
-            return new Statement($this, $sql->getSyntax());
-        }
-
-        if ($sql instanceof Statement) {
-            return $sql;
-        }
-        */
-
-        if ($sql) {
-            return new Statement($this, $sql);
-        }
-
-        return new Statement($this);
-    }
-
-    /**
-     * Create a update statement.
-     *
-     * @param string $tableName    The table name
-     * @param array  $updateSyntax An array contains the column name or update syntax
-     *
+     * @return Query
      * @throws Throwable
-     *
-     * @return Statement The Statement object
      */
-    public function update(string $tableName, array $updateSyntax): Statement
+    public function execute(Statement $statement): Query
     {
-        return $this->prepare()->update($tableName, $updateSyntax);
+        $sql = $statement->getSyntax();
+
+        try {
+            $pdoStatement = $this->adapter->prepare($sql);
+            if ($pdoStatement) {
+                $pdoStatement->execute();
+            }
+        } catch (Exception $e) {
+            throw new Error($e->getMessage(), 500, Error::DEFAULT_HEADING, $sql);
+        }
+
+        $this->queried[] = $sql;
+
+        return new Query($statement, $pdoStatement);
     }
 
     /**
@@ -309,27 +208,129 @@ class Database
     }
 
     /**
-     * @param Statement $statement
+     * Get the database adapter resource.
      *
-     * @return Query
-     *@throws Throwable
-     *
+     * @return PDO The database adapter resource
      */
-    public function execute(Statement $statement): Query
+    public function getDBAdapter(): PDO
     {
-        $sql = $statement->getSyntax();
+        return $this->adapter;
+    }
 
-        try {
-            $pdoStatement = $this->adapter->prepare($sql);
-            if ($pdoStatement) {
-                $pdoStatement->execute();
-            }
-        } catch (Exception $e) {
-            throw new Error($e->getMessage(), 500, Error::DEFAULT_HEADING, $sql);
+    /**
+     * Get the latest executed SQL statement.
+     *
+     * @return string The SQL statement
+     */
+    public function getLastQueried(): string
+    {
+        return end($this->queried);
+    }
+
+    /**
+     * Get the name
+     *
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get the table prefix
+     *
+     * @return string
+     */
+    public function getPrefix(): string
+    {
+        return $this->prefix;
+    }
+
+    /**
+     * Set the table prefix
+     *
+     * @param string $prefix
+     * @return $this
+     */
+    public function setPrefix(string $prefix): Database
+    {
+        $this->prefix = $prefix;
+        return $this;
+    }
+
+    /**
+     * Get a list of the executed SQL statement.
+     *
+     * @return array An array contains the executed SQL statement
+     */
+    public function getQueried(): array
+    {
+        return $this->queried;
+    }
+
+    /**
+     * Create an insert statement.
+     *
+     * @param string $tableName The table name
+     * @param array  $dataset   An array contains the column name and its value
+     *
+     * @return Statement The Statement object
+     * @throws Error
+     */
+    public function insert(string $tableName, array $dataset): Statement
+    {
+        return $this->prepare()->insert($tableName, $dataset);
+    }
+
+    /**
+     * Get the Statement.
+     *
+     * @param string $sql
+     *
+     * @return Statement
+     */
+    public function prepare(string $sql = ''): Statement
+    {
+        if ($sql) {
+            return new Statement($this, $sql);
         }
 
-        $this->queried[] = $sql;
+        return new Statement($this);
+    }
 
-        return new Query($statement, $pdoStatement);
+    /**
+     * Get the connection status.
+     *
+     * @return bool
+     */
+    public function isConnected(): bool
+    {
+        return $this->connected;
+    }
+
+    /**
+     * Return the last insert id.
+     *
+     * @return int The last insert id
+     */
+    public function lastID(): int
+    {
+        return $this->adapter->lastInsertId();
+    }
+
+    /**
+     * Create a update statement.
+     *
+     * @param string $tableName    The table name
+     * @param array  $updateSyntax An array contains the column name or update syntax
+     *
+     * @throws Throwable
+     *
+     * @return Statement The Statement object
+     */
+    public function update(string $tableName, array $updateSyntax): Statement
+    {
+        return $this->prepare()->update($tableName, $updateSyntax);
     }
 }

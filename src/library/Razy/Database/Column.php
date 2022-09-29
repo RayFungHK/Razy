@@ -17,24 +17,26 @@ use function Razy\guid;
 class Column
 {
     /**
-     * @var null|Table
+     * The Column's unique id
+     * @var string
      */
-    private ?Table $table;
-
+    private string $id;
     /**
+     * The Column name
      * @var string
      */
     private string $name;
 
     /**
+     * The storage of the parameters
      * @var array
      */
     private array $parameters = [];
-
     /**
-     * @var string
+     * The Table entity
+     * @var null|Table
      */
-    private string $id;
+    private ?Table $table;
 
     /**
      * Column constructor.
@@ -47,21 +49,21 @@ class Column
      */
     public function __construct(string $columnName, string $configSyntax = '', ?Table $table = null)
     {
-        $columnName = trim($columnName);
+        $columnName   = trim($columnName);
         $configSyntax = trim($configSyntax);
         if (!preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
             throw new Error('The column name ' . $columnName . ' is not in a correct format,');
         }
 
         $this->parameters = [
-            'type' => 'VARCHAR',
-            'length' => 255,
-            'default' => '',
-            'nullable' => false,
+            'type'         => 'VARCHAR',
+            'length'       => 255,
+            'default'      => '',
+            'nullable'     => false,
             'insert_after' => '',
         ];
 
-        $this->name = $columnName;
+        $this->name  = $columnName;
         $this->table = $table;
         if ($configSyntax) {
             $parameters = $this->parseSyntax($configSyntax);
@@ -71,13 +73,41 @@ class Column
     }
 
     /**
+     * Parse the column syntax.
+     *
+     * @param string $syntax
+     * @return array
+     */
+    private function parseSyntax(string $syntax): array
+    {
+        $parameters = [];
+        $clips      = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
+        foreach ($clips as $clip) {
+            if (preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
+                if (!isset($parameters[$matches[1]])) {
+                    $parameters[$matches[1]] = null;
+                }
+
+                if ($matches[2] ?? '') {
+                    $parameters[$matches[1]] = [];
+                    while (preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
+                        $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
+                        $matches[2]                = substr($matches[2], strlen($extracted[0]));
+                    }
+                }
+            }
+        }
+
+        return $parameters;
+    }
+
+    /**
      * Configure the column by an array or parameters.
      *
      * @param array $parameters
      *
      * @return Column
      * @throws Error
-     *
      */
     public function configure(array $parameters): Column
     {
@@ -123,19 +153,6 @@ class Column
     }
 
     /**
-     * Enable set current timestamp as default value when the column is a date/time/timestamp
-     *
-     * @param bool $enable
-     *
-     * @return $this
-     */
-    public function defaultCurrentTimestamp(bool $enable): Column
-    {
-        $this->parameters['auto_current_timestamp'] = $enable;
-        return $this;
-    }
-
-    /**
      * Set the column type.
      *
      * @param string $type
@@ -153,51 +170,51 @@ class Column
 
         $this->parameters['default'] = '';
         if ('auto_id' === $type || 'auto' === $type || 'auto_increment' === $type) {
-            $this->parameters['type'] = 'INT';
+            $this->parameters['type']           = 'INT';
             $this->parameters['auto_increment'] = true;
-            $this->parameters['key'] = 'primary';
-            $this->parameters['length'] = 8;
-            $this->parameters['default'] = '0';
+            $this->parameters['key']            = 'primary';
+            $this->parameters['length']         = 8;
+            $this->parameters['default']        = '0';
         } elseif ('text' === $type) {
-            $this->parameters['type'] = 'VARCHAR';
-            $this->parameters['length'] = 255;
+            $this->parameters['type']    = 'VARCHAR';
+            $this->parameters['length']  = 255;
             $this->parameters['default'] = '';
         } elseif ('full_text' === $type) {
-            $this->parameters['type'] = 'TEXT';
-            $this->parameters['length'] = '';
+            $this->parameters['type']    = 'TEXT';
+            $this->parameters['length']  = '';
             $this->parameters['default'] = '';
         } elseif ('long_text' === $type) {
-            $this->parameters['type'] = 'LONGTEXT';
-            $this->parameters['length'] = '';
+            $this->parameters['type']    = 'LONGTEXT';
+            $this->parameters['length']  = '';
             $this->parameters['default'] = '';
         } elseif ('int' === $type) {
-            $this->parameters['type'] = 'INT';
-            $this->parameters['length'] = 8;
+            $this->parameters['type']    = 'INT';
+            $this->parameters['length']  = 8;
             $this->parameters['default'] = '0';
         } elseif ('bool' === $type || 'boolean' === $type) {
-            $this->parameters['type'] = 'TINYINT';
-            $this->parameters['length'] = 1;
+            $this->parameters['type']    = 'TINYINT';
+            $this->parameters['length']  = 1;
             $this->parameters['default'] = '0';
         } elseif ('decimal' === $type || 'money' === $type || 'float' === $type || 'real' === $type || 'double' === $type) {
-            $this->parameters['type'] = ('decimal' === $type || 'money' === $type) ? 'DECIMAL' : strtoupper($type);
-            $this->parameters['length'] = 8;
+            $this->parameters['type']           = ('decimal' === $type || 'money' === $type) ? 'DECIMAL' : strtoupper($type);
+            $this->parameters['length']         = 8;
             $this->parameters['decimal_points'] = 2;
-            $this->parameters['default'] = '0';
+            $this->parameters['default']        = '0';
         } elseif ('timestamp' === $type) {
-            $this->parameters['type'] = 'TIMESTAMP';
-            $this->parameters['default'] = null;
+            $this->parameters['type']     = 'TIMESTAMP';
+            $this->parameters['default']  = null;
             $this->parameters['nullable'] = true;
         } elseif ('datetime' === $type) {
-            $this->parameters['type'] = 'DATETIME';
-            $this->parameters['default'] = null;
+            $this->parameters['type']     = 'DATETIME';
+            $this->parameters['default']  = null;
             $this->parameters['nullable'] = true;
         } elseif ('date' === $type) {
-            $this->parameters['type'] = 'DATE';
-            $this->parameters['default'] = null;
+            $this->parameters['type']     = 'DATE';
+            $this->parameters['default']  = null;
             $this->parameters['nullable'] = true;
         } elseif ('json' === $type) {
-            $this->parameters['type'] = 'JSON';
-            $this->parameters['default'] = '{}';
+            $this->parameters['type']     = 'JSON';
+            $this->parameters['default']  = '{}';
             $this->parameters['nullable'] = true;
         } else {
             $this->parameters['type'] = strtoupper($type);
@@ -216,9 +233,9 @@ class Column
      */
     public function setLength(int $length, int $decPoints = 0): Column
     {
-        $length = max(1, $length);
-        $decPoints = max(0, min($length - 1, $decPoints));
-        $this->parameters['length'] = $length;
+        $length                             = max(1, $length);
+        $decPoints                          = max(0, min($length - 1, $decPoints));
+        $this->parameters['length']         = $length;
         $this->parameters['decimal_points'] = $decPoints;
 
         return $this;
@@ -259,7 +276,6 @@ class Column
      *
      * @return $this
      * @throws Error
-     *
      */
     public function setCharset(string $charset): Column
     {
@@ -268,6 +284,25 @@ class Column
             throw new Error($charset . ' is not in a correct character set format.');
         }
         $this->parameters['charset'] = $charset;
+
+        return $this;
+    }
+
+    /**
+     * Set the collation of the column.
+     *
+     * @param string $collation
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function setCollation(string $collation): Column
+    {
+        $charset = trim($collation);
+        if ($charset && !preg_match('/\w+^$', $collation)) {
+            throw new Error($collation . ' is not in a correct character set format.');
+        }
+        $this->parameters['collation'] = $collation;
 
         return $this;
     }
@@ -295,171 +330,23 @@ class Column
      */
     public function setKey(string $type): Column
     {
-        $type = strtolower(trim($type));
+        $type                    = strtolower(trim($type));
         $this->parameters['key'] = (preg_match('/^primary|index|unique|fulltext|spatial$/', $type)) ? $type : null;
 
         return $this;
     }
 
     /**
-     * Get the unique ID of the column.
+     * Enable set current timestamp as default value when the column is a date/time/timestamp
      *
-     * @return string
-     */
-    public function getID(): string
-    {
-        return $this->id;
-    }
-
-    /**
-     * Rebind the table.
-     *
-     * @param Table $table
+     * @param bool $enable
      *
      * @return $this
-     * @throws Error
-     *
      */
-    public function bindTo(Table $table): Column
+    public function defaultCurrentTimestamp(bool $enable): Column
     {
-        if ($table !== $this->table) {
-            $this->table = $table;
-            $table->insertColumn($this);
-        }
-
+        $this->parameters['auto_current_timestamp'] = $enable;
         return $this;
-    }
-
-    /**
-     * Set the collation of the column.
-     *
-     * @param string $collation
-     *
-     * @return $this
-     * @throws Error
-     *
-     */
-    public function setCollation(string $collation): Column
-    {
-        $charset = trim($collation);
-        if ($charset && !preg_match('/\w+^$', $collation)) {
-            throw new Error($collation . ' is not in a correct character set format.');
-        }
-        $this->parameters['collation'] = $collation;
-
-        return $this;
-    }
-
-    /**
-     * Reorder the column after a specified column.
-     *
-     * @param string $columnName
-     *
-     * @return $this
-     * @throws Error
-     *
-     */
-    public function insertAfter(string $columnName = ''): Column
-    {
-        $columnName = trim($columnName);
-        if ($columnName && !preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
-            throw new Error('The column name ' . $columnName . ' is not in a correct format,');
-        }
-
-        $this->parameters['insert_after'] = $columnName;
-
-        return $this;
-    }
-
-    /**
-     * Export the Column Syntax.
-     *
-     * @return string
-     */
-    public function exportConfig(): string
-    {
-        $config = '`' . $this->name . '`';
-        $parameters = [];
-        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key'] as $method) {
-            if ('type' == $method) {
-                switch ($this->parameters['type']) {
-                    case 'VARCHAR':
-                        $type = 'text';
-
-                        break;
-
-                    case 'INT':
-                        if ($this->parameters['auto_increment'] ?? false) {
-                            $type = 'auto';
-                        } else {
-                            $type = ('1' == $this->parameters['length']) ? 'bool' : 'int';
-                        }
-
-                        break;
-
-                    default:
-                        $type = strtolower($this->parameters['type']);
-                }
-                $parameters[] = 'type(' . $type . ')';
-            } elseif ('length' == $method) {
-                $parameters[] = 'length(' . $this->parameters['length'] . ')';
-            } elseif ('nullable' == $method) {
-                if ($this->parameters['nullable'] ?? false) {
-                    $parameters[] = 'nullable';
-                }
-            } elseif ('zerofill' == $method) {
-                if (preg_match('/^(SMALL|MEDIUM|BIG)?INT$/', $this->parameters['type'])) {
-                    if ($this->parameters['zerofill'] ?? false) {
-                        $parameters[] = 'zerofill';
-                    }
-                }
-            } elseif ('charset' == $method) {
-                if (isset($this->parameters['charset']) && $this->parameters['charset']) {
-                    $parameters[] = 'charset(' . $this->parameters['charset'] . ')';
-                }
-            } elseif ('collation' == $method) {
-                if (isset($this->parameters['collation']) && $this->parameters['collation']) {
-                    $parameters[] = 'collation(' . $this->parameters['charset'] . ')';
-                }
-            } elseif ('default' == $method) {
-                if (isset($this->parameters['default'])) {
-                    $parameters[] = 'default("' . addslashes($this->parameters['default']) . '")';
-                }
-            } elseif ('key' == $method) {
-                if (isset($this->parameters['key'])) {
-                    $parameters[] = 'key(' . $this->parameters['key'] . ')';
-                }
-            } elseif ('oncurrent' == $method) {
-                if ($this->parameters['oncurrent'] ?? false) {
-                    $parameters[] = 'oncurrent';
-                }
-            }
-        }
-        if (!empty($parameters)) {
-            $config .= '=' . implode(',', $parameters);
-        }
-
-        return $config;
-    }
-
-    /**
-     * Return true if the column is an auto increment column.
-     *
-     * @return bool
-     */
-    public function isAuto(): bool
-    {
-        return $this->parameters['auto_increment'] ?? false;
-    }
-
-    /**
-     * Get the index key type.
-     *
-     * @return string
-     */
-    public function getKey(): string
-    {
-        return $this->parameters['key'] ?? '';
     }
 
     /**
@@ -493,117 +380,6 @@ class Column
         }
 
         return ($changes) ? ' MODIFY COLUMN ' . $column->getName() . $changes : '';
-    }
-
-    /**
-     * Get the `after` value of the column.
-     *
-     * @return string
-     */
-    public function getOrderAfter(): string
-    {
-        return $this->parameters['insert_after'];
-    }
-
-    /**
-     * Get the column name.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Rename the column.
-     *
-     * @param string $columnName
-     *
-     * @return $this
-     * @throws Error
-     *
-     */
-    public function setName(string $columnName): Column
-    {
-        $columnName = trim($columnName);
-        if (!preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
-            throw new Error('The column name ' . $columnName . ' is not in a correct format,');
-        }
-        $this->name = $columnName;
-        if ($this->table) {
-            $this->table->validate();
-        }
-
-        return $this;
-    }
-
-    /**
-     * Get the data type of the column.
-     *
-     * @return string
-     */
-    public function getType(): string
-    {
-        return $this->parameters['type'];
-    }
-
-    /**
-     * Export the column insert or alter syntax.
-     *
-     * @return string
-     */
-    public function getSyntax(): string
-    {
-        $syntax = '`' . $this->name . '`';
-        if ($this->parameters['auto_increment'] ?? false) {
-            $syntax .= ' INT(' . $this->parameters['length'] . ') NOT NULL AUTO_INCREMENT';
-        } else {
-            $syntax .= $this->getTypeSyntax() . $this->getNullableSyntax() . $this->getDefaultSyntax() . $this->getCharsetSyntax();
-        }
-
-        return $syntax;
-    }
-
-    /**
-     * Return true if the column is nullable.
-     *
-     * @return bool
-     */
-    public function isNullable(): bool
-    {
-        return $this->parameters['nullable'];
-    }
-
-    /**
-     * Parse the column syntax.
-     *
-     * @param string $syntax
-     *
-     * @return array
-     *
-     */
-    private function parseSyntax(string $syntax): array
-    {
-        $parameters = [];
-        $clips = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($clips as $clip) {
-            if (preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
-                if (!isset($parameters[$matches[1]])) {
-                    $parameters[$matches[1]] = null;
-                }
-
-                if ($matches[2] ?? '') {
-                    $parameters[$matches[1]] = [];
-                    while (preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
-                        $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
-                        $matches[2] = substr($matches[2], strlen($extracted[0]));
-                    }
-                }
-            }
-        }
-
-        return $parameters;
     }
 
     /**
@@ -679,6 +455,16 @@ class Column
     }
 
     /**
+     * Get the `after` value of the column.
+     *
+     * @return string
+     */
+    public function getOrderAfter(): string
+    {
+        return $this->parameters['insert_after'];
+    }
+
+    /**
      * Generate the `type` and `length` SQL statement.
      *
      * @return string
@@ -709,5 +495,213 @@ class Column
     private function getNullableSyntax(): string
     {
         return ($this->parameters['nullable']) ? ' NULL' : ' NOT NULL';
+    }
+
+    /**
+     * Get the column name.
+     *
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Rename the column.
+     *
+     * @param string $columnName
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function setName(string $columnName): Column
+    {
+        $columnName = trim($columnName);
+        if (!preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
+            throw new Error('The column name ' . $columnName . ' is not in a correct format,');
+        }
+        $this->name = $columnName;
+        if ($this->table) {
+            $this->table->validate();
+        }
+
+        return $this;
+    }
+
+    /**
+     * Rebind the table.
+     *
+     * @param Table $table
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function bindTo(Table $table): Column
+    {
+        if ($table !== $this->table) {
+            $this->table = $table;
+            $table->insertColumn($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Export the Column Syntax.
+     *
+     * @return string
+     */
+    public function exportConfig(): string
+    {
+        $config     = '`' . $this->name . '`';
+        $parameters = [];
+        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key'] as $method) {
+            if ('type' == $method) {
+                switch ($this->parameters['type']) {
+                    case 'VARCHAR':
+                        $type = 'text';
+
+                        break;
+
+                    case 'INT':
+                        if ($this->parameters['auto_increment'] ?? false) {
+                            $type = 'auto';
+                        } else {
+                            $type = ('1' == $this->parameters['length']) ? 'bool' : 'int';
+                        }
+
+                        break;
+
+                    default:
+                        $type = strtolower($this->parameters['type']);
+                }
+                $parameters[] = 'type(' . $type . ')';
+            } elseif ('length' == $method) {
+                $parameters[] = 'length(' . $this->parameters['length'] . ')';
+            } elseif ('nullable' == $method) {
+                if ($this->parameters['nullable'] ?? false) {
+                    $parameters[] = 'nullable';
+                }
+            } elseif ('zerofill' == $method) {
+                if (preg_match('/^(SMALL|MEDIUM|BIG)?INT$/', $this->parameters['type'])) {
+                    if ($this->parameters['zerofill'] ?? false) {
+                        $parameters[] = 'zerofill';
+                    }
+                }
+            } elseif ('charset' == $method) {
+                if (isset($this->parameters['charset']) && $this->parameters['charset']) {
+                    $parameters[] = 'charset(' . $this->parameters['charset'] . ')';
+                }
+            } elseif ('collation' == $method) {
+                if (isset($this->parameters['collation']) && $this->parameters['collation']) {
+                    $parameters[] = 'collation(' . $this->parameters['charset'] . ')';
+                }
+            } elseif ('default' == $method) {
+                if (isset($this->parameters['default'])) {
+                    $parameters[] = 'default("' . addslashes($this->parameters['default']) . '")';
+                }
+            } elseif ('key' == $method) {
+                if (isset($this->parameters['key'])) {
+                    $parameters[] = 'key(' . $this->parameters['key'] . ')';
+                }
+            } elseif ('oncurrent' == $method) {
+                if ($this->parameters['oncurrent'] ?? false) {
+                    $parameters[] = 'oncurrent';
+                }
+            }
+        }
+        if (!empty($parameters)) {
+            $config .= '=' . implode(',', $parameters);
+        }
+
+        return $config;
+    }
+
+    /**
+     * Get the unique ID of the column.
+     *
+     * @return string
+     */
+    public function getID(): string
+    {
+        return $this->id;
+    }
+
+    /**
+     * Get the index key type.
+     *
+     * @return string
+     */
+    public function getKey(): string
+    {
+        return $this->parameters['key'] ?? '';
+    }
+
+    /**
+     * Export the column insert or alter syntax.
+     *
+     * @return string
+     */
+    public function getSyntax(): string
+    {
+        $syntax = '`' . $this->name . '`';
+        if ($this->parameters['auto_increment'] ?? false) {
+            $syntax .= ' INT(' . $this->parameters['length'] . ') NOT NULL AUTO_INCREMENT';
+        } else {
+            $syntax .= $this->getTypeSyntax() . $this->getNullableSyntax() . $this->getDefaultSyntax() . $this->getCharsetSyntax();
+        }
+
+        return $syntax;
+    }
+
+    /**
+     * Get the data type of the column.
+     *
+     * @return string
+     */
+    public function getType(): string
+    {
+        return $this->parameters['type'];
+    }
+
+    /**
+     * Reorder the column after a specified column.
+     *
+     * @param string $columnName
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function insertAfter(string $columnName = ''): Column
+    {
+        $columnName = trim($columnName);
+        if ($columnName && !preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
+            throw new Error('The column name ' . $columnName . ' is not in a correct format,');
+        }
+
+        $this->parameters['insert_after'] = $columnName;
+
+        return $this;
+    }
+
+    /**
+     * Return true if the column is an auto increment column.
+     *
+     * @return bool
+     */
+    public function isAuto(): bool
+    {
+        return $this->parameters['auto_increment'] ?? false;
+    }
+
+    /**
+     * Return true if the column is nullable.
+     *
+     * @return bool
+     */
+    public function isNullable(): bool
+    {
+        return $this->parameters['nullable'];
     }
 }
