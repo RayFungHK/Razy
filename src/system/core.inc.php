@@ -17,7 +17,7 @@ use const PHP_SAPI;
 
 header_remove('X-Powered-By');
 
-define('RAZY_VERSION', '0.4.1-206');
+define('RAZY_VERSION', '0.4.1-207');
 define('PLUGIN_FOLDER', append(SYSTEM_ROOT, 'plugins'));
 define('PHAR_PLUGIN_FOLDER', append(PHAR_PATH, 'plugins'));
 define('SITES_FOLDER', append(SYSTEM_ROOT, 'sites'));
@@ -49,7 +49,7 @@ spl_autoload_register(function ($className) {
     return true;
 });
 
-if (PHP_SAPI === 'cli' || defined('STDIN')) {
+if (php_sapi_name() === 'cli' || defined('STDIN')) {
     define('CLI_MODE', true);
     define('WEB_MODE', false);
 } else {

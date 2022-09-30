@@ -402,7 +402,6 @@ class Module
                 if (!is_callable($closure) && $closure instanceof Closure) {
                     throw new Error('The object is not a Closure.');
                 }
-
                 $this->closures[$path] = $closure->bindTo($this->controller, get_class($this->controller));
             }
         }
@@ -654,8 +653,6 @@ class Module
                     $this->status = self::STATUS_INITIALING;
                     $this->status = (!$this->controller->__onInit($this->pilot)) ? self::STATUS_FAILED : self::STATUS_WAITING_VALIDATE;
 
-                    // Seal the pilot
-                    $this->pilot = clone $this->pilot;
                     return true;
                 }
 

@@ -4,7 +4,7 @@ namespace Razy;
 
 return function (string $distCode) {
     $this->writeLine('{@s:ub}List modules', true);
-    $info = Application::getDistributorModules($distCode);
+    $info = Application::GetDistributorModules($distCode);
 
     foreach ($info as &$module) {
         if ('Enabled' == $module[1]) {

@@ -26,6 +26,12 @@ class Application
      */
     private static array $alias = [];
     /**
+     * The storage of the cached sites config
+     *
+     * @var array|null
+     */
+    static private ?array $cachedConfig = null;
+    /**
      * The storage of the created Application instances
      *
      * @var array
@@ -190,14 +196,41 @@ class Application
     {
         $code = trim($code);
         if (CLI_MODE) {
-            if (self::distributorExists($code)) {
-                return self::createDistributor(self::$registeredDist[$code])->unpackAllAsset($closure);
+            if (self::DistributorExists($code)) {
+                return self::CreateDistributor(self::$registeredDist[$code])->unpackAllAsset($closure);
             }
 
             throw new Error('Distributor `' . $code . '` is not found.');
         }
 
         throw new Error('You can only access unpackAsset method via CLI.');
+    }
+
+    /**
+     * Check if the distributor is exists by given distributor code.
+     *
+     * @param string $code
+     *
+     * @return bool
+     */
+    public static function DistributorExists(string $code): bool
+    {
+        return isset(self::$registeredDist[$code]);
+    }
+
+    /**
+     * Create the Distributor entity.
+     *
+     * @param array $distInfo
+     *
+     * @return mixed|Distributor
+     * @throws Throwable
+     */
+    private static function CreateDistributor(array &$distInfo)
+    {
+        $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path']);
+
+        return $distInfo['entity'];
     }
 
     /**
@@ -213,8 +246,9 @@ class Application
 
         self::$multisite      = [];
         self::$registeredDist = [];
+
         // Load the site configuration file
-        $config = include SYSTEM_ROOT . DIRECTORY_SEPARATOR . 'sites.inc.php';
+        $config = self::$cachedConfig ?: self::LoadSiteConfig();
 
         // Load extra alias and map to configured domain
         $aliasMapping = [];
@@ -296,8 +330,8 @@ class Application
     {
         $code = trim($code);
         if (CLI_MODE) {
-            if (self::distributorExists($code)) {
-                return self::createDistributor(self::$registeredDist[$code])->validatePackage($closure);
+            if (self::DistributorExists($code)) {
+                return self::CreateDistributor(self::$registeredDist[$code])->validatePackage($closure);
             }
 
             throw new Error('Distributor `' . $code . '` is not found.');
@@ -307,30 +341,138 @@ class Application
     }
 
     /**
-     * Check if the distributor is exists by given distributor code.
-     *
-     * @param string $code
+     * @param array $config
      *
      * @return bool
+     * @throws Throwable
      */
-    public static function distributorExists(string $code): bool
+    static public function WriteSiteConfig(array $config): bool
     {
-        return isset(self::$registeredDist[$code]);
+        if (CLI_MODE) {
+            $configFilePath = append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
+
+            // Write the config file
+            $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/sites.inc.php.tpl');
+            $root   = $source->getRoot();
+
+            foreach ($config['domains'] as $domainName => $sites) {
+                $domainBlock = $root->newBlock('domain')->assign('domain', $domainName);
+                foreach ($sites as $path => $code) {
+                    $domainBlock->newBlock('site')->assign([
+                        'path'      => $path,
+                        'dist_code' => $code,
+                    ]);
+                }
+            }
+
+            foreach ($config['alias'] as $alias => $domain) {
+                if (is_string($domain)) {
+                    $domain = trim($domain);
+                    if ($domain) {
+                        $root->newBlock('alias')->assign([
+                            'alias'  => $alias,
+                            'domain' => $domain,
+                        ]);
+                    }
+                }
+            }
+
+            try {
+                $file = fopen($configFilePath, 'w');
+                if (!$file) {
+                    throw new Exception('Can\'t create lock file!');
+                }
+
+                if (flock($file, LOCK_EX)) {
+                    ftruncate($file, 0);
+                    fwrite($file, $source->output());
+                    fflush($file);
+                    flock($file, LOCK_UN);
+                }
+
+                self::$cachedConfig = $config;
+                return true;
+            } catch (Exception $e) {
+                return false;
+            }
+        }
+
+        throw new Error('You can only access this method via CLI.');
     }
 
     /**
-     * Create the Distributor entity.
-     *
-     * @param array $distInfo
-     *
-     * @return mixed|Distributor
+     * @return bool
      * @throws Throwable
      */
-    private static function createDistributor(array &$distInfo)
+    static public function UpdateRewriteRules(): bool
     {
-        $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path']);
+        if (CLI_MODE) {
+            try {
+                $source    = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/htaccess.tpl');
+                $rootBlock = $source->getRoot();
+                foreach (self::GetDistributors() as $distCode => $info) {
+                    $rootBlock->newBlock('rewrite')->assign([
+                        'domain'     => preg_quote($info['domain']),
+                        'dist_code'  => $distCode,
+                        'route_path' => trim($info['url_path'], '/'),
+                    ]);
+                    if (count($info['alias'])) {
+                        foreach ($info['alias'] as $alias) {
+                            $rootBlock->newBlock('rewrite')->assign([
+                                'domain'     => preg_quote($alias),
+                                'dist_code'  => $distCode,
+                                'route_path' => trim($info['url_path'], '/'),
+                            ]);
+                        }
+                    }
+                }
 
-        return $distInfo['entity'];
+                file_put_contents(append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess'), $source->output());
+            } catch (Exception $e) {
+                return false;
+            }
+            return true;
+        }
+
+        throw new Error('You can only access this method via CLI.');
+    }
+
+    /**
+     * @return array[]
+     * @throws Error
+     */
+    static public function LoadSiteConfig(): array
+    {
+        $configFilePath = append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
+
+        // Load default config setting
+        $config = [
+            'domains' => [],
+            'alias'   => [],
+        ];
+
+        // Import the config file setting
+        try {
+            if (is_file($configFilePath)) {
+                $config = require $configFilePath;
+            }
+        } catch (Exception $e) {
+            echo $e;
+
+            exit;
+        }
+
+        // Domains config fixing & initialize
+        if (!is_array($config['domains'] ?? null)) {
+            $config['domains'] = [];
+        }
+
+        if (!is_array($config['alias'] ?? null)) {
+            $config['alias'] = [];
+        }
+
+        self::$cachedConfig = $config;
+        return $config;
     }
 
     /**
@@ -342,12 +484,12 @@ class Application
      *
      * @throws Throwable
      */
-    public static function getDistributorModules(string $code): array
+    public static function GetDistributorModules(string $code): array
     {
         $code = trim($code);
         if (CLI_MODE) {
-            if (self::distributorExists($code)) {
-                $modules = self::createDistributor(self::$registeredDist[$code])->getAllModules();
+            if (self::DistributorExists($code)) {
+                $modules = self::CreateDistributor(self::$registeredDist[$code])->getAllModules();
                 $info    = [];
                 $status  = [
                     0  => 'Disabled',

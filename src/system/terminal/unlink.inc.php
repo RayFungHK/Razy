@@ -15,13 +15,20 @@ return function (string $alias = '') {
     }
 
     // Load default config setting
-    $configFilePath = append(RAZY_PATH, 'sites.inc.php');
-    $config         = loadSiteConfig($configFilePath);
-
+    $config = Application::LoadSiteConfig();
     unset($config['alias'][$alias]);
 
     $message = 'Writing file sites.inc.php... ';
-    if (writeSiteConfig($configFilePath, $config)) {
+    if (Application::WriteSiteConfig()) {
+        $message .= $this->format('{@c:green}Done.');
+    } else {
+        $message .= $this->format('{@c:red}Failed.');
+    }
+    $this->writeLine($message, true);
+
+    Application::UpdateSites();
+    $message = 'Updating rewrite rules... ';
+    if (Application::UpdateRewriteRules()) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');

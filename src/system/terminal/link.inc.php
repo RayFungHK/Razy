@@ -22,23 +22,20 @@ return function (string $alias = '', string $domain = '') {
     }
 
     // Load default config setting
-    $configFilePath = append(RAZY_PATH, 'sites.inc.php');
-    $config         = loadSiteConfig($configFilePath);
-
+    $config                  = Application::LoadSiteConfig();
     $config['alias'][$alias] = $domain;
 
     $message = 'Writing file sites.inc.php... ';
-    if (writeSiteConfig($configFilePath, $config)) {
+    if (Application::WriteSiteConfig()) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
     $this->writeLine($message, true);
 
-    $rewriteFilePath = append(RAZY_PATH, '.htaccess');
     Application::UpdateSites();
     $message = 'Updating rewrite rules... ';
-    if (updateRewriteRules($rewriteFilePath)) {
+    if (Application::UpdateRewriteRules()) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');

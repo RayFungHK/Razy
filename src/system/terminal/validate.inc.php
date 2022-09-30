@@ -13,7 +13,7 @@ return function (string $distCode = '') use (&$parameters) {
         exit;
     }
 
-    if (!Application::distributorExists($distCode)) {
+    if (!Application::DistributorExists($distCode)) {
         $this->writeLine('The distributor `' . $distCode . '` has not found', true);
 
         return false;
@@ -23,7 +23,7 @@ return function (string $distCode = '') use (&$parameters) {
         if (PackageManager::TYPE_READY == $type) {
             $this->writeLine('Validating package: {@c:green}' . $packageName . '{@reset} (' . $args[0] . ')', true);
         } elseif (PackageManager::TYPE_DOWNLOAD_PROGRESS == $type) {
-            $size = (int) $args[1];
+            $size       = (int) $args[1];
             $downloaded = (int) $args[2];
             echo $this->format('{@clear} - Downloading: {@c:green}' . $packageName . ' @' . $args[0] . '{@reset} (' . ((!$downloaded) ? '0' : floor(($downloaded / $size) * 100)) . '%)', true);
         } elseif (PackageManager::TYPE_DOWNLOAD_FINISHED == $type) {

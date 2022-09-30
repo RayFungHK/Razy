@@ -38,6 +38,11 @@ abstract class Controller
      */
     private ?Module $module = null;
 
+    /**
+     * Controller constructor
+     *
+     * @param Module|null $module
+     */
     final public function __construct(?Module $module = null)
     {
         $this->module = $module;

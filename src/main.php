@@ -11,6 +11,7 @@
 namespace Razy;
 
 use Phar;
+use Throwable;
 use const DIRECTORY_SEPARATOR;
 
 if (!defined('SYSTEM_ROOT')) {
@@ -29,21 +30,18 @@ if (!is_dir(SYSTEM_ROOT)) {
 define('CORE_FOLDER', PHAR_PATH . DIRECTORY_SEPARATOR . 'system' . DIRECTORY_SEPARATOR);
 
 require CORE_FOLDER . 'functions.inc.php';
-
 require CORE_FOLDER . 'core.inc.php';
 
 Application::UpdateSites();
 
-if (PHP_SAPI !== 'cli') {
-    Error::SetDebug(DEBUG);
+if (WEB_MODE) {
+    Error::SetDebug(DEBUG ?? false);
     // Create an Application with HOSTNAME
     $app = new Application(HOSTNAME . ':' . PORT);
     if (!$app->query(URL_QUERY)) {
         Error::Show404();
     }
 } else {
-    require CORE_FOLDER . 'terminal.func.php';
-
     $argv = $_SERVER['argv'];
     array_shift($argv);
 
@@ -87,12 +85,18 @@ if (PHP_SAPI !== 'cli') {
         // Convert the relative path into absolute file path
         define('RAZY_PATH', realpath($systemPath));
 
-        // Load the command closure and execute
-        if (!executeTerminal($command, $argv, $parameters)) {
-            echo Terminal::COLOR_RED . '[Error] Command ' . $command . ' is not available.' . Terminal::COLOR_DEFAULT . PHP_EOL;
+        $closureFilePath = append(PHAR_PATH, 'system/terminal/', $command . '.inc.php');
+        if (is_file($closureFilePath)) {
+            try {
+                $closure = include $closureFilePath;
+                (new Terminal($command))->run($closure, $argv, $parameters);
+            } catch (Throwable $e) {
+            }
 
-            exit;
+            return true;
         }
+
+        echo Terminal::COLOR_RED . '[Error] Command ' . $command . ' is not available.' . Terminal::COLOR_DEFAULT . PHP_EOL;
     }
 }
 __HALT_COMPILER();

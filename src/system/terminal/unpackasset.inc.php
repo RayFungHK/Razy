@@ -13,7 +13,7 @@ return function (string $distCode = '') use (&$parameters) {
         exit;
     }
 
-    if (!Application::distributorExists($distCode)) {
+    if (!Application::DistributorExists($distCode)) {
         $this->writeLine('The distributor `' . $distCode . '` has not found', true);
 
         return;

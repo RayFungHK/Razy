@@ -12,8 +12,7 @@ return function (string $fqdn = '') {
     }
 
     // Load default config setting
-    $configFilePath = append(RAZY_PATH, 'sites.inc.php');
-    $config         = loadSiteConfig($configFilePath);
+    $config         = Application::LoadSiteConfig();
 
     // Extract the domain and the path from the FQDN string
     $fqdn            = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
@@ -28,9 +27,18 @@ return function (string $fqdn = '') {
         unset($config['domains'][$domain]);
     }
 
-    if (writeSiteConfig($configFilePath, $config)) {
+    if (Application::WriteSiteConfig()) {
         $this->writeLine('{@c:green}Done.', true);
     } else {
         $this->writeLine('{@c:red}Failed.', true);
     }
+
+    Application::UpdateSites();
+    $message = 'Updating rewrite rules... ';
+    if (Application::UpdateRewriteRules()) {
+        $message .= $this->format('{@c:green}Done.');
+    } else {
+        $message .= $this->format('{@c:red}Failed.');
+    }
+    $this->writeLine($message, true);
 };
