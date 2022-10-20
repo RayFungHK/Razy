@@ -26,7 +26,23 @@ class SimpleSyntax
     {
         $clips = self::ParseParens($syntax);
 
-        return self::ExtractExpr($clips, $delimiter, $negativeLookahead);
+        return ($parseExpr = function ($clips) use ($delimiter, $negativeLookahead, &$parseExpr) {
+            $extracted = [];
+
+            foreach ($clips as $clip) {
+                if (is_array($clip)) {
+                    $extracted[] = $parseExpr($clip);
+                } else {
+                    $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    if (false === $splits) {
+                        throw new Error('The delimiter or the ignored lookahead characters is invalid.');
+                    }
+                    $extracted = array_merge($extracted, $splits);
+                }
+            }
+
+            return $extracted;
+        })($clips);
     }
 
     /**
@@ -63,33 +79,5 @@ class SimpleSyntax
         };
 
         return $closure($text);
-    }
-
-    /**
-     * Extract the expression into array.
-     *
-     * @param array $clips
-     * @param string $delimiter
-     * @param string $negativeLookahead
-     * @return array
-     * @throws Error
-     */
-    public static function ExtractExpr(array $clips, string $delimiter = ',|', string $negativeLookahead = ''): array
-    {
-        $extracted = [];
-
-        foreach ($clips as $clip) {
-            if (is_array($clip)) {
-                $extracted[] = self::ExtractExpr($clip);
-            } else {
-                $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
-                if (false === $splits) {
-                    throw new Error('The delimiter or the ignored lookahead characters is invalid.');
-                }
-                $extracted = array_merge($extracted, $splits);
-            }
-        }
-
-        return $extracted;
     }
 }

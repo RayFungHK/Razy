@@ -149,16 +149,24 @@ class WhereSyntax
                     } else {
                         $rightOperand['type']        = 'parameter';
                         $rightOperand['column_name'] = $leftOperand['column_name'];
-                        $rightOperand['value']       = $value;
-                        $rightOperand['expr']        = (is_string($value)) ? '"' . addslashes($value) . '"' : (float) $value;
+                        if ($value instanceof Statement) {
+                            $rightOperand['expr'] = '(' . $value->getSyntax() . ')';
+                        } else {
+                            $rightOperand['value'] = $value;
+                            $rightOperand['expr']  = (is_string($value)) ? '"' . addslashes($value) . '"' : (float) $value;
+                        }
                     }
                 } else {
                     throw new Error('You cannot refer the non-column operand as a parameter.');
                 }
             } elseif ('parameter' === $rightOperand['type']) {
-                $value                 = $this->statement->getValue($rightOperand['name']);
-                $rightOperand['value'] = $value;
-                $rightOperand['expr']  = (is_string($value)) ? '"' . addslashes($value) . '"' : (float) $value;
+                $value = $this->statement->getValue($rightOperand['name']);
+                if ($value instanceof Statement) {
+                    $rightOperand['expr'] = '(' . $value->getSyntax() . ')';
+                } else {
+                    $rightOperand['value'] = $value;
+                    $rightOperand['expr']  = (is_string($value)) ? '"' . addslashes($value) . '"' : (float) $value;
+                }
             }
 
             return $this->comparison($operator, $leftOperand, $rightOperand, $negative);

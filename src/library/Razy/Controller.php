@@ -234,6 +234,16 @@ abstract class Controller
     }
 
     /**
+     * Get the module's data folder of the application.
+     *
+     * @return string
+     */
+    final public function getDataPath(): string
+    {
+        return $this->module->getDataPath();
+    }
+
+    /**
      * Get the root URL of the distributor.
      *
      * @return string

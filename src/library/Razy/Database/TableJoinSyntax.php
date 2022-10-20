@@ -82,25 +82,36 @@ class TableJoinSyntax
      */
     public function getSyntax(): string
     {
-        $parser = function (array &$extracted) use (&$parser) {
+        $parser = function (array &$extracted, string &$source = '') use (&$parser) {
             $parsed = [];
-            $source = '';
             $join   = '';
             while ($clip = array_shift($extracted)) {
                 if (is_array($clip)) {
-                    $parsed[] = '(' . $parser($clip) . ')';
+                    $alias     = '';
+                    $syntax    = '(' . $parser($clip, $alias) . ')';
+                    $condition = array_shift($extracted);
+                    if (!$condition) {
+                        throw new Error('Invalid Table Join Syntax.');
+                    }
+                    $condition = $this->parseCondition($condition, $source, $alias);
+                    $parsed[]  = $syntax . (($condition) ? ' ' . $condition : '');
                 } else {
-                    // TODO: Parse the table name enclosed by grave accent
-                    if (preg_match('/^(?:(\w+)\.)?(\w+)(\[[?:]?.+])?$/', $clip, $matches)) {
-                        $alias = ($matches[1]) ?: $matches[2];
-                        if (isset($this->tableAlias[$matches[2]])) {
-                            $statement = $this->tableAlias[$matches[2]];
+                    if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
+                        $table = $matches[3] ?: $matches[2];
+
+                        if (isset($this->tableAlias[$table])) {
+                            $statement = $this->tableAlias[$table];
                             $tableName = '(' . $statement->getSyntax() . ')';
+                            if (!$matches[1]) {
+                                throw new Error('Inner SELECT syntax must given an alias.');
+                            }
+                            $alias = '`' . $matches[1] . '`';
                         } else {
-                            $tableName = '`' . $this->statement->getPrefix() . $matches[2] . '`';
+                            $tableName = '`' . $this->statement->getPrefix() . $table . '`';
+                            $alias     = ($matches[1]) ? '`' . $matches[1] . '`' : $tableName;
                         }
                         $parsed[]  = $tableName . ($matches[1] ? ' AS `' . $matches[1] . '`' : '');
-                        $condition = $matches[3] ?? '';
+                        $condition = $matches[4] ?? '';
 
                         if (!$source) {
                             if ($condition) {
@@ -146,18 +157,24 @@ class TableJoinSyntax
      * @param string $alias
      *
      * @return string
+     * @throws Error
      * @throws Throwable
      */
-    private function parseCondition(string $syntax, string $source = '', string $alias = ''): string
+    private function parseCondition(string $syntax, string $source, string $alias): string
     {
-        if (preg_match('/^\[([?:])?(.+)]$/', $syntax, $matches)) {
-            $condition = trim($matches[2]);
-            $type      = $matches[1] ?? ':';
+        if (preg_match('/^\[(\?|([a-z]\w*)?:)?(.+)]$/', $syntax, $matches)) {
+            $condition = trim($matches[3]);
+            $type      = '';
+            if ($matches[1]) {
+                $type = ($matches[1] == '?') ? '?' : ':';
+            }
+            $source = $matches[2] ? '`' . $matches[2] . '`': $source;
+
             if (!$condition) {
                 throw new Error('Invalid Syntax.');
             }
 
-            if ('?' === $type) {
+            if ('?' == $type) {
                 $whereSyntax = new WhereSyntax($this->statement);
                 $whereSyntax->parseSyntax($condition);
 
@@ -167,12 +184,12 @@ class TableJoinSyntax
 
             foreach ($columns as &$column) {
                 $column = trim($column);
-                if (!preg_match('/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\[\\\`])+`|[a-z]\w*)$/', $column)) {
+                if (!preg_match('/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/', $column)) {
                     throw new Error('USING clause only allow column name.');
                 }
 
                 if (!$type) {
-                    $column = '`' . $source . '`.`' . $column . '` = `' . $alias . '`.`' . $column . '`';
+                    $column = $source . '.`' . $column . '` = ' . $alias . '.`' . $column . '`';
                 }
             }
 
@@ -182,8 +199,8 @@ class TableJoinSyntax
 
             return 'ON ' . implode(' AND ', $columns);
         }
-        // TODO: invalid condition syntax
-        return '';
+
+        throw new Error('invalid condition syntax');
     }
 
     /**

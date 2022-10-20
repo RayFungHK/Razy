@@ -420,6 +420,16 @@ class Module
     }
 
     /**
+     * Get the module's data folder of the application.
+     *
+     * @return string
+     */
+    public function getDataPath(): string
+    {
+        return append($this->distributor->getDataPath(), $this->getCode());
+    }
+
+    /**
      * Get the module file path.
      *
      * @return string

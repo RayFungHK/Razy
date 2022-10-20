@@ -329,7 +329,7 @@ function ipInRange(string $ip, string $cidr): bool
         $cidr .= '/32';
     }
 
-    list($range, $netmask) = explode('/', $cidr, 2);
+    [$range, $netmask] = explode('/', $cidr, 2);
     $rangeDecimal          = ip2long($range);
     $ipDecimal             = ip2long($ip);
     $wildcardDecimal       = pow(2, (32 - $netmask)) - 1;
@@ -387,6 +387,47 @@ function refactor(array $source, string ...$keys): array
                 $result[$index] = [];
             }
             $result[$index][$key] = $value;
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Refactor an array of data into a new data set by given key set using a user-defined processor function.
+ *
+ * @param array $source An array of data
+ * @param string ...$keys An array of key to extract
+ *
+ * @return array An array of refactored data set
+ */
+function urefactor(array &$source, callable $callback, string ...$keys): array
+{
+    $result = [];
+    $kvp    = array_keys($source);
+    if (count($keys)) {
+        $kvp = array_intersect($kvp, $keys);
+    }
+
+    foreach ($kvp as $key) {
+        foreach ($source[$key] as $index => $value) {
+            if (!isset($result[$index])) {
+                $result[$index] = [];
+            }
+            $result[$index][$key] = &$source[$key][$index];
+        }
+    }
+
+    $remove = [];
+    foreach ($result as $key => $value) {
+        if (!$callback($key, $value)) {
+            $remove[] = $key;
+        }
+    }
+
+    foreach ($kvp as $key) {
+        foreach ($remove as $keyToRemove) {
+            unset($source[$key][$keyToRemove]);
         }
     }
 
