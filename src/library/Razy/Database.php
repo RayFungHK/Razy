@@ -145,8 +145,6 @@ class Database
                 $pdoStatement->execute();
             }
         } catch (Exception $e) {
-            print_r($sql);
-            exit;
             throw new Error($e->getMessage(), 500, Error::DEFAULT_HEADING, $sql);
         }
 

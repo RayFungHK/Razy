@@ -3,13 +3,13 @@
 namespace Razy;
 
 return function (string $alias = '') {
-    $this->writeLine('{@s:bu}Remove an alias', true);
-    $this->writeLine('Removing an alias {@s:u}' . $alias . '{@reset}...', true);
+    $this->writeLineLogging('{@s:bu}Remove an alias', true);
+    $this->writeLineLogging('Removing an alias {@s:u}' . $alias . '{@reset}...', true);
 
     // Check the parameters is valid
     $alias = trim($alias);
     if (!$alias || !is_fqdn($alias)) {
-        $this->writeLine('{@c:r}[ERROR] The alias is required or the format is invalid.', true);
+        $this->writeLineLogging('{@c:r}[ERROR] The alias is required or the format is invalid.', true);
 
         exit;
     }
@@ -19,12 +19,12 @@ return function (string $alias = '') {
     unset($config['alias'][$alias]);
 
     $message = 'Writing file sites.inc.php... ';
-    if (Application::WriteSiteConfig()) {
+    if (Application::WriteSiteConfig($config)) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
-    $this->writeLine($message, true);
+    $this->writeLineLogging($message, true);
 
     Application::UpdateSites();
     $message = 'Updating rewrite rules... ';
@@ -33,5 +33,5 @@ return function (string $alias = '') {
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
-    $this->writeLine($message, true);
+    $this->writeLineLogging($message, true);
 };

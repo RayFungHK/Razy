@@ -109,6 +109,16 @@ abstract class Controller
     public function __onDispatch(string $moduleCode): void
     {
     }
+    /**
+     * __onScriptLoaded event, all modules will be executed before the matched script execute
+     *
+     * @param string $moduleCode
+     *
+     * @return void
+     */
+    public function __onScriptLoaded(string $moduleCode): void
+    {
+    }
 
     /**
      * Handling the error of the closure.
@@ -156,7 +166,7 @@ abstract class Controller
     }
 
     /**
-     * Controller Event __onRoute, will be executed before the route closure is executed. Return false to route is not
+     * Controller Event __onRoute, will be executed before the route closure is executed. Return false that route is not
      * accept.
      *
      * @param array $args
@@ -164,6 +174,18 @@ abstract class Controller
      * @return bool
      */
     public function __onRoute(array $args): bool
+    {
+        return true;
+    }
+
+    /**
+     * Controller Event __onScriptCall, will be executed before the route closure is executed in CLI. Return false that the CLI script is not allowed to execute.
+     *
+     * @param array $args
+     *
+     * @return bool
+     */
+    public function __onScriptCall(array $args): bool
     {
         return true;
     }
@@ -251,6 +273,16 @@ abstract class Controller
     final public function getSiteURL(): string
     {
         return $this->module->getSiteURL();
+    }
+
+    /**
+     * Get the distributor request path
+     *
+     * @return string
+     */
+    final public function getRequestPath(): string
+    {
+        return $this->module->getRequestPath();
     }
 
     /**

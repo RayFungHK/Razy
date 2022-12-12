@@ -4,12 +4,12 @@ namespace Razy;
 
 return function () {
     // Check the PHP version is support Razy
-    $this->writeLine('Checking environment...');
+    $this->writeLineLogging('Checking environment...');
     $color = (version_compare(PHP_VERSION, '7.4.0') >= 0) ? 'green' : 'red';
-    $this->writeLine('PHP Version: {@c:' . $color . '}' . PHP_VERSION . '{@reset} (PHP 7.4+ is required)');
+    $this->writeLineLogging('PHP Version: {@c:' . $color . '}' . PHP_VERSION . '{@reset} (PHP 7.4+ is required)');
 
     // Read the path from user input
-    $this->writeLine('Please input your path to install Razy (v' . RAZY_VERSION . '). [default: ./]');
+    $this->writeLineLogging('Please input your path to install Razy (v' . RAZY_VERSION . '). [default: ./]');
     $path           = Terminal::read();
     $path           = (!$path) ? SYSTEM_ROOT : append(SYSTEM_ROOT, $path);
     $installSuccess = true;
@@ -17,7 +17,7 @@ return function () {
     if (is_dir($path)) {
         // Start copy and write Razy core file in specified directory
         $path = realpath($path);
-        $this->writeLine('{@c:green}Started to setup Razy (v' . RAZY_VERSION . ') environment in ' . $path . ' ...', true);
+        $this->writeLineLogging('{@c:green}Started to setup Razy (v' . RAZY_VERSION . ') environment in ' . $path . ' ...', true);
 
         // Creating required directory
         $setupDir = ['config', 'plugins', 'sites', 'shared'];
@@ -37,7 +37,7 @@ return function () {
                     $installSuccess = false;
                 }
             }
-            $this->writeLine($message, true);
+            $this->writeLineLogging($message, true);
         }
 
         // Writing sites.inc.php
@@ -51,7 +51,7 @@ return function () {
         ]);
         file_put_contents(append($path, 'sites.inc.php'), $source->output());
         $message .= '{@c:green}Done';
-        $this->writeLine($message, true);
+        $this->writeLineLogging($message, true);
 
         // Clone template file
         $setupFile = [
@@ -75,7 +75,7 @@ return function () {
                     $installSuccess = false;
                 }
             }
-            $this->writeLine($message, true);
+            $this->writeLineLogging($message, true);
         }
 
         if ($installSuccess) {
@@ -85,17 +85,17 @@ return function () {
             ]);
             file_put_contents(append($path, 'config.inc.php'), $source->output());
 
-            $this->writeLine('{@c:green}Installation success.', true);
-            $this->writeLine('The config.inc.php has wrote!');
-            $this->writeLine('Run the following command to check the usage of Razy:');
-            $this->writeLine('+----------------------------------------+');
-            $this->writeLine('php ' . PHAR_FILE . ' help', true, '|{@c:blue} %-39s{@reset}|');
-            $this->writeLine('+----------------------------------------+');
+            $this->writeLineLogging('{@c:green}Installation success.', true);
+            $this->writeLineLogging('The config.inc.php has wrote!');
+            $this->writeLineLogging('Run the following command to check the usage of Razy:');
+            $this->writeLineLogging('+----------------------------------------+');
+            $this->writeLineLogging('php ' . PHAR_FILE . ' help', true, '|{@c:blue} %-39s{@reset}|');
+            $this->writeLineLogging('+----------------------------------------+');
         } else {
-            $this->writeLine('{@c:red}Installation failed', true);
+            $this->writeLineLogging('{@c:red}Installation failed', true);
         }
     } else {
-        $this->writeLine('{@c:red}[Error] The directory (' . $path . ') does not exist.', true);
+        $this->writeLineLogging('{@c:red}[Error] The directory (' . $path . ') does not exist.', true);
         $this->run();
 
         return false;

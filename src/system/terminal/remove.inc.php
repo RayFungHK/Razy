@@ -6,7 +6,7 @@ return function (string $fqdn = '') {
     // Check the parameters is valid
     $fqdn = trim($fqdn);
     if (!$fqdn) {
-        $this->writeLine('{@c:red}[ERROR] The FQDN is required.', true);
+        $this->writeLineLogging('{@c:red}[ERROR] The FQDN is required.', true);
 
         exit;
     }
@@ -27,10 +27,10 @@ return function (string $fqdn = '') {
         unset($config['domains'][$domain]);
     }
 
-    if (Application::WriteSiteConfig()) {
-        $this->writeLine('{@c:green}Done.', true);
+    if (Application::WriteSiteConfig($config)) {
+        $this->writeLineLogging('{@c:green}Done.', true);
     } else {
-        $this->writeLine('{@c:red}Failed.', true);
+        $this->writeLineLogging('{@c:red}Failed.', true);
     }
 
     Application::UpdateSites();
@@ -40,5 +40,5 @@ return function (string $fqdn = '') {
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
-    $this->writeLine($message, true);
+    $this->writeLineLogging($message, true);
 };

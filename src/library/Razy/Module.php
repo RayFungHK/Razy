@@ -60,21 +60,25 @@ class Module
     public const STATUS_FAILED = -2;
     /**
      * The alias of the module, default as package name
+     *
      * @var string
      */
     private string $alias = '';
     /**
      * The API command alias
+     *
      * @var string
      */
     private string $apiAlias = '';
     /**
      * The storage of the assets
+     *
      * @var array
      */
     private array $assets = [];
     /**
      * The module author
+     *
      * @var string
      */
     private string $author;
@@ -88,61 +92,73 @@ class Module
     private array $closures = [];
     /**
      * The module code
+     *
      * @var string
      */
     private string $code;
     /**
      * The storage of the API commands
+     *
      * @var bool[]
      */
     private array $commands = [];
     /**
      * The Controller entity
+     *
      * @var null|Controller
      */
     private ?Controller $controller = null;
     /**
      * The Distributor entity
+     *
      * @var Distributor
      */
     private Distributor $distributor;
     /**
      * The storage of the events
+     *
      * @var bool[]
      */
     private array $events = [];
     /**
      * The module package folder system path
+     *
      * @var string
      */
     private string $modulePath;
     /**
      * The package name
+     *
      * @var string
      */
     private string $packageName = '';
     /**
      * The Pilot entity
+     *
      * @var Pilot
      */
     private Pilot $pilot;
     /**
      * The storage of the required modules
+     *
      * @var string[]
      */
     private array $require = [];
     /**
      * Is the module a shared module
+     *
      * @var bool
      */
     private bool $sharedModule = false;
     /**
      * The status of the module
+     *
      * @var int
      */
     private int $status = self::STATUS_DISABLED;
     /**
      * The module version
+     *
      * @var string
      */
     private string $version;
@@ -151,9 +167,9 @@ class Module
      * Module constructor.
      *
      * @param Distributor $distributor The Distributor instance
-     * @param string $path The folder path of the Distributor
-     * @param array $settings An array of the setting that included from the dist.php
-     * @param bool $sharedModule
+     * @param string      $path        The folder path of the Distributor
+     * @param array       $settings    An array of the setting that included from the dist.php
+     * @param bool        $sharedModule
      *
      * @throws Throwable
      */
@@ -173,8 +189,8 @@ class Module
                 throw new Error('The module code ' . $code . ' is not a correct format, it should be `vendor/package`.');
             }
 
-            $this->code      = $code;
-            [, $package]     = explode('/', $code);
+            $this->code        = $code;
+            [, $package]       = explode('/', $code);
             $this->packageName = $package;
         } else {
             throw new Error('Missing module code.');
@@ -257,7 +273,7 @@ class Module
      * Add lazy route into the route list.
      *
      * @param string $route The path of the route
-     * @param string $path The path of the closure file
+     * @param string $path  The path of the closure file
      *
      * @return $this
      */
@@ -269,10 +285,25 @@ class Module
     }
 
     /**
+     * Add CLI script path into the script list.
+     *
+     * @param string $route The path of the route
+     * @param string $path  The path of the closure file
+     *
+     * @return $this
+     */
+    public function addScript(string $route, string $path): self
+    {
+        $this->distributor->registerScript($this, $route, $path);
+
+        return $this;
+    }
+
+    /**
      * Add standard route into the route list, regular expression string supported.
      *
      * @param string $route The path of the route
-     * @param string $path The path of the closure file of the method name
+     * @param string $path  The path of the closure file of the method name
      *
      * @return $this
      */
@@ -340,7 +371,7 @@ class Module
      * Execute API command.
      *
      * @param string $command The API command
-     * @param array $args The arguments will pass to API command
+     * @param array  $args    The arguments will pass to API command
      *
      * @return mixed
      * @throws Throwable
@@ -355,7 +386,7 @@ class Module
      * Execute the API command.
      *
      * @param string $command The API command
-     * @param array $args The arguments will pass to the API command
+     * @param array  $args    The arguments will pass to the API command
      *
      * @return null|mixed
      * @throws Throwable
@@ -443,7 +474,7 @@ class Module
      * Trigger the event.
      *
      * @param string $event The event name
-     * @param array $args The arguments will pass to listener
+     * @param array  $args  The arguments will pass to listener
      *
      * @return null|mixed
      * @throws Throwable
@@ -531,6 +562,7 @@ class Module
      * Get the module's API Emitter.
      *
      * @param string $moduleCode
+     *
      * @return Emitter
      */
     public function getEmitter(string $moduleCode): API\Emitter
@@ -559,13 +591,23 @@ class Module
     }
 
     /**
-     * Get the syy
+     * Get the distributor site's URL
      *
      * @return string
      */
     public function getSiteURL(): string
     {
         return $this->distributor->getBaseURL();
+    }
+
+    /**
+     * Get the distributor's request path
+     *
+     * @return string
+     */
+    public function getRequestPath(): string
+    {
+        return $this->distributor->getRequestPath();
     }
 
     /**
@@ -743,6 +785,11 @@ class Module
         $this->status = self::STATUS_LOADED;
     }
 
+    /**
+     * Trigger __onPreload event when the application is ready to route.
+     *
+     * @return bool
+     */
     public function preload(): bool
     {
         return $this->controller->__onPreload($this->pilot);
@@ -757,13 +804,17 @@ class Module
      */
     public function prepare(array $args): bool
     {
-        return $this->controller->__onRoute($args);
+        if (CLI_MODE) {
+            return $this->controller->__onScriptCall($args);
+        } else {
+            return $this->controller->__onRoute($args);
+        }
     }
 
     /**
      * Get the EventEmitter instance from Distributor.
      *
-     * @param string $event The event name
+     * @param string   $event    The event name
      * @param callable $callback The callback will be executed if the event is resolving
      *
      * @return EventEmitter
@@ -787,7 +838,11 @@ class Module
     public function standby(string $moduleCode): void
     {
         if (self::STATUS_LOADED === $this->status) {
-            $this->controller->__onDispatch($moduleCode);
+            if (CLI_MODE) {
+                $this->controller->__onScriptLoaded($moduleCode);
+            } else {
+                $this->controller->__onDispatch($moduleCode);
+            }
         }
     }
 
@@ -852,6 +907,7 @@ class Module
 
     /**
      * Validate the module is ready to initial, if the event return false, it will put the module into preload list.
+     *
      * @return bool
      */
     public function validate(): bool

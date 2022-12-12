@@ -3,7 +3,7 @@
 namespace Razy;
 
 return function (string $distCode) {
-    $this->writeLine('{@s:ub}List modules', true);
+    $this->writeLineLogging('{@s:ub}List modules', true);
     $info = Application::GetDistributorModules($distCode);
 
     foreach ($info as &$module) {

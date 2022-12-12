@@ -51,6 +51,9 @@ class Error extends Exception
     {
         $this->heading      = $heading;
         $this->debugMessage = $debugMessage;
+        if (CLI_MODE) {
+            Terminal::WriteLine('{@c:red}' . $message, true);
+        }
         parent::__construct($message, $statusCode, $exception);
     }
 
@@ -83,8 +86,14 @@ class Error extends Exception
     {
         ob_clean();
         header('HTTP/1.0 404 Not Found');
-        echo '<h1>404 Not Found</h1>';
-        echo 'The requested URL was not found on this server.';
+
+        if (WEB_MODE) {
+            echo '<h1>404 Not Found</h1>';
+            echo 'The requested URL was not found on this server.';
+        } else {
+            Terminal::WriteLine('{@c:red}404 Not Found', true);
+            Terminal::WriteLine('The requested URL was not found on this server', true);
+        }
 
         exit();
     }

@@ -136,7 +136,7 @@ class Table
         // Compare for the maximum length of column header
         if (count($this->columnName)) {
             foreach ($this->columnName as $index => &$name) {
-                $name              = $this->terminal->format($name);
+                $name              = Terminal::Format($name);
                 $maxLength[$index] = max($maxLength[$index] ?? 0, min($maxWidth, $this->terminal->length($name)));
             }
             array_unshift($this->dataset, $this->columnName);
@@ -203,13 +203,13 @@ class Table
             $columnLengths[$index] = $length;
         }
 
-        $this->terminal->writeLine($rowSeparator, true);
+        $this->terminal->writeLineLogging($rowSeparator, true);
         foreach ($this->dataset as $rowCount => $data) {
             $format = '|';
             // Generate the format
             foreach ($data as $index => &$text) {
                 $padding = str_repeat(' ', $this->padding);
-                $text    = $this->terminal->format($text);
+                $text    = Terminal::Format($text);
 
                 // Adjust the content length by escaped text
                 $textLength = $columnLengths[$index];
@@ -218,12 +218,12 @@ class Table
 
                 $format .= $padding . '%-' . $textLength . 's' . $padding . '{@reset}|';
             }
-            $this->terminal->writeLine(vsprintf($format, $data), true);
+            $this->terminal->writeLineLogging(vsprintf($format, $data), true);
             if (0 === $rowCount && count($this->columnName)) {
-                $this->terminal->writeLine($rowSeparator, true);
+                $this->terminal->writeLineLogging($rowSeparator, true);
             }
         }
-        $this->terminal->writeLine($rowSeparator, true);
+        $this->terminal->writeLineLogging($rowSeparator, true);
 
         return $this;
     }

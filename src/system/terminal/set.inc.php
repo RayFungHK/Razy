@@ -5,19 +5,19 @@ namespace Razy;
 use Exception;
 
 return function (string $fqdn = '', string $code = '') use (&$parameters) {
-    $this->writeLine('{@s:bu}Update the site or create a new sites', true);
+    $this->writeLineLogging('{@s:bu}Update the site or create a new sites', true);
 
     // Check the parameters is valid
     $fqdn = trim($fqdn);
     if (!$fqdn) {
-        $this->writeLine('{@c:r}[ERROR] The FQDN is required.', true);
+        $this->writeLineLogging('{@c:r}[ERROR] The FQDN is required.', true);
 
         exit;
     }
 
     $code = trim($code);
     if (!$code) {
-        $this->writeLine('{@c:r}[ERROR] The distributor code is required.', true);
+        $this->writeLineLogging('{@c:r}[ERROR] The distributor code is required.', true);
 
         exit;
     }
@@ -47,7 +47,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
         $distFolder = fix_path(append(SYSTEM_ROOT, 'sites', $code));
         // If the distributor path is not under Razy location
         if (0 !== strpos($distFolder, SYSTEM_ROOT)) {
-            $this->writeLine('{@c:r}[ERROR] The distributor folder ' . $distFolder . ' is not valid.', true);
+            $this->writeLineLogging('{@c:r}[ERROR] The distributor folder ' . $distFolder . ' is not valid.', true);
 
             exit;
         }
@@ -64,10 +64,10 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
                 try {
                     file_put_contents(append($distFolder, 'dist.php'), $source->output());
                 } catch (Exception $e) {
-                    $this->writeLine('{@c:r}[ERROR] Failed to create the distributor config file.', true);
+                    $this->writeLineLogging('{@c:r}[ERROR] Failed to create the distributor config file.', true);
                 }
             } else {
-                $this->writeLine('{@c:r}[ERROR] Failed to initialize distributor folder.', true);
+                $this->writeLineLogging('{@c:r}[ERROR] Failed to initialize distributor folder.', true);
 
                 exit;
             }
@@ -80,7 +80,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
-    $this->writeLine($message, true);
+    $this->writeLineLogging($message, true);
 
     Application::UpdateSites();
     $message = 'Updating rewrite rules... ';
@@ -89,5 +89,5 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
-    $this->writeLine($message, true);
+    $this->writeLineLogging($message, true);
 };

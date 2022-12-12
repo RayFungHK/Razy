@@ -346,7 +346,7 @@ class Application
      * @return bool
      * @throws Throwable
      */
-    static public function WriteSiteConfig(array $config): bool
+    static public function WriteSiteConfig(array $config = []): bool
     {
         if (CLI_MODE) {
             $configFilePath = append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
@@ -578,12 +578,11 @@ class Application
             throw new Error('No domain was matched that no query is allowed.');
         }
         $distributor = $this->domain->matchQuery($urlQuery, $exactly);
-
         if (null === $distributor) {
             return false;
         }
 
-        if (WEB_MODE && null === $this->peer) {
+        if (null === $this->peer) {
             if (!$distributor->matchRoute()) {
                 Error::Show404();
             }

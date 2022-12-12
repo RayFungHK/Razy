@@ -61,6 +61,62 @@ class Pilot
     }
 
     /**
+     * @param string $type
+     * @param        $route
+     * @param        $path
+     *
+     * @return $this
+     * @throws Error
+     */
+    private function addRoutePath(string $type, $route, $path = null): self
+    {
+        if (is_array($route)) {
+            foreach ($route as $_route => $_method) {
+                $this->addRoutePath($type, $_route, $_method);
+            }
+        } else {
+            if (!is_string($route)) {
+                throw new Error('The route must be a string or an array');
+            }
+            $route = trim($route);
+
+            if (is_string($path)) {
+                $path = trim(tidy($path, false, '/'), '/');
+                call_user_func_array([$this->module, 'add' . $type], [$route, $path]);
+            } elseif (is_array($path)) {
+                $extendRoute = function (array $routeSet, string $relativePath = '') use (&$extendRoute, $type) {
+                    foreach ($routeSet as $node => $path) {
+                        if (is_array($path)) {
+                            $extendRoute($path, append($relativePath, $node));
+                        } else {
+                            $path = trim($path);
+                            if (strlen($path) > 0) {
+                                $routePath = ($node == '@self') ? $relativePath : append($relativePath, $node);
+                                call_user_func_array([$this->module, 'add' . $type], [$routePath, append($relativePath, $path)]);
+                            }
+                        }
+                    }
+                };
+                $extendRoute($path, $route);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $route
+     * @param $path
+     *
+     * @return $this
+     * @throws Error
+     */
+    public function addScript($route, $path = null): self
+    {
+        return $this->addRoutePath('Script', $route, $path);
+    }
+
+    /**
      * Add a route by given nested array, each level equal as the URL path and the folder level.
      * For example, if there is an array contains 3 level with `1`, `2`, `3` and the `3` has a value `test`, the path
      * of domain.com/module/1/2/3 will linked to ./controller/1/2/3/test.php closure file.
@@ -73,38 +129,7 @@ class Pilot
      */
     public function addLazyRoute($route, $path = null): self
     {
-        if (is_array($route)) {
-            foreach ($route as $_route => $_method) {
-                $this->addLazyRoute($_route, $_method);
-            }
-        } else {
-            if (!is_string($route)) {
-                throw new Error('The route must be a string or an array');
-            }
-            $route = trim($route);
-
-            if (is_string($path)) {
-                $path = trim(tidy($path, false, '/'), '/');
-                $this->module->addLazyRoute($route, $path);
-            } elseif (is_array($path)) {
-                $extendRoute = function (array $routeSet, string $relativePath = '') use (&$extendRoute) {
-                    foreach ($routeSet as $node => $path) {
-                        if (is_array($path)) {
-                            $extendRoute($path, append($relativePath, $node));
-                        } else {
-                            $path = trim($path);
-                            if (strlen($path) > 0) {
-                                $routePath = ($node == '@self') ? $relativePath : append($relativePath, $node);
-                                $this->module->addLazyRoute($routePath, append($relativePath, $path));
-                            }
-                        }
-                    }
-                };
-                $extendRoute($path, $route);
-            }
-        }
-
-        return $this;
+        return $this->addRoutePath('LazyRoute', $route, $path);
     }
 
     /**

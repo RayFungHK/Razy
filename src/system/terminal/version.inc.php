@@ -3,5 +3,5 @@
 namespace Razy;
 
 return function () {
-    $this->writeLine('Razy v' . RAZY_VERSION);
+    $this->writeLineLogging('Razy v' . RAZY_VERSION);
 };

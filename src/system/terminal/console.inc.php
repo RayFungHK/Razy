@@ -3,11 +3,11 @@
 namespace Razy;
 
 return function (string $distCode = '') {
-    $this->writeLine('{@s:ub}Console Menu', true);
+    $this->writeLineLogging('{@s:ub}Console Menu', true);
 
     $distCode = trim($distCode);
     if (!$distCode) {
-        $this->writeLine('{@c:red}[Error] Missing parameter: distributor code.', true);
+        $this->writeLineLogging('{@c:red}[Error] Missing parameter: distributor code.', true);
 
         return;
     }
@@ -17,12 +17,12 @@ return function (string $distCode = '') {
     $distributors = Application::GetDistributors();
 
     if (isset($distributors[$distCode])) {
-        $this->writeLine($message . '{@c:green}Success', true);
+        $this->writeLineLogging($message . '{@c:green}Success', true);
 
         $command = null;
         do {
             if (!$command) {
-                $this->writeLine('input `help` for command list.', true);
+                $this->writeLineLogging('input `help` for command list.', true);
             } else {
                 $argv       = [$distCode];
                 $executable = true;
@@ -33,7 +33,7 @@ return function (string $distCode = '') {
                         break;
 
                     default:
-                        $this->writeLine('{@c:red}[Error] Unknown command `' . $command . '`.', true);
+                        $this->writeLineLogging('{@c:red}[Error] Unknown command `' . $command . '`.', true);
                         $executable = false;
                 }
 
@@ -45,7 +45,7 @@ return function (string $distCode = '') {
             echo $this->format('{@c:green}' . $distCode . '{@reset} > ');
         } while (($command = trim($this->read())) !== 'exit');
     } else {
-        $this->writeLine($message . '{@c:green}Failed', true);
-        $this->writeLine('{@c:red}[Error] distributor `' . $distCode . ' is not registered.', true);
+        $this->writeLineLogging($message . '{@c:green}Failed', true);
+        $this->writeLineLogging('{@c:red}[Error] distributor `' . $distCode . ' is not registered.', true);
     }
 };

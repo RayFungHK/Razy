@@ -21,81 +21,103 @@ class Distributor
 {
     /**
      * The storage of the Distributor stacking
+     *
      * @var Distributor[]
      */
     private static array $stacking = [];
     /**
      * The storage of the Module that has API alias
+     *
      * @var array
      */
     private array $APIModules = [];
     /**
      * The `autoload` setting
+     *
      * @var bool
      */
     private bool $autoloadShared = false;
     /**
      * The distributor code
+     *
      * @var string
      */
     private string $code;
     /**
      * The Domain entity
+     *
      * @var null|Domain
      */
     private ?Domain $domain;
     /**
      * The storage of the Module that enabled in distributor
+     *
      * @var array
      */
     private array $enableModules = [];
     /**
      * The system path of the distributor's folder
+     *
      * @var string
      */
     private string $folderPath;
     /**
      * The `greedy` setting
+     *
      * @var bool
      */
     private bool $greedy = false;
     /**
      * The storage of the lazy route
+     *
      * @var array
      */
     private array $lazyRoute = [];
     /**
+     * The storage of the CLI script
+     *
+     * @var array
+     */
+    private array $registeredScript = [];
+    /**
      * The storage of the Module entity
+     *
      * @var Module[]
      */
     private array $modules = [];
     /**
      * The storage of prerequisites, used for composer.
+     *
      * @var array
      */
     private array $prerequisites = [];
     /**
      * The storage of the regular expression route
+     *
      * @var array
      */
     private array $regexRoute = [];
     /**
      * The storage of the routed information
+     *
      * @var array
      */
     private array $routedInfo = [];
     /**
      * The Template entity
+     *
      * @var ?Template
      */
     private ?Template $templateEngine = null;
     /**
      * The string of URL path
+     *
      * @var string
      */
     private string $urlPath;
     /**
      * The URL query
+     *
      * @var string
      */
     private string $urlQuery;
@@ -103,10 +125,10 @@ class Distributor
     /**
      * Distributor constructor.
      *
-     * @param string $folderPath The folder path of the distributor
-     * @param null|Domain $domain The Domain Instance
-     * @param string $urlPath The URL path of the distributor
-     * @param string $urlQuery The URL Query string
+     * @param string      $folderPath The folder path of the distributor
+     * @param null|Domain $domain     The Domain Instance
+     * @param string      $urlPath    The URL path of the distributor
+     * @param string      $urlQuery   The URL Query string
      *
      * @throws Throwable
      */
@@ -226,19 +248,19 @@ class Distributor
             }
         }
 
+        // If the distributor is under a domain, initial all modules.
+        if ($this->domain) {
+            foreach ($this->modules as $module) {
+                // Notify module that the system is ready
+                $module->notify();
+            }
+        }
+
         // Start routing if it is in the Web mode
         if (WEB_MODE) {
             $this->setSession();
 
             if ($readyToRoute) {
-                // If the distributor is under a domain, initial all modules.
-                if ($this->domain) {
-                    foreach ($this->modules as $module) {
-                        // Notify module that the system is ready
-                        $module->notify();
-                    }
-                }
-
                 // Convert the regex route
                 $regexRoute       = $this->regexRoute;
                 $this->regexRoute = [];
@@ -326,6 +348,7 @@ class Distributor
      * Create the Module entity from the package folder or a .phar file.
      *
      * @param string $path
+     *
      * @return bool
      * @throws Error
      * @throws Throwable
@@ -537,8 +560,8 @@ class Distributor
     /**
      * Create an EventEmitter.
      *
-     * @param Module $module The module instance
-     * @param string $event The event name
+     * @param Module   $module   The module instance
+     * @param string   $event    The event name
      * @param callable $callback The callback will be executed when the event is resolved
      *
      * @return EventEmitter
@@ -602,6 +625,16 @@ class Distributor
     public function getIdentity(): string
     {
         return $this->domain->getDomainName() . '-' . $this->code;
+    }
+
+    /**
+     * Get the distributor request path
+     *
+     * @return string
+     */
+    public function getRequestPath(): string
+    {
+        return $this->domain->getDomainName() . '/' . $this->code;
     }
 
     /**
@@ -688,70 +721,103 @@ class Distributor
     public function matchRoute(): bool
     {
         $this->attention();
-        sort_path_level($this->lazyRoute);
+        if (CLI_MODE) {
+            foreach ($this->registeredScript as $path => $data) {
+                $urlQuery = $this->urlQuery;
+                if (0 === strpos($urlQuery, $path)) {
+                    // Extract the url query string when the route is matched
+                    $urlQuery = rtrim(substr($urlQuery, strlen($path)), '/');
+                    $args     = explode('/', $urlQuery);
 
-        // Match regex route first
-        foreach ($this->regexRoute as $regex => $data) {
-            if (1 === preg_match($regex, $this->urlQuery, $matches)) {
-                $route = array_shift($matches);
+                    /** @var Module $module */
+                    $module = $data['module'];
+                    if (Module::STATUS_LOADED === $module->getStatus()) {
+                        if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
+                            return false;
+                        }
 
-                /** @var Module $module */
-                $module = $data['module'];
-                if (Module::STATUS_LOADED === $module->getStatus()) {
-                    if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
-                        return false;
+                        if ($module->prepare($args)) {
+                            $this->routedInfo = [
+                                'url_query'    => $this->urlQuery,
+                                'route'        => $data['route'],
+                                'module'       => $module->getCode(),
+                                'closure_path' => $data['path'],
+                                'arguments'    => $args,
+                            ];
+                            $this->dispatch($module);
+                            call_user_func_array($closure, $args);
+                        }
+
+                        return true;
                     }
-
-                    if ($module->prepare($matches)) {
-                        $this->routedInfo = [
-                            'url_query'    => $this->urlQuery,
-                            'route'        => $route,
-                            'module'       => $module->getCode(),
-                            'closure_path' => $data['path'],
-                            'arguments'    => $matches,
-                            'last'         => ''
-                        ];
-                        $this->dispatch($module);
-                        call_user_func_array($closure, $matches);
-                    }
-
-                    return true;
                 }
             }
-        }
+        } else {
+            // Match regex route first
+            foreach ($this->regexRoute as $regex => $data) {
+                if (1 === preg_match($regex, $this->urlQuery, $matches)) {
+                    $route = array_shift($matches);
 
-        // Match lazy route
-        $urlQuery = $this->urlQuery;
-        foreach ($this->lazyRoute as $route => $data) {
-            if (0 === strpos($urlQuery, $route)) {
-                // Extract the url query string when the route is matched
-                $urlQuery = rtrim(substr($urlQuery, strlen($route)), '/');
-                $args     = explode('/', $urlQuery);
+                    /** @var Module $module */
+                    $module = $data['module'];
+                    if (Module::STATUS_LOADED === $module->getStatus()) {
+                        if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
+                            return false;
+                        }
 
-                /** @var Module $module */
-                $module = $data['module'];
-                if (Module::STATUS_LOADED === $module->getStatus()) {
-                    if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
-                        return false;
+                        if ($module->prepare($matches)) {
+                            $this->routedInfo = [
+                                'url_query'    => $this->urlQuery,
+                                'route'        => $route,
+                                'module'       => $module->getCode(),
+                                'closure_path' => $data['path'],
+                                'arguments'    => $matches,
+                                'last'         => '',
+                            ];
+                            $this->dispatch($module);
+                            call_user_func_array($closure, $matches);
+                        }
+
+                        return true;
                     }
-
-                    if ($module->prepare($args)) {
-                        $this->routedInfo = [
-                            'url_query'    => $this->urlQuery,
-                            'route'        => $data['route'],
-                            'module'       => $module->getCode(),
-                            'closure_path' => $data['path'],
-                            'arguments'    => $args,
-                        ];
-                        $this->dispatch($module);
-                        call_user_func_array($closure, $args);
-                    }
-
-                    return true;
                 }
             }
-        }
 
+            sort_path_level($this->lazyRoute);
+
+            // Match lazy route
+            $urlQuery = $this->urlQuery;
+            foreach ($this->lazyRoute as $route => $data) {
+                if (0 === strpos($urlQuery, $route)) {
+                    // Extract the url query string when the route is matched
+                    $urlQuery = rtrim(substr($urlQuery, strlen($route)), '/');
+                    $args     = explode('/', $urlQuery);
+
+                    /** @var Module $module */
+                    $module = $data['module'];
+                    if (Module::STATUS_LOADED === $module->getStatus()) {
+                        if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
+                            return false;
+                        }
+
+                        if ($module->prepare($args)) {
+                            $this->routedInfo = [
+                                'url_query'    => $this->urlQuery,
+                                'route'        => $data['route'],
+                                'module'       => $module->getCode(),
+                                'closure_path' => $data['path'],
+                                'arguments'    => $args,
+                            ];
+                            $this->dispatch($module);
+                            call_user_func_array($closure, $args);
+                        }
+
+                        return true;
+                    }
+                }
+            }
+
+        }
         return false;
     }
 
@@ -810,6 +876,7 @@ class Distributor
      * Get the enabled module by given module code.
      *
      * @param string $moduleCode
+     *
      * @return Module|null
      */
     public function requestModule(string $moduleCode): ?Module
@@ -834,8 +901,8 @@ class Distributor
      * Set up the lazy route.
      *
      * @param Module $module The module entity
-     * @param string $route The route path string
-     * @param string $path The closure path of method
+     * @param string $route  The route path string
+     * @param string $path   The closure path of method
      *
      * @return $this
      */
@@ -847,6 +914,16 @@ class Distributor
             'route'  => $route,
         ];
 
+        return $this;
+    }
+
+    public function registerScript(Module $module, string $route, string $path): self
+    {
+        $this->registeredScript['/' . tidy(append($module->getAlias(), $route), true, '/')] = [
+            'module' => $module,
+            'path'   => $path,
+            'route'  => $route,
+        ];
         return $this;
     }
 

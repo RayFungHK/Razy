@@ -302,7 +302,7 @@ class Terminal
      *
      * @return string
      */
-    public function format(string $message): string
+    static public function Format(string $message): string
     {
         return preg_replace_callback('/{@(?:((?<code>clear|reset|nl)(?:\|(?&code))*)|((?<config>[cbsk]:\w+)(?:,(?&config))*))}/', function ($matches) {
             $styleString = '';
@@ -387,7 +387,7 @@ class Terminal
     }
 
     /**
-     * Out a line of message.
+     * Output a line of message.
      *
      * @param string $message
      * @param bool   $resetStyle
@@ -395,17 +395,28 @@ class Terminal
      *
      * @return $this
      */
-    public function writeLine(string $message, bool $resetStyle = false, string $format = ''): Terminal
+    public function writeLineLogging(string $message, bool $resetStyle = false, string $format = ''): Terminal
     {
-        $message = str_replace("\t", '    ', $message);
-        $format  = trim($format);
-        $message = ($format) ? sprintf($format, $message) : $message;
-        echo $this->format($message) . ($resetStyle ? self::RESET_STLYE : '') . PHP_EOL;
+        self::WriteLine($message, $resetStyle, $format);
         if ($this->logging) {
             $this->addLog($message);
         }
 
         return $this;
+    }
+
+    /**
+     * @param string $message
+     * @param bool   $resetStyle
+     * @param string $format
+     *
+     * @return void
+     */
+    static public function WriteLine(string $message, bool $resetStyle = false, string $format = '') {
+        $message = str_replace("\t", '    ', $message);
+        $format  = trim($format);
+        $message = ($format) ? sprintf($format, $message) : $message;
+        echo self::Format($message) . ($resetStyle ? self::RESET_STLYE : '') . PHP_EOL;
     }
 
     /**
