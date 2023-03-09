@@ -137,6 +137,7 @@ class XHR
             'timestamp' => time(),
             'response'  => $this->content,
         ];
+
         $message = trim($message);
         if ($message) {
             $response['message'] = $message;

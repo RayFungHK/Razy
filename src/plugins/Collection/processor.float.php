@@ -14,5 +14,5 @@ return function ($value) {
         return (float) $value;
     }
 
-    return $value;
+    return 0;
 };

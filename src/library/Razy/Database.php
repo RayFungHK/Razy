@@ -333,4 +333,53 @@ class Database
     {
         return $this->prepare()->update($tableName, $updateSyntax);
     }
+
+    // alias.x:max[binding,value]
+
+    /**
+     * @param string $tableName
+     * @param string $binding
+     * @param string $valueColumn
+     * @param array  $extraSelect
+     *
+     * @return Statement
+     * @throws Error
+     */
+    public function getMaxStatement(string $tableName, string $binding, string $valueColumn, array $extraSelect = []): Statement
+    {
+        $tableName = trim($tableName);
+        if (!preg_match('^[a-z]\w*$', $tableName)) {
+            throw new Error('The table name format is invalid');
+        }
+        $binding = Statement::StandardizeColumn($binding);
+        $valueColumn = Statement::StandardizeColumn($valueColumn);
+        if (!$binding) {
+            throw new Error('Incorrect format of the binding column.');
+        }
+
+        if (!$valueColumn) {
+            throw new Error('Incorrect format of the value column.');
+        }
+
+        $selectColumn = '';
+        if (count($extraSelect)) {
+            foreach ($extraSelect as $column) {
+                $column = Statement::StandardizeColumn($column);
+                if ($column) {
+                    $selectColumn .= ($selectColumn) ? ', ' . $column : $column;
+                }
+            }
+        }
+
+        if (!$selectColumn) {
+            $selectColumn = '*';
+        }
+
+        $alias = guid(4);
+        $tableName = guid(4);
+        $statement = $this->prepare()->select($selectColumn)->from('a.' . $tableName . '-' . $alias . '.' . $tableName . '[' . $binding . ']');
+        $statement->alias('latest')->select('MAX(' . $valueColumn . ') as ' . $valueColumn . ', ' . $binding)->from($tableName);
+
+        return $statement;
+    }
 }

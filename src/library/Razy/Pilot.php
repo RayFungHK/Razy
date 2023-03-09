@@ -11,12 +11,14 @@
 
 namespace Razy;
 
+use Closure;
 use Throwable;
 
 class Pilot
 {
     /**
      * The Module entity
+     *
      * @var Module
      */
     private Module $module;
@@ -35,7 +37,7 @@ class Pilot
      * Register an API command.
      *
      * @param array|string $command An array of API command or the API command will register
-     * @param null|string $path The path of the closure file
+     * @param null|string  $path    The path of the closure file
      *
      * @return $this Fluent interface
      * @throws Throwable
@@ -121,7 +123,7 @@ class Pilot
      * For example, if there is an array contains 3 level with `1`, `2`, `3` and the `3` has a value `test`, the path
      * of domain.com/module/1/2/3 will linked to ./controller/1/2/3/test.php closure file.
      *
-     * @param mixed $route The path of the route based on the module code
+     * @param mixed      $route The path of the route based on the module code
      * @param null|mixed $path
      *
      * @return $this Fluent interface
@@ -147,7 +149,7 @@ class Pilot
      *
      * @param mixed $route An array of route set or a string of route. The string of route will be matched as a regular
      *                     expression
-     * @param null $path The path of the closure file
+     * @param null  $path  The path of the closure file
      *
      * @return $this Fluent interface
      * @throws Throwable
@@ -165,8 +167,8 @@ class Pilot
                 throw new Error('The route must be a string or an array');
             }
 
-            $route  = trim($route);
-            $path   = trim(tidy($path, false, '/'), '/');
+            $route = trim($route);
+            $path = trim(tidy($path, false, '/'), '/');
             $method = $path;
 
             if (strlen($method) > 0 && strlen($path) > 0) {
@@ -181,7 +183,7 @@ class Pilot
      * Bind the method to calling the specified closure.
      *
      * @param array|string $method
-     * @param null|string $path
+     * @param null|string  $path
      *
      * @return $this
      * @throws Error
@@ -208,7 +210,7 @@ class Pilot
      * Start listen an event.
      *
      * @param array|string $event An array of event or the name of the event
-     * @param null|string $path The path of the closure
+     * @param null|string  $path  The path of the closure
      *
      * @return $this Fluent interface
      * @throws Throwable
@@ -227,6 +229,21 @@ class Pilot
 
             $this->module->listen($event, $path);
         }
+
+        return $this;
+    }
+
+    /**
+     * Put the callable into the list to wait for execute until other specified modules has ready.
+     *
+     * @param string  $moduleCode
+     * @param Closure $caller
+     *
+     * @return $this
+     */
+    public function await(string $moduleCode, Closure $caller): Pilot
+    {
+        $this->module->await($moduleCode, $caller);
 
         return $this;
     }

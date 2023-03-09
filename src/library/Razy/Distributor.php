@@ -32,6 +32,12 @@ class Distributor
      */
     private array $APIModules = [];
     /**
+     * The storage of the await function
+     *
+     * @var array
+     */
+    private array $awaitList = [];
+    /**
      * The `autoload` setting
      *
      * @var bool
@@ -248,18 +254,27 @@ class Distributor
             }
         }
 
+        $this->setSession();
         // If the distributor is under a domain, initial all modules.
         if ($this->domain) {
             foreach ($this->modules as $module) {
                 // Notify module that the system is ready
                 $module->notify();
+                if (isset($this->awaitList[$module->getCode()])) {
+                    foreach ($this->awaitList[$module->getCode()] as $index => &$await) {
+                        unset($await['required'][$module->getCode()]);
+                        if (count($await['required']) === 0) {
+                            // If all required module has ready, execute the await function immediately
+                            $await['caller']();
+                            unset($this->awaitList[$module->getCode()][$index]);
+                        }
+                    }
+                }
             }
         }
 
         // Start routing if it is in the Web mode
         if (WEB_MODE) {
-            $this->setSession();
-
             if ($readyToRoute) {
                 // Convert the regex route
                 $regexRoute       = $this->regexRoute;
@@ -461,9 +476,11 @@ class Distributor
      */
     public function setSession(): self
     {
-        session_set_cookie_params(0, '/', HOSTNAME);
-        session_name($this->code);
-        session_start();
+        if (WEB_MODE) {
+            session_set_cookie_params(0, '/', HOSTNAME);
+            session_name($this->code);
+            session_start();
+        }
 
         return $this;
     }
@@ -988,5 +1005,34 @@ class Distributor
         PackageManager::UpdateLock();
 
         return $validated;
+    }
+
+    /**
+     * Put the callable into the list to wait for execute until other specified modules has ready.
+     *
+     * @param string  $moduleCode
+     * @param Closure $caller
+     *
+     * @return $this
+     */
+    public function addAwait(string $moduleCode, Closure $caller): Distributor
+    {
+        $entity = [
+            'required' => [],
+            'caller'   => $caller
+        ];
+
+        $clips = explode(',', $moduleCode);
+        foreach ($clips as $code) {
+            if (preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $code)) {
+                $entity['required'][$code] = true;
+                if (!isset($this->awaitList[$code])) {
+                    $this->awaitList[$code] = [];
+                }
+                $this->awaitList[$code][] = &$entity;
+            }
+        }
+
+        return $this;
     }
 }

@@ -10,8 +10,6 @@
 
 namespace Razy;
 
-use Razy\API\Emitter;
-
 class API
 {
     /**

@@ -273,6 +273,7 @@ class WhereSyntax
                 $rightExpr = $rightOperand['expr'];
                 if ('parameter' === $rightOperand['type']) {
                     if (is_array($rightOperand['value'])) {
+                        $rightExpr = '';
                         foreach ($rightOperand['value'] as $val) {
                             $val = '\'' . addslashes($val) . '\'';
                             $rightExpr .= ($rightExpr) ? ', ' . $val : $val;
@@ -418,8 +419,6 @@ class WhereSyntax
      * Parse the Where Simple Syntax.
      *
      * @param string $syntax
-     *
-     * @throws Error
      *
      * @return $this
      */

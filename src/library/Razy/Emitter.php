@@ -1,8 +1,7 @@
 <?php
 
-namespace Razy\API;
+namespace Razy;
 
-use Razy\Module;
 use Throwable;
 
 class Emitter
@@ -15,6 +14,7 @@ class Emitter
 
     /**
      * Emitter constructor
+     *
      * @param Module|null $module
      */
     public function __construct(?Module $module = null)
@@ -32,7 +32,6 @@ class Emitter
      */
     public function __call(string $method, array $arguments)
     {
-        return ($this->module) ? $this->module->execute($method, $arguments) : null;
+        return ($this->module) ? $this->module->execute($this->module->getCode(), $method, $arguments) : null;
     }
-
 }

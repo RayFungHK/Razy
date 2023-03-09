@@ -11,6 +11,7 @@ namespace Razy;
  * with this source code in the file LICENSE.
  */
 
+use DateTime;
 use Exception;
 
 /**
@@ -734,4 +735,24 @@ function autoload(string $className, string $path = ''): bool
     }
 
     return false;
+}
+
+/**
+ * @param string $startDate
+ * @param int    $numberOfDays
+ * @param array  $holidays
+ *
+ * @return string
+ * @throws Exception
+ */
+function getFutureWeekday(string $startDate, int $numberOfDays, array $holidays = []): string
+{
+    $holidays = array_fill_keys($holidays, true);
+    $datetime = new DateTime($startDate);
+    for ($day = 0; $day < $numberOfDays; ++$day) {
+        do {
+            $date = $datetime->modify('+1 weekday')->format('Y-m-d');
+        } while (isset($holidays[$date]));
+    }
+    return $date ?? $startDate;
 }

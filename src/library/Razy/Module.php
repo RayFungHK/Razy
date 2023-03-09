@@ -13,7 +13,6 @@ namespace Razy;
 
 use Closure;
 use Exception;
-use Razy\API\Emitter;
 use ReflectionClass;
 use Throwable;
 
@@ -370,36 +369,38 @@ class Module
     /**
      * Execute API command.
      *
+     * @param string $module The request module
      * @param string $command The API command
      * @param array  $args    The arguments will pass to API command
      *
      * @return mixed
      * @throws Throwable
-     *
      */
-    public function execute(string $command, array $args)
+    public function execute(string $module, string $command, array $args)
     {
-        return $this->accessAPI($command, $args);
+        return $this->accessAPI($module, $command, $args);
     }
 
     /**
      * Execute the API command.
      *
+     * @param string $module The request module
      * @param string $command The API command
      * @param array  $args    The arguments will pass to the API command
      *
      * @return null|mixed
      * @throws Throwable
-     *
      */
-    public function accessAPI(string $command, array $args)
+    public function accessAPI(string $module, string $command, array $args)
     {
         $result = null;
         $this->distributor->attention();
         try {
             if (array_key_exists($command, $this->commands)) {
                 if (($closure = $this->getClosure($this->commands[$command])) !== null) {
-                    $result = call_user_func_array($closure->bindTo($this->controller), $args);
+                    if ($this->controller->__onAPICall($module, $command)) {
+                        $result = call_user_func_array($closure->bindTo($this->controller), $args);
+                    }
                 }
             }
         } catch (Throwable $exception) {
@@ -565,7 +566,7 @@ class Module
      *
      * @return Emitter
      */
-    public function getEmitter(string $moduleCode): API\Emitter
+    public function getEmitter(string $moduleCode): \Razy\Emitter
     {
         return $this->distributor->createAPI()->request($moduleCode);
     }
@@ -917,5 +918,21 @@ class Module
             return false;
         }
         return true;
+    }
+
+    /**
+     * Put the callable into the list to wait for execute until other specified modules has ready.
+     *
+     * @param string   $moduleCode
+     * @param Closure $caller
+     *
+     * @return $this
+     */
+    public function await(string $moduleCode, Closure $caller): Module
+    {
+        $caller = $caller->bindTo($this->controller);
+        $this->distributor->addAwait($moduleCode, $caller);
+
+        return $this;
     }
 }

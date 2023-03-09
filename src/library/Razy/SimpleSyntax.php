@@ -11,22 +11,25 @@
 
 namespace Razy;
 
+use Closure;
+
 class SimpleSyntax
 {
     /**
      * Parse the Simple Syntax by given delimiter.
      *
-     * @param string $syntax
-     * @param string $delimiter
-     * @param string $negativeLookahead
+     * @param string       $syntax
+     * @param string       $delimiter
+     * @param string       $negativeLookahead
+     * @param Closure|null $parser
+     *
      * @return array
-     * @throws Error
      */
-    public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = ''): array
+    public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?Closure $parser = null): array
     {
         $clips = self::ParseParens($syntax);
 
-        return ($parseExpr = function ($clips) use ($delimiter, $negativeLookahead, &$parseExpr) {
+        return ($parseExpr = function ($clips) use ($parser, $delimiter, $negativeLookahead, &$parseExpr) {
             $extracted = [];
 
             foreach ($clips as $clip) {
@@ -37,6 +40,13 @@ class SimpleSyntax
                     if (false === $splits) {
                         throw new Error('The delimiter or the ignored lookahead characters is invalid.');
                     }
+
+                    if ($parser) {
+                        foreach ($splits as &$split) {
+                            $split = $parser($split);
+                        }
+                    }
+
                     $extracted = array_merge($extracted, $splits);
                 }
             }

@@ -109,6 +109,7 @@ abstract class Controller
     public function __onDispatch(string $moduleCode): void
     {
     }
+
     /**
      * __onScriptLoaded event, all modules will be executed before the matched script execute
      *
@@ -221,9 +222,9 @@ abstract class Controller
      *
      * @param string $moduleCode
      *
-     * @return API\Emitter
+     * @return \Razy\Emitter
      */
-    final public function api(string $moduleCode): API\Emitter
+    final public function api(string $moduleCode): \Razy\Emitter
     {
         return $this->module->getEmitter($moduleCode);
     }
@@ -480,5 +481,22 @@ abstract class Controller
     final public function xhr(): XHR
     {
         return new XHR();
+    }
+
+    /**
+     * Execute the internal function by given path, also an alternative of direct access the method.
+     *
+     * @param string $path
+     * @param array  ...$args
+     *
+     * @return mixed|null
+     * @throws Error
+     */
+    final public function fork(string $path, array ...$args)
+    {
+        if ($closure = $this->module->getClosure($path)) {
+            return call_user_func_array($closure, $args);
+        }
+        return null;
     }
 }

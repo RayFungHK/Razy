@@ -22,86 +22,103 @@ class Statement
 {
     /**
      * The storage of columns
+     *
      * @var array
      */
     private array $columns = [];
     /**
      * The Database entity
+     *
      * @var Database
      */
     private Database $database;
     /**
      * The fetch length
+     *
      * @var int
      */
     private int $fetchLength = 0;
     /**
      * The storage of group by syntax
+     *
      * @var array
      */
     private array $groupby = [];
     /**
      * The WhereSyntax entity of `having`
+     *
      * @var ?WhereSyntax
      */
     private ?WhereSyntax $havingSyntax = null;
     /**
      * Is the parser execute once
+     *
      * @var bool
      */
     private bool $once = false;
     /**
      * The storage of order by syntax
+     *
      * @var array
      */
     private array $orderby = [];
     /**
      * The storage of parameters
+     *
      * @var array
      */
     private array $parameters = [];
     /**
      * The closure of parser
+     *
      * @var null|Closure
      */
     private ?Closure $parser = null;
     /**
      * The pointer position
+     *
      * @var int
      */
     private int $position = 0;
     /**
      * The storage of select columns
+     *
      * @var array
      */
     private array $selectColumns;
     /**
      * A string of SQL
+     *
      * @var string
      */
     private string $sql;
     /**
      * The TableJoinSyntax entity
+     *
      * @var ?TableJoinSyntax
      */
     private ?TableJoinSyntax $tableJoinSyntax = null;
     /**
      * The table name
+     *
      * @var string
      */
     private string $tableName;
     /**
      * The type of table
+     *
      * @var string
      */
     private string $type = '';
     /**
      * The storage of update syntax
+     *
      * @var array
      */
     private array $updateSyntax = [];
     /**
      * The WhereSyntax entity of `where`
+     *
      * @var ?WhereSyntax
      */
     private ?WhereSyntax $whereSyntax = null;
@@ -222,7 +239,6 @@ class Statement
      * @param string $syntax
      *
      * @return array
-     * @throws Error
      */
     private function parseSyntax(string $syntax): array
     {

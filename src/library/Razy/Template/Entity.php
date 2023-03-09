@@ -456,7 +456,7 @@ class Entity
         $stacking = [];
         $result   = '';
         while (preg_match('/\\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\\.|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+))}/', $content, $matches, PREG_OFFSET_CAPTURE)) {
-            $offset = $matches[0][1];
+            $offset = (int) $matches[0][1];
 
             $isClosingTag = isset($matches[4][0]);
             $functionName = $matches[4][0] ?? $matches[1][0];

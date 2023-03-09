@@ -48,6 +48,13 @@ class TableJoinSyntax
     private array $tableAlias = [];
 
     /**
+     * The storage of presets
+     *
+     * @var Statement[]
+     */
+    private array $preset = [];
+
+    /**
      * TableJoinSyntax constructor.
      *
      * @param Statement $statement
@@ -98,9 +105,10 @@ class TableJoinSyntax
                 } else {
                     if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
                         $table = $matches[3] ?: $matches[2];
+                        $alias = ($matches[1]) ?: $table;
 
-                        if (isset($this->tableAlias[$table])) {
-                            $statement = $this->tableAlias[$table];
+                        if (isset($this->tableAlias[$alias])) {
+                            $statement = $this->tableAlias[$alias];
                             $tableName = '(' . $statement->getSyntax() . ')';
                             if (!$matches[1]) {
                                 throw new Error('Inner SELECT syntax must given an alias.');
@@ -110,7 +118,8 @@ class TableJoinSyntax
                             $tableName = '`' . $this->statement->getPrefix() . $table . '`';
                             $alias     = ($matches[1]) ? '`' . $matches[1] . '`' : $tableName;
                         }
-                        $parsed[]  = $tableName . ($matches[1] ? ' AS `' . $matches[1] . '`' : '');
+                        $parsed[] = $tableName . ($matches[1] ? ' AS `' . $matches[1] . '`' : '');
+
                         $condition = $matches[4] ?? '';
 
                         if (!$source) {
@@ -168,7 +177,7 @@ class TableJoinSyntax
             if ($matches[1]) {
                 $type = ($matches[1] == '?') ? '?' : ':';
             }
-            $source = $matches[2] ? '`' . $matches[2] . '`': $source;
+            $source = $matches[2] ? '`' . $matches[2] . '`' : $source;
 
             if (!$condition) {
                 throw new Error('Invalid Syntax.');
@@ -182,19 +191,17 @@ class TableJoinSyntax
             }
             $columns = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $condition);
 
+            if (':' === $type && !$matches[2]) {
+                return 'USING (' . implode(', ', $columns) . ')';
+            }
+
             foreach ($columns as &$column) {
                 $column = trim($column);
                 if (!preg_match('/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/', $column)) {
                     throw new Error('USING clause only allow column name.');
                 }
 
-                if (!$type) {
-                    $column = $source . '.`' . $column . '` = ' . $alias . '.`' . $column . '`';
-                }
-            }
-
-            if (':' === $type) {
-                return 'USING (' . implode(', ', $columns) . ')';
+                $column = $source . '.`' . $column . '` = ' . $alias . '.`' . $column . '`';
             }
 
             return 'ON ' . implode(' AND ', $columns);
@@ -209,12 +216,48 @@ class TableJoinSyntax
      * @param string $syntax
      *
      * @return $this
-     * @throws Error
      */
     public function parseSyntax(string $syntax): TableJoinSyntax
     {
         $syntax          = trim($syntax);
-        $this->extracted = SimpleSyntax::parseSyntax($syntax, '-<>+');
+        $this->extracted = SimpleSyntax::ParseSyntax($syntax, '-<>+', '', function ($syntax) {
+            if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
+                $table     = $matches[3] ?: $matches[2];
+                $alias     = ($matches[1]) ?: $table;
+                $className = 'Razy\\Database\\Preset\\' . $matches[4];
+                if (preg_match('/[a-z](\w+)?/i', $alias) && class_exists($className)) {
+                    $this->preset[$alias] = new $className($this->getAlias($alias), $table, $alias);
+                }
+
+                if ($this->preset[$alias]) {
+                    $params = [];
+                    if (preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
+                        $params = SimpleSyntax::ParseSyntax($matches[5], ',');
+                        foreach ($params as &$param) {
+                            $param = trim($param, '\'"');
+                        }
+                    }
+                    $this->preset[$alias]->init($params);
+
+                    return $alias . '.' . $table . $matches[6];
+
+                    $binding = $params[0] ?? '';
+                    $value   = $params[1] ?? '';
+                    $group   = $params[2] ?? '';
+
+                    if (!$binding || !$value || !$group) {
+                        throw new Error('Missing binding, value or group parameter in `max` preset syntax.');
+                    }
+
+                    $statement = $this->getAlias($alias);
+                    $statement->from('a.' . $table . '-b.' . $table . '[' . $binding . ']');
+                    $this->preset[$alias] = $statement->alias('b')->select($binding . ', MAX(' . $value . ') as ' . $value)->from($table)->group($group);
+
+                    return $alias . '.' . $table . $matches[6];
+                }
+            }
+            return $syntax;
+        });
 
         return $this;
     }

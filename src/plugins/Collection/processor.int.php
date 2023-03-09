@@ -14,5 +14,5 @@ return function ($value) {
         return (int) $value;
     }
 
-    return $value;
+    return 0;
 };
