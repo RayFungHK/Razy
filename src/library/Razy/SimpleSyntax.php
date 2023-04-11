@@ -31,12 +31,11 @@ class SimpleSyntax
 
         return ($parseExpr = function ($clips) use ($parser, $delimiter, $negativeLookahead, &$parseExpr) {
             $extracted = [];
-
             foreach ($clips as $clip) {
                 if (is_array($clip)) {
                     $extracted[] = $parseExpr($clip);
                 } else {
-                    $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\((?:\\\\.(*SKIP)|[^()])*\)|\\\\.)(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
                     if (false === $splits) {
                         throw new Error('The delimiter or the ignored lookahead characters is invalid.');
                     }

@@ -298,6 +298,10 @@ class WhereSyntax
                     return addslashes($operand['text']);
                 }
 
+                if ('expr' === $operand['type']) {
+                    return $operand['expr'];
+                }
+
                 return '';
             };
 

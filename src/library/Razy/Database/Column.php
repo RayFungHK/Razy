@@ -39,6 +39,12 @@ class Column
     private ?Table $table;
 
     /**
+     * The column's comment
+     * @var string
+     */
+    private string $comment = '';
+
+    /**
      * Column constructor.
      *
      * @param string $columnName
@@ -337,6 +343,20 @@ class Column
     }
 
     /**
+     * Set the column's comment.
+     *
+     * @param string $comment
+     *
+     * @return $this
+     */
+    public function setComment(string $comment): Column
+    {
+        $this->comment = $comment;
+
+        return $this;
+    }
+
+    /**
      * Enable set current timestamp as default value when the column is a date/time/timestamp
      *
      * @param bool $enable
@@ -508,6 +528,16 @@ class Column
     }
 
     /**
+     * Get the column's comment.
+     *
+     * @return string
+     */
+    public function getComment(): string
+    {
+        return $this->comment;
+    }
+
+    /**
      * Rename the column.
      *
      * @param string $columnName
@@ -556,7 +586,7 @@ class Column
     {
         $config     = '`' . $this->name . '`';
         $parameters = [];
-        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key'] as $method) {
+        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key', 'comment'] as $method) {
             if ('type' == $method) {
                 switch ($this->parameters['type']) {
                     case 'VARCHAR':
@@ -650,6 +680,10 @@ class Column
             $syntax .= ' INT(' . $this->parameters['length'] . ') NOT NULL AUTO_INCREMENT';
         } else {
             $syntax .= $this->getTypeSyntax() . $this->getNullableSyntax() . $this->getDefaultSyntax() . $this->getCharsetSyntax();
+        }
+
+        if ($this->comment) {
+            $syntax .= " COMMENT '" . addslashes($this->comment) . "'";
         }
 
         return $syntax;

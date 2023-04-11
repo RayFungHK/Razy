@@ -601,6 +601,11 @@ class Statement
         $result = [];
         $query  = $this->query($parameters);
         while ($row = $query->fetch()) {
+            $parser = $this->parser;
+            if (is_callable($parser)) {
+                $parser($row);
+            }
+
             if (!isset($row[$keyColumn])) {
                 throw new Error('The key column `' . $keyColumn . '` cannot found in fetched result.');
             }

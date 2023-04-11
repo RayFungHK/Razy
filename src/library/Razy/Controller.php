@@ -259,11 +259,13 @@ abstract class Controller
     /**
      * Get the module's data folder of the application.
      *
+     * @param string $module
+     *
      * @return string
      */
-    final public function getDataPath(): string
+    final public function getDataPath(string $module = ''): string
     {
-        return $this->module->getDataPath();
+        return $this->module->getDataPath($module);
     }
 
     /**

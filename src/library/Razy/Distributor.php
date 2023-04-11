@@ -627,11 +627,16 @@ class Distributor
     /**
      * Get the distributor data folder file path, the path contains site config and file storage.
      *
+     * @param string $module
+     *
      * @return string
      */
-    public function getDataPath(): string
+    public function getDataPath(string $module = ''): string
     {
-        return append(SHARED_FOLDER, $this->getIdentity());
+        if (isset($this->modules[$module])) {
+            return append(DATA_FOLDER, $this->getIdentity(), $module);
+        }
+        return '';
     }
 
     /**
@@ -964,7 +969,7 @@ class Distributor
     }
 
     /**
-     * Unpack all module asset into shared view folder.
+     * Unpack all module assets into shared view folder.
      *
      * @param Closure $closure
      *
@@ -974,9 +979,11 @@ class Distributor
     {
         $unpackedCount = 0;
         foreach ($this->modules as $module) {
-            $unpacked = $module->unpackAsset(append(SYSTEM_ROOT, 'view', $this->code));
-            $closure($module->getCode(), $unpacked);
-            $unpackedCount += count($unpacked);
+            if (!$module->isShadowAsset()) {
+                $unpacked = $module->unpackAsset(append(SYSTEM_ROOT, 'view', $this->code));
+                $closure($module->getCode(), $unpacked);
+                $unpackedCount += count($unpacked);
+            }
         }
 
         return $unpackedCount;

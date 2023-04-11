@@ -290,7 +290,7 @@ class Application
                                                     throw new Error($distConfig['dist'] . ' has been declared already, please ensure the distributor code is not duplicated.');
                                                 }
 
-                                                // Declare an array if the domain is not exists
+                                                // Declare an array if the domain is not existed
                                                 self::$multisite[$domain] = self::$multisite[$domain] ?? [];
 
                                                 self::$multisite[$domain][$urlPath] = $distPath;
@@ -411,18 +411,42 @@ class Application
                 $source    = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/htaccess.tpl');
                 $rootBlock = $source->getRoot();
                 foreach (self::GetDistributors() as $distCode => $info) {
-                    $rootBlock->newBlock('rewrite')->assign([
-                        'domain'     => preg_quote($info['domain']),
-                        'dist_code'  => $distCode,
-                        'route_path' => trim($info['url_path'], '/'),
-                    ]);
-                    if (count($info['alias'])) {
-                        foreach ($info['alias'] as $alias) {
+                    $domain = preg_quote($info['domain']);
+                    if (!preg_match('/:\d+$/', $domain)) {
+                        $domain .= '(:\d+)?';
+                    }
+                    $distributor  = new Distributor($info['distributor_path']);
+                    $modules      = $distributor->getAllModules();
+                    $moduleAssets = [];
+
+                    foreach ($modules as $module) {
+                        $moduleAssets[$module->getClassName()] = [
+                            'assets' => $module->getAssets(),
+                            'module_path' => ($module->isShadowAsset()) ? $module->getRelativeModulePath() : 'view/' . $distCode . '/',
+                        ];
+                    }
+
+                    foreach ($moduleAssets as $packageName => $data) {
+                        foreach ($data['assets'] as $destPath => $pathInfo) {
                             $rootBlock->newBlock('rewrite')->assign([
-                                'domain'     => preg_quote($alias),
-                                'dist_code'  => $distCode,
+                                'domain'     => $domain,
+                                'dist_path'  => ltrim(tidy(append($data['module_path'], $pathInfo['path']), false), '/'),
                                 'route_path' => trim($info['url_path'], '/'),
+                                'mapping'    => $packageName . '/' . $destPath,
                             ]);
+                        }
+
+                        if (count($info['alias'])) {
+                            foreach ($info['alias'] as $alias) {
+                                foreach ($data['assets'] as $destPath => $pathInfo) {
+                                    $rootBlock->newBlock('rewrite')->assign([
+                                        'domain'     => preg_quote($alias),
+                                        'dist_path'  => ltrim(tidy(append($data['module_path'], $pathInfo['path']), false), '/'),
+                                        'route_path' => trim($info['url_path'], '/'),
+                                        'mapping'    => $packageName . '/' . $destPath,
+                                    ]);
+                                }
+                            }
                         }
                     }
                 }

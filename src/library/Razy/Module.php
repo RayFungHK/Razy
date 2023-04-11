@@ -137,6 +137,14 @@ class Module
      * @var Pilot
      */
     private Pilot $pilot;
+
+    /**
+     * The relative path of the module.
+     *
+     * @var string
+     */
+    private string $relativeModulePath;
+
     /**
      * The storage of the required modules
      *
@@ -144,7 +152,7 @@ class Module
      */
     private array $require = [];
     /**
-     * Is the module a shared module
+     * Is the module a shared module?
      *
      * @var bool
      */
@@ -163,6 +171,13 @@ class Module
     private string $version;
 
     /**
+     * Is the module's asset link to modules direct via rewrite, false will copy all assets into shared view folder
+     *
+     * @var bool
+     */
+    private bool $shadowAsset = false;
+
+    /**
      * Module constructor.
      *
      * @param Distributor $distributor The Distributor instance
@@ -177,6 +192,11 @@ class Module
         $this->distributor  = $distributor;
         $this->modulePath   = $path;
         $this->sharedModule = $sharedModule;
+        if (preg_match('/^phar:\/\/]/', $this->modulePath)) {
+            $this->relativeModulePath = $path;
+        } else {
+            $this->relativeModulePath = getRelativePath($path, SYSTEM_ROOT);
+        }
 
         if (isset($settings['module_code'])) {
             if (!is_string($settings['module_code'])) {
@@ -216,7 +236,10 @@ class Module
         foreach ($settings['assets'] as $asset => $destPath) {
             $assetPath = fix_path(append($this->modulePath, $asset), DIRECTORY_SEPARATOR, true);
             if (false !== $assetPath) {
-                $this->assets[realpath($assetPath)] = $destPath;
+                $this->assets[$destPath] = [
+                    'path'        => $asset,
+                    'system_path' => realpath($assetPath),
+                ];
             }
         }
 
@@ -236,6 +259,8 @@ class Module
             }
             $this->distributor->enableAPI($this);
         }
+
+        $this->shadowAsset = !!$settings['shadow_asset'] && !preg_match('/^phar:\/\/]/', $this->modulePath);
 
         if (isset($settings['require']) && is_array($settings['require'])) {
             foreach ($settings['require'] as $moduleCode => $version) {
@@ -454,11 +479,13 @@ class Module
     /**
      * Get the module's data folder of the application.
      *
+     * @param string $module
+     *
      * @return string
      */
-    public function getDataPath(): string
+    public function getDataPath(string $module = ''): string
     {
-        return append($this->distributor->getDataPath(), $this->getCode());
+        return $this->distributor->getDataPath($module ?? $this->getCode());
     }
 
     /**
@@ -540,6 +567,16 @@ class Module
     }
 
     /**
+     * Get the module's relative path
+     *
+     * @return string
+     */
+    public function getRelativeModulePath(): string
+    {
+        return $this->relativeModulePath;
+    }
+
+    /**
      * Get the module code.
      *
      * @return string
@@ -599,6 +636,16 @@ class Module
     public function getSiteURL(): string
     {
         return $this->distributor->getBaseURL();
+    }
+
+    /**
+     * Check if the module is shadow asset mode.
+     *
+     * @return bool
+     */
+    public function isShadowAsset(): bool
+    {
+        return $this->shadowAsset;
     }
 
     /**
@@ -797,7 +844,7 @@ class Module
     }
 
     /**
-     * Send the signal to controller that the distributor trying to route in. Return false to refuse.
+     * Send the signal to the controller that the distributor trying to route in. Return false to refuse.
      *
      * @param array $args
      *
@@ -884,12 +931,12 @@ class Module
      */
     public function unpackAsset(string $folder): array
     {
+        $unpackedAsset = [];
         if (empty($this->assets)) {
             return [];
         }
 
-        $unpackedAsset = [];
-        $folder        = append(trim($folder), $this->alias);
+        $folder = append(trim($folder), $this->alias);
         if (!is_dir($folder)) {
             try {
                 mkdir($folder, 0777, true);
@@ -898,12 +945,22 @@ class Module
             }
         }
 
-        foreach ($this->assets as $assetPath => $destPath) {
-            xcopy($assetPath, append($folder, $destPath), '', $unpacked);
+        foreach ($this->assets as $destPath => $pathInfo) {
+            xcopy($pathInfo['system_path'], append($folder, $destPath), '', $unpacked);
             $unpackedAsset = array_merge($unpackedAsset, $unpacked);
         }
 
         return $unpackedAsset;
+    }
+
+    /**
+     * Return the assets list
+     *
+     * @return array
+     */
+    public function getAssets(): array
+    {
+        return $this->assets;
     }
 
     /**

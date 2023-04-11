@@ -25,4 +25,7 @@ return function (string $distCode = '') use (&$parameters) {
             $this->writeLineLogging('Module [' . $moduleCode . '] {@c:green}' . count($unpacked) . '{@reset} assets have unpacked.', true);
         }
     });
+
+    $this->writeLineLogging('Updating rewrite rules...', true);
+    Application::UpdateRewriteRules();
 };

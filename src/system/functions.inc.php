@@ -542,13 +542,30 @@ function collect($data): Collection
 }
 
 /**
+ * Return the relative path between two path
+ *
+ * @param string $path
+ * @param string $root
+ *
+ * @return string
+ */
+function getRelativePath(string $path, string $root): string
+{
+    $path = tidy($path);
+    $root = tidy($root);
+
+    $relativePath = preg_replace('/^' . preg_quote($root, '/\\') . '/', '', $path);
+    return $relativePath ?? '';
+}
+
+/**
  * Fix the string of the relative path.
  *
  * @param string $path
  * @param string $separator
  * @param bool $relative
  *
- * @return bool|string return the fixed path or false if the path is not relative path if the parameter is given
+ * @return bool|string return the fixed path or false if the path is not a relative path if the parameter is given
  */
 function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $relative = false)
 {
@@ -655,6 +672,15 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
     if (!is_file($source) && !is_dir($source)) {
         return false;
     }
+
+    $fileName = '';
+    if (is_file($source)) {
+        if (substr($dest, -1) !== '/') {
+            $fileName = substr($dest, strrpos($dest, '/') + 1);
+            $dest = substr($dest, 0, strrpos($dest, '/'));
+        }
+    }
+
     if (!is_dir($dest)) {
         mkdir($dest, 0777, true);
     }
@@ -665,7 +691,7 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
 
     try {
         $basePath = $source;
-        ($recursive = function (string $path = '') use (&$recursive, $basePath, $dest, &$unpacked, $pattern) {
+        ($recursive = function (string $path = '') use (&$recursive, $basePath, $dest, &$unpacked, $pattern, $fileName) {
             $source = append($basePath, $path);
             if (is_dir($source)) {
                 foreach (scandir($source) as $item) {
@@ -685,8 +711,8 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
                     }
                 }
             } else {
-                $unpacked[$source] = append($dest, basename($source));
-                copy($source, append($dest, basename($source)));
+                $unpacked[$source] = append($dest, $fileName ?? basename($source));
+                copy($source, append($dest, $fileName ?? basename($source)));
             }
         })();
     } catch (Exception $e) {
