@@ -3,7 +3,6 @@
 namespace Razy;
 
 use Exception;
-use Throwable;
 
 /**
  * @param string $command

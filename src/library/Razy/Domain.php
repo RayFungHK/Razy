@@ -46,7 +46,7 @@ class Domain
      *
      * @param Application $app    The Application Instance
      * @param string      $domain The string of the domain
-     * @param string      $alias  The string of the alias of specified domain
+     * @param string      $alias  The string of the alias
      * @param array       $paths  An array of the distributor paths or the string of the distributor path
      *
      * @throws Throwable
@@ -140,9 +140,10 @@ class Domain
         if (!empty($this->path)) {
             sort_path_level($this->path);
             foreach ($this->path as $urlPath => $folderPath) {
+                [$distCode, $alias] = explode('@', $folderPath);
                 $urlPath = tidy($urlPath, true, '/');
                 if (($exactly && $urlPath === $urlQuery) || 0 === strpos($urlQuery, $urlPath)) {
-                    return $this->distributor = new Distributor(tidy($folderPath, true), $this, $urlPath, substr($urlQuery, strlen($urlPath) - 1));
+                    return $this->distributor = new Distributor(tidy($distCode, true), $alias ?? '*', $this, $urlPath, substr($urlQuery, strlen($urlPath) - 1));
                 }
             }
         }

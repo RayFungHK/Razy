@@ -22,10 +22,10 @@ return [
         $parameters = $container->getParameters();
         $paramText  = array_shift($parameters);
         $clips      = SimpleSyntax::ParseParens($paramText);
-        /** @var Entity $entity */
-        $entity = $this;
 
-        $recursive   = function (array $clips) use (&$recursive, $entity) {
+        $recursive   = function (array $clips) use (&$recursive) {
+            /** @var Entity $entity */
+            $entity  = $this;
             $value   = null;
             $reverse = false;
             while ($clip = array_shift($clips)) {
@@ -72,7 +72,7 @@ return [
 
                             $reverse = isset($matches[8]);
                         }
-                        $clip = substr($clip, $matches[0][1] + strlen($matches[0][0]));
+                        $clip = substr($clip, (int) $matches[0][1] + strlen($matches[0][0]));
                     }
                 }
             }

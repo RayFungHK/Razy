@@ -14,7 +14,6 @@ use Closure;
 use DateTime;
 use Exception;
 use Razy\Terminal\Table;
-use Razy\Terminal\Processor;
 
 class Terminal
 {

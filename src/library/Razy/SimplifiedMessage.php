@@ -78,7 +78,6 @@ class SimplifiedMessage
 
             return $simplifiedMessage;
         }
-        $clips = explode("\r\n", $message);
 
         return new self('COMMAND');
     }

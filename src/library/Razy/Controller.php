@@ -4,8 +4,8 @@
  *
  * (c) Ray Fung 2021 <hello@rayfung.hk>
  *
- *  This source file is subject to the MIT license that is bundled
- *  with this source code in the file LICENSE.
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
  */
 
 /**
@@ -36,7 +36,7 @@ abstract class Controller
      *
      * @var ?Module
      */
-    private ?Module $module = null;
+    private ?Module $module;
 
     /**
      * Controller constructor
@@ -49,8 +49,9 @@ abstract class Controller
     }
 
     /**
-     * Controller method bridge. When the method called which is not declared, Controller will
-     * inject the Closure from the specified path that configured in __onInit state.
+     * Controller method bridge.
+     * When the method called which is not declared, the Controller will
+     * inject the Closure from the specified path that is configured in __onInit state.
      *
      * @param string $method    The string of the method name which is called
      * @param array  $arguments The arguments will pass to the method
@@ -66,7 +67,9 @@ abstract class Controller
             }
         }
 
-        $path = append($this->module->getPath(), 'controller', $this->module->getClassName() . '.' . $method . '.php');
+        $moduleInfo = $this->module->getModuleInfo();
+        $path       = append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
+
         if (is_file($path)) {
             /** @var Closure $closure */
             $closure = require $path;
@@ -90,7 +93,7 @@ abstract class Controller
      *
      * @param string $module The module code that is accessed via API
      * @param string $method The command method will be called via API
-     * @param string $fqdn   The well-formatted FQDN string include the domain name and distributor code
+     * @param string $fqdn   The well-formatted FQDN string includes the domain name and distributor code
      *
      * @return bool Return false to refuse API access
      */
@@ -100,7 +103,7 @@ abstract class Controller
     }
 
     /**
-     * __onDispatch event, all modules will be executed before the routed method execute
+     * __onDispatch event, all modules will be executed before the routed method executes
      *
      * @param string $moduleCode
      *
@@ -148,7 +151,8 @@ abstract class Controller
     }
 
     /**
-     * Trigger in preload stage, used to setup the module. Return false to prevent enter the routing stage, the remaining modules in queue will not trigger the preload event.
+     * Trigger in preload stage, used to set up the module.
+     * Return false to prevent entering the routing stage, the remaining modules in queue will not trigger the preload event.
      *
      * @param Pilot $pilot
      *
@@ -160,7 +164,7 @@ abstract class Controller
     }
 
     /**
-     * Controller Event __onReady, will be executed if all modules are loaded in system.
+     * Controller Event __onReady, will be executed if all modules are loaded in a system.
      */
     public function __onReady(): void
     {
@@ -168,7 +172,7 @@ abstract class Controller
 
     /**
      * Controller Event __onRoute, will be executed before the route closure is executed. Return false that route is not
-     * accept.
+     * accepted.
      *
      * @param array $args
      *
@@ -192,7 +196,7 @@ abstract class Controller
     }
 
     /**
-     * __onTouch event, handling touch request from other module.
+     * __onTouch event, handling touch request from another module.
      *
      * @param string $moduleCode
      * @param string $version
@@ -222,9 +226,9 @@ abstract class Controller
      *
      * @param string $moduleCode
      *
-     * @return \Razy\Emitter
+     * @return Emitter
      */
-    final public function api(string $moduleCode): \Razy\Emitter
+    final public function api(string $moduleCode): Emitter
     {
         return $this->module->getEmitter($moduleCode);
     }
@@ -253,7 +257,7 @@ abstract class Controller
      */
     final public function getAssetPath(): string
     {
-        return append($this->module->getSiteURL(), 'view', $this->module->getAlias()) . '/';
+        return append($this->module->getSiteURL(), 'webassets', $this->module->getModuleInfo()->getAlias(), $this->module->getModuleInfo()->getVersion()) . '/';
     }
 
     /**
@@ -295,7 +299,7 @@ abstract class Controller
      */
     final public function getModuleCode(): string
     {
-        return $this->module->getCode();
+        return $this->module->getModuleInfo()->getCode();
     }
 
     /**
@@ -316,7 +320,7 @@ abstract class Controller
      */
     final public function getModulePath(): string
     {
-        return $this->module->getPath();
+        return $this->module->getModuleInfo()->getPath();
     }
 
     /**
@@ -326,7 +330,7 @@ abstract class Controller
      */
     final public function getModuleVersion(): string
     {
-        return $this->module->getVersion();
+        return $this->module->getModuleInfo()->getVersion();
     }
 
     /**
@@ -366,7 +370,7 @@ abstract class Controller
      */
     final public function getViewPath(): string
     {
-        return append($this->module->getBaseURL(), 'view');
+        return append($this->module->getBaseURL(), 'view', $this->module->getModuleInfo()->getVersion());
     }
 
     /**
@@ -380,7 +384,7 @@ abstract class Controller
     }
 
     /**
-     * Redirect to specified path in the module
+     * Redirect to a specified path in the module
      *
      * @param string $path
      *
@@ -441,7 +445,7 @@ abstract class Controller
      */
     final public function getViewFile(string $path): string
     {
-        $path     = append($this->module->getPath(), 'view', $path);
+        $path     = append($this->module->getModuleInfo()->getPath(), 'view', $path);
         $filename = basename($path);
         if (!preg_match('/[^.]+\..+/', $filename)) {
             $path .= '.tpl';

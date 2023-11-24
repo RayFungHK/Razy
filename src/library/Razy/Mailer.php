@@ -38,7 +38,7 @@ class Mailer
      * Connection timeout setting
      * @var int
      */
-    private int $connectionTimeout = 30;
+    private int $connectionTimeout;
     /**
      * The `from` address information
      * @var array
@@ -53,7 +53,7 @@ class Mailer
      * The string of the hostname
      * @var string
      */
-    private string $hostname = '';
+    private string $hostname;
     /**
      * The string of the HTML message body
      * @var string
@@ -68,7 +68,7 @@ class Mailer
      * The string of the origin
      * @var string
      */
-    private string $origin = '';
+    private string $origin;
     /**
      * The string of the password
      * @var string
@@ -78,7 +78,7 @@ class Mailer
      * The connection port
      * @var int
      */
-    private int $port = 25;
+    private int $port;
     /**
      * The protocol of the secure connection
      * @var string
@@ -98,7 +98,7 @@ class Mailer
      * Reponse timeout setting
      * @var int
      */
-    private int $responseTimeout = 5;
+    private int $responseTimeout;
     /**
      * The resource of socket
      * @var null|resource

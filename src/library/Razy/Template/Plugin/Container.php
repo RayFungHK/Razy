@@ -11,15 +11,15 @@ class Container
      *
      * @var array
      */
-    private array $arguments = [];
+    private array $arguments;
     /**
      * The string of wrapped content
      *
      * @var string
      */
-    private string $content = '';
+    private string $content;
     /**
-     * The Entity entity
+     * The Entity
      *
      * @var Entity
      */
@@ -29,7 +29,7 @@ class Container
      *
      * @var array
      */
-    private array $parameters = [];
+    private array $parameters;
 
     /**
      * Container constructor

@@ -42,7 +42,7 @@ class Profiler
     private function createSample(): array
     {
         $ru                = getrusage();
-        $defined_functions = get_defined_functions(true);
+        $defined_functions = get_defined_functions();
 
         return [
             'index'             => count($this->checkpoints),

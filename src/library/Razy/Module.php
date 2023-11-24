@@ -12,7 +12,6 @@
 namespace Razy;
 
 use Closure;
-use Exception;
 use ReflectionClass;
 use Throwable;
 
@@ -49,7 +48,7 @@ class Module
     public const STATUS_LOADED = 5;
 
     /**
-     * The module is unloaded, version not match the requirement or not in whitelist.
+     * The module is unloaded, version not match the requirement or not in pass list.
      */
     public const STATUS_UNLOADED = -1;
 
@@ -57,80 +56,50 @@ class Module
      * Some error cause, the module is not loaded.
      */
     public const STATUS_FAILED = -2;
-    /**
-     * The alias of the module, default as package name
-     *
-     * @var string
-     */
-    private string $alias = '';
-    /**
-     * The API command alias
-     *
-     * @var string
-     */
-    private string $apiAlias = '';
-    /**
-     * The storage of the assets
-     *
-     * @var array
-     */
-    private array $assets = [];
-    /**
-     * The module author
-     *
-     * @var string
-     */
-    private string $author;
+
     /**
      * @var array
      */
     private array $binding = [];
+
     /**
      * @var array
      */
     private array $closures = [];
-    /**
-     * The module code
-     *
-     * @var string
-     */
-    private string $code;
+
     /**
      * The storage of the API commands
      *
      * @var bool[]
      */
     private array $commands = [];
+
     /**
      * The Controller entity
      *
      * @var null|Controller
      */
     private ?Controller $controller = null;
+
     /**
      * The Distributor entity
      *
      * @var Distributor
      */
     private Distributor $distributor;
+
     /**
      * The storage of the events
      *
      * @var bool[]
      */
     private array $events = [];
+
     /**
-     * The module package folder system path
-     *
-     * @var string
+     * @var ModuleInfo
      */
-    private string $modulePath;
-    /**
-     * The package name
-     *
-     * @var string
-     */
-    private string $packageName = '';
+    private ModuleInfo $moduleInfo;
+
     /**
      * The Pilot entity
      *
@@ -139,136 +108,33 @@ class Module
     private Pilot $pilot;
 
     /**
-     * The relative path of the module.
-     *
-     * @var string
-     */
-    private string $relativeModulePath;
-
-    /**
-     * The storage of the required modules
-     *
-     * @var string[]
-     */
-    private array $require = [];
-    /**
-     * Is the module a shared module?
-     *
-     * @var bool
-     */
-    private bool $sharedModule = false;
-    /**
      * The status of the module
      *
      * @var int
      */
     private int $status = self::STATUS_DISABLED;
-    /**
-     * The module version
-     *
-     * @var string
-     */
-    private string $version;
-
-    /**
-     * Is the module's asset link to modules direct via rewrite, false will copy all assets into shared view folder
-     *
-     * @var bool
-     */
-    private bool $shadowAsset = false;
 
     /**
      * Module constructor.
      *
      * @param Distributor $distributor The Distributor instance
      * @param string      $path        The folder path of the Distributor
-     * @param array       $settings    An array of the setting that included from the dist.php
+     * @param string      $version     The specified version to load, leave blank to load default or dev
      * @param bool        $sharedModule
      *
      * @throws Throwable
      */
-    public function __construct(Distributor $distributor, string $path, array $settings, bool $sharedModule = false)
+    public function __construct(Distributor $distributor, string $path, string $version = 'default', bool $sharedModule = false)
     {
-        $this->distributor  = $distributor;
-        $this->modulePath   = $path;
-        $this->sharedModule = $sharedModule;
-        if (preg_match('/^phar:\/\/]/', $this->modulePath)) {
-            $this->relativeModulePath = $path;
-        } else {
-            $this->relativeModulePath = getRelativePath($path, SYSTEM_ROOT);
-        }
+        $this->distributor = $distributor;
+        $this->moduleInfo  = new ModuleInfo($path, $version, $sharedModule);
 
-        if (isset($settings['module_code'])) {
-            if (!is_string($settings['module_code'])) {
-                throw new Error('The module code should be a string');
-            }
-            $code = trim($settings['module_code']);
-
-            if (!preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $code)) {
-                throw new Error('The module code ' . $code . ' is not a correct format, it should be `vendor/package`.');
-            }
-
-            $this->code        = $code;
-            [, $package]       = explode('/', $code);
-            $this->packageName = $package;
-        } else {
-            throw new Error('Missing module code.');
-        }
-
-        $this->version = trim($settings['version'] ?? '');
-        if (!$this->version) {
-            throw new Error('Missing module version.');
-        }
-
-        $this->author = trim($settings['author'] ?? '');
-        if (!$this->author) {
-            throw new Error('Missing module author.');
-        }
-
-        $this->alias = trim($settings['alias'] ?? '');
-        if (empty($this->alias)) {
-            $this->alias = $this->packageName;
-        }
-
-        if (!is_array($settings['assets'] = $settings['assets'] ?? [])) {
-            $settings['assets'] = [];
-        }
-        foreach ($settings['assets'] as $asset => $destPath) {
-            $assetPath = fix_path(append($this->modulePath, $asset), DIRECTORY_SEPARATOR, true);
-            if (false !== $assetPath) {
-                $this->assets[$destPath] = [
-                    'path'        => $asset,
-                    'system_path' => realpath($assetPath),
-                ];
-            }
-        }
-
-        if (!is_array($settings['prerequisite'] = $settings['prerequisite'] ?? [])) {
-            $settings['prerequisite'] = [];
-        }
-        foreach ($settings['prerequisite'] as $package => $version) {
-            if (is_string($package) && is_string($version)) {
-                $this->distributor->prerequisite($package, $version);
-            }
-        }
-
-        $this->apiAlias = trim($settings['api'] ?? '');
-        if (strlen($this->apiAlias) > 0) {
-            if (!preg_match('/^[a-z]\w*$/i', $this->apiAlias)) {
-                throw new Error('Invalid API code format.');
-            }
+        if (strlen($this->moduleInfo->getAPICode()) > 0) {
             $this->distributor->enableAPI($this);
         }
 
-        $this->shadowAsset = !!$settings['shadow_asset'] && !preg_match('/^phar:\/\/]/', $this->modulePath);
-
-        if (isset($settings['require']) && is_array($settings['require'])) {
-            foreach ($settings['require'] as $moduleCode => $version) {
-                $moduleCode = trim($moduleCode);
-                if (preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $moduleCode) && is_string($version)) {
-                    $this->require[$moduleCode] = trim($version);
-                }
-            }
+        foreach ($this->moduleInfo->getPrerequisite() as $package => $pVersion) {
+            $this->distributor->prerequisite($package, $pVersion);
         }
 
         $this->pilot = new Pilot($this);
@@ -327,7 +193,7 @@ class Module
      * Add standard route into the route list, regular expression string supported.
      *
      * @param string $route The path of the route
-     * @param string $path  The path of the closure file of the method name
+     * @param string $path  The path of the closure file by the method name
      *
      * @return $this
      */
@@ -394,7 +260,7 @@ class Module
     /**
      * Execute API command.
      *
-     * @param string $module The request module
+     * @param string $module  The request module
      * @param string $command The API command
      * @param array  $args    The arguments will pass to API command
      *
@@ -409,7 +275,7 @@ class Module
     /**
      * Execute the API command.
      *
-     * @param string $module The request module
+     * @param string $module  The request module
      * @param string $command The API command
      * @param array  $args    The arguments will pass to the API command
      *
@@ -446,11 +312,12 @@ class Module
     public function getClosure(string $path): ?Closure
     {
         $path = tidy($path, false, '/');
+
         if (0 === substr_count($path, '/')) {
             // Root closure function file name should start with the class name
-            $path = $this->getClassName() . '.' . $path;
+            $path = $this->moduleInfo->getClassName() . '.' . $path;
         }
-        $path = append($this->getPath(), 'controller', $path . '.php');
+        $path = append($this->moduleInfo->getPath(), 'controller', $path . '.php');
 
         if (!isset($this->closures[$path])) {
             if (is_file($path)) {
@@ -467,16 +334,6 @@ class Module
     }
 
     /**
-     * Get the module class name.
-     *
-     * @return string
-     */
-    public function getClassName(): string
-    {
-        return $this->packageName;
-    }
-
-    /**
      * Get the module's data folder of the application.
      *
      * @param string $module
@@ -485,24 +342,14 @@ class Module
      */
     public function getDataPath(string $module = ''): string
     {
-        return $this->distributor->getDataPath($module ?? $this->getCode());
-    }
-
-    /**
-     * Get the module file path.
-     *
-     * @return string
-     */
-    public function getPath(): string
-    {
-        return $this->modulePath;
+        return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode());
     }
 
     /**
      * Trigger the event.
      *
      * @param string $event The event name
-     * @param array  $args  The arguments will pass to listener
+     * @param array  $args  The arguments will pass to the listener
      *
      * @return null|mixed
      * @throws Throwable
@@ -525,36 +372,6 @@ class Module
     }
 
     /**
-     * Get the API code.
-     *
-     * @return string
-     */
-    public function getAPICode(): string
-    {
-        return $this->apiAlias;
-    }
-
-    /**
-     * Get the module alias.
-     *
-     * @return string
-     */
-    public function getAlias(): string
-    {
-        return $this->alias;
-    }
-
-    /**
-     * Return the module author.
-     *
-     * @return string
-     */
-    public function getAuthor(): string
-    {
-        return $this->author;
-    }
-
-    /**
      * Get the module bound closure.
      *
      * @param string $method
@@ -564,26 +381,6 @@ class Module
     public function getBinding(string $method): string
     {
         return $this->binding[$method] ?? '';
-    }
-
-    /**
-     * Get the module's relative path
-     *
-     * @return string
-     */
-    public function getRelativeModulePath(): string
-    {
-        return $this->relativeModulePath;
-    }
-
-    /**
-     * Get the module code.
-     *
-     * @return string
-     */
-    public function getCode(): string
-    {
-        return $this->code;
     }
 
     /**
@@ -603,19 +400,9 @@ class Module
      *
      * @return Emitter
      */
-    public function getEmitter(string $moduleCode): \Razy\Emitter
+    public function getEmitter(string $moduleCode): Emitter
     {
         return $this->distributor->createAPI()->request($moduleCode);
-    }
-
-    /**
-     * Get the `require` list of the module.
-     *
-     * @return array
-     */
-    public function getRequire(): array
-    {
-        return $this->require;
     }
 
     /**
@@ -639,16 +426,6 @@ class Module
     }
 
     /**
-     * Check if the module is shadow asset mode.
-     *
-     * @return bool
-     */
-    public function isShadowAsset(): bool
-    {
-        return $this->shadowAsset;
-    }
-
-    /**
      * Get the distributor's request path
      *
      * @return string
@@ -665,7 +442,7 @@ class Module
      */
     public function getBaseURL(): string
     {
-        return tidy(append($this->distributor->getBaseURL(), $this->alias), true, '/');
+        return tidy(append($this->distributor->getBaseURL(), $this->moduleInfo->getAlias()), true, '/');
     }
 
     /**
@@ -697,16 +474,6 @@ class Module
     }
 
     /**
-     * Return the module version.
-     *
-     * @return string
-     */
-    public function getVersion(): string
-    {
-        return $this->version;
-    }
-
-    /**
      * Send a handshake to specified module to determine it is available.
      *
      * @param string $moduleCode
@@ -716,11 +483,12 @@ class Module
      */
     public function handshake(string $moduleCode, string $message = ''): bool
     {
-        return $this->distributor->handshakeTo($moduleCode, $this->code, $this->version, $message);
+        return $this->distributor->handshakeTo($moduleCode, $this->moduleInfo->getCode(), $this->moduleInfo->getVersion(), $message);
     }
 
     /**
-     * Start initial the module. If the controller is missing or the module cannot
+     * Start to initial the module.
+     * If the controller is missing or the module cannot
      * initialize (__onInit event), the module will not add into the loaded module list.
      *
      * @return bool
@@ -732,7 +500,7 @@ class Module
         if (null === $this->controller) {
             // TODO: Require
             // Load the controller
-            $controllerPath = append($this->modulePath, 'controller', $this->packageName . '.php');
+            $controllerPath = append($this->moduleInfo->getPath(), 'controller', $this->moduleInfo->getClassName() . '.php');
 
             if (is_file($controllerPath)) {
                 // Import the anonymous class file.
@@ -742,7 +510,7 @@ class Module
                 $reflected = new ReflectionClass($controller);
 
                 if ($reflected->isAnonymous()) {
-                    // Create controller instance, the routing, event and API will be configured in controller
+                    // Create controller instance, the routing, event and API will be configured in the controller
                     $this->controller = $reflected->newInstance($this);
 
                     // Ensure the controller is inherited by Controller class
@@ -776,17 +544,7 @@ class Module
     }
 
     /**
-     * Return true if the module is a shared module.
-     *
-     * @return bool
-     */
-    public function isShared(): bool
-    {
-        return $this->sharedModule;
-    }
-
-    /**
-     * Start listen the event.
+     * Start to listen to the event.
      *
      * @param string $event The event name
      *
@@ -811,7 +569,7 @@ class Module
      */
     public function loadConfig(): Configuration
     {
-        $path = append(SYSTEM_ROOT, 'config', $this->distributor->getDistCode(), $this->packageName . '.php');
+        $path = append(SYSTEM_ROOT, 'config', $this->distributor->getDistCode(), $this->moduleInfo->getClassName() . '.php');
 
         return new Configuration($path);
     }
@@ -895,7 +653,7 @@ class Module
     }
 
     /**
-     * Touch to inform it has handshake from other module.
+     * Touch to inform it has handshake from another module.
      *
      * @param string $moduleCode
      * @param string $version
@@ -923,48 +681,7 @@ class Module
     }
 
     /**
-     * Unpack the module asset to shared view folder.
-     *
-     * @param string $folder
-     *
-     * @return array
-     */
-    public function unpackAsset(string $folder): array
-    {
-        $unpackedAsset = [];
-        if (empty($this->assets)) {
-            return [];
-        }
-
-        $folder = append(trim($folder), $this->alias);
-        if (!is_dir($folder)) {
-            try {
-                mkdir($folder, 0777, true);
-            } catch (Exception $e) {
-                return [];
-            }
-        }
-
-        foreach ($this->assets as $destPath => $pathInfo) {
-            xcopy($pathInfo['system_path'], append($folder, $destPath), '', $unpacked);
-            $unpackedAsset = array_merge($unpackedAsset, $unpacked);
-        }
-
-        return $unpackedAsset;
-    }
-
-    /**
-     * Return the assets list
-     *
-     * @return array
-     */
-    public function getAssets(): array
-    {
-        return $this->assets;
-    }
-
-    /**
-     * Validate the module is ready to initial, if the event return false, it will put the module into preload list.
+     * Validate the module is ready to initial, if the event return false, it will put the module into a preload list.
      *
      * @return bool
      */
@@ -978,9 +695,9 @@ class Module
     }
 
     /**
-     * Put the callable into the list to wait for execute until other specified modules has ready.
+     * Put the callable into the list to wait for executing until other specified modules has ready.
      *
-     * @param string   $moduleCode
+     * @param string  $moduleCode
      * @param Closure $caller
      *
      * @return $this
@@ -991,5 +708,15 @@ class Module
         $this->distributor->addAwait($moduleCode, $caller);
 
         return $this;
+    }
+
+    /**
+     * Get the ModuleInfo, includes all standalone module's settings and function
+     *
+     * @return ModuleInfo
+     */
+    public function getModuleInfo(): ModuleInfo
+    {
+        return $this->moduleInfo;
     }
 }

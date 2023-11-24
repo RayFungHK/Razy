@@ -70,12 +70,11 @@ class Query
             $result = $this->pdoStatement->fetch(PDO::FETCH_ASSOC);
         }
 
-        if ($this)
         return $result;
     }
 
     /**
-     * Fetch all result.
+     * Fetch all results.
      *
      * @param string $type the type of the result will be returned
      *

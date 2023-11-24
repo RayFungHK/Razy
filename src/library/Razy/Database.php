@@ -25,11 +25,11 @@ class Database
      * @var array
      */
     private static array $instances = [];
+
     /**
-     * The PDO entity
-     * @var PDO
+     * @var PDO|null
      */
-    private PDO $adapter;
+    private ?PDO $adapter = null;
     /**
      * The charset setting of the database connection
      * @var array
@@ -375,8 +375,8 @@ class Database
             $selectColumn = '*';
         }
 
-        $alias = guid(4);
-        $tableName = guid(4);
+        $alias = guid();
+        $tableName = guid();
         $statement = $this->prepare()->select($selectColumn)->from('a.' . $tableName . '-' . $alias . '.' . $tableName . '[' . $binding . ']');
         $statement->alias('latest')->select('MAX(' . $valueColumn . ') as ' . $valueColumn . ', ' . $binding)->from($tableName);
 

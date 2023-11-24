@@ -13,7 +13,6 @@ namespace Razy;
 
 use Throwable;
 use function strlen;
-use const PHP_SAPI;
 
 header_remove('X-Powered-By');
 
@@ -69,7 +68,7 @@ if (php_sapi_name() === 'cli' || defined('STDIN')) {
 
     // Declare `SITE_URL_ROOT`
     $protocol = (is_ssl()) ? 'https' : 'http';
-    define('SITE_URL_ROOT', $protocol . '://' . HOSTNAME . ((PORT !== '80') ? ':' . PORT : ''));
+    define('SITE_URL_ROOT', $protocol . '://' . HOSTNAME . ((PORT != '80') ? ':' . PORT : ''));
 
     // Declare `RAZY_URL_ROOT`
     define('RAZY_URL_ROOT', append(SITE_URL_ROOT, RELATIVE_ROOT));

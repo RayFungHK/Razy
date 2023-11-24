@@ -60,7 +60,7 @@ if (WEB_MODE) {
 
                     exit;
                 }
-                // Remove -f and its value in the arguments list
+                // Remove -f and its value in the argument list
                 unset($argv[$index], $argv[$index + 1]);
             } elseif ('-' == $arg[0]) {
                 $name  = substr($arg, 1);
@@ -91,6 +91,7 @@ if (WEB_MODE) {
                 $closure = include $closureFilePath;
                 (new Terminal($command))->run($closure, $argv, $parameters);
             } catch (Throwable $e) {
+                echo PHP_EOL . Terminal::COLOR_RED . $e->getMessage() . Terminal::COLOR_DEFAULT . PHP_EOL;
             }
 
             return true;

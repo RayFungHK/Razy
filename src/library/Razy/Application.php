@@ -102,7 +102,6 @@ class Application
             }
             $this->peer = $peer;
         }
-
         if (!empty($fqdn)) {
             if (($this->domain = $this->matchDomain($fqdn)) === null) {
                 throw new Error('No domain is matched.');
@@ -134,9 +133,9 @@ class Application
      */
     private function matchDomain(string $fqdn): ?Domain
     {
-        [$domain, $port] = explode(':', $fqdn, 2);
+        [$domain,] = explode(':', $fqdn, 2);
 
-        // Get the path value from the multisite and alias list by th current domain
+        // Get the path value from the multisite and alias list by the current domain
         if (array_key_exists($fqdn, self::$multisite)) {
             return new Domain($this, $fqdn, '', self::$multisite[$fqdn]);
         }
@@ -183,6 +182,14 @@ class Application
     }
 
     /**
+     * @return Distributor
+     */
+    public static function GetDistributorByName(string $dist): ?Distributor
+    {
+        return self::$registeredDist[$dist] ?? null;
+    }
+
+    /**
      * Unpack the distributor asset to the shared view.
      *
      * @param string  $code
@@ -207,7 +214,7 @@ class Application
     }
 
     /**
-     * Check if the distributor is exists by given distributor code.
+     * Check if the distributor is existing by given distributor code.
      *
      * @param string $code
      *
@@ -228,7 +235,7 @@ class Application
      */
     private static function CreateDistributor(array &$distInfo)
     {
-        $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path']);
+        $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path'], $distInfo['distributor_alias']);
 
         return $distInfo['entity'];
     }
@@ -273,6 +280,7 @@ class Application
                     foreach ($pathSet as $urlPath => $distPath) {
                         // Validate the distributor directory has the configuration file
                         ($validate = function ($distPath, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
+                            [$distPath, $alias] = explode('@', $distPath);
                             if (is_string($distPath)) {
                                 // Check the distributor config first
                                 $configFile = append(SITES_FOLDER, $distPath, 'dist.php');
@@ -285,21 +293,23 @@ class Application
                                         if (is_array($distConfig) && is_string($distConfig['dist'])) {
                                             $distConfig['dist'] = trim($distConfig['dist']);
                                             if ($distConfig['dist']) {
+                                                $distIdentify = $distConfig['dist'] . ($alias ? '@' . $alias : '');
                                                 // Distributor should be unique, if the distribution code has been used, throw an error
-                                                if (isset(self::$registeredDist[$distConfig['dist']])) {
-                                                    throw new Error($distConfig['dist'] . ' has been declared already, please ensure the distributor code is not duplicated.');
+                                                if (isset(self::$registeredDist[$distIdentify])) {
+                                                    throw new Error($distIdentify . ' has been declared already, please ensure the distributor code is not duplicated.');
                                                 }
 
                                                 // Declare an array if the domain is not existed
                                                 self::$multisite[$domain] = self::$multisite[$domain] ?? [];
 
-                                                self::$multisite[$domain][$urlPath] = $distPath;
+                                                self::$multisite[$domain][$urlPath] = $distIdentify;
 
-                                                self::$registeredDist[$distConfig['dist']] = [
-                                                    'distributor_path' => $distPath,
-                                                    'url_path'         => $urlPath,
-                                                    'domain'           => $domain,
-                                                    'alias'            => $aliasMapping[$domain] ?? [],
+                                                self::$registeredDist[$distIdentify] = [
+                                                    'distributor_path'  => $distPath,
+                                                    'distributor_alias' => $alias ?: '*',
+                                                    'url_path'          => $urlPath,
+                                                    'domain'            => $domain,
+                                                    'alias'             => $aliasMapping[$domain] ?? [],
                                                 ];
                                             }
                                         }
@@ -415,39 +425,16 @@ class Application
                     if (!preg_match('/:\d+$/', $domain)) {
                         $domain .= '(:\d+)?';
                     }
-                    $distributor  = new Distributor($info['distributor_path']);
-                    $modules      = $distributor->getAllModules();
-                    $moduleAssets = [];
-
+                    $distributor = new Distributor($info['distributor_path'], $info['distributor_alias']);
+                    $modules     = $distributor->getAllModules();
                     foreach ($modules as $module) {
-                        $moduleAssets[$module->getClassName()] = [
-                            'assets' => $module->getAssets(),
-                            'module_path' => ($module->isShadowAsset()) ? $module->getRelativeModulePath() : 'view/' . $distCode . '/',
-                        ];
-                    }
-
-                    foreach ($moduleAssets as $packageName => $data) {
-                        foreach ($data['assets'] as $destPath => $pathInfo) {
-                            $rootBlock->newBlock('rewrite')->assign([
-                                'domain'     => $domain,
-                                'dist_path'  => ltrim(tidy(append($data['module_path'], $pathInfo['path']), false), '/'),
-                                'route_path' => trim($info['url_path'], '/'),
-                                'mapping'    => $packageName . '/' . $destPath,
-                            ]);
-                        }
-
-                        if (count($info['alias'])) {
-                            foreach ($info['alias'] as $alias) {
-                                foreach ($data['assets'] as $destPath => $pathInfo) {
-                                    $rootBlock->newBlock('rewrite')->assign([
-                                        'domain'     => preg_quote($alias),
-                                        'dist_path'  => ltrim(tidy(append($data['module_path'], $pathInfo['path']), false), '/'),
-                                        'route_path' => trim($info['url_path'], '/'),
-                                        'mapping'    => $packageName . '/' . $destPath,
-                                    ]);
-                                }
-                            }
-                        }
+                        $moduleInfo = $module->getModuleInfo();
+                        $rootBlock->newBlock('rewrite')->assign([
+                            'domain'     => $domain,
+                            'dist_path'  => ltrim(tidy(append($moduleInfo->getContainerPath(true), '$1', 'webassets', '$2')), '/'),
+                            'route_path' => trim($info['url_path'], '/'),
+                            'mapping'    => $moduleInfo->getClassName(),
+                        ]);
                     }
                 }
 
@@ -527,11 +514,11 @@ class Application
                 ];
                 foreach ($modules as $module) {
                     $info[] = [
-                        $module->getCode(),
-                        $status[$module->getStatus()],
-                        $module->getVersion(),
-                        $module->getAuthor(),
-                        $module->getAPICode(),
+                        $module->getModuleInfo()->getCode(),
+                        $status[$module->getModuleInfo()->getStatus()],
+                        $module->getModuleInfo()->getVersion(),
+                        $module->getModuleInfo()->getAuthor(),
+                        $module->getModuleInfo()->getAPICode(),
                     ];
                 }
 
@@ -561,7 +548,7 @@ class Application
         $fqdn                = tidy($fqdn, true, '/');
         [$domain, $urlQuery] = explode('/', $fqdn, 2);
 
-        // If the domain is not matched or other error occurred, return null
+        // If the domain is not matched or another error occurred, return null
         try {
             $app = new self($domain, $this);
         } catch (Exception $e) {
@@ -587,7 +574,7 @@ class Application
     }
 
     /**
-     * Start query the distributor by the URL query.
+     * Start to query the distributor by the URL query.
      *
      * @param string $urlQuery The URL query string
      * @param bool   $exactly  Match the Distributor path exactly

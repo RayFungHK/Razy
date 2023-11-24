@@ -220,7 +220,6 @@ class Statement
      * @param string $syntax A well formatted TableJoin Simple Syntax
      *
      * @return $this
-     * @throws Error
      */
     public function from(string $syntax): Statement
     {
@@ -294,7 +293,9 @@ class Statement
                 $sql .= ' ORDER BY ' . implode(', ', $this->orderby);
             }
 
-            if ($this->fetchLength > 0) {
+            if ($this->fetchLength == 0 && $this->position > 0) {
+                $sql .= ' LIMIT ' . $this->position;
+            } elseif ($this->fetchLength > 0) {
                 $sql .= ' LIMIT ' . $this->position . ', ' . $this->fetchLength;
             }
 
@@ -543,11 +544,12 @@ class Statement
      * @param array  $parameters An array contains the parameter
      * @param string $column     The key of the group result
      * @param bool   $stackable  Group all result with same column into an array
+     * @param string $stackColumn The key of the stacked result
      *
-     * @return array Return an array of result
+     * @return array
      * @throws Throwable
      */
-    public function &lazyGroup(array $parameters = [], string $column = '', bool $stackable = false): array
+    public function &lazyGroup(array $parameters = [], string $column = '', bool $stackable = false, string $stackColumn = ''): array
     {
         $result = [];
         $query  = $this->query($parameters);
@@ -564,7 +566,12 @@ class Statement
                     if (!isset($result[$row[$column]])) {
                         $result[$row[$column]] = [];
                     }
-                    $result[$row[$column]][] = $row;
+
+                    if (!$stackColumn || !array_key_exists($stackColumn, $row)) {
+                        $result[$row[$column]][] = $row;
+                    } else {
+                        $result[$row[$column]][$row[$stackColumn]] = $row;
+                    }
                 } else {
                     $result[$row[$column]] = $row;
                 }
@@ -749,7 +756,6 @@ class Statement
      * @param string $syntax The well formatted Where Simple Syntax
      *
      * @return Statement
-     * @throws Error
      */
     public function where(string $syntax): Statement
     {

@@ -32,6 +32,10 @@ class Distributor
      */
     private array $APIModules = [];
     /**
+     * @var string
+     */
+    private string $identifier;
+    /**
      * The storage of the await function
      *
      * @var array
@@ -132,17 +136,20 @@ class Distributor
      * Distributor constructor.
      *
      * @param string      $folderPath The folder path of the distributor
+     * @param string      $identifier The distributor identifier
      * @param null|Domain $domain     The Domain Instance
      * @param string      $urlPath    The URL path of the distributor
      * @param string      $urlQuery   The URL Query string
      *
      * @throws Throwable
      */
-    public function __construct(string $folderPath, ?Domain $domain = null, string $urlPath = '', string $urlQuery = '/')
+    public function __construct(string $folderPath, string $identifier = '*', ?Domain $domain = null, string $urlPath = '', string $urlQuery = '/')
     {
         $this->folderPath = append(SITES_FOLDER, $folderPath);
+        $this->identifier = $identifier;
         $this->urlPath    = $urlPath;
         $this->urlQuery   = tidy($urlQuery, false, '/');
+
         if (!$this->urlQuery) {
             $this->urlQuery = '/';
         }
@@ -168,14 +175,14 @@ class Distributor
 
         // Not allow calling API if it has no domain
         if ($this->domain) {
-            // If this distributor is accessed by internal API call, check the whitelist
+            // If this distributor is accessed by internal API call, check the pass list
             if (($peer = $this->domain->getPeer()) !== null) {
                 // Remove self
                 array_pop(self::$stacking);
 
                 $peerDomain       = $peer->getDomain()->getDomainName();
                 $acceptConnection = false;
-                // Load the external config in data path by its distribution folder: $this->getDataPath()
+                // Load the external config in a data path by its distribution folder: $this->getDataPath()
                 foreach ($config['whitelist'] ?? [] as $whitelist) {
                     if (is_fqdn($whitelist)) {
                         if ('*' === $whitelist) {
@@ -203,11 +210,13 @@ class Distributor
 
         $config['enable_module'] = $config['enable_module'] ?? [];
         if (is_array($config['enable_module'])) {
-            foreach ($config['enable_module'] as $moduleCode => $version) {
-                $moduleCode = trim($moduleCode);
-                $version    = trim($version);
-                if (strlen($moduleCode) > 0 && strlen($version) > 0) {
-                    $this->enableModules[$moduleCode] = $version;
+            if (isset($config['enable_module'][$this->identifier])) {
+                foreach ($config['enable_module'][$this->identifier] as $moduleCode => $version) {
+                    $moduleCode = trim($moduleCode);
+                    $version    = trim($version);
+                    if (strlen($moduleCode) > 0 && strlen($version) > 0) {
+                        $this->enableModules[$moduleCode] = $version;
+                    }
                 }
             }
         }
@@ -222,13 +231,14 @@ class Distributor
 
         if ($config['autoload_shared']) {
             // Load shared modules into the pending list
-            $this->loadSharedModule(append(SHARED_FOLDER, 'module'));
+            $this->loadModule(append(SHARED_FOLDER, 'module'), true);
         }
+
 
         // Initialize all modules in the pending list
         foreach ($this->modules as $module) {
-            // Check the module is in enable list and activate it
-            if ((!$this->greedy && !array_key_exists($module->getCode(), $this->enableModules)) || !$this->activate($module)) {
+            // Check the module is in an enabled list and activate it
+            if ((!$this->greedy && !array_key_exists($module->getModuleInfo()->getCode(), $this->enableModules)) || !$this->activate($module)) {
                 $module->unload();
             } else {
                 $module->ready();
@@ -238,12 +248,13 @@ class Distributor
         $preloadQueue = [];
         // Validate all modules
         foreach ($this->modules as $module) {
-            if (!$module->validate()) {
+            if ($module->getStatus() !== MODULE::STATUS_UNLOADED && !$module->validate()) {
                 $preloadQueue[] = $module;
             }
         }
 
-        // Preload all modules, if the module preload event return false, the preload queue will stop and not enter the routing stage.
+        // Preload all modules, if the module preloads event return false,
+        // the preload queue will stop and not enter the routing stage.
         $readyToRoute = true;
         if (!empty($preloadQueue)) {
             foreach ($preloadQueue as $module) {
@@ -258,15 +269,18 @@ class Distributor
         // If the distributor is under a domain, initial all modules.
         if ($this->domain) {
             foreach ($this->modules as $module) {
-                // Notify module that the system is ready
-                $module->notify();
-                if (isset($this->awaitList[$module->getCode()])) {
-                    foreach ($this->awaitList[$module->getCode()] as $index => &$await) {
-                        unset($await['required'][$module->getCode()]);
-                        if (count($await['required']) === 0) {
-                            // If all required module has ready, execute the await function immediately
-                            $await['caller']();
-                            unset($this->awaitList[$module->getCode()][$index]);
+                if ($module->getStatus() === MODULE::STATUS_READY) {
+                    // Notify module that the system is ready
+                    $module->notify();
+                    $moduleCode = $module->getModuleInfo()->getCode();
+                    if (isset($this->awaitList[$moduleCode])) {
+                        foreach ($this->awaitList[$moduleCode] as $index => &$await) {
+                            unset($await['required'][$moduleCode]);
+                            if (count($await['required']) === 0) {
+                                // If all required modules have ready, execute the await function immediately
+                                $await['caller']();
+                                unset($this->awaitList[$moduleCode][$index]);
+                            }
                         }
                     }
                 }
@@ -311,7 +325,7 @@ class Distributor
      */
     public function getDistCode(): string
     {
-        return $this->code;
+        return $this->code . ($this->identifier !== '*' ? '@' . $this->identifier : '');
     }
 
     /**
@@ -319,121 +333,58 @@ class Distributor
      *
      * @param string $path The path of the module folder
      *
+     * @throws Error
      * @throws Throwable
      */
-    private function loadModule(string $path): void
+    private function loadModule(string $path, bool $loadShared = false): void
     {
         $path = tidy($path, true);
         if (!is_dir($path)) {
             return;
         }
 
-        foreach (scandir($path) as $node) {
-            if ('.' === $node || '..' === $node) {
+        foreach (scandir($path) as $vendor) {
+            if ('.' === $vendor || '..' === $vendor) {
                 continue;
             }
 
-            // Get the module path
-            $modulePath = append($path, $node);
-
-            if (is_dir($modulePath)) {
-                if (is_file(append($modulePath, 'dist.php'))) {
-                    // Do not scan the folder if it contains a distributor config file
-                    continue;
-                }
-
-                if (!$this->createModule($modulePath)) {
-                    $this->loadModule($modulePath);
-                }
-            } elseif (is_file($modulePath)) {
-                // If the module is a phar file
-                if (preg_match('/\.phar$/', $modulePath)) {
-                    try {
-                        $hash = md5($modulePath);
-                        Phar::loadPhar($modulePath, $hash . '.phar');
-                        $this->createModule('phar://' . $hash . '.phar');
-                    } catch (PharException $e) {
+            // Get the author's folder path
+            $authorFolder = append($path, $vendor);
+            if (is_dir($authorFolder)) {
+                foreach (scandir($authorFolder) as $packageName) {
+                    if ('.' === $packageName || '..' === $packageName) {
+                        continue;
                     }
-                }
-            }
-        }
-    }
 
-    /**
-     * Create the Module entity from the package folder or a .phar file.
-     *
-     * @param string $path
-     *
-     * @return bool
-     * @throws Error
-     * @throws Throwable
-     */
-    private function createModule(string $path): bool
-    {
-        $configFile = append($path, 'package.php');
-        if (is_file($configFile)) {
-            // Create Module entity if the folder contains module config file
-            try {
-                $module = new Module($this, $path, require $configFile);
-
-                if (!isset($this->modules[$module->getCode()])) {
-                    $this->modules[$module->getCode()] = $module;
-                } else {
-                    throw new Error('Duplicated module loaded, module load abort.');
-                }
-            } catch (Exception $e) {
-                throw new Error('Unable to load the module.');
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Load the module from the shared folder.
-     *
-     * @param string $path The path of the shared module folder
-     *
-     * @throws Throwable
-     */
-    private function loadSharedModule(string $path): void
-    {
-        if (!is_dir($path)) {
-            return;
-        }
-
-        foreach (scandir($path) as $node) {
-            if ('.' === $node || '..' === $node) {
-                continue;
-            }
-
-            // Get the module path
-            $folder = append($path, $node);
-
-            if (is_dir($folder)) {
-                $configFile = append($folder, 'package.php');
-                if (is_file($configFile)) {
-                    // Load the module if it is not exists in distributor
-                    try {
-                        $module = new Module($this, $folder, require $configFile, true);
-
-                        if (!isset($this->modules[$module->getCode()])) {
-                            $this->modules[$module->getCode()] = $module;
+                    $namespace     = $vendor . '/' . $packageName;
+                    $packageFolder = append($authorFolder, $packageName);
+                    if (is_dir($packageFolder)) {
+                        $version = 'default';
+                        if (isset($this->enableModules[$namespace])) {
+                            $version = $this->enableModules[$namespace];
                         }
-                    } catch (Exception $e) {
-                        throw new Error('Unable to load the module.');
+
+                        try {
+                            $module = new Module($this, $packageFolder, $version, $loadShared);
+
+                            if (!isset($this->modules[$module->getModuleInfo()->getCode()])) {
+                                $this->modules[$module->getModuleInfo()->getCode()] = $module;
+                            } else {
+                                throw new Error('Duplicated module loaded, module load abort.');
+                            }
+                        } catch (Exception $e) {
+                            echo $e;
+                            exit;
+                            throw new Error('Unable to load the module.');
+                        }
                     }
-                } else {
-                    $this->loadSharedModule($folder);
                 }
             }
         }
     }
 
     /**
-     * Start activate the module.
+     * Start to activate the module.
      *
      * @param Module $module
      *
@@ -442,7 +393,7 @@ class Distributor
      */
     private function activate(Module $module): bool
     {
-        $requireList = $module->getRequire();
+        $requireList = $module->getModuleInfo()->getRequire();
         foreach ($requireList as $moduleCode => $version) {
             $reqModule = $this->modules[$moduleCode] ?? null;
             if (!$reqModule) {
@@ -517,8 +468,9 @@ class Distributor
             $className  = $matches[2];
             // Try to load the class from the module library
             if (isset($this->modules[$moduleCode])) {
-                $module = $this->modules[$moduleCode];
-                $path   = append($module->getPath(), 'library');
+                $module     = $this->modules[$moduleCode];
+                $moduleInfo = $module->getModuleInfo();
+                $path       = append($moduleInfo->getPath(), 'library');
                 if (is_dir($path)) {
                     $libraryPath = append($path, $className . '.php');
                     if (is_file($libraryPath)) {
@@ -541,7 +493,7 @@ class Distributor
     }
 
     /**
-     * Check if the distributor allow load the module in shared folder.
+     * Check if the distributor allows loading the module in shared folder.
      *
      * @return bool
      */
@@ -597,8 +549,8 @@ class Distributor
      */
     public function enableAPI(Module $module): self
     {
-        if (strlen($module->getAPICode()) > 0) {
-            $this->APIModules[$module->getAPICode()] = $module;
+        if (strlen($module->getModuleInfo()->getAPICode()) > 0) {
+            $this->APIModules[$module->getModuleInfo()->getAPICode()] = $module;
         }
 
         return $this;
@@ -633,10 +585,7 @@ class Distributor
      */
     public function getDataPath(string $module = ''): string
     {
-        if (isset($this->modules[$module])) {
-            return append(DATA_FOLDER, $this->getIdentity(), $module);
-        }
-        return '';
+        return append(DATA_FOLDER, $this->getIdentity(), $module);
     }
 
     /**
@@ -762,7 +711,7 @@ class Distributor
                             $this->routedInfo = [
                                 'url_query'    => $this->urlQuery,
                                 'route'        => $data['route'],
-                                'module'       => $module->getCode(),
+                                'module'       => $module->getModuleInfo()->getCode(),
                                 'closure_path' => $data['path'],
                                 'arguments'    => $args,
                             ];
@@ -791,7 +740,7 @@ class Distributor
                             $this->routedInfo = [
                                 'url_query'    => $this->urlQuery,
                                 'route'        => $route,
-                                'module'       => $module->getCode(),
+                                'module'       => $module->getModuleInfo()->getCode(),
                                 'closure_path' => $data['path'],
                                 'arguments'    => $matches,
                                 'last'         => '',
@@ -826,7 +775,7 @@ class Distributor
                             $this->routedInfo = [
                                 'url_query'    => $this->urlQuery,
                                 'route'        => $data['route'],
-                                'module'       => $module->getCode(),
+                                'module'       => $module->getModuleInfo()->getCode(),
                                 'closure_path' => $data['path'],
                                 'arguments'    => $args,
                             ];
@@ -844,7 +793,7 @@ class Distributor
     }
 
     /**
-     * Put the current distributor into stacking list.
+     * Put the current distributor into a stacking list.
      *
      * @return $this
      */
@@ -865,14 +814,14 @@ class Distributor
         if ($this->domain) {
             foreach ($this->modules as $module) {
                 if (Module::STATUS_LOADED === $module->getStatus()) {
-                    $module->standby($target->getCode());
+                    $module->standby($target->getModuleInfo()->getCode());
                 }
             }
         }
     }
 
     /**
-     * Get the prerequisites list from all modules.
+     * Get the prerequisite list from all modules.
      *
      * @param string $package
      * @param string $version
@@ -930,7 +879,7 @@ class Distributor
      */
     public function setLazyRoute(Module $module, string $route, string $path): self
     {
-        $this->lazyRoute['/' . tidy(append($module->getAlias(), $route), true, '/')] = [
+        $this->lazyRoute['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
             'module' => $module,
             'path'   => $path,
             'route'  => $route,
@@ -941,7 +890,7 @@ class Distributor
 
     public function registerScript(Module $module, string $route, string $path): self
     {
-        $this->registeredScript['/' . tidy(append($module->getAlias(), $route), true, '/')] = [
+        $this->registeredScript['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
             'module' => $module,
             'path'   => $path,
             'route'  => $route,
@@ -979,9 +928,10 @@ class Distributor
     {
         $unpackedCount = 0;
         foreach ($this->modules as $module) {
-            if (!$module->isShadowAsset()) {
-                $unpacked = $module->unpackAsset(append(SYSTEM_ROOT, 'view', $this->code));
-                $closure($module->getCode(), $unpacked);
+            $moduleInfo = $module->getModuleInfo();
+            if (!$moduleInfo->isShadowAsset()) {
+                $unpacked = $moduleInfo->cloneAsset(append(SYSTEM_ROOT, 'view', $this->code));
+                $closure($moduleInfo->getCode(), $unpacked);
                 $unpackedCount += count($unpacked);
             }
         }
@@ -1015,7 +965,7 @@ class Distributor
     }
 
     /**
-     * Put the callable into the list to wait for execute until other specified modules has ready.
+     * Put the callable into the list to wait for executing until other specified modules has ready.
      *
      * @param string  $moduleCode
      * @param Closure $caller
@@ -1026,7 +976,7 @@ class Distributor
     {
         $entity = [
             'required' => [],
-            'caller'   => $caller
+            'caller'   => $caller,
         ];
 
         $clips = explode(',', $moduleCode);

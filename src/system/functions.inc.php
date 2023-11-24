@@ -23,7 +23,7 @@ use Exception;
  */
 function is_fqdn(string $domain, bool $withPort = false): bool
 {
-    return 1 === preg_match('/^(?:(?:(?:[a-z\d[\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((25[0-5]|2[0-4]\d1]?\d)(\.|$)){4})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
+    return 1 === preg_match('/^(?:(?:(?:[a-z\d[\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((?:2[0-4]|1\d|[1-9])?\d|25[0-5])(?:\.(?-1)){3})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
 }
 
 /**
@@ -130,7 +130,6 @@ function versionStandardize(string $version, bool $wildcard = false)
  * @param string $version The version number
  *
  * @return bool Return true if the version is meet requirement
- * @throws Error
  *
  */
 function vc(string $requirement, string $version): bool
@@ -331,10 +330,10 @@ function ipInRange(string $ip, string $cidr): bool
     }
 
     [$range, $netmask] = explode('/', $cidr, 2);
-    $rangeDecimal          = ip2long($range);
-    $ipDecimal             = ip2long($ip);
-    $wildcardDecimal       = pow(2, (32 - $netmask)) - 1;
-    $netmaskDecimal        = ~$wildcardDecimal;
+    $rangeDecimal      = ip2long($range);
+    $ipDecimal         = ip2long($ip);
+    $wildcardDecimal   = pow(2, (32 - $netmask)) - 1;
+    $netmaskDecimal    = ~$wildcardDecimal;
     return (($ipDecimal & $netmaskDecimal) === ($rangeDecimal & $netmask_decimal));
 }
 
@@ -677,7 +676,7 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
     if (is_file($source)) {
         if (substr($dest, -1) !== '/') {
             $fileName = substr($dest, strrpos($dest, '/') + 1);
-            $dest = substr($dest, 0, strrpos($dest, '/'));
+            $dest     = substr($dest, 0, strrpos($dest, '/'));
         }
     }
 
@@ -781,4 +780,38 @@ function getFutureWeekday(string $startDate, int $numberOfDays, array $holidays 
         } while (isset($holidays[$date]));
     }
     return $date ?? $startDate;
+}
+
+/**
+ * Compare two dates and return the weekday different.
+ *
+ * @param string|null $startDate
+ * @param string|null $endDate
+ * @param array       $holidays
+ *
+ * @return int
+ * @throws Exception
+ */
+function getWeekdayDiff(?string $startDate = '', ?string $endDate = '', array $holidays = []): int
+{
+    $holidays = array_fill_keys($holidays, true);
+    $datetime = $startDate ? new DateTime($startDate) : new DateTime('now');
+    $endDate  = $endDate ? new DateTime($endDate) : new DateTime('now');
+
+    $days = 0;
+    $adj  = ($datetime < $endDate) ? 1 : -1;
+
+    if ($datetime > $endDate) {
+        [$datetime, $endDate] = [$endDate, $datetime];
+    }
+
+    while ($datetime->diff($endDate)->days > 0) {
+        do {
+            $days++;
+            $datetime->modify('+1 weekday');
+            $date = $datetime->format('Y-m-d');
+        } while (isset($holidays[$date]));
+    }
+
+    return $days * $adj;
 }
