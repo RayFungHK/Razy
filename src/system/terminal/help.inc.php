@@ -19,7 +19,8 @@ return function () {
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'pack', 'Pack the Razy.phar and others modules and plugins into a phar file.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'link', 'Add an alias to specified site.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'unlink', 'Remove an alias.' . PHP_EOL));
-    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'unpackasset', 'Unpack all modules asset under the distributor.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'rewrite', 'Update the .htaccess rewrite.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'commit', 'Commit a version for specified module'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', '-f', 'The folder which is installed the Razy framework.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', '-debug', 'Enable logging and save the log to a file.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', '-p', 'The file or directory to save the log to.'));

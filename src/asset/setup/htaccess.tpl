@@ -6,7 +6,7 @@ RewriteRule ^\w+/shared/(.*)$ shared/$1 [L]
 # Rewrite the distributor asset location
 <!-- START BLOCK: rewrite -->
 RewriteCond %{HTTP_HOST} ^{$domain}$
-RewriteRule ^{$route_path}/view/{$mapping}(.*)$ {$dist_path}$1 [L]
+RewriteRule ^{$route_path}/webassets/{$mapping}/(.+?)/(.+)$ {$dist_path} [L]
 <!-- END BLOCK: rewrite -->
 
 RewriteCond $0#%{REQUEST_URI} ^([^#]*)#(.*)\1$
