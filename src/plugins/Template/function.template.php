@@ -10,26 +10,28 @@
  */
 
 use Razy\Template\Block;
-use Razy\Template\Plugin\Container;
+use Razy\Template\Entity;
+use Razy\Template\Plugin\TFunction;
 
-return [
-    'enclose_content'    => false,
-    'bypass_parser'      => false,
-    'extended_parameter' => true,
-    'parameters'         => [],
-    'processor'          => function (Container $container) {
-        $parameters = $container->getParameters();
-        $arguments  = $container->getArguments();
+return new class() extends TFunction
+{
+    protected bool $extendedParameter = true;
+    protected array $allowedParameters = [
+        'length' => 1,
+    ];
+
+    #[Override] public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
+    {
         $tplName    = $arguments[0] ?? '';
 
         if (!$tplName) {
             return '';
         }
-        $template = $this->getTemplate($tplName);
+        $template = $entity->getTemplate($tplName);
         if (!($template instanceof Block)) {
             return '';
         }
 
         return $template->newEntity()->assign($parameters)->process();
-    },
-];
+    }
+};

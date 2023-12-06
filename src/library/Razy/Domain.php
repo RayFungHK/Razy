@@ -142,7 +142,7 @@ class Domain
             foreach ($this->path as $urlPath => $folderPath) {
                 [$distCode, $alias] = explode('@', $folderPath);
                 $urlPath = tidy($urlPath, true, '/');
-                if (($exactly && $urlPath === $urlQuery) || 0 === strpos($urlQuery, $urlPath)) {
+                if (($exactly && $urlPath === $urlQuery) || str_starts_with($urlQuery, $urlPath)) {
                     return $this->distributor = new Distributor(tidy($distCode, true), $alias ?? '*', $this, $urlPath, substr($urlQuery, strlen($urlPath) - 1));
                 }
             }

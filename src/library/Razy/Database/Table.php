@@ -466,13 +466,8 @@ class Table
     {
         $config     = '`' . $this->name . '`';
         $parameters = [];
-        foreach (['charset', 'collation'] as $method) {
-            if ('charset' == $method) {
-                $parameters[] = 'charset(' . $this->charset . ')';
-            } elseif ('collation' == $method) {
-                $parameters[] = 'collation(' . $this->collation . ')';
-            }
-        }
+        $parameters[] = 'charset(' . $this->charset . ')';
+        $parameters[] = 'collation(' . $this->collation . ')';
         if (!empty($parameters)) {
             $config .= '=' . implode(',', $parameters);
         }

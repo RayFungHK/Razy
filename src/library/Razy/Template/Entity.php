@@ -13,6 +13,8 @@ namespace Razy\Template;
 
 use Closure;
 use Razy\Error;
+use Razy\Template\Plugin\TFunction;
+use Razy\Template\Plugin\TFunctionCustom;
 use Throwable;
 
 /**
@@ -81,12 +83,12 @@ class Entity
      * Assign the entity level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value     The parameter value
+     * @param mixed|null $value     The parameter value
      *
      * @return self Chainable
      * @throws Throwable
      */
-    public function assign($parameter, $value = null): Entity
+    public function assign(mixed $parameter, mixed $value = null): Entity
     {
         if (is_array($parameter)) {
             foreach ($parameter as $index => $value) {
@@ -115,7 +117,7 @@ class Entity
      * @return $this
      * @throws Throwable
      */
-    public function bind(string $parameter, &$value): Entity
+    public function bind(string $parameter, mixed &$value): Entity
     {
         $this->parameters[$parameter] = &$value;
 
@@ -182,8 +184,6 @@ class Entity
             /** @var Entity $entity */
             foreach ($entities as $entity) {
                 if (!($entity instanceof Entity)) {
-                    var_dump(gettype($entity));
-
                     exit;
                 }
                 if (!$entity->hasBlock($matches[1])) {
@@ -215,11 +215,11 @@ class Entity
     }
 
     /**
-     * Check if the sub block is exists by given name.
+     * Check if the sub block is existing by given name.
      *
      * @param string $blockName The block name under current block level
      *
-     * @return bool Return true id the block is exists
+     * @return bool Return true id the block is existing
      */
     public function hasBlock(string $blockName): bool
     {
@@ -230,9 +230,9 @@ class Entity
      * Get specify entity by the given block name and identity.
      *
      * @param string $blockName The block name to obtain its entity
-     * @param string $identity  The identity of the entity
+     * @param string $identity The identity of the entity
      *
-     * @return Entity A sub-block Entity
+     * @return Entity|null A sub-block Entity
      */
     public function getEntity(string $blockName, string $identity): ?Entity
     {
@@ -445,13 +445,13 @@ class Entity
     /**
      * Parse the function tag if the specified plugin is loaded.
      *
-     * @param string      $content   A clip of block content
-     * @param null|Plugin $enclosure The enclosure Plugin instance
-     *
+     * @param string $content A clip of block content
+     * @param TFunction|TFunctionCustom|null $enclosure
      * @return string The block content which has replaced the function tag
+     * @throws Error
      * @throws Throwable
      */
-    private function parseFunctionTag(string &$content, Plugin $enclosure = null): string
+    private function parseFunctionTag(string &$content, TFunction|TFunctionCustom|null $enclosure = null): string
     {
         $stacking = [];
         $result   = '';
@@ -477,7 +477,7 @@ class Entity
                 $result .= $matches[0][0];
                 if (!$isClosingTag) {
                     $plugin = $this->block->loadPlugin('function', $functionName);
-                    if (null !== $plugin && $plugin->isLoaded() && $plugin->isEnclose()) {
+                    if ($plugin && $plugin->isEncloseContent()) {
                         $stacking[] = $functionName;
                     }
                 } elseif ($functionName === end($stacking)) {
@@ -485,18 +485,19 @@ class Entity
                 }
             } else {
                 $plugin = $this->block->loadPlugin('function', $functionName);
-                if (null !== $plugin && $plugin->isLoaded()) {
-                    if ($plugin->isEnclose()) {
+
+                if ($plugin) {
+                    if ($plugin->isEncloseContent()) {
                         $wrapped = '';
 
-                        if (false !== strpos($content, '{/' . $matches[1][0] . '}')) {
+                        if (str_contains($content, '{/' . $matches[1][0] . '}')) {
                             $wrapped = $this->parseFunctionTag($content, $plugin);
-                            $wrapped = $plugin->process($this, $matches[2][0] ?? '', $wrapped);
+                            $wrapped = $plugin->parse($this, $matches[2][0] ?? '', $wrapped);
                         }
 
                         $result .= $wrapped;
                     } else {
-                        $result .= $plugin->process($this, $matches[2][0] ?? '');
+                        $result .= $plugin->parse($this, $matches[2][0] ?? '');
                     }
                 } else {
                     $result .= $matches[0][0];
@@ -515,7 +516,7 @@ class Entity
      * @return mixed The value of the parameter
      * @throws Throwable
      */
-    public function parseValue(string $content)
+    public function parseValue(string $content): mixed
     {
         $content = trim($content);
         if (0 == strlen($content)) {
@@ -546,7 +547,7 @@ class Entity
      * @return null|mixed
      * @throws Throwable
      */
-    private function parseParameter(string $name, string $path = '', string $modifier = '')
+    private function parseParameter(string $name, string $path = '', string $modifier = ''): mixed
     {
         // Load the cached value by the parameter name and its path.
         if (!isset($this->caches[$name][$path])) {
@@ -604,7 +605,7 @@ class Entity
      *
      * @return mixed The parameter value
      */
-    public function getValue(string $parameter, bool $recursion = false)
+    public function getValue(string $parameter, bool $recursion = false): mixed
     {
         if ($recursion) {
             if (!$this->parameterAssigned($parameter)) {
@@ -620,7 +621,7 @@ class Entity
      *
      * @param string $parameter The parameter name
      *
-     * @return bool Return true if the parameter is exists
+     * @return bool Return true if the parameter is existing
      */
     public function parameterAssigned(string $parameter): bool
     {

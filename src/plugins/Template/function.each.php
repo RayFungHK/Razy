@@ -9,17 +9,19 @@
  * with this source code in the file LICENSE.
  */
 
-use Razy\Template\Plugin\Container;
+use Razy\Template\Entity;
+use Razy\Template\Plugin\TFunction;
 
-return [
-    'enclose_content' => true,
-    'bypass_parser'   => false,
-    'parameters'      => [
+return new class() extends TFunction
+{
+    protected bool $enclosedContent = true;
+    protected array $allowedParameters = [
         'source' => '',
         'as'     => 'kvp',
-    ],
-    'processor' => function (Container $container) {
-        $parameters = $container->getParameters();
+    ];
+
+    #[Override] public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
+    {
         if (!is_array($parameters['source'])) {
             return '';
         }
@@ -31,13 +33,13 @@ return [
 
         $result = '';
         foreach ($parameters['source'] as $key => $value) {
-            $this->assign($parameters['as'], [
+            $entity->assign($parameters['as'], [
                 'key'   => $key,
                 'value' => $value,
             ]);
-            $result .= $this->parseText($container->getContent() ?? '');
+            $result .= $entity->parseText($wrappedText);
         }
 
         return $result;
-    },
-];
+    }
+};

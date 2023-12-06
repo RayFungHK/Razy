@@ -42,7 +42,7 @@ class Pilot
      * @return $this Fluent interface
      * @throws Throwable
      */
-    public function addAPI($command, ?string $path = null): self
+    public function addAPI(array|string $command, ?string $path = null): self
     {
         if (is_array($command)) {
             foreach ($command as $_command => $_path) {
@@ -121,15 +121,15 @@ class Pilot
     /**
      * Add a route by given nested array, each level equal as the URL path and the folder level.
      * For example, if there is an array contains 3 level with `1`, `2`, `3` and the `3` has a value `test`, the path
-     * of domain.com/module/1/2/3 will linked to ./controller/1/2/3/test.php closure file.
+     * of domain.com/module/1/2/3 will link to ./controller/1/2/3/test.php closure file.
      *
      * @param mixed      $route The path of the route based on the module code
-     * @param null|mixed $path
+     * @param mixed|null $path
      *
      * @return $this Fluent interface
      * @throws Throwable
      */
-    public function addLazyRoute($route, $path = null): self
+    public function addLazyRoute(mixed $route, mixed $path = null): self
     {
         return $this->addRoutePath('LazyRoute', $route, $path);
     }
@@ -154,7 +154,7 @@ class Pilot
      * @return $this Fluent interface
      * @throws Throwable
      */
-    public function addRoute($route, $path = null): self
+    public function addRoute(mixed $route, $path = null): self
     {
         if (is_array($route)) {
             foreach ($route as $_route => $_method) {
@@ -188,7 +188,7 @@ class Pilot
      * @return $this
      * @throws Error
      */
-    public function bind($method, ?string $path = null): Pilot
+    public function bind(array|string $method, ?string $path = null): Pilot
     {
         if (is_array($method)) {
             foreach ($method as $_method => $_path) {
@@ -215,7 +215,7 @@ class Pilot
      * @return $this Fluent interface
      * @throws Throwable
      */
-    public function listen($event, ?string $path = null): self
+    public function listen(array|string $event, ?string $path = null): self
     {
         if (is_array($event)) {
             foreach ($event as $_event => $_path) {

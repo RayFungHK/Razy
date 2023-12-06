@@ -15,7 +15,7 @@ class XHR
      * The content of the XHR
      * @var mixed
      */
-    private $content = '';
+    private mixed $content = '';
     /**
      * @var string
      */
@@ -102,14 +102,14 @@ class XHR
      *
      * @return mixed
      */
-    private function parse($dataset)
+    private function parse($dataset): mixed
     {
-        if (is_scalar($dataset)) {
-            return $dataset;
+        if (!$dataset) {
+            return null;
         }
 
-        if (method_exists($dataset, '__toString')) {
-            return strval($dataset);
+        if (is_scalar($dataset)) {
+            return $dataset;
         }
 
         if (is_iterable($dataset)) {
@@ -118,6 +118,10 @@ class XHR
             }
 
             return $dataset;
+        }
+
+        if (method_exists($dataset, '__toString')) {
+            return strval($dataset);
         }
 
         return null;
@@ -129,7 +133,7 @@ class XHR
      * @param bool   $success
      * @param string $message
      */
-    public function send(bool $success = true, string $message = '')
+    public function send(bool $success = true, string $message = ''): void
     {
         $response = [
             'result'    => $success,
@@ -154,7 +158,7 @@ class XHR
      *
      * @param array $data
      */
-    private function output(array $data)
+    private function output(array $data): void
     {
         http_response_code(200);
         header('Content-Type: application/json');

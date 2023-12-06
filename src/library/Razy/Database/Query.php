@@ -56,9 +56,8 @@ class Query
      *
      * @return mixed
      */
-    public function fetch(array $mapping = [])
+    public function fetch(array $mapping = []): mixed
     {
-        $result = [];
         if (count($mapping) > 0) {
             foreach ($mapping as $name => $column) {
                 $mapping[$name] = null;

@@ -24,7 +24,7 @@ if (is_file('./config.inc.php')) {
 
             exit;
         }
-    } catch (Exception $e) {
+    } catch (Exception) {
         echo 'No configuration file has found.';
 
         exit;

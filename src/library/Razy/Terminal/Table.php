@@ -63,7 +63,7 @@ class Table
     /**
      * @param bool $enable
      */
-    public function autoWidth(bool $enable)
+    public function autoWidth(bool $enable): void
     {
         $this->autoWidth = $enable;
     }
@@ -238,7 +238,7 @@ class Table
     {
         $clips = explode("\n", $content);
         if (1 == count($clips)) {
-            return strlen($clips);
+            return strlen($clips[0]);
         }
         $maxLength = 0;
         $wrapped   = [];

@@ -9,8 +9,12 @@
  * with this source code in the file LICENSE.
  */
 
-return [
-    'processor' => function ($value, ?string $replacement = '-') {
+use Razy\Template\Plugin\TModifier;
+
+return new class() extends TModifier {
+    #[Override] protected function process(mixed $value, string ...$args): string
+    {
+        [$replacement] = $args;
         return trim(preg_replace('/[^a-z0-9_]+/i', $replacement ?: '-', trim($value)), '-');
-    },
-];
+    }
+};

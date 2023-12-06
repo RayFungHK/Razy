@@ -22,11 +22,6 @@ return function (string $fqdn = '') {
     // Remove the specified domain and path setting
     unset($config['domains'][$domain][$path]);
 
-    // Remove empty domain sites
-    if (empty($config['domains'][$domain] ?? [])) {
-        unset($config['domains'][$domain]);
-    }
-
     if (Application::WriteSiteConfig($config)) {
         $this->writeLineLogging('{@c:green}Done.', true);
     } else {

@@ -84,7 +84,7 @@ class PackageManager
                     if (!is_array($config)) {
                         $config = [];
                     }
-                } catch (Exception $e) {
+                } catch (Exception) {
                     $config = [];
                 }
             }
@@ -101,7 +101,7 @@ class PackageManager
      *
      * @param Closure $inspector
      */
-    public static function SetupInspector(Closure $inspector)
+    public static function SetupInspector(Closure $inspector): void
     {
         self::$inspector = $inspector;
     }
@@ -240,7 +240,7 @@ class PackageManager
      * @param string $type
      * @param array  $args
      */
-    private static function notify(string $type, array $args = [])
+    private static function notify(string $type, array $args = []): void
     {
         if (null !== self::$inspector) {
             call_user_func_array(self::$inspector, array_merge([$type], $args));
@@ -249,8 +249,6 @@ class PackageManager
 
     /**
      * Fetch the latest packages info from repo.
-     *
-     * @throws Error
      */
     public function fetch(): bool
     {
@@ -265,7 +263,7 @@ class PackageManager
             if (200 == $this->parseResponseCode($http_response_header)) {
                 try {
                     $packageInfo = json_decode($packageInfo, true);
-                } catch (Exception $e) {
+                } catch (Exception) {
                     return false;
                 }
             }

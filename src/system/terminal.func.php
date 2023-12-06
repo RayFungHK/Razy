@@ -17,7 +17,7 @@ function executeTerminal(string $command, array $argv = [], array $parameters = 
         try {
             $closure = include $closureFilePath;
             (new Terminal($command))->run($closure, $argv, $parameters);
-        } catch (Exception $e) {
+        } catch (Exception) {
             return false;
         }
 

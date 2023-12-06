@@ -27,7 +27,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
 
     // Extract the domain and the path from the FQDN string
     $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
-    if (false === strpos($fqdn, '/')) {
+    if (!str_contains($fqdn, '/')) {
         $domain = $fqdn;
         $path   = '/';
     } else {
@@ -46,7 +46,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     if ($parameters['i']) {
         $distFolder = fix_path(append(SYSTEM_ROOT, 'sites', $code));
         // If the distributor path is not under Razy location
-        if (0 !== strpos($distFolder, SYSTEM_ROOT)) {
+        if (!str_starts_with($distFolder, SYSTEM_ROOT)) {
             $this->writeLineLogging('{@c:r}[ERROR] The distributor folder ' . $distFolder . ' is not valid.', true);
 
             exit;
@@ -63,7 +63,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
 
                 try {
                     file_put_contents(append($distFolder, 'dist.php'), $source->output());
-                } catch (Exception $e) {
+                } catch (Exception) {
                     $this->writeLineLogging('{@c:r}[ERROR] Failed to create the distributor config file.', true);
                 }
             } else {

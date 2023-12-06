@@ -37,7 +37,7 @@ class Collection extends ArrayObject
      *
      * @param string $path
      */
-    public static function addPluginFolder(string $path)
+    public static function addPluginFolder(string $path): void
     {
         $path = tidy(trim($path));
         if ($path && is_dir($path)) {
@@ -102,7 +102,7 @@ class Collection extends ArrayObject
                                 $_filtered[$parent . '.' . quotemeta($index)] = &$data;
                             }
                         } else {
-                            // If the key is exists, put the specified value into the list
+                            // If the key is existing, put the specified value into the list
                             if (array_key_exists($matches['key'], (array)$element)) {
                                 $_filtered[$parent . '.' . quotemeta($matches['key'])] = &$element[$matches['key']];
                             }
@@ -202,7 +202,7 @@ class Collection extends ArrayObject
 
                             return $this->plugins[$identify];
                         }
-                    } catch (Throwable $exception) {
+                    } catch (Throwable) {
                         throw new Error('Missing or invalid Closure.');
                     }
                 }
@@ -250,7 +250,7 @@ class Collection extends ArrayObject
      *
      * @param array $data
      */
-    public function __unserialize($data): void
+    public function __unserialize(array $data): void
     {
         $this->__construct($data);
     }
@@ -272,7 +272,7 @@ class Collection extends ArrayObject
      *
      * @return mixed
      */
-    public function &offsetGet($key)
+    public function &offsetGet(mixed $key): mixed
     {
         $iterator = $this->getIterator();
         $result   = null;

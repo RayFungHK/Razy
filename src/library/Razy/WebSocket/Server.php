@@ -14,9 +14,9 @@ class Server
     private ?Closure $onReceiveCallback    = null;
     private $socket;
     private array $peer      = [];
-    private string $hostname = '';
-    private string $path     = '';
-    private int $port        = 443;
+    private string $hostname;
+    private string $path;
+    private int $port;
 
     public function __construct(string $hostname, int $port = 443, string $path = '')
     {
@@ -48,9 +48,7 @@ class Server
 
                 socket_getpeername($client, $clientIP);
 
-                if ($this->onConnectCallback) {
-                    $this->onConnectCallback->call($this, $clientIP, $client);
-                }
+                $this->onConnectCallback?->call($this, $clientIP, $client);
 
                 $index = array_search($this->socket, $peerList);
                 unset($peerList[$index]);
@@ -61,9 +59,7 @@ class Server
                     $socketMessage = $this->unpack($socketData);
 
                     echo $socketMessage;
-                    if ($this->onReceiveCallback) {
-                        $this->onReceiveCallback->call($this, $socketMessage, $peer);
-                    }
+                    $this->onReceiveCallback?->call($this, $socketMessage, $peer);
                     break 2;
                 }
 
@@ -71,9 +67,7 @@ class Server
                 if ($socketData === false) {
                     socket_getpeername($peer, $clientIP);
 
-                    if ($this->onDisconnectCallback) {
-                        $this->onDisconnectCallback->call($this, $clientIP, $peer);
-                    }
+                    $this->onDisconnectCallback?->call($this, $clientIP, $peer);
 
                     $index = array_search($peer, $this->peer);
                     unset($this->peer[$index]);

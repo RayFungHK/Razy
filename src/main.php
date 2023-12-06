@@ -37,9 +37,18 @@ Application::UpdateSites();
 if (WEB_MODE) {
     Error::SetDebug(DEBUG ?? false);
     // Create an Application with HOSTNAME
-    $app = new Application(HOSTNAME . ':' . PORT);
-    if (!$app->query(URL_QUERY)) {
-        Error::Show404();
+    try {
+        $app = new Application(HOSTNAME . ':' . PORT);
+        if (!$app->query(URL_QUERY)) {
+            Error::Show404();
+        }
+    } catch (Throwable $e) {
+        try {
+            Error::ShowException($e);
+        } catch (Throwable $e) {
+            echo $e;
+            // Display error
+        }
     }
 } else {
     $argv = $_SERVER['argv'];
@@ -64,20 +73,11 @@ if (WEB_MODE) {
                 unset($argv[$index], $argv[$index + 1]);
             } elseif ('-' == $arg[0]) {
                 $name  = substr($arg, 1);
-                $value = null;
 
-                switch ($name) {
-                    case 'p':
-                    case 'debug':
-                        $value = $argv[$index + 1] ?? '';
-
-                        break;
-
-                    default:
-                        $value = true;
-
-                        break;
-                }
+                $value = match ($name) {
+                    'p', 'debug' => $argv[$index + 1] ?? '',
+                    default => true,
+                };
                 $parameters[$name] = $value;
             }
         }

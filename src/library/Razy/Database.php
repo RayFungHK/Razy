@@ -122,7 +122,7 @@ class Database
             $this->connected = true;
 
             return true;
-        } catch (PDOException $e) {
+        } catch (PDOException) {
             return false;
         }
     }

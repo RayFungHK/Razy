@@ -87,9 +87,7 @@ class EventEmitter
         foreach ($this->distributor->getAllModules() as $module) {
             if ($module->eventDispatched($this->event)) {
                 $result = $module->fireEvent($this->event, $args);
-                if (null !== $this->callback) {
-                    $this->callback->call($this->module, $result, $module->getCode());
-                }
+                $this->callback?->call($this->module, $result, $module->getModuleInfo()->getCode());
                 $this->responses[] = $result;
             }
         }

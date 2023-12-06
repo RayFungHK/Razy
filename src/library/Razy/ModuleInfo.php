@@ -71,7 +71,7 @@ class ModuleInfo
     /**
      * @var string
      */
-    private string $relativePath = '';
+    private string $relativePath;
 
     /**
      * The storage of the required modules
@@ -84,7 +84,7 @@ class ModuleInfo
      *
      * @var bool
      */
-    private bool $sharedModule = false;
+    private bool $sharedModule;
 
     /**
      * The module version
@@ -103,7 +103,7 @@ class ModuleInfo
     /**
      * @var bool
      */
-    private bool $isPhar = false;
+    private bool $pharArchive = false;
 
     /**
      * Module constructor.
@@ -114,6 +114,7 @@ class ModuleInfo
      */
     public function __construct(string $path, string $version = 'default', bool $isShared = false)
     {
+        $this->sharedModule = $isShared;
         $this->containerPath = $path;
         $this->relativePath = getRelativePath($path, SYSTEM_ROOT);
         $version = trim($version);
@@ -127,7 +128,7 @@ class ModuleInfo
             $this->modulePath = append($this->modulePath, $version);
             $this->relativePath = append($this->relativePath, $version);
             if (is_file(append($this->modulePath, 'app.phar'))) {
-                $this->isPhar = true;
+                $this->pharArchive = true;
                 $this->modulePath = 'phar://' . append($this->modulePath, 'app.phar');
             }
 
@@ -136,7 +137,7 @@ class ModuleInfo
                 if (!is_array($settings)) {
                     throw new Error('Invalid module settings.');
                 }
-            } catch (Exception $e) {
+            } catch (Exception) {
                 throw new Error('Unable to load the module.');
             }
 
@@ -288,6 +289,7 @@ class ModuleInfo
     /**
      * Get the module container path
      *
+     * @param bool $isRelative
      * @return string
      */
     public function getContainerPath(bool $isRelative = false): string
@@ -316,16 +318,6 @@ class ModuleInfo
     }
 
     /**
-     * Get the module status.
-     *
-     * @return int
-     */
-    public function getStatus(): int
-    {
-        return $this->status;
-    }
-
-    /**
      * Return the module version.
      *
      * @return string
@@ -346,83 +338,13 @@ class ModuleInfo
     }
 
     /**
-     * Pack the current version of the module into a phar file.
-     *
-     * @param string $version  The version of the package
-     * @param bool   $savePhar Commit the version as a phar file
-     *
-     * @return string
-     * @throws Error
+     * Return turn if the module is a phar archive
+     * 
+     * @return bool
      */
-    public function commit(string $version, bool $savePhar = false): ?string
+    public function isPharArchive(): bool
     {
-        if ($version !== 'default' && $version !== 'dev') {
-            $path = append($this->getContainerPath(), $version);
-            if ($savePhar) {
-                if (ini_get('phar.readonly') == 1) {
-                    throw new Error('System has set phar.readonly, you cannot commit this version as phar file.');
-                }
-
-                if (!is_dir($path)) {
-                    mkdir($path);
-                }
-                $pharPath = append($path, '/app.phar');
-                $phar = new Phar($pharPath);
-                $phar->startBuffering();
-
-                // Archive all files exclude the web asset folder
-                $phar->buildFromDirectory(append($this->getContainerPath(), 'default'), '/^(?!(' . preg_quote(append($this->getContainerPath(), 'default'), '/') . '\/webassets))(.*)/');
-
-                if (count(glob(append($this->getContainerPath(), 'default', 'webassets/*'))) > 0) {
-                    xcopy(append($this->getContainerPath(), 'default', 'webassets'), append($path, 'webassets'));
-                }
-
-                $phar->stopBuffering();
-
-                // plus - compressing it into gzip
-                $phar->compressFiles(Phar::GZ);
-            } else {
-                if (is_dir($path)) {
-                    return null;
-                }
-                xcopy(append($this->getPath(), 'default'), $path);
-            }
-
-            return $path;
-        }
-
-        return null;
-    }
-
-    /**
-     * Unpack the module asset to shared view folder.
-     *
-     * @param string $folder
-     *
-     * @return array
-     */
-    public function cloneAsset(string $folder): array
-    {
-        $clonedAsset = [];
-        if (empty($this->assets)) {
-            return [];
-        }
-
-        $folder = append(trim($folder), $this->alias);
-        if (!is_dir($folder)) {
-            try {
-                mkdir($folder, 0777, true);
-            } catch (Exception $e) {
-                return [];
-            }
-        }
-
-        foreach ($this->assets as $destPath => $pathInfo) {
-            xcopy($pathInfo['system_path'], append($folder, $destPath), '', $unpacked);
-            $clonedAsset = array_merge($clonedAsset, $unpacked);
-        }
-
-        return $clonedAsset;
+        return $this->pharArchive;
     }
 
     /**

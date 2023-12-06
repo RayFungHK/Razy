@@ -25,6 +25,9 @@ use Throwable;
 
 abstract class Controller
 {
+    const PLUGIN_TEMPLATE = 1;
+    const PLUGIN_COLLECTION = 2;
+
     /**
      * The storage of the external closures
      *
@@ -53,8 +56,8 @@ abstract class Controller
      * When the method called which is not declared, the Controller will
      * inject the Closure from the specified path that is configured in __onInit state.
      *
-     * @param string $method    The string of the method name which is called
-     * @param array  $arguments The arguments will pass to the method
+     * @param string $method The string of the method name which is called
+     * @param array $arguments The arguments will pass to the method
      *
      * @return mixed The return result of the method
      * @throws Throwable
@@ -68,7 +71,7 @@ abstract class Controller
         }
 
         $moduleInfo = $this->module->getModuleInfo();
-        $path       = append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
+        $path = append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
 
         if (is_file($path)) {
             /** @var Closure $closure */
@@ -93,7 +96,7 @@ abstract class Controller
      *
      * @param string $module The module code that is accessed via API
      * @param string $method The command method will be called via API
-     * @param string $fqdn   The well-formatted FQDN string includes the domain name and distributor code
+     * @param string $fqdn The well-formatted FQDN string includes the domain name and distributor code
      *
      * @return bool Return false to refuse API access
      */
@@ -127,7 +130,7 @@ abstract class Controller
     /**
      * Handling the error of the closure.
      *
-     * @param string    $path
+     * @param string $path
      * @param Throwable $exception
      *
      * @throws Throwable
@@ -383,6 +386,18 @@ abstract class Controller
         return $this->module->getBaseURL();
     }
 
+    final public function addPluginFolder(int $flag = 0): self
+    {
+        if ($flag & self::PLUGIN_TEMPLATE) {
+            Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Template'), $this);
+        }
+
+        if ($flag & self::PLUGIN_COLLECTION) {
+            Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Collection'), $this);
+        }
+        return $this;
+    }
+
     /**
      * Redirect to a specified path in the module
      *
@@ -390,7 +405,7 @@ abstract class Controller
      *
      * @return void
      */
-    final public function goto(string $path)
+    final public function goto(string $path): void
     {
         header('location: ' . append($this->getBaseURL(), $path), true, 301);
         exit;
@@ -415,6 +430,16 @@ abstract class Controller
         }
 
         return true;
+    }
+
+    /**
+     * Get the ModuleInfo object.
+     *
+     * @return ModuleInfo
+     */
+    final public function getModuleInfo(): ModuleInfo
+    {
+        return $this->module->getModuleInfo();
     }
 
     /**
@@ -445,7 +470,7 @@ abstract class Controller
      */
     final public function getViewFile(string $path): string
     {
-        $path     = append($this->module->getModuleInfo()->getPath(), 'view', $path);
+        $path = append($this->module->getModuleInfo()->getPath(), 'view', $path);
         $filename = basename($path);
         if (!preg_match('/[^.]+\..+/', $filename)) {
             $path .= '.tpl';
@@ -457,7 +482,7 @@ abstract class Controller
     /**
      * Prepare the EventEmitter to trigger the event.
      *
-     * @param string   $event    The name of the event
+     * @param string $event The name of the event
      * @param callable $callback the callback to execute when the EventEmitter start to resolve
      *
      * @return EventEmitter The EventEmitter instance
@@ -474,7 +499,7 @@ abstract class Controller
      *
      * @throws Throwable
      */
-    final public function view(array $sources)
+    final public function view(array $sources): void
     {
         echo $this->module->getTemplateEngine()->outputQueued($sources);
     }
@@ -493,12 +518,12 @@ abstract class Controller
      * Execute the internal function by given path, also an alternative of direct access the method.
      *
      * @param string $path
-     * @param array  ...$args
+     * @param array ...$args
      *
      * @return mixed|null
      * @throws Error
      */
-    final public function fork(string $path, array ...$args)
+    final public function fork(string $path, array ...$args): mixed
     {
         if ($closure = $this->module->getClosure($path)) {
             return call_user_func_array($closure, $args);

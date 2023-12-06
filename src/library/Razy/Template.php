@@ -14,8 +14,11 @@ namespace Razy;
 use Closure;
 use InvalidArgumentException;
 use Razy\Template\Block;
-use Razy\Template\Plugin;
+use Razy\Template\Plugin\TFunctionCustom;
+use Razy\Template\Plugin\TModifier;
+use Razy\Template\Plugin\TFunction;
 use Razy\Template\Source;
+use ReflectionClass;
 use Throwable;
 
 /**
@@ -68,14 +71,15 @@ class Template
      * Add a plugin folder which the plugin is load
      *
      * @param string $folder
+     * @param mixed $entity
      * @return void
      */
-    public static function addPluginFolder(string $folder)
+    public static function addPluginFolder(string $folder, mixed $entity = null): void
     {
         // Setup plugin folder
         $folder = tidy(trim($folder));
         if ($folder && is_dir($folder)) {
-            self::$pluginFolder[] = $folder;
+            self::$pluginFolder[$folder] = $entity;
         }
     }
 
@@ -134,12 +138,12 @@ class Template
      * Assign the manager level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value The parameter value
+     * @param mixed|null $value The parameter value
      *
      * @return self Chainable
      * @throws Throwable
      */
-    public function assign($parameter, $value = null): Template
+    public function assign(mixed $parameter, mixed $value = null): Template
     {
         if (is_array($parameter)) {
             foreach ($parameter as $index => $value) {
@@ -191,7 +195,7 @@ class Template
      *
      * @return mixed The parameter value
      */
-    public function getValue(string $parameter)
+    public function getValue(string $parameter): mixed
     {
         return $this->parameters[$parameter] ?? null;
     }
@@ -216,30 +220,38 @@ class Template
      * @param string $type The type of the plugin
      * @param string $name The plugin name
      *
-     * @return null|Plugin The plugin
-     * @throws Throwable
+     * @return TModifier|TFunction|TFunctionCustom|null The plugin entity
+     * @throws Error
      */
-    public function loadPlugin(string $type, string $name): ?Plugin
+    public function loadPlugin(string $type, string $name): TModifier|TFunction|TFunctionCustom|null
     {
         $name     = strtolower($name);
         $identify = $type . '.' . $name;
 
         if (!isset($this->plugins[$identify])) {
-            foreach (self::$pluginFolder as $folder) {
+            foreach (self::$pluginFolder as $folder => $entity) {
                 $pluginFile = append($folder, $identify . '.php');
                 if (is_file($pluginFile)) {
                     try {
-                        $setting = require $pluginFile;
-                        if (is_array($setting)) {
-                            $this->plugins[$identify] = new Plugin($setting, $type, $name);
-
-                            return $this->plugins[$identify];
+                        $plugin = require $pluginFile;
+                        $reflection = new ReflectionClass($plugin);
+                        if ($reflection->isAnonymous()) {
+                            $parent = $reflection->getParentClass();
+                            if (('function' === $type && ($parent->getName() === 'Razy\Template\Plugin\TFunction' || $parent->getName() === 'Razy\Template\Plugin\TFunctionCustom')) || ('modifier' === $type && $plugin instanceof TModifier)) {
+                                $plugin = (new $plugin())->setName($name);
+                                if ($entity) {
+                                    $plugin->bind($entity);
+                                }
+                                return ($this->plugins[$identify] = $plugin);
+                            }
                         }
+                        throw new Error('Missing or invalid plugin entity');
                     } catch (Throwable $exception) {
-                        throw new Error('Missing or invalid Closure');
+                        throw new Error('Failed to load the plugin');
                     }
                 }
             }
+
             if (!isset($this->plugins[$identify])) {
                 $this->plugins[$identify] = null;
             }

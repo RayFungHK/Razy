@@ -15,7 +15,10 @@ use Closure;
 use Razy\Error;
 use Razy\FileReader;
 use Razy\Template;
+use Razy\Template\Plugin\TFunctionCustom;
 use Throwable;
+use Razy\Template\Plugin\TFunction;
+use Razy\Template\Plugin\TModifier;
 
 /**
  * Template Source is an object contains the file structure and its parameters.
@@ -75,13 +78,13 @@ class Source
      * Assign the source level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value     The parameter value
+     * @param mixed|null $value     The parameter value
      *
      * @return self Chainable
      * @throws Throwable
      *
      */
-    public function assign($parameter, $value = null): Source
+    public function assign(mixed $parameter, mixed $value = null): Source
     {
         if (is_array($parameter)) {
             foreach ($parameter as $index => $value) {
@@ -105,12 +108,12 @@ class Source
      * Bind reference parameter
      *
      * @param string $parameter
-     * @param null   $value
+     * @param null $value
      *
      * @return $this
      * @throws Throwable
      */
-    public function bind(string $parameter, &$value): Source
+    public function bind(string $parameter, null &$value): Source
     {
         $this->parameters[$parameter] = &$value;
 
@@ -140,7 +143,7 @@ class Source
     /**
      * Get the root entity.
      *
-     * @return Entity The root entity object
+     * @return Entity|null The root entity object
      */
     public function getRoot(): ?Entity
     {
@@ -177,7 +180,7 @@ class Source
      *
      * @return mixed The parameter value
      */
-    public function getValue(string $parameter, bool $recursion = false)
+    public function getValue(string $parameter, bool $recursion = false): mixed
     {
         if ($recursion) {
             if (!$this->parameterAssigned($parameter)) {
@@ -193,7 +196,7 @@ class Source
      *
      * @param string $parameter The parameter name
      *
-     * @return bool Return true if the parameter is exists
+     * @return bool Return true if the parameter is existing
      */
     public function parameterAssigned(string $parameter): bool
     {
@@ -220,10 +223,11 @@ class Source
      * @param string $type
      * @param string $name
      *
-     * @return null|Closure
+     * @return TModifier|TFunction|TFunctionCustom|null
+     * @throws Error
      * @throws Throwable
      */
-    public function loadPlugin(string $type, string $name): ?Plugin
+    public function loadPlugin(string $type, string $name): null|TModifier|TFunction|TFunctionCustom
     {
         return $this->template->loadPlugin($type, $name);
     }

@@ -13,8 +13,6 @@ namespace Razy;
 
 use Closure;
 use Exception;
-use Phar;
-use PharException;
 use Throwable;
 
 class Distributor
@@ -135,11 +133,11 @@ class Distributor
     /**
      * Distributor constructor.
      *
-     * @param string      $folderPath The folder path of the distributor
-     * @param string      $identifier The distributor identifier
-     * @param null|Domain $domain     The Domain Instance
-     * @param string      $urlPath    The URL path of the distributor
-     * @param string      $urlQuery   The URL Query string
+     * @param string $folderPath The folder path of the distributor
+     * @param string $identifier The distributor identifier
+     * @param null|Domain $domain The Domain Instance
+     * @param string $urlPath The URL path of the distributor
+     * @param string $urlQuery The URL Query string
      *
      * @throws Throwable
      */
@@ -147,8 +145,8 @@ class Distributor
     {
         $this->folderPath = append(SITES_FOLDER, $folderPath);
         $this->identifier = $identifier;
-        $this->urlPath    = $urlPath;
-        $this->urlQuery   = tidy($urlQuery, false, '/');
+        $this->urlPath = $urlPath;
+        $this->urlQuery = tidy($urlQuery, false, '/');
 
         if (!$this->urlQuery) {
             $this->urlQuery = '/';
@@ -180,7 +178,7 @@ class Distributor
                 // Remove self
                 array_pop(self::$stacking);
 
-                $peerDomain       = $peer->getDomain()->getDomainName();
+                $peerDomain = $peer->getDomain()->getDomainName();
                 $acceptConnection = false;
                 // Load the external config in a data path by its distribution folder: $this->getDataPath()
                 foreach ($config['whitelist'] ?? [] as $whitelist) {
@@ -190,7 +188,7 @@ class Distributor
 
                             break;
                         }
-                        if (false !== strpos($whitelist, '*')) {
+                        if (str_contains($whitelist, '*')) {
                             $whitelist = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $whitelist);
                         }
 
@@ -213,7 +211,7 @@ class Distributor
             if (isset($config['enable_module'][$this->identifier])) {
                 foreach ($config['enable_module'][$this->identifier] as $moduleCode => $version) {
                     $moduleCode = trim($moduleCode);
-                    $version    = trim($version);
+                    $version = trim($version);
                     if (strlen($moduleCode) > 0 && strlen($version) > 0) {
                         $this->enableModules[$moduleCode] = $version;
                     }
@@ -222,7 +220,7 @@ class Distributor
         }
 
         $config['autoload_shared'] = (bool)($config['autoload_shared'] ?? false);
-        $this->autoloadShared      = $config['autoload_shared'];
+        $this->autoloadShared = $config['autoload_shared'];
 
         $this->greedy = (bool)($config['greedy'] ?? false);
 
@@ -291,7 +289,7 @@ class Distributor
         if (WEB_MODE) {
             if ($readyToRoute) {
                 // Convert the regex route
-                $regexRoute       = $this->regexRoute;
+                $regexRoute = $this->regexRoute;
                 $this->regexRoute = [];
 
                 sort_path_level($regexRoute);
@@ -310,7 +308,7 @@ class Distributor
                     }, $route);
 
                     $data['route'] = $route;
-                    $route         = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
+                    $route = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
 
                     $this->regexRoute[$route] = $data;
                 }
@@ -356,7 +354,7 @@ class Distributor
                         continue;
                     }
 
-                    $namespace     = $vendor . '/' . $packageName;
+                    $namespace = $vendor . '/' . $packageName;
                     $packageFolder = append($authorFolder, $packageName);
                     if (is_dir($packageFolder)) {
                         $version = 'default';
@@ -364,18 +362,18 @@ class Distributor
                             $version = $this->enableModules[$namespace];
                         }
 
-                        try {
-                            $module = new Module($this, $packageFolder, $version, $loadShared);
+                        if (is_file(append($packageFolder, $version, 'package.php'))) {
+                            try {
+                                $module = new Module($this, $packageFolder, $version, $loadShared);
 
-                            if (!isset($this->modules[$module->getModuleInfo()->getCode()])) {
-                                $this->modules[$module->getModuleInfo()->getCode()] = $module;
-                            } else {
-                                throw new Error('Duplicated module loaded, module load abort.');
+                                if (!isset($this->modules[$module->getModuleInfo()->getCode()])) {
+                                    $this->modules[$module->getModuleInfo()->getCode()] = $module;
+                                } else {
+                                    throw new Error('Duplicated module loaded, module load abort.');
+                                }
+                            } catch (Exception) {
+                                throw new Error('Unable to load the module.');
                             }
-                        } catch (Exception $e) {
-                            echo $e;
-                            exit;
-                            throw new Error('Unable to load the module.');
                         }
                     }
                 }
@@ -465,12 +463,12 @@ class Distributor
     {
         if (preg_match('/^([a-z0-9](?:[_.-]?[a-z0-9]+)*\\\\[a-z0-9](?:(?:[_.]?|-{0,2})[a-z0-9]+)*)\\\\(.+)/', $className, $matches)) {
             $moduleCode = str_replace('\\', '/', $matches[1]);
-            $className  = $matches[2];
+            $className = $matches[2];
             // Try to load the class from the module library
             if (isset($this->modules[$moduleCode])) {
-                $module     = $this->modules[$moduleCode];
+                $module = $this->modules[$moduleCode];
                 $moduleInfo = $module->getModuleInfo();
-                $path       = append($moduleInfo->getPath(), 'library');
+                $path = append($moduleInfo->getPath(), 'library');
                 if (is_dir($path)) {
                     $libraryPath = append($path, $className . '.php');
                     if (is_file($libraryPath)) {
@@ -478,7 +476,7 @@ class Distributor
                             include $libraryPath;
 
                             return class_exists($className);
-                        } catch (Exception $e) {
+                        } catch (Exception) {
                             return false;
                         }
                     }
@@ -529,8 +527,8 @@ class Distributor
     /**
      * Create an EventEmitter.
      *
-     * @param Module   $module   The module instance
-     * @param string   $event    The event name
+     * @param Module $module The module instance
+     * @param string $event The event name
      * @param callable $callback The callback will be executed when the event is resolved
      *
      * @return EventEmitter
@@ -695,10 +693,10 @@ class Distributor
         if (CLI_MODE) {
             foreach ($this->registeredScript as $path => $data) {
                 $urlQuery = $this->urlQuery;
-                if (0 === strpos($urlQuery, $path)) {
+                if (str_starts_with($urlQuery, $path)) {
                     // Extract the url query string when the route is matched
                     $urlQuery = rtrim(substr($urlQuery, strlen($path)), '/');
-                    $args     = explode('/', $urlQuery);
+                    $args = explode('/', $urlQuery);
 
                     /** @var Module $module */
                     $module = $data['module'];
@@ -709,11 +707,11 @@ class Distributor
 
                         if ($module->prepare($args)) {
                             $this->routedInfo = [
-                                'url_query'    => $this->urlQuery,
-                                'route'        => $data['route'],
-                                'module'       => $module->getModuleInfo()->getCode(),
+                                'url_query' => $this->urlQuery,
+                                'route' => $data['route'],
+                                'module' => $module->getModuleInfo()->getCode(),
                                 'closure_path' => $data['path'],
-                                'arguments'    => $args,
+                                'arguments' => $args,
                             ];
                             $this->dispatch($module);
                             call_user_func_array($closure, $args);
@@ -738,12 +736,12 @@ class Distributor
 
                         if ($module->prepare($matches)) {
                             $this->routedInfo = [
-                                'url_query'    => $this->urlQuery,
-                                'route'        => $route,
-                                'module'       => $module->getModuleInfo()->getCode(),
+                                'url_query' => $this->urlQuery,
+                                'route' => $route,
+                                'module' => $module->getModuleInfo()->getCode(),
                                 'closure_path' => $data['path'],
-                                'arguments'    => $matches,
-                                'last'         => '',
+                                'arguments' => $matches,
+                                'last' => '',
                             ];
                             $this->dispatch($module);
                             call_user_func_array($closure, $matches);
@@ -759,10 +757,10 @@ class Distributor
             // Match lazy route
             $urlQuery = $this->urlQuery;
             foreach ($this->lazyRoute as $route => $data) {
-                if (0 === strpos($urlQuery, $route)) {
+                if (str_starts_with($urlQuery, $route)) {
                     // Extract the url query string when the route is matched
                     $urlQuery = rtrim(substr($urlQuery, strlen($route)), '/');
-                    $args     = explode('/', $urlQuery);
+                    $args = explode('/', $urlQuery);
 
                     /** @var Module $module */
                     $module = $data['module'];
@@ -773,11 +771,11 @@ class Distributor
 
                         if ($module->prepare($args)) {
                             $this->routedInfo = [
-                                'url_query'    => $this->urlQuery,
-                                'route'        => $data['route'],
-                                'module'       => $module->getModuleInfo()->getCode(),
+                                'url_query' => $this->urlQuery,
+                                'route' => $data['route'],
+                                'module' => $module->getModuleInfo()->getCode(),
                                 'closure_path' => $data['path'],
-                                'arguments'    => $args,
+                                'arguments' => $args,
                             ];
                             $this->dispatch($module);
                             call_user_func_array($closure, $args);
@@ -809,7 +807,7 @@ class Distributor
      *
      * @param Module $target
      */
-    private function dispatch(Module $target)
+    private function dispatch(Module $target): void
     {
         if ($this->domain) {
             foreach ($this->modules as $module) {
@@ -872,8 +870,8 @@ class Distributor
      * Set up the lazy route.
      *
      * @param Module $module The module entity
-     * @param string $route  The route path string
-     * @param string $path   The closure path of method
+     * @param string $route The route path string
+     * @param string $path The closure path of method
      *
      * @return $this
      */
@@ -881,8 +879,8 @@ class Distributor
     {
         $this->lazyRoute['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
             'module' => $module,
-            'path'   => $path,
-            'route'  => $route,
+            'path' => $path,
+            'route' => $route,
         ];
 
         return $this;
@@ -892,8 +890,8 @@ class Distributor
     {
         $this->registeredScript['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
             'module' => $module,
-            'path'   => $path,
-            'route'  => $route,
+            'path' => $path,
+            'route' => $route,
         ];
         return $this;
     }
@@ -911,32 +909,10 @@ class Distributor
     {
         $this->regexRoute[$route] = [
             'module' => $module,
-            'path'   => $path,
+            'path' => $path,
         ];
 
         return $this;
-    }
-
-    /**
-     * Unpack all module assets into shared view folder.
-     *
-     * @param Closure $closure
-     *
-     * @return int
-     */
-    public function unpackAllAsset(Closure $closure): int
-    {
-        $unpackedCount = 0;
-        foreach ($this->modules as $module) {
-            $moduleInfo = $module->getModuleInfo();
-            if (!$moduleInfo->isShadowAsset()) {
-                $unpacked = $moduleInfo->cloneAsset(append(SYSTEM_ROOT, 'view', $this->code));
-                $closure($moduleInfo->getCode(), $unpacked);
-                $unpackedCount += count($unpacked);
-            }
-        }
-
-        return $unpackedCount;
     }
 
     /**
@@ -967,7 +943,7 @@ class Distributor
     /**
      * Put the callable into the list to wait for executing until other specified modules has ready.
      *
-     * @param string  $moduleCode
+     * @param string $moduleCode
      * @param Closure $caller
      *
      * @return $this
@@ -976,7 +952,7 @@ class Distributor
     {
         $entity = [
             'required' => [],
-            'caller'   => $caller,
+            'caller' => $caller,
         ];
 
         $clips = explode(',', $moduleCode);

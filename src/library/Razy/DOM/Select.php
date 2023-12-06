@@ -19,6 +19,7 @@ class Select extends DOM
 {
     /**
      * Select constructor.
+     * @throws Error
      */
     public function __construct(string $id = '')
     {
@@ -76,7 +77,7 @@ class Select extends DOM
      *
      * @return mixed The value of the control
      */
-    public function getValue()
+    public function getValue(): mixed
     {
         foreach ($this->nodes as $node) {
             if ($node instanceof DOM) {

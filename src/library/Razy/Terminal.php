@@ -411,7 +411,8 @@ class Terminal
      *
      * @return void
      */
-    static public function WriteLine(string $message, bool $resetStyle = false, string $format = '') {
+    static public function WriteLine(string $message, bool $resetStyle = false, string $format = ''): void
+    {
         $message = str_replace("\t", '    ', $message);
         $format  = trim($format);
         $message = ($format) ? sprintf($format, $message) : $message;

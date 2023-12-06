@@ -427,7 +427,7 @@ class Statement
      *
      * @return null|mixed
      */
-    public function getValue(string $name)
+    public function getValue(string $name): mixed
     {
         return $this->parameters[$name] ?? null;
     }
@@ -502,7 +502,7 @@ class Statement
      * @return mixed
      * @throws Throwable
      */
-    public function lazy(array $parameters = [])
+    public function lazy(array $parameters = []): mixed
     {
         $result = $this->query($parameters)->fetch();
         if ($result) {
@@ -705,7 +705,7 @@ class Statement
     }
 
     /**
-     * Set the Statement as a update statement.
+     * Set the Statement as an update statement.
      *
      * @param string $tableName    The table name will be updated record
      * @param array  $updateSyntax A set of Update Simple Syntax

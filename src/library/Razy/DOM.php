@@ -139,7 +139,7 @@ class DOM
      *
      * @return string The value of HTML value
      */
-    final public function getHTMLValue($value): string
+    final public function getHTMLValue(mixed $value): string
     {
         if (is_scalar($value)) {
             return htmlspecialchars((string)$value);
@@ -161,7 +161,7 @@ class DOM
      * @throws Error
      *
      */
-    final public function addClass($className): DOM
+    final public function addClass(array|string $className): DOM
     {
         if (is_string($className)) {
             $className = trim($className);
@@ -200,7 +200,7 @@ class DOM
      *
      * @return mixed
      */
-    final public function getAttribute(string $attribute)
+    final public function getAttribute(string $attribute): mixed
     {
         return $this->attribute[$attribute] ?? null;
     }
@@ -209,13 +209,13 @@ class DOM
      * Set the attribute.
      *
      * @param array|string $attribute The attribute name or an array contains the attribute value
-     * @param mixed $value The value of the attribute
+     * @param mixed|null $value The value of the attribute
      *
      * @return self Chainable
      * @throws Error
      *
      */
-    final public function setAttribute($attribute, $value = null): DOM
+    final public function setAttribute(array|string $attribute, mixed $value = null): DOM
     {
         if (is_string($attribute)) {
             $attribute = trim($attribute);
@@ -311,7 +311,7 @@ class DOM
      * @throws Error
      *
      */
-    final public function removeClass($className): DOM
+    final public function removeClass(array|string $className): DOM
     {
         if (is_string($className)) {
             $className = trim($className);
@@ -333,13 +333,13 @@ class DOM
      * Set the dataset value.
      *
      * @param array|string $parameter The parameter name or an array contains the dataset value
-     * @param mixed $value The value of the dataset
+     * @param mixed|null $value The value of the dataset
      *
      * @return self Chainable
      * @throws Error
      *
      */
-    final public function setDataset($parameter, $value = null): DOM
+    final public function setDataset(array|string $parameter, mixed $value = null): DOM
     {
         if (is_string($parameter)) {
             $parameter = trim($parameter);
@@ -364,7 +364,7 @@ class DOM
      *
      * @return self Chainable
      */
-    final public function setName($value): DOM
+    final public function setName(mixed $value): DOM
     {
         $value = trim($value);
         $this->name = $value;

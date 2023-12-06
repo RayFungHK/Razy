@@ -552,9 +552,7 @@ class Column
             throw new Error('The column name ' . $columnName . ' is not in a correct format,');
         }
         $this->name = $columnName;
-        if ($this->table) {
-            $this->table->validate();
-        }
+        $this->table?->validate();
 
         return $this;
     }
@@ -586,7 +584,7 @@ class Column
     {
         $config     = '`' . $this->name . '`';
         $parameters = [];
-        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key', 'comment'] as $method) {
+        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key', 'comment', 'oncurrent'] as $method) {
             if ('type' == $method) {
                 switch ($this->parameters['type']) {
                     case 'VARCHAR':

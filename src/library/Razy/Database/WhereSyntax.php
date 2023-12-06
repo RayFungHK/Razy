@@ -376,9 +376,9 @@ class WhereSyntax
      * Convert the value as cast as JSON
      *
      * @param array $operand
-     * @param bool  $acceptObject
+     * @param bool $acceptObject
      *
-     * @return mixed|string
+     * @return string
      */
     private function castAsJSON(array $operand, bool $acceptObject = false): string
     {

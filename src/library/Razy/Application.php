@@ -155,7 +155,7 @@ class Application
         foreach (self::$multisite as $pattern => $path) {
             if (is_fqdn($pattern, true)) {
                 // If the FQDN string contains * (wildcard)
-                if ('*' !== $pattern && false !== strpos($pattern, '*')) {
+                if ('*' !== $pattern && str_contains($pattern, '*')) {
                     $wildcard = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $pattern);
                     if (preg_match('/^' . $wildcard . '$/', $fqdn)) {
                         return new Domain($this, $pattern, $fqdn, self::$multisite[$fqdn]);
@@ -182,7 +182,8 @@ class Application
     }
 
     /**
-     * @return Distributor
+     * @param string $dist
+     * @return Distributor|null
      */
     public static function GetDistributorByName(string $dist): ?Distributor
     {
@@ -233,7 +234,7 @@ class Application
      * @return mixed|Distributor
      * @throws Throwable
      */
-    private static function CreateDistributor(array &$distInfo)
+    private static function CreateDistributor(array &$distInfo): mixed
     {
         $distInfo['entity'] = $distInfo['entity'] ?? new Distributor($distInfo['distributor_path'], $distInfo['distributor_alias']);
 
@@ -245,7 +246,7 @@ class Application
      *
      * @throws Throwable
      */
-    public static function UpdateSites()
+    public static function UpdateSites(): void
     {
         if (!defined('SYSTEM_ROOT')) {
             throw new Error('SYSTEM_ROOT is not defined, initialize failed.');
@@ -313,7 +314,7 @@ class Application
                                                 ];
                                             }
                                         }
-                                    } catch (Exception $e) {
+                                    } catch (Exception) {
                                     }
                                 }
                             } elseif (is_array($distPath)) {
@@ -402,7 +403,7 @@ class Application
 
                 self::$cachedConfig = $config;
                 return true;
-            } catch (Exception $e) {
+            } catch (Exception) {
                 return false;
             }
         }
@@ -411,7 +412,10 @@ class Application
     }
 
     /**
+     * Update the rewrite.
+     *
      * @return bool
+     * @throws Error
      * @throws Throwable
      */
     static public function UpdateRewriteRules(): bool
@@ -420,7 +424,7 @@ class Application
             try {
                 $source    = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/htaccess.tpl');
                 $rootBlock = $source->getRoot();
-                foreach (self::GetDistributors() as $distCode => $info) {
+                foreach (self::GetDistributors() as $info) {
                     $domain = preg_quote($info['domain']);
                     if (!preg_match('/:\d+$/', $domain)) {
                         $domain .= '(:\d+)?';
@@ -432,14 +436,14 @@ class Application
                         $rootBlock->newBlock('rewrite')->assign([
                             'domain'     => $domain,
                             'dist_path'  => ltrim(tidy(append($moduleInfo->getContainerPath(true), '$1', 'webassets', '$2')), '/'),
-                            'route_path' => trim($info['url_path'], '/'),
+                            'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
                             'mapping'    => $moduleInfo->getClassName(),
                         ]);
                     }
                 }
 
                 file_put_contents(append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess'), $source->output());
-            } catch (Exception $e) {
+            } catch (Exception) {
                 return false;
             }
             return true;
@@ -551,7 +555,7 @@ class Application
         // If the domain is not matched or another error occurred, return null
         try {
             $app = new self($domain, $this);
-        } catch (Exception $e) {
+        } catch (Exception) {
             return null;
         }
 

@@ -17,7 +17,7 @@ class Process
         return stream_get_contents($this->pipes[1]);
     }
 
-    public function start(string $path)
+    public function start(string $path): void
     {
         $descriptors = array(
             0 => array('pipe', 'r'),  // STDIN

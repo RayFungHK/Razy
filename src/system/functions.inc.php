@@ -85,7 +85,7 @@ function append(string $path, ...$extra): string
  *
  * @param array &$routes An array contains the routing path
  */
-function sort_path_level(array &$routes)
+function sort_path_level(array &$routes): void
 {
     uksort($routes, function ($path_a, $path_b) {
         $count_a = substr_count(tidy($path_a, true, '/'), '/');
@@ -106,7 +106,7 @@ function sort_path_level(array &$routes)
  *
  * @return false|string
  */
-function versionStandardize(string $version, bool $wildcard = false)
+function versionStandardize(string $version, bool $wildcard = false): false|string
 {
     $pattern = ($wildcard) ? '/^(\d+)(?:\.(?:\d+|\*)){0,3}$/' : '/^(\d+)(?:\.\d+){0,3}$/';
     if (!preg_match($pattern, $version)) {
@@ -200,7 +200,7 @@ function vc(string $requirement, string $version): bool
                         $result = version_compare($version, $vs, $operator);
                     }
 
-                    // Check if logical character is exists
+                    // Check if logical character is existing
                     if (count($extracted)) {
                         $logical = array_shift($extracted);
                         if (!preg_match('/^[|,]$/', $logical)) {
@@ -216,7 +216,7 @@ function vc(string $requirement, string $version): bool
                     }
                 } elseif (preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
                     $compare = versionStandardize($clip, true);
-                    if (false !== strpos($compare, '*')) {
+                    if (str_contains($compare, '*')) {
                         $compare = str_replace(['*', '.'], ['\d+', '\\.'], $compare);
                         $result  = preg_match('/^' . $compare . '$/', $version);
                     } else {
@@ -325,7 +325,7 @@ function ipInRange(string $ip, string $cidr): bool
         return false;
     }
 
-    if (strpos($cidr, '/') === false) {
+    if (!str_contains($cidr, '/')) {
         $cidr .= '/32';
     }
 
@@ -437,14 +437,14 @@ function urefactor(array &$source, callable $callback, string ...$keys): array
 /**
  * Compare two value by provided comparison operator.
  *
- * @param mixed $valueA The value of A
- * @param mixed $valueB The value of B
+ * @param mixed|null $valueA The value of A
+ * @param mixed|null $valueB The value of B
  * @param string $operator The comparison operator
  * @param bool $strict if the strict is set to TRUE it will also check the types of the both values
  *
  * @return bool Return the comparison result
  */
-function comparison($valueA = null, $valueB = null, string $operator = '=', bool $strict = false): bool
+function comparison(mixed $valueA = null, mixed $valueB = null, string $operator = '=', bool $strict = false): bool
 {
     if (!$strict) {
         $valueA = (is_scalar($valueA)) ? (string)$valueA : $valueA;
@@ -566,7 +566,7 @@ function getRelativePath(string $path, string $root): string
  *
  * @return bool|string return the fixed path or false if the path is not a relative path if the parameter is given
  */
-function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $relative = false)
+function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $relative = false): bool|string
 {
     $path        = trim($path);
     $isDirectory = false;
@@ -600,7 +600,7 @@ function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $r
 
     $fixedPath = implode($separator, $pathAry) . ($isDirectory ? $separator : '');
 
-    if ($relative && 0 !== strpos($fixedPath, $path)) {
+    if ($relative && !str_starts_with($fixedPath, $path)) {
         return false;
     }
 
@@ -647,7 +647,7 @@ function xremove(string $path): bool
                 unlink($path);
             }
         })();
-    } catch (Exception $e) {
+    } catch (Exception) {
         return false;
     }
 
@@ -674,7 +674,7 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
 
     $fileName = '';
     if (is_file($source)) {
-        if (substr($dest, -1) !== '/') {
+        if (!str_ends_with($dest, '/')) {
             $fileName = substr($dest, strrpos($dest, '/') + 1);
             $dest     = substr($dest, 0, strrpos($dest, '/'));
         }
@@ -714,7 +714,7 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
                 copy($source, append($dest, $fileName ?? basename($source)));
             }
         })();
-    } catch (Exception $e) {
+    } catch (Exception) {
         return false;
     }
 
@@ -738,7 +738,7 @@ function autoload(string $className, string $path = ''): bool
             $libraryPath = append($path, $className, end($splits) . '.php');
             if (!is_file($libraryPath)) {
                 // Psr-0
-                if (false !== strpos($className, '_')) {
+                if (str_contains($className, '_')) {
                     $splits      = explode('_', $className);
                     $classFolder = append($path, reset($splits));
                     if (is_dir($classFolder)) {
@@ -753,7 +753,7 @@ function autoload(string $className, string $path = ''): bool
                 include $libraryPath;
 
                 return class_exists($className);
-            } catch (Exception $e) {
+            } catch (Exception) {
                 return false;
             }
         }

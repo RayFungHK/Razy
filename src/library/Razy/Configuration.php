@@ -84,7 +84,7 @@ class Configuration extends Collection
      * @param       $key
      * @param mixed $value The value to set to the iterator
      */
-    public function offsetSet($key, $value)
+    public function offsetSet($key, mixed $value): void
     {
         if (!isset($this[$key]) || $this[$key] !== $value) {
             $this->changed = true;

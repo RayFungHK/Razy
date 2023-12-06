@@ -11,21 +11,19 @@
 
 namespace Razy;
 
+use Override;
 use Razy\Template\Entity;
-use Razy\Template\Plugin\Container;
+use Razy\Template\Plugin\TFunctionCustom;
 
-return [
-    'enclose_content' => true,
-    'bypass_parser'   => true,
-    'parameters'      => [],
-    'processor'       => function (Container $container) {
-        $parameters = $container->getParameters();
-        $paramText  = array_shift($parameters);
-        $clips      = SimpleSyntax::ParseParens($paramText);
+return new class() extends TFunctionCustom
+{
+    protected bool $encloseContent = true;
 
-        $recursive   = function (array $clips) use (&$recursive) {
-            /** @var Entity $entity */
-            $entity  = $this;
+    #[Override] public function processor(Entity $entity, string $syntax = '', string $wrappedText = ''): string
+    {
+        $clips = SimpleSyntax::ParseParens($syntax);
+
+        $recursive   = function (array $clips) use (&$recursive, $entity) {
             $value   = null;
             $reverse = false;
             while ($clip = array_shift($clips)) {
@@ -80,10 +78,10 @@ return [
             return $value;
         };
 
-        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $this->parseText($container->getContent()), 2);
+        $split     = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $entity->parseText($wrappedText), 2);
         $trueText  = $split[0];
         $falseText = $split[1] ?? '';
 
-        return $this->parseText(($recursive($clips)) ? $trueText : $falseText);
-    },
-];
+        return $entity->parseText(($recursive($clips)) ? $trueText : $falseText);
+    }
+};

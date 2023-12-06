@@ -14,6 +14,9 @@ namespace Razy\Template;
 use Closure;
 use Razy\Error;
 use Razy\FileReader;
+use Razy\Template\Plugin\TFunctionCustom;
+use Razy\Template\Plugin\TModifier;
+use Razy\Template\Plugin\TFunction;
 use Throwable;
 
 use function Razy\append;
@@ -95,7 +98,7 @@ class Block
 
         while (($line = $reader->fetch()) !== null) {
             // If the line is a block tag
-            if (false !== strpos($line, '<!-- ')) {
+            if (str_contains($line, '<!-- ')) {
                 if (preg_match('/^\s*<!-- (INCLUDE|TEMPLATE|START|END|RECURSION|USE (\w[\w-]*)) BLOCK: (.+) -->\s*$/', $line, $matches)) {
                     if ('INCLUDE' !== $matches[1] && !preg_match('/^\w[\w\-]+(?=[^-])\w$/', $matches[3])) {
                         $concat .= $line;
@@ -125,7 +128,7 @@ class Block
 
                             $this->blocks[$matches[3]]    = $parent;
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
-                        } elseif (preg_match('/^USE /', $matches[1])) {
+                        } elseif (str_starts_with($matches[1], 'USE ')) {
                             $found = false;
                             while (($parent = $this->parent) !== null) {
                                 if ($parent->hasBlock($matches[2])) {
@@ -178,7 +181,7 @@ class Block
      *
      * @param string $block the block name
      *
-     * @return Block The Block object
+     * @return Block|null The Block object
      */
     public function getClosest(string $block): ?Block
     {
@@ -204,11 +207,11 @@ class Block
     }
 
     /**
-     * Determine the block is exists in current block.
+     * Determine the block is existing in current block.
      *
      * @param string $name The block name
      *
-     * @return bool Return true if the block is exists
+     * @return bool Return true if the block is existing
      */
     public function hasBlock(string $name): bool
     {
@@ -237,12 +240,12 @@ class Block
      * Assign the block level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed $value     The parameter value
+     * @param mixed|null $value     The parameter value
      *
      * @return self Chainable
      * @throws Throwable
      */
-    public function assign($parameter, $value = null): Block
+    public function assign(mixed $parameter, mixed $value = null): Block
     {
         if (is_array($parameter)) {
             foreach ($parameter as $index => $value) {
@@ -271,7 +274,7 @@ class Block
      * @return $this
      * @throws Throwable
      */
-    public function bind(string $parameter, &$value): Block
+    public function bind(string $parameter, mixed &$value): Block
     {
         $this->parameters[$parameter] = $value;
 
@@ -351,7 +354,7 @@ class Block
      *
      * @return mixed The parameter value
      */
-    public function getValue(string $parameter, bool $recursion = false)
+    public function getValue(string $parameter, bool $recursion = false): mixed
     {
         if ($recursion) {
             if (!$this->parameterAssigned($parameter)) {
@@ -367,7 +370,7 @@ class Block
      *
      * @param string $parameter The parameter name
      *
-     * @return bool Return true if the parameter is exists
+     * @return bool Return true if the parameter is existing
      */
     public function parameterAssigned(string $parameter): bool
     {
@@ -380,10 +383,11 @@ class Block
      * @param string $type
      * @param string $name
      *
-     * @return null|Plugin
+     * @return TModifier|TFunction|TFunctionCustom|null
+     * @throws Error
      * @throws Throwable
      */
-    public function loadPlugin(string $type, string $name): ?Plugin
+    public function loadPlugin(string $type, string $name): null|TModifier|TFunction|TFunctionCustom
     {
         return $this->source->loadPlugin($type, $name);
     }

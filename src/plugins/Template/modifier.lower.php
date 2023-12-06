@@ -9,8 +9,11 @@
  * with this source code in the file LICENSE.
  */
 
-return [
-    'processor' => function ($value) {
+use Razy\Template\Plugin\TModifier;
+
+return new class() extends TModifier {
+    #[Override] protected function process(mixed $value, string ...$args): string
+    {
         return strtolower($value);
-    },
-];
+    }
+};

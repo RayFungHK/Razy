@@ -8,9 +8,11 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  */
+use Razy\Template\Plugin\TModifier;
 
-return [
-    'processor' => function ($value) {
+return new class() extends TModifier {
+    #[Override] protected function process(mixed $value, string ...$args): string
+    {
         return ucwords(strtolower($value));
-    },
-];
+    }
+};

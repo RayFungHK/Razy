@@ -118,16 +118,16 @@ class Module
      * Module constructor.
      *
      * @param Distributor $distributor The Distributor instance
-     * @param string      $path        The folder path of the Distributor
-     * @param string      $version     The specified version to load, leave blank to load default or dev
-     * @param bool        $sharedModule
+     * @param string $path The folder path of the Distributor
+     * @param string $version The specified version to load, leave blank to load default or dev
+     * @param bool $sharedModule
      *
      * @throws Throwable
      */
     public function __construct(Distributor $distributor, string $path, string $version = 'default', bool $sharedModule = false)
     {
         $this->distributor = $distributor;
-        $this->moduleInfo  = new ModuleInfo($path, $version, $sharedModule);
+        $this->moduleInfo = new ModuleInfo($path, $version, $sharedModule);
 
         if (strlen($this->moduleInfo->getAPICode()) > 0) {
             $this->distributor->enableAPI($this);
@@ -163,7 +163,7 @@ class Module
      * Add lazy route into the route list.
      *
      * @param string $route The path of the route
-     * @param string $path  The path of the closure file
+     * @param string $path The path of the closure file
      *
      * @return $this
      */
@@ -178,7 +178,7 @@ class Module
      * Add CLI script path into the script list.
      *
      * @param string $route The path of the route
-     * @param string $path  The path of the closure file
+     * @param string $path The path of the closure file
      *
      * @return $this
      */
@@ -193,7 +193,7 @@ class Module
      * Add standard route into the route list, regular expression string supported.
      *
      * @param string $route The path of the route
-     * @param string $path  The path of the closure file by the method name
+     * @param string $path The path of the closure file by the method name
      *
      * @return $this
      */
@@ -260,14 +260,14 @@ class Module
     /**
      * Execute API command.
      *
-     * @param string $module  The request module
+     * @param string $module The request module
      * @param string $command The API command
-     * @param array  $args    The arguments will pass to API command
+     * @param array $args The arguments will pass to API command
      *
      * @return mixed
      * @throws Throwable
      */
-    public function execute(string $module, string $command, array $args)
+    public function execute(string $module, string $command, array $args): mixed
     {
         return $this->accessAPI($module, $command, $args);
     }
@@ -275,22 +275,29 @@ class Module
     /**
      * Execute the API command.
      *
-     * @param string $module  The request module
+     * @param string $module The request module
      * @param string $command The API command
-     * @param array  $args    The arguments will pass to the API command
+     * @param array $args The arguments will pass to the API command
      *
      * @return null|mixed
      * @throws Throwable
      */
-    public function accessAPI(string $module, string $command, array $args)
+    public function accessAPI(string $module, string $command, array $args): mixed
     {
         $result = null;
         $this->distributor->attention();
         try {
             if (array_key_exists($command, $this->commands)) {
-                if (($closure = $this->getClosure($this->commands[$command])) !== null) {
-                    if ($this->controller->__onAPICall($module, $command)) {
-                        $result = call_user_func_array($closure->bindTo($this->controller), $args);
+                if ($this->controller->__onAPICall($module, $command)) {
+                    $closure = null;
+                    if (!str_contains($command, '/') && method_exists($this->controller, $command)) {
+                        $closure = [$this->controller, $command];
+                    } elseif (($closure = $this->getClosure($this->commands[$command])) !== null) {
+                        $closure->bindTo($this->controller);
+                    }
+
+                    if ($closure) {
+                        $result = call_user_func_array($closure, $args);
                     }
                 }
             }
@@ -349,23 +356,28 @@ class Module
      * Trigger the event.
      *
      * @param string $event The event name
-     * @param array  $args  The arguments will pass to the listener
+     * @param array $args The arguments will pass to the listener
      *
      * @return null|mixed
      * @throws Throwable
      */
-    public function fireEvent(string $event, array $args)
+    public function fireEvent(string $event, array $args): mixed
     {
         try {
             if (array_key_exists($event, $this->events)) {
-                if (($closure = $this->getClosure($this->events[$event])) !== null) {
+                $closure = null;
+                if (!str_contains($event, '/') && method_exists($this->controller, $event)) {
+                    $closure = [$this->controller, $event];
+                } elseif (($closure = $this->getClosure($this->events[$event])) !== null) {
+                    $closure->bindTo($this->controller);
+                }
+
+                if ($closure) {
                     return call_user_func_array($closure, $args);
                 }
             }
         } catch (Throwable $exception) {
             $this->controller->__onError($event, $exception);
-
-            return null;
         }
 
         return null;
@@ -620,7 +632,7 @@ class Module
     /**
      * Get the EventEmitter instance from Distributor.
      *
-     * @param string   $event    The event name
+     * @param string $event The event name
      * @param callable $callback The callback will be executed if the event is resolving
      *
      * @return EventEmitter
@@ -697,7 +709,7 @@ class Module
     /**
      * Put the callable into the list to wait for executing until other specified modules has ready.
      *
-     * @param string  $moduleCode
+     * @param string $moduleCode
      * @param Closure $caller
      *
      * @return $this

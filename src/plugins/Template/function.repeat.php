@@ -9,21 +9,23 @@
  * with this source code in the file LICENSE.
  */
 
-use Razy\Template\Plugin\Container;
+use Razy\Template\Entity;
+use Razy\Template\Plugin\TFunction;
 
-return [
-    'enclose_content' => false,
-    'bypass_parser'   => false,
-    'parameters'      => [
+return new class() extends TFunction
+{
+    protected bool $encloseContent = true;
+    protected array $allowedParameters = [
         'length' => 1,
-    ],
-    'processor' => function (Container $container) {
-        $parameters           = $container->getParameters();
+    ];
+
+    #[Override] public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
+    {
         $parameters['length'] = (int) $parameters['length'];
         if ($parameters['length'] < 0) {
             $parameters['length'] = 0;
         }
 
-        return ($parameters['length'] > 0) ? str_repeat($container->getContent(), $parameters['length']) : '';
-    },
-];
+        return ($parameters['length'] > 0) ? str_repeat($wrappedText, $parameters['length']) : '';
+    }
+};

@@ -95,7 +95,7 @@ class Mailer
      */
     private array $replyTo = [];
     /**
-     * Reponse timeout setting
+     * Response timeout setting
      * @var int
      */
     private int $responseTimeout;
@@ -159,10 +159,10 @@ class Mailer
      * Add the file as attachment.
      *
      * @param array|string $attachment
-     *
+     * @param string $name
      * @return $this
      */
-    public function addAttachment($attachment, string $name = ''): Mailer
+    public function addAttachment(array|string $attachment, string $name = ''): Mailer
     {
         if (is_array($attachment)) {
             foreach ($attachment as $path => $filename) {
@@ -185,7 +185,7 @@ class Mailer
      *
      * @return $this
      */
-    public function bcc($email, string $name = null): Mailer
+    public function bcc(array|string $email, string $name = null): Mailer
     {
         if (is_array($email)) {
             foreach ($email as $address => $recipientName) {
@@ -219,7 +219,7 @@ class Mailer
      *
      * @return $this
      */
-    public function cc($email, string $name = null): Mailer
+    public function cc(array|string $email, string $name = null): Mailer
     {
         if (is_array($email)) {
             foreach ($email as $address => $recipientName) {
@@ -255,7 +255,7 @@ class Mailer
      *
      * @return $this
      */
-    public function replyTo($email, string $name = null): Mailer
+    public function replyTo(array|string $email, string $name = null): Mailer
     {
         if (is_array($email)) {
             foreach ($email as $address => $recipientName) {
@@ -402,7 +402,7 @@ class Mailer
         $this->logs[] = $this->push('QUIT');
         fclose($this->socket);
 
-        return substr($response, 0, 3) === '250';
+        return str_starts_with($response, '250');
     }
 
     /**
@@ -528,7 +528,7 @@ class Mailer
      *
      * @return $this
      */
-    public function to($email, string $name = null): Mailer
+    public function to(array|string $email, string $name = null): Mailer
     {
         if (is_array($email)) {
             foreach ($email as $address => $recipientName) {
