@@ -280,45 +280,28 @@ class Application
                 if (is_fqdn($domain, true) && is_array($pathSet)) {
                     foreach ($pathSet as $urlPath => $distPath) {
                         // Validate the distributor directory has the configuration file
-                        ($validate = function ($distPath, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
-                            [$distPath, $alias] = explode('@', $distPath);
-                            if (is_string($distPath)) {
-                                // Check the distributor config first
-                                $configFile = append(SITES_FOLDER, $distPath, 'dist.php');
-                                if (is_file($configFile)) {
-                                    try {
-                                        // Load the distributor config file
-                                        $distConfig = require $configFile;
-
-                                        // Ensure the config file is in valid format and the code is not empty
-                                        if (is_array($distConfig) && is_string($distConfig['dist'])) {
-                                            $distConfig['dist'] = trim($distConfig['dist']);
-                                            if ($distConfig['dist']) {
-                                                $distIdentify = $distConfig['dist'] . ($alias ? '@' . $alias : '');
-                                                // Distributor should be unique, if the distribution code has been used, throw an error
-                                                if (isset(self::$registeredDist[$distIdentify])) {
-                                                    throw new Error($distIdentify . ' has been declared already, please ensure the distributor code is not duplicated.');
-                                                }
-
-                                                // Declare an array if the domain is not existed
-                                                self::$multisite[$domain] = self::$multisite[$domain] ?? [];
-
-                                                self::$multisite[$domain][$urlPath] = $distIdentify;
-
-                                                self::$registeredDist[$distIdentify] = [
-                                                    'distributor_path'  => $distPath,
-                                                    'distributor_alias' => $alias ?: '*',
-                                                    'url_path'          => $urlPath,
-                                                    'domain'            => $domain,
-                                                    'alias'             => $aliasMapping[$domain] ?? [],
-                                                ];
-                                            }
-                                        }
-                                    } catch (Exception) {
-                                    }
+                        ($validate = function ($distIdentify, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
+                            [, $alias] = explode('@', $distIdentify);
+                            if (is_string($distIdentify)) {
+                                // Distributor should be unique, if the distribution code has been used, throw an error
+                                if (isset(self::$registeredDist[$distIdentify])) {
+                                    throw new Error($distIdentify . ' has been declared already, please ensure the distributor code is not duplicated.');
                                 }
-                            } elseif (is_array($distPath)) {
-                                foreach ($distPath as $path => $pathSet) {
+
+                                // Declare an array if the domain is not existed
+                                self::$multisite[$domain] = self::$multisite[$domain] ?? [];
+
+                                self::$multisite[$domain][$urlPath] = $distIdentify;
+
+                                self::$registeredDist[$distIdentify] = [
+                                    'distributor_path'  => $distIdentify,
+                                    'distributor_alias' => $alias ?: '*',
+                                    'url_path'          => $urlPath,
+                                    'domain'            => $domain,
+                                    'alias'             => $aliasMapping[$domain] ?? [],
+                                ];
+                            } elseif (is_array($distIdentify)) {
+                                foreach ($distIdentify as $path => $pathSet) {
                                     $validate($pathSet, append($urlPath, $path));
                                 }
                             }
@@ -519,7 +502,7 @@ class Application
                 foreach ($modules as $module) {
                     $info[] = [
                         $module->getModuleInfo()->getCode(),
-                        $status[$module->getModuleInfo()->getStatus()],
+                        $status[$module->getStatus()],
                         $module->getModuleInfo()->getVersion(),
                         $module->getModuleInfo()->getAuthor(),
                         $module->getModuleInfo()->getAPICode(),

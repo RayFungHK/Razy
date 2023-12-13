@@ -666,19 +666,19 @@ class Distributor
      * Handshake with specified module.
      *
      * @param string $targetModuleCode
-     * @param string $moduleCode
+     * @param ModuleInfo $requestedBy
      * @param string $version
      * @param string $message
      *
      * @return bool
      */
-    public function handshakeTo(string $targetModuleCode, string $moduleCode, string $version, string $message): bool
+    public function handshakeTo(string $targetModuleCode, ModuleInfo $requestedBy, string $version, string $message): bool
     {
         if (!isset($this->modules[$targetModuleCode])) {
             return false;
         }
 
-        return $this->modules[$targetModuleCode]->touch($moduleCode, $version, $message);
+        return $this->modules[$targetModuleCode]->touch($requestedBy, $version, $message);
     }
 
     /**
@@ -812,7 +812,7 @@ class Distributor
         if ($this->domain) {
             foreach ($this->modules as $module) {
                 if (Module::STATUS_LOADED === $module->getStatus()) {
-                    $module->standby($target->getModuleInfo()->getCode());
+                    $module->standby($target->getModuleInfo());
                 }
             }
         }

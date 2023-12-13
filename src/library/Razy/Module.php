@@ -495,7 +495,7 @@ class Module
      */
     public function handshake(string $moduleCode, string $message = ''): bool
     {
-        return $this->distributor->handshakeTo($moduleCode, $this->moduleInfo->getCode(), $this->moduleInfo->getVersion(), $message);
+        return $this->distributor->handshakeTo($moduleCode, $this->moduleInfo, $this->moduleInfo->getVersion(), $message);
     }
 
     /**
@@ -653,13 +653,13 @@ class Module
     /**
      * Trigger __onDispatch event when the application has routed into a module
      */
-    public function standby(string $moduleCode): void
+    public function standby(ModuleInfo $module): void
     {
         if (self::STATUS_LOADED === $this->status) {
             if (CLI_MODE) {
-                $this->controller->__onScriptLoaded($moduleCode);
+                $this->controller->__onScriptLoaded($module);
             } else {
-                $this->controller->__onDispatch($moduleCode);
+                $this->controller->__onDispatch($module);
             }
         }
     }
@@ -667,15 +667,15 @@ class Module
     /**
      * Touch to inform it has handshake from another module.
      *
-     * @param string $moduleCode
+     * @param ModuleInfo $module
      * @param string $version
      * @param string $message
      *
      * @return bool
      */
-    public function touch(string $moduleCode, string $version, string $message): bool
+    public function touch(ModuleInfo $module, string $version, string $message): bool
     {
-        return $this->controller->__onTouch($moduleCode, $version, $message);
+        return $this->controller->__onTouch($module, $version, $message);
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace Razy;
 
+use Closure;
+
 class XHR
 {
     public const CORP_SAME_SITE    = 'same-site';
@@ -29,6 +31,8 @@ class XHR
      * @var array
      */
     private array $parameters = [];
+
+    private ?Closure $closure = null;
 
     /**
      * XHR constructor.
@@ -167,6 +171,10 @@ class XHR
         ob_clean();
         echo json_encode($data);
 
+        if ($this->closure) {
+            call_user_func($this->closure);
+        }
+
         exit;
     }
 
@@ -187,6 +195,17 @@ class XHR
             throw new Error('The name of the parameter cannot be empty.');
         }
         $this->parameters[$name] = $this->parse($dataset);
+
+        return $this;
+    }
+
+    /**
+     * @param Closure $closure
+     * @return $this
+     */
+    public function onComplete(Closure $closure): self
+    {
+        $this->closure = $closure;
 
         return $this;
     }

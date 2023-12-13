@@ -108,22 +108,22 @@ abstract class Controller
     /**
      * __onDispatch event, all modules will be executed before the routed method executes
      *
-     * @param string $moduleCode
+     * @param ModuleInfo $module
      *
      * @return void
      */
-    public function __onDispatch(string $moduleCode): void
+    public function __onDispatch(ModuleInfo $module): void
     {
     }
 
     /**
      * __onScriptLoaded event, all modules will be executed before the matched script execute
      *
-     * @param string $moduleCode
+     * @param ModuleInfo $module
      *
      * @return void
      */
-    public function __onScriptLoaded(string $moduleCode): void
+    public function __onScriptLoaded(ModuleInfo $module): void
     {
     }
 
@@ -201,13 +201,13 @@ abstract class Controller
     /**
      * __onTouch event, handling touch request from another module.
      *
-     * @param string $moduleCode
+     * @param ModuleInfo $module
      * @param string $version
      * @param string $message
      *
      * @return bool
      */
-    public function __onTouch(string $moduleCode, string $version, string $message = ''): bool
+    public function __onTouch(ModuleInfo $module, string $version, string $message = ''): bool
     {
         return true;
     }
@@ -228,7 +228,6 @@ abstract class Controller
      * Get the API Emitter.
      *
      * @param string $moduleCode
-     *
      * @return Emitter
      */
     final public function api(string $moduleCode): Emitter
