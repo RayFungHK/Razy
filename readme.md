@@ -539,13 +539,15 @@ Here is a simple flow chart:
 ```mermaid
 flowchart LR;
     subgraph ide1 [Module Preload]
-    A["__onInit()"] -- True --> B["__onValidate()"];
+    A["__onInit()"] -- TRUE --> B["__onValidate()"];
     B --  TRUE --> C["__onReady()"];
     B -- FALSE --> D["__onPreload()"];
     D -- TRUE --> C
     end
     subgraph ide2 [Web Routing]
     C --> F["__onDispatch()"];
+    end
+    subgraph ide2b [Route Matched Module]
     F --> G["__onRoute()"];
     end
     subgraph ide3 [CLI Routing]
