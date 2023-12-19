@@ -535,7 +535,7 @@ The following table is the injection and the path between each class.
 | __onError(): void    |Only trigger when the module's throw any error.
 Here is a simple flow chart:
 
-The flow of the module in routing
+## The flow chart to explain the module loading path in Razy
 ```mermaid
 flowchart LR;
     subgraph ide1 [Module Preload]
