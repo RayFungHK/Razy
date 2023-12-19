@@ -537,11 +537,20 @@ Here is a simple flow chart:
 
 The flow of the module in routing
 ```mermaid
-graph TD;
-    __onValidate()-->__onPreload();
-    __onPreload()-->__onInit();
-    __onValidate()-->__onInit();
-    __onInit()-->__onReady();
-    __onReady()-->__onDispatch();
-    __onDispatch()-->__onRoute();
+flowchart LR;
+    subgraph ide1 [Module Preload]
+    A["__onInit()"] -- True --> B["__onValidate()"];
+    B --  TRUE --> C["__onReady()"];
+    B -- FALSE --> D["__onPreload()"];
+    D -- TRUE --> C
+    end
+    subgraph ide2 [Web Routing]
+    C --> F["__onDispatch()"];
+    F --> G["__onRoute()"];
+    end
+    subgraph ide3 [CLI Routing]
+    C --> H["__onScriptLoaded()"];
+    end
+    D --> E(["Web Routing Terminated"]):::terminated
+    classDef terminated fill:#FF2200,stroke:#fF3300,color:#fff
 ```
