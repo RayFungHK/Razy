@@ -12,7 +12,9 @@
 namespace Razy\Template;
 
 use Closure;
+use Razy\Controller;
 use Razy\Error;
+use Razy\ModuleInfo;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Throwable;
@@ -109,7 +111,17 @@ class Entity
         return $this;
     }
 
-    /**
+	/**
+	 * Get the module which was loaded the template file.
+	 *
+	 * @return ModuleInfo|null
+	 */
+	public function getModule(): ?ModuleInfo
+	{
+		return $this->block->getModule();
+	}
+
+	/**
      * Bind reference parameter
      *
      * @param null $value

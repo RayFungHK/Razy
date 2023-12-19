@@ -93,6 +93,7 @@ class Distributor
      * @var Module[]
      */
     private array $modules = [];
+
     /**
      * The storage of prerequisites, used for composer.
      *

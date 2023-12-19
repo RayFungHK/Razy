@@ -12,8 +12,10 @@
 namespace Razy\Template;
 
 use Closure;
+use Razy\Controller;
 use Razy\Error;
 use Razy\FileReader;
+use Razy\ModuleInfo;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
 use Razy\Template\Plugin\TFunction;
@@ -165,6 +167,16 @@ class Block
             $this->structure[] = $concat;
         }
     }
+
+	/**
+	 * Get the module which was loaded the template file.
+	 *
+	 * @return ModuleInfo|null
+	 */
+	public function getModule(): ?ModuleInfo
+	{
+		return $this->source->getModule();
+	}
 
     /**
      * Get the block path.

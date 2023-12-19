@@ -90,17 +90,17 @@ abstract class Controller
         return call_user_func_array($closure, $arguments);
     }
 
-    /**
-     * Controller Event __onAPICall, will be executed if the module is accessed via API. Return false to refuse API
-     * access.
-     *
-     * @param string $module The module code that is accessed via API
-     * @param string $method The command method will be called via API
-     * @param string $fqdn The well-formatted FQDN string includes the domain name and distributor code
-     *
-     * @return bool Return false to refuse API access
-     */
-    public function __onAPICall(string $module, string $method, string $fqdn = ''): bool
+	/**
+	 * Controller Event __onAPICall, will be executed if the module is accessed via API. Return false to refuse API
+	 * access.
+	 *
+	 * @param ModuleInfo $module The ModuleInfo entity that is accessed via API
+	 * @param string $method The command method will be called via API
+	 * @param string $fqdn The well-formatted FQDN string includes the domain name and distributor code
+	 *
+	 * @return bool Return false to refuse API access
+	 */
+    public function __onAPICall(ModuleInfo $module, string $method, string $fqdn = ''): bool
     {
         return true;
     }
@@ -457,7 +457,7 @@ abstract class Controller
         }
         $template = $this->module->getTemplateEngine();
 
-        return $template->load($path);
+        return $template->load($path, $this->getModuleInfo());
     }
 
     /**

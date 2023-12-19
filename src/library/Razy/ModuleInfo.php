@@ -17,6 +17,8 @@ use Throwable;
 
 class ModuleInfo
 {
+	const REGEX_MODULE_CODE = '/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i';
+
     private string $alias = '';
     /**
      * The API command alias
@@ -147,7 +149,7 @@ class ModuleInfo
                 }
                 $code = trim($settings['module_code']);
 
-                if (!preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $code)) {
+                if (!preg_match(self::REGEX_MODULE_CODE, $code)) {
                     throw new Error('The module code ' . $code . ' is not a correct format, it should be `vendor/package`.');
                 }
 

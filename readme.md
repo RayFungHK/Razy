@@ -528,8 +528,20 @@ The following table is the injection and the path between each class.
 | __onPreload(): bool  |Trigger when the module has returned false in `__onValidate()`. Return false to refuse to enter routing stage.
 | __onInit(): bool     |Trigger when all modules are validated, return false to mark the module as unloaded
 | __onReady(): void    |When all modules are loaded, API and Event will enable and all the modules will be triggered once.
-| __onDispatch(): void |Trigger all the modules that not routed in when the application has routed successfully
+| __onDispatch(): void |Trigger all the modules when the application finish routing
 | __onRoute(): bool    |Only trigger when the module route is matched with the URL query, return false to refuse the matching.
 | __onAPICall(): bool  |Only trigger when the module's API is called, return false to refuse the API.
 | __onTrigger(): bool  |Only trigger when the module's listening event is called, return false to refuse the event trigger.
 | __onError(): void    |Only trigger when the module's throw any error.
+Here is a simple flow chart:
+
+The flow of the module in routing
+```mermaid
+graph TD;
+    __onValidate()-->__onPreload();
+    __onPreload()-->__onInit();
+    __onValidate()-->__onInit();
+    __onInit()-->__onReady();
+    __onReady()-->__onDispatch();
+    __onDispatch()-->__onRoute();
+```

@@ -12,8 +12,10 @@
 namespace Razy\Template;
 
 use Closure;
+use Razy\Controller;
 use Razy\Error;
 use Razy\FileReader;
+use Razy\ModuleInfo;
 use Razy\Template;
 use Razy\Template\Plugin\TFunctionCustom;
 use Throwable;
@@ -25,235 +27,251 @@ use Razy\Template\Plugin\TModifier;
  */
 class Source
 {
-    /**
-     * The template source located directory.
-     *
-     * @var string
-     */
-    private string $fileDirectory = '';
-    /**
-     * An array contains the Source parameters.
-     *
-     * @var array
-     */
-    private array $parameters = [];
-    /**
-     * @var Block|null
-     */
-    private ?Block $rootBlock = null;
-    /**
-     * The root Entity object.
-     *
-     * @var ?Entity
-     */
-    private ?Entity $rootEntity = null;
-    /**
-     * The Template object.
-     *
-     * @var Template
-     */
-    private Template $template;
+	/**
+	 * The template source located directory.
+	 *
+	 * @var string
+	 */
+	private string $fileDirectory = '';
+	/**
+	 * An array contains the Source parameters.
+	 *
+	 * @var array
+	 */
+	private array $parameters = [];
+	/**
+	 * @var Block|null
+	 */
+	private ?Block $rootBlock = null;
+	/**
+	 * The root Entity object.
+	 *
+	 * @var ?Entity
+	 */
+	private ?Entity $rootEntity = null;
+	/**
+	 * The Template object.
+	 *
+	 * @var Template
+	 */
+	private Template $template;
 
-    /**
-     * Template Source constructor.
-     *
-     * @param string   $tplPath  The path of template file
-     * @param Template $template The Template object
-     *
-     * @throws Throwable
-     */
-    public function __construct(string $tplPath, Template $template)
-    {
-        if (!is_file($tplPath)) {
-            throw new Error('Template file ' . $tplPath . ' is not exists.');
-        }
+	/**
+	 * @var ModuleInfo|null
+	 */
+	private ?ModuleInfo $module = null;
 
-        $this->fileDirectory = dirname(realpath($tplPath));
-        $this->template      = $template;
+	/**
+	 * Template Source constructor.
+	 *
+	 * @param string $tplPath The path of template file
+	 * @param Template $template The Template object
+	 *
+	 * @throws Throwable
+	 */
+	public function __construct(string $tplPath, Template $template, ?ModuleInfo $module = null)
+	{
+		if (!is_file($tplPath)) {
+			throw new Error('Template file ' . $tplPath . ' is not exists.');
+		}
 
-        $this->rootEntity = new Entity(($this->rootBlock = new Block($this, '_ROOT', new FileReader($tplPath))));
-    }
+		$this->fileDirectory = dirname(realpath($tplPath));
+		$this->template = $template;
+		$this->module = $module;
 
-    /**
-     * Assign the source level parameter value.
-     *
-     * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed|null $value     The parameter value
-     *
-     * @return self Chainable
-     * @throws Throwable
-     *
-     */
-    public function assign(mixed $parameter, mixed $value = null): Source
-    {
-        if (is_array($parameter)) {
-            foreach ($parameter as $index => $value) {
-                $this->assign($index, $value);
-            }
-        } elseif (is_string($parameter)) {
-            if ($value instanceof Closure) {
-                // If the value is closure, pass the current value to closure
-                $this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
-            } else {
-                $this->parameters[$parameter] = $value;
-            }
-        } else {
-            throw new Error('Invalid parameter name');
-        }
+		$this->rootEntity = new Entity(($this->rootBlock = new Block($this, '_ROOT', new FileReader($tplPath))));
+	}
 
-        return $this;
-    }
+	/**
+	 * Get the module which was loaded the template file.
+	 *
+	 * @return ModuleInfo|null
+	 */
+	public function getModule(): ?ModuleInfo
+	{
+		return $this->module;
+	}
 
-    /**
-     * Bind reference parameter
-     *
-     * @param string $parameter
-     * @param null $value
-     *
-     * @return $this
-     * @throws Throwable
-     */
-    public function bind(string $parameter, null &$value): Source
-    {
-        $this->parameters[$parameter] = &$value;
+	/**
+	 * Assign the source level parameter value.
+	 *
+	 * @param mixed $parameter The parameter name or an array of parameters
+	 * @param mixed|null $value The parameter value
+	 *
+	 * @return self Chainable
+	 * @throws Throwable
+	 *
+	 */
+	public function assign(mixed $parameter, mixed $value = null): Source
+	{
+		if (is_array($parameter)) {
+			foreach ($parameter as $index => $value) {
+				$this->assign($index, $value);
+			}
+		} elseif (is_string($parameter)) {
+			if ($value instanceof Closure) {
+				// If the value is closure, pass the current value to closure
+				$this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
+			} else {
+				$this->parameters[$parameter] = $value;
+			}
+		} else {
+			throw new Error('Invalid parameter name');
+		}
 
-        return $this;
-    }
+		return $this;
+	}
 
-    /**
-     * Get the template file located directory.
-     *
-     * @return string The directory of the template file
-     */
-    public function getFileDirectory(): string
-    {
-        return $this->fileDirectory;
-    }
+	/**
+	 * Bind reference parameter
+	 *
+	 * @param string $parameter
+	 * @param null $value
+	 *
+	 * @return $this
+	 * @throws Throwable
+	 */
+	public function bind(string $parameter, null &$value): Source
+	{
+		$this->parameters[$parameter] = &$value;
 
-    /**
-     * Get the instance hash ID
-     *
-     * @return string
-     */
-    public function getID(): string
-    {
-        return spl_object_hash($this);
-    }
+		return $this;
+	}
 
-    /**
-     * Get the root entity.
-     *
-     * @return Entity|null The root entity object
-     */
-    public function getRoot(): ?Entity
-    {
-        return $this->rootEntity;
-    }
+	/**
+	 * Get the template file located directory.
+	 *
+	 * @return string The directory of the template file
+	 */
+	public function getFileDirectory(): string
+	{
+		return $this->fileDirectory;
+	}
 
-    /**
-     * Get the root entity.
-     *
-     * @return Block|null The root block object
-     */
-    public function getRootBlock(): ?Block
-    {
-        return $this->rootBlock;
-    }
+	/**
+	 * Get the instance hash ID
+	 *
+	 * @return string
+	 */
+	public function getID(): string
+	{
+		return spl_object_hash($this);
+	}
 
-    /**
-     * Get the template block
-     *
-     * @param string $name
-     *
-     * @return Block|null
-     */
-    public function getTemplate(string $name): ?Block
-    {
-        return $this->template->getTemplate($name);
-    }
+	/**
+	 * Get the root entity.
+	 *
+	 * @return Entity|null The root entity object
+	 */
+	public function getRoot(): ?Entity
+	{
+		return $this->rootEntity;
+	}
 
-    /**
-     * Return the parameter value.
-     *
-     * @param string $parameter The parameter name
-     * @param bool   $recursion
-     *
-     * @return mixed The parameter value
-     */
-    public function getValue(string $parameter, bool $recursion = false): mixed
-    {
-        if ($recursion) {
-            if (!$this->parameterAssigned($parameter)) {
-                return $this->template->getValue($parameter);
-            }
-        }
+	/**
+	 * Get the root entity.
+	 *
+	 * @return Block|null The root block object
+	 */
+	public function getRootBlock(): ?Block
+	{
+		return $this->rootBlock;
+	}
 
-        return $this->parameters[$parameter] ?? null;
-    }
+	/**
+	 * Get the template block
+	 *
+	 * @param string $name
+	 *
+	 * @return Block|null
+	 */
+	public function getTemplate(string $name): ?Block
+	{
+		return $this->template->getTemplate($name);
+	}
 
-    /**
-     * Determine the parameter has been assigned.
-     *
-     * @param string $parameter The parameter name
-     *
-     * @return bool Return true if the parameter is existing
-     */
-    public function parameterAssigned(string $parameter): bool
-    {
-        return array_key_exists($parameter, $this->parameters);
-    }
+	/**
+	 * Return the parameter value.
+	 *
+	 * @param string $parameter The parameter name
+	 * @param bool $recursion
+	 *
+	 * @return mixed The parameter value
+	 */
+	public function getValue(string $parameter, bool $recursion = false): mixed
+	{
+		if ($recursion) {
+			if (!$this->parameterAssigned($parameter)) {
+				return $this->template->getValue($parameter);
+			}
+		}
 
-    /**
-     * Link to a specified template engine entity.
-     *
-     * @param Template $template
-     *
-     * @return $this
-     */
-    public function link(Template $template): Source
-    {
-        $this->template = $template;
+		return $this->parameters[$parameter] ?? null;
+	}
 
-        return $this;
-    }
+	/**
+	 * Determine the parameter has been assigned.
+	 *
+	 * @param string $parameter The parameter name
+	 *
+	 * @return bool Return true if the parameter is existing
+	 */
+	public function parameterAssigned(string $parameter): bool
+	{
+		return array_key_exists($parameter, $this->parameters);
+	}
 
-    /**
-     * Load the plugin from the plugin function by given name
-     *
-     * @param string $type
-     * @param string $name
-     *
-     * @return TModifier|TFunction|TFunctionCustom|null
-     * @throws Error
-     * @throws Throwable
-     */
-    public function loadPlugin(string $type, string $name): null|TModifier|TFunction|TFunctionCustom
-    {
-        return $this->template->loadPlugin($type, $name);
-    }
+	/**
+	 * Link to a specified template engine entity.
+	 *
+	 * @param Template $template
+	 *
+	 * @return $this
+	 */
+	public function link(Template $template): Source
+	{
+		$this->template = $template;
 
-    /**
-     * Return the entity content.
-     *
-     * @return string The entity content
-     * @throws Throwable
-     */
-    public function output(): string
-    {
-        return $this->rootEntity->process();
-    }
+		return $this;
+	}
 
-    /**
-     * Add current template source into queue list.
-     *
-     * @param string $name The section name
-     *
-     * @return Source
-     */
-    public function queue(string $name = ''): Source
-    {
-        $this->template->addQueue($this, $name);
+	/**
+	 * Load the plugin from the plugin function by given name
+	 *
+	 * @param string $type
+	 * @param string $name
+	 *
+	 * @return TModifier|TFunction|TFunctionCustom|null
+	 * @throws Error
+	 * @throws Throwable
+	 */
+	public function loadPlugin(string $type, string $name): null|TModifier|TFunction|TFunctionCustom
+	{
+		return $this->template->loadPlugin($type, $name);
+	}
 
-        return $this;
-    }
+	/**
+	 * Return the entity content.
+	 *
+	 * @return string The entity content
+	 * @throws Throwable
+	 */
+	public function output(): string
+	{
+		return $this->rootEntity->process();
+	}
+
+	/**
+	 * Add current template source into queue list.
+	 *
+	 * @param string $name The section name
+	 *
+	 * @return Source
+	 */
+	public function queue(string $name = ''): Source
+	{
+		$this->template->addQueue($this, $name);
+
+		return $this;
+	}
 }

@@ -32,6 +32,6 @@ class Emitter
      */
     public function __call(string $method, array $arguments)
     {
-        return ($this->module) ? $this->module->execute($this->module->getModuleInfo()->getCode(), $method, $arguments) : null;
+        return ($this->module) ? $this->module->execute($this->module->getModuleInfo(), $method, $arguments) : null;
     }
 }

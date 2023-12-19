@@ -257,39 +257,38 @@ class Module
         return array_key_exists($event, $this->events);
     }
 
-    /**
-     * Execute API command.
-     *
-     * @param string $module The request module
-     * @param string $command The API command
-     * @param array $args The arguments will pass to API command
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public function execute(string $module, string $command, array $args): mixed
+	/**
+	 * Execute API command.
+	 *
+	 * @param ModuleInfo $module The request module
+	 * @param string $command The API command
+	 * @param array $args The arguments will pass to API command
+	 *
+	 * @return mixed
+	 * @throws Throwable
+	 */
+    public function execute(ModuleInfo $module, string $command, array $args): mixed
     {
         return $this->accessAPI($module, $command, $args);
     }
 
-    /**
-     * Execute the API command.
-     *
-     * @param string $module The request module
-     * @param string $command The API command
-     * @param array $args The arguments will pass to the API command
-     *
-     * @return null|mixed
-     * @throws Throwable
-     */
-    public function accessAPI(string $module, string $command, array $args): mixed
+	/**
+	 * Execute the API command.
+	 *
+	 * @param ModuleInfo $module The request module
+	 * @param string $command The API command
+	 * @param array $args The arguments will pass to the API command
+	 *
+	 * @return null|mixed
+	 * @throws Throwable
+	 */
+    public function accessAPI(ModuleInfo $module, string $command, array $args): mixed
     {
         $result = null;
         $this->distributor->attention();
         try {
             if (array_key_exists($command, $this->commands)) {
                 if ($this->controller->__onAPICall($module, $command)) {
-                    $closure = null;
                     if (!str_contains($command, '/') && method_exists($this->controller, $command)) {
                         $closure = [$this->controller, $command];
                     } elseif (($closure = $this->getClosure($this->commands[$command])) !== null) {

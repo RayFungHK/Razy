@@ -2,6 +2,7 @@
 
 namespace Razy\Template\Plugin;
 
+use Razy\Controller;
 use Razy\Template\Entity;
 
 class TFunctionCustom
@@ -10,18 +11,18 @@ class TFunctionCustom
 
     private string $name;
 
-    protected mixed $caller = null;
+	protected ?Controller $controller = null;
 
-    /**
-     * @param string $entity
-     * @return $this
-     */
-    final public function bind(mixed $entity): static
-    {
-        $this->caller = $entity;
+	/**
+	 * @param Controller $entity
+	 * @return $this
+	 */
+	final public function bind(Controller $entity): static
+	{
+		$this->controller = $entity;
 
-        return $this;
-    }
+		return $this;
+	}
 
     /**
      * @param Entity $entity
