@@ -27,16 +27,6 @@ class Error extends Exception
      * @var bool
      */
     private static bool $debug = false;
-    /**
-     * The debug message
-     * @var string
-     */
-    private string $debugMessage;
-    /**
-     * The heading text
-     * @var string
-     */
-    private string $heading;
 
     /**
      * Error constructor.
@@ -47,14 +37,12 @@ class Error extends Exception
      * @param string         $debugMessage
      * @param null|Throwable $exception
      */
-    public function __construct(string $message, int $statusCode = 400, string $heading = self::DEFAULT_HEADING, string $debugMessage = '', Throwable $exception = null)
+    public function __construct(string $message, int $statusCode = 400, private readonly string $heading = self::DEFAULT_HEADING, private readonly string $debugMessage = '', Throwable $exception = null)
     {
-        $this->heading      = $heading;
-        $this->debugMessage = $debugMessage;
         if (CLI_MODE) {
             Terminal::WriteLine('{@c:red}' . $message, true);
         }
-        parent::__construct($message, $statusCode, $exception);
+        parent::__construct(nl2br($message), $statusCode, $exception);
     }
 
     /**

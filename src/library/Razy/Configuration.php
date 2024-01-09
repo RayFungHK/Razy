@@ -34,12 +34,6 @@ class Configuration extends Collection
      * @var string
      */
     private string $filename;
-    /**
-     * The config file path.
-     *
-     * @var string
-     */
-    private string $path;
 
     /**
      * Configuration constructor.
@@ -48,10 +42,9 @@ class Configuration extends Collection
      *
      * @throws Error
      */
-    public function __construct(string $path)
+    public function __construct(private readonly string $path)
     {
-        $this->path = tidy($path);
-        $pathInfo   = pathinfo($path);
+        $pathInfo   = pathinfo($this->path);
 
         $this->filename  = trim($pathInfo['filename']);
         $this->extension = strtolower($pathInfo['extension']);

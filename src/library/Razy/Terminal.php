@@ -56,11 +56,6 @@ class Terminal
     public const TEXT_BLINK = "\033[5m";
 
     /**
-     * The terminal code
-     * @var string
-     */
-    private string $code = '';
-    /**
      * Enable logging
      * @var bool
      */
@@ -80,11 +75,6 @@ class Terminal
      * @var array
      */
     private array $parameters = [];
-    /**
-     * The Terminal parent
-     * @var null|Terminal
-     */
-    private ?Terminal $parent;
 
     /**
      * Terminal constructor.
@@ -94,14 +84,12 @@ class Terminal
      *
      * @throws Error
      */
-    public function __construct(string $code, ?Terminal $parent = null)
+    public function __construct(private string $code, private readonly ?Terminal $parent = null)
     {
-        $code = trim($code);
-        if (!$code) {
+        $this->code = trim($this->code);
+        if (!$this->code) {
             throw new Error('The terminal code is required.');
         }
-        $this->code   = $code;
-        $this->parent = $parent;
     }
 
     /**

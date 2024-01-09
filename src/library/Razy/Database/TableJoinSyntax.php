@@ -17,248 +17,245 @@ use Throwable;
 
 class TableJoinSyntax
 {
-    private const JOIN_TYPE = [
-        '<<' => 'LEFT OUTER JOIN',
-        '>>' => 'RIGHT OUTER JOIN',
-        '<'  => 'LEFT JOIN',
-        '>'  => 'RIGHT JOIN',
-        '-'  => 'JOIN',
-        '*'  => 'CROSS JOIN',
-    ];
+	private const JOIN_TYPE = [
+		'<<' => 'LEFT OUTER JOIN',
+		'>>' => 'RIGHT OUTER JOIN',
+		'<' => 'LEFT JOIN',
+		'>' => 'RIGHT JOIN',
+		'-' => 'JOIN',
+		'*' => 'CROSS JOIN',
+	];
 
-    /**
-     * The storage of extracted syntax
-     *
-     * @var array
-     */
-    private array $extracted = [];
+	/**
+	 * The storage of extracted syntax
+	 *
+	 * @var array
+	 */
+	private array $extracted = [];
 
-    /**
-     * The Statement entity
-     *
-     * @var Statement
-     */
-    private Statement $statement;
+	/**
+	 * The storage of table alias
+	 *
+	 * @var Statement[]
+	 */
+	private array $tableAlias = [];
 
-    /**
-     * The storage of table alias
-     *
-     * @var Statement[]
-     */
-    private array $tableAlias = [];
+	/**
+	 * The storage of presets
+	 *
+	 * @var Statement[]
+	 */
+	private array $preset = [];
 
-    /**
-     * The storage of presets
-     *
-     * @var Statement[]
-     */
-    private array $preset = [];
+	/**
+	 * TableJoinSyntax constructor.
+	 *
+	 * @param Statement $statement
+	 */
+	public function __construct(private readonly Statement $statement)
+	{
 
-    /**
-     * TableJoinSyntax constructor.
-     *
-     * @param Statement $statement
-     */
-    public function __construct(Statement $statement)
-    {
-        $this->statement = $statement;
-    }
+	}
 
-    /**
-     * Get or create the TableJoinSyntax instance by the name, it will replace the table name as a sub query in the
-     * Table Join Syntax.
-     *
-     * @param string $tableName
-     *
-     * @return Statement
-     */
-    public function getAlias(string $tableName): Statement
-    {
-        if (!isset($this->tableAlias[$tableName])) {
-            $this->tableAlias[$tableName] = new Statement($this->statement->getDatabase());
-        }
+	/**
+	 * Get or create the TableJoinSyntax instance by the name, it will replace the table name as a sub query in the
+	 * Table Join Syntax.
+	 *
+	 * @param string $tableName
+	 *
+	 * @return Statement
+	 */
+	public function getAlias(string $tableName): Statement
+	{
+		if (!isset($this->tableAlias[$tableName])) {
+			$this->tableAlias[$tableName] = new Statement($this->statement->getDatabase());
+		}
 
-        return $this->tableAlias[$tableName];
-    }
+		return $this->tableAlias[$tableName];
+	}
 
-    /**
-     * Generate the FROM statement.
-     *
-     * @return string
-     * @throws Throwable
-     */
-    public function getSyntax(): string
-    {
-        $parser = function (array &$extracted, string &$source = '') use (&$parser) {
-            $parsed = [];
-            $join   = '';
-            while ($clip = array_shift($extracted)) {
-                if (is_array($clip)) {
-                    $alias     = '';
-                    $syntax    = '(' . $parser($clip, $alias) . ')';
-                    $condition = array_shift($extracted);
-                    if (!$condition) {
-                        throw new Error('Invalid Table Join Syntax.');
-                    }
-                    $condition = $this->parseCondition($condition, $source, $alias);
-                    $parsed[]  = $syntax . (($condition) ? ' ' . $condition : '');
-                } else {
-                    if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
-                        $table = $matches[3] ?: $matches[2];
-                        $alias = ($matches[1]) ?: $table;
+	/**
+	 * Generate the FROM statement.
+	 *
+	 * @return string
+	 * @throws Throwable
+	 */
+	public function getSyntax(): string
+	{
+		$parser = function (array &$extracted, string &$source = '') use (&$parser) {
+			$parsed = [];
+			$join = '';
+			while ($clip = array_shift($extracted)) {
+				if (is_array($clip)) {
+					$alias = '';
+					$syntax = '(' . $parser($clip, $alias) . ')';
+					$condition = array_shift($extracted);
+					if (!$condition) {
+						throw new Error('Invalid Table Join Syntax.');
+					}
+					$condition = $this->parseCondition($condition, $source, $alias);
+					$parsed[] = $syntax . (($condition) ? ' ' . $condition : '');
+				} else {
+					if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
+						$table = $matches[3] ?: $matches[2];
+						$alias = ($matches[1]) ?: $table;
 
-                        if (isset($this->tableAlias[$alias])) {
-                            $statement = $this->tableAlias[$alias];
-                            $tableName = '(' . $statement->getSyntax() . ')';
-                            if (!$matches[1]) {
-                                throw new Error('Inner SELECT syntax must given an alias.');
-                            }
-                            $alias = '`' . $matches[1] . '`';
-                        } else {
-                            $tableName = '`' . $this->statement->getPrefix() . $table . '`';
-                            $alias     = ($matches[1]) ? '`' . $matches[1] . '`' : $tableName;
-                        }
-                        $parsed[] = $tableName . ($matches[1] ? ' AS `' . $matches[1] . '`' : '');
+						if (isset($this->tableAlias[$alias])) {
+							$statement = $this->tableAlias[$alias];
 
-                        $condition = $matches[4] ?? '';
+							$builder = $statement->getBuilder();
+							$builder?->build($table);
 
-                        if (!$source) {
-                            if ($condition) {
-                                throw new Error('Invalid Table Join Syntax.');
-                            }
-                            $source = $alias;
-                        } else {
-                            if (('+' == $join && $condition) || ('+' !== $join && !$condition)) {
-                                throw new Error('Invalid Table Join Syntax.');
-                            }
-                            if ($condition) {
-                                $parsed[] = $this->parseCondition($condition, $source, $alias);
-                            }
-                        }
-                    } else {
-                        throw new Error('Invalid Table Join Syntax.');
-                    }
-                }
+							$tableName = '(' . $statement->getSyntax() . ')';
+							if (!$matches[1]) {
+								throw new Error('Inner SELECT syntax must given an alias.');
+							}
+							$alias = '`' . $matches[1] . '`';
+						} else {
+							$tableName = '`' . $this->statement->getPrefix() . $table . '`';
+							$alias = ($matches[1]) ? '`' . $matches[1] . '`' : $tableName;
+						}
+						$parsed[] = $tableName . ($matches[1] ? ' AS `' . $matches[1] . '`' : '');
 
-                $join = array_shift($extracted);
-                if (preg_match('/[\-><+]/', $join)) {
-                    $parsed[] = self::JOIN_TYPE[$join];
-                } else {
-                    if (count($extracted)) {
-                        throw new Error('Invalid Table Join Syntax.');
-                    }
-                }
-            }
+						$condition = $matches[4] ?? '';
 
-            return implode(' ', $parsed);
-        };
+						if (!$source) {
+							if ($condition) {
+								throw new Error('Invalid Table Join Syntax.');
+							}
+							$source = $alias;
+						} else {
+							if (('+' == $join && $condition) || ('+' !== $join && !$condition)) {
+								throw new Error('Invalid Table Join Syntax.');
+							}
+							if ($condition) {
+								$parsed[] = $this->parseCondition($condition, $source, $alias);
+							}
+						}
+					} else {
+						throw new Error('Invalid Table Join Syntax.');
+					}
+				}
 
-        $extracted = $this->extracted;
+				$join = array_shift($extracted);
+				if (preg_match('/[\-><+]/', $join)) {
+					$parsed[] = self::JOIN_TYPE[$join];
+				} else {
+					if (count($extracted)) {
+						throw new Error('Invalid Table Join Syntax.');
+					}
+				}
+			}
 
-        return $parser($extracted);
-    }
+			return implode(' ', $parsed);
+		};
 
-    /**
-     * Parse the Where Simple Syntax in TableJoin condition.
-     *
-     * @param string $syntax
-     * @param string $source
-     * @param string $alias
-     *
-     * @return string
-     * @throws Error
-     * @throws Throwable
-     */
-    private function parseCondition(string $syntax, string $source, string $alias): string
-    {
-        if (preg_match('/^\[(\?|([a-z]\w*)?:)?(.+)]$/', $syntax, $matches)) {
-            $condition = trim($matches[3]);
-            $type      = '';
-            if ($matches[1]) {
-                $type = ($matches[1] == '?') ? '?' : ':';
-            }
-            $source = $matches[2] ? '`' . $matches[2] . '`' : $source;
+		$extracted = $this->extracted;
 
-            if (!$condition) {
-                throw new Error('Invalid Syntax.');
-            }
+		return $parser($extracted);
+	}
 
-            if ('?' == $type) {
-                $whereSyntax = new WhereSyntax($this->statement);
-                $whereSyntax->parseSyntax($condition);
+	/**
+	 * Parse the Where Simple Syntax in TableJoin condition.
+	 *
+	 * @param string $syntax
+	 * @param string $source
+	 * @param string $alias
+	 *
+	 * @return string
+	 * @throws Error
+	 * @throws Throwable
+	 */
+	private function parseCondition(string $syntax, string $source, string $alias): string
+	{
+		if (preg_match('/^\[(\?|([a-z]\w*)?:)?(.+)]$/', $syntax, $matches)) {
+			$condition = trim($matches[3]);
+			$type = '';
+			if ($matches[1]) {
+				$type = ($matches[1] == '?') ? '?' : ':';
+			}
+			$source = $matches[2] ? '`' . $matches[2] . '`' : $source;
 
-                return 'ON ' . $whereSyntax->getSyntax();
-            }
-            $columns = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $condition);
+			if (!$condition) {
+				throw new Error('Invalid Syntax.');
+			}
 
-            if (':' === $type && !$matches[2]) {
-                return 'USING (' . implode(', ', $columns) . ')';
-            }
+			if ('?' == $type) {
+				$whereSyntax = new WhereSyntax($this->statement);
+				$whereSyntax->parseSyntax($condition);
 
-            foreach ($columns as &$column) {
-                $column = trim($column);
-                if (!preg_match('/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/', $column)) {
-                    throw new Error('USING clause only allow column name.');
-                }
+				return 'ON ' . $whereSyntax->getSyntax();
+			}
+			$columns = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $condition);
 
-                $column = $source . '.`' . $column . '` = ' . $alias . '.`' . $column . '`';
-            }
+			if (':' === $type && !$matches[2]) {
+				return 'USING (' . implode(', ', $columns) . ')';
+			}
 
-            return 'ON ' . implode(' AND ', $columns);
-        }
+			foreach ($columns as &$column) {
+				$column = trim($column);
+				if (!preg_match(Statement::REGEX_COLUMN, $column)) {
+					throw new Error('USING clause only allow column name.');
+				}
 
-        throw new Error('invalid condition syntax');
-    }
+				$column = $source . '.`' . $column . '` = ' . $alias . '.`' . $column . '`';
+			}
 
-    /**
-     * Parse the TableJoin Simple Syntax.
-     *
-     * @param string $syntax
-     *
-     * @return $this
-     */
-    public function parseSyntax(string $syntax): TableJoinSyntax
-    {
-        $syntax          = trim($syntax);
-        $this->extracted = SimpleSyntax::ParseSyntax($syntax, '-<>+', '', function ($syntax) {
-            if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
-                $table     = $matches[3] ?: $matches[2];
-                $alias     = ($matches[1]) ?: $table;
-                $className = 'Razy\\Database\\Preset\\' . $matches[4];
-                if (preg_match('/[a-z](\w+)?/i', $alias) && class_exists($className)) {
-                    $this->preset[$alias] = new $className($this->getAlias($alias), $table, $alias);
-                }
+			return 'ON ' . implode(' AND ', $columns);
+		}
 
-                if ($this->preset[$alias]) {
-                    $params = [];
-                    if (preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
-                        $params = SimpleSyntax::ParseSyntax($matches[5], ',');
-                        foreach ($params as &$param) {
-                            $param = trim($param, '\'"');
-                        }
-                    }
-                    $this->preset[$alias]->init($params);
+		throw new Error('invalid condition syntax');
+	}
 
-                    return $alias . '.' . $table . $matches[6];
+	/**
+	 * Parse the TableJoin Simple Syntax.
+	 *
+	 * @param string $syntax
+	 *
+	 * @return $this
+	 */
+	public function parseSyntax(string $syntax): TableJoinSyntax
+	{
+		$syntax = trim($syntax);
+		$this->extracted = SimpleSyntax::ParseSyntax($syntax, '-<>+', '', function ($syntax) {
+			if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
+				$table = $matches[3] ?: $matches[2];
+				$alias = ($matches[1]) ?: $table;
+				$className = 'Razy\\Database\\Preset\\' . $matches[4];
+				if (preg_match('/[a-z](\w+)?/i', $alias) && class_exists($className)) {
+					$this->preset[$alias] = new $className($this->getAlias($alias), $table, $alias);
+				}
 
-                    $binding = $params[0] ?? '';
-                    $value   = $params[1] ?? '';
-                    $group   = $params[2] ?? '';
+				if ($this->preset[$alias]) {
+					$params = [];
+					if (preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
+						$params = SimpleSyntax::ParseSyntax($matches[5], ',');
+						foreach ($params as &$param) {
+							$param = trim($param, '\'"');
+						}
+					}
+					$this->preset[$alias]->init($params);
 
-                    if (!$binding || !$value || !$group) {
-                        throw new Error('Missing binding, value or group parameter in `max` preset syntax.');
-                    }
+					return $alias . '.' . $table . $matches[6];
 
-                    $statement = $this->getAlias($alias);
-                    $statement->from('a.' . $table . '-b.' . $table . '[' . $binding . ']');
-                    $this->preset[$alias] = $statement->alias('b')->select($binding . ', MAX(' . $value . ') as ' . $value)->from($table)->group($group);
+					$binding = $params[0] ?? '';
+					$value = $params[1] ?? '';
+					$group = $params[2] ?? '';
 
-                    return $alias . '.' . $table . $matches[6];
-                }
-            }
-            return $syntax;
-        });
+					if (!$binding || !$value || !$group) {
+						throw new Error('Missing binding, value or group parameter in `max` preset syntax.');
+					}
 
-        return $this;
-    }
+					$statement = $this->getAlias($alias);
+					$statement->from('a.' . $table . '-b.' . $table . '[' . $binding . ']');
+					$this->preset[$alias] = $statement->alias('b')->select($binding . ', MAX(' . $value . ') as ' . $value)->from($table)->group($group);
+
+					return $alias . '.' . $table . $matches[6];
+				}
+			}
+			return $syntax;
+		});
+
+		return $this;
+	}
 }

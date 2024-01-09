@@ -29,20 +29,10 @@ class DOM
      */
     protected array $dataset = [];
     /**
-     * The DOM id attribute value
-     * @var string
-     */
-    protected string $id = '';
-    /**
      * Is DOM element a void element
      * @var bool
      */
     protected bool $isVoid = false;
-    /**
-     * The name attribute value
-     * @var string
-     */
-    protected string $name = '';
     /**
      * The storage of the nodes
      * @var array
@@ -65,13 +55,10 @@ class DOM
      * @param string $name the attribute "name" value
      * @param string $id the attribute "id" value
      */
-    public function __construct(string $name = '', string $id = '')
+    public function __construct(private string $name = '', private string $id = '')
     {
-        $name = trim($name);
-        $this->name = $name;
-
-        $id = trim($id);
-        $this->id = $id;
+	    $this->name = trim($this->name);
+	    $this->id = trim($this->id);
     }
 
     /**

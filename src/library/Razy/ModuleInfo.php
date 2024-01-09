@@ -52,13 +52,6 @@ class ModuleInfo
     private string $modulePath;
 
     /**
-     * The module container folder system path
-     *
-     * @var string
-     */
-    private string $containerPath;
-
-    /**
      * The package name
      *
      * @var string
@@ -82,20 +75,6 @@ class ModuleInfo
      */
     private array $require = [];
     /**
-     * Is the module a shared module?
-     *
-     * @var bool
-     */
-    private bool $sharedModule;
-
-    /**
-     * The module version
-     *
-     * @var string
-     */
-    private string $version;
-
-    /**
      * Is the module's asset link to modules direct via rewrite, false will copy all assets into shared view folder
      *
      * @var bool
@@ -107,28 +86,27 @@ class ModuleInfo
      */
     private bool $pharArchive = false;
 
-    /**
-     * Module constructor.
-     *
-     * @param string $path The path of module located
-     *
-     * @throws Throwable
-     */
-    public function __construct(string $path, string $version = 'default', bool $isShared = false)
+	/**
+	 * Module constructor.
+	 *
+	 * @param string $containerPath
+	 * @param string $version
+	 * @param bool $sharedModule
+	 * @throws Error
+	 */
+    public function __construct(private readonly string $containerPath, private string $version = 'default', private readonly bool $sharedModule = false)
     {
-        $this->sharedModule = $isShared;
-        $this->containerPath = $path;
-        $this->relativePath = getRelativePath($path, SYSTEM_ROOT);
-        $version = trim($version);
-        if (is_dir($path)) {
-            $this->modulePath = $path;
-            if ($version !== 'default' && $version !== 'dev') {
-                if (!preg_match('/^(\d+)(?:\.(?:\d+|\*)){0,3}$/', $version)) {
+        $this->relativePath = getRelativePath($this->containerPath, SYSTEM_ROOT);
+        $this->version = trim($this->version);
+        if (is_dir($this->containerPath)) {
+            $this->modulePath = $this->containerPath;
+            if ($this->version !== 'default' && $this->version !== 'dev') {
+                if (!preg_match('/^(\d+)(?:\.(?:\d+|\*)){0,3}$/', $this->version)) {
                     throw new Error('Invalid version format, failed to load the module.');
                 }
             }
-            $this->modulePath = append($this->modulePath, $version);
-            $this->relativePath = append($this->relativePath, $version);
+            $this->modulePath = append($this->modulePath, $this->version);
+            $this->relativePath = append($this->relativePath, $this->version);
             if (is_file(append($this->modulePath, 'app.phar'))) {
                 $this->pharArchive = true;
                 $this->modulePath = 'phar://' . append($this->modulePath, 'app.phar');
@@ -159,8 +137,6 @@ class ModuleInfo
             } else {
                 throw new Error('Missing module code.');
             }
-
-            $this->version = $version;
 
             $this->author = trim($settings['author'] ?? '');
             if (!$this->author) {

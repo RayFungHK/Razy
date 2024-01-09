@@ -81,7 +81,7 @@ $this->addRoute('/regex/get-(:a)/page-(:d)/(:[a-z0-9_-]{3,})', 'regex');
 
 ### Internal cross-site API
 
-Previously, when you have created multiple `Distributor` under a Razy structure, the API is not allowed to access between the `Distributor` directly, yet you can access another `Distributor` API via CURL, but it may increase the execution time. Definitely, copying the same function to all `Distributor` module would be implemented is a dumb solution, but it is the only way to implement the function in each `Distributor`. Back to the original intention, Razy is designed for better coding management and prevent merge conflict in development. The responsible developer or team of the `Module` should maintain the API to allow other `Module` access for, to prevent let other developer try to modify your code to fulfill their requirements. 
+Previously, when you have created multiple `Distributor` under a Razy structure, the API is not allowed to access between the `Distributor` directly, yet you can access another `Distributor` API via CURL, but it may increase the execution time. Definitely, copying the same function to all `Distributor` module would be implemented is a dumb solution, but it is the only way to implement the function in each `Distributor`. Back to the original intention, Razy is designed for better coding management and prevent merge conflict in development. The responsible developer or team of the `Module` should maintain the API to allow other `Module` access for, to prevent let other developer try to modify your code to fulfill their requirements.
 
 In v0.4, Razy `Controller` provides a `connect()` method which can let developer access another `Distributor` API directly. Also, you can configure the `Distributor` whitelist that allow to connect, or restrict access in `Controller::__onAPICall()`. Indeed, even calling the API internally or across the distributor, it will return an object `API` object. Developer should call the `API::request()` to obtain the module's API Emitter, in order to execute the API command directly.
 
@@ -91,7 +91,7 @@ $connection->request('vender/package')->function('Developer', 'Friendly');
 ```
 
 ### Module Structure
-In v0.4, the module and distributor file structure have a big change. You can have only 1, aka `default` or more versions under the module folder, it means you can maintain different site bur different version of the module. 
+In v0.4, the module and distributor file structure have a big change. You can have only 1, aka `default` or more versions under the module folder, it means you can maintain different site bur different version of the module.
 ```
 | RazyApplication
     |- shared
@@ -315,21 +315,21 @@ for load the external template file or re-use the template block in any child bl
 
 ```html
 <!-- START BLOCK: blockA -->
-    <!-- TEMPLATE BLOCK: template -->
-    Here is the template content
-    <!-- END BLOCK: template -->
-    
-    <!-- START BLOCK: sample -->
-        Below is the content generated from the TEMPLATE block
-        <!-- USE template BLOCK: subblock -->
-    <!-- END BLOCK: sample -->
+<!-- TEMPLATE BLOCK: template -->
+Here is the template content
+<!-- END BLOCK: template -->
+
+<!-- START BLOCK: sample -->
+Below is the content generated from the TEMPLATE block
+<!-- USE template BLOCK: subblock -->
+<!-- END BLOCK: sample -->
 <!-- END BLOCK: blockA -->
 
 <!-- START BLOCK: blockB -->
-    Include the external template file from the current file location
-    <!-- INCLUDE BLOCK: folder/external.tpl -->
-    You cannot use the template block from other block!
-    <!-- USE template BLOCK: subblock -->
+Include the external template file from the current file location
+<!-- INCLUDE BLOCK: folder/external.tpl -->
+You cannot use the template block from other block!
+<!-- USE template BLOCK: subblock -->
 <!-- END BLOCK: blockB -->
 ```
 
@@ -535,13 +535,24 @@ The following table is the injection and the path between each class.
 | __onError(): void    |Only trigger when the module's throw any error.
 Here is a simple flow chart:
 
-The flow of the module in routing
+## The flow chart to explain the module loading path in Razy
 ```mermaid
-graph TD;
-    __onValidate()-->__onPreload();
-    __onPreload()-->__onInit();
-    __onValidate()-->__onInit();
-    __onInit()-->__onReady();
-    __onReady()-->__onDispatch();
-    __onDispatch()-->__onRoute();
+flowchart LR;
+    subgraph ide1 [Module Preload]
+    A["__onInit()"] -- TRUE --> B["__onValidate()"];
+    B --  TRUE --> C["__onReady()"];
+    B -- FALSE --> D["__onPreload()"];
+    D -- TRUE --> C
+    end
+    subgraph ide2 [Web Routing]
+    C --> F["__onDispatch()"];
+    end
+    subgraph ide2b [Route Matched Module]
+    F --> G["__onRoute()"];
+    end
+    subgraph ide3 [CLI Routing]
+    C --> H["__onScriptLoaded()"];
+    end
+    D --> E(["Web Routing Terminated"]):::terminated
+    classDef terminated fill:#FF2200,stroke:#fF3300,color:#fff
 ```

@@ -25,8 +25,11 @@ use Throwable;
 
 abstract class Controller
 {
-    const PLUGIN_TEMPLATE = 1;
-    const PLUGIN_COLLECTION = 2;
+	const PLUGIN_ALL = 0b1111;
+    const PLUGIN_TEMPLATE = 0b0001;
+	const PLUGIN_COLLECTION = 0b0010;
+	const PLUGIN_ACTION = 0b0100;
+	const PLUGIN_STATEMENT = 0b1000;
 
     /**
      * The storage of the external closures
@@ -34,21 +37,14 @@ abstract class Controller
      * @var array
      */
     private array $externalClosure = [];
-    /**
-     * The Module entity
-     *
-     * @var ?Module
-     */
-    private ?Module $module;
 
     /**
      * Controller constructor
      *
      * @param Module|null $module
      */
-    final public function __construct(?Module $module = null)
+    final public function __construct(private readonly ?Module $module = null)
     {
-        $this->module = $module;
     }
 
     /**
@@ -394,6 +390,14 @@ abstract class Controller
         if ($flag & self::PLUGIN_COLLECTION) {
             Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Collection'), $this);
         }
+
+	    if ($flag & self::PLUGIN_ACTION) {
+		    Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Action'), $this);
+	    }
+
+	    if ($flag & self::PLUGIN_STATEMENT) {
+		    Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Statement'), $this);
+	    }
         return $this;
     }
 

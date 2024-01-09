@@ -22,45 +22,22 @@ use Throwable;
 class EventEmitter
 {
     /**
-     * The closure of the event
-     * @var null|Closure
-     */
-    private ?Closure $callback;
-    /**
-     * The Distributor entity
-     * @var null|Distributor
-     */
-    private ?Distributor $distributor;
-    /**
-     * Event name
-     * @var string
-     */
-    private string $event;
-    /**
-     * The Module entity
-     * @var Module
-     */
-    private Module $module;
-    /**
      * The storage of the responses from other Modules
      * @var array
      */
     private array $responses = [];
 
-    /**
-     * API constructor.
-     *
-     * @param Distributor   $distributor
-     * @param Module        $module
-     * @param string        $event
-     * @param null|callable $callback
-     */
-    public function __construct(Distributor $distributor, Module $module, string $event, ?callable $callback = null)
+	/**
+	 * API constructor.
+	 *
+	 * @param Distributor $distributor
+	 * @param Module $module
+	 * @param string $event
+	 * @param Closure|null $callback
+	 */
+    public function __construct(private readonly Distributor $distributor, private readonly Module $module, private readonly string $event, private readonly ?Closure $callback = null)
     {
-        $this->module      = $module;
-        $this->event       = $event;
-        $this->callback    = $callback;
-        $this->distributor = $distributor;
+
     }
 
     /**

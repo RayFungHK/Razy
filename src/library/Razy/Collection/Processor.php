@@ -45,7 +45,7 @@ class Processor
      * @param string $method
      * @param array  $arguments
      *
-     * @return Processor $this=
+     * @return Processor $this
      * @throws Throwable
      */
     public function __call(string $method, array $arguments): Processor

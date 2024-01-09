@@ -82,13 +82,6 @@ class Module
     private ?Controller $controller = null;
 
     /**
-     * The Distributor entity
-     *
-     * @var Distributor
-     */
-    private Distributor $distributor;
-
-    /**
      * The storage of the events
      *
      * @var bool[]
@@ -124,9 +117,8 @@ class Module
      *
      * @throws Throwable
      */
-    public function __construct(Distributor $distributor, string $path, string $version = 'default', bool $sharedModule = false)
+    public function __construct(private readonly Distributor $distributor, string $path, string $version = 'default', bool $sharedModule = false)
     {
-        $this->distributor = $distributor;
         $this->moduleInfo = new ModuleInfo($path, $version, $sharedModule);
 
         if (strlen($this->moduleInfo->getAPICode()) > 0) {

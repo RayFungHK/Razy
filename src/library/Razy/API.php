@@ -13,18 +13,12 @@ namespace Razy;
 class API
 {
     /**
-     * @var Distributor
-     */
-    private Distributor $distributor;
-
-    /**
      * API constructor.
      *
      * @param Distributor $distributor The Distributor instance
      */
-    public function __construct(Distributor $distributor)
+    public function __construct(private readonly Distributor $distributor)
     {
-        $this->distributor = $distributor;
     }
 
     /**

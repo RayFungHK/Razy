@@ -26,12 +26,6 @@ use function Razy\append;
 class Block
 {
     /**
-     * The block name.
-     *
-     * @var string
-     */
-    private string $blockName;
-    /**
      * An array contains the sub blocks.
      *
      * @var Block[]
@@ -44,35 +38,21 @@ class Block
      */
     private array $parameters = [];
     /**
-     * The parent block.
-     *
-     * @var null|Block
-     */
-    private ?Block $parent;
-    /**
      * The block path.
      *
      * @var string
      */
     private string $path;
-    /**
-     * @var bool
-     */
-    private bool $readonly;
-    /**
-     * The Source object.
-     *
-     * @var Source
-     */
-    private Source $source;
+
     /**
      * The complete structure of the Block object.
      *
      * @var array
      */
     private array $structure = [];
+	private ?Block $parent;
 
-    /**
+	/**
      * Block constructor.
      *
      * @param Source     $source    The Source object
@@ -83,13 +63,9 @@ class Block
      *
      * @throws Throwable
      */
-    public function __construct(Source $source, string $blockName, FileReader $reader, bool $readonly = false, self $parent = null)
+    public function __construct(private readonly Source $source, private readonly string $blockName, FileReader $reader, private readonly bool $readonly = false, self $parent = null)
     {
-        $this->source    = $source;
-        $this->blockName = $blockName;
         $this->parent    = $parent;
-        $this->readonly  = $readonly;
-
         if (!$parent) {
             $this->path = '/';
         } else {

@@ -10,11 +10,6 @@ class SimplifiedMessage
      */
     private string $body = '';
     /**
-     * The string of command
-     * @var string
-     */
-    private string $command = '';
-    /**
      * The storage of headers
      * @var array
      */
@@ -24,13 +19,12 @@ class SimplifiedMessage
      * @param string $command
      * @throws Error
      */
-    public function __construct(string $command)
+    public function __construct(private string $command)
     {
-        $command = trim(strtoupper($command));
-        if (!preg_match('/[a-z]\w*/i', $command)) {
+        $this->command = trim(strtoupper($this->command));
+        if (!preg_match('/[a-z]\w*/i', $this->command)) {
             throw new Error('Invalid command format.');
         }
-        $this->command = $command;
     }
 
     /**

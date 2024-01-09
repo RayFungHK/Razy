@@ -16,57 +16,24 @@ use Throwable;
 class Domain
 {
     /**
-     * The domain's alias
-     * @var string
-     */
-    private string $alias;
-    /**
-     * The Application entity
-     * @var Application
-     */
-    private Application $app;
-    /**
      * The matched Distributor entity
      * @var null|Distributor
      */
     private ?Distributor $distributor = null;
-    /**
-     * The FQDN format string
-     * @var string
-     */
-    private string $domain;
-    /**
-     * The storage of the distributor's path
-     * @var string[]
-     */
-    private array $path = [];
 
-    /**
-     * Domain constructor.
-     *
-     * @param Application $app    The Application Instance
-     * @param string      $domain The string of the domain
-     * @param string      $alias  The string of the alias
-     * @param array       $paths  An array of the distributor paths or the string of the distributor path
-     *
-     * @throws Throwable
-     */
-    public function __construct(Application $app, string $domain, string $alias = '', array $paths = [])
+	/**
+	 * Domain constructor.
+	 *
+	 * @param Application $app The Application Instance
+	 * @param string $domain The string of the domain
+	 * @param string $alias The string of the alias
+	 * @param array $path An array of the distributor paths or the string of the distributor path
+	 * @throws Error
+	 */
+    public function __construct(private readonly Application $app, private readonly string $domain, private readonly string $alias = '', private array $path = [])
     {
-        $this->domain = $domain;
-        $this->alias  = $alias;
-        $this->app    = $app;
-
-        if (empty($paths)) {
+        if (empty($this->path)) {
             throw new Error('The path of the distributor is not valid.');
-        }
-
-        if (is_array($paths)) {
-            foreach ($paths as $urlQuery => $path) {
-                $this->path[$urlQuery] = $path;
-            }
-        } else {
-            throw new Error('The object of the path `' . gettype($paths) . '` is not supported.');
         }
     }
 

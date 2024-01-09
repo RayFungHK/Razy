@@ -14,29 +14,17 @@ namespace Razy\Database;
 use PDO;
 use PDOStatement;
 
-class Query
+readonly class Query
 {
-    /**
-     * The PDOStatement entity
-     * @var PDOStatement
-     */
-    private PDOStatement $pdoStatement;
-    /**
-     * The Statement entity
-     * @var Statement
-     */
-    private Statement $statement;
-
     /**
      * Query constructor.
      *
      * @param Statement    $statement
      * @param PDOStatement $pdoStatement
      */
-    public function __construct(Statement $statement, PDOStatement $pdoStatement)
+    public function __construct(private Statement $statement, private PDOStatement $pdoStatement)
     {
-        $this->statement    = $statement;
-        $this->pdoStatement = $pdoStatement;
+
     }
 
     /**

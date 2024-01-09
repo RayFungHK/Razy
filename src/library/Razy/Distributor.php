@@ -30,10 +30,6 @@ class Distributor
      */
     private array $APIModules = [];
     /**
-     * @var string
-     */
-    private string $identifier;
-    /**
      * The storage of the await function
      *
      * @var array
@@ -52,23 +48,11 @@ class Distributor
      */
     private string $code;
     /**
-     * The Domain entity
-     *
-     * @var null|Domain
-     */
-    private ?Domain $domain;
-    /**
      * The storage of the Module that enabled in distributor
      *
      * @var array
      */
     private array $enableModules = [];
-    /**
-     * The system path of the distributor's folder
-     *
-     * @var string
-     */
-    private string $folderPath;
     /**
      * The `greedy` setting
      *
@@ -118,18 +102,6 @@ class Distributor
      * @var ?Template
      */
     private ?Template $templateEngine = null;
-    /**
-     * The string of URL path
-     *
-     * @var string
-     */
-    private string $urlPath;
-    /**
-     * The URL query
-     *
-     * @var string
-     */
-    private string $urlQuery;
 
     /**
      * Distributor constructor.
@@ -142,18 +114,14 @@ class Distributor
      *
      * @throws Throwable
      */
-    public function __construct(string $folderPath, string $identifier = '*', ?Domain $domain = null, string $urlPath = '', string $urlQuery = '/')
+    public function __construct(private string $folderPath, private readonly string $identifier = '*', private readonly ?Domain $domain = null, private readonly string $urlPath = '', private string $urlQuery = '/')
     {
-        $this->folderPath = append(SITES_FOLDER, $folderPath);
-        $this->identifier = $identifier;
-        $this->urlPath = $urlPath;
-        $this->urlQuery = tidy($urlQuery, false, '/');
-
+        $this->folderPath = append(SITES_FOLDER, $this->folderPath);
+        $this->urlQuery = tidy($this->urlQuery, false, '/');
         if (!$this->urlQuery) {
             $this->urlQuery = '/';
         }
 
-        $this->domain = $domain;
         if (!$configFile = realpath(append($this->folderPath, 'dist.php'))) {
             throw new Error('Missing distributor configuration file (dist.php).');
         }
@@ -202,7 +170,7 @@ class Distributor
                 }
 
                 if (!$acceptConnection) {
-                    throw new Error($peerDomain . ' is not allowed to access to ' . $domain->getDomainName() . '::' . $this->getDistCode());
+                    throw new Error($peerDomain . ' is not allowed to access to ' . $this->domain->getDomainName() . '::' . $this->getDistCode());
                 }
             }
         }

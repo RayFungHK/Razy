@@ -29,19 +29,13 @@ class WhereSyntax
     private array $extracted = [];
 
     /**
-     * The Statement entity
-     * @var Statement
-     */
-    private Statement $statement;
-
-    /**
      * WhereSyntax constructor.
      *
      * @param Statement $statement
      */
-    public function __construct(Statement $statement)
+    public function __construct(private readonly Statement $statement)
     {
-        $this->statement = $statement;
+
     }
 
     /**

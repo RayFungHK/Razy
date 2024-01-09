@@ -7,19 +7,13 @@ use Throwable;
 class Emitter
 {
     /**
-     * The Module entity
-     * @var Module|null
-     */
-    private ?Module $module;
-
-    /**
      * Emitter constructor
      *
      * @param Module|null $module
      */
-    public function __construct(?Module $module = null)
+    public function __construct(private readonly ?Module $module = null)
     {
-        $this->module = $module;
+
     }
 
     /**

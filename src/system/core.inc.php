@@ -11,12 +11,14 @@
 
 namespace Razy;
 
+use Razy\Database\Statement;
+use Razy\Database\TableJoinSyntax;
 use Throwable;
 use function strlen;
 
 header_remove('X-Powered-By');
 
-define('RAZY_VERSION', '0.4.3-216');
+define('RAZY_VERSION', '0.4.3-217');
 define('PLUGIN_FOLDER', append(SYSTEM_ROOT, 'plugins'));
 define('PHAR_PLUGIN_FOLDER', append(PHAR_PATH, 'plugins'));
 define('SITES_FOLDER', append(SYSTEM_ROOT, 'sites'));
@@ -94,3 +96,9 @@ Collection::addPluginFolder(append(PHAR_PLUGIN_FOLDER, 'Collection'));
 
 Template::addPluginFolder(append(PLUGIN_FOLDER, 'Template'));
 Template::addPluginFolder(append(PHAR_PLUGIN_FOLDER, 'Template'));
+
+Action::addPluginFolder(append(PLUGIN_FOLDER, 'Action'));
+Action::addPluginFolder(append(PHAR_PLUGIN_FOLDER, 'Action'));
+
+Statement::addPluginFolder(append(PLUGIN_FOLDER, 'Statement'));
+Statement::addPluginFolder(append(PHAR_PLUGIN_FOLDER, 'Statement'));

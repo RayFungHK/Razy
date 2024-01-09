@@ -49,17 +49,6 @@ class Source
 	 * @var ?Entity
 	 */
 	private ?Entity $rootEntity = null;
-	/**
-	 * The Template object.
-	 *
-	 * @var Template
-	 */
-	private Template $template;
-
-	/**
-	 * @var ModuleInfo|null
-	 */
-	private ?ModuleInfo $module = null;
 
 	/**
 	 * Template Source constructor.
@@ -69,16 +58,13 @@ class Source
 	 *
 	 * @throws Throwable
 	 */
-	public function __construct(string $tplPath, Template $template, ?ModuleInfo $module = null)
+	public function __construct(string $tplPath, private readonly Template $template, private readonly ?ModuleInfo $module = null)
 	{
 		if (!is_file($tplPath)) {
 			throw new Error('Template file ' . $tplPath . ' is not exists.');
 		}
 
 		$this->fileDirectory = dirname(realpath($tplPath));
-		$this->template = $template;
-		$this->module = $module;
-
 		$this->rootEntity = new Entity(($this->rootBlock = new Block($this, '_ROOT', new FileReader($tplPath))));
 	}
 
