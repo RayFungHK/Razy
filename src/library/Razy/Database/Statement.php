@@ -283,11 +283,12 @@ class Statement
 	/**
 	 * Functional FROM syntax with TableJoin Simple Syntax.
 	 *
-	 * @param string $syntax A well formatted TableJoin Simple Syntax
+	 * @param string|Closure $syntax A well formatted TableJoin Simple Syntax
 	 *
 	 * @return $this
+	 * @throws Error
 	 */
-	public function from(string $syntax): Statement
+	public function from(string|Closure $syntax): Statement
 	{
 		if (!$this->tableJoinSyntax) {
 			$this->tableJoinSyntax = new TableJoinSyntax($this);
@@ -893,11 +894,12 @@ class Statement
 	/**
 	 * Functional WHERE syntax with Where Simple Syntax.
 	 *
-	 * @param string $syntax The well formatted Where Simple Syntax
+	 * @param string|Closure $syntax The well formatted Where Simple Syntax
 	 *
 	 * @return Statement
+	 * @throws Error
 	 */
-	public function where(string $syntax): Statement
+	public function where(string|Closure $syntax): Statement
 	{
 		if (!$this->whereSyntax) {
 			$this->whereSyntax = new WhereSyntax($this);

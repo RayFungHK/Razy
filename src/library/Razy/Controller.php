@@ -101,16 +101,27 @@ abstract class Controller
         return true;
     }
 
-    /**
-     * __onDispatch event, all modules will be executed before the routed method executes
-     *
-     * @param ModuleInfo $module
-     *
-     * @return void
-     */
-    public function __onDispatch(ModuleInfo $module): void
-    {
-    }
+	/**
+	 * __onDispatch event, all modules will be executed before the routed method executes
+	 *
+	 * @param ModuleInfo $module
+	 *
+	 * @return void
+	 */
+	public function __onDispatch(ModuleInfo $module): void
+	{
+
+	}
+
+	/**
+	 * __onDispose event, all modules will be executed after route and script is completed
+	 *
+	 * @return void
+	 */
+	public function __onDispose(): void
+	{
+
+	}
 
     /**
      * __onScriptLoaded event, all modules will be executed before the matched script execute
@@ -265,10 +276,19 @@ abstract class Controller
      *
      * @return string
      */
-    final public function getDataPath(string $module = ''): string
-    {
-        return $this->module->getDataPath($module);
-    }
+	final public function getDataPath(string $module = ''): string
+	{
+		return $this->module->getDataPath($module);
+	}
+
+	/**
+	 * @param string $module
+	 * @return string
+	 */
+	final public function getDataPathURL(string $module = ''): string
+	{
+		return $this->module->getDataPath($module, true);
+	}
 
     /**
      * Get the root URL of the distributor.
@@ -507,14 +527,15 @@ abstract class Controller
         echo $this->module->getTemplateEngine()->outputQueued($sources);
     }
 
-    /**
-     * Get the XHR entity.
-     *
-     * @return XHR
-     */
-    final public function xhr(): XHR
+	/**
+	 * Get the XHR entity.
+	 *
+	 * @param bool $returnAsArray
+	 * @return XHR
+	 */
+    final public function xhr(bool $returnAsArray = false): XHR
     {
-        return new XHR();
+        return new XHR($returnAsArray);
     }
 
     /**

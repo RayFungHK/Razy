@@ -331,16 +331,16 @@ class Module
         return $this->closures[$path] ?? null;
     }
 
-    /**
-     * Get the module's data folder of the application.
-     *
-     * @param string $module
-     *
-     * @return string
-     */
-    public function getDataPath(string $module = ''): string
+	/**
+	 * Get the module's data folder of the application.
+	 *
+	 * @param string $module
+	 * @param bool $isURL
+	 * @return string
+	 */
+    public function getDataPath(string $module = '', bool $isURL = false): string
     {
-        return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode());
+        return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode(), $isURL);
     }
 
     /**
@@ -722,4 +722,28 @@ class Module
     {
         return $this->moduleInfo;
     }
+
+	/**
+	 * @param string $route
+	 * @param string $moduleCode
+	 * @param string $path
+	 * @return $this
+	 */
+	public function addShadowRoute(string $route, string $moduleCode, string $path): self
+	{
+		$this->distributor->setShadowRoute($this, $route, $moduleCode, $path);
+
+		return $this;
+	}
+
+	/**
+	 * Trigger onDispose event.
+	 *
+	 * @return $this
+	 */
+	public function dispose(): self
+	{
+		$this->controller->__onDispose();
+		return $this;
+	}
 }

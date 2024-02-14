@@ -12,13 +12,12 @@
 namespace Razy;
 
 use Razy\Database\Statement;
-use Razy\Database\TableJoinSyntax;
 use Throwable;
 use function strlen;
 
 header_remove('X-Powered-By');
 
-define('RAZY_VERSION', '0.4.3-217');
+define('RAZY_VERSION', '0.4.3-218');
 define('PLUGIN_FOLDER', append(SYSTEM_ROOT, 'plugins'));
 define('PHAR_PLUGIN_FOLDER', append(PHAR_PATH, 'plugins'));
 define('SITES_FOLDER', append(SYSTEM_ROOT, 'sites'));

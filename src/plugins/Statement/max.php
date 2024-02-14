@@ -11,7 +11,10 @@ return new class() extends Plugin {
 
 	private string $compareColumn = '';
 
+	private ?Closure $onBuildClosure = null;
+
 	/**
+	 * @param string $tableName
 	 * @return void
 	 */
 	public function build(string $tableName): void
@@ -24,8 +27,23 @@ return new class() extends Plugin {
 		$statement = $this->statement
 			->select($aliasA . '.*')
 			->from($aliasA . '.' . $tableName . '-' . $aliasB . '.' . $tableName . '_latest' . '[' . implode(',', $this->grouping) . ',' . $this->compareColumn . ']');
-		$statement->alias($aliasB)->select(implode(',', $this->grouping) . ', MAX(' . $this->compareColumn . ') as ' . $this->compareColumn)->from($tableName)->group(implode(',', $this->grouping));
 
+		$subQuery = $statement->alias($aliasB);
+		$subQuery->select(implode(',', $this->grouping) . ', MAX(' . $this->compareColumn . ') as ' . $this->compareColumn)->from($tableName)->group(implode(',', $this->grouping));
+
+		if ($this->onBuildClosure) {
+			call_user_func($this->onBuildClosure, $subQuery);
+		}
+	}
+
+	/**
+	 * @param Closure $closure
+	 * @return _Plugin
+	 */
+	public function onBuild(Closure $closure): self
+	{
+		$this->onBuildClosure = $closure;
+		return $this;
 	}
 
 	/**

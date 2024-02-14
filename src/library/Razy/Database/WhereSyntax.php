@@ -11,420 +11,440 @@
 
 namespace Razy\Database;
 
+use Closure;
 use Razy\Error;
 use Razy\SimpleSyntax;
 use Throwable;
 
 class WhereSyntax
 {
-    private const OPERAND_TYPE = [
-        ',' => 'AND',
-        '|' => 'OR',
-    ];
+	private const OPERAND_TYPE = [
+		',' => 'AND',
+		'|' => 'OR',
+	];
 
-    /**
-     * The storage of extracted syntax
-     * @var array
-     */
-    private array $extracted = [];
+	/**
+	 * The storage of extracted syntax
+	 * @var array
+	 */
+	private array $extracted = [];
 
-    /**
-     * WhereSyntax constructor.
-     *
-     * @param Statement $statement
-     */
-    public function __construct(private readonly Statement $statement)
-    {
+	private string $syntax = '';
 
-    }
+	/**
+	 * WhereSyntax constructor.
+	 *
+	 * @param Statement $statement
+	 */
+	public function __construct(private readonly Statement $statement)
+	{
 
-    /**
-     * Generate the WHERE statement.
-     *
-     * @throws Throwable
-     *
-     * @return string
-     */
-    public function getSyntax(): string
-    {
-        $parser = function (array &$extracted) use (&$parser) {
-            $parsed   = [];
-            $negative = false;
-            while ($clip = array_shift($extracted)) {
-                if (is_array($clip)) {
-                    $parsed[] = (($negative) ? '!' : '') . '(' . $parser($clip) . ')';
-                    $negative = false;
-                } else {
-                    if (preg_match('/^!+$/', $clip)) {
-                        $negative = (bool) (strlen($clip) % 2);
-                    } else {
-                        if (',' !== $clip && '|' !== $clip) {
-                            if ('!' == $clip[0]) {
-                                $negative = true;
-                                $clip     = substr($clip, 1);
-                            }
-                            $parsed[] = $this->parseExpr($clip, $negative);
-                            $negative = false;
-                        } else {
-                            throw new Error('Invalid Where syntax');
-                        }
-                    }
-                }
+	}
 
-                $operand = array_shift($extracted);
-                if ($operand) {
-                    if (!preg_match('/^[,|]$/', $operand)) {
-                        throw new Error('Invalid Where syntax');
-                    }
-                    $parsed[] = self::OPERAND_TYPE[$operand];
-                }
-            }
+	/**
+	 * Generate the WHERE statement.
+	 *
+	 * @return string
+	 * @throws Throwable
+	 *
+	 */
+	public function getSyntax(): string
+	{
+		$parser = function (array &$extracted) use (&$parser) {
+			$parsed = [];
+			$negative = false;
+			while ($clip = array_shift($extracted)) {
+				if (is_array($clip)) {
+					$parsed[] = (($negative) ? '!' : '') . '(' . $parser($clip) . ')';
+					$negative = false;
+				} else {
+					if (preg_match('/^!+$/', $clip)) {
+						$negative = (bool)(strlen($clip) % 2);
+					} else {
+						if (',' !== $clip && '|' !== $clip) {
+							if ('!' == $clip[0]) {
+								$negative = true;
+								$clip = substr($clip, 1);
+							}
+							$parsed[] = $this->parseExpr($clip, $negative);
+							$negative = false;
+						} else {
+							throw new Error('Invalid Where syntax');
+						}
+					}
+				}
 
-            return implode(' ', $parsed);
-        };
+				$operand = array_shift($extracted);
+				if ($operand) {
+					if (!preg_match('/^[,|]$/', $operand)) {
+						throw new Error('Invalid Where syntax');
+					}
+					$parsed[] = self::OPERAND_TYPE[$operand];
+				}
+			}
 
-        $extracted = $this->extracted;
+			return implode(' ', $parsed);
+		};
 
-        return $parser($extracted);
-    }
+		$extracted = $this->extracted;
 
-    /**
-     * Parse the expression of the each.
-     *
-     * @param string $clip
-     * @param bool   $negative
-     *
-     * @throws Throwable
-     *
-     * @return string
-     */
-    private function parseExpr(string $clip, bool $negative): string
-    {
-        $splits = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!:@~&]?=|(?<![\->])[><]=?)\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
-        if (1 == count($splits)) {
-            $expr = $this->parseOperand($clip);
-            if ('null' === $expr['type']) {
-                return ($negative) ? '1' : '0';
-            }
-            if ('column' === $expr['type']) {
-                return (($negative) ? '!' : '') . $expr['expr'];
-            }
+		return $parser($extracted);
+	}
 
-            if ($negative) {
-                return '!(' . $expr['expr'] . ')';
-            }
+	/**
+	 * Parse the expression of the each.
+	 *
+	 * @param string $clip
+	 * @param bool $negative
+	 *
+	 * @return string
+	 * @throws Throwable
+	 *
+	 */
+	private function parseExpr(string $clip, bool $negative): string
+	{
+		$splits = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!#:@~&]?=|(?<![\->])[><]=?)\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+		if (1 == count($splits)) {
+			$expr = $this->parseOperand($clip);
+			if ('null' === $expr['type']) {
+				return ($negative) ? '1' : '0';
+			}
+			if ('column' === $expr['type']) {
+				return (($negative) ? '!' : '') . $expr['expr'];
+			}
 
-            return $expr['expr'];
-        }
+			if ($negative) {
+				return '!(' . $expr['expr'] . ')';
+			}
 
-        if (3 == count($splits)) {
-            if ($splits[0] == $splits[2]) {
-                if ('?' === $splits[0]) {
-                    throw new Error('You cannot set both operand as reference.');
-                }
-            }
+			return $expr['expr'];
+		}
 
-            [$leftOperand, $operator, $rightOperand] = $splits;
-            $leftOperand                             = $this->parseOperand($leftOperand);
-            $rightOperand                            = $this->parseOperand($rightOperand);
+		if (3 == count($splits)) {
+			if ($splits[0] == $splits[2]) {
+				if ('?' === $splits[0]) {
+					throw new Error('You cannot set both operand as reference.');
+				}
+			}
 
-            if ('parameter' === $leftOperand['type']) {
-                [$leftOperand, $rightOperand] = [$rightOperand, $leftOperand];
-            }
+			[$leftOperand, $operator, $rightOperand] = $splits;
+			$leftOperand = $this->parseOperand($leftOperand);
+			$rightOperand = $this->parseOperand($rightOperand);
 
-            if ('auto' === $rightOperand['type']) {
-                if ('column' === $leftOperand['type']) {
-                    $value = $this->statement->getValue($leftOperand['column_name']);
-                    if (null === $value) {
-                        $rightOperand = [
-                            'type' => 'null',
-                            'expr' => 'NULL',
-                        ];
-                    } else {
-                        $rightOperand['type']        = 'parameter';
-                        $rightOperand['column_name'] = $leftOperand['column_name'];
-                        if ($value instanceof Statement) {
-                            $rightOperand['expr'] = '(' . $value->getSyntax() . ')';
-                        } else {
-                            $rightOperand['value'] = $value;
-                            $rightOperand['expr']  = (is_string($value)) ? '"' . addslashes($value) . '"' : (float) $value;
-                        }
-                    }
-                } else {
-                    throw new Error('You cannot refer the non-column operand as a parameter.');
-                }
-            } elseif ('parameter' === $rightOperand['type']) {
-                $value = $this->statement->getValue($rightOperand['name']);
-                if ($value instanceof Statement) {
-                    $rightOperand['expr'] = '(' . $value->getSyntax() . ')';
-                } else {
-                    $rightOperand['value'] = $value;
-                    $rightOperand['expr']  = (is_string($value)) ? '"' . addslashes($value) . '"' : (float) $value;
-                }
-            }
+			if ('parameter' === $leftOperand['type']) {
+				[$leftOperand, $rightOperand] = [$rightOperand, $leftOperand];
+			}
 
-            return $this->comparison($operator, $leftOperand, $rightOperand, $negative);
-        }
+			if ('auto' === $rightOperand['type']) {
+				if ('column' === $leftOperand['type']) {
+					$value = $this->statement->getValue($leftOperand['column_name']);
+					if (null === $value) {
+						$rightOperand = [
+							'type' => 'null',
+							'expr' => 'NULL',
+						];
+					} else {
+						$rightOperand['type'] = 'parameter';
+						$rightOperand['column_name'] = $leftOperand['column_name'];
+						if ($value instanceof Statement) {
+							$rightOperand['expr'] = '(' . $value->getSyntax() . ')';
+						} else {
+							$rightOperand['value'] = $value;
+							$rightOperand['expr'] = (is_string($value)) ? '"' . addslashes($value) . '"' : (float)$value;
+						}
+					}
+				} else {
+					throw new Error('You cannot refer the non-column operand as a parameter.');
+				}
+			} elseif ('parameter' === $rightOperand['type']) {
+				$value = $this->statement->getValue($rightOperand['name']);
+				if ($value instanceof Statement) {
+					$rightOperand['expr'] = '(' . $value->getSyntax() . ')';
+				} else {
+					$rightOperand['value'] = $value;
+					$rightOperand['expr'] = (is_string($value)) ? '"' . addslashes($value) . '"' : (float)$value;
+				}
+			}
 
-        throw new Error('Invalid Where Syntax.');
-    }
+			return $this->comparison($operator, $leftOperand, $rightOperand, $negative);
+		}
 
-    /**
-     * Parse the operand syntax
-     *
-     * @param string $expr
-     *
-     * @return array
-     */
-    private function parseOperand(string $expr): array
-    {
-        if ('?' === $expr) {
-            return [
-                'type' => 'auto',
-            ];
-        }
+		throw new Error('Invalid Where Syntax.');
+	}
 
-        if ('null' !== strtolower($expr)) {
-            if (preg_match('/^((?<column>`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/', $expr, $matches)) {
-                $table_alias = '';
-                if (isset($matches[3]) && $matches[3]) {
-                    $table_alias = trim($matches[2], '`');
-                    $column_name = trim($matches[3], '`');
-                } else {
-                    $column_name = trim($matches[2], '`');
-                }
+	/**
+	 * Parse the operand syntax
+	 *
+	 * @param string $expr
+	 *
+	 * @return array
+	 */
+	private function parseOperand(string $expr): array
+	{
+		if ('?' === $expr) {
+			return [
+				'type' => 'auto',
+			];
+		}
 
-                return [
-                    'type'        => 'column',
-                    'column_name' => $column_name . ($matches[7] ?? ''),
-                    'expr'        => (($table_alias) ? '`' . $table_alias . '`.' : '') . '`' . $column_name . '`' . ($matches[4] ?? ''),
-                ];
-            }
-            if (preg_match('/^(?:(`(?:\\\\.(*SKIP)(*FAIL)|.)+`)|([a-z]\w*))$/', $expr, $matches)) {
-                return [
-                    'type'        => 'column',
-                    'column_name' => trim($expr, '`'),
-                    'expr'        => '`' . trim($expr, '`') . '`',
-                ];
-            }
-            if (preg_match('/^:(\w+)$/', $expr, $matches)) {
-                $value = $this->statement->getValue($matches[1]);
-                if (null === $value) {
-                    return [
-                        'type' => 'null',
-                        'expr' => 'NULL',
-                    ];
-                }
+		if ('null' !== strtolower($expr)) {
+			if (preg_match('/^((?<column>`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/', $expr, $matches)) {
+				$table_alias = '';
+				if (isset($matches[3]) && $matches[3]) {
+					$table_alias = trim($matches[2], '`');
+					$column_name = trim($matches[3], '`');
+				} else {
+					$column_name = trim($matches[2], '`');
+				}
 
-                return [
-                    'type'  => 'parameter',
-                    'name'  => $matches[1],
-                    'value' => $value,
-                    'expr'  => '"' . addslashes($value) . '"',
-                ];
-            }
-            if (preg_match('/^(?<q>[\'"])((?:(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
-                return [
-                    'type' => 'text',
-                    'text' => $matches[2],
-                    'expr' => '\'' . addslashes($matches[2]) . '\'',
-                ];
-            }
+				return [
+					'type' => 'column',
+					'column_name' => $column_name . ($matches[7] ?? ''),
+					'expr' => (($table_alias) ? '`' . $table_alias . '`.' : '') . '`' . $column_name . '`' . ($matches[4] ?? ''),
+				];
+			}
+			if (preg_match('/^(?:(`(?:\\\\.(*SKIP)(*FAIL)|.)+`)|([a-z]\w*))$/', $expr, $matches)) {
+				return [
+					'type' => 'column',
+					'column_name' => trim($expr, '`'),
+					'expr' => '`' . trim($expr, '`') . '`',
+				];
+			}
+			if (preg_match('/^:(\w+)$/', $expr, $matches)) {
+				$value = $this->statement->getValue($matches[1]);
+				if (null === $value) {
+					return [
+						'type' => 'null',
+						'expr' => 'NULL',
+					];
+				}
 
-            return [
-                'type' => 'expr',
-                'expr' => $expr,
-            ];
-        }
+				return [
+					'type' => 'parameter',
+					'name' => $matches[1],
+					'value' => $value,
+					'expr' => '"' . addslashes($value) . '"',
+				];
+			}
+			if (preg_match('/^(?<q>[\'"])((?:(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
+				return [
+					'type' => 'text',
+					'text' => $matches[2],
+					'expr' => '\'' . addslashes($matches[2]) . '\'',
+				];
+			}
 
-        return [
-            'type' => 'null',
-            'expr' => 'NULL',
-        ];
-    }
+			return [
+				'type' => 'expr',
+				'expr' => $expr,
+			];
+		}
 
-    /**
-     * Generate the operand by given left and right operand with the operator.
-     *
-     * @param string $operator
-     * @param array  $leftOperand
-     * @param array  $rightOperand
-     * @param bool   $negative
-     *
-     * @return string
-     * @throws Error
-     */
-    private function comparison(string $operator, array $leftOperand, array $rightOperand, bool $negative): string
-    {
-        $operand = '';
-        if ('|=' === $operator) {
-            if ('column' != $leftOperand['type']) {
-                $leftExpr  = $this->castAsJSON($leftOperand);
-                $rightExpr = $this->castAsJSON($rightOperand);
+		return [
+			'type' => 'null',
+			'expr' => 'NULL',
+		];
+	}
 
-                $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ', \'$\') > 0';
-            } else {
-                $rightExpr = $rightOperand['expr'];
-                if ('parameter' === $rightOperand['type']) {
-                    if (is_array($rightOperand['value'])) {
-                        $rightExpr = '';
-                        foreach ($rightOperand['value'] as $val) {
-                            $val = '\'' . addslashes($val) . '\'';
-                            $rightExpr .= ($rightExpr) ? ', ' . $val : $val;
-                        }
-                    }
-                }
+	/**
+	 * Generate the operand by given left and right operand with the operator.
+	 *
+	 * @param string $operator
+	 * @param array $leftOperand
+	 * @param array $rightOperand
+	 * @param bool $negative
+	 *
+	 * @return string
+	 * @throws Error
+	 */
+	private function comparison(string $operator, array $leftOperand, array $rightOperand, bool $negative): string
+	{
+		$operand = '';
+		if ('|=' === $operator) {
+			if ('column' != $leftOperand['type']) {
+				$leftExpr = $this->castAsJSON($leftOperand);
+				$rightExpr = $this->castAsJSON($rightOperand);
 
-                $leftExpr = $leftOperand['expr'];
+				$operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ', \'$\') > 0';
+			} else {
+				$rightExpr = $rightOperand['expr'];
+				if ('parameter' === $rightOperand['type']) {
+					if (is_array($rightOperand['value'])) {
+						$rightExpr = '';
+						foreach ($rightOperand['value'] as $val) {
+							$val = '\'' . addslashes($val) . '\'';
+							$rightExpr .= ($rightExpr) ? ', ' . $val : $val;
+						}
+					}
+				}
 
-                return $leftExpr . (($negative) ? ' NOT' : '') . ' IN(' . $rightExpr . ')';
-            }
-        } elseif ('*=' === $operator || '^=' === $operator || '$=' === $operator) {
-            $convertor = function ($operand) {
-                if ('parameter' === $operand['type']) {
-                    if (is_array($operand['value']) || is_scalar($operand['value'])) {
-                        return (is_scalar($operand['value'])) ? addslashes($operand['value']) : json_encode($operand['value']);
-                    }
+				$leftExpr = $leftOperand['expr'];
 
-                    return '';
-                }
-                if ('text' === $operand['type']) {
-                    return addslashes($operand['text']);
-                }
+				return $leftExpr . (($negative) ? ' NOT' : '') . ' IN(' . $rightExpr . ')';
+			}
+		} elseif ('#=' === $operator || '*=' === $operator || '^=' === $operator || '$=' === $operator) {
+			$convertor = function ($operand) {
+				if ('parameter' === $operand['type']) {
+					if (is_array($operand['value']) || is_scalar($operand['value'])) {
+						return (is_scalar($operand['value'])) ? addslashes($operand['value']) : json_encode($operand['value']);
+					}
 
-                if ('expr' === $operand['type']) {
-                    return $operand['expr'];
-                }
+					return '';
+				}
 
-                return '';
-            };
+				if ('text' === $operand['type']) {
+					return addslashes($operand['text']);
+				}
 
-            $leftExpr  = ('column' != $leftOperand['type']) ? $convertor($leftOperand) : $leftOperand['expr'];
-            $rightExpr = ('column' != $rightOperand['type']) ? $this->insertWildcard($convertor($rightOperand), $operator) : $rightOperand['expr'];
+				if ('expr' === $operand['type']) {
+					return $operand['expr'];
+				}
 
-            return $leftExpr . (($negative) ? ' NOT' : '') . ' LIKE ' . $rightExpr;
-        } elseif ('@=' === $operator) {
-            $leftExpr  = $this->castAsJSON($leftOperand, true);
-            $rightExpr = $this->castAsJSON($rightOperand, true);
+				return '';
+			};
 
-            return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
-        } elseif (':=' === $operator) {
-            if ('text' === $rightOperand['type']) {
-                if ('$' !== ($rightOperand['text'][0] ?? '')) {
-                    throw new Error('JSON path should start with $.');
-                }
-                $rightExpr = $rightOperand['expr'];
-            } elseif ('parameter' === $rightOperand['type']) {
-                if (!is_string($rightOperand['value'])) {
-                    throw new Error('The JSON path should be a string.');
-                }
-                if ('$' !== ($rightOperand['value'][0] ?? '')) {
-                    throw new Error('JSON path should start with $.');
-                }
+			$leftExpr = ('column' != $leftOperand['type']) ? $convertor($leftOperand) : $leftOperand['expr'];
+			if ('#=' === $operator) {
+				$comparison = ' REGEXP ';
+				$rightExpr = $rightOperand['expr'];
+			} else {
+				$comparison = 'LIKE';
+				$rightExpr = ('column' != $rightOperand['type']) ? $this->insertWildcard($convertor($rightOperand), $operator) : $rightOperand['expr'];
+			}
 
-                $rightExpr = $rightOperand['expr'];
-            } else {
-                throw new Error('Invalid value passed to JSON_EXTRACT');
-            }
+			return $leftExpr . (($negative) ? ' NOT' : '') . ' ' . $comparison . ' ' . $rightExpr;
+		} elseif ('@=' === $operator) {
+			$leftExpr = $this->castAsJSON($leftOperand, true);
+			$rightExpr = $this->castAsJSON($rightOperand, true);
 
-            $leftExpr = $this->castAsJSON($leftOperand, true);
+			return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+		} elseif (':=' === $operator) {
+			if ('text' === $rightOperand['type']) {
+				if ('$' !== ($rightOperand['text'][0] ?? '')) {
+					throw new Error('JSON path should start with $.');
+				}
+				$rightExpr = $rightOperand['expr'];
+			} elseif ('parameter' === $rightOperand['type']) {
+				if (!is_string($rightOperand['value'])) {
+					throw new Error('The JSON path should be a string.');
+				}
+				if ('$' !== ($rightOperand['value'][0] ?? '')) {
+					throw new Error('JSON path should start with $.');
+				}
 
-            return 'JSON_EXTRACT(' . $leftExpr . ', ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
-        } elseif ('~=' === $operator || '&=' === $operator) {
-            $leftExpr = $this->castAsJSON($leftOperand, true);
-            if ('~=' === $operator) {
-                if ('text' == $rightOperand['type'] || ('parameter' == $rightOperand['type'] && is_scalar($rightOperand['value']))) {
-                    $rightExpr = '\'"' . addslashes($rightOperand['text'] ?? $rightOperand['value']) . '"\'';
-                    $operand   = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ') = 1';
-                } else {
-                    $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $this->castAsJSON($rightOperand, true) . ') = 1';
-                }
-            } else {
-                return 'JSON_SEARCH(' . $leftExpr . ', \'one\', ' . $this->castAsJSON($rightOperand, true) . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
-            }
-        }
+				$rightExpr = $rightOperand['expr'];
+			} else {
+				throw new Error('Invalid value passed to JSON_EXTRACT');
+			}
 
-        // Basic operator
-        if (!$operand) {
-            if ('!=' === $operator || '=' === $operator) {
-                if ('!=' === $operator) {
-                    $negative = !$negative;
-                }
+			$leftExpr = $this->castAsJSON($leftOperand, true);
 
-                if ($leftOperand['type'] === 'null' || $rightOperand['type'] === 'null') {
-                    $operator = ($negative) ? 'IS NOT' : 'IS';
-                } else {
-                    $operator = ($negative) ? '<>' : '=';
-                }
+			return 'JSON_EXTRACT(' . $leftExpr . ', ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+		} elseif ('~=' === $operator || '&=' === $operator) {
+			$leftExpr = $this->castAsJSON($leftOperand, true);
+			if ('~=' === $operator) {
+				if ('text' == $rightOperand['type'] || ('parameter' == $rightOperand['type'] && is_scalar($rightOperand['value']))) {
+					$rightExpr = '\'"' . addslashes($rightOperand['text'] ?? $rightOperand['value']) . '"\'';
+					$operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ') = 1';
+				} else {
+					$operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $this->castAsJSON($rightOperand, true) . ') = 1';
+				}
+			} else {
+				return 'JSON_SEARCH(' . $leftExpr . ', \'one\', ' . $this->castAsJSON($rightOperand, true) . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+			}
+		}
 
-                return $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
-            }
+		// Basic operator
+		if (!$operand) {
+			if ('!=' === $operator || '=' === $operator) {
+				if ('!=' === $operator) {
+					$negative = !$negative;
+				}
 
-            $operand = $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
-        }
+				if ($leftOperand['type'] === 'null' || $rightOperand['type'] === 'null') {
+					$operator = ($negative) ? 'IS NOT' : 'IS';
+				} else {
+					$operator = ($negative) ? '<>' : '=';
+				}
 
-        return ($negative) ? '!(' . $operand . ')' : $operand;
-    }
+				return $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
+			}
 
-    /**
-     * Convert the value as cast as JSON
-     *
-     * @param array $operand
-     * @param bool $acceptObject
-     *
-     * @return string
-     */
-    private function castAsJSON(array $operand, bool $acceptObject = false): string
-    {
-        if ('parameter' === $operand['type']) {
-            if (is_array($operand['value'])) {
-                return 'CAST(\'' . json_encode(($acceptObject) ? $operand['value'] : array_values($operand['value'])) . '\' AS JSON)';
-            }
-            if (is_scalar($operand['value'])) {
-                return 'CAST(\'' . json_encode([$operand['value']]) . '\' AS JSON)';
-            }
+			$operand = $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
+		}
 
-            return 'CAST(\'[]\' AS JSON)';
-        }
-        if ('text' === $operand['type']) {
-            return 'CAST(\'' . json_encode([$operand['text']]) . '\' AS JSON)';
-        }
+		return ($negative) ? '!(' . $operand . ')' : $operand;
+	}
 
-        return $operand['expr'];
-    }
+	/**
+	 * Convert the value as cast as JSON
+	 *
+	 * @param array $operand
+	 * @param bool $acceptObject
+	 *
+	 * @return string
+	 */
+	private function castAsJSON(array $operand, bool $acceptObject = false): string
+	{
+		if ('parameter' === $operand['type']) {
+			if (is_array($operand['value'])) {
+				return 'CAST(\'' . json_encode(($acceptObject) ? $operand['value'] : array_values($operand['value'])) . '\' AS JSON)';
+			}
+			if (is_scalar($operand['value'])) {
+				return 'CAST(\'' . json_encode([$operand['value']]) . '\' AS JSON)';
+			}
 
-    /**
-     * Insert wildcard into string
-     *
-     * @param string $value
-     * @param string $type
-     *
-     * @return string
-     */
-    private function insertWildcard(string $value, string $type = '*='): string
-    {
-        if ('*=' == $type || '$=' == $type) {
-            $value = $value . '%';
-        }
-        if ('*=' == $type || '^=' == $type) {
-            $value = '%' . $value;
-        }
+			return 'CAST(\'[]\' AS JSON)';
+		}
+		if ('text' === $operand['type']) {
+			return 'CAST(\'' . json_encode([$operand['text']]) . '\' AS JSON)';
+		}
 
-        return '\'' . $value . '\'';
-    }
+		return $operand['expr'];
+	}
 
-    /**
-     * Parse the Where Simple Syntax.
-     *
-     * @param string $syntax
-     *
-     * @return $this
-     */
-    public function parseSyntax(string $syntax): WhereSyntax
-    {
-        $syntax          = trim($syntax);
-        $this->extracted = SimpleSyntax::ParseSyntax($syntax, ',|', '=');
+	/**
+	 * Insert wildcard into string
+	 *
+	 * @param string $value
+	 * @param string $type
+	 *
+	 * @return string
+	 */
+	private function insertWildcard(string $value, string $type = '*='): string
+	{
+		if ('*=' == $type || '$=' == $type) {
+			$value = $value . '%';
+		}
 
-        return $this;
-    }
+		if ('*=' == $type || '^=' == $type) {
+			$value = '%' . $value;
+		}
+
+		return '\'' . $value . '\'';
+	}
+
+	/**
+	 * Parse the Where Simple Syntax.
+	 *
+	 * @param string|Closure $syntax
+	 *
+	 * @return $this
+	 * @throws Error
+	 */
+	public function parseSyntax(string|Closure $syntax): WhereSyntax
+	{
+		if ($syntax instanceof Closure) {
+			$syntax = call_user_func($syntax, $this->syntax);
+		}
+
+		if (!is_string($syntax)) {
+			throw new Error('Invalid syntax data type, only string is allowed.');
+		}
+
+		$this->syntax = trim($syntax);
+		$this->extracted = SimpleSyntax::ParseSyntax($this->syntax, ',|', '=');
+
+		return $this;
+	}
 }

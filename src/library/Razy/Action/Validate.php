@@ -22,6 +22,10 @@ class Validate
 
 	private mixed $storage = null;
 
+	private string $parameterName = '';
+
+	private bool $ignoreParameter = false;
+
 	public function __construct(
 		private readonly Action   $action,
 		private readonly string   $name,
@@ -113,6 +117,16 @@ class Validate
 			}
 		}
 
+		return $value;
+	}
+
+	/**
+	 * @param mixed $value
+	 * @param mixed|null $compare
+	 * @return mixed
+	 */
+	public function postProcess(mixed $value, mixed $compare = null): mixed
+	{
 		if ($this->postProcess && !$this->action->hasRejected($this->name)) {
 			$closure = $this->postProcess->bindTo($this);
 			$value = call_user_func($closure, $value, $compare);
@@ -123,11 +137,12 @@ class Validate
 
 	/**
 	 * @param array|string $code
+	 * @param string $alias
 	 * @return $this
 	 */
-	public function reject(array|string $code): self
+	public function reject(array|string $code, string $alias = ''): self
 	{
-		$this->action->reject($this->name, $code);
+		$this->action->reject($this->name, $code, $alias);
 		return $this;
 	}
 
@@ -150,5 +165,45 @@ class Validate
 	public function getStorage(): mixed
 	{
 		return $this->storage;
+	}
+
+	/**
+	 * Bind to specified parameter name
+	 *
+	 * @param string $parameterName
+	 * @return Validate
+	 */
+	public function bindTo(string $parameterName): self
+	{
+		$this->parameterName = trim($parameterName);
+		return $this;
+	}
+
+	/**
+	 * Get the bound parameter name
+	 *
+	 * @return string
+	 */
+	public function getBoundName(): string
+	{
+		return $this->parameterName;
+	}
+
+	/**
+	 * @param bool $enable
+	 * @return $this
+	 */
+	public function ignore(bool $enable): self
+	{
+		$this->ignoreParameter = $enable;
+		return $this;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isIgnore(): bool
+	{
+		return $this->ignoreParameter;
 	}
 }

@@ -105,7 +105,7 @@ class Column
 	 */
 	public function configure(array $parameters): Column
 	{
-		foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'create', 'key', 'oncurrent', 'default', 'reference'] as $method) {
+		foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'create', 'key', 'oncreate', 'onupdate', 'default', 'reference'] as $method) {
 			if (!array_key_exists($method, $parameters)) {
 				continue;
 			}
@@ -146,8 +146,10 @@ class Column
 				}
 			} elseif ('key' == $method) {
 				$this->setKey((isset($parameters[$method])) ? $arguments[0] ?? '' : '');
-			} elseif ('oncurrent' == $method) {
+			} elseif ('oncreate' == $method) {
 				$this->defaultCurrentTimestamp(true);
+			} elseif ('onupdate' == $method) {
+				$this->updateCurrentTimestamp(true);
 			}
 		}
 
@@ -361,7 +363,7 @@ class Column
 	 */
 	public function defaultCurrentTimestamp(bool $enable): Column
 	{
-		$this->parameters['auto_current_timestamp'] = $enable;
+		$this->parameters['default_current_timestamp'] = $enable;
 		return $this;
 	}
 
@@ -416,7 +418,11 @@ class Column
 	private function getDefaultSyntax(): string
 	{
 		if ('TIMESTAMP' === $this->parameters['type'] || 'DATETIME' === $this->parameters['type']) {
-			return ' DEFAULT ' . (($this->parameters['auto_current_timestamp']) ? 'CURRENT_TIMESTAMP()' : 'NULL');
+			$syntax = ' DEFAULT ' . (($this->parameters['default_current_timestamp']) ? 'CURRENT_TIMESTAMP' : 'NULL');
+			if ($this->parameters['auto_update_timestamp']) {
+				$syntax .= ' ON UPDATE CURRENT_TIMESTAMP';
+			}
+			return $syntax;
 		}
 
 		if ($this->parameters['nullable'] || null === $this->parameters['default']) {
@@ -629,9 +635,13 @@ class Column
 				if (isset($this->parameters['key'])) {
 					$parameters[] = 'key(' . $this->parameters['key'] . ')';
 				}
-			} elseif ('oncurrent' == $method) {
-				if ($this->parameters['oncurrent'] ?? false) {
-					$parameters[] = 'oncurrent';
+			} elseif ('oncreate' == $method) {
+				if ($this->parameters['oncreate'] ?? false) {
+					$parameters[] = 'oncreate';
+				}
+			} elseif ('onupdate' == $method) {
+				if ($this->parameters['onupdate'] ?? false) {
+					$parameters[] = 'onupdate';
 				}
 			}
 		}
@@ -786,5 +796,15 @@ class Column
 	public function getReferenceColumn(): string
 	{
 		return $this->parameters['reference_column'] ?? '';
+	}
+
+	/**
+	 * @param bool $enable
+	 * @return self
+	 */
+	private function updateCurrentTimestamp(bool $enable): self
+	{
+		$this->parameters['auto_update_timestamp'] = $enable;
+		return $this;
 	}
 }

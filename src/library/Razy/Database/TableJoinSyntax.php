@@ -11,6 +11,7 @@
 
 namespace Razy\Database;
 
+use Closure;
 use Razy\Error;
 use Razy\SimpleSyntax;
 use Throwable;
@@ -46,6 +47,8 @@ class TableJoinSyntax
 	 * @var Statement[]
 	 */
 	private array $preset = [];
+
+	private string $syntax = '';
 
 	/**
 	 * TableJoinSyntax constructor.
@@ -210,14 +213,24 @@ class TableJoinSyntax
 	/**
 	 * Parse the TableJoin Simple Syntax.
 	 *
-	 * @param string $syntax
+	 * @param string|Closure $syntax
 	 *
 	 * @return $this
+	 * @throws Error
 	 */
-	public function parseSyntax(string $syntax): TableJoinSyntax
+	public function parseSyntax(string|Closure $syntax): TableJoinSyntax
 	{
-		$syntax = trim($syntax);
-		$this->extracted = SimpleSyntax::ParseSyntax($syntax, '-<>+', '', function ($syntax) {
+		if ($syntax instanceof Closure) {
+			$syntax = call_user_func($syntax, $this->syntax);
+		}
+
+		if (!is_string($syntax)) {
+			throw new Error('Invalid syntax data type, only string is allowed.');
+		}
+
+		$this->syntax = trim($syntax);
+
+		$this->extracted = SimpleSyntax::ParseSyntax($this->syntax, '-<>+', '', function ($syntax) {
 			if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
 				$table = $matches[3] ?: $matches[2];
 				$alias = ($matches[1]) ?: $table;
@@ -253,6 +266,7 @@ class TableJoinSyntax
 					return $alias . '.' . $table . $matches[6];
 				}
 			}
+			
 			return $syntax;
 		});
 

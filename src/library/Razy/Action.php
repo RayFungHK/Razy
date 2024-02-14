@@ -63,14 +63,31 @@ class Action
 
 	private ?Closure $validationClosure = null;
 
+	private ?Closure $queueClosure = null;
+
+	private ?Closure $fetchingClosure = null;
+	private ?Closure $onDeleteClosure = null;
+
 	public function __construct(
-		private readonly int      $type,
+		private int               $type,
 		private readonly Database $database,
 		private readonly string   $tableName,
 		private readonly string   $idColumn,
 		private readonly string   $markerColumn = '')
 	{
 
+	}
+
+	/**
+	 * Set the action's type
+	 *
+	 * @param int $type
+	 * @return $this
+	 */
+	public function setType(int $type): self
+	{
+		$this->type = $type;
+		return $this;
 	}
 
 	/**
@@ -86,6 +103,16 @@ class Action
 	}
 
 	/**
+	 * @param Closure $closure
+	 * @return $this
+	 */
+	public function onFetch(Closure $closure): self
+	{
+		$this->fetchingClosure = $closure;
+		return $this;
+	}
+
+	/**
 	 * Process all the dataset, return true if no errors was found.
 	 *
 	 * @param array|Collection $dataset
@@ -97,11 +124,20 @@ class Action
 	{
 		$this->uniqueKey = $uniqueKey;
 		if ($this->type === self::TYPE_EDIT || $this->type === self::TYPE_DELETE) {
-			$parameters = [];
-			$parameters[$this->idColumn] = $uniqueKey;
-			if (!($this->fetched = $this->database->prepare()->from($this->tableName)->where($this->idColumn . '=?' . ($this->markerColumn ? ',!' . $this->markerColumn : ''))->lazy($parameters))) {
-				$this->errorCode = self::ERROR_NOT_FOUND;
-				return false;
+			$statement = $this->database->prepare()->from($this->tableName);
+			if ($this->fetchingClosure) {
+				$closure = $this->fetchingClosure->bindTo($this);
+				if (!($this->fetched = call_user_func($closure, $uniqueKey, $statement))) {
+					$this->errorCode = self::ERROR_NOT_FOUND;
+					return false;
+				}
+			} else {
+				$parameters = [];
+				$parameters[$this->idColumn] = $uniqueKey;
+				if (!($this->fetched = $statement->where($this->idColumn . '=?' . ($this->markerColumn ? ',!' . $this->markerColumn : ''))->lazy($parameters))) {
+					$this->errorCode = self::ERROR_NOT_FOUND;
+					return false;
+				}
 			}
 		} elseif ($this->type === self::TYPE_KEYVALUEPAIR) {
 			$this->fetched = $this->database->prepare()->from($this->tableName)->lazyGroup([], $this->idColumn);
@@ -110,10 +146,18 @@ class Action
 		// Only do the validation in create, edit or key value update mode
 		if ($this->type === self::TYPE_CREATE || $this->type === self::TYPE_EDIT || $this->type === self::TYPE_KEYVALUEPAIR) {
 			$this->dataset = collect($dataset);
+			// Validation
 			foreach ($this->validations as $name => $validation) {
 				$value = $this->dataset[$name] ?? null;
 				$compare = $this->fetched[$name] ?? null;
 				$this->dataset[$name] = $validation->process($value, $compare);
+			}
+
+			// Post process
+			foreach ($this->validations as $name => $validation) {
+				$value = $this->dataset[$name] ?? null;
+				$compare = $this->fetched[$name] ?? null;
+				$this->dataset[$name] = $validation->postProcess($value, $compare);
 			}
 
 			if ($this->validationClosure) {
@@ -158,13 +202,14 @@ class Action
 	 *
 	 * @param array|string $name
 	 * @param string|array $code
+	 * @param string $alias
 	 * @return Action
 	 */
-	public function reject(array|string $name, string|array $code): self
+	public function reject(array|string $name, string|array $code, string $alias = ''): self
 	{
 		if (is_array($name)) {
 			foreach ($name as $_name) {
-				$this->reject($_name, $code);
+				$this->reject($_name, $code, $alias);
 			}
 		} else {
 			if (is_string($code)) {
@@ -173,7 +218,7 @@ class Action
 			} else {
 				$errorCode = $code;
 			}
-			$this->errors[$name] = ($this->errorCodeParser) ? call_user_func($this->errorCodeParser, $errorCode) : $errorCode;
+			$this->errors[($alias) ?: $name] = ($this->errorCodeParser) ? call_user_func($this->errorCodeParser, $errorCode) : $errorCode;
 		}
 		return $this;
 	}
@@ -261,7 +306,7 @@ class Action
 	 *
 	 * @return Collection
 	 */
-	public function getDataset(): Collection
+	public function &getDataset(): Collection
 	{
 		return $this->dataset;
 	}
@@ -311,6 +356,10 @@ class Action
 	 */
 	public function submit(?Closure $closure = null): bool
 	{
+		if ($this->errorCode !== 0) {
+			return false;
+		}
+
 		if (self::TYPE_DELETE !== $this->type) {
 			// Return false if no validation has registered
 			if (!count($this->validations)) {
@@ -319,16 +368,15 @@ class Action
 			}
 		}
 
-		if ($this->errorCode !== 0) {
-			return false;
-		}
-
 		$this->parameters = [];
 		foreach ($this->validations as $name => $validation) {
-			$this->parameters[$name] = $this->dataset[$name] ?? null;
+			if (!$validation->isIgnore()) {
+				$boundName = $validation->getBoundName();
+				$this->parameters[$boundName ?: $name] = $this->dataset[$name] ?? null;
+			}
 		}
 
-		if ($closure) {
+		if (self::TYPE_DELETE !== $this->type && $closure) {
 			$closure = $closure->bindTo($this);
 			$this->parameters = call_user_func($closure, $this->parameters);
 		}
@@ -343,10 +391,20 @@ class Action
 				$parameters = [];
 				$parameters[$this->idColumn] = $key;
 				$parameters[$this->valueColumn] = $value;
-				$this->database->insert($this->tableName, array_keys($parameters), [$this->idColumn])->query($parameters);
+				$statement = $this->database->insert($this->tableName, array_keys($parameters), [$this->idColumn]);
+				if ($this->queueClosure) {
+					$queueClosure = $this->queueClosure->bindTo($this);
+					call_user_func($queueClosure, $statement);
+				}
+				$statement->query($parameters);
 			}
 		} elseif (self::TYPE_CREATE === $this->type) {
-			$this->database->insert($this->tableName, array_keys($this->parameters))->query($this->parameters);
+			$statement = $this->database->insert($this->tableName, array_keys($this->parameters));
+			if ($this->queueClosure) {
+				$queueClosure = $this->queueClosure->bindTo($this);
+				call_user_func($queueClosure, $statement);
+			}
+			$statement->query($this->parameters);
 			$this->uniqueKey = $this->database->lastID();
 		} elseif (self::TYPE_EDIT === $this->type) {
 			if (!$this->uniqueKey) {
@@ -355,7 +413,14 @@ class Action
 			}
 
 			$this->parameters[$this->idColumn] = $this->uniqueKey;
-			$this->database->update($this->tableName, array_keys($this->parameters))->where($this->idColumn . '=?')->query($this->parameters);
+			$statement = $this->database->update($this->tableName, array_keys($this->parameters))->where($this->idColumn . '=?');
+
+			if ($this->queueClosure) {
+				$queueClosure = $this->queueClosure->bindTo($this);
+				call_user_func($queueClosure, $statement);
+			}
+
+			$statement->query($this->parameters);
 		} elseif (self::TYPE_DELETE === $this->type) {
 			if (!$this->uniqueKey) {
 				$this->errorCode = self::ERROR_MISSING_UNIQUE_KEY;
@@ -366,12 +431,38 @@ class Action
 			// If delete column is provided, mark the delete column as true
 			if ($this->markerColumn) {
 				$this->parameters[$this->markerColumn] = 1;
+				if ($this->onDeleteClosure) {
+					$closure = $this->onDeleteClosure->bindTo($this);
+					$this->parameters = call_user_func($closure, $this->parameters);
+				}
+
+				$statement = $this->database->update($this->tableName, array_keys($this->parameters))->where($this->idColumn . '=?');
 				$this->parameters[$this->idColumn] = $this->uniqueKey;
-				$this->database->update($this->tableName, [$this->markerColumn])->where($this->idColumn . '=?')->query($this->parameters);
+				if ($this->queueClosure) {
+					$queueClosure = $this->queueClosure->bindTo($this);
+					call_user_func($queueClosure, $statement);
+				}
+
+				if ($closure) {
+					$closure = $closure->bindTo($this);
+					$this->parameters = call_user_func($closure, $this->parameters);
+				}
+
+				$statement->query($this->parameters);
 			} else {
 				// Delete the record when no delete column is provided.
 				$this->parameters[$this->idColumn] = $this->uniqueKey;
-				$this->database->delete($this->tableName, $this->parameters)->query();
+				if ($closure) {
+					$closure = $closure->bindTo($this);
+					$this->parameters = call_user_func($closure, $this->parameters);
+				}
+
+				$statement = $this->database->delete($this->tableName, $this->parameters);
+				if ($this->queueClosure) {
+					$queueClosure = $this->queueClosure->bindTo($this);
+					call_user_func($queueClosure, $statement);
+				}
+				$statement->query();
 			}
 		}
 
@@ -388,6 +479,33 @@ class Action
 		return $this->uniqueKey;
 	}
 
+	/**
+	 * @param string $uniqueKey
+	 * @return $this
+	 */
+	public function setUniqueKey(string $uniqueKey): self
+	{
+		$this->uniqueKey = $uniqueKey;
+		return $this;
+	}
+
+	/**
+	 * @return $this
+	 */
+	public function onQueue(Closure $closure): self
+	{
+		$this->queueClosure = $closure;
+		return $this;
+	}
+
+	/**
+	 * @return $this
+	 */
+	public function onDelete(Closure $closure): self
+	{
+		$this->onDeleteClosure = $closure;
+		return $this;
+	}
 	/**
 	 * Get the id column
 	 *
@@ -452,6 +570,17 @@ class Action
 			}
 		}
 		$this->errorCodeParser = $closure;
+		return $this;
+	}
+
+	/**
+	 * @param string $name
+	 * @param mixed $value
+	 * @return $this
+	 */
+	public function setValue(string $name, mixed $value): self
+	{
+		$this->dataset[$name] = $value;
 		return $this;
 	}
 }

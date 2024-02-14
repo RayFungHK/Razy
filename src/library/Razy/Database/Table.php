@@ -46,6 +46,8 @@ class Table
 	 */
 	private array $reordered = [];
 
+	private array $groupIndexingList = [];
+
 	/**
 	 * Table constructor.
 	 *
@@ -485,6 +487,12 @@ class Table
 			}
 		}
 
+		if (count($this->groupIndexingList)) {
+			foreach ($this->groupIndexingList as $keyName => $columns) {
+				$clips[] = 'KEY `' . $keyName . '` (' . implode(', ', $columns) . ')';
+			}
+		}
+
 		$syntax .= implode(', ', $clips) . ') ENGINE InnoDB CHARSET=' . $this->charset . ' COLLATE ' . $this->collation . ';';
 
 		return $syntax;
@@ -512,6 +520,15 @@ class Table
 				$columnsSyntax[] = $column->exportConfig();
 			}
 			$config .= implode(':', $columnsSyntax) . ']';
+		}
+
+		if (count($this->groupIndexingList)) {
+			$config .= '[';
+			$groupIndexingSyntax = [];
+			foreach ($this->groupIndexingList as $indexName => $columns) {
+				$groupIndexingSyntax[] = $indexName . '=' . implode(',', $columns);
+			}
+			$config .= implode(':', $groupIndexingSyntax) . ']';
 		}
 
 		return $config;
@@ -596,6 +613,33 @@ class Table
 			}
 		}
 
+		return $this;
+	}
+
+	/**
+	 * @param array $columns
+	 * @param string $indexKey
+	 * @return $this
+	 */
+	public function groupIndexing(array $columns, string $indexKey = ''): self
+	{
+		$keyName = 'fk';
+		foreach ($columns as $index => &$column) {
+			if (!preg_match(Statement::REGEX_COLUMN, $column)) {
+				unset($columns[$index]);
+			} else {
+				$column = trim($column, '`');
+				if (!$indexKey) {
+					$keyName .= '_' . ((strlen($column) > 4) ? substr($column, 0, 4) : $column);
+				}
+
+				$column = '`' . $column . '`';
+			}
+		}
+
+		if (count($columns)) {
+			$this->groupIndexingList[$indexKey ?: $keyName] = $columns;
+		}
 		return $this;
 	}
 }

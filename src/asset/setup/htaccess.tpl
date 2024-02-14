@@ -9,6 +9,12 @@ RewriteCond %{HTTP_HOST} ^{$domain}$
 RewriteRule ^{$route_path}webassets/{$mapping}/(.+?)/(.+)$ {$dist_path} [L]
 <!-- END BLOCK: rewrite -->
 
+# Rewrite the distributor data location
+<!-- START BLOCK: data_mapping -->
+RewriteCond %{HTTP_HOST} ^{$domain}$
+RewriteRule ^{$route_path}data/(.+)$ {$data_path} [L]
+<!-- END BLOCK: data_mapping -->
+
 RewriteCond $0#%{REQUEST_URI} ^([^#]*)#(.*)\1$
 RewriteRule ^.*$ - [E=BASE:%2]
 

@@ -82,6 +82,7 @@ return function () {
             $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/config.inc.php.tpl');
             $source->getRoot()->assign([
                 'install_path' => $path,
+	            'timezone' => date_default_timezone_get(),
             ]);
             file_put_contents(append($path, 'config.inc.php'), $source->output());
 

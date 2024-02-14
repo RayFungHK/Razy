@@ -117,4 +117,15 @@ class Domain
 
         return null;
     }
+
+	/**
+	 * Execute dispose event.
+	 *
+	 * @return $this
+	 */
+	public function dispose(): self
+	{
+		$this->distributor->dispose();
+		return $this;
+	}
 }

@@ -47,14 +47,27 @@ class Plugin
 	}
 
 	/**
-	 * @param string $code
+	 * @param string $name
+	 * @param mixed $value
 	 * @return $this
 	 */
-	final public function reject(string $code): self
+	final public function setValue(string $name, mixed $value): self
+	{
+		$dataset = $this->validate->getAction()->setValue($name, $value);
+
+		return $this;
+	}
+
+	/**
+	 * @param string $code
+	 * @param string $alias
+	 * @return $this
+	 */
+	final public function reject(string $code, string $alias = ''): self
 	{
 		$code = trim($code);
 		if ($code) {
-			$this->validate->reject($code);
+			$this->validate->reject($code, $alias);
 		}
 		return $this;
 	}

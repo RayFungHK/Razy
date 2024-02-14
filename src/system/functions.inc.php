@@ -23,7 +23,7 @@ use Exception;
  */
 function is_fqdn(string $domain, bool $withPort = false): bool
 {
-    return 1 === preg_match('/^(?:(?:(?:[a-z\d[\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((?:2[0-4]|1\d|[1-9])?\d|25[0-5])(?:\.(?-1)){3})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
+	return 1 === preg_match('/^(?:(?:(?:[a-z\d[\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((?:2[0-4]|1\d|[1-9])?\d|25[0-5])(?:\.(?-1)){3})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
 }
 
 /**
@@ -35,7 +35,7 @@ function is_fqdn(string $domain, bool $withPort = false): bool
  */
 function format_fqdn(string $domain): string
 {
-    return trim(ltrim($domain, '.'));
+	return trim(ltrim($domain, '.'));
 }
 
 /**
@@ -49,7 +49,7 @@ function format_fqdn(string $domain): string
  */
 function tidy(string $path, bool $ending = false, string $separator = DIRECTORY_SEPARATOR): string
 {
-    return preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\\]+/', $separator, $path . ($ending ? $separator : ''));
+	return preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\\]+/', $separator, $path . ($ending ? $separator : ''));
 }
 
 /**
@@ -61,23 +61,23 @@ function tidy(string $path, bool $ending = false, string $separator = DIRECTORY_
  */
 function append(string $path, ...$extra): string
 {
-    $separator = DIRECTORY_SEPARATOR;
-    $protocol  = '';
-    if (preg_match('/^(https?:\/\/)(.*)/', $path, $matches)) {
-        $protocol  = $matches[1];
-        $path      = $matches[2];
-        $separator = '/';
-    }
+	$separator = DIRECTORY_SEPARATOR;
+	$protocol = '';
+	if (preg_match('/^(https?:\/\/)(.*)/', $path, $matches)) {
+		$protocol = $matches[1];
+		$path = $matches[2];
+		$separator = '/';
+	}
 
-    foreach ($extra as $pathToAppend) {
-        if (is_array($pathToAppend) && count($pathToAppend)) {
-            $path .= $separator . implode($separator, $pathToAppend);
-        } elseif (is_scalar($pathToAppend) && strlen($pathToAppend)) {
-            $path .= $separator . $pathToAppend;
-        }
-    }
+	foreach ($extra as $pathToAppend) {
+		if (is_array($pathToAppend) && count($pathToAppend)) {
+			$path .= $separator . implode($separator, $pathToAppend);
+		} elseif (is_scalar($pathToAppend) && strlen($pathToAppend)) {
+			$path .= $separator . $pathToAppend;
+		}
+	}
 
-    return $protocol . tidy($path, false, $separator);
+	return $protocol . tidy($path, false, $separator);
 }
 
 /**
@@ -87,15 +87,15 @@ function append(string $path, ...$extra): string
  */
 function sort_path_level(array &$routes): void
 {
-    uksort($routes, function ($path_a, $path_b) {
-        $count_a = substr_count(tidy($path_a, true, '/'), '/');
-        $count_b = substr_count(tidy($path_b, true, '/'), '/');
-        if ($count_a === $count_b) {
-            return 0;
-        }
+	uksort($routes, function ($path_a, $path_b) {
+		$count_a = substr_count(tidy($path_a, true, '/'), '/');
+		$count_b = substr_count(tidy($path_b, true, '/'), '/');
+		if ($count_a === $count_b) {
+			return 0;
+		}
 
-        return ($count_a < $count_b) ? 1 : -1;
-    });
+		return ($count_a < $count_b) ? 1 : -1;
+	});
 }
 
 /**
@@ -108,19 +108,19 @@ function sort_path_level(array &$routes): void
  */
 function versionStandardize(string $version, bool $wildcard = false): false|string
 {
-    $pattern = ($wildcard) ? '/^(\d+)(?:\.(?:\d+|\*)){0,3}$/' : '/^(\d+)(?:\.\d+){0,3}$/';
-    if (!preg_match($pattern, $version)) {
-        return false;
-    }
+	$pattern = ($wildcard) ? '/^(\d+)(?:\.(?:\d+|\*)){0,3}$/' : '/^(\d+)(?:\.\d+){0,3}$/';
+	if (!preg_match($pattern, $version)) {
+		return false;
+	}
 
-    $versions = [];
-    $clips    = explode('.', $version);
-    for ($i = 0; $i < 4; ++$i) {
-        $clip       = $clips[$i] ?? 0;
-        $versions[] = ('*' == $clip) ? $clip : (int)$clip;
-    }
+	$versions = [];
+	$clips = explode('.', $version);
+	for ($i = 0; $i < 4; ++$i) {
+		$clip = $clips[$i] ?? 0;
+		$versions[] = ('*' == $clip) ? $clip : (int)$clip;
+	}
 
-    return implode('.', $versions);
+	return implode('.', $versions);
 }
 
 /**
@@ -134,104 +134,104 @@ function versionStandardize(string $version, bool $wildcard = false): false|stri
  */
 function vc(string $requirement, string $version): bool
 {
-    $version = trim($version);
-    if (($version = versionStandardize($version)) === false) {
-        return false;
-    }
+	$version = trim($version);
+	if (($version = versionStandardize($version)) === false) {
+		return false;
+	}
 
-    // Standardize the logical OR/AND character, support composer version
-    $requirement = trim($requirement);
-    $requirement = preg_replace('/\s*\|\|\s*/', '|', $requirement);
-    $requirement = preg_replace('/\s*-\s*(*SKIP)(*FAIL)|\s*,\s*|\s+/', ',', $requirement);
+	// Standardize the logical OR/AND character, support composer version
+	$requirement = trim($requirement);
+	$requirement = preg_replace('/\s*\|\|\s*/', '|', $requirement);
+	$requirement = preg_replace('/\s*-\s*(*SKIP)(*FAIL)|\s*,\s*|\s+/', ',', $requirement);
 
-    $clips  = SimpleSyntax::ParseSyntax($requirement);
-    $parser = function (array &$extracted) use (&$parser, $version) {
-        $result = false;
+	$clips = SimpleSyntax::ParseSyntax($requirement);
+	$parser = function (array &$extracted) use (&$parser, $version) {
+		$result = false;
 
-        while ($clip = array_shift($extracted)) {
-            if (is_array($clip)) {
-                $result = $parser($clip);
-            } else {
-                $clip = trim($clip);
-                if (preg_match('/^((\d+)(?:\.\d+){0,3})\s*-\s*((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
-                    // Version Range
-                    $min    = versionStandardize($matches[1]);
-                    $max    = versionStandardize($matches[3]);
-                    $result = version_compare($version, $min, '>=') && version_compare($version, $max, '<');
-                } elseif (preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
-                    $major      = (int)$matches[3];
-                    $constraint = $matches[1] ?? '';
-                    $vs         = versionStandardize($matches[2]);
+		while ($clip = array_shift($extracted)) {
+			if (is_array($clip)) {
+				$result = $parser($clip);
+			} else {
+				$clip = trim($clip);
+				if (preg_match('/^((\d+)(?:\.\d+){0,3})\s*-\s*((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
+					// Version Range
+					$min = versionStandardize($matches[1]);
+					$max = versionStandardize($matches[3]);
+					$result = version_compare($version, $min, '>=') && version_compare($version, $max, '<');
+				} elseif (preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
+					$major = (int)$matches[3];
+					$constraint = $matches[1] ?? '';
+					$vs = versionStandardize($matches[2]);
 
-                    if ('^' == $constraint) {
-                        // Caret Version Range
-                        if (0 == $major) {
-                            $splits  = explode('.', $vs);
-                            $compare = '0.' . $splits[1] . '.' . $splits[2] . '.' . $splits[3];
-                        } else {
-                            $compare = ($major + 1) . '.0.0.0';
-                        }
-                        $result = version_compare($version, $vs, '>=') && version_compare($version, $compare, '<');
-                    } elseif ('~' == $constraint) {
-                        // Tilde Version Range
-                        $splits = explode('.', $vs);
-                        while (count($splits) && 0 == end($splits)) {
-                            unset($splits[count($splits) - 1]);
-                        }
-                        if (count($splits) <= 1) {
-                            return false;
-                        }
-                        unset($splits[count($splits) - 1]);
+					if ('^' == $constraint) {
+						// Caret Version Range
+						if (0 == $major) {
+							$splits = explode('.', $vs);
+							$compare = '0.' . $splits[1] . '.' . $splits[2] . '.' . $splits[3];
+						} else {
+							$compare = ($major + 1) . '.0.0.0';
+						}
+						$result = version_compare($version, $vs, '>=') && version_compare($version, $compare, '<');
+					} elseif ('~' == $constraint) {
+						// Tilde Version Range
+						$splits = explode('.', $vs);
+						while (count($splits) && 0 == end($splits)) {
+							unset($splits[count($splits) - 1]);
+						}
+						if (count($splits) <= 1) {
+							return false;
+						}
+						unset($splits[count($splits) - 1]);
 
-                        if (1 == count($splits)) {
-                            $compare = ($major + 1) . '.0.0.0';
-                        } else {
-                            ++$splits[count($splits) - 1];
-                            $compare = versionStandardize(implode('.', $splits));
-                        }
-                        $result = version_compare($version, $vs, '>=') && version_compare($version, $compare, '<');
-                    } else {
-                        // Common version compare
-                        if ('!' == $constraint || '!=' == $constraint) {
-                            $operator = '<>';
-                        } else {
-                            $operator = $matches[1];
-                        }
-                        $result = version_compare($version, $vs, $operator);
-                    }
+						if (1 == count($splits)) {
+							$compare = ($major + 1) . '.0.0.0';
+						} else {
+							++$splits[count($splits) - 1];
+							$compare = versionStandardize(implode('.', $splits));
+						}
+						$result = version_compare($version, $vs, '>=') && version_compare($version, $compare, '<');
+					} else {
+						// Common version compare
+						if ('!' == $constraint || '!=' == $constraint) {
+							$operator = '<>';
+						} else {
+							$operator = $matches[1];
+						}
+						$result = version_compare($version, $vs, $operator);
+					}
 
-                    // Check if logical character is existing
-                    if (count($extracted)) {
-                        $logical = array_shift($extracted);
-                        if (!preg_match('/^[|,]$/', $logical)) {
-                            return false;
-                        }
+					// Check if logical character is existing
+					if (count($extracted)) {
+						$logical = array_shift($extracted);
+						if (!preg_match('/^[|,]$/', $logical)) {
+							return false;
+						}
 
-                        if ('|' == $logical && $result) {
-                            return true;
-                        }
-                        if (',' == $logical && !$result) {
-                            return false;
-                        }
-                    }
-                } elseif (preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
-                    $compare = versionStandardize($clip, true);
-                    if (str_contains($compare, '*')) {
-                        $compare = str_replace(['*', '.'], ['\d+', '\\.'], $compare);
-                        $result  = preg_match('/^' . $compare . '$/', $version);
-                    } else {
-                        $result = $compare == $version;
-                    }
-                } else {
-                    return false;
-                }
-            }
-        }
+						if ('|' == $logical && $result) {
+							return true;
+						}
+						if (',' == $logical && !$result) {
+							return false;
+						}
+					}
+				} elseif (preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
+					$compare = versionStandardize($clip, true);
+					if (str_contains($compare, '*')) {
+						$compare = str_replace(['*', '.'], ['\d+', '\\.'], $compare);
+						$result = preg_match('/^' . $compare . '$/', $version);
+					} else {
+						$result = $compare == $version;
+					}
+				} else {
+					return false;
+				}
+			}
+		}
 
-        return $result;
-    };
+		return $result;
+	};
 
-    return $parser($clips);
+	return $parser($clips);
 }
 
 /**
@@ -241,14 +241,14 @@ function vc(string $requirement, string $version): bool
  */
 function is_ssl(): bool
 {
-    if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO']) {
-        return true;
-    }
-    if (!empty($_SERVER['HTTPS']) && 'off' !== $_SERVER['HTTPS'] || 443 === $_SERVER['SERVER_PORT']) {
-        return true;
-    }
+	if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO']) {
+		return true;
+	}
+	if (!empty($_SERVER['HTTPS']) && 'off' !== $_SERVER['HTTPS'] || 443 === $_SERVER['SERVER_PORT']) {
+		return true;
+	}
 
-    return false;
+	return false;
 }
 
 /**
@@ -263,23 +263,23 @@ function is_ssl(): bool
  */
 function getFilesizeString(float $size, int $decPoint = 2, bool $upperCase = false, string $separator = ''): string
 {
-    $unitScale = ['byte', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
-    $unit      = 'byte';
-    $scale     = 0;
-    $decPoint  = ($decPoint < 1) ? 0 : $decPoint;
+	$unitScale = ['byte', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
+	$unit = 'byte';
+	$scale = 0;
+	$decPoint = ($decPoint < 1) ? 0 : $decPoint;
 
-    while ($size >= 1024 && isset($unitScale[$scale + 1])) {
-        $size /= 1024;
-        $unit = $unitScale[++$scale];
-    }
+	while ($size >= 1024 && isset($unitScale[$scale + 1])) {
+		$size /= 1024;
+		$unit = $unitScale[++$scale];
+	}
 
-    $size = ($decPoint) ? number_format($size, $decPoint) : (int)$size;
+	$size = ($decPoint) ? number_format($size, $decPoint) : (int)$size;
 
-    if ($upperCase) {
-        $unit = strtoupper($unit);
-    }
+	if ($upperCase) {
+		$unit = strtoupper($unit);
+	}
 
-    return $size . $separator . $unit;
+	return $size . $separator . $unit;
 }
 
 /**
@@ -289,23 +289,23 @@ function getFilesizeString(float $size, int $decPoint = 2, bool $upperCase = fal
  */
 function getIP(): string
 {
-    if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-        $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED'])) {
-        $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
-    } elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
-        $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
-    } elseif (isset($_SERVER['HTTP_FORWARDED'])) {
-        $ipaddress = $_SERVER['HTTP_FORWARDED'];
-    } elseif (isset($_SERVER['REMOTE_ADDR'])) {
-        $ipaddress = $_SERVER['REMOTE_ADDR'];
-    } else {
-        $ipaddress = 'UNKNOWN';
-    }
+	if (isset($_SERVER['HTTP_CLIENT_IP'])) {
+		$ipaddress = $_SERVER['HTTP_CLIENT_IP'];
+	} elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+		$ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+	} elseif (isset($_SERVER['HTTP_X_FORWARDED'])) {
+		$ipaddress = $_SERVER['HTTP_X_FORWARDED'];
+	} elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
+		$ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
+	} elseif (isset($_SERVER['HTTP_FORWARDED'])) {
+		$ipaddress = $_SERVER['HTTP_FORWARDED'];
+	} elseif (isset($_SERVER['REMOTE_ADDR'])) {
+		$ipaddress = $_SERVER['REMOTE_ADDR'];
+	} else {
+		$ipaddress = 'UNKNOWN';
+	}
 
-    return $ipaddress;
+	return $ipaddress;
 }
 
 /**
@@ -317,24 +317,24 @@ function getIP(): string
  */
 function ipInRange(string $ip, string $cidr): bool
 {
-    if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip)) {
-        return false;
-    }
+	if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip)) {
+		return false;
+	}
 
-    if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$/', $cidr)) {
-        return false;
-    }
+	if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$/', $cidr)) {
+		return false;
+	}
 
-    if (!str_contains($cidr, '/')) {
-        $cidr .= '/32';
-    }
+	if (!str_contains($cidr, '/')) {
+		$cidr .= '/32';
+	}
 
-    [$range, $netmask] = explode('/', $cidr, 2);
-    $rangeDecimal      = ip2long($range);
-    $ipDecimal         = ip2long($ip);
-    $wildcardDecimal   = pow(2, (32 - $netmask)) - 1;
-    $netmaskDecimal    = ~$wildcardDecimal;
-    return (($ipDecimal & $netmaskDecimal) === ($rangeDecimal & $netmask_decimal));
+	[$range, $netmask] = explode('/', $cidr, 2);
+	$rangeDecimal = ip2long($range);
+	$ipDecimal = ip2long($ip);
+	$wildcardDecimal = pow(2, (32 - $netmask)) - 1;
+	$netmaskDecimal = ~$wildcardDecimal;
+	return (($ipDecimal & $netmaskDecimal) === ($rangeDecimal & $netmask_decimal));
 }
 
 /**
@@ -346,23 +346,23 @@ function ipInRange(string $ip, string $cidr): bool
  */
 function construct(array $structure, array ...$sources): array
 {
-    $recursive = function ($source, $structure) use (&$recursive) {
-        foreach ($structure as $key => $value) {
-            if (is_array($value) && !empty($value)) {
-                $structure[$key] = $recursive($source[$key], $value);
-            } else {
-                $structure[$key] = $source[$key] ?? $value;
-            }
-        }
+	$recursive = function ($source, $structure) use (&$recursive) {
+		foreach ($structure as $key => $value) {
+			if (is_array($value) && !empty($value)) {
+				$structure[$key] = $recursive($source[$key], $value);
+			} else {
+				$structure[$key] = $source[$key] ?? $value;
+			}
+		}
 
-        return $structure;
-    };
+		return $structure;
+	};
 
-    foreach ($sources as $source) {
-        $structure = $recursive($structure, $source);
-    }
+	foreach ($sources as $source) {
+		$structure = $recursive($structure, $source);
+	}
 
-    return $structure;
+	return $structure;
 }
 
 /**
@@ -375,22 +375,22 @@ function construct(array $structure, array ...$sources): array
  */
 function refactor(array $source, string ...$keys): array
 {
-    $result = [];
-    $kvp    = array_keys($source);
-    if (count($keys)) {
-        $kvp = array_intersect($kvp, $keys);
-    }
+	$result = [];
+	$kvp = array_keys($source);
+	if (count($keys)) {
+		$kvp = array_intersect($kvp, $keys);
+	}
 
-    while ($key = array_shift($kvp)) {
-        foreach ($source[$key] as $index => $value) {
-            if (!isset($result[$index])) {
-                $result[$index] = [];
-            }
-            $result[$index][$key] = $value;
-        }
-    }
+	while ($key = array_shift($kvp)) {
+		foreach ($source[$key] as $index => $value) {
+			if (!isset($result[$index])) {
+				$result[$index] = [];
+			}
+			$result[$index][$key] = $value;
+		}
+	}
 
-    return $result;
+	return $result;
 }
 
 /**
@@ -403,35 +403,35 @@ function refactor(array $source, string ...$keys): array
  */
 function urefactor(array &$source, callable $callback, string ...$keys): array
 {
-    $result = [];
-    $kvp    = array_keys($source);
-    if (count($keys)) {
-        $kvp = array_intersect($kvp, $keys);
-    }
+	$result = [];
+	$kvp = array_keys($source);
+	if (count($keys)) {
+		$kvp = array_intersect($kvp, $keys);
+	}
 
-    foreach ($kvp as $key) {
-        foreach ($source[$key] as $index => $value) {
-            if (!isset($result[$index])) {
-                $result[$index] = [];
-            }
-            $result[$index][$key] = &$source[$key][$index];
-        }
-    }
+	foreach ($kvp as $key) {
+		foreach ($source[$key] as $index => $value) {
+			if (!isset($result[$index])) {
+				$result[$index] = [];
+			}
+			$result[$index][$key] = &$source[$key][$index];
+		}
+	}
 
-    $remove = [];
-    foreach ($result as $key => $value) {
-        if (!$callback($key, $value)) {
-            $remove[] = $key;
-        }
-    }
+	$remove = [];
+	foreach ($result as $key => $value) {
+		if (!$callback($key, $value)) {
+			$remove[] = $key;
+		}
+	}
 
-    foreach ($kvp as $key) {
-        foreach ($remove as $keyToRemove) {
-            unset($source[$key][$keyToRemove]);
-        }
-    }
+	foreach ($kvp as $key) {
+		foreach ($remove as $keyToRemove) {
+			unset($source[$key][$keyToRemove]);
+		}
+	}
 
-    return $result;
+	return $result;
 }
 
 /**
@@ -446,62 +446,62 @@ function urefactor(array &$source, callable $callback, string ...$keys): array
  */
 function comparison(mixed $valueA = null, mixed $valueB = null, string $operator = '=', bool $strict = false): bool
 {
-    if (!$strict) {
-        $valueA = (is_scalar($valueA)) ? (string)$valueA : $valueA;
-        $valueB = (is_scalar($valueB)) ? (string)$valueB : $valueB;
-    }
+	if (!$strict) {
+		$valueA = (is_scalar($valueA)) ? (string)$valueA : $valueA;
+		$valueB = (is_scalar($valueB)) ? (string)$valueB : $valueB;
+	}
 
-    // Equal
-    if ('=' === $operator) {
-        return $valueA === $valueB;
-    }
+	// Equal
+	if ('=' === $operator) {
+		return $valueA === $valueB;
+	}
 
-    // Not equal
-    if ('!=' === $operator) {
-        return $valueA !== $valueB;
-    }
+	// Not equal
+	if ('!=' === $operator) {
+		return $valueA !== $valueB;
+	}
 
-    // Greater than
-    if ('>' === $operator) {
-        return $valueA > $valueB;
-    }
+	// Greater than
+	if ('>' === $operator) {
+		return $valueA > $valueB;
+	}
 
-    // Greater than and eqaul with
-    if ('>=' === $operator) {
-        return $valueA >= $valueB;
-    }
+	// Greater than and eqaul with
+	if ('>=' === $operator) {
+		return $valueA >= $valueB;
+	}
 
-    // Less than
-    if ('<' === $operator) {
-        return $valueA < $valueB;
-    }
+	// Less than
+	if ('<' === $operator) {
+		return $valueA < $valueB;
+	}
 
-    // Less than and equal with
-    if ('<=' === $operator) {
-        return $valueA <= $valueB;
-    }
+	// Less than and equal with
+	if ('<=' === $operator) {
+		return $valueA <= $valueB;
+	}
 
-    // Includes in
-    if ('|=' === $operator) {
-        if (!is_scalar($valueA) || !is_array($valueB)) {
-            return false;
-        }
+	// Includes in
+	if ('|=' === $operator) {
+		if (!is_scalar($valueA) || !is_array($valueB)) {
+			return false;
+		}
 
-        return in_array($valueA, $valueB, true);
-    }
+		return in_array($valueA, $valueB, true);
+	}
 
-    if ('^=' === $operator) {
-        // Beginning with
-        $valueB = '/^.*' . preg_quote($valueB) . '/';
-    } elseif ('$=' === $operator) {
-        // End with
-        $valueB = '/' . preg_quote($valueB) . '.*$/';
-    } elseif ('*=' === $operator) {
-        // Include
-        $valueB = '/' . preg_quote($valueB) . '/';
-    }
+	if ('^=' === $operator) {
+		// Beginning with
+		$valueB = '/^.*' . preg_quote($valueB) . '/';
+	} elseif ('$=' === $operator) {
+		// End with
+		$valueB = '/' . preg_quote($valueB) . '.*$/';
+	} elseif ('*=' === $operator) {
+		// Include
+		$valueB = '/' . preg_quote($valueB) . '/';
+	}
 
-    return (bool)preg_match($valueB, $valueA);
+	return (bool)preg_match($valueB, $valueA);
 }
 
 /**
@@ -513,19 +513,19 @@ function comparison(mixed $valueA = null, mixed $valueB = null, string $operator
  */
 function guid(int $length = 4): string
 {
-    $length  = max(1, $length);
-    $pattern = '%04X';
-    if ($length > 1) {
-        $pattern .= str_repeat('-%04X', $length - 1);
-    }
+	$length = max(1, $length);
+	$pattern = '%04X';
+	if ($length > 1) {
+		$pattern .= str_repeat('-%04X', $length - 1);
+	}
 
-    $args = array_fill(1, $length, '');
-    array_walk($args, function (&$item) {
-        $item = mt_rand(0, 65535);
-    });
-    array_unshift($args, $pattern);
+	$args = array_fill(1, $length, '');
+	array_walk($args, function (&$item) {
+		$item = mt_rand(0, 65535);
+	});
+	array_unshift($args, $pattern);
 
-    return strtolower(call_user_func_array('sprintf', $args));
+	return strtolower(call_user_func_array('sprintf', $args));
 }
 
 /**
@@ -537,7 +537,7 @@ function guid(int $length = 4): string
  */
 function collect($data): Collection
 {
-    return new Collection($data);
+	return new Collection($data);
 }
 
 /**
@@ -550,11 +550,11 @@ function collect($data): Collection
  */
 function getRelativePath(string $path, string $root): string
 {
-    $path = tidy($path);
-    $root = tidy($root);
+	$path = tidy($path);
+	$root = tidy($root);
 
-    $relativePath = preg_replace('/^' . preg_quote($root, '/\\') . '/', '', $path);
-    return $relativePath ?? '';
+	$relativePath = preg_replace('/^' . preg_quote($root, '/\\') . '/', '', $path);
+	return $relativePath ?? '';
 }
 
 /**
@@ -568,43 +568,43 @@ function getRelativePath(string $path, string $root): string
  */
 function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $relative = false): bool|string
 {
-    $path        = trim($path);
-    $isDirectory = false;
-    if (is_dir_path($path)) {
-        // If the path ending is a slash or backslash
-        $isDirectory = true;
-    } elseif (preg_match('/^\.\.?$/', $path)) {
-        // If the path is a `.` or `..` only
-        $isDirectory = true;
-    }
+	$path = trim($path);
+	$isDirectory = false;
+	if (is_dir_path($path)) {
+		// If the path ending is a slash or backslash
+		$isDirectory = true;
+	} elseif (preg_match('/^\.\.?$/', $path)) {
+		// If the path is a `.` or `..` only
+		$isDirectory = true;
+	}
 
-    $clips   = explode($separator, rtrim(tidy($path, false, $separator), $separator));
-    $pathAry = [];
-    foreach ($clips as $index => $clip) {
-        if ($index > 0) {
-            if ('..' == $clip) {
-                if ('..' == end($pathAry)) {
-                    $pathAry[] = '..';
-                } elseif ('.' == end($pathAry)) {
-                    $pathAry[0] = '..';
-                } else {
-                    array_pop($pathAry);
-                }
-            } elseif ('.' != $clip) {
-                $pathAry[] = $clip;
-            }
-        } else {
-            $pathAry[] = $clip;
-        }
-    }
+	$clips = explode($separator, rtrim(tidy($path, false, $separator), $separator));
+	$pathAry = [];
+	foreach ($clips as $index => $clip) {
+		if ($index > 0) {
+			if ('..' == $clip) {
+				if ('..' == end($pathAry)) {
+					$pathAry[] = '..';
+				} elseif ('.' == end($pathAry)) {
+					$pathAry[0] = '..';
+				} else {
+					array_pop($pathAry);
+				}
+			} elseif ('.' != $clip) {
+				$pathAry[] = $clip;
+			}
+		} else {
+			$pathAry[] = $clip;
+		}
+	}
 
-    $fixedPath = implode($separator, $pathAry) . ($isDirectory ? $separator : '');
+	$fixedPath = implode($separator, $pathAry) . ($isDirectory ? $separator : '');
 
-    if ($relative && !str_starts_with($fixedPath, $path)) {
-        return false;
-    }
+	if ($relative && !str_starts_with($fixedPath, $path)) {
+		return false;
+	}
 
-    return $fixedPath;
+	return $fixedPath;
 }
 
 /**
@@ -614,7 +614,7 @@ function fix_path(string $path, string $separator = DIRECTORY_SEPARATOR, bool $r
  */
 function is_dir_path(string $path): bool
 {
-    return $path && preg_match('/[\\\\\/]/', substr($path, -1));
+	return $path && preg_match('/[\\\\\/]/', substr($path, -1));
 }
 
 /**
@@ -626,32 +626,32 @@ function is_dir_path(string $path): bool
  */
 function xremove(string $path): bool
 {
-    $path     = tidy($path);
-    $basePath = $path;
+	$path = tidy($path);
+	$basePath = $path;
 
-    try {
-        ($recursive = function (string $path = '') use (&$recursive, $basePath) {
-            $path = append($basePath, $path);
-            if (is_dir($path)) {
-                foreach (scandir($path) as $item) {
-                    if (!preg_match('/^\.\.?$/', $item)) {
-                        if (is_dir(append($path, $item))) {
-                            $recursive(append($path, $item));
-                        } else {
-                            unlink(append($path, $item));
-                        }
-                    }
-                }
-                rmdir($path);
-            } else {
-                unlink($path);
-            }
-        })();
-    } catch (Exception) {
-        return false;
-    }
+	try {
+		($recursive = function (string $path = '') use (&$recursive, $basePath) {
+			$path = append($basePath, $path);
+			if (is_dir($path)) {
+				foreach (scandir($path) as $item) {
+					if (!preg_match('/^\.\.?$/', $item)) {
+						if (is_dir(append($path, $item))) {
+							$recursive(append($path, $item));
+						} else {
+							unlink(append($path, $item));
+						}
+					}
+				}
+				rmdir($path);
+			} else {
+				unlink($path);
+			}
+		})();
+	} catch (Exception) {
+		return false;
+	}
 
-    return true;
+	return true;
 }
 
 /**
@@ -666,59 +666,59 @@ function xremove(string $path): bool
  */
 function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpacked = []): bool
 {
-    $source = tidy($source);
-    $dest   = tidy($dest);
-    if (!is_file($source) && !is_dir($source)) {
-        return false;
-    }
+	$source = tidy($source);
+	$dest = tidy($dest);
+	if (!is_file($source) && !is_dir($source)) {
+		return false;
+	}
 
-    $fileName = '';
-    if (is_file($source)) {
-        if (!str_ends_with($dest, '/')) {
-            $fileName = substr($dest, strrpos($dest, '/') + 1);
-            $dest     = substr($dest, 0, strrpos($dest, '/'));
-        }
-    }
+	$fileName = '';
+	if (is_file($source)) {
+		if (!str_ends_with($dest, '/')) {
+			$fileName = substr($dest, strrpos($dest, '/') + 1);
+			$dest = substr($dest, 0, strrpos($dest, '/'));
+		}
+	}
 
-    if (!is_dir($dest)) {
-        mkdir($dest, 0777, true);
-    }
+	if (!is_dir($dest)) {
+		mkdir($dest, 0777, true);
+	}
 
-    if (!$unpacked) {
-        $unpacked = [];
-    }
+	if (!$unpacked) {
+		$unpacked = [];
+	}
 
-    try {
-        $basePath = $source;
-        ($recursive = function (string $path = '') use (&$recursive, $basePath, $dest, &$unpacked, $pattern, $fileName) {
-            $source = append($basePath, $path);
-            if (is_dir($source)) {
-                foreach (scandir($source) as $item) {
-                    if (!preg_match('/^\.\.?$/', $item)) {
-                        if (is_dir(append($source, $item))) {
-                            $recursive(append($path, $item));
-                        } else {
-                            if (!$pattern || preg_match(append($dest, $path), '/^' . preg_quote($pattern) . '$/')) {
-                                if (!is_dir(append($dest, $path))) {
-                                    mkdir(append($dest, $path), 0777, true);
-                                }
+	try {
+		$basePath = $source;
+		($recursive = function (string $path = '') use (&$recursive, $basePath, $dest, &$unpacked, $pattern, $fileName) {
+			$source = append($basePath, $path);
+			if (is_dir($source)) {
+				foreach (scandir($source) as $item) {
+					if (!preg_match('/^\.\.?$/', $item)) {
+						if (is_dir(append($source, $item))) {
+							$recursive(append($path, $item));
+						} else {
+							if (!$pattern || preg_match(append($dest, $path), '/^' . preg_quote($pattern) . '$/')) {
+								if (!is_dir(append($dest, $path))) {
+									mkdir(append($dest, $path), 0777, true);
+								}
 
-                                $unpacked[append($source, $item)] = append($dest, $path, $item);
-                                copy(append($source, $item), append($dest, $path, $item));
-                            }
-                        }
-                    }
-                }
-            } else {
-                $unpacked[$source] = append($dest, $fileName ?? basename($source));
-                copy($source, append($dest, $fileName ?? basename($source)));
-            }
-        })();
-    } catch (Exception) {
-        return false;
-    }
+								$unpacked[append($source, $item)] = append($dest, $path, $item);
+								copy(append($source, $item), append($dest, $path, $item));
+							}
+						}
+					}
+				}
+			} else {
+				$unpacked[$source] = append($dest, $fileName ?? basename($source));
+				copy($source, append($dest, $fileName ?? basename($source)));
+			}
+		})();
+	} catch (Exception) {
+		return false;
+	}
 
-    return true;
+	return true;
 }
 
 /**
@@ -731,55 +731,55 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
  */
 function autoload(string $className, string $path = ''): bool
 {
-    if (is_dir($path)) {
-        $libraryPath = append($path, $className . '.php');
-        if (!is_file($libraryPath)) {
-            $splits      = explode('\\', $className);
-            $libraryPath = append($path, $className, end($splits) . '.php');
-            if (!is_file($libraryPath)) {
-                // Psr-0
-                if (str_contains($className, '_')) {
-                    $splits      = explode('_', $className);
-                    $classFolder = append($path, reset($splits));
-                    if (is_dir($classFolder)) {
-                        $libraryPath = append($classFolder, implode(DIRECTORY_SEPARATOR, $splits) . '.php');
-                    }
-                }
-            }
-        }
+	if (is_dir($path)) {
+		$libraryPath = append($path, $className . '.php');
+		if (!is_file($libraryPath)) {
+			$splits = explode('\\', $className);
+			$libraryPath = append($path, $className, end($splits) . '.php');
+			if (!is_file($libraryPath)) {
+				// Psr-0
+				if (str_contains($className, '_')) {
+					$splits = explode('_', $className);
+					$classFolder = append($path, reset($splits));
+					if (is_dir($classFolder)) {
+						$libraryPath = append($classFolder, implode(DIRECTORY_SEPARATOR, $splits) . '.php');
+					}
+				}
+			}
+		}
 
-        if (is_file($libraryPath)) {
-            try {
-                include $libraryPath;
+		if (is_file($libraryPath)) {
+			try {
+				include $libraryPath;
 
-                return class_exists($className);
-            } catch (Exception) {
-                return false;
-            }
-        }
-    }
+				return class_exists($className);
+			} catch (Exception) {
+				return false;
+			}
+		}
+	}
 
-    return false;
+	return false;
 }
 
 /**
  * @param string $startDate
- * @param int    $numberOfDays
- * @param array  $holidays
+ * @param int $numberOfDays
+ * @param array $holidays
  *
  * @return string
  * @throws Exception
  */
 function getFutureWeekday(string $startDate, int $numberOfDays, array $holidays = []): string
 {
-    $holidays = array_fill_keys($holidays, true);
-    $datetime = new DateTime($startDate);
-    for ($day = 0; $day < $numberOfDays; ++$day) {
-        do {
-            $date = $datetime->modify('+1 weekday')->format('Y-m-d');
-        } while (isset($holidays[$date]));
-    }
-    return $date ?? $startDate;
+	$holidays = array_fill_keys($holidays, true);
+	$datetime = new DateTime($startDate);
+	for ($day = 0; $day < $numberOfDays; ++$day) {
+		do {
+			$date = $datetime->modify('+1 weekday')->format('Y-m-d');
+		} while (isset($holidays[$date]));
+	}
+	return $date ?? $startDate;
 }
 
 /**
@@ -787,31 +787,47 @@ function getFutureWeekday(string $startDate, int $numberOfDays, array $holidays 
  *
  * @param string|null $startDate
  * @param string|null $endDate
- * @param array       $holidays
+ * @param array $holidays
  *
  * @return int
  * @throws Exception
  */
 function getWeekdayDiff(?string $startDate = '', ?string $endDate = '', array $holidays = []): int
 {
-    $holidays = array_fill_keys($holidays, true);
-    $datetime = $startDate ? new DateTime($startDate) : new DateTime('now');
-    $endDate  = $endDate ? new DateTime($endDate) : new DateTime('now');
+	$holidays = array_fill_keys($holidays, true);
+	$datetime = $startDate ? new DateTime($startDate) : new DateTime('now');
+	$endDate = $endDate ? new DateTime($endDate) : new DateTime('now');
 
-    $days = 0;
-    $adj  = ($datetime < $endDate) ? 1 : -1;
+	$days = 0;
+	$adj = ($datetime < $endDate) ? 1 : -1;
 
-    if ($datetime > $endDate) {
-        [$datetime, $endDate] = [$endDate, $datetime];
-    }
+	if ($datetime > $endDate) {
+		[$datetime, $endDate] = [$endDate, $datetime];
+	}
 
-    while ($datetime->diff($endDate)->days > 0) {
-        do {
-            $days++;
-            $datetime->modify('+1 weekday');
-            $date = $datetime->format('Y-m-d');
-        } while (isset($holidays[$date]));
-    }
+	while ($datetime->diff($endDate)->days > 0) {
+		do {
+			$days++;
+			$datetime->modify('+1 weekday');
+			$date = $datetime->format('Y-m-d');
+		} while (isset($holidays[$date]));
+	}
 
-    return $days * $adj;
+	return $days * $adj;
+}
+
+/**
+ * json_validate alias
+ *
+ * @param string $string
+ * @return bool
+ */
+function is_json(string $string): bool
+{
+	if (function_exists('json_validate')) {
+		return json_validate($string);
+	}
+
+	json_decode($string);
+	return json_last_error() === JSON_ERROR_NONE;
 }

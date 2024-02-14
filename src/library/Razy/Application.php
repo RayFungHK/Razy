@@ -299,6 +299,7 @@ class Application
 									'url_path' => $urlPath,
 									'domain' => $domain,
 									'alias' => $aliasMapping[$domain] ?? [],
+									'identify' => $distIdentify,
 								];
 							} elseif (is_array($distIdentify)) {
 								foreach ($distIdentify as $path => $pathSet) {
@@ -406,14 +407,26 @@ class Application
 		if (CLI_MODE) {
 			$source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/htaccess.tpl');
 			$rootBlock = $source->getRoot();
+
 			foreach (self::GetDistributors() as $info) {
 				$domain = preg_quote($info['domain']);
-				if (!preg_match('/:\d+$/', $domain)) {
-					$domain .= '(:\d+)?';
-				}
+
 				try {
 					$distributor = new Distributor($info['distributor_path'], $info['distributor_alias']);
 					$modules = $distributor->getAllModules();
+
+					$staticDomain = $domain;
+					if (!preg_match('/:\d+$/', $domain)) {
+						$domain .= '(:\d+)?';
+					}
+
+					$rootBlock->newBlock('data_mapping')->assign([
+						'domain' => $domain,
+						'distributor_path' => $info['distributor_path'],
+						'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
+						'data_path' => append('data', $staticDomain . '-' . $distributor->getDistCode(), '$1'),
+					]);
+
 					foreach ($modules as $module) {
 						$moduleInfo = $module->getModuleInfo();
 						if (is_dir(append($moduleInfo->getPath(), 'webassets'))) {
@@ -426,10 +439,10 @@ class Application
 						}
 					}
 				} catch (Exception $e) {
-					echo $e->getMessage();
 					return false;
 				}
 			}
+
 			file_put_contents(append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess'), $source->output());
 			return true;
 		}
@@ -457,8 +470,6 @@ class Application
 				$config = require $configFilePath;
 			}
 		} catch (Exception $e) {
-			echo $e;
-
 			exit;
 		}
 
@@ -599,5 +610,16 @@ class Application
 	public function getPeer(): ?self
 	{
 		return $this->peer;
+	}
+
+	/**
+	 * Execute dispose event.
+	 *
+	 * @return $this
+	 */
+	public function dispose(): self
+	{
+		$this->domain->dispose();
+		return $this;
 	}
 }

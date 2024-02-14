@@ -55,6 +55,30 @@ class Pilot
 	}
 
 	/**
+	 * Add a shadow path used to redirect to another module's specified route when the route has matched.
+	 *
+	 * @param string $route
+	 * @param string $moduleCode
+	 * @param string $path
+	 * @return $this
+	 * @throws Error
+	 */
+	public function addShadowRoute(string $route, string $moduleCode, string $path = ''): self
+	{
+		$moduleCode = trim($moduleCode);
+		$route = trim($route);
+		$path = trim($path);
+		if (!$path) {
+			$path = $route;
+		}
+		if ($moduleCode === $this->module->getModuleInfo()->getCode()) {
+			throw new Error('You cannot add a shadow route');
+		}
+		$this->module->addShadowRoute($route, $moduleCode, $path);
+		return $this;
+	}
+
+	/**
 	 * @param string $type
 	 * @param        $route
 	 * @param        $path

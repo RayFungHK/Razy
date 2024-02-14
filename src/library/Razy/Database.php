@@ -50,6 +50,7 @@ class Database
 	 * @var array
 	 */
 	private array $queried = [];
+	private int $affected_rows = 0;
 
 	/**
 	 * Database constructor.
@@ -111,6 +112,7 @@ class Database
 				PDO::ATTR_PERSISTENT => true,
 				PDO::ATTR_TIMEOUT => 5,
 				PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+				PDO::MYSQL_ATTR_FOUND_ROWS => true,
 			]);
 
 			$this->connected = true;
@@ -119,6 +121,21 @@ class Database
 		} catch (PDOException) {
 			return false;
 		}
+	}
+
+	/**
+	 * Set the database timezone
+	 *
+	 * @param string $timezone
+	 * @return $this
+	 */
+	public function setTimezone(string $timezone): self
+	{
+		if (preg_match('/^[+-]\d{0,2}:\d{0,2}$/', $timezone)) {
+			$this->getDBAdapter()->exec("SET time_zone='$timezone';");
+		}
+
+		return $this;
 	}
 
 	/**
@@ -137,6 +154,7 @@ class Database
 			$pdoStatement = $this->adapter->prepare($sql);
 			if ($pdoStatement) {
 				$pdoStatement->execute();
+				$this->affected_rows = $pdoStatement->rowCount();
 			}
 		} catch (Exception $e) {
 			throw new Error($e->getMessage() . "\n" . $sql, 500, Error::DEFAULT_HEADING, $sql);
@@ -146,6 +164,17 @@ class Database
 
 		return new Query($statement, $pdoStatement);
 	}
+
+	/**
+	 * Get the affected row by latest query.
+	 *
+	 * @return int
+	 */
+	public function affectedRows(): int
+	{
+		return $this->affected_rows;
+	}
+
 
 	/**
 	 * Get the collation list.
@@ -332,6 +361,7 @@ class Database
 	/**
 	 * @param string $tableName
 	 * @param array $parameters
+	 * @param string $whereSyntax
 	 * @return Statement
 	 * @throws Error
 	 */
