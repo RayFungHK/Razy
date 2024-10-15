@@ -206,4 +206,44 @@ class Validate
 	{
 		return $this->ignoreParameter;
 	}
+
+	/**
+	 * @param string $name
+	 * @return mixed
+	 */
+	final public function getValueByName(string $name): mixed
+	{
+		return $this->getAction()->getDataset()[$name] ?? null;
+	}
+
+	/**
+	 * @param string $name
+	 * @param mixed $value
+	 * @return $this
+	 */
+	final public function setValueByName(string $name, mixed $value): self
+	{
+		$dataset = $this->getAction()->setValue($name, $value);
+
+		return $this;
+	}
+
+	/**
+	 * @return mixed
+	 */
+	final public function getValue(): mixed
+	{
+		return $this->getAction()->getDataset()[$this->name] ?? null;
+	}
+
+	/**
+	 * @param mixed $value
+	 * @return $this
+	 */
+	final public function setValue(mixed $value): self
+	{
+		$dataset = $this->getAction()->setValue($this->name, $value);
+
+		return $this;
+	}
 }

@@ -365,6 +365,11 @@ class Statement
 			}
 
 			if (count($this->orderby)) {
+				foreach ($this->orderby as &$orderby) {
+					if (is_array($orderby)) {
+						$orderby = $orderby['syntax']->getSyntax() . ' ' . $orderby['ordering'];
+					}
+				}
 				$sql .= ' ORDER BY ' . implode(', ', $this->orderby);
 			}
 
@@ -396,9 +401,9 @@ class Statement
 			}
 
 			throw new Error('Missing update syntax.');
-		} elseif ('insert' == $this->type) {
+		} elseif ('insert' == $this->type || 'replace' == $this->type) {
 			if ($this->tableName && !empty($this->columns)) {
-				$sql = 'INSERT INTO ' . $this->tableName . ' (`' . implode('`, `', $this->columns) . '`) VALUES (';
+				$sql = strtoupper($this->type) . ' INTO ' . $this->tableName . ' (`' . implode('`, `', $this->columns) . '`) VALUES (';
 				$values = [];
 				foreach ($this->columns as $column) {
 					$values[] = $this->getValueAsStatement($column);
@@ -767,10 +772,17 @@ class Statement
 				$column = $matches[2];
 			}
 
-			$column = self::StandardizeColumn($column);
-			if ($column) {
-				$column .= ('>' === $ordering) ? ' DESC' : ' ASC';
-				$this->orderby[] = $column;
+			$standardizedColumn = self::StandardizeColumn($column);
+			if ($standardizedColumn) {
+				$standardizedColumn .= ('>' === $ordering) ? ' DESC' : ' ASC';
+				$this->orderby[] = $standardizedColumn;
+			} else {
+				$orderSyntax = new WhereSyntax($this);
+				$orderSyntax->parseSyntax($column);
+				$this->orderby[] = [
+					'syntax' => $orderSyntax,
+					'ordering' => ('>' === $ordering) ? 'DESC' : 'ASC'
+				];
 			}
 		}
 

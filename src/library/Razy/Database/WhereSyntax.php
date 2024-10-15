@@ -103,7 +103,7 @@ class WhereSyntax
 	 */
 	private function parseExpr(string $clip, bool $negative): string
 	{
-		$splits = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!#:@~&]?=|(?<![\->])[><]=?)\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+		$splits = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!#:@~&]?=|><|<>|(?<![\->])[><]=?)\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
 		if (1 == count($splits)) {
 			$expr = $this->parseOperand($clip);
 			if ('null' === $expr['type']) {

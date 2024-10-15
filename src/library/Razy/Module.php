@@ -185,11 +185,11 @@ class Module
      * Add standard route into the route list, regular expression string supported.
      *
      * @param string $route The path of the route
-     * @param string $path The path of the closure file by the method name
+     * @param string|Route $path The Route entity or the path of the closure file by the method name
      *
      * @return $this
      */
-    public function addRoute(string $route, string $path): self
+    public function addRoute(string $route, mixed $path): self
     {
         // Standardize the route string
         $route = rtrim(tidy($route, false, '/'), '/');
@@ -249,31 +249,34 @@ class Module
         return array_key_exists($event, $this->events);
     }
 
-	/**
-	 * Execute API command.
-	 *
-	 * @param ModuleInfo $module The request module
-	 * @param string $command The API command
-	 * @param array $args The arguments will pass to API command
-	 *
-	 * @return mixed
-	 * @throws Throwable
-	 */
+    /**
+     * Execute API command.
+     *
+     * @param ModuleInfo $module The request module
+     * @param string $command The API command
+     * @param array $args The arguments will pass to API command
+     *
+     * @return mixed
+     * @throws Throwable
+     */
     public function execute(ModuleInfo $module, string $command, array $args): mixed
     {
-        return $this->accessAPI($module, $command, $args);
+        $this->distributor->stackState(Controller::STATE_API);
+        $result = $this->accessAPI($module, $command, $args);
+        $this->distributor->releaseState();
+        return $result;
     }
 
-	/**
-	 * Execute the API command.
-	 *
-	 * @param ModuleInfo $module The request module
-	 * @param string $command The API command
-	 * @param array $args The arguments will pass to the API command
-	 *
-	 * @return null|mixed
-	 * @throws Throwable
-	 */
+    /**
+     * Execute the API command.
+     *
+     * @param ModuleInfo $module The request module
+     * @param string $command The API command
+     * @param array $args The arguments will pass to the API command
+     *
+     * @return null|mixed
+     * @throws Throwable
+     */
     public function accessAPI(ModuleInfo $module, string $command, array $args): mixed
     {
         $result = null;
@@ -331,13 +334,13 @@ class Module
         return $this->closures[$path] ?? null;
     }
 
-	/**
-	 * Get the module's data folder of the application.
-	 *
-	 * @param string $module
-	 * @param bool $isURL
-	 * @return string
-	 */
+    /**
+     * Get the module's data folder of the application.
+     *
+     * @param string $module
+     * @param bool $isURL
+     * @return string
+     */
     public function getDataPath(string $module = '', bool $isURL = false): string
     {
         return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode(), $isURL);
@@ -354,6 +357,9 @@ class Module
      */
     public function fireEvent(string $event, array $args): mixed
     {
+        $result = null;
+
+        $this->distributor->stackState(Controller::STATE_EVENT);
         try {
             if (array_key_exists($event, $this->events)) {
                 $closure = null;
@@ -364,14 +370,15 @@ class Module
                 }
 
                 if ($closure) {
-                    return call_user_func_array($closure, $args);
+                    $result = call_user_func_array($closure, $args);
                 }
             }
         } catch (Throwable $exception) {
             $this->controller->__onError($event, $exception);
         }
+        $this->distributor->releaseState();
 
-        return null;
+        return $result;
     }
 
     /**
@@ -723,27 +730,61 @@ class Module
         return $this->moduleInfo;
     }
 
-	/**
-	 * @param string $route
-	 * @param string $moduleCode
-	 * @param string $path
-	 * @return $this
-	 */
-	public function addShadowRoute(string $route, string $moduleCode, string $path): self
-	{
-		$this->distributor->setShadowRoute($this, $route, $moduleCode, $path);
+    /**
+     * @param string $route
+     * @param string $moduleCode
+     * @param string $path
+     * @return $this
+     */
+    public function addShadowRoute(string $route, string $moduleCode, string $path): self
+    {
+        $this->distributor->setShadowRoute($this, $route, $moduleCode, $path);
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Trigger onDispose event.
-	 *
-	 * @return $this
-	 */
-	public function dispose(): self
-	{
-		$this->controller->__onDispose();
-		return $this;
-	}
+    /**
+     * Trigger onDispose event.
+     *
+     * @return $this
+     */
+    public function dispose(): self
+    {
+        $this->controller->__onDispose();
+        return $this;
+    }
+
+    /**
+     * @param $state
+     * @return $this
+     */
+    public function stackState($state): self
+    {
+        $this->distributor->stackState($state);
+        return $this;
+    }
+
+    public function releaseState(): self
+    {
+        $this->distributor->releaseState();
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getState(): string
+    {
+        return $this->distributor->getState();
+    }
+
+    /**
+     * @param array $routedInfo
+     * @return $this
+     */
+    public function entry(array $routedInfo): self
+    {
+        $this->controller->__onEntry($routedInfo);
+        return $this;
+    }
 }

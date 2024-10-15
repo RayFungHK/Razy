@@ -103,6 +103,8 @@ class Distributor
 	 */
 	private ?Template $templateEngine = null;
 
+    private array $callFlow = [];
+
 	/**
 	 * Distributor constructor.
 	 *
@@ -674,7 +676,8 @@ class Distributor
 					/** @var Module $module */
 					$module = $data['module'];
 					if (Module::STATUS_LOADED === $module->getStatus()) {
-						if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
+                        $path = (is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
+						if (!$path || !($closure = $module->getClosure($data['path']))) {
 							return false;
 						}
 
@@ -683,10 +686,17 @@ class Distributor
 								'url_query' => $this->urlQuery,
 								'route' => $data['route'],
 								'module' => $module->getModuleInfo()->getCode(),
-								'closure_path' => $data['path'],
+								'closure_path' => $path,
 								'arguments' => $args,
 							];
+
+                            if (!is_string($data['path'])) {
+                                $this->routedInfo['contains'] = $data['path']->getData();
+                            }
+
 							$this->dispatch($module);
+
+                            $module->entry($this->routedInfo);
 							call_user_func_array($closure, $args);
 						}
 
@@ -695,6 +705,7 @@ class Distributor
 				}
 			}
 		} else {
+            $this->stackState(Controller::STATE_ROUTE);
 			// Match regex route first
 			foreach ($this->regexRoute as $regex => $data) {
 				if (1 === preg_match($regex, $this->urlQuery, $matches)) {
@@ -703,7 +714,8 @@ class Distributor
 					/** @var Module $module */
 					$module = $data['module'];
 					if (Module::STATUS_LOADED === $module->getStatus()) {
-						if (!$data['path'] || !($closure = $module->getClosure($data['path']))) {
+                        $path = (is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
+						if (!$path || !($closure = $module->getClosure($path))) {
 							return false;
 						}
 
@@ -712,11 +724,18 @@ class Distributor
 								'url_query' => $this->urlQuery,
 								'route' => $route,
 								'module' => $module->getModuleInfo()->getCode(),
-								'closure_path' => $data['path'],
+								'closure_path' => $path,
 								'arguments' => $matches,
 								'last' => '',
 							];
-							$this->dispatch($module);
+
+                            if (!is_string($data['path'])) {
+                                $this->routedInfo['contains'] = $data['path']->getData();
+                            }
+
+                            $this->dispatch($module);
+
+                            $module->entry($this->routedInfo);
 							call_user_func_array($closure, $matches);
 						}
 
@@ -739,7 +758,8 @@ class Distributor
 					$sourceModule = $data['module'];
 					$executeModule = (isset($data['target'])) ? $data['target'] : $data['module'];
 					if (Module::STATUS_LOADED === $sourceModule->getStatus()) {
-						if (!$data['path'] || !($closure = $executeModule->getClosure($data['path']))) {
+                        $path = (is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
+						if (!$path || !($closure = $executeModule->getClosure($data['path']))) {
 							continue;
 						}
 
@@ -748,11 +768,18 @@ class Distributor
 								'url_query' => $this->urlQuery,
 								'route' => $data['route'],
 								'module' => $sourceModule->getModuleInfo()->getCode(),
-								'closure_path' => $data['path'],
+								'closure_path' => $path,
 								'arguments' => $args,
 								'is_shadow' => isset($data['target']),
 							];
-							$this->dispatch($sourceModule);
+
+                            if (!is_string($data['path'])) {
+                                $this->routedInfo['contains'] = $data['path']->getData();
+                            }
+
+                            $this->dispatch($sourceModule);
+
+                            $sourceModule->entry($this->routedInfo);
 							call_user_func_array($closure, $args);
 						}
 
@@ -760,6 +787,7 @@ class Distributor
 					}
 				}
 			}
+            $this->releaseState();
 		}
 		return false;
 	}
@@ -879,7 +907,7 @@ class Distributor
 	 *
 	 * @return $this
 	 */
-	public function setRoute(Module $module, string $route, string $path): self
+	public function setRoute(Module $module, string $route, mixed $path): self
 	{
 		$this->regexRoute[$route] = [
 			'module' => $module,
@@ -980,4 +1008,31 @@ class Distributor
 
 		return $this;
 	}
+
+    /**
+     * @param string $state
+     * @return $this
+     */
+    public function stackState(string $state): self
+    {
+        $this->callFlow[] = $state;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getState(): string
+    {
+        return end($this->callFlow);
+    }
+
+    /**
+     * @return $this
+     */
+    public function releaseState(): self
+    {
+        array_pop($this->callFlow);
+        return $this;
+    }
 }

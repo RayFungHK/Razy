@@ -25,11 +25,15 @@ use Throwable;
 
 abstract class Controller
 {
-	const PLUGIN_ALL = 0b1111;
+    const STATE_INTERNAL = 'internal';
+    const STATE_API = 'api';
+    const STATE_EVENT = 'event';
+    const STATE_ROUTE = 'route';
+    const PLUGIN_ALL = 0b1111;
     const PLUGIN_TEMPLATE = 0b0001;
-	const PLUGIN_COLLECTION = 0b0010;
-	const PLUGIN_ACTION = 0b0100;
-	const PLUGIN_STATEMENT = 0b1000;
+    const PLUGIN_COLLECTION = 0b0010;
+    const PLUGIN_ACTION = 0b0100;
+    const PLUGIN_STATEMENT = 0b1000;
 
     /**
      * The storage of the external closures
@@ -86,42 +90,42 @@ abstract class Controller
         return call_user_func_array($closure, $arguments);
     }
 
-	/**
-	 * Controller Event __onAPICall, will be executed if the module is accessed via API. Return false to refuse API
-	 * access.
-	 *
-	 * @param ModuleInfo $module The ModuleInfo entity that is accessed via API
-	 * @param string $method The command method will be called via API
-	 * @param string $fqdn The well-formatted FQDN string includes the domain name and distributor code
-	 *
-	 * @return bool Return false to refuse API access
-	 */
+    /**
+     * Controller Event __onAPICall, will be executed if the module is accessed via API. Return false to refuse API
+     * access.
+     *
+     * @param ModuleInfo $module The ModuleInfo entity that is accessed via API
+     * @param string $method The command method will be called via API
+     * @param string $fqdn The well-formatted FQDN string includes the domain name and distributor code
+     *
+     * @return bool Return false to refuse API access
+     */
     public function __onAPICall(ModuleInfo $module, string $method, string $fqdn = ''): bool
     {
         return true;
     }
 
-	/**
-	 * __onDispatch event, all modules will be executed before the routed method executes
-	 *
-	 * @param ModuleInfo $module
-	 *
-	 * @return void
-	 */
-	public function __onDispatch(ModuleInfo $module): void
-	{
+    /**
+     * __onDispatch event, all modules will be executed before the routed method executes
+     *
+     * @param ModuleInfo $module
+     *
+     * @return void
+     */
+    public function __onDispatch(ModuleInfo $module): void
+    {
 
-	}
+    }
 
-	/**
-	 * __onDispose event, all modules will be executed after route and script is completed
-	 *
-	 * @return void
-	 */
-	public function __onDispose(): void
-	{
+    /**
+     * __onDispose event, all modules will be executed after route and script is completed
+     *
+     * @return void
+     */
+    public function __onDispose(): void
+    {
 
-	}
+    }
 
     /**
      * __onScriptLoaded event, all modules will be executed before the matched script execute
@@ -276,19 +280,19 @@ abstract class Controller
      *
      * @return string
      */
-	final public function getDataPath(string $module = ''): string
-	{
-		return $this->module->getDataPath($module);
-	}
+    final public function getDataPath(string $module = ''): string
+    {
+        return $this->module->getDataPath($module);
+    }
 
-	/**
-	 * @param string $module
-	 * @return string
-	 */
-	final public function getDataPathURL(string $module = ''): string
-	{
-		return $this->module->getDataPath($module, true);
-	}
+    /**
+     * @param string $module
+     * @return string
+     */
+    final public function getDataPathURL(string $module = ''): string
+    {
+        return $this->module->getDataPath($module, true);
+    }
 
     /**
      * Get the root URL of the distributor.
@@ -411,13 +415,13 @@ abstract class Controller
             Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Collection'), $this);
         }
 
-	    if ($flag & self::PLUGIN_ACTION) {
-		    Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Action'), $this);
-	    }
+        if ($flag & self::PLUGIN_ACTION) {
+            Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Action'), $this);
+        }
 
-	    if ($flag & self::PLUGIN_STATEMENT) {
-		    Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Statement'), $this);
-	    }
+        if ($flag & self::PLUGIN_STATEMENT) {
+            Template::addPluginFolder(append($this->getModulePath(), 'plugins', 'Statement'), $this);
+        }
         return $this;
     }
 
@@ -527,12 +531,12 @@ abstract class Controller
         echo $this->module->getTemplateEngine()->outputQueued($sources);
     }
 
-	/**
-	 * Get the XHR entity.
-	 *
-	 * @param bool $returnAsArray
-	 * @return XHR
-	 */
+    /**
+     * Get the XHR entity.
+     *
+     * @param bool $returnAsArray
+     * @return XHR
+     */
     final public function xhr(bool $returnAsArray = false): XHR
     {
         return new XHR($returnAsArray);
@@ -549,9 +553,32 @@ abstract class Controller
      */
     final public function fork(string $path, array ...$args): mixed
     {
-        if ($closure = $this->module->getClosure($path)) {
-            return call_user_func_array($closure, $args);
+        $result = null;
+        $this->module->stackState(self::STATE_INTERNAL);
+        if ($closure = $this->module->getClosure($path, true)) {
+            $result = call_user_func_array($closure, $args);
         }
-        return null;
+        $this->module->releaseState();
+        return $result;
+    }
+
+    /**
+     * @return string
+     */
+    final public function getExecuteMethod(): string
+    {
+        return $this->module->getState();
+    }
+
+    /**
+     * __onEntry event, execute when route is matched and ready to execute
+     *
+     * @param array $routedInfo
+     *
+     * @return void
+     */
+    public function __onEntry(array $routedInfo): void
+    {
+
     }
 }
