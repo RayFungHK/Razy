@@ -1,6 +1,7 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -15,7 +16,15 @@ use Throwable;
 
 class Processor
 {
+    /**
+     * The Collection entity
+     * @var Collection
+     */
     private Collection $collection;
+    /**
+     * The storage of reference variable
+     * @var array
+     */
     private array $reference;
 
     /**

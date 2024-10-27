@@ -1,6 +1,7 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -26,9 +27,27 @@ class TableJoinSyntax
 		'*' => 'CROSS JOIN',
 	];
 
+	/**
+	 * The storage of extracted syntax
+	 *
+	 * @var array
+	 */
 	private array $extracted = [];
+
+	/**
+	 * The storage of table alias
+	 *
+	 * @var Statement[]
+	 */
 	private array $tableAlias = [];
+
+	/**
+	 * The storage of presets
+	 *
+	 * @var Statement[]
+	 */
 	private array $preset = [];
+
 	private string $syntax = '';
 
 	/**
@@ -81,7 +100,7 @@ class TableJoinSyntax
 					$parsed[] = $syntax . (($condition) ? ' ' . $condition : '');
 				} else {
 					if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
-						$table = (isset($matches[3]) && $matches[3]) ? $matches[3] : $matches[2];
+						$table = $matches[3] ?: $matches[2];
 						$alias = ($matches[1]) ?: $table;
 
 						if (isset($this->tableAlias[$alias])) {
@@ -122,7 +141,7 @@ class TableJoinSyntax
 				}
 
 				$join = array_shift($extracted);
-				if ($join && preg_match('/[\-><+]/', $join)) {
+				if (preg_match('/[\-><+]/', $join)) {
 					$parsed[] = self::JOIN_TYPE[$join];
 				} else {
 					if (count($extracted)) {
@@ -213,30 +232,41 @@ class TableJoinSyntax
 
 		$this->extracted = SimpleSyntax::ParseSyntax($this->syntax, '-<>+', '', function ($syntax) {
 			if (preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
-				$table = (isset($matches[3]) && $matches[3]) ? $matches[3] : $matches[2];
+				$table = $matches[3] ?: $matches[2];
 				$alias = ($matches[1]) ?: $table;
+				$className = 'Razy\\Database\\Preset\\' . $matches[4];
+				if (preg_match('/[a-z](\w+)?/i', $alias) && class_exists($className)) {
+					$this->preset[$alias] = new $className($this->getAlias($alias), $table, $alias);
+				}
 
-                if (isset($matches[4])) {
-                    $className = 'Razy\\Database\\Preset\\' . $matches[4];
-                    if (preg_match('/[a-z](\w+)?/i', $alias) && class_exists($className)) {
-                        $this->preset[$alias] = new $className($this->getAlias($alias), $table, $alias);
-                    }
-                }
+				if ($this->preset[$alias]) {
+					$params = [];
+					if (preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
+						$params = SimpleSyntax::ParseSyntax($matches[5], ',');
+						foreach ($params as &$param) {
+							$param = trim($param, '\'"');
+						}
+					}
+					$this->preset[$alias]->init($params);
 
-				if (isset($this->preset[$alias])) {
-                    $params = [];
-                    if (preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
-                        $params = SimpleSyntax::ParseSyntax($matches[5], ',');
-                        foreach ($params as &$param) {
-                            $param = trim($param, '\'"');
-                        }
-                    }
-                    $this->preset[$alias]->init($params);
+					return $alias . '.' . $table . $matches[6];
 
-                    return $alias . '.' . $table . $matches[6];
+					$binding = $params[0] ?? '';
+					$value = $params[1] ?? '';
+					$group = $params[2] ?? '';
+
+					if (!$binding || !$value || !$group) {
+						throw new Error('Missing binding, value or group parameter in `max` preset syntax.');
+					}
+
+					$statement = $this->getAlias($alias);
+					$statement->from('a.' . $table . '-b.' . $table . '[' . $binding . ']');
+					$this->preset[$alias] = $statement->alias('b')->select($binding . ', MAX(' . $value . ') as ' . $value)->from($table)->group($group);
+
+					return $alias . '.' . $table . $matches[6];
 				}
 			}
-
+			
 			return $syntax;
 		});
 

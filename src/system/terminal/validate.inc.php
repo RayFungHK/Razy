@@ -1,12 +1,4 @@
 <?php
-/**
- * This file is part of Razy v0.5.
- *
- * (c) Ray Fung <hello@rayfung.hk>
- *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
- */
 
 namespace Razy;
 
@@ -21,16 +13,13 @@ return function (string $distCode = '') use (&$parameters) {
         exit;
     }
 
-    $app = new Application();
-    $app->loadSiteConfig();
-
-    if (!$app->hasDistributor($distCode)) {
+    if (!Application::DistributorExists($distCode)) {
         $this->writeLineLogging('The distributor `' . $distCode . '` has not found', true);
 
         return false;
     }
 
-    $app->compose($distCode, function (string $type, string $packageName, ...$args) {
+    Application::ValidatePackage($distCode, function (string $type, string $packageName, ...$args) {
         if (PackageManager::TYPE_READY == $type) {
             $this->writeLineLogging('Validating package: {@c:green}' . $packageName . '{@reset} (' . $args[0] . ')', true);
         } elseif (PackageManager::TYPE_DOWNLOAD_PROGRESS == $type) {

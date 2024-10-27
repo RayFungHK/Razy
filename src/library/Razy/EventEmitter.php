@@ -1,6 +1,7 @@
 <?php
+
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -20,6 +21,10 @@ use Throwable;
  */
 class EventEmitter
 {
+    /**
+     * The storage of the responses from other Modules
+     * @var array
+     */
     private array $responses = [];
 
 	/**
@@ -56,9 +61,9 @@ class EventEmitter
      */
     public function resolve(...$args): self
     {
-        foreach ($this->distributor->getModules() as $module) {
-            if ($module->isEventListening($this->module->getModuleInfo()->getCode(), $this->event)) {
-                $result = $module->fireEvent($this->module->getModuleInfo()->getCode(), $this->event, $args);
+        foreach ($this->distributor->getAllModules() as $module) {
+            if ($module->eventDispatched($this->event)) {
+                $result = $module->fireEvent($this->event, $args);
                 $this->callback?->call($this->module, $result, $module->getModuleInfo()->getCode());
                 $this->responses[] = $result;
             }

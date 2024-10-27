@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of Razy v0.5.
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -10,6 +10,7 @@
 
 namespace Razy;
 
+use DateTimeZone;
 use Phar;
 use Throwable;
 use const DIRECTORY_SEPARATOR;
@@ -29,7 +30,10 @@ if (!is_dir(SYSTEM_ROOT)) {
 
 define('CORE_FOLDER', PHAR_PATH . DIRECTORY_SEPARATOR . 'system' . DIRECTORY_SEPARATOR);
 
-require CORE_FOLDER . 'bootstrap.inc.php';
+require CORE_FOLDER . 'functions.inc.php';
+require CORE_FOLDER . 'core.inc.php';
+
+Application::UpdateSites();
 
 if (WEB_MODE) {
 	Error::SetDebug($razyConfig['debug'] ?? false);
@@ -49,17 +53,14 @@ if (WEB_MODE) {
 
 	// Create an Application with HOSTNAME
 	try {
-		($app = new Application())->host(HOSTNAME . ':' . PORT);
-		Application::Lock();
-
+		$app = new Application(HOSTNAME . ':' . PORT);
 		register_shutdown_function(function () use ($app) {
-			$app->validation();
+			$app->dispose();
 		});
 
 		if (!$app->query(URL_QUERY)) {
 			Error::Show404();
 		}
-		$app->dispose();
 	} catch (Throwable $e) {
 		try {
 			Error::ShowException($e);

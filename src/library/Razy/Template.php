@@ -21,111 +21,51 @@ use Razy\Template\Source;
 use ReflectionClass;
 use Throwable;
 
+/**
+ * Fast and easy-to-use template engine. You can control every block from template file and assign parameter for
+ * post-process output.
+ */
 class Template
 {
+	/**
+	 * The storage of the plugin folder
+	 * @var string[]
+	 */
 	private static array $pluginFolder = [];
+	/**
+	 * An array contains the manager level parameter.
+	 */
 	private array $parameters = [];
+	/**
+	 * The storage of the plugin's closure
+	 * @var ?Closure[]
+	 */
 	private array $plugins = [];
+	/**
+	 * The storage of the source
+	 * @var Source[]
+	 */
 	private array $queue = [];
+	/**
+	 * An array contains the source object.
+	 *
+	 * @var Source[]
+	 */
 	private array $sources = [];
+	/**
+	 * The storage of the template content
+	 * @var array
+	 */
 	private array $templates = [];
 
-    /**
-     * Template constructor.
-     *
-     * @param string $folder The folder of the plugin located
-     */
+	/**
+	 * Template constructor.
+	 *
+	 */
 	public function __construct(string $folder = '')
 	{
 		$this->addPluginFolder($folder);
 	}
-
-    /**
-     * Parse the content without modifier and function tag
-     *
-     * @param string $content
-     * @param array $parameters
-     * @return mixed
-     * @throws Throwable
-     */
-    static public function ParseContent(string $content, array $parameters = []): mixed {
-        return preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) use ($parameters) {
-            $clips = preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
-            foreach ($clips as $clip) {
-                $value = self::ParseValue($clip, $parameters) ?? '';
-                if (is_scalar($value) || method_exists($value, '__toString')) {
-                    return $value;
-                }
-            }
-
-            return '';
-        }, $content);
-    }
-
-    /**
-     * Parse the text or parameter pattern into a value.
-     *
-     * @return mixed The value of the parameter
-     * @throws Throwable
-     */
-    static private function ParseValue(string $content, array $parameters = []): mixed
-    {
-        $content = trim($content);
-        if (0 == strlen($content)) {
-            return null;
-        }
-
-        // If the content is a parameter tag
-        if (preg_match('/^(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>$/', $content, $matches)) {
-            if ($matches[1]) {
-                return $matches[1] === 'true';
-            }
-            return $matches[4] ?? $matches[2] ?? null;
-        }
-
-        if ('$' == $content[0] && preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
-            if (isset($parameters[$matches[1]])) {
-                return self::GetValueByPath($parameters[$matches[1]], $matches[2] ?? '');
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Get the value by parameter path syntax
-     *
-     * @param mixed $value
-     * @param string $path
-     * @return mixed
-     */
-    static public function GetValueByPath(mixed $value, string $path = ''): mixed {
-        if (null !== $value) {
-            if (strlen($path) > 0) {
-                preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
-                foreach ($matches as $clip) {
-                    $key = (strlen($clip[3] ?? '') > 0) ? $clip[3] : ($clip[1] ?? '');
-                    if (is_iterable($value)) {
-                        $value = $value[$key] ?? null;
-                    } elseif (is_object($value)) {
-                        if (property_exists($key, $value)) {
-                            $value = $value->{$key};
-                        } else {
-                            $value = null;
-                        }
-                    } else {
-                        $value = null;
-                    }
-
-                    if (null === $value) {
-                        break;
-                    }
-                }
-            }
-        }
-
-        return $value;
-    }
 
 	/**
 	 * Add a plugin folder which the plugin is load

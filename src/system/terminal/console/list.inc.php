@@ -3,12 +3,7 @@
 namespace Razy;
 
 return function (string $distCode) {
-    // TODO: In development
     $this->writeLineLogging('{@s:ub}List modules', true);
-    $app = new Application();
-    if ($app->hasDistributor($distCode)) {
-
-    }
     $info = Application::GetDistributorModules($distCode);
 
     foreach ($info as &$module) {

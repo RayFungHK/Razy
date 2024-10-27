@@ -1,6 +1,7 @@
 <?php
+
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -8,29 +9,54 @@
  * with this source code in the file LICENSE.
  */
 
-
 namespace Razy;
 
 use Throwable;
 
 class Domain
 {
+    /**
+     * The matched Distributor entity
+     * @var null|Distributor
+     */
     private ?Distributor $distributor = null;
 
-    /**
-     * Domain constructor.
-     *
-     * @param Application $app The Application Instance
-     * @param string $domain The string of the domain
-     * @param string $alias The string of the alias
-     * @param array $mapping An array of the distributor paths or the string of the distributor path
-     * @throws Error
-     */
-    public function __construct(private readonly Application $app, private readonly string $domain, private readonly string $alias = '', private array $mapping = [])
+	/**
+	 * Domain constructor.
+	 *
+	 * @param Application $app The Application Instance
+	 * @param string $domain The string of the domain
+	 * @param string $alias The string of the alias
+	 * @param array $path An array of the distributor paths or the string of the distributor path
+	 * @throws Error
+	 */
+    public function __construct(private readonly Application $app, private readonly string $domain, private readonly string $alias = '', private array $path = [])
     {
-        if (empty($this->mapping)) {
-            throw new Error('No distributor is found.');
+        if (empty($this->path)) {
+            throw new Error('The path of the distributor is not valid.');
         }
+    }
+
+    /**
+     * @param string $fqdn The well-formatted FQDN string
+     *
+     * @throws Throwable
+     *
+     * @return null|API
+     */
+    public function connect(string $fqdn): ?API
+    {
+        return $this->app->connect($fqdn);
+    }
+
+    /**
+     * Get the API instance.
+     *
+     * @return null|API
+     */
+    public function getAPI(): ?API
+    {
+        return ($this->distributor) ? $this->distributor->createAPI() : null;
     }
 
     /**
@@ -54,30 +80,37 @@ class Domain
     }
 
     /**
+     * @return null|Application
+     */
+    public function getPeer(): ?Application
+    {
+        return $this->app->getPeer();
+    }
+
+    /**
      * Match the distributor location by the URL_QUERY.
      *
      * @param string $urlQuery The URL Query
+     * @param bool   $exactly  Set ture to match the Distributor path exactly
      *
-     * @return null|Distributor
      * @throws Throwable
      *
+     * @return null|Distributor
      */
-    public function matchQuery(string $urlQuery): ?Distributor
+    public function matchQuery(string $urlQuery, bool $exactly = false): ?Distributor
     {
         if (0 === strlen($urlQuery)) {
             $urlQuery = '/';
         }
 
         $urlQuery = tidy($urlQuery, false, '/');
-        if (!empty($this->mapping)) {
-            sort_path_level($this->mapping);
-            foreach ($this->mapping as $urlPath => $distIdentifier) {
-                [$distCode, $tag] = explode('@', $distIdentifier . '@', 2);
+        if (!empty($this->path)) {
+            sort_path_level($this->path);
+            foreach ($this->path as $urlPath => $folderPath) {
+                [$distCode, $alias] = explode('@', $folderPath);
                 $urlPath = tidy($urlPath, true, '/');
-                if (str_starts_with($urlQuery, $urlPath)) {
-                    ($this->distributor = new Distributor($distCode, $tag ?? '*', $this, $urlPath, substr($urlQuery, strlen($urlPath) - 1)))->initialize();
-
-                    return $this->distributor;
+                if (($exactly && $urlPath === $urlQuery) || str_starts_with($urlQuery, $urlPath)) {
+                    return $this->distributor = new Distributor(tidy($distCode, true), $alias ?? '*', $this, $urlPath, substr($urlQuery, strlen($urlPath) - 1));
                 }
             }
         }
@@ -85,38 +118,14 @@ class Domain
         return null;
     }
 
-    /**
-     * Call the distributor's autoloader
-     *
-     * @param string $className
-     * @return bool
-     */
-    public function autoload(string $className): bool
-    {
-        return $this->distributor && $this->distributor->autoload($className);
-    }
-
-
-    /**
-     * Get the matched distributor
-     *
-     * @return Distributor|null
-     */
-    public function getDistributor(): ?Distributor
-    {
-        return $this->distributor;
-    }
-
-    /**
-     * Execute dispose event.
-     *
-     * @return $this
-     */
-    public function dispose(): static
-    {
-        if ($this->distributor) {
-            $this->distributor->dispose();
-        }
-        return $this;
-    }
+	/**
+	 * Execute dispose event.
+	 *
+	 * @return $this
+	 */
+	public function dispose(): self
+	{
+		$this->distributor->dispose();
+		return $this;
+	}
 }

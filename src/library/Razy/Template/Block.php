@@ -1,6 +1,7 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -11,6 +12,7 @@
 namespace Razy\Template;
 
 use Closure;
+use Razy\Controller;
 use Razy\Error;
 use Razy\FileReader;
 use Razy\ModuleInfo;
@@ -23,9 +25,30 @@ use function Razy\append;
 
 class Block
 {
+    /**
+     * An array contains the sub blocks.
+     *
+     * @var Block[]
+     */
     private array $blocks = [];
+    /**
+     * An array contains the block parameters.
+     *
+     * @var array
+     */
     private array $parameters = [];
+    /**
+     * The block path.
+     *
+     * @var string
+     */
     private string $path;
+
+    /**
+     * The complete structure of the Block object.
+     *
+     * @var array
+     */
     private array $structure = [];
 	private ?Block $parent;
 

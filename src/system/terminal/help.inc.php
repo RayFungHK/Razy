@@ -1,12 +1,4 @@
 <?php
-/**
- * This file is part of Razy v0.5.
- *
- * (c) Ray Fung <hello@rayfung.hk>
- *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
- */
 
 namespace Razy;
 
@@ -19,8 +11,9 @@ return function () {
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'run', 'Run the specified script by the hostname and its path, like route.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'version', 'Razy version.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'update', 'Update the Razy.phar to latest stable version.'));
-    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'compose', 'Compose the specified distributor, install the required library from composer.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'validate', 'Validate the specified distributor package version.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'query', 'Query the return the result by the FQDN.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'console', 'Open the console, default to localhost.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'set', 'Create or update the site.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'remove', 'Remove the specified site.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'pack', 'Pack the Razy.phar and others modules and plugins into a phar file.'));

@@ -17,27 +17,32 @@ use Throwable;
 class Error extends Exception
 {
     public const DEFAULT_HEADING = 'There seems to is something wrong...';
-
+    /**
+     * The cache buffer output
+     * @var string
+     */
     private static string $cached = '';
+    /**
+     * The setting of debug mode
+     * @var bool
+     */
     private static bool $debug = false;
-    private static array $debugConsole = [];
 
     /**
      * Error constructor.
      *
-     * @param string $message
-     * @param int $statusCode
-     * @param string $heading
-     * @param string $debugMessage
+     * @param string         $message
+     * @param int            $statusCode
+     * @param string         $heading
+     * @param string         $debugMessage
      * @param null|Throwable $exception
      */
     public function __construct(string $message, int $statusCode = 400, private readonly string $heading = self::DEFAULT_HEADING, private readonly string $debugMessage = '', Throwable $exception = null)
     {
         if (CLI_MODE) {
             Terminal::WriteLine('{@c:red}' . $message, true);
-        } else {
-            parent::__construct(nl2br($message), $statusCode, $exception);
         }
+        parent::__construct(nl2br($message), $statusCode, $exception);
     }
 
     /**
@@ -81,11 +86,6 @@ class Error extends Exception
         exit();
     }
 
-    public static function DebugConsoleWrite(string $message): void
-    {
-        self::$debugConsole[] = $message;
-    }
-
     /**
      * Show the custom exception page by the given exception object.
      *
@@ -104,12 +104,12 @@ class Error extends Exception
             }
 
             $template = new Template();
-            $source = $template->load($tplFile);
-            $root = $source->getRoot();
+            $source   = $template->load($tplFile);
+            $root     = $source->getRoot();
 
             $root->assign([
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
+                'file'    => $exception->getFile(),
+                'line'    => $exception->getLine(),
                 'message' => $exception->getMessage(),
                 'heading' => ($exception instanceof self) ? $exception->getHeading() : 'There seems to is something wrong...',
             ]);
@@ -119,11 +119,6 @@ class Error extends Exception
                 if ($exception instanceof self && $debugMessage = $exception->getDebugMessage()) {
                     $debugBlock->assign([
                         'debug_message' => $debugMessage,
-                    ]);
-                }
-                if (count(self::$debugConsole)) {
-                    $debugBlock->newBlock('console')->assign([
-                        'console' => implode("\n", self::$debugConsole),
                     ]);
                 }
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -15,10 +15,9 @@ class API
     /**
      * API constructor.
      *
-     * @param Module $requestedBy
-     * @param Distributor $distributor
+     * @param Distributor $distributor The Distributor instance
      */
-    public function __construct(private readonly Distributor $distributor, private readonly Module $requestedBy)
+    public function __construct(private readonly Distributor $distributor)
     {
     }
 
@@ -31,10 +30,10 @@ class API
      */
     public function request(string $moduleCode): ?Emitter
     {
-        $module = $this->distributor->getLoadedAPIModule($moduleCode);
+        $module = $this->distributor->requestModule($moduleCode);
         if ($module) {
-            return new Emitter($this->requestedBy, $module);
+            return new Emitter($module);
         }
-        return new Emitter($this->requestedBy);
+        return new Emitter();
     }
 }

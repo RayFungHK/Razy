@@ -1,6 +1,7 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -12,7 +13,17 @@ namespace Razy;
 
 class Profiler
 {
+    /**
+     * An array contains each check point statistic.
+     *
+     * @var array
+     */
     private array $checkpoints = [];
+    /**
+     * An array contains initialize statistic.
+     *
+     * @var array
+     */
     private array $init;
 
     /**

@@ -11,6 +11,7 @@
 
 namespace Razy;
 
+use Override;
 use Razy\Template\Entity;
 use Razy\Template\Plugin\TFunctionCustom;
 

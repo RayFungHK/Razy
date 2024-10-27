@@ -1,6 +1,6 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -13,56 +13,73 @@ namespace Razy;
 use Closure;
 use DateTime;
 use Exception;
+use Razy\Terminal\Table;
 
 class Terminal
 {
     /**
      * List of font color
      */
-    public const COLOR_DEFAULT = "\033[39m";
-    public const COLOR_BLACK = "\033[30m";
-    public const COLOR_RED = "\033[31m";
-    public const COLOR_GREEN = "\033[32m";
-    public const COLOR_YELLOW = "\033[33m";
-    public const COLOR_BLUE = "\033[34m";
-    public const COLOR_MAGENTA = "\033[35m";
-    public const COLOR_CYAN = "\033[36m";
-    public const COLOR_LIGHTGRAY = "\033[37m";
-    public const COLOR_DARKGRAY = "\033[90m";
-    public const COLOR_LIGHTRED = "\033[91m";
-    public const COLOR_LIGHTGREEN = "\033[92m";
-    public const COLOR_LIGHTYELLOW = "\033[93m";
-    public const COLOR_LIGHTBLUE = "\033[94m";
+    public const COLOR_DEFAULT      = "\033[39m";
+    public const COLOR_BLACK        = "\033[30m";
+    public const COLOR_RED          = "\033[31m";
+    public const COLOR_GREEN        = "\033[32m";
+    public const COLOR_YELLOW       = "\033[33m";
+    public const COLOR_BLUE         = "\033[34m";
+    public const COLOR_MAGENTA      = "\033[35m";
+    public const COLOR_CYAN         = "\033[36m";
+    public const COLOR_LIGHTGRAY    = "\033[37m";
+    public const COLOR_DARKGRAY     = "\033[90m";
+    public const COLOR_LIGHTRED     = "\033[91m";
+    public const COLOR_LIGHTGREEN   = "\033[92m";
+    public const COLOR_LIGHTYELLOW  = "\033[93m";
+    public const COLOR_LIGHTBLUE    = "\033[94m";
     public const COLOR_LIGHTMAGENTA = "\033[95m";
-    public const COLOR_LIGHTCYAN = "\033[96m";
-    public const COLOR_WHITE = "\033[97m";
-    public const RESET_STLYE = "\033[0m";
+    public const COLOR_LIGHTCYAN    = "\033[96m";
+    public const COLOR_WHITE        = "\033[97m";
+    public const RESET_STLYE        = "\033[0m";
 
     /**
      * List of background color
      */
-    public const BACKGROUND_BLACK = "\033[40m";
-    public const BACKGROUND_RED = "\033[41m";
-    public const BACKGROUND_GREEN = "\033[42m";
-    public const BACKGROUND_YELLOW = "\033[43m";
-    public const BACKGROUND_BLUE = "\033[44m";
-    public const BACKGROUND_MAGENTA = "\033[45m";
-    public const BACKGROUND_CYAN = "\033[46m";
+    public const BACKGROUND_BLACK      = "\033[40m";
+    public const BACKGROUND_RED        = "\033[41m";
+    public const BACKGROUND_GREEN      = "\033[42m";
+    public const BACKGROUND_YELLOW     = "\033[43m";
+    public const BACKGROUND_BLUE       = "\033[44m";
+    public const BACKGROUND_MAGENTA    = "\033[45m";
+    public const BACKGROUND_CYAN       = "\033[46m";
     public const BACKGROUND_LIGHTGRAYE = "\033[47m";
 
     public const CLEAR_LINE = "\033[0G\033[2K";
-    public const NEWLINE = "\n";
+    public const NEWLINE    = "\n";
     public const TEXT_BLINK = "\033[5m";
 
+    /**
+     * Enable logging
+     * @var bool
+     */
     private bool $logging = false;
+    /**
+     * The storage of the logs
+     * @var array
+     */
     private array $logs = [];
+    /**
+     * The storage of the Terminal entity
+     * @var Terminal[]
+     */
     private array $navigation = [];
+    /**
+     * The storage of the parameters
+     * @var array
+     */
     private array $parameters = [];
 
     /**
      * Terminal constructor.
      *
-     * @param string $code
+     * @param string        $code
      * @param null|Terminal $parent
      *
      * @throws Error
@@ -95,15 +112,15 @@ class Terminal
      * Display the header
      *
      * @param string $message
-     * @param int $length
+     * @param int    $length
      *
      * @return $this
      */
     public function displayHeader(string $message, int $length = 26): Terminal
     {
         $message = trim($message);
-        $length = max(4, $length);
-        $border = max(16, $length) + 4;
+        $length  = max(4, $length);
+        $border  = max(16, $length) + 4;
         if ($message) {
             if (strlen($message) > $length) {
                 $clips = str_split($message, $length);
@@ -151,25 +168,25 @@ class Terminal
     public function getScreenWidth(): int
     {
         if ('WIN' === strtoupper(substr(PHP_OS, 0, 3))) {
-            $setting = shell_exec('mode');
-            $clips = preg_split('/-+/', $setting, -1, PREG_SPLIT_NO_EMPTY);
+            $setting      = shell_exec('mode');
+            $clips        = preg_split('/\-+/', $setting, -1, PREG_SPLIT_NO_EMPTY);
             $terminalInfo = explode("\n", trim(end($clips)));
             if (count($terminalInfo) >= 2) {
                 [, $value] = explode(':', trim($terminalInfo[1]), 2);
 
-                return (int)$value;
+                return (int) $value;
             }
 
             return 0;
         }
 
-        return (int)shell_exec('tput cols');
+        return (int) shell_exec('tput cols');
     }
 
     /**
      * Get the parsed text length.
      *
-     * @param string $text
+     * @param string   $text
      * @param null|int $escaped
      *
      * @return int
@@ -225,9 +242,9 @@ class Terminal
      */
     public function saveLog(string $path): bool
     {
-        $length = 20;
+        $length  = 20;
         $content = '';
-        $path = fix_path($path);
+        $path    = fix_path($path);
         foreach ($this->logs as $log) {
             $content .= sprintf('%-22s%s', '[' . $log[0] . ']', $log[1]) . PHP_EOL;
         }
@@ -244,7 +261,7 @@ class Terminal
             $fileName = (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt';
             if (!is_dir_path($path)) {
                 $fileName = basename($path);
-                $path = dirname($path);
+                $path     = dirname($path);
             }
 
             try {
@@ -282,7 +299,7 @@ class Terminal
                     [$style, $value] = explode(':', $clip, 2);
                     if ('c' == $style || 'b' === $style) {
                         // Font color style
-                        $value = strtoupper($value);
+                        $value    = strtoupper($value);
                         $constant = __CLASS__ . '::' . (('c' === $style) ? 'COLOR' : 'BACKGROUND') . '_' . $value;
                         if (defined($constant)) {
                             $styleString .= constant($constant);
@@ -294,18 +311,27 @@ class Terminal
                             switch ($styleCode) {
                                 case 'b':
                                     $styleString .= "\e[1m";
+
                                     break;
+
                                 case 'i':
                                     $styleString .= "\e[3m";
+
                                     break;
+
                                 case 'u':
                                     $styleString .= "\e[4m";
+
                                     break;
+
                                 case 's':
                                     $styleString .= "\e[9m";
+
                                     break;
+
                                 case 'k':
                                     $styleString .= "\e[5m";
+
                                     break;
                             }
                         }
@@ -317,12 +343,17 @@ class Terminal
                     switch ($clip) {
                         case 'reset':
                             $styleString .= self::RESET_STLYE;
+
                             break;
+
                         case 'clear':
                             $styleString .= self::CLEAR_LINE;
+
                             break;
+
                         case 'nl':
                             $styleString .= PHP_EOL;
+
                             break;
                     }
                 }
@@ -333,10 +364,20 @@ class Terminal
     }
 
     /**
+     * Get the Table entity
+     *
+     * @return Table
+     */
+    public function table(): Table
+    {
+        return new Table($this);
+    }
+
+    /**
      * Output a line of message.
      *
      * @param string $message
-     * @param bool $resetStyle
+     * @param bool   $resetStyle
      * @param string $format
      *
      * @return $this
@@ -353,7 +394,7 @@ class Terminal
 
     /**
      * @param string $message
-     * @param bool $resetStyle
+     * @param bool   $resetStyle
      * @param string $format
      *
      * @return void
@@ -361,7 +402,7 @@ class Terminal
     static public function WriteLine(string $message, bool $resetStyle = false, string $format = ''): void
     {
         $message = str_replace("\t", '    ', $message);
-        $format = trim($format);
+        $format  = trim($format);
         $message = ($format) ? sprintf($format, $message) : $message;
         echo self::Format($message) . ($resetStyle ? self::RESET_STLYE : '') . PHP_EOL;
     }
@@ -375,7 +416,7 @@ class Terminal
      */
     public function addLog(string $message): Terminal
     {
-        $message = trim($message);
+        $message      = trim($message);
         $this->logs[] = [(new DateTime())->format('Y-m-d H:i:s'), $message];
 
         return $this;

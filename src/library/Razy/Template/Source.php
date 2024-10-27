@@ -1,6 +1,7 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -11,6 +12,7 @@
 namespace Razy\Template;
 
 use Closure;
+use Razy\Controller;
 use Razy\Error;
 use Razy\FileReader;
 use Razy\ModuleInfo;
@@ -20,11 +22,32 @@ use Throwable;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TModifier;
 
+/**
+ * Template Source is an object contains the file structure and its parameters.
+ */
 class Source
 {
+	/**
+	 * The template source located directory.
+	 *
+	 * @var string
+	 */
 	private string $fileDirectory = '';
+	/**
+	 * An array contains the Source parameters.
+	 *
+	 * @var array
+	 */
 	private array $parameters = [];
+	/**
+	 * @var Block|null
+	 */
 	private ?Block $rootBlock = null;
+	/**
+	 * The root Entity object.
+	 *
+	 * @var ?Entity
+	 */
 	private ?Entity $rootEntity = null;
 
 	/**
@@ -35,7 +58,7 @@ class Source
 	 *
 	 * @throws Throwable
 	 */
-	public function __construct(string $tplPath, private Template $template, private readonly ?ModuleInfo $module = null)
+	public function __construct(string $tplPath, private readonly Template $template, private readonly ?ModuleInfo $module = null)
 	{
 		if (!is_file($tplPath)) {
 			throw new Error('Template file ' . $tplPath . ' is not exists.');
@@ -89,12 +112,12 @@ class Source
 	 * Bind reference parameter
 	 *
 	 * @param string $parameter
-	 * @param mixed $value
+	 * @param null $value
 	 *
 	 * @return $this
 	 * @throws Throwable
 	 */
-	public function bind(string $parameter, mixed &$value): Source
+	public function bind(string $parameter, null &$value): Source
 	{
 		$this->parameters[$parameter] = &$value;
 

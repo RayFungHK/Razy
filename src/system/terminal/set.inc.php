@@ -1,12 +1,4 @@
 <?php
-/**
- * This file is part of Razy v0.5.
- *
- * (c) Ray Fung <hello@rayfung.hk>
- *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
- */
 
 namespace Razy;
 
@@ -31,8 +23,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     }
 
     // Load default config setting
-    $app = new Application();
-    $config = $app->loadSiteConfig();
+    $config = Application::LoadSiteConfig();
 
     // Extract the domain and the path from the FQDN string
     $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
@@ -84,16 +75,16 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     }
 
     $message = 'Writing File sites.inc.php... ';
-    if ($app->writeSiteConfig($config)) {
+    if (Application::WriteSiteConfig($config)) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
     $this->writeLineLogging($message, true);
 
-    $app->updateSites();
+    Application::UpdateSites();
     $message = 'Updating rewrite rules... ';
-    if ($app->updateRewriteRules()) {
+    if (Application::UpdateRewriteRules()) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');

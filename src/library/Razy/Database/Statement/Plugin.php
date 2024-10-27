@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -21,12 +21,20 @@ class Plugin
 
 	}
 
-    /**
-     * Build the statement.
-     *
-     * @param string $tableName
-     * @return void
-     */
+	/**
+	 * @param Closure $postProcess
+	 * @return $this
+	 */
+	public function onPostProcess(Closure $postProcess): self
+	{
+		$this->postProcess = $postProcess;
+
+		return $this;
+	}
+
+	/**
+	 * @return void
+	 */
 	public function build(string $tableName): void
 	{
 

@@ -1,6 +1,7 @@
 <?php
-/**
- * This file is part of Razy v0.5.
+
+/*
+ * This file is part of Razy v0.4.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -14,11 +15,37 @@ use Razy\Error;
 
 class Table
 {
+	/**
+	 * The default charset
+	 *
+	 * @var string
+	 */
 	private string $charset = 'utf8mb4';
+	/**
+	 * The default collation
+	 *
+	 * @var string
+	 */
 	private string $collation = 'utf8mb4_general_ci';
+	/**
+	 * The storage of columns
+	 *
+	 * @var Column[]
+	 */
 	private array $columns = [];
+	/**
+	 * The committed Table entity
+	 *
+	 * @var null|Table
+	 */
 	private ?Table $committed = null;
+	/**
+	 * The storage of reordered columns
+	 *
+	 * @var array
+	 */
 	private array $reordered = [];
+
 	private array $groupIndexingList = [];
 
 	/**
@@ -284,7 +311,7 @@ class Table
 			$alterReferenceSyntax = '';
 			$orgReference = [];
 			foreach ($this->committed as $committedColumn) {
-				$name = $committedColumn->getReferenceColumn() || $committedColumn->getName();
+				$name = $committedColumn->getReferenceCloumn() || $committedColumn->getName();
 				$orgReference[$name] = $committedColumn;
 			}
 
@@ -304,7 +331,7 @@ class Table
 
 			if (count($orgReference)) {
 				foreach ($orgReference as $column) {
-					$name = $column->getReferenceColumn() || $column->getName();
+					$name = $column->getReferenceCloumn() || $column->getName();
 					$alterReferenceSyntax .= ', DROP FOREIGN KEY `' . $name . '`';
 				}
 			}
@@ -594,7 +621,7 @@ class Table
 	 * @param string $indexKey
 	 * @return $this
 	 */
-	public function groupIndexing(array $columns, string $indexKey = ''): static
+	public function groupIndexing(array $columns, string $indexKey = ''): self
 	{
 		$keyName = 'fk';
 		foreach ($columns as $index => &$column) {

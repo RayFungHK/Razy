@@ -1,12 +1,4 @@
 <?php
-/**
- * This file is part of Razy v0.5.
- *
- * (c) Ray Fung <hello@rayfung.hk>
- *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
- */
 
 namespace Razy;
 
@@ -30,21 +22,20 @@ return function (string $alias = '', string $domain = '') {
     }
 
     // Load default config setting
-    $app = (new Application());
-    $config = $app->loadSiteConfig();
+    $config                  = Application::LoadSiteConfig();
     $config['alias'][$alias] = $domain;
 
     $message = 'Writing file sites.inc.php... ';
-    if ($app->writeSiteConfig($config)) {
+    if (Application::WriteSiteConfig($config)) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');
     }
     $this->writeLineLogging($message, true);
 
-    $app->updateSites();
+    Application::UpdateSites();
     $message = 'Updating rewrite rules... ';
-    if ($app->updateRewriteRules()) {
+    if (Application::UpdateRewriteRules()) {
         $message .= $this->format('{@c:green}Done.');
     } else {
         $message .= $this->format('{@c:red}Failed.');
