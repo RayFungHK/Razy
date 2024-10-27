@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -20,35 +19,11 @@ use Throwable;
 
 class Database
 {
-	/**
-	 * The storage of the Database instances
-	 * @var array
-	 */
 	private static array $instances = [];
-
-	/**
-	 * @var PDO|null
-	 */
 	private ?PDO $adapter = null;
-	/**
-	 * The charset setting of the database connection
-	 * @var array
-	 */
 	private array $charset = [];
-	/**
-	 * The connection status of the adapter
-	 * @var bool
-	 */
 	private bool $connected = false;
-	/**
-	 * The table prefix
-	 * @var string
-	 */
 	private string $prefix = '';
-	/**
-	 * The storage of the queried SQL statement
-	 * @var array
-	 */
 	private array $queried = [];
 	private int $affected_rows = 0;
 
@@ -129,7 +104,7 @@ class Database
 	 * @param string $timezone
 	 * @return $this
 	 */
-	public function setTimezone(string $timezone): self
+	public function setTimezone(string $timezone): static
 	{
 		if (preg_match('/^[+-]\d{0,2}:\d{0,2}$/', $timezone)) {
 			$this->getDBAdapter()->exec("SET time_zone='$timezone';");

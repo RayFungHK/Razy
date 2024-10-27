@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -17,15 +17,18 @@ use Razy\Error;
 class Validate
 {
 	private ?Closure $postProcess = null;
-
 	private array $plugins = [];
-
 	private mixed $storage = null;
-
 	private string $parameterName = '';
-
 	private bool $ignoreParameter = false;
 
+    /**
+     * Action constructor.
+     *
+     * @param Action $action
+     * @param string $name
+     * @param Closure|null $preProcess
+     */
 	public function __construct(
 		private readonly Action   $action,
 		private readonly string   $name,
@@ -46,7 +49,7 @@ class Validate
 			$clips = explode(',', $plugins);
 			foreach ($clips as $clip) {
 				if ($plugin = $this->action->loadPlugin($clip)) {
-					$this->plugins[$clip] = new $plugin($this, $clip);
+					$this->plugins[$clip] = new $plugin($this);
 				}
 			}
 		}

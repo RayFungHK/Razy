@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -16,23 +15,8 @@ use const PHP_EOL;
 
 class Configuration extends Collection
 {
-    /**
-     * The config changed status, it will not write to any file if it is false.
-     *
-     * @var bool
-     */
     private bool $changed = false;
-    /**
-     * The config file extension.
-     *
-     * @var string
-     */
     private string $extension;
-    /**
-     * The config file name.
-     *
-     * @var string
-     */
     private string $filename;
 
     /**
@@ -44,9 +28,8 @@ class Configuration extends Collection
      */
     public function __construct(private readonly string $path)
     {
-        $pathInfo   = pathinfo($this->path);
-
-        $this->filename  = trim($pathInfo['filename']);
+        $pathInfo = pathinfo($this->path);
+        $this->filename = trim($pathInfo['filename']);
         $this->extension = strtolower($pathInfo['extension']);
 
         if (!$this->filename) {

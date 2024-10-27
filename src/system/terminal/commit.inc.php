@@ -1,14 +1,23 @@
 <?php
+/**
+ * This file is part of Razy v0.5.
+ *
+ * (c) Ray Fung <hello@rayfung.hk>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Razy;
 
+use Exception;
 use Phar;
 
 return function (string $moduleCode = '', string $version = '', string $commitAsPhar = '') use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Commit module', true);
 
-    $path         = SYSTEM_ROOT;
-    $distCode     = '';
+    $path = SYSTEM_ROOT;
+    $distCode = '';
     $commitAsPhar = !!$commitAsPhar;
     if (str_contains($moduleCode, '@')) {
         [$distCode, $moduleCode] = explode('@', $moduleCode, 2);
@@ -27,12 +36,37 @@ return function (string $moduleCode = '', string $version = '', string $commitAs
     }
     $path = append($path, $moduleCode);
 
+    if (!$version) {
+        $this->writeLineLogging('{@c:red} Missing version code.', true);
+        return;
+    }
+
     if (!preg_match('/^(\d+)(?:\.(?:\d+|\*)){0,3}$/', $version)) {
         $this->writeLineLogging('{@c:red}' . $version . ' is not a valid format.', true);
         return;
     }
 
-    if ($module = new ModuleInfo($path, 'default')) {
+    $moduleConfigPath = append($path, 'module.php');
+    if (is_file($moduleConfigPath)) {
+        try {
+            $config = require $moduleConfigPath;
+
+            $config['module_code'] = $config['module_code'] ?? '';
+            if (!preg_match(ModuleInfo::REGEX_MODULE_CODE, $config['module_code'])) {
+                throw new Error('Incorrect module code format.');
+            }
+            $config['author'] = $config['author'] ?? '';
+            $config['description'] = $config['description'] ?? '';
+        } catch (Exception) {
+            $this->writeLineLogging('{@c:red}Unable to read the module config.', true);
+            return;
+        }
+    } else {
+        $this->writeLineLogging('{@c:red}Module config file is not found.', true);
+        return;
+    }
+
+    if ($module = new ModuleInfo($path, $config, 'default')) {
         if ($version !== 'default' && $version !== 'dev') {
             try {
                 $path = append($module->getContainerPath(), $version);

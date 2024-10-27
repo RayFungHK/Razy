@@ -1,21 +1,23 @@
 <?php
+/**
+ * This file is part of Razy v0.5.
+ *
+ * (c) Ray Fung <hello@rayfung.hk>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Razy;
 
 class SimplifiedMessage
 {
-    /**
-     * The string of body
-     * @var string
-     */
     private string $body = '';
-    /**
-     * The storage of headers
-     * @var array
-     */
     private array $header = [];
 
     /**
+     * SimplifiedMessage Constructor
+     *
      * @param string $command
      * @throws Error
      */

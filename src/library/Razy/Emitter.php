@@ -1,4 +1,12 @@
 <?php
+/**
+ * This file is part of Razy v0.5.
+ *
+ * (c) Ray Fung <hello@rayfung.hk>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
 
 namespace Razy;
 
@@ -9,9 +17,10 @@ class Emitter
     /**
      * Emitter constructor
      *
-     * @param Module|null $module
+     * @param Module $requestedBy The request module
+     * @param Module|null $module The API module
      */
-    public function __construct(private readonly ?Module $module = null)
+    public function __construct(private readonly Module $requestedBy, private readonly ?Module $module = null)
     {
 
     }
@@ -26,6 +35,6 @@ class Emitter
      */
     public function __call(string $method, array $arguments)
     {
-        return ($this->module) ? $this->module->execute($this->module->getModuleInfo(), $method, $arguments) : null;
+        return ($this->module) ? $this->module->execute($this->requestedBy->getModuleInfo(), $method, $arguments) : null;
     }
 }

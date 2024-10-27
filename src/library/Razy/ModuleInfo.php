@@ -1,7 +1,6 @@
 <?php
-
 /**
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -17,84 +16,32 @@ use Throwable;
 
 class ModuleInfo
 {
-	const REGEX_MODULE_CODE = '/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i';
+    const REGEX_MODULE_CODE = '/^[a-z0-9]([_.-]?[a-z0-9]+)*(\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*)+$/i';
 
     private string $alias = '';
-    /**
-     * The API command alias
-     *
-     * @var string
-     */
-    private string $apiAlias = '';
-
-    /**
-     * @var array
-     */
+    private string $apiName = '';
     private array $assets = [];
-
-    /**
-     * The module author
-     *
-     * @var string
-     */
+    private string $description = '';
     private string $author;
-    /**
-     * The module code
-     *
-     * @var string
-     */
     private string $code;
-    /**
-     * The module package folder system path
-     *
-     * @var string
-     */
     private string $modulePath;
-
-    /**
-     * The package name
-     *
-     * @var string
-     */
-    private string $packageName = '';
-
-    /**
-     * @var array
-     */
+    private string $className = '';
     private array $prerequisite = [];
-
-    /**
-     * @var string
-     */
     private string $relativePath;
-
-    /**
-     * The storage of the required modules
-     *
-     * @var string[]
-     */
     private array $require = [];
-    /**
-     * Is the module's asset link to modules direct via rewrite, false will copy all assets into shared view folder
-     *
-     * @var bool
-     */
     private bool $shadowAsset = false;
-
-    /**
-     * @var bool
-     */
     private bool $pharArchive = false;
 
-	/**
-	 * Module constructor.
-	 *
-	 * @param string $containerPath
-	 * @param string $version
-	 * @param bool $sharedModule
-	 * @throws Error
-	 */
-    public function __construct(private readonly string $containerPath, private string $version = 'default', private readonly bool $sharedModule = false)
+    /**
+     * Module constructor.
+     *
+     * @param string $containerPath
+     * @param array $moduleConfig
+     * @param string $version
+     * @param bool $sharedModule
+     * @throws Error
+     */
+    public function __construct(private readonly string $containerPath, array $moduleConfig, private string $version = 'default', private readonly bool $sharedModule = false)
     {
         $this->relativePath = getRelativePath($this->containerPath, SYSTEM_ROOT);
         $this->version = trim($this->version);
@@ -121,31 +68,36 @@ class ModuleInfo
                 throw new Error('Unable to load the module.');
             }
 
-            if (isset($settings['module_code'])) {
-                if (!is_string($settings['module_code'])) {
+            if (isset($moduleConfig['module_code'])) {
+                if (!is_string($moduleConfig['module_code'])) {
                     throw new Error('The module code should be a string');
                 }
-                $code = trim($settings['module_code']);
+                $code = trim($moduleConfig['module_code']);
 
                 if (!preg_match(self::REGEX_MODULE_CODE, $code)) {
                     throw new Error('The module code ' . $code . ' is not a correct format, it should be `vendor/package`.');
                 }
 
                 $this->code = $code;
-                [, $package] = explode('/', $code);
-                $this->packageName = $package;
+                $namespaces = explode('/', $code);
+                $vendor = array_shift($namespaces);
+                $className = array_pop($namespaces);
+
+                $this->className = $className;
             } else {
                 throw new Error('Missing module code.');
             }
 
-            $this->author = trim($settings['author'] ?? '');
+            $this->description = trim($moduleConfig['description'] ?? '');
+
+            $this->author = trim($moduleConfig['author'] ?? '');
             if (!$this->author) {
                 throw new Error('Missing module author.');
             }
 
             $this->alias = trim($settings['alias'] ?? '');
             if (empty($this->alias)) {
-                $this->alias = $this->packageName;
+                $this->alias = $this->className;
             }
 
             if (!is_array($settings['assets'] = $settings['assets'] ?? [])) {
@@ -170,20 +122,32 @@ class ModuleInfo
                 }
             }
 
-            $this->apiAlias = trim($settings['api'] ?? '');
-            if (strlen($this->apiAlias) > 0) {
-                if (!preg_match('/^[a-z]\w*$/i', $this->apiAlias)) {
+            $this->apiName = trim($settings['api_name'] ?? '');
+            if (strlen($this->apiName) > 0) {
+                if (!preg_match('/^[a-z]\w*$/i', $this->apiName)) {
                     throw new Error('Invalid API code format.');
                 }
             }
 
+            $settings['shadow_asset'] = $settings['shadow_asset'] ?? false;
             $this->shadowAsset = !!$settings['shadow_asset'] && !preg_match('/^phar:\/\/]/', $this->modulePath);
 
             if (isset($settings['require']) && is_array($settings['require'])) {
                 foreach ($settings['require'] as $moduleCode => $version) {
                     $moduleCode = trim($moduleCode);
-                    if (preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*$/i', $moduleCode) && is_string($version)) {
+                    if (preg_match(self::REGEX_MODULE_CODE, $moduleCode) && is_string($version)) {
                         $this->require[$moduleCode] = trim($version);
+                    }
+                }
+
+                // Add the parent class into require list
+                if (count($namespaces)) {
+                    $requireNamespace = $vendor;
+                    foreach ($namespaces as $namespace) {
+                        $requireNamespace .= '/' . $namespace;
+                        if (!isset($this->require[$requireNamespace])) {
+                            $this->require[$requireNamespace] = '*';
+                        }
                     }
                 }
             }
@@ -199,7 +163,7 @@ class ModuleInfo
      */
     public function getClassName(): string
     {
-        return $this->packageName;
+        return $this->className;
     }
 
     /**
@@ -215,13 +179,13 @@ class ModuleInfo
     }
 
     /**
-     * Get the API code.
+     * Get the API name.
      *
      * @return string
      */
-    public function getAPICode(): string
+    public function getAPIName(): string
     {
-        return $this->apiAlias;
+        return $this->apiName;
     }
 
     /**
@@ -242,6 +206,16 @@ class ModuleInfo
     public function getAlias(): string
     {
         return $this->alias;
+    }
+
+    /**
+     * Return the module description
+     *
+     * @return string
+     */
+    public function getDescription(): string
+    {
+        return $this->description;
     }
 
     /**
@@ -317,7 +291,7 @@ class ModuleInfo
 
     /**
      * Return turn if the module is a phar archive
-     * 
+     *
      * @return bool
      */
     public function isPharArchive(): bool

@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -9,12 +8,13 @@
  * with this source code in the file LICENSE.
  */
 
+
 namespace Razy\Database;
 
 use PDO;
 use PDOStatement;
 
-readonly class Query
+class Query
 {
     /**
      * Query constructor.

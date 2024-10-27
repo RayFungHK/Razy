@@ -38,7 +38,7 @@ return new class() extends Plugin {
 
 	/**
 	 * @param Closure $closure
-	 * @return _Plugin
+	 * @return Plugin
 	 */
 	public function onBuild(Closure $closure): self
 	{

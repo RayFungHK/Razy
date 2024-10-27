@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -13,40 +12,12 @@ namespace Razy;
 
 class DOM
 {
-    /**
-     * The storage of the attribute
-     * @var array
-     */
     protected array $attribute = [];
-    /**
-     * The storage of the class name
-     * @var array
-     */
     protected array $className = [];
-    /**
-     * The storage of DOM's dataset
-     * @var array
-     */
     protected array $dataset = [];
-    /**
-     * Is DOM element a void element
-     * @var bool
-     */
     protected bool $isVoid = false;
-    /**
-     * The storage of the nodes
-     * @var array
-     */
     protected array $nodes = [];
-    /**
-     * The tag name
-     * @var string
-     */
     protected string $tag = '';
-    /**
-     * The text of the DOM as a text-node
-     * @var string
-     */
     protected string $text = '';
 
     /**

@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -29,45 +29,31 @@ class Action
 	const ERROR_MISSING_UNIQUE_KEY = 4;
 	const ERROR_KEY_VALUE_NOT_CONFIGURE = 5;
 
-	/**
-	 * The storage of the plugin folder
-	 * @var string[]
-	 */
 	private static array $pluginFolder = [];
-
-	/**
-	 * @var Plugin[]
-	 */
 	private array $plugins = [];
-
 	private array $errors = [];
-
-	/**
-	 * @var Validate[]
-	 */
 	private array $validations = [];
-
 	private Collection $dataset;
-
 	private mixed $fetched;
-
 	private string $uniqueKey = '';
-
 	private int $errorCode = 0;
-
 	private array $parameters = [];
-
 	private null|array|Closure $errorCodeParser = null;
-
 	private string $valueColumn = '';
-
 	private ?Closure $validationClosure = null;
-
 	private ?Closure $queueClosure = null;
-
 	private ?Closure $fetchingClosure = null;
 	private ?Closure $onDeleteClosure = null;
 
+    /**
+     * Action constructor.
+     *
+     * @param int $type
+     * @param Database $database
+     * @param string $tableName
+     * @param string $idColumn
+     * @param string $markerColumn
+     */
 	public function __construct(
 		private int               $type,
 		private readonly Database $database,
@@ -391,7 +377,7 @@ class Action
 				$parameters = [];
 				$parameters[$this->idColumn] = $key;
 				$parameters[$this->valueColumn] = $value;
-				$statement = $this->database->insert($this->tableName, array_keys($parameters), [$this->idColumn]);
+				$statement = $this->database->insert($this->tableName, array_keys($parameters), [$this->valueColumn]);
 				if ($this->queueClosure) {
 					$queueClosure = $this->queueClosure->bindTo($this);
 					call_user_func($queueClosure, $statement);

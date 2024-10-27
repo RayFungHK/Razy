@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -12,36 +11,17 @@
 namespace Razy\Template;
 
 use Closure;
-use Razy\Controller;
 use Razy\Error;
 use Razy\ModuleInfo;
+use Razy\Template;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Throwable;
 
-/**
- * Template entity will be processed in output. Except the root entity, you can create any number of entity to list
- * a bunch of data. Every entity contains its parameter, to allow front end developer use for.
- */
 class Entity
 {
-	/**
-	 * The storage of the cached parameter's value
-	 *
-	 * @var array
-	 */
 	private array $caches = [];
-	/**
-	 * An array contains the sub entity under current entity.
-	 *
-	 * @var array
-	 */
 	private array $entities = [];
-	/**
-	 * An array contains the entity parameters.
-	 *
-	 * @var array
-	 */
 	private array $parameters = [];
 
 	/**
@@ -421,10 +401,7 @@ class Entity
 			foreach ($clips as $clip) {
 				$value = $this->parseValue($clip) ?? '';
 				if (is_scalar($value) || method_exists($value, '__toString')) {
-					$value = strval($value);
-					if ($value) {
-						return $value;
-					}
+                    return $value;
 				}
 			}
 
@@ -542,33 +519,8 @@ class Entity
 		// Load the cached value by the parameter name and its path.
 		if (!isset($this->caches[$name][$path])) {
 			$value = $this->getValue($name, true);
-			if (null !== $value) {
-				if (strlen($path) > 0) {
-					preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
-					foreach ($matches as $clip) {
-						$key = (strlen($clip[3] ?? '') > 0) ? $clip[3] : ($clip[1] ?? '');
-						if (is_iterable($value)) {
-							$value = $value[$key] ?? null;
-						} elseif (is_object($value)) {
-							if (property_exists($key, $value)) {
-								$value = $value->{$key};
-							} else {
-								$value = null;
-							}
-						} else {
-							$value = null;
-						}
 
-						if (null === $value) {
-							break;
-						}
-					}
-				}
-			}
-
-			if (!isset($this->caches[$name])) {
-				$this->caches[$name] = [];
-			}
+            $value = Template::GetValueByPath($value, $path);
 
 			$this->caches[$name][$path] = $value;
 		} else {

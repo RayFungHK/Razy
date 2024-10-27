@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -18,18 +17,7 @@ use Razy\Collection\Processor;
 
 class Collection extends ArrayObject
 {
-    /**
-     * The storage of the plugin folder.
-     *
-     * @var array
-     */
     private static array $pluginFolder = [];
-
-    /**
-     * The storage of the plugin closure.
-     *
-     * @var array
-     */
     private array $plugins = [];
 
     /**

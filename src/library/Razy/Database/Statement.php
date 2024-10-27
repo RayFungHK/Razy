@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -25,105 +24,27 @@ use function Razy\tidy;
 
 class Statement
 {
-	/**
-	 * @var mixed|array
-	 */
 	private static mixed $pluginFolder = [];
 
 	const REGEX_COLUMN = '/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/';
-	/**
-	 * The storage of columns
-	 *
-	 * @var array
-	 */
+    
 	private array $columns = [];
-	/**
-	 * The fetch length
-	 *
-	 * @var int
-	 */
+    private array $collects = [];
+    private array $collections = [];
 	private int $fetchLength = 0;
-	/**
-	 * The storage of group by syntax
-	 *
-	 * @var array
-	 */
 	private array $groupby = [];
-	/**
-	 * The WhereSyntax entity of `having`
-	 *
-	 * @var ?WhereSyntax
-	 */
 	private ?WhereSyntax $havingSyntax = null;
-	/**
-	 * Is the parser execute once
-	 *
-	 * @var bool
-	 */
 	private bool $once = false;
-	/**
-	 * The storage of order by syntax
-	 *
-	 * @var array
-	 */
 	private array $orderby = [];
-	/**
-	 * The storage of parameters
-	 *
-	 * @var array
-	 */
 	private array $parameters = [];
-	/**
-	 * The closure of parser
-	 *
-	 * @var null|Closure
-	 */
 	private ?Closure $parser = null;
-	/**
-	 * The pointer position
-	 *
-	 * @var int
-	 */
 	private int $position = 0;
-	/**
-	 * The storage of select columns
-	 *
-	 * @var array
-	 */
 	private array $selectColumns;
-	/**
-	 * The TableJoinSyntax entity
-	 *
-	 * @var ?TableJoinSyntax
-	 */
 	private ?TableJoinSyntax $tableJoinSyntax = null;
-	/**
-	 * The table name
-	 *
-	 * @var string
-	 */
 	private string $tableName;
-	/**
-	 * The type of table
-	 *
-	 * @var string
-	 */
 	private string $type = '';
-	/**
-	 * The storage of update syntax
-	 *
-	 * @var array
-	 */
 	private array $updateSyntax = [];
-	/**
-	 * The WhereSyntax entity of `where`
-	 *
-	 * @var ?WhereSyntax
-	 */
 	private ?WhereSyntax $whereSyntax = null;
-	/**
-	 * @var int[]|string[]
-	 */
 	private array $onDuplicateKey = [];
 	private ?Plugin $builderPlugin = null;
 
@@ -178,7 +99,7 @@ class Statement
 	public static function StandardizeColumn(string $column): string
 	{
 		$column = trim($column);
-		if (preg_match('/^((\`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
+		if (preg_match('/^((`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
 			if (isset($matches[3]) && preg_match('/^[a-z]\w*$/', $matches[3])) {
 				return $matches[2] . '.`' . trim($matches[3]) . '`';
 			}
@@ -650,6 +571,17 @@ class Statement
 		return $this->database->execute($this);
 	}
 
+    /**
+     * Get the collection after fetch query
+     *
+     * @param string $name
+     * @return array|null
+     */
+    public function getCollection(string $name): ?array
+    {
+        return $this->collections[$name] ?? null;
+    }
+
 	/**
 	 * Execute the statement and return the result by group if the column is given.
 	 *
@@ -670,6 +602,19 @@ class Statement
 			if (is_callable($parser)) {
 				$parser($row);
 			}
+
+            if (count($this->collects)) {
+                foreach ($this->collects as $name => $isUnique) {
+                    if (array_key_exists($name, $row)) {
+                        $this->collections[$name] = $this->collections[$name] ?? [];
+                        if ($isUnique) {
+                            $this->collections[$name][$row[$name]] = true;
+                        } else {
+                            $this->collections[$name][] = $row[$name];
+                        }
+                    }
+                }
+            }
 
 			if (!$column || !array_key_exists($column, $row)) {
 				$result[] = $row;
@@ -753,13 +698,14 @@ class Statement
 		return $this;
 	}
 
-	/**
-	 * Set the order by syntax.
-	 *
-	 * @param string $syntax
-	 *
-	 * @return $this
-	 */
+    /**
+     * Set the order by syntax.
+     *
+     * @param string $syntax
+     *
+     * @return $this
+     * @throws Error
+     */
 	public function order(string $syntax): Statement
 	{
 		$clips = preg_split('/\s*,\s*/', $syntax);
@@ -788,6 +734,28 @@ class Statement
 
 		return $this;
 	}
+
+    /**
+     * Collect the data from the query result by column name
+     *
+     * @param string|array $columns
+     * @param bool|null $isUnique
+     * @return $this
+     */
+    public function collect(string|array $columns, ?bool $isUnique = false): static
+    {
+        if (is_array($columns))  {
+            foreach ($columns as $column => $isUnique) {
+                if (is_string($column) && ($column = trim($column))) {
+                    $this->collect($column, $isUnique);
+                }
+            }
+        } else {
+            $this->collects[$columns] = $isUnique;
+        }
+
+        return $this;
+    }
 
 	/**
 	 * Functional SELECT syntax.
@@ -830,7 +798,7 @@ class Statement
 	 * @return $this
 	 * @throws Error
 	 */
-	public function delete(string $tableName, array $parameters = [], string $whereSyntax = ''): self
+	public function delete(string $tableName, array $parameters = [], string $whereSyntax = ''): static
 	{
 		$this->type = 'delete';
 		$tableName = trim($tableName);

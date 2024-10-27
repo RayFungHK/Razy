@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -16,7 +16,13 @@ class Plugin
 {
 	private bool $ignored = false;
 
-	final public function __construct(private readonly ?Validate $validate = null, private readonly ?string $name = null)
+    /**
+     * Plugin constructor.
+     *
+     * @param Validate|null $validate
+     * @param string|null $name
+     */
+	final public function __construct(private readonly ?Validate $validate = null)
 	{
 
 	}

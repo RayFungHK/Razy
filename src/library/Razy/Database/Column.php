@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -16,22 +15,8 @@ use function Razy\guid;
 
 class Column
 {
-	/**
-	 * The Column's unique id
-	 * @var string
-	 */
 	private string $id;
-
-	/**
-	 * The storage of the parameters
-	 * @var array
-	 */
 	private array $parameters = [];
-
-	/**
-	 * The column's comment
-	 * @var string
-	 */
 	private string $comment = '';
 
 	/**
@@ -766,7 +751,7 @@ class Column
 	 * @param string $column
 	 * @return Column
 	 */
-	private function setReference(string $table, string $column = ''): self
+	private function setReference(string $table, string $column = ''): static
 	{
 		$table = trim($table, '`');
 		$column = trim($column, '`');
@@ -802,7 +787,7 @@ class Column
 	 * @param bool $enable
 	 * @return self
 	 */
-	private function updateCurrentTimestamp(bool $enable): self
+	private function updateCurrentTimestamp(bool $enable): static
 	{
 		$this->parameters['auto_update_timestamp'] = $enable;
 		return $this;

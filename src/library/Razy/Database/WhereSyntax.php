@@ -1,7 +1,6 @@
 <?php
-
-/*
- * This file is part of Razy v0.4.
+/**
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -23,12 +22,7 @@ class WhereSyntax
 		'|' => 'OR',
 	];
 
-	/**
-	 * The storage of extracted syntax
-	 * @var array
-	 */
 	private array $extracted = [];
-
 	private string $syntax = '';
 
 	/**
@@ -270,11 +264,15 @@ class WhereSyntax
 				$rightExpr = $rightOperand['expr'];
 				if ('parameter' === $rightOperand['type']) {
 					if (is_array($rightOperand['value'])) {
-						$rightExpr = '';
-						foreach ($rightOperand['value'] as $val) {
-							$val = '\'' . addslashes($val) . '\'';
-							$rightExpr .= ($rightExpr) ? ', ' . $val : $val;
-						}
+                        if (count($rightOperand['value'])) {
+                            $rightExpr = '';
+                            foreach ($rightOperand['value'] as $val) {
+                                $val = '\'' . addslashes($val) . '\'';
+                                $rightExpr .= ($rightExpr) ? ', ' . $val : $val;
+                            }
+                        } else {
+                            return $leftOperand['expr'] . ' IS ' . (($negative) ? ' NOT' : '') . ' NULL';
+                        }
 					}
 				}
 
@@ -315,9 +313,19 @@ class WhereSyntax
 			return $leftExpr . (($negative) ? ' NOT' : '') . ' ' . $comparison . ' ' . $rightExpr;
 		} elseif ('@=' === $operator) {
 			$leftExpr = $this->castAsJSON($leftOperand, true);
-			$rightExpr = $this->castAsJSON($rightOperand, true);
 
-			return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+            $rightExpr = '';
+            if ('parameter' === $rightOperand['type']) {
+                if (is_array($rightOperand['value']) || is_scalar($rightOperand['value'])) {
+                    $rightExpr = (is_scalar($rightOperand['value'])) ? addslashes($rightOperand['value']) : json_encode($rightOperand['value']);
+                }
+            } elseif ('text' === $rightOperand['type']) {
+                $rightExpr = addslashes($rightOperand['text']);
+            } else if ('expr' === $rightOperand['type']) {
+                $rightExpr = $rightOperand['expr'];
+            }
+
+			return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", CAST(' . $rightExpr . ' AS CHAR)) IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
 		} elseif (':=' === $operator) {
 			if ('text' === $rightOperand['type']) {
 				if ('$' !== ($rightOperand['text'][0] ?? '')) {
