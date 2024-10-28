@@ -23,14 +23,16 @@ class Entity
 	private array $caches = [];
 	private array $entities = [];
 	private array $parameters = [];
+    private ?Entity $linkedEntity = null;
 
-	/**
-	 * Entity constructor.
-	 *
-	 * @param Block $block The Block object
-	 * @param string $id The entity id
-	 * @param null|self $parent The parent Entity object
-	 */
+    /**
+     * Entity constructor.
+     *
+     * @param Block $block The Block object
+     * @param string $id The entity id
+     * @param null|self $parent The parent Entity object
+     * @throws Throwable
+     */
 	public function __construct(private readonly Block $block, private string $id = '', private readonly ?self $parent = null)
 	{
 		$this->id = trim($this->id);
@@ -329,13 +331,22 @@ class Entity
 			return $this->entities[$blockName][$id];
 		}
 
-		$block = $this->block->getBlock($blockName);
+        $block = $this->block->getBlock($blockName);
 
 		if (!isset($this->entities[$blockName])) {
 			$this->entities[$blockName] = [];
 		}
-		$blockEntity = new self($block, $id, $this);
-		$this->entities[$blockName][$id] = $blockEntity;
+
+        if ($this->linkedEntity) {
+            return $this->linkedEntity->newBlock($blockName, $id);
+        } else {
+            $blockEntity = new self($block, $id, $this);
+            $this->entities[$blockName][$id] = $blockEntity;
+            if ($block->getType() === 'WRAPPER') {
+                $this->linkedEntity = $this->entities[$blockName][$id];
+                return $this->linkedEntity->newBlock($blockName, $id);
+            }
+        }
 
 		return $blockEntity;
 	}
@@ -373,6 +384,12 @@ class Entity
 	{
 		$content = '';
 		if (isset($this->entities[$blockName])) {
+            if ($this->linkedEntity) {
+                if (!$this->linkedEntity->hasBlock($blockName) || !$this->linkedEntity->getBlockCount($blockName)) {
+                    return '';
+                }
+            }
+
 			foreach ($this->entities[$blockName] as $entity) {
 				$content .= $entity->process();
 			}

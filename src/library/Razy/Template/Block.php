@@ -27,22 +27,22 @@ class Block
     private array $parameters = [];
     private string $path;
     private array $structure = [];
-	private ?Block $parent;
+    private ?Block $parent;
 
-	/**
+    /**
      * Block constructor.
      *
-     * @param Source     $source    The Source object
-     * @param string     $blockName The block name
-     * @param FileReader $reader    The FileReader of the template file reader
-     * @param bool       $readonly
-     * @param null|self  $parent    Current block parent
+     * @param Source $source The Source object
+     * @param string $blockName The block name
+     * @param FileReader $reader The FileReader of the template file reader
+     * @param bool $readonly
+     * @param null|self $parent Current block parent
      *
      * @throws Throwable
      */
-    public function __construct(private readonly Source $source, private readonly string $blockName, FileReader $reader, private readonly bool $readonly = false, self $parent = null)
+    public function __construct(private readonly Source $source, private readonly string $blockName, FileReader $reader, private readonly bool $readonly = false, self $parent = null, private readonly string $type = '')
     {
-        $this->parent    = $parent;
+        $this->parent = $parent;
         if (!$parent) {
             $this->path = '/';
         } else {
@@ -54,13 +54,13 @@ class Block
         while (($line = $reader->fetch()) !== null) {
             // If the line is a block tag
             if (str_contains($line, '<!-- ')) {
-                if (preg_match('/^\s*<!-- (INCLUDE|TEMPLATE|START|END|RECURSION|USE (\w[\w-]*)) BLOCK: (.+) -->\s*$/', $line, $matches)) {
+                if (preg_match('/^\s*<!-- (INCLUDE|TEMPLATE|START|END|WRAPPER|RECURSION|USE (\w[\w-]*)) BLOCK: (.+) -->\s*$/', $line, $matches)) {
                     if ('INCLUDE' !== $matches[1] && !preg_match('/^\w[\w\-]+(?=[^-])\w$/', $matches[3])) {
                         $concat .= $line;
                     } else {
                         if ($concat) {
                             $this->structure[] = $concat;
-                            $concat            = '';
+                            $concat = '';
                         }
 
                         if ('INCLUDE' === $matches[1]) {
@@ -68,27 +68,27 @@ class Block
                             if ($path) {
                                 $reader->prepend($path);
                             }
-                        } elseif ('START' === $matches[1] || 'TEMPLATE' === $matches[1]) {
+                        } elseif ('WRAPPER' === $matches[1] || 'START' === $matches[1] || 'TEMPLATE' === $matches[1]) {
                             $matches[3] = trim($matches[3]);
                             if (isset($this->structure[$matches[3]])) {
                                 throw new Error('The block ' . $this->path . '/' . $matches[3] . ' is already exists.');
                             }
 
-                            $this->blocks[$matches[3]]    = new self($this->source, $matches[3], $reader, 'TEMPLATE' === $matches[1], $this);
+                            $this->blocks[$matches[3]] = new self($this->source, $matches[3], $reader, 'TEMPLATE' === $matches[1], $this, $matches[1]);
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
                         } elseif ('RECURSION' === $matches[1]) {
                             if (!($parent = $this->getClosest($matches[3]))) {
                                 throw new Error('No parent block ' . $matches[3] . ' is found to declare as a recursion block.');
                             }
 
-                            $this->blocks[$matches[3]]    = $parent;
+                            $this->blocks[$matches[3]] = $parent;
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
                         } elseif (str_starts_with($matches[1], 'USE ')) {
                             $found = false;
                             while (($parent = $this->parent) !== null) {
                                 if ($parent->hasBlock($matches[2])) {
-                                    $found                        = true;
-                                    $this->blocks[$matches[3]]    = $parent->getBlock($matches[2]);
+                                    $found = true;
+                                    $this->blocks[$matches[3]] = $parent->getBlock($matches[2]);
                                     $this->structure[$matches[3]] = $this->blocks[$matches[3]];
 
                                     break;
@@ -121,15 +121,25 @@ class Block
         }
     }
 
-	/**
-	 * Get the module which was loaded the template file.
-	 *
-	 * @return ModuleInfo|null
-	 */
-	public function getModule(): ?ModuleInfo
-	{
-		return $this->source->getModule();
-	}
+    /**
+     * Get the block structure type.
+     *
+     * @return string
+     */
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    /**
+     * Get the module which was loaded the template file.
+     *
+     * @return ModuleInfo|null
+     */
+    public function getModule(): ?ModuleInfo
+    {
+        return $this->source->getModule();
+    }
 
     /**
      * Get the block path.
@@ -205,7 +215,7 @@ class Block
      * Assign the block level parameter value.
      *
      * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed|null $value     The parameter value
+     * @param mixed|null $value The parameter value
      *
      * @return self Chainable
      * @throws Throwable
@@ -234,7 +244,7 @@ class Block
      * Bind the reference variable
      *
      * @param string $parameter
-     * @param null   $value
+     * @param null $value
      *
      * @return $this
      * @throws Throwable
@@ -315,7 +325,7 @@ class Block
      * Return the parameter value.
      *
      * @param string $parameter The parameter name
-     * @param bool   $recursion
+     * @param bool $recursion
      *
      * @return mixed The parameter value
      */

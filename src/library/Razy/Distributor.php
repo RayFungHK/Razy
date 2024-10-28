@@ -526,6 +526,7 @@ class Distributor
                 if ($executor->getStatus() === Module::STATUS_LOADED) {
                     $this->routedInfo = [
                         'url_query' => $this->urlQuery,
+                        'base_url' => append($this->getSiteURL(), rtrim($route, '/')),
                         'route' => tidy('/' . $data['route'], false, '/'),
                         'module' => $data['module']->getModuleInfo()->getCode(),
                         'closure_path' => $path,
