@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -12,20 +12,21 @@
 use Razy\Template\Entity;
 use Razy\Template\Plugin\TFunction;
 
-return new class() extends TFunction
-{
-    protected bool $encloseContent = true;
-    protected array $allowedParameters = [
-        'length' => 1,
-    ];
+return function (...$arguments) {
+    return new class(...$arguments) extends TFunction {
+        protected bool $encloseContent = true;
+        protected array $allowedParameters = [
+            'length' => 1,
+        ];
 
-    #[Override] public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
-    {
-        $parameters['length'] = (int) $parameters['length'];
-        if ($parameters['length'] < 0) {
-            $parameters['length'] = 0;
+        public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
+        {
+            $parameters['length'] = (int)$parameters['length'];
+            if ($parameters['length'] < 0) {
+                $parameters['length'] = 0;
+            }
+
+            return ($parameters['length'] > 0) ? str_repeat($wrappedText, $parameters['length']) : '';
         }
-
-        return ($parameters['length'] > 0) ? str_repeat($wrappedText, $parameters['length']) : '';
-    }
+    };
 };

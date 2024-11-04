@@ -29,18 +29,18 @@ class Select extends DOM
     /**
      * Apply a bulk of options by given array.
      *
-     * @param array        $dataset
-     * @param Closure|null $convertor
+     * @param array $dataset
+     * @param callable|null $convertor
      *
      * @return $this
      * @throws Error
      */
-    public function applyOptions(array $dataset, Closure $convertor = null): self
+    public function applyOptions(array $dataset, ?callable $convertor = null): self
     {
         foreach ($dataset as $key => $value) {
             $option = $this->addOption();
             if ($convertor) {
-                call_user_func($convertor, $option, $key, $value);
+                call_user_func($convertor(...), $option, $key, $value);
             } else {
                 if (is_string($value)) {
                     $option->setText($value)->setAttribute('value', $key);

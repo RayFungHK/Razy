@@ -194,15 +194,15 @@ class Distributor
      * Put the callable into the list to wait for executing until other specified modules has ready.
      *
      * @param string $moduleCode
-     * @param Closure $caller
+     * @param callable $caller
      *
      * @return $this
      */
-    public function addAwait(string $moduleCode, Closure $caller): Distributor
+    public function addAwait(string $moduleCode, callable $caller): Distributor
     {
         $entity = [
             'required' => [],
-            'caller' => $caller,
+            'caller' => $caller(...),
         ];
 
         $clips = explode(',', $moduleCode);
@@ -330,7 +330,7 @@ class Distributor
             $moduleCode = implode('/', $namespaces);
 
             // Try to load the class from the module library
-            if ($this->modules[$moduleCode]) {
+            if (isset($this->modules[$moduleCode])) {
                 $module = $this->modules[$moduleCode];
                 if ($module->getStatus() === Module::STATUS_LOADED) {
                     $moduleInfo = $module->getModuleInfo();
@@ -718,13 +718,13 @@ class Distributor
      *
      * @param Module $module The module instance
      * @param string $event The event name
-     * @param Closure|null $callback The callback will be executed when the event is resolved
+     * @param callable|null $callback The callback will be executed when the event is resolved
      *
      * @return EventEmitter
      */
-    public function createEmitter(Module $module, string $event, ?Closure $callback = null): EventEmitter
+    public function createEmitter(Module $module, string $event, ?callable $callback = null): EventEmitter
     {
-        return new EventEmitter($this, $module, $event, $callback);
+        return new EventEmitter($this, $module, $event, !$callback ? null : $callback(...));
     }
 
     /**
@@ -762,7 +762,6 @@ class Distributor
     public function compose(Closure $closure): bool
     {
         $validated = true;
-        print_r($this->prerequisites);
         foreach ($this->prerequisites as $package => $versionRequired) {
             $packageManager = new PackageManager($this, $package, $versionRequired, $closure);
             if (!$packageManager->fetch() || !$packageManager->validate()) {

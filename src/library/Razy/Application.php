@@ -352,7 +352,7 @@ class Application
 
                     $rootBlock->newBlock('data_mapping')->assign([
                         'domain' => $domain,
-                        'distributor_path' => $info['distributor_path'],
+                        'distributor_path' => $info['code'],
                         'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
                         'data_path' => append('data', $staticDomain . '-' . $distributor->getCode(), '$1'),
                     ]);
@@ -383,7 +383,7 @@ class Application
     /**
      * Write the multisite config file.
      *
-     * @param array $config
+     * @param array|null $config
      *
      * @return bool
      * @throws Throwable
@@ -470,17 +470,18 @@ class Application
      * Run if the module under the distributor is need to unpack the asset or install the package from composer
      *
      * @param string $code
-     * @param Closure $closure
+     * @param callable $closure
      *
      * @return bool
      *
+     * @throws Error
      * @throws Throwable
      */
-    public function compose(string $code, Closure $closure): bool
+    public function compose(string $code, callable $closure): bool
     {
         $code = trim($code);
         if ($this->hasDistributor($code)) {
-            return (new Distributor($code))->initialize()->compose($closure);
+            return (new Distributor($code))->initialize()->compose($closure(...));
         }
 
         throw new Error('Distributor `' . $code . '` is not found.');

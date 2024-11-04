@@ -203,15 +203,15 @@ class Terminal
     /**
      * Execute the command and pass the arguments and parameters into closure.
      *
-     * @param Closure $callback
+     * @param callable $callback
      * @param array $args
      * @param array $parameters
      * @return $this
      */
-    public function run(Closure $callback, array $args = [], array $parameters = []): Terminal
+    public function run(callable $callback, array $args = [], array $parameters = []): Terminal
     {
         $this->parameters = $parameters;
-        call_user_func_array($callback->bindTo($this), $args);
+        call_user_func_array($callback(...)->bindTo($this), $args);
 
         return $this;
     }

@@ -32,7 +32,7 @@ class XHR
      */
     public function __construct(private readonly bool $returnAsArray = false)
     {
-        $this->hash = \Razy\guid(1);
+        $this->hash = guid(1);
     }
 
     /**
@@ -199,12 +199,12 @@ class XHR
     }
 
     /**
-     * @param Closure $closure
+     * @param callable $closure
      * @return $this
      */
-    public function onComplete(Closure $closure): static
+    public function onComplete(callable $closure): static
     {
-        $this->closure = $closure;
+        $this->closure = $closure(...);
 
         return $this;
     }

@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -12,25 +12,26 @@
 use Razy\Template\Entity;
 use Razy\Template\Plugin\TFunction;
 
-return new class() extends TFunction
-{
-    protected array $allowedParameters = [
-        'name'  => '',
-        'value' => '',
-    ];
+return function (...$arguments) {
+    return new class(...$arguments) extends TFunction {
+        protected array $allowedParameters = [
+            'name' => '',
+            'value' => '',
+        ];
 
-    #[Override] public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
-    {
-        $parameters['name'] = trim($parameters['name']);
+        public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
+        {
+            $parameters['name'] = trim($parameters['name']);
 
-        if (!$parameters['name']) {
+            if (!$parameters['name']) {
+                return '';
+            }
+
+            $entity->assign([
+                $parameters['name'] => $parameters['value'] ?? null,
+            ]);
+
             return '';
         }
-
-        $entity->assign([
-            $parameters['name'] => $parameters['value'] ?? null,
-        ]);
-
-        return '';
-    }
+    };
 };

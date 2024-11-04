@@ -13,13 +13,18 @@ namespace Razy\Database\Statement;
 use Closure;
 use Razy\Database\Statement;
 
-class Plugin
+class Builder
 {
 	protected ?Closure $postProcess = null;
-	final public function __construct(protected readonly ?Statement $statement = null)
-	{
+    protected ?Statement $statement = null;
 
-	}
+    final public function init(Statement $statement = null): static
+    {
+        if (!$this->statement) {
+            $this->statement = $statement;
+        }
+        return $this;
+    }
 
     /**
      * Build the statement.

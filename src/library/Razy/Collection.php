@@ -17,21 +17,9 @@ use Razy\Collection\Processor;
 
 class Collection extends ArrayObject
 {
-    private static array $pluginFolder = [];
-    private array $plugins = [];
+    use PluginTrait;
 
-    /**
-     * Add a plugin folder.
-     *
-     * @param string $path
-     */
-    public static function addPluginFolder(string $path): void
-    {
-        $path = tidy(trim($path));
-        if ($path && is_dir($path)) {
-            self::$pluginFolder[] = $path;
-        }
-    }
+    private array $plugins = [];
 
     /**
      * A magic function __invoke, used to the matched elements by the filter syntax.
@@ -44,7 +32,7 @@ class Collection extends ArrayObject
     public function __invoke(string $filter): Processor
     {
         $filtered = [];
-        $filter   = trim($filter);
+        $filter = trim($filter);
         if ($filter) {
             // Extract the selectors separated by comma
             $clips = preg_split('/(?:\((\\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>\.)(*SKIP)(*FAIL)|\s*,\s*/', $filter);
@@ -116,7 +104,7 @@ class Collection extends ArrayObject
     /**
      * Filter the collection by the filter syntax.
      *
-     * @param array  $filtered
+     * @param array $filtered
      * @param string $filterSyntax
      *
      * @throws Throwable
@@ -136,7 +124,7 @@ class Collection extends ArrayObject
                 $plugin = $this->loadPlugin('filter', $match[1]);
                 if ($plugin instanceof Closure) {
                     $parameters = [];
-                    $clips      = preg_split('/(?:\((\\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $match[2]);
+                    $clips = preg_split('/(?:\((\\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $match[2]);
                     // Parse the string of the parameters
                     foreach ($clips as $clip) {
                         if (preg_match('/^(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?)$/', $clip, $param)) {
@@ -170,26 +158,19 @@ class Collection extends ArrayObject
      *
      * @return null|Closure
      * @throws Throwable
-     *
      */
     public function loadPlugin(string $type, string $name): ?Closure
     {
-        $name     = strtolower($name);
+        $name = strtolower($name);
         $identify = $type . '.' . $name;
 
         if (!isset($this->plugins[$identify])) {
-            $this->plugins[$identify] = null;
-            foreach (self::$pluginFolder as $folder) {
-                $pluginFile = append($folder, $identify . '.php');
-
-                if (is_file($pluginFile)) {
+            if ($plugin = self::GetPlugin($identify)) {
+                if ($plugin['entity'] instanceof Closure) {
                     try {
-                        $closure = require $pluginFile;
-                        if ($closure instanceof Closure) {
-                            $this->plugins[$identify] = $closure;
+                        $this->plugins[$identify] = $plugin['entity'];
 
-                            return $this->plugins[$identify];
-                        }
+                        return $this->plugins[$identify];
                     } catch (Throwable) {
                         throw new Error('Missing or invalid Closure.');
                     }
@@ -263,7 +244,7 @@ class Collection extends ArrayObject
     public function &offsetGet(mixed $key): mixed
     {
         $iterator = $this->getIterator();
-        $result   = null;
+        $result = null;
         if (array_key_exists($key, (array)$iterator)) {
             $result = &$iterator[$key];
         }

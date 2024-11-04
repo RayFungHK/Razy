@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -10,9 +10,11 @@
  */
 use Razy\Template\Plugin\TModifier;
 
-return new class() extends TModifier {
-    #[Override] protected function process(mixed $value, string ...$args): string
-    {
-        return ucwords(strtolower($value));
-    }
+return function (...$arguments) {
+    return new class(...$arguments) extends TModifier {
+        protected function process(mixed $value, string ...$args): string
+        {
+            return ucwords(strtolower($value));
+        }
+    };
 };

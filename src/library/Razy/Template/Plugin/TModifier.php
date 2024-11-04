@@ -51,9 +51,10 @@ class TModifier
     {
         $arguments = [$value];
         preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText ?? '', $args);
+
         // The first argument always is the value
         foreach ($args as $arg) {
-            $arguments[] = (array_key_exists(4, $arg)) ? $arg[4] : ($arg[2] ?? $arg[1] ?? null);
+            $arguments[] = (array_key_exists(4, $arg)) ? $arg[4] : ($arg[2] ?? $arg[1] ?? '');
         }
 
         return call_user_func_array([$this, 'process'], $arguments);

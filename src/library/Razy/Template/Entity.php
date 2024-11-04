@@ -417,7 +417,7 @@ class Entity
 			$clips = preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
 			foreach ($clips as $clip) {
 				$value = $this->parseValue($clip) ?? '';
-				if (is_scalar($value) || method_exists($value, '__toString')) {
+				if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
                     return $value;
 				}
 			}
@@ -549,7 +549,9 @@ class Entity
 			preg_match_all('/->(\w+)((?::(?:\w+|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|-?\d+(?:\.\d+)?))*)/', $modifier, $matches, PREG_SET_ORDER);
 			foreach ($matches as $clip) {
 				$plugin = $this->block->loadPlugin('modifier', $clip[1]);
-				$value = $plugin->modify($value, $clip[2]);
+                if ($plugin) {
+                    $value = $plugin->modify($value, $clip[2] ?? '');
+                }
 			}
 		}
 

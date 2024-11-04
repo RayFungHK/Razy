@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -135,7 +135,7 @@ class Error extends Exception
                     preg_match('/^#\d+ (.+)$/', $trace, $matches);
                     $debugBlock->newBlock('backtrace')->assign([
                         'index' => $index++,
-                        'stack' => $matches[1],
+                        'stack' => htmlspecialchars($matches[1]),
                     ]);
                 }
             }

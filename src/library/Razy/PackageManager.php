@@ -44,14 +44,14 @@ class PackageManager
      * @param Distributor $distributor
      * @param string $packageName
      * @param string $versionRequired
-     * @param Closure|null $notify
+     * @param callable|null $notify
      */
-    public function __construct(Distributor $distributor, string $packageName, string $versionRequired = '*', ?Closure $notify = null)
+    public function __construct(Distributor $distributor, string $packageName, string $versionRequired = '*', ?callable $notify = null)
     {
         $this->distributor = $distributor;
         $this->name = trim($packageName);
         $this->versionRequired = trim($versionRequired);
-        $this->notifyClosure = $notify;
+        $this->notifyClosure = !$notify ? null : $notify(...);
 
         if (null === self::$versionLock) {
             $config = [];

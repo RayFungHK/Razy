@@ -112,13 +112,13 @@ class Module
      * Put the callable into the list to wait for executing until other specified modules has ready.
      *
      * @param string $moduleCode
-     * @param Closure $caller
+     * @param callable $caller
      *
      * @return $this
      */
-    public function await(string $moduleCode, Closure $caller): Module
+    public function await(string $moduleCode, callable $caller): Module
     {
-        $caller = $caller->bindTo($this->controller);
+        $caller = $caller(...)->bindTo($this->controller);
         $this->distributor->addAwait($moduleCode, $caller);
 
         return $this;
@@ -329,13 +329,13 @@ class Module
      * Get the EventEmitter instance from Distributor.
      *
      * @param string $event The event name
-     * @param Closure|null $callback The callback will be executed if the event is resolving
+     * @param callable|null $callback The callback will be executed if the event is resolving
      *
      * @return EventEmitter
      */
-    public function propagate(string $event, ?Closure $callback = null): EventEmitter
+    public function propagate(string $event, ?callable $callback = null): EventEmitter
     {
-        return $this->distributor->createEmitter($this, $event, $callback);
+        return $this->distributor->createEmitter($this, $event, !$callback ? null : $callback(...));
     }
 
     /**

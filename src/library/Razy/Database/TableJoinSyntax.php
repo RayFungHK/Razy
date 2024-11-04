@@ -191,18 +191,18 @@ class TableJoinSyntax
 		throw new Error('invalid condition syntax');
 	}
 
-	/**
-	 * Parse the TableJoin Simple Syntax.
-	 *
-	 * @param string|Closure $syntax
-	 *
-	 * @return $this
-	 * @throws Error
-	 */
-	public function parseSyntax(string|Closure $syntax): TableJoinSyntax
+    /**
+     * Parse the TableJoin Simple Syntax.
+     *
+     * @param string|callable $syntax
+     *
+     * @return $this
+     * @throws Error
+     */
+	public function parseSyntax(string|callable $syntax): TableJoinSyntax
 	{
-		if ($syntax instanceof Closure) {
-			$syntax = call_user_func($syntax, $this->syntax);
+        if (is_callable($syntax)) {
+			$syntax = call_user_func($syntax(...), $this->syntax);
 		}
 
 		if (!is_string($syntax)) {

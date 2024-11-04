@@ -371,6 +371,7 @@ class Block
      * Return a new Entity object related on this Block
      *
      * @return Entity
+     * @throws Throwable
      */
     public function newEntity(): Entity
     {

@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of Razy v0.4.
+ * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
@@ -12,34 +12,35 @@
 use Razy\Template\Entity;
 use Razy\Template\Plugin\TFunction;
 
-return new class() extends TFunction
-{
-    protected bool $enclosedContent = true;
-    protected array $allowedParameters = [
-        'source' => '',
-        'as'     => 'kvp',
-    ];
+return function (...$arguments) {
+    return new class(...$arguments) extends TFunction {
+        protected bool $enclosedContent = true;
+        protected array $allowedParameters = [
+            'source' => '',
+            'as' => 'kvp',
+        ];
 
-    #[Override] public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
-    {
-        if (!is_array($parameters['source'])) {
-            return '';
+        public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
+        {
+            if (!is_array($parameters['source'])) {
+                return '';
+            }
+
+            $parameters['as'] = trim($parameters['as']);
+            if (0 === strlen($parameters['as'])) {
+                $parameters['as'] = 'kvp';
+            }
+
+            $result = '';
+            foreach ($parameters['source'] as $key => $value) {
+                $entity->assign($parameters['as'], [
+                    'key' => $key,
+                    'value' => $value,
+                ]);
+                $result .= $entity->parseText($wrappedText);
+            }
+
+            return $result;
         }
-
-        $parameters['as'] = trim($parameters['as']);
-        if (0 === strlen($parameters['as'])) {
-            $parameters['as'] = 'kvp';
-        }
-
-        $result = '';
-        foreach ($parameters['source'] as $key => $value) {
-            $entity->assign($parameters['as'], [
-                'key'   => $key,
-                'value' => $value,
-            ]);
-            $result .= $entity->parseText($wrappedText);
-        }
-
-        return $result;
-    }
+    };
 };

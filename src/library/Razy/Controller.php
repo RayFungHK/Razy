@@ -23,7 +23,7 @@ class Controller {
     const PLUGIN_ALL = 0b1111;
     const PLUGIN_TEMPLATE = 0b0001;
     const PLUGIN_COLLECTION = 0b0010;
-    const PLUGIN_ACTION = 0b0100;
+    const PLUGIN_FLOWMANAGER = 0b0100;
     const PLUGIN_STATEMENT = 0b1000;
 
     private array $externalClosure = [];
@@ -192,12 +192,12 @@ class Controller {
      * Prepare the EventEmitter to trigger the event.
      *
      * @param string $event The name of the event
-     * @param Closure|null $callback The callback to execute when the EventEmitter starts to resolve
+     * @param callable|null $callback The callback to execute when the EventEmitter starts to resolve
      *
      * @return EventEmitter The EventEmitter instance
      */
-    final public function trigger(string $event, ?Closure $callback = null): EventEmitter {
-        return $this->module->propagate($event, $callback);
+    final public function trigger(string $event, ?callable $callback = null): EventEmitter {
+        return $this->module->propagate($event, !$callback ? null : $callback(...));
     }
 
     /**
@@ -336,16 +336,16 @@ class Controller {
      */
     final public function registerPluginLoader(int $flag = 0): self {
         if ($flag & self::PLUGIN_TEMPLATE) {
-            Template::addPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Template'), $this);
+            Template::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Template'), $this);
         }
         if ($flag & self::PLUGIN_COLLECTION) {
-            Collection::addPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Collection'), $this);
+            Collection::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Collection'), $this);
         }
-        if ($flag & self::PLUGIN_ACTION) {
-            Action::addPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Action'), $this);
+        if ($flag & self::PLUGIN_FLOWMANAGER) {
+            FlowManager::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'FlowManager'), $this);
         }
         if ($flag & self::PLUGIN_STATEMENT) {
-            Statement::addPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Statement'), $this);
+            Statement::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Statement'), $this);
         }
         return $this;
     }

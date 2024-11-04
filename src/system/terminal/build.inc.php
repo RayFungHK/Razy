@@ -13,7 +13,7 @@ namespace Razy;
 return function () {
     // Check the PHP version is support Razy
     $this->writeLineLogging('Checking environment...');
-    $color = (version_compare(PHP_VERSION, '7.4.0') >= 0) ? 'green' : 'red';
+    $color = (version_compare(PHP_VERSION, '8.2.0') >= 0) ? 'green' : 'red';
     $this->writeLineLogging('PHP Version: {@c:' . $color . '}' . PHP_VERSION . '{@reset} (PHP 7.4+ is required)');
 
     // Read the path from user input

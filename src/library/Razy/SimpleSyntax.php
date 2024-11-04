@@ -17,16 +17,20 @@ class SimpleSyntax
     /**
      * Parse the Simple Syntax by given delimiter.
      *
-     * @param string       $syntax
-     * @param string       $delimiter
-     * @param string       $negativeLookahead
-     * @param Closure|null $parser
+     * @param string $syntax
+     * @param string $delimiter
+     * @param string $negativeLookahead
+     * @param callable|null $parser
      *
      * @return array
      */
-    public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?Closure $parser = null): array
+    public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?callable $parser = null): array
     {
         $clips = self::ParseParens($syntax);
+
+        if (is_callable($parser)) {
+            $parser = $parser(...);
+        }
 
         return ($parseExpr = function ($clips) use ($parser, $delimiter, $negativeLookahead, &$parseExpr) {
             $extracted = [];
