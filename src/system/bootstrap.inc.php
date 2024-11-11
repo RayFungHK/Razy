@@ -766,9 +766,9 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
 
     $fileName = '';
     if (is_file($source)) {
-        if (!str_ends_with($dest, '/')) {
-            $fileName = substr($dest, strrpos($dest, '/') + 1);
-            $dest = substr($dest, 0, strrpos($dest, '/'));
+        if (!str_ends_with($dest, DIRECTORY_SEPARATOR)) {
+            $fileName = substr($dest, strrpos($dest, DIRECTORY_SEPARATOR) + 1);
+            $dest = substr($dest, 0, strrpos($dest, DIRECTORY_SEPARATOR));
         }
     }
 

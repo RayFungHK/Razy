@@ -777,7 +777,9 @@ class Column
 		return $this->parameters['reference_table'] ?? '';
 	}
 
-	// TODO: Implement the phpDoc here
+    /**
+     * @return string
+     */
 	public function getReferenceColumn(): string
 	{
 		return $this->parameters['reference_column'] ?? '';

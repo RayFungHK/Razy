@@ -645,7 +645,7 @@ class Statement
                 throw new Error('The key column `' . $keyColumn . '` cannot found in fetched result.');
             }
             if (!isset($row[$valueColumn])) {
-                throw new Error('The key column `' . $keyColumn . '` cannot found in fetched result.');
+                throw new Error('The value column `' . $keyColumn . '` cannot found in fetched result.');
             }
             $result[$row[$keyColumn]] = $row[$valueColumn];
         }
