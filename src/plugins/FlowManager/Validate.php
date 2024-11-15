@@ -10,7 +10,6 @@
 
 namespace Razy\FlowManager\Flow;
 
-use Razy\FlowManager;
 use Razy\FlowManager\Flow;
 
 return function (...$arguments) {

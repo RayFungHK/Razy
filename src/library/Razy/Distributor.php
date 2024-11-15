@@ -512,9 +512,10 @@ class Distributor
                 $path = (is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
                 $path = tidy($path, false, '/');
 
-                if (str_starts_with($path, 'r:')) {
-                    $path = substr($path, 2);
-                    header('Location: ' . append($data['module']->getModuleURL(), $path));
+                if (preg_match('/^r(@?):(.+)/', $path, $matches)) {
+                    echo $path;
+                    $path = $matches[2];
+                    header('Location: ' . append($matches[1] ? $this->getSiteURL() : $data['module']->getModuleURL(), $path));
                     exit;
                 }
 

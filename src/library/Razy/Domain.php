@@ -67,7 +67,6 @@ class Domain
         if (0 === strlen($urlQuery)) {
             $urlQuery = '/';
         }
-
         $urlQuery = tidy($urlQuery, false, '/');
         if (!empty($this->mapping)) {
             sort_path_level($this->mapping);

@@ -171,11 +171,11 @@ class Column
 		} elseif ('full_text' === $type) {
 			$this->parameters['type'] = 'TEXT';
 			$this->parameters['length'] = '';
-			$this->parameters['default'] = '';
+            $this->parameters['nullable'] = true;
 		} elseif ('long_text' === $type) {
 			$this->parameters['type'] = 'LONGTEXT';
 			$this->parameters['length'] = '';
-			$this->parameters['default'] = '';
+            $this->parameters['nullable'] = true;
 		} elseif ('int' === $type) {
 			$this->parameters['type'] = 'INT';
 			$this->parameters['length'] = 8;
