@@ -98,6 +98,8 @@ class FlowManager
         if ($identifier) {
             if (isset($this->storageByIdentifier[$name])) {
                 return $this->storageByIdentifier[$name][$identifier] ?? null;
+            } else {
+                return null;
             }
         }
         return $this->storage[$name] ?? null;

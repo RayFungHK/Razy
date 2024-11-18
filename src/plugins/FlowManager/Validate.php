@@ -10,6 +10,7 @@
 
 namespace Razy\FlowManager\Flow;
 
+use Razy\Error;
 use Razy\FlowManager\Flow;
 
 return function (...$arguments) {
@@ -48,6 +49,40 @@ return function (...$arguments) {
         {
             $this->parent->setStorage($this->name, $value, $identifier);
             return $this;
+        }
+
+        /**
+         * Get the stored data from FormWorker
+         *
+         * @param string $identifier
+         * @return mixed
+         */
+        public function getStorage(string $identifier = ''): mixed
+        {
+            return $this->parent->getStorage($this->name, $identifier);
+        }
+
+        /**
+         * Set the Validation value
+         *
+         * @param mixed $value
+         * @return Flow
+         */
+        public function setValue(mixed $value): Flow
+        {
+            Error::DebugConsoleWrite($value);
+            $this->parent->setValue($this->name, $value);
+            return $this;
+        }
+
+        /**
+         * Get the Validation value
+         *
+         * @return mixed
+         */
+        public function getValue(): mixed
+        {
+            return $this->parent->getValue($this->name);
         }
 
         /**

@@ -46,7 +46,7 @@ class Block
         if (!$parent) {
             $this->path = '/';
         } else {
-            $this->path = $parent->getPath() . '/' . $blockName;
+            $this->path = (($parent->getPath() === '/') ? '' : $parent->getPath()) . '/' . $blockName;
         }
 
         $concat = '';

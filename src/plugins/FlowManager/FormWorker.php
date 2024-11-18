@@ -39,12 +39,12 @@ return function (...$arguments) {
          * @param Database|null $database
          * @param string $tableName
          * @param string $idColumn
-         * @param string $toggleColumn
+         * @param string|array $toggleColumn
          */
         public function __construct(private readonly ?Database $database = null,
                                     private readonly string    $tableName = '',
                                     private readonly string    $idColumn = '',
-                                    private readonly string    $toggleColumn = '')
+                                    private readonly string|array    $toggleColumn = '')
         {
             $this->data = new Collection([]);
             $this->storage = new Collection([]);
@@ -205,11 +205,19 @@ return function (...$arguments) {
                 } else {
                     $parameters = [];
                     $parameters[$this->idColumn] = $uniqueKey;
-                    $toggleStatement = '';
                     if ($this->toggleColumn) {
-                        $toggleStatement = ($this->toggleValue) ? $this->toggleColumn . '=?' : '!' . $this->toggleColumn;
-                        if ($this->toggleValue) {
-                            $parameters[$this->toggleColumn] = $this->toggleValue[0];
+                        if (is_string($this->toggleColumn)) {
+                            $toggleStatement = ($this->toggleValue) ? $this->toggleColumn . '=?' : '!' . $this->toggleColumn;
+                            if ($this->toggleValue) {
+                                $parameters[$this->toggleColumn] = $this->toggleValue[0];
+                            }
+                        } else {
+                            $toggleStatement = [];
+                            foreach ($this->toggleColumn as $column => $value) {
+                                $toggleStatement[] = $column . (is_array($value) ? '|' : '') . '=?';
+                                $parameters[$column] = $value;
+                            }
+                            $toggleStatement = implode(',', $toggleStatement);
                         }
                     }
                     if (!($this->record = $statement->where($this->idColumn . '=?' . ($toggleStatement ? ',' . $toggleStatement : ''))->lazy($parameters))) {
@@ -223,7 +231,12 @@ return function (...$arguments) {
 
             // Only do the validation in create, edit or key value update mode
             if ($this->mode !== 'delete') {
-                $this->data = new Collection($postData);
+                foreach ($postData as $key => $value) {
+                    if (!isset($this->data[$key])) {
+                        $this->data[$key] = $value;
+                    }
+                }
+
                 foreach ($this->flows as $flow) {
                     $name = $flow->getName();
                     $value = isset($this->data[$name]) ? $this->data[$name] : null;

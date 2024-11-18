@@ -66,9 +66,8 @@ return function (...$arguments) {
                     if ($this->errorCode) {
                         $this->reject($this->errorCode);
                     }
-                } else {
-                    $this->getParent()->setStorage($result, $this->getIdentifier());
                 }
+                $this->getParent()->setStorage($result, $this->getIdentifier());
             }
 
             return $value;
