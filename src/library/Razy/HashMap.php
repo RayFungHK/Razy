@@ -6,7 +6,7 @@ use ArrayAccess;
 use Countable;
 use Iterator;
 
-class HashMap implements Iterator, ArrayAccess, Countable
+class HashMap implements ArrayAccess, Iterator, Countable
 {
     private array $hashOrder = [];
     private array $hashMap = [];
@@ -72,6 +72,9 @@ class HashMap implements Iterator, ArrayAccess, Countable
         }
     }
 
+    /**
+     * @return mixed
+     */
     public function current(): mixed
     {
         if (isset($this->hashOrder[$this->position])) {
@@ -80,41 +83,70 @@ class HashMap implements Iterator, ArrayAccess, Countable
         return null;
     }
 
+    /**
+     * @return void
+     */
     public function next(): void
     {
         ++$this->position;
     }
 
-    public function key(): mixed
+    /**
+     * @return int
+     */
+    public function key(): int
     {
        return $this->position;
     }
 
+    /**
+     * @return bool
+     */
     public function valid(): bool
     {
         return isset($this->hashOrder[$this->position]) && isset($this->hashMap[$this->hashOrder[$this->position]]);
     }
 
+    /**
+     * @return void
+     */
     public function rewind(): void
     {
         $this->position = 0;
     }
 
+    /**
+     * @param mixed $offset
+     * @return bool
+     */
     public function offsetExists(mixed $offset): bool
     {
         return isset($this->hashMap[$offset]);
     }
 
+    /**
+     * @param mixed $offset
+     * @return mixed
+     */
     public function offsetGet(mixed $offset): mixed
     {
-        return $this->hashMap[$offset] ?? null;
+        return (isset($this->hashMap[$offset])) ? $this->hashMap[$offset]['value'] : null;
     }
 
+    /**
+     * @param mixed $offset
+     * @param mixed $value
+     * @return void
+     */
     public function offsetSet(mixed $offset, mixed $value): void
     {
         $this->push($value, $offset ?? '');
     }
 
+    /**
+     * @param mixed $offset
+     * @return void
+     */
     public function offsetUnset(mixed $offset): void
     {
         if (isset($this->hashMap[$offset])) {
@@ -123,6 +155,9 @@ class HashMap implements Iterator, ArrayAccess, Countable
         }
     }
 
+    /**
+     * @return int
+     */
     public function count(): int
     {
         return count($this->hashMap);

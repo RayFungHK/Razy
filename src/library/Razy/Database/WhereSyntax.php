@@ -10,7 +10,6 @@
 
 namespace Razy\Database;
 
-use Closure;
 use Razy\Error;
 use Razy\SimpleSyntax;
 use Throwable;
@@ -522,7 +521,7 @@ class WhereSyntax
                     $parsed[] = $operand;
                 }
             }
-print_r($parsed);
+
             return implode('', $parsed);
         };
 

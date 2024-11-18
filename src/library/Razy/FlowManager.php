@@ -20,6 +20,7 @@ class FlowManager
 
     private array $flows = [];
     private array $storage = [];
+    private array $storageByIdentifier = [];
     private ?Transmitter $transmitter = null;
 
     public function __construct()
@@ -70,21 +71,35 @@ class FlowManager
     /**
      * @param string $name
      * @param mixed $value
+     * @param string $identifier
      * @return $this
      */
-    public function setStorage(string $name, mixed $value = null): static
+    public function setStorage(string $name, mixed $value = null, string $identifier = ''): static
     {
-        $this->storage[$name] = $value;
+        $identifier = trim($identifier);
+        if ($identifier) {
+            $this->storageByIdentifier[$name] = $this->storageByIdentifier[$name] ?? [];
+            $this->storageByIdentifier[$name][$identifier] = $value;
+        } else {
+            $this->storage[$name] = $value;
+        }
 
         return $this;
     }
 
     /**
      * @param string $name
+     * @param string $identifier
      * @return mixed
      */
-    public function getStorage(string $name): mixed
+    public function getStorage(string $name, string $identifier = ''): mixed
     {
+        $identifier = trim($identifier);
+        if ($identifier) {
+            if (isset($this->storageByIdentifier[$name])) {
+                return $this->storageByIdentifier[$name][$identifier] ?? null;
+            }
+        }
         return $this->storage[$name] ?? null;
     }
 
@@ -116,12 +131,12 @@ class FlowManager
     static public function CreateFlowInstance(string $typeOfFlow, ...$arguments): ?Flow
     {
         $entity = null;
-        if (preg_match('/^\w[\w-]+$/', $typeOfFlow)) {
-            $plugin = self::GetPlugin($typeOfFlow);
+        if (preg_match('/^(\w[\w-]+)(?::(\w+))?$/', $typeOfFlow, $matches)) {
+            $plugin = self::GetPlugin($matches[1]);
             if ($plugin) {
                 try {
-                    return $plugin['entity'](...$arguments)->init($typeOfFlow);
-                } catch (Throwable) {
+                    return $plugin['entity'](...$arguments)->init($matches[1], $matches[2] ?? '');
+                } catch (Throwable $e) {
                     throw new Error('Failed to create flow: ' . $typeOfFlow);
                 }
             }

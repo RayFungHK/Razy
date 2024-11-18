@@ -93,7 +93,7 @@ class Distributor
      * @throws Error
      * @throws Throwable
      */
-    public function initialize(): static
+    public function initialize(bool $initialOnly = false): static
     {
         // Load all modules into the pending list
         $this->scanModule($this->folderPath);
@@ -104,6 +104,11 @@ class Distributor
         // Put all modules into queue by priority with its require module.
         foreach ($this->modules as $module) {
             $this->require($module);
+        }
+
+        // Only trigger __onInit stage
+        if ($initialOnly) {
+            return $this;
         }
 
         // Preparation Stage, __onLoad event

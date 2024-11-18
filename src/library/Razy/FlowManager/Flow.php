@@ -2,6 +2,7 @@
 
 namespace Razy\FlowManager;
 
+use Closure;
 use Razy\Error;
 use Razy\FlowManager;
 use Razy\HashMap;
@@ -18,20 +19,31 @@ abstract class Flow
     protected bool $resolved = false;
     private ?Flow $falseFlow = null;
     private bool $_isRecursive = false;
+    private string $identifier = '';
 
     /**
      * Plugin initialize when loaded success
      *
      * @param string $flowType
+     * @param string $identifier
      * @return $this
      */
-    final public function init(string $flowType = ''): static
+    final public function init(string $flowType = '', string $identifier = ''): static
     {
         if (!$this->flowType) {
             $this->flows = new HashMap();
             $this->flowType = $flowType;
+            $this->identifier = $identifier;
         }
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    final public function getIdentifier(): string
+    {
+        return $this->identifier;
     }
 
     /**
@@ -200,10 +212,17 @@ abstract class Flow
      */
     final public function getParent(string $flowType = ''): ?Flow
     {
-        if ($flowType && $this->parent->getFlowType() !== $flowType) {
-            return $this->parent->getParent($flowType);
+        if (!$this->parent || $this->parent instanceof FlowManager) {
+            return null;
         }
-        return $this->parent;
+
+        if (preg_match('/^(\w[\w-]+)?(?::(\w+))?$/', $flowType, $matches)) {
+            if (!$flowType || ((!isset($matches[1]) || $this->parent->getFlowType() === $matches[1]) && (!isset($matches[2]) || $this->parent->getIdentifier() === $matches[2]))) {
+                return $this->parent;
+            }
+        }
+
+        return $this->parent->getParent($flowType);
     }
 
     /**

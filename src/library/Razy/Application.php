@@ -278,7 +278,7 @@ class Application
                     if (!isset($this->protection['rewrite_file'])) {
                         $this->protection['rewrite_file'] = [
                             'checksums' => md5_file($rewriteFilePath),
-                            'path' => $configFilePath,
+                            'path' => $rewriteFilePath,
                         ];
                     }
                 }
@@ -342,7 +342,7 @@ class Application
 
                 try {
                     $distributor = new Distributor($info['code'], $info['tag']);
-                    $distributor->initialize();
+                    $distributor->initialize(true);
                     $modules = $distributor->getModules();
 
                     $staticDomain = $domain;
@@ -481,7 +481,7 @@ class Application
     {
         $code = trim($code);
         if ($this->hasDistributor($code)) {
-            return (new Distributor($code))->initialize()->compose($closure(...));
+            return (new Distributor($code))->initialize(true)->compose($closure(...));
         }
 
         throw new Error('Distributor `' . $code . '` is not found.');

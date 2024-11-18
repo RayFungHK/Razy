@@ -41,11 +41,12 @@ return function (...$arguments) {
          * Pass value to FormWorker to set storage
          *
          * @param mixed $value
+         * @param string $identifier
          * @return Flow
          */
-        public function setStorage(mixed $value): Flow
+        public function setStorage(mixed $value, string $identifier = ''): Flow
         {
-            $this->parent->setStorage($this->name, $value);
+            $this->parent->setStorage($this->name, $value, $identifier);
             return $this;
         }
 
@@ -127,10 +128,12 @@ return function (...$arguments) {
          */
         public function process(mixed $value = null): mixed
         {
-            if (!$this->parent->hasRejected($this->name)) {
-                foreach ($this->flows as $flow) {
-                    $value = $flow->process($value, $this);
+            $record = $this->parent->getRecord();
+            foreach ($this->flows as $flow) {
+                if ($this->parent->hasRejected($this->name)) {
+                    break;
                 }
+                $value = $flow->process($value, $record[$this->name] ?? null);
             }
 
             return $value;
