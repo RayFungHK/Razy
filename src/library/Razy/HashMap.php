@@ -3,7 +3,9 @@
 namespace Razy;
 
 use ArrayAccess;
+use ArrayObject;
 use Countable;
+use Generator;
 use Iterator;
 
 class HashMap implements ArrayAccess, Iterator, Countable
@@ -42,6 +44,17 @@ class HashMap implements ArrayAccess, Iterator, Countable
             'index' => count($this->hashOrder) - 1,
         ];
         return $this;
+    }
+
+    /**
+     * @return Generator
+     */
+    public function getGenerator(): Generator
+    {
+        for ($i = 0; $i < count($this->hashOrder); $i++) {
+            // Note that $i is preserved between yields.
+            yield $this->hashMap[$this->hashOrder[$i]]['value'] ?? null;
+        }
     }
 
     /**

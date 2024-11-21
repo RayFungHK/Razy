@@ -44,7 +44,7 @@ return function (...$arguments) {
             $worker = $this->getParent('FormWorker');
             $passwordVerify = $worker->getData()[$this->parent->getName() . '_verify'] ?? '';
 
-            if ($worker->getMode() === 'create' && !$value) {
+            if ($worker->getMode() === 'edit' && !$value) {
                 $this->parent->setBypass(true);
             }
 
@@ -53,7 +53,7 @@ return function (...$arguments) {
                     $this->parent->reject('length_too_short');
                 } elseif ($value !== $passwordVerify) {
                     $this->parent->reject('verify_not_match');
-                } elseif ($worker->getMode() === 'edit' && $value !== $compare) {
+                } elseif ($worker->getMode() === 'edit' &&  md5($value) !== $compare) {
                     $this->parent->reject('previous_not_match');
                 }
             }

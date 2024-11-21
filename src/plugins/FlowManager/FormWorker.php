@@ -18,6 +18,7 @@ return function (...$arguments) {
     return new class(...$arguments) extends Flow {
         protected Collection $data;
         protected Collection $storage;
+        protected Collection $identifyStorage;
         protected array $rejected = [];
         protected string $mode = 'create';
         private ?Closure $rejectProcess = null;
@@ -41,13 +42,14 @@ return function (...$arguments) {
          * @param string $idColumn
          * @param string|array $toggleColumn
          */
-        public function __construct(private readonly ?Database $database = null,
-                                    private readonly string    $tableName = '',
-                                    private readonly string    $idColumn = '',
-                                    private readonly string|array    $toggleColumn = '')
+        public function __construct(private readonly ?Database    $database = null,
+                                    private readonly string       $tableName = '',
+                                    private readonly string       $idColumn = '',
+                                    private readonly string|array $toggleColumn = '')
         {
             $this->data = new Collection([]);
             $this->storage = new Collection([]);
+            $this->identifyStorage = new Collection([]);
         }
 
         /**
@@ -80,10 +82,14 @@ return function (...$arguments) {
          * Get the stored data from storage by given name
          *
          * @param string $name
+         * @param string $identifier
          * @return mixed
          */
-        public function getStorage(string $name): mixed
+        public function getStorage(string $name, string $identifier = ''): mixed
         {
+            if ($identifier) {
+                return $this->identifyStorage[$identifier][$name] ?? null;
+            }
             return $this->storage[$name] ?? null;
         }
 
@@ -92,14 +98,20 @@ return function (...$arguments) {
          *
          * @param string $name
          * @param mixed $value
+         * @param string $identifier
          * @return $this
          */
-        public function setStorage(string $name, mixed $value): Flow
+        public function setStorage(string $name, mixed $value, string $identifier = ''): Flow
         {
             if ($value instanceof Closure) {
                 $value = call_user_func($value, $this->storage[$name] ?? null);
             }
-            $this->storage[$name] = $value;
+            if ($identifier) {
+                $this->identifyStorage[$identifier] = $this->identifyStorage[$identifier] ?? [];
+                $this->identifyStorage[$identifier][$name] = $value;
+            } else {
+                $this->storage[$name] = $value;
+            }
             return $this;
         }
 
@@ -383,27 +395,25 @@ return function (...$arguments) {
         /**
          * Handling reject from flow
          *
-         * @param string|array $message
+         * @param string|array $name
          * @param string|array $code
          * @param string $alias
          * @return Flow|null
          */
-        public function reject(mixed $message, string|array $code = '', string $alias = ''): ?Flow
+        public function reject(mixed $name, string|array $code = '', string $alias = ''): ?Flow
         {
-            if (is_array($message)) {
-                foreach ($message as $_message) {
-                    $this->reject($_message, $code, $alias);
+            if (is_array($name)) {
+                foreach ($name as $_name) {
+                    $this->reject($_name, $code, $alias);
                 }
             } else {
-                if (is_string($message)) {
-                    if (is_string($code)) {
-                        // Beginning with @ means absolute path, no prefix will be added.
-                        $errorCode = (strlen($code) > 0 && $code[0] === '@') ? substr($code, 1) : $message . '_' . $code;
-                    } else {
-                        $errorCode = $code;
-                    }
-                    $this->rejected[($alias) ?: $message] = ($this->rejectProcess) ? call_user_func($this->rejectProcess, $errorCode) : $errorCode;
+                if (is_string($code)) {
+                    // Beginning with @ means absolute path, no prefix will be added.
+                    $errorCode = (strlen($code) > 0 && $code[0] === '@') ? substr($code, 1) : $name . '_' . $code;
+                } else {
+                    $errorCode = $code;
                 }
+                $this->rejected[($alias) ?: $name] = ($this->rejectProcess) ? call_user_func($this->rejectProcess, $errorCode) : $errorCode;
             }
 
             return $this;
