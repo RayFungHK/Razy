@@ -130,13 +130,19 @@ return function (...$arguments) {
         /**
          * Set the data value by given name
          *
-         * @param string $name
+         * @param array|string $name
          * @param mixed $value
          * @return $this
          */
-        public function setValue(string $name, mixed $value): Flow
+        public function setValue(array|string $name, mixed $value = null): Flow
         {
-            $this->data[$name] = $value;
+            if (is_array($name)) {
+                foreach ($name as $_name => $_value) {
+                    $this->setValue($_name, $_value);
+                }
+            } else {
+                $this->data[$name] = $value;
+            }
             return $this;
         }
 
@@ -331,9 +337,9 @@ return function (...$arguments) {
         /**
          * Get the toggle column
          *
-         * @return string
+         * @return string|array
          */
-        public function getToggleColumn(): string
+        public function getToggleColumn(): string|array
         {
             return $this->toggleColumn;
         }

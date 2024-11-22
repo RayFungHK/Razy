@@ -35,10 +35,22 @@ return function (...$arguments) {
                 $parameters[$this->parent->getName()] = $value;
                 $parameters[$worker->getIDColumn()] = $worker->getUniqueKey() ?? 0;
 
+                $toggleColumns = $worker->getToggleColumn();
+                $filter = [];
+                if (is_array($toggleColumns)) {
+                    foreach ($toggleColumns as $column => $value) {
+                        $filter[] = $column . (is_array($value) ? '|' : '') . '=?';
+                        $parameters[$column] = $value;
+                    }
+                } else {
+                    $filter[] = '!' . $worker->getToggleColumn();
+                }
+                $filter = (count($filter) > 1) ? ',' . implode(',', $filter) : '';
+
                 $result = $worker->getDatabase()
                     ->prepare()
                     ->from($worker->getTableName())
-                    ->where($this->parent->getName() . '=?,' . $worker->getIDColumn() . '!=?' . ($worker->getToggleColumn() ? ',!' . $worker->getToggleColumn() : ''))
+                    ->where($this->parent->getName() . '=?,' . $worker->getIDColumn() . '!=?' . $filter)
                     ->lazy($parameters);
 
                 if ($result) {

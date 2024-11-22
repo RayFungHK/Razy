@@ -52,7 +52,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     $config['domains'][$domain][$path] = $code;
 
     // If the `i` parameter is given, create the folder including the dist.php
-    if ($parameters['i']) {
+    if (isset($parameters['i'])) {
         $distFolder = fix_path(append(SYSTEM_ROOT, 'sites', $code));
         // If the distributor path is not under Razy location
         if (!str_starts_with($distFolder, SYSTEM_ROOT)) {
