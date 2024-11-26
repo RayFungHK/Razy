@@ -151,7 +151,6 @@ class Application
             $this->loadSiteConfig();
         }
 
-
         $this->multisite = [];
         $this->alias = [];
         $this->distributors = [];
@@ -184,27 +183,26 @@ class Application
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
                             if (is_string($distIdentifier)) {
                                 if (preg_match('/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i', $distIdentifier)) {
-                                    // Distributor with tag should be unique, if the distribution code has been used, throw an error
                                     if (isset($this->distributors[$distIdentifier])) {
-                                        throw new Error($distIdentifier . ' has been declared already, please ensure the distributor code is not duplicated.');
-                                    }
+                                        $this->distributors[$distIdentifier]['domain'][] = $domain;
+                                    } else {
+                                        [$code, $tag] = explode('@', $distIdentifier . '@', 2);
 
-                                    [$code, $tag] = explode('@', $distIdentifier . '@', 2);
+                                        // Check if the distributor folder is existing
+                                        $distConfigPath = append(SITES_FOLDER, $code, 'dist.php');
+                                        if (is_file($distConfigPath)) {
+                                            $this->multisite[$domain] = $this->multisite[$domain] ?? [];
+                                            $this->multisite[$domain][$urlPath] = $distIdentifier;
 
-                                    // Check if the distributor folder is existing
-                                    $distConfigPath = append(SITES_FOLDER, $code, 'dist.php');
-                                    if (is_file($distConfigPath)) {
-                                        $this->multisite[$domain] = $this->multisite[$domain] ?? [];
-                                        $this->multisite[$domain][$urlPath] = $distIdentifier;
-
-                                        $this->distributors[$distIdentifier] = [
-                                            'code' => $code,
-                                            'tag' => $tag ?: '*',
-                                            'url_path' => $urlPath,
-                                            'domain' => $domain,
-                                            'alias' => $aliasMapping[$domain] ?? [],
-                                            'identifier' => $distIdentifier,
-                                        ];
+                                            $this->distributors[$distIdentifier] = [
+                                                'code' => $code,
+                                                'tag' => $tag ?: '*',
+                                                'url_path' => $urlPath,
+                                                'domain' => [$domain],
+                                                'alias' => $aliasMapping[$domain] ?? [],
+                                                'identifier' => $distIdentifier,
+                                            ];
+                                        }
                                     }
                                 }
                             } elseif (is_array($distIdentifier)) {
@@ -338,38 +336,60 @@ class Application
             $rootBlock = $source->getRoot();
 
             foreach ($this->distributors as $info) {
-                $domain = preg_quote($info['domain']);
-
-                try {
-                    $distributor = new Distributor($info['code'], $info['tag']);
-                    $distributor->initialize(true);
-                    $modules = $distributor->getModules();
-
+                $domains = $info['domain'];
+                foreach ($domains as $domain) {
                     $staticDomain = $domain;
-                    if (!preg_match('/:\d+$/', $domain)) {
-                        $domain .= '(:\d+)?';
-                    }
+                    $domain = preg_quote($domain);
 
-                    $rootBlock->newBlock('data_mapping')->assign([
-                        'domain' => $domain,
-                        'distributor_path' => $info['code'],
-                        'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
-                        'data_path' => append('data', $staticDomain . '-' . $distributor->getCode(), '$1'),
-                    ]);
+                    try {
+                        $distributor = new Distributor($info['code'], $info['tag']);
+                        $distributor->initialize(true);
+                        $modules = $distributor->getModules();
 
-                    foreach ($modules as $module) {
-                        $moduleInfo = $module->getModuleInfo();
-                        if (is_dir(append($moduleInfo->getPath(), 'webassets'))) {
-                            $rootBlock->newBlock('rewrite')->assign([
-                                'domain' => $domain,
-                                'dist_path' => ltrim(tidy(append($moduleInfo->getContainerPath(true), '$1', 'webassets', '$2'), false, '/'), '/'),
-                                'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
-                                'mapping' => $moduleInfo->getClassName(),
+                        if (!preg_match('/:\d+$/', $domain)) {
+                            $domain .= '(:\d+)?';
+                        }
+                        $domainBlock = $rootBlock->newBlock('domain', $domain)->assign([
+                            'domain' => $domain,
+                            'system_root' => SYSTEM_ROOT,
+                        ]);
+
+                        $domainBlock->newBlock('data_mapping')->assign([
+                            'system_root' => SYSTEM_ROOT,
+                            'distributor_path' => $info['code'],
+                            'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
+                            'data_path' => append('data', $staticDomain . '-' . $distributor->getCode(), '$1'),
+                        ]);
+
+                        foreach ($modules as $module) {
+                            $moduleInfo = $module->getModuleInfo();
+                            if (is_dir(append($moduleInfo->getPath(), 'webassets'))) {
+                                $domainBlock->newBlock('webassets')->assign([
+                                    'system_root' => SYSTEM_ROOT,
+                                    'dist_path' => ltrim(tidy(append($moduleInfo->getContainerPath(true), '$1', 'webassets', '$2'), false, '/'), '/'),
+                                    'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
+                                    'mapping' => $moduleInfo->getClassName(),
+                                ]);
+                            }
+                        }
+
+                        $routes = $distributor->getRoutes();
+                        foreach ($routes as $routePath => $config) {
+                            $routePath = rtrim(append($info['url_path'], $routePath), '/');
+                            if ($config['type'] === 'standard') {
+                                $routePath = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
+                                    $regex = (strlen($matches[2] ?? '')) > 0 ? $matches[2] : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
+                                    return $regex . ((0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+');
+                                }, $routePath);
+                            }
+                            $domainBlock->newBlock('route')->assign([
+                                'system_root' => SYSTEM_ROOT,
+                                'route_path' => append(SYSTEM_ROOT, $routePath),
                             ]);
                         }
+                    } catch (Exception) {
+                        return false;
                     }
-                } catch (Exception) {
-                    return false;
                 }
             }
 

@@ -572,6 +572,16 @@ class Distributor
     }
 
     /**
+     * Return the routes
+     *
+     * @return array
+     */
+    public function getRoutes(): array
+    {
+        return $this->routes;
+    }
+
+    /**
      * Set the lazy route.
      *
      * @param Module $module The module entity
