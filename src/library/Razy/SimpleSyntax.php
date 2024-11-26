@@ -21,10 +21,10 @@ class SimpleSyntax
      * @param string $delimiter
      * @param string $negativeLookahead
      * @param callable|null $parser
-     *
+     * @param bool $notCaptureDelimiter
      * @return array
      */
-    public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?callable $parser = null): array
+    public static function ParseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?callable $parser = null, bool $notCaptureDelimiter = false): array
     {
         $clips = self::ParseParens($syntax);
 
@@ -32,13 +32,13 @@ class SimpleSyntax
             $parser = $parser(...);
         }
 
-        return ($parseExpr = function ($clips) use ($parser, $delimiter, $negativeLookahead, &$parseExpr) {
+        return ($parseExpr = function ($clips) use ($parser, $delimiter, $negativeLookahead, &$parseExpr, $notCaptureDelimiter) {
             $extracted = [];
             foreach ($clips as $clip) {
                 if (is_array($clip)) {
                     $extracted[] = $parseExpr($clip);
                 } else {
-                    $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\((?:\\\\.(*SKIP)|[^()])*\)|\\\\.|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\((?:\\\\.(*SKIP)|[^()])*\)|\\\\.|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, ($notCaptureDelimiter) ? PREG_SPLIT_NO_EMPTY : PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
                     if (false === $splits) {
                         throw new Error('The delimiter or the ignored lookahead characters is invalid.');
                     }
@@ -75,6 +75,7 @@ class SimpleSyntax
                 if ($matches[0][1] > 0) {
                     $extracted[] = substr($clip, 0, $matches[0][1]);
                 }
+                Error::DebugConsoleWrite(var_export($matches, true));
 
                 $clip = substr($clip, (int) $matches[0][1] + 1);
                 if (')' == $matches[0][0]) {
