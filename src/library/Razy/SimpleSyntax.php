@@ -75,7 +75,6 @@ class SimpleSyntax
                 if ($matches[0][1] > 0) {
                     $extracted[] = substr($clip, 0, $matches[0][1]);
                 }
-                Error::DebugConsoleWrite(var_export($matches, true));
 
                 $clip = substr($clip, (int) $matches[0][1] + 1);
                 if (')' == $matches[0][0]) {

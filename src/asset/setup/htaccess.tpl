@@ -6,6 +6,11 @@ RewriteRule ^\w+/shared/(.*)$ shared/$1 [END]
 # Rewrite the distributor asset location
 <!-- START BLOCK: domain -->
 <If "%{HTTP_HOST} =~ /{$domain}/">
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d [OR]
+    RewriteCond %{REQUEST_FILENAME} -l
+    RewriteRule ^ - [L]
+
     # Webassets directory location
     <!-- START BLOCK: webassets -->
     RewriteRule ^{$system_root}/{$route_path}webassets/{$mapping}/(.+?)/(.+)$ {$system_root}/{$dist_path} [END]

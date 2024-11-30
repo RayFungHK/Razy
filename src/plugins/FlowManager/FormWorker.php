@@ -26,6 +26,7 @@ return function (...$arguments) {
         private ?Closure $onFetchClosure = null;
         private mixed $record = null;
         private ?Closure $onProcessClosure = null;
+        private ?Closure $onBeforeProcessClosure = null;
         private string $errorCode = '';
         private ?Closure $onResolveClosure = null;
         private array $parameters = [];
@@ -186,6 +187,18 @@ return function (...$arguments) {
         }
 
         /**
+         * Set the onBeforeProcess event
+         *
+         * @param callable $closure
+         * @return Flow
+         */
+        public function onBeforeProcess(callable $closure): Flow
+        {
+            $this->onBeforeProcessClosure = $closure(...);
+            return $this;
+        }
+
+        /**
          * Set the onExecute event
          *
          * @param callable $closure
@@ -253,6 +266,11 @@ return function (...$arguments) {
                     if (!isset($this->data[$key])) {
                         $this->data[$key] = $value;
                     }
+                }
+
+                if ($this->onBeforeProcessClosure) {
+                    $closure = $this->onBeforeProcessClosure->bindTo($this);
+                    call_user_func($closure);
                 }
 
                 foreach ($this->flows as $flow) {

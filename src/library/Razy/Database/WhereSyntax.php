@@ -218,7 +218,7 @@ class WhereSyntax
                     'type' => 'parameter',
                     'name' => $matches[1],
                     'value' => $value,
-                    'expr' => '"' . addslashes($value) . '"',
+                    'expr' => (is_scalar($value)) ? '"' . addslashes($value) . '"' : null,
                 ];
             }
             if (preg_match('/^(?<q>[\'"])((?:(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {

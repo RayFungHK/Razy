@@ -53,7 +53,6 @@ return function (...$arguments) {
         {
             if ($this->tableName && $this->indexColumn) {
                 $worker = $this->getParent('FormWorker');
-                $value = (int)$value;
                 $filter = $this->indexColumn . '=?';
                 $statement = $worker->getDatabase()->prepare()->from($this->tableName)->where($filter);
 

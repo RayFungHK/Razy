@@ -250,7 +250,7 @@ class Statement
             if (count($this->orderby)) {
                 foreach ($this->orderby as &$orderby) {
                     if (is_array($orderby)) {
-                        $orderby = $orderby['syntax'] . ' ' . $orderby['ordering'];
+                        $orderby = $orderby['syntax']->parseSyntax($orderby['column'])->getSyntax() . ' ' . $orderby['ordering'];
                     }
                 }
                 $sql .= ' ORDER BY ' . implode(', ', $this->orderby);
@@ -675,7 +675,7 @@ class Statement
      * @param string $syntax
      *
      * @return $this
-     * @throws Error
+     * @throws Error|Throwable
      */
     public function order(string $syntax): Statement
     {
@@ -695,9 +695,9 @@ class Statement
                 $this->orderby[] = $standardizedColumn;
             } else {
                 $orderSyntax = new WhereSyntax($this);
-                $orderSyntax->parseSyntax($column);
                 $this->orderby[] = [
-                    'syntax' => $orderSyntax->getSyntax(),
+                    'syntax' => $orderSyntax,
+                    'column' => $column,
                     'ordering' => ('>' === $ordering) ? 'DESC' : 'ASC'
                 ];
             }
