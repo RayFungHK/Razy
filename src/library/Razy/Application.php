@@ -372,7 +372,7 @@ class Application
                                 ]);
                             }
                         }
-
+/*
                         $routes = $distributor->getRoutes();
                         foreach ($routes as $routePath => $config) {
                             $routePath = rtrim(append($info['url_path'], $routePath), '/');
@@ -387,6 +387,7 @@ class Application
                                 'route_path' => append(SYSTEM_ROOT, $routePath),
                             ]);
                         }
+*/
                     } catch (Exception) {
                         return false;
                     }
