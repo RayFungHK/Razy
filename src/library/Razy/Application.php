@@ -354,12 +354,23 @@ class Application
                             'system_root' => SYSTEM_ROOT,
                         ]);
 
-                        $domainBlock->newBlock('data_mapping')->assign([
-                            'system_root' => SYSTEM_ROOT,
-                            'distributor_path' => $info['code'],
-                            'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
-                            'data_path' => append('data', $staticDomain . '-' . $distributor->getCode(), '$1'),
-                        ]);
+                        $dataMapping = $distributor->getDataMapping();
+                        if (!count($dataMapping) || !isset($dataMapping['/'])) {
+                            $domainBlock->newBlock('data_mapping')->assign([
+                                'system_root' => SYSTEM_ROOT,
+                                'distributor_path' => $info['code'],
+                                'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
+                                'data_path' => append('data', $staticDomain . '-' . $distributor->getCode(), '$1'),
+                            ]);
+                        }
+                        foreach ($dataMapping as $path => $site) {
+                            $domainBlock->newBlock('data_mapping')->assign([
+                                'system_root' => SYSTEM_ROOT,
+                                'distributor_path' => $site['dist'],
+                                'route_path' => ltrim((($path === '/') ? $info['url_path'] : $info['url_path'] . '/' . $path) . '/', '/'),
+                                'data_path' => append('data', $site['domain'] . '-' . $site['dist'], '$1'),
+                            ]);
+                        }
 
                         foreach ($modules as $module) {
                             $moduleInfo = $module->getModuleInfo();

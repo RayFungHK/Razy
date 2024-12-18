@@ -153,11 +153,7 @@ class Entity
 			}
 
 			$entityMatched = [];
-			/** @var Entity $entity */
 			foreach ($entities as $entity) {
-				if (!($entity instanceof Entity)) {
-					exit;
-				}
 				if (!$entity->hasBlock($matches[1])) {
 					continue;
 				}

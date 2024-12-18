@@ -93,8 +93,6 @@ class Block
 
                                     break;
                                 }
-
-                                exit;
                             }
 
                             if (!$found) {

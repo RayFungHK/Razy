@@ -30,6 +30,7 @@ class Distributor
     private array $routes = [];
     private array $prerequisites = [];
     private ?Template $globalTemplate = null;
+    private array $dataMapping = [];
 
     /**
      * Distributor constructor.
@@ -84,6 +85,21 @@ class Distributor
 
         $config['autoload'] = (bool)($config['autoload'] ?? false);
         $this->autoload = $config['autoload'];
+
+        $config['data_mapping'] = $config['data_mapping'] ?? [];
+        if (is_array($config['data_mapping'])) {
+            foreach ($config['data_mapping'] as $path => $site) {
+                if (is_string($site)) {
+                    [$domain, $dist] = explode(':', $site . ':');
+                    if (is_fqdn($domain) && preg_match('/^[a-z][\w\-]*$/i', $dist)) {
+                        $this->dataMapping[$path] = [
+                            'domain' => $domain,
+                            'dist' => $dist,
+                        ];
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -518,7 +534,6 @@ class Distributor
                 $path = tidy($path, false, '/');
 
                 if (preg_match('/^r(@?):(.+)/', $path, $matches)) {
-                    echo $path;
                     $path = $matches[2];
                     header('Location: ' . append($matches[1] ? $this->getSiteURL() : $data['module']->getModuleURL(), $path));
                     exit;
@@ -713,6 +728,16 @@ class Distributor
     public function getModules(): array
     {
         return $this->modules;
+    }
+
+    /**
+     * Get the data mapping
+     *
+     * @return array
+     */
+    public function getDataMapping(): array
+    {
+        return $this->dataMapping;
     }
 
     /**
