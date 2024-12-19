@@ -17,7 +17,7 @@ use Throwable;
 
 header_remove('X-Powered-By');
 
-define('RAZY_VERSION', '0.5.0-233');
+define('RAZY_VERSION', '0.5.0-234');
 define('PLUGIN_FOLDER', append(SYSTEM_ROOT, 'plugins'));
 define('PHAR_PLUGIN_FOLDER', append(PHAR_PATH, 'plugins'));
 define('SITES_FOLDER', append(SYSTEM_ROOT, 'sites'));

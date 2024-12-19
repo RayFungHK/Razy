@@ -1,4 +1,5 @@
 <?php
+
 use Razy\Database\Statement;
 use Razy\Database\Statement\Builder;
 
@@ -13,9 +14,9 @@ return function (...$args) {
          * @param string $compareColumn
          * @param array $toggleColumn
          */
-        public function __construct(string|array $indexColumns = '',
+        public function __construct(string|array            $indexColumns = '',
                                     private readonly string $compareColumn = '',
-                                    private readonly array $toggleColumn = [])
+                                    private readonly array  $toggleColumn = [])
         {
             if (is_string($indexColumns)) {
                 $this->indexColumns = [$indexColumns];
@@ -43,27 +44,39 @@ return function (...$args) {
                 $indexMatch[] = 'a.' . $indexColumn . '=b.' . $indexColumn;
             }
 
-
             $clips = [];
             $parameters = [];
             foreach ($this->toggleColumn as $column => $value) {
+                $isExpr = false;
+                if ($column[0] === '@') {
+                    $column = substr($column, 1);
+                    $isExpr = true;
+                }
+
                 if (preg_match(Statement::REGEX_COLUMN, $column = trim($column))) {
                     if (is_bool($value)) {
-                        $value = (int) $value;
+                        $value = (int)$value;
                     }
-
-                    if (is_scalar($value) || is_array($value)) {
-                        $clips[] = $column . (is_array($value) ? '=|?' : '=' . '"' . preg_quote($value) . '"');
+                    if ($isExpr) {
+                        $clips[$column] = $value;
+                    } elseif (is_scalar($value) || is_array($value)) {
+                        $clips[$column] = $column . (is_array($value) ? '=|?' : '=' . '"' . preg_quote($value) . '"');
                         if (is_array($value)) {
                             $parameters[$column] = $value;
                         }
                     }
                 }
             }
-            $conditionA = ($clips) ? ',a.' . implode(',a.', $clips) : '';
-            $conditionB = ($clips) ? ',b.' . implode(',b.', $clips) : '';
 
-            $this->statement->select('a.*')->from($tableNameA . '<' . $tableNameB . '[?' . implode(',', $indexMatch) . ',a.' . $this->compareColumn . '<b.' . $this->compareColumn . $conditionB . ']')->where('b.' . $this->compareColumn . '=NULL' . $conditionA)->assign($parameters);
+            $statement = $this->statement
+                ->select('a.*')->from($tableNameA . '<' . $tableNameB . '[?' . implode(',', $indexMatch) . ',a.' . $this->compareColumn . '<b.' . $this->compareColumn . ']')
+                ->where('b.' . $this->compareColumn . '=NULL')->assign($parameters);
+
+            $comparisonA = $statement->alias('a');
+            $comparisonA->from($tableName)->where(implode(',', $clips));
+
+            $comparisonB = $statement->alias('b');
+            $comparisonB->from($tableName)->where(implode(',', $clips));
         }
     };
 };

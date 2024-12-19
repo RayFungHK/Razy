@@ -11,6 +11,7 @@
 namespace Razy\Database;
 
 use Closure;
+use Couchbase\View;
 use Razy\Controller;
 use Razy\Database;
 use Razy\Database\Statement\Builder;
@@ -543,6 +544,22 @@ class Statement
     }
 
     /**
+     * @param string $viewTableName
+     * @param array $parameters
+     * @return bool
+     * @throws Error
+     * @throws Throwable
+     */
+    public function createViewTable(string $viewTableName, array $parameters = []): bool
+    {
+        if (count($parameters)) {
+            $this->parameters = array_merge($this->parameters, $parameters);
+        }
+
+        return $this->database->createViewTable($this, $viewTableName);
+    }
+
+    /**
      * Get the collection after fetch query
      *
      * @param string $name
@@ -763,6 +780,8 @@ class Statement
     }
 
     /**
+     * Create a view table by given table name, only select statement is allowed to create view table.
+     *
      * @param string $tableName
      * @param array $parameters
      * @param string $whereSyntax
@@ -863,5 +882,15 @@ class Statement
         $this->whereSyntax->parseSyntax($syntax);
 
         return $this;
+    }
+
+    /**
+     * Get the statement syntax type.
+     *
+     * @return string
+     */
+    public function getType(): string
+    {
+        return $this->type;
     }
 }
