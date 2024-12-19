@@ -1,4 +1,5 @@
 <?php
+
 namespace Razy\FlowManager\Flow;
 
 use Razy\FlowManager\Flow;
@@ -43,9 +44,9 @@ return function (...$arguments) {
                         $parameters[$column] = $value;
                     }
                 } else {
-                    $filter[] = '!' . $worker->getToggleColumn();
+                    $filter[] = '!' . $toggleColumns;
                 }
-                $filter = (count($filter) > 1) ? ',' . implode(',', $filter) : '';
+                $filter = (count($filter)) ? ',' . implode(',', $filter) : '';
 
                 $result = $worker->getDatabase()
                     ->prepare()
