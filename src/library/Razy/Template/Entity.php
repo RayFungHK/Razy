@@ -504,7 +504,7 @@ class Entity
 		}
 
 		// If the content is a parameter tag
-		if (preg_match('/^(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>$/', $content, $matches)) {
+		if (preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
 			if ($matches[1]) {
 				return $matches[1] === 'true';
 			}

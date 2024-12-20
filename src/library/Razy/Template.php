@@ -106,6 +106,7 @@ class Template
         if (null !== $value) {
             if (strlen($path) > 0) {
                 preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
+
                 foreach ($matches as $clip) {
                     $key = (strlen($clip[3] ?? '') > 0) ? $clip[3] : ($clip[1] ?? '');
                     if (is_iterable($value)) {
