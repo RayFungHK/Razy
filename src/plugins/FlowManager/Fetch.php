@@ -62,6 +62,7 @@ return function (...$arguments) {
 
                 $parameters[$this->indexColumn] = $value;
                 if (!$result = $statement->lazy($parameters)) {
+                    $value = null;
                     if ($this->errorCode) {
                         $this->reject($this->errorCode);
                     }
