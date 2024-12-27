@@ -512,14 +512,16 @@ class Distributor
                         $regex = (strlen($matches[2] ?? '')) > 0 ? $matches[2] : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
                         return $regex . ((0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+');
                     }, $route);
-
-                    $route = '/^' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . '$/';
+                    $route = '/^(' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . ')((?:.+)?)/';
 
                     if (!preg_match($route, $this->urlQuery, $matches)) {
                         continue;
                     } else {
                         array_shift($matches);
+                        $route = array_shift($matches);
+                        $urlQuery = array_pop($matches);
                         $args = $matches;
+                        $args += explode('/', trim($urlQuery, '/'));
                     }
                 } else {
                     if (!str_starts_with($urlQuery, $route)) {
@@ -565,7 +567,6 @@ class Distributor
                     if ($data['type'] !== 'script') {
                         $data['module']->entry($this->routedInfo);
                     }
-
                     call_user_func_array($closure, $args);
                 }
 
