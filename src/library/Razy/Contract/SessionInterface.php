@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -24,8 +23,6 @@ namespace Razy\Contract;
  * Implementations decouple session logic from PHP's native session
  * functions, enabling testability (ArrayDriver) and flexible storage
  * backends (database, cache, etc.).
- *
- * @package Razy\Contract
  */
 interface SessionInterface
 {

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -24,8 +23,6 @@ namespace Razy\Validation;
  *
  * Rules are composable units — they attach to a FieldValidator just like Pipeline
  * sub-actions attach to a Validate action.
- *
- * @package Razy\Validation
  */
 interface ValidationRuleInterface
 {

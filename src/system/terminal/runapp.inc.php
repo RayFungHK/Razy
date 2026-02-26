@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: runapp
+ * CLI Command: runapp.
  *
  * Launches an interactive shell (REPL) for a distributor, bypassing the
  * normal sites.inc.php configuration. Allows developers to directly interact
@@ -11,6 +12,7 @@
  *
  * Arguments:
  *   dist_code  The distributor code (folder name in sites/)
+ *
  *   @tag       Optional tag (e.g., @dev, @1.0.0, defaults to *)
  *
  * Shell Commands:
@@ -24,13 +26,14 @@
  *   clear      Clear screen
  *   exit       Exit the shell
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
 use Razy\Util\PathUtil;
+use Throwable;
+
 return function (string $distIdentifier = '') {
     // Display usage information if no distributor identifier was provided
     if (!$distIdentifier) {
@@ -59,28 +62,30 @@ return function (string $distIdentifier = '') {
     }
 
     // Split the identifier into distributor code and optional tag (e.g., mysite@dev)
-    [$distCode, $tag] = explode('@', $distIdentifier . '@', 2);
+    [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
     $tag = $tag ?: '*';
 
     // Validate the distributor code format (alphanumeric with hyphens/underscores)
-    if (!preg_match('/^[a-z][\w\-]*$/i', $distCode)) {
+    if (!\preg_match('/^[a-z][\w\-]*$/i', $distCode)) {
         $this->writeLineLogging('{@c:red}[Error]{@reset} Invalid distributor code format: ' . $distCode, true);
         return false;
     }
 
     // Verify the distributor folder exists in the sites directory
     $distPath = PathUtil::append(SITES_FOLDER, $distCode);
-    if (!is_dir($distPath)) {
+    if (!\is_dir($distPath)) {
         $this->writeLineLogging('{@c:red}[Error]{@reset} Distributor folder not found: ' . $distPath, true);
         $this->writeLineLogging('Available distributors:', true);
-        
+
         // List available distributors
         $sitesFolder = SITES_FOLDER;
-        if (is_dir($sitesFolder)) {
-            $dirs = scandir($sitesFolder);
+        if (\is_dir($sitesFolder)) {
+            $dirs = \scandir($sitesFolder);
             foreach ($dirs as $dir) {
-                if ($dir === '.' || $dir === '..') continue;
-                if (is_dir(PathUtil::append($sitesFolder, $dir)) && is_file(PathUtil::append($sitesFolder, $dir, 'dist.php'))) {
+                if ($dir === '.' || $dir === '..') {
+                    continue;
+                }
+                if (\is_dir(PathUtil::append($sitesFolder, $dir)) && \is_file(PathUtil::append($sitesFolder, $dir, 'dist.php'))) {
                     $this->writeLineLogging('  {@c:green}' . $dir . '{@reset}', true);
                 }
             }
@@ -89,7 +94,7 @@ return function (string $distIdentifier = '') {
     }
 
     // Ensure dist.php exists as the distributor configuration entry point
-    if (!is_file(PathUtil::append($distPath, 'dist.php'))) {
+    if (!\is_file(PathUtil::append($distPath, 'dist.php'))) {
         $this->writeLineLogging('{@c:red}[Error]{@reset} Missing dist.php in: ' . $distPath, true);
         return false;
     }
@@ -103,21 +108,20 @@ return function (string $distIdentifier = '') {
         $distributor->initialize();
 
         // Define DIST_CODE constant if not already defined
-        if (!defined('DIST_CODE')) {
-            define('DIST_CODE', $distributor->getCode());
+        if (!\defined('DIST_CODE')) {
+            \define('DIST_CODE', $distributor->getCode());
         }
 
         $loadedModules = $distributor->getRegistry()->getLoadedModulesInfo();
         $routes = $distributor->getRouter()->getRoutes();
 
         $this->writeLineLogging('{@c:green}[OK]{@reset} Distributor initialized', true);
-        $this->writeLineLogging('  Modules loaded: {@c:cyan}' . count($loadedModules) . '{@reset}', true);
-        $this->writeLineLogging('  Routes registered: {@c:cyan}' . count($routes) . '{@reset}', true);
+        $this->writeLineLogging('  Modules loaded: {@c:cyan}' . \count($loadedModules) . '{@reset}', true);
+        $this->writeLineLogging('  Routes registered: {@c:cyan}' . \count($routes) . '{@reset}', true);
         $this->writeLineLogging('');
         $this->writeLineLogging('Type {@c:yellow}help{@reset} for available commands, {@c:yellow}exit{@reset} to quit.', true);
         $this->writeLineLogging('');
-
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $this->writeLineLogging('{@c:red}[Error]{@reset} Failed to initialize distributor: ' . $e->getMessage(), true);
         return false;
     }
@@ -126,36 +130,36 @@ return function (string $distIdentifier = '') {
     $promptPrefix = ($tag !== '*') ? $distCode . '@' . $tag : $distCode;
 
     // Detect interactive vs piped input for graceful EOF handling
-    $isInteractive = function_exists('stream_isatty') ? stream_isatty(STDIN) : true;
+    $isInteractive = \function_exists('stream_isatty') ? \stream_isatty(STDIN) : true;
     $emptyCount = 0;
     $maxEmptyReads = 3; // Allow some empty reads before exiting non-interactive mode
 
     // Main interactive shell loop: reads commands and dispatches them
     while (true) {
         // Check for end-of-input before reading
-        if (feof(STDIN)) {
+        if (\feof(STDIN)) {
             break;
         }
 
         // Display prompt
         echo Terminal::Format('{@c:green}[' . $promptPrefix . ']{@reset}> ');
-        
+
         // Read input - use fgets for better EOF handling
-        $input = fgets(STDIN);
-        
-        if ($input === false || feof(STDIN)) {
+        $input = \fgets(STDIN);
+
+        if ($input === false || \feof(STDIN)) {
             // EOF or error - clean exit
             echo "\n";
             break;
         }
 
-        $input = trim($input);
-        
+        $input = \trim($input);
+
         // Strip UTF-8 BOM that PowerShell may prepend to piped input
-        if (str_starts_with($input, "\xEF\xBB\xBF")) {
-            $input = substr($input, 3);
+        if (\str_starts_with($input, "\xEF\xBB\xBF")) {
+            $input = \substr($input, 3);
         }
-        
+
         if ($input === '') {
             if (!$isInteractive) {
                 $emptyCount++;
@@ -165,13 +169,13 @@ return function (string $distIdentifier = '') {
             }
             continue;
         }
-        
+
         // Reset empty counter on valid input
         $emptyCount = 0;
 
         // Parse the user input into command and arguments
-        $parts = preg_split('/\s+/', $input, 2);
-        $command = strtolower($parts[0]);
+        $parts = \preg_split('/\s+/', $input, 2);
+        $command = \strtolower($parts[0]);
         $args = $parts[1] ?? '';
 
         switch ($command) {
@@ -201,13 +205,13 @@ return function (string $distIdentifier = '') {
                 // List all registered routes with their owning module and handler type
                 $routes = $distributor->getRouter()->getRoutes();
                 $this->writeLineLogging('');
-                $this->writeLineLogging('{@c:cyan}Registered Routes ({@c:yellow}' . count($routes) . '{@c:cyan}):{@reset}', true);
+                $this->writeLineLogging('{@c:cyan}Registered Routes ({@c:yellow}' . \count($routes) . '{@c:cyan}):{@reset}', true);
                 if (empty($routes)) {
                     $this->writeLineLogging('  {@c:darkgray}(no routes registered){@reset}', true);
                 } else {
                     foreach ($routes as $route => $info) {
                         $module = $info['module'] ?? null;
-                        $moduleCode = $module instanceof \Razy\Module ? $module->getModuleInfo()->getCode() : 'unknown';
+                        $moduleCode = $module instanceof Module ? $module->getModuleInfo()->getCode() : 'unknown';
                         $path = $info['path'] ?? '';
                         $type = $info['type'] ?? '';
                         $this->writeLineLogging('  {@c:green}' . $route . '{@reset} => {@c:yellow}' . $moduleCode . '{@reset}::' . $path . ' {@c:darkgray}[' . $type . ']{@reset}', true);
@@ -220,14 +224,14 @@ return function (string $distIdentifier = '') {
                 // List all loaded modules with version and author metadata
                 $modules = $distributor->getRegistry()->getLoadedModulesInfo();
                 $this->writeLineLogging('');
-                $this->writeLineLogging('{@c:cyan}Loaded Modules ({@c:yellow}' . count($modules) . '{@c:cyan}):{@reset}', true);
+                $this->writeLineLogging('{@c:cyan}Loaded Modules ({@c:yellow}' . \count($modules) . '{@c:cyan}):{@reset}', true);
                 if (empty($modules)) {
                     $this->writeLineLogging('  {@c:darkgray}(no modules loaded){@reset}', true);
                 } else {
                     foreach ($modules as $moduleCode => $info) {
                         $version = $info['version'] ?? 'default';
                         $module = $info['module'] ?? null;
-                        $author = $module instanceof \Razy\Module ? $module->getModuleInfo()->getAuthor() : '';
+                        $author = $module instanceof Module ? $module->getModuleInfo()->getAuthor() : '';
                         $authorStr = $author ? ' by {@c:darkgray}' . $author . '{@reset}' : '';
                         $this->writeLineLogging('  {@c:green}' . $moduleCode . '{@reset} ({@c:yellow}' . $version . '{@reset})' . $authorStr, true);
                     }
@@ -245,7 +249,7 @@ return function (string $distIdentifier = '') {
                     }
                 }
                 $this->writeLineLogging('');
-                $this->writeLineLogging('{@c:cyan}API Modules ({@c:yellow}' . count($apiModules) . '{@c:cyan}):{@reset}', true);
+                $this->writeLineLogging('{@c:cyan}API Modules ({@c:yellow}' . \count($apiModules) . '{@c:cyan}):{@reset}', true);
                 if (empty($apiModules)) {
                     $this->writeLineLogging('  {@c:darkgray}(no API modules registered){@reset}', true);
                 } else {
@@ -263,8 +267,8 @@ return function (string $distIdentifier = '') {
                 $this->writeLineLogging('  Tag: {@c:yellow}' . ($tag === '*' ? 'default' : $tag) . '{@reset}', true);
                 $this->writeLineLogging('  Identifier: {@c:cyan}' . $distributor->getIdentifier() . '{@reset}', true);
                 $this->writeLineLogging('  Path: ' . $distPath, true);
-                $this->writeLineLogging('  Modules: {@c:cyan}' . count($distributor->getRegistry()->getLoadedModulesInfo()) . '{@reset}', true);
-                $this->writeLineLogging('  Routes: {@c:cyan}' . count($distributor->getRouter()->getRoutes()) . '{@reset}', true);
+                $this->writeLineLogging('  Modules: {@c:cyan}' . \count($distributor->getRegistry()->getLoadedModulesInfo()) . '{@reset}', true);
+                $this->writeLineLogging('  Routes: {@c:cyan}' . \count($distributor->getRouter()->getRoutes()) . '{@reset}', true);
                 $this->writeLineLogging('', true);
                 break;
 
@@ -275,30 +279,30 @@ return function (string $distIdentifier = '') {
                     $this->writeLineLogging('  Example: run /demo/hello', true);
                     break;
                 }
-                
-                $urlQuery = '/' . ltrim($args, '/');
+
+                $urlQuery = '/' . \ltrim($args, '/');
                 $this->writeLineLogging('{@c:cyan}Executing:{@reset} ' . $urlQuery, true);
                 $this->writeLineLogging('', true);
-                
+
                 try {
                     // Capture output
-                    ob_start();
-                    
+                    \ob_start();
+
                     // Match and execute route
                     if ($distributor->matchRoute()) {
                         $result = $distributor->execute();
                     } else {
                         echo 'No route matched for: ' . $urlQuery;
                     }
-                    
-                    $output = ob_get_clean();
-                    
+
+                    $output = \ob_get_clean();
+
                     if ($output) {
                         echo $output;
                         echo PHP_EOL;
                     }
-                } catch (\Throwable $e) {
-                    ob_end_clean();
+                } catch (Throwable $e) {
+                    \ob_end_clean();
                     $this->writeLineLogging('{@c:red}[Error]{@reset} ' . $e->getMessage(), true);
                 }
                 $this->writeLineLogging('', true);
@@ -306,40 +310,40 @@ return function (string $distIdentifier = '') {
 
             case 'call':
                 // Invoke an API command on a loaded module (e.g., call vendor/module getData)
-                $callParts = preg_split('/\s+/', $args, 2);
+                $callParts = \preg_split('/\s+/', $args, 2);
                 $apiModule = $callParts[0] ?? '';
                 $apiCommand = $callParts[1] ?? '';
-                
+
                 if (!$apiModule || !$apiCommand) {
                     $this->writeLineLogging('{@c:red}[Error]{@reset} Usage: call <module> <command> [args...]', true);
                     $this->writeLineLogging('  Example: call vendor/module getData', true);
                     break;
                 }
-                
+
                 $this->writeLineLogging('{@c:cyan}Calling API:{@reset} ' . $apiModule . '->' . $apiCommand . '()', true);
-                
+
                 try {
                     $module = $distributor->getRegistry()->getLoadedAPIModule($apiModule);
                     if (!$module) {
                         $module = $distributor->getRegistry()->getLoadedModule($apiModule);
                     }
-                    
+
                     if ($module) {
                         // Parse additional arguments as JSON if provided after command name
-                        $cmdParts = preg_split('/\s+/', $apiCommand, 2);
+                        $cmdParts = \preg_split('/\s+/', $apiCommand, 2);
                         $cmdName = $cmdParts[0];
                         $cmdArgs = [];
                         if (!empty($cmdParts[1])) {
-                            $decoded = json_decode($cmdParts[1], true);
-                            $cmdArgs = is_array($decoded) ? $decoded : [$cmdParts[1]];
+                            $decoded = \json_decode($cmdParts[1], true);
+                            $cmdArgs = \is_array($decoded) ? $decoded : [$cmdParts[1]];
                         }
-                        
+
                         $result = $module->execute($module->getModuleInfo(), $cmdName, $cmdArgs);
-                        
+
                         if ($result !== null) {
                             $this->writeLineLogging('{@c:green}Result:{@reset}', true);
-                            if (is_array($result) || is_object($result)) {
-                                echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+                            if (\is_array($result) || \is_object($result)) {
+                                echo \json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
                             } else {
                                 echo $result . PHP_EOL;
                             }
@@ -349,7 +353,7 @@ return function (string $distIdentifier = '') {
                     } else {
                         $this->writeLineLogging('{@c:red}[Error]{@reset} Module not found: ' . $apiModule, true);
                     }
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     $this->writeLineLogging('{@c:red}[Error]{@reset} ' . $e->getMessage(), true);
                 }
                 $this->writeLineLogging('', true);
@@ -363,28 +367,28 @@ return function (string $distIdentifier = '') {
 
             default:
                 // Try to execute as a route path directly
-                if (str_starts_with($command, '/')) {
+                if (\str_starts_with($command, '/')) {
                     $urlQuery = $command . ($args ? ' ' . $args : '');
                     $this->writeLineLogging('{@c:cyan}Executing:{@reset} ' . $urlQuery, true);
-                    
+
                     try {
                         // Create new distributor with the URL query
                         $execDist = new Distributor($distCode, $tag, null, '', $urlQuery);
                         $execDist->initialize();
-                        
-                        ob_start();
+
+                        \ob_start();
                         if ($execDist->matchRoute()) {
                             $execDist->execute();
                         } else {
                             echo 'No route matched for: ' . $urlQuery;
                         }
-                        $output = ob_get_clean();
-                        
+                        $output = \ob_get_clean();
+
                         if ($output) {
                             echo $output . PHP_EOL;
                         }
-                    } catch (\Throwable $e) {
-                        ob_end_clean();
+                    } catch (Throwable $e) {
+                        \ob_end_clean();
                         $this->writeLineLogging('{@c:red}[Error]{@reset} ' . $e->getMessage(), true);
                     }
                 } else {

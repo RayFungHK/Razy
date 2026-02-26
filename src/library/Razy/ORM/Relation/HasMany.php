@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -22,8 +21,6 @@ use Razy\ORM\ModelCollection;
  * HasMany relationship — the parent has many related models.
  *
  * Example: A User hasMany Posts, where posts.user_id references users.id.
- *
- * @package Razy\ORM\Relation
  */
 class HasMany extends Relation
 {

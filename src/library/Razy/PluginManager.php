@@ -14,7 +14,6 @@
  * cache), but they are all managed through a single PluginManager instance,
  * enabling a one-call `resetAll()` for worker mode cleanup.
  *
- * @package Razy
  *
  * @license MIT
  */

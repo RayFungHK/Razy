@@ -10,7 +10,6 @@
  *
  * Introduced in Phase 3.3 to replace exit() in Controller::goto().
  *
- * @package Razy
  *
  * @license MIT
  */

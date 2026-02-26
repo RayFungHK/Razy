@@ -12,7 +12,6 @@
  * Produces comprehensive context documents for LLM agents at root, distribution,
  * and module levels using the Razy Template Engine.
  *
- * @package Razy
  *
  * @license MIT
  */

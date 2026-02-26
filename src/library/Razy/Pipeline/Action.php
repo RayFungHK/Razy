@@ -13,7 +13,6 @@
  * relationships, conditional chaining, recursive delegation, and inter-action
  * communication via shared storage and broadcasting.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -70,8 +69,6 @@ use Razy\Pipeline;
  *   getChildren()          Public accessor for child actions
  *
  * @class Action
- *
- * @package Razy\Pipeline
  */
 abstract class Action
 {

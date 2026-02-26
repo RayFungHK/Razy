@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -36,8 +35,6 @@ use Throwable;
  * PackageManager can work identically in both multisite and standalone mode.
  *
  * @class Standalone
- *
- * @package Razy
  */
 class Standalone implements DistributorInterface
 {

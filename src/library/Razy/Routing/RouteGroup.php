@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -52,8 +51,6 @@ use Razy\Route;
  *     $group->addRoute('/posts', 'api/posts');
  * });
  * ```
- *
- * @package Razy\Routing
  */
 class RouteGroup
 {

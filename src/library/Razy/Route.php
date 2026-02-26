@@ -11,7 +11,6 @@
  * Represents a route entry that maps a closure path to its associated
  * controller, with optional attached data for route-level context.
  *
- * @package Razy
  *
  * @license MIT
  */

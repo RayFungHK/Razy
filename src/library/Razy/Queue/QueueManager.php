@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -32,8 +31,6 @@ use Throwable;
  *   $manager = new QueueManager($store);
  *   $manager->dispatch('emails', SendEmailHandler::class, ['to' => 'a@b.com']);
  *   $manager->process('emails');
- *
- * @package Razy\Queue
  */
 class QueueManager
 {

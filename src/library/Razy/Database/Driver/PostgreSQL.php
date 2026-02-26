@@ -22,7 +22,6 @@ use Razy\Database\Driver;
  * including || concatenation, LIMIT/OFFSET syntax, SERIAL/BIGSERIAL columns,
  * and ON CONFLICT ... DO UPDATE for upsert operations.
  *
- * @package Razy
  *
  * @license MIT
  */

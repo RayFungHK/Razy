@@ -8,7 +8,6 @@
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
- * @package Razy
  *
  * @license MIT
  */

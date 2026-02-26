@@ -25,8 +25,6 @@ use Throwable;
  *
  * @class Collection
  *
- * @package Razy
- *
  * @license MIT
  */
 class Collection extends ArrayObject

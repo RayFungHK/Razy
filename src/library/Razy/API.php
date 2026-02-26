@@ -21,8 +21,6 @@ use Razy\Contract\DistributorInterface;
  *
  * @class API
  *
- * @package Razy
- *
  * @license MIT
  */
 class API

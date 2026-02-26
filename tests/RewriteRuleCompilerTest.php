@@ -16,63 +16,63 @@ class RewriteRuleCompilerTest extends TestCase
     public function domainToPatternEscapesDots(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('example.com');
-        $this->assertSame('example\.com(:\\d+)?', $pattern);
+        $this->assertSame('example\.com(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternConvertsWildcard(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('*.example.com');
-        $this->assertSame('.+\.example\.com(:\\d+)?', $pattern);
+        $this->assertSame('.+\.example\.com(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternSimpleDomain(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('localhost');
-        $this->assertSame('localhost(:\\d+)?', $pattern);
+        $this->assertSame('localhost(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternMultipleSubdomains(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('sub.domain.example.com');
-        $this->assertSame('sub\.domain\.example\.com(:\\d+)?', $pattern);
+        $this->assertSame('sub\.domain\.example\.com(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternWildcardOnly(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('*');
-        $this->assertSame('.+(:\\d+)?', $pattern);
+        $this->assertSame('.+(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternMultipleWildcards(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('*.*.example.com');
-        $this->assertSame('.+\..+\.example\.com(:\\d+)?', $pattern);
+        $this->assertSame('.+\..+\.example\.com(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternIpAddress(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('192.168.1.1');
-        $this->assertSame('192\.168\.1\.1(:\\d+)?', $pattern);
+        $this->assertSame('192\.168\.1\.1(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternEmptyString(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('');
-        $this->assertSame('(:\\d+)?', $pattern);
+        $this->assertSame('(:\d+)?', $pattern);
     }
 
     #[Test]
     public function domainToPatternTrailingDot(): void
     {
         $pattern = RewriteRuleCompiler::domainToPattern('example.com.');
-        $this->assertSame('example\.com\.(:\\d+)?', $pattern);
+        $this->assertSame('example\.com\.(:\d+)?', $pattern);
     }
 
     #[Test]

@@ -24,7 +24,6 @@ use Throwable;
  * (INNER, LEFT, RIGHT, CROSS, LEFT/RIGHT OUTER). Join conditions can use
  * column lists (USING / ON), or full Where Simple Syntax via the [?...] prefix.
  *
- * @package Razy
  *
  * @license MIT
  */

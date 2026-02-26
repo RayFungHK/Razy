@@ -28,8 +28,6 @@ use Throwable;
  *
  * @class Agent
  *
- * @package Razy
- *
  * @license MIT
  */
 class Agent

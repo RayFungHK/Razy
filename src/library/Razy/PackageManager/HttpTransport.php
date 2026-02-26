@@ -12,7 +12,6 @@
  * Packagist-compatible repositories, GitHub releases, or any HTTP
  * mirror that follows the Composer repository structure.
  *
- * @package Razy
  *
  * @license MIT
  */

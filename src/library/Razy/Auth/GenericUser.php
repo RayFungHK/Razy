@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -23,8 +22,6 @@ use Razy\Contract\AuthenticatableInterface;
  * Suitable for testing, API-token-based auth, or any scenario where
  * a full user model is not needed. Attributes are accessed via
  * array-backed getters.
- *
- * @package Razy\Auth
  */
 class GenericUser implements AuthenticatableInterface
 {

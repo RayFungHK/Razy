@@ -22,7 +22,6 @@ use Throwable;
  * Provides lazy(), lazyGroup(), lazyKeyValuePair() convenience methods, plus
  * row parser callbacks and column value collection.
  *
- * @package Razy\Database
  *
  * @license MIT
  */

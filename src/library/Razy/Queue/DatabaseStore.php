@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -25,8 +24,6 @@ use Razy\Database;
  *
  * Uses Razy's query builder API (insert/update/delete/select) for all DML
  * and raw DDL only for ensureStorage().
- *
- * @package Razy\Queue
  */
 class DatabaseStore implements QueueStoreInterface
 {

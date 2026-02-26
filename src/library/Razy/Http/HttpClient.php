@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -57,8 +56,6 @@ use CurlHandle;
  * - Response wrapper with status helpers, JSON parsing, header access
  * - Request/response interceptors
  * - Retry support
- *
- * @package Razy\Http
  */
 class HttpClient
 {

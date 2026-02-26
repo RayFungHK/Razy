@@ -10,7 +10,6 @@
  *
  * Introduced in Phase 3.3 to replace exit() in Application::loadSiteConfig().
  *
- * @package Razy
  *
  * @license MIT
  */

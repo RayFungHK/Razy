@@ -12,7 +12,6 @@
  * Unlike TFunction, custom functions receive the raw syntax string without
  * automatic parameter parsing, allowing full control over argument handling.
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -26,8 +25,6 @@ use SplFileObject;
  * in order, automatically advancing to the next file when one is exhausted.
  *
  * @class FileReader
- *
- * @package Razy
  */
 class FileReader
 {

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -17,8 +16,6 @@ namespace Razy\Queue;
 
 /**
  * Enum representing the lifecycle status of a queued job.
- *
- * @package Razy\Queue
  */
 enum JobStatus: string
 {

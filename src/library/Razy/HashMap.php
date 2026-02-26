@@ -12,7 +12,6 @@
  * array access, and counting. Elements can be referenced by
  * custom string keys, object identity hashes, or auto-generated IDs.
  *
- * @package Razy
  *
  * @license MIT
  */

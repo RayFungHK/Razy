@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: install
+ * CLI Command: install.
  *
  * Downloads and installs modules from GitHub repositories or custom repository URLs.
  * Supports multiple repository formats including GitHub shorthand (owner/repo),
@@ -26,21 +27,23 @@
  *   --token=TOKEN        Authentication token (for private repos)
  *   -y, --yes            Auto-confirm all prompts
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
+use Exception;
+use Phar;
 use Razy\Util\PathUtil;
+
 return function (string $repository = '', string $targetPath = '', ...$options) use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Repository Module Installer', true);
     $this->writeLineLogging('Download and install modules from GitHub or custom repositories', true);
     $this->writeLineLogging('', true);
 
     // Handle case where targetPath is actually an option (starts with -)
-    if (str_starts_with($targetPath, '-')) {
-        array_unshift($options, $targetPath);
+    if (\str_starts_with($targetPath, '-')) {
+        \array_unshift($options, $targetPath);
         $targetPath = '';
     }
 
@@ -57,16 +60,16 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             $version = RepoInstaller::VERSION_LATEST;
         } elseif ($option === '--stable' || $option === '-s') {
             $version = RepoInstaller::VERSION_STABLE;
-        } elseif (str_starts_with($option, '--version=') || str_starts_with($option, '-v=')) {
-            $version = substr($option, strpos($option, '=') + 1);
-        } elseif (str_starts_with($option, '--branch=') || str_starts_with($option, '-b=')) {
-            $version = substr($option, strpos($option, '=') + 1);
-        } elseif (str_starts_with($option, '--token=')) {
-            $authToken = substr($option, 8);
-        } elseif (str_starts_with($option, '--name=') || str_starts_with($option, '-n=')) {
-            $moduleName = substr($option, strpos($option, '=') + 1);
-        } elseif (str_starts_with($option, '--dist=') || str_starts_with($option, '-d=')) {
-            $distCode = substr($option, strpos($option, '=') + 1);
+        } elseif (\str_starts_with($option, '--version=') || \str_starts_with($option, '-v=')) {
+            $version = \substr($option, \strpos($option, '=') + 1);
+        } elseif (\str_starts_with($option, '--branch=') || \str_starts_with($option, '-b=')) {
+            $version = \substr($option, \strpos($option, '=') + 1);
+        } elseif (\str_starts_with($option, '--token=')) {
+            $authToken = \substr($option, 8);
+        } elseif (\str_starts_with($option, '--name=') || \str_starts_with($option, '-n=')) {
+            $moduleName = \substr($option, \strpos($option, '=') + 1);
+        } elseif (\str_starts_with($option, '--dist=') || \str_starts_with($option, '-d=')) {
+            $distCode = \substr($option, \strpos($option, '=') + 1);
         } elseif ($option === '--from-repo' || $option === '-r') {
             $fromRepo = true;
         } elseif ($option === '--yes' || $option === '-y') {
@@ -75,7 +78,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
     }
 
     // Validate required parameters
-    $repository = trim($repository);
+    $repository = \trim($repository);
     if (!$repository) {
         $this->writeLineLogging('{@c:red}[ERROR] Repository is required.{@reset}', true);
         $this->writeLineLogging('', true);
@@ -138,7 +141,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         if ($fromRepo) {
             // Load repository configuration
             $repositoryConfig = SYSTEM_ROOT . '/repository.inc.php';
-            if (!is_file($repositoryConfig)) {
+            if (!\is_file($repositoryConfig)) {
                 $this->writeLineLogging('{@c:red}[ERROR] No repository.inc.php found.{@reset}', true);
                 $this->writeLineLogging('', true);
                 $this->writeLineLogging('Create repository.inc.php in your project root:', true);
@@ -150,7 +153,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             }
 
             $repositories = include $repositoryConfig;
-            if (!is_array($repositories) || empty($repositories)) {
+            if (!\is_array($repositories) || empty($repositories)) {
                 $this->writeLineLogging('{@c:red}[ERROR] No repositories configured.{@reset}', true);
                 exit(1);
             }
@@ -159,8 +162,8 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             $moduleCode = $repository;
             $requestedVersion = $version;
 
-            if (str_contains($repository, '@')) {
-                [$moduleCode, $requestedVersion] = explode('@', $repository, 2);
+            if (\str_contains($repository, '@')) {
+                [$moduleCode, $requestedVersion] = \explode('@', $repository, 2);
             }
 
             // Look up the module in configured repositories
@@ -179,7 +182,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             }
 
             $this->writeLineLogging('[{@c:green}✓{@reset}] Found module: {@c:cyan}' . $moduleCode . '{@reset}', true);
-            
+
             // Show module information
             if (!empty($moduleInfo['description'])) {
                 $this->writeLineLogging('    Description: ' . $moduleInfo['description'], true);
@@ -200,7 +203,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
             // Show available versions
             $versions = $moduleInfo['versions'] ?? [$requestedVersion];
-            $this->writeLineLogging('    Available versions: ' . implode(', ', array_slice($versions, 0, 5)) . (count($versions) > 5 ? '...' : ''), true);
+            $this->writeLineLogging('    Available versions: ' . \implode(', ', \array_slice($versions, 0, 5)) . (\count($versions) > 5 ? '...' : ''), true);
             $this->writeLineLogging('[{@c:green}✓{@reset}] Selected version: {@c:cyan}' . $requestedVersion . '{@reset}', true);
             $this->writeLineLogging('', true);
 
@@ -213,17 +216,17 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                 } else {
                     $this->writeLineLogging('{@c:yellow}[SELECT] Where to install?{@reset}', true);
                     $this->writeLineLogging('', true);
-                    
+
                     // List available distributors
                     $sitesPath = PathUtil::append(SYSTEM_ROOT, 'sites');
                     $distributors = [];
-                    if (is_dir($sitesPath)) {
-                        $dirs = glob(PathUtil::append($sitesPath, '*'), GLOB_ONLYDIR);
+                    if (\is_dir($sitesPath)) {
+                        $dirs = \glob(PathUtil::append($sitesPath, '*'), GLOB_ONLYDIR);
                         foreach ($dirs as $dir) {
-                            $distributors[] = basename($dir);
+                            $distributors[] = \basename($dir);
                         }
                     }
-                    
+
                     $this->writeLineLogging('  {@c:cyan}[0]{@reset} Shared modules (shared/module/)', true);
                     $index = 1;
                     foreach ($distributors as $dist) {
@@ -232,17 +235,17 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                     }
                     $this->writeLineLogging('', true);
                     $this->writeLineLogging('Enter selection (default: 0): ', false);
-                    
-                    $handle = fopen('php://stdin', 'r');
-                    $selection = trim(fgets($handle));
-                    fclose($handle);
+
+                    $handle = \fopen('php://stdin', 'r');
+                    $selection = \trim(\fgets($handle));
+                    \fclose($handle);
                     $this->writeLineLogging('', true);
-                    
+
                     if ($selection === '' || $selection === '0') {
                         // Shared modules (default)
                         $distCode = '';
-                    } elseif (is_numeric($selection) && $selection > 0 && $selection <= count($distributors)) {
-                        $distCode = $distributors[(int)$selection - 1];
+                    } elseif (\is_numeric($selection) && $selection > 0 && $selection <= \count($distributors)) {
+                        $distCode = $distributors[(int) $selection - 1];
                     } else {
                         $this->writeLineLogging('{@c:red}[ERROR] Invalid selection{@reset}', true);
                         exit(1);
@@ -258,13 +261,13 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             if ($repoUrl) {
                 // Fetch and display disclaimer.txt
                 $disclaimerUrl = $repoManager->buildRawUrl($repoUrl, $repoBranch, $moduleCode . '/disclaimer.txt');
-                $disclaimerContent = @file_get_contents($disclaimerUrl);
-                if ($disclaimerContent !== false && trim($disclaimerContent)) {
+                $disclaimerContent = @\file_get_contents($disclaimerUrl);
+                if ($disclaimerContent !== false && \trim($disclaimerContent)) {
                     $this->writeLineLogging('{@c:yellow}═══════════════════════════════════════════════════════════════{@reset}', true);
                     $this->writeLineLogging('{@c:yellow}                        DISCLAIMER{@reset}', true);
                     $this->writeLineLogging('{@c:yellow}═══════════════════════════════════════════════════════════════{@reset}', true);
                     $this->writeLineLogging('', true);
-                    foreach (explode("\n", trim($disclaimerContent)) as $line) {
+                    foreach (\explode("\n", \trim($disclaimerContent)) as $line) {
                         $this->writeLineLogging($line, true);
                     }
                     $this->writeLineLogging('', true);
@@ -274,13 +277,13 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
                 // Fetch and require acceptance of terms.txt
                 $termsUrl = $repoManager->buildRawUrl($repoUrl, $repoBranch, $moduleCode . '/terms.txt');
-                $termsContent = @file_get_contents($termsUrl);
-                if ($termsContent !== false && trim($termsContent)) {
+                $termsContent = @\file_get_contents($termsUrl);
+                if ($termsContent !== false && \trim($termsContent)) {
                     $this->writeLineLogging('{@c:red}═══════════════════════════════════════════════════════════════{@reset}', true);
                     $this->writeLineLogging('{@c:red}                    TERMS AND CONDITIONS{@reset}', true);
                     $this->writeLineLogging('{@c:red}═══════════════════════════════════════════════════════════════{@reset}', true);
                     $this->writeLineLogging('', true);
-                    foreach (explode("\n", trim($termsContent)) as $line) {
+                    foreach (\explode("\n", \trim($termsContent)) as $line) {
                         $this->writeLineLogging($line, true);
                     }
                     $this->writeLineLogging('', true);
@@ -289,9 +292,9 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                     $this->writeLineLogging('{@c:yellow}You must accept the terms and conditions to continue.{@reset}', true);
                     $this->writeLineLogging('Type {@c:green}yes{@reset} or {@c:green}agree{@reset} to accept: ', false);
 
-                    $handle = fopen('php://stdin', 'r');
-                    $response = strtolower(trim(fgets($handle)));
-                    fclose($handle);
+                    $handle = \fopen('php://stdin', 'r');
+                    $response = \strtolower(\trim(\fgets($handle)));
+                    \fclose($handle);
 
                     if ($response !== 'yes' && $response !== 'agree') {
                         $this->writeLineLogging('', true);
@@ -306,9 +309,9 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             // Prompt user to confirm installation
             if (!$autoConfirm) {
                 $this->writeLineLogging('Install {@c:cyan}' . $moduleCode . '@' . $requestedVersion . '{@reset}? (y/N): ', false);
-                $handle = fopen('php://stdin', 'r');
-                $response = strtolower(trim(fgets($handle)));
-                fclose($handle);
+                $handle = \fopen('php://stdin', 'r');
+                $response = \strtolower(\trim(\fgets($handle)));
+                \fclose($handle);
 
                 if ($response !== 'y' && $response !== 'yes') {
                     $this->writeLineLogging('{@c:yellow}Installation cancelled.{@reset}', true);
@@ -341,49 +344,49 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             // Download the .phar file from the resolved URL
             $this->writeLineLogging('[{@c:yellow}DOWNLOAD{@reset}] Starting download...', true);
 
-            $ch = curl_init($downloadUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
+            $ch = \curl_init($downloadUrl);
+            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
 
-            $pharContent = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $downloadSize = curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
-            curl_close($ch);
+            $pharContent = \curl_exec($ch);
+            $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $downloadSize = \curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
+            \curl_close($ch);
 
             if ($httpCode !== 200 || $pharContent === false) {
                 $this->writeLineLogging('{@c:red}[ERROR] Failed to download module (HTTP ' . $httpCode . '){@reset}', true);
                 exit(1);
             }
 
-            $sizeInKB = round($downloadSize / 1024, 2);
+            $sizeInKB = \round($downloadSize / 1024, 2);
             $this->writeLineLogging('[{@c:green}✓{@reset}] Downloaded ({@c:green}' . $sizeInKB . ' KB{@reset})', true);
 
             // Save the downloaded content to a temp file and extract it to the target path
-            $tempPhar = sys_get_temp_dir() . '/razy_' . md5(microtime()) . '.phar';
-            file_put_contents($tempPhar, $pharContent);
+            $tempPhar = \sys_get_temp_dir() . '/razy_' . \md5(\microtime()) . '.phar';
+            \file_put_contents($tempPhar, $pharContent);
 
             $this->writeLineLogging('[{@c:yellow}EXTRACT{@reset}] Extracting module...', true);
 
             try {
                 // Create target directory
-                if (!is_dir($targetPath)) {
-                    mkdir($targetPath, 0755, true);
+                if (!\is_dir($targetPath)) {
+                    \mkdir($targetPath, 0755, true);
                 }
 
                 // Extract phar to target
-                $phar = new \Phar($tempPhar);
+                $phar = new Phar($tempPhar);
                 $phar->extractTo($targetPath, null, true);
 
                 $this->writeLineLogging('[{@c:green}✓{@reset}] Extracted to: {@c:cyan}' . $targetPath . '{@reset}', true);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->writeLineLogging('{@c:red}[ERROR] Failed to extract: ' . $e->getMessage() . '{@reset}', true);
-                @unlink($tempPhar);
+                @\unlink($tempPhar);
                 exit(1);
             }
 
-            @unlink($tempPhar);
+            @\unlink($tempPhar);
 
             $this->writeLineLogging('', true);
             $this->writeLineLogging('{@c:green}[SUCCESS] Module installed!{@reset}', true);
@@ -393,66 +396,66 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
             // Check for required modules and install them
             $moduleConfigPath = PathUtil::append($targetPath, 'default', 'module.php');
-            if (!is_file($moduleConfigPath)) {
+            if (!\is_file($moduleConfigPath)) {
                 $moduleConfigPath = PathUtil::append($targetPath, 'module.php');
             }
-            
-            if (is_file($moduleConfigPath)) {
+
+            if (\is_file($moduleConfigPath)) {
                 try {
                     $moduleConfig = require $moduleConfigPath;
                     $requiredModules = $moduleConfig['require'] ?? [];
-                    
-                    if (!empty($requiredModules) && is_array($requiredModules)) {
+
+                    if (!empty($requiredModules) && \is_array($requiredModules)) {
                         $this->writeLineLogging('', true);
-                        $this->writeLineLogging('{@c:yellow}[DEPENDENCIES] This module requires ' . count($requiredModules) . ' other module(s){@reset}', true);
-                        
+                        $this->writeLineLogging('{@c:yellow}[DEPENDENCIES] This module requires ' . \count($requiredModules) . ' other module(s){@reset}', true);
+
                         foreach ($requiredModules as $reqModuleCode => $reqVersion) {
                             $this->writeLineLogging('  - {@c:cyan}' . $reqModuleCode . '{@reset} (' . $reqVersion . ')', true);
-                            
+
                             // Check if module already installed
                             $reqModulePath = PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $reqModuleCode);
                             if ($distCode) {
-                                $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', basename($reqModuleCode));
-                                if (is_dir($reqModulePathDist)) {
+                                $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', \basename($reqModuleCode));
+                                if (\is_dir($reqModulePathDist)) {
                                     $this->writeLineLogging('    {@c:green}[INSTALLED] Already installed in distributor{@reset}', true);
                                     continue;
                                 }
                             }
-                            if (is_dir($reqModulePath)) {
+                            if (\is_dir($reqModulePath)) {
                                 $this->writeLineLogging('    {@c:green}[INSTALLED] Already installed in shared modules{@reset}', true);
                                 continue;
                             }
                         }
-                        
+
                         // Ask user if they want to install dependencies
                         $this->writeLineLogging('', true);
                         $installDeps = $autoConfirm;
                         if (!$autoConfirm) {
                             $this->writeLineLogging('Install required modules? (y/N): ', false);
-                            $handle = fopen('php://stdin', 'r');
-                            $response = strtolower(trim(fgets($handle)));
-                            fclose($handle);
+                            $handle = \fopen('php://stdin', 'r');
+                            $response = \strtolower(\trim(\fgets($handle)));
+                            \fclose($handle);
                             $installDeps = ($response === 'y' || $response === 'yes');
                         }
-                        
+
                         if ($installDeps) {
                             $this->writeLineLogging('', true);
-                            
+
                             foreach ($requiredModules as $reqModuleCode => $reqVersion) {
                                 // Skip if already installed
                                 $reqModulePath = PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $reqModuleCode);
                                 if ($distCode) {
-                                    $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', basename($reqModuleCode));
-                                    if (is_dir($reqModulePathDist)) {
+                                    $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', \basename($reqModuleCode));
+                                    if (\is_dir($reqModulePathDist)) {
                                         continue;
                                     }
                                 }
-                                if (is_dir($reqModulePath)) {
+                                if (\is_dir($reqModulePath)) {
                                     continue;
                                 }
-                                
+
                                 $this->writeLineLogging('{@c:yellow}[INSTALL]{@reset} Installing dependency: {@c:cyan}' . $reqModuleCode . '{@reset}', true);
-                                
+
                                 // Get module info from repository
                                 $depInfo = $repoManager->getModuleInfo($reqModuleCode);
                                 if (!$depInfo) {
@@ -460,60 +463,60 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                     $this->writeLineLogging('  Install manually: {@c:cyan}php Razy.phar install ' . $reqModuleCode . '{@reset}', true);
                                     continue;
                                 }
-                                
+
                                 // Determine version to install
                                 $depVersion = $depInfo['latest'] ?? null;
                                 if (!$depVersion) {
                                     $this->writeLineLogging('  {@c:red}[ERROR] No version available{@reset}', true);
                                     continue;
                                 }
-                                
+
                                 $depUrl = $repoManager->getDownloadUrl($reqModuleCode, $depVersion);
                                 if (!$depUrl) {
                                     $this->writeLineLogging('  {@c:red}[ERROR] Could not get download URL{@reset}', true);
                                     continue;
                                 }
-                                
+
                                 // Download and extract dependency
                                 $this->writeLineLogging('  [DOWNLOAD] ' . $depUrl, true);
-                                
-                                $ch = curl_init($depUrl);
-                                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-                                curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
-                                
-                                $depContent = curl_exec($ch);
-                                $depHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                                curl_close($ch);
-                                
+
+                                $ch = \curl_init($depUrl);
+                                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                                \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                                \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+                                \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
+
+                                $depContent = \curl_exec($ch);
+                                $depHttpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                                \curl_close($ch);
+
                                 if ($depHttpCode !== 200 || !$depContent) {
                                     $this->writeLineLogging('  {@c:red}[ERROR] Download failed (HTTP ' . $depHttpCode . '){@reset}', true);
                                     continue;
                                 }
-                                
+
                                 // Determine target path for dependency
                                 $depTargetPath = PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $reqModuleCode);
                                 if ($distCode) {
-                                    $depTargetPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', basename($reqModuleCode));
+                                    $depTargetPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', \basename($reqModuleCode));
                                 }
-                                
+
                                 // Extract dependency
-                                $depTempPhar = sys_get_temp_dir() . '/razy_dep_' . md5($reqModuleCode . microtime()) . '.phar';
-                                file_put_contents($depTempPhar, $depContent);
-                                
+                                $depTempPhar = \sys_get_temp_dir() . '/razy_dep_' . \md5($reqModuleCode . \microtime()) . '.phar';
+                                \file_put_contents($depTempPhar, $depContent);
+
                                 try {
-                                    if (!is_dir($depTargetPath)) {
-                                        mkdir($depTargetPath, 0755, true);
+                                    if (!\is_dir($depTargetPath)) {
+                                        \mkdir($depTargetPath, 0755, true);
                                     }
-                                    $depPhar = new \Phar($depTempPhar);
+                                    $depPhar = new Phar($depTempPhar);
                                     $depPhar->extractTo($depTargetPath, null, true);
                                     $this->writeLineLogging('  {@c:green}[✓] Installed ' . $reqModuleCode . '@' . $depVersion . '{@reset}', true);
-                                } catch (\Exception $e) {
+                                } catch (Exception $e) {
                                     $this->writeLineLogging('  {@c:red}[ERROR] Failed to extract: ' . $e->getMessage() . '{@reset}', true);
                                 }
-                                
-                                @unlink($depTempPhar);
+
+                                @\unlink($depTempPhar);
                             }
                         } else {
                             $this->writeLineLogging('', true);
@@ -523,7 +526,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                             }
                         }
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Silently ignore if module.php can't be parsed
                 }
             }
@@ -536,19 +539,19 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         // Determine target path based on repository name or user-specified path
         if (!$targetPath) {
             // Auto-detect path based on repository name
-            if (preg_match('#([^/]+)/([^/@]+)#', $repository, $matches)) {
+            if (\preg_match('#([^/]+)/([^/@]+)#', $repository, $matches)) {
                 $repoName = $matches[2];
-                
+
                 if ($distCode) {
                     // Install as module for specific distributor
                     $app = new Application();
                     $app->loadSiteConfig();
-                    
+
                     if (!$app->hasDistributor($distCode)) {
                         $this->writeLineLogging('{@c:red}[ERROR] Distributor "' . $distCode . '" not found.{@reset}', true);
                         exit(1);
                     }
-                    
+
                     $moduleName = $moduleName ?: $repoName;
                     $targetPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', $moduleName);
                     $this->writeLineLogging('Installing to distributor {@c:cyan}' . $distCode . '{@reset} as module {@c:cyan}' . $moduleName . '{@reset}', true);
@@ -564,14 +567,14 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             }
         } else {
             // Use provided path (relative to SYSTEM_ROOT or absolute)
-            if (!preg_match('#^([a-z]:)?[/\\\\]#i', $targetPath)) {
+            if (!\preg_match('#^([a-z]:)?[/\\\]#i', $targetPath)) {
                 $targetPath = PathUtil::append(SYSTEM_ROOT, $targetPath);
             }
         }
 
         $this->writeLineLogging('Repository: {@c:green}' . $repository . '{@reset}', true);
         $this->writeLineLogging('Target path: {@c:green}' . $targetPath . '{@reset}', true);
-        
+
         if ($version === RepoInstaller::VERSION_LATEST) {
             $this->writeLineLogging('Mode: {@c:yellow}Latest Release{@reset}', true);
         } elseif ($version === RepoInstaller::VERSION_STABLE) {
@@ -599,8 +602,8 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
                     case RepoInstaller::TYPE_PROGRESS:
                         [$size, $downloaded, $percentage] = $data;
-                        $sizeInMB = round($size / 1048576, 2);
-                        $downloadedInMB = round($downloaded / 1048576, 2);
+                        $sizeInMB = \round($size / 1048576, 2);
+                        $downloadedInMB = \round($downloaded / 1048576, 2);
                         echo $this->format(
                             '{@clear} - Progress: {@c:green}' . $percentage . '%{@reset} (' .
                             $downloadedInMB . ' MB / ' . $sizeInMB . ' MB)',
@@ -610,7 +613,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
                     case RepoInstaller::TYPE_DOWNLOAD_COMPLETE:
                         echo PHP_EOL;
-                        $sizeInMB = round($data[0] / 1048576, 2);
+                        $sizeInMB = \round($data[0] / 1048576, 2);
                         $this->writeLineLogging('[{@c:green}✓{@reset}] Download complete ({@c:green}' . $sizeInMB . ' MB{@reset})', true);
                         break;
 
@@ -658,21 +661,21 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         $this->writeLineLogging('', true);
 
         // Warn if target directory already exists and contains files
-        if (is_dir($targetPath)) {
-            $files = array_diff(scandir($targetPath), ['.', '..']);
-            if (count($files) > 0) {
+        if (\is_dir($targetPath)) {
+            $files = \array_diff(\scandir($targetPath), ['.', '..']);
+            if (\count($files) > 0) {
                 $this->writeLineLogging('{@c:yellow}[WARNING] Target directory already exists and is not empty:{@reset}', true);
                 $this->writeLineLogging('{@c:yellow}          ' . $targetPath . '{@reset}', true);
                 $this->writeLineLogging('', true);
-                
+
                 if (!$autoConfirm) {
                     $this->writeLineLogging('Files will be overwritten. Continue? (y/N): ', false);
-                    
-                    $handle = fopen('php://stdin', 'r');
-                    $line = fgets($handle);
-                    fclose($handle);
-                    
-                    if (strtolower(trim($line)) !== 'y') {
+
+                    $handle = \fopen('php://stdin', 'r');
+                    $line = \fgets($handle);
+                    \fclose($handle);
+
+                    if (\strtolower(\trim($line)) !== 'y') {
                         $this->writeLineLogging('{@c:yellow}Installation cancelled.{@reset}', true);
                         exit(0);
                     }
@@ -686,70 +689,70 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         // Perform installation
         if ($installer->install()) {
             $this->writeLineLogging('', true);
-            
+
             // Check for README or documentation
             $readmePath = PathUtil::append($targetPath, 'README.md');
-            if (is_file($readmePath)) {
+            if (\is_file($readmePath)) {
                 $this->writeLineLogging('{@c:cyan}[TIP] Check README.md for installation instructions{@reset}', true);
             }
-            
+
             // Check for composer.json
             $composerPath = PathUtil::append($targetPath, 'composer.json');
-            if (is_file($composerPath)) {
+            if (\is_file($composerPath)) {
                 $this->writeLineLogging('{@c:cyan}[TIP] Run "composer install" in the module directory if needed{@reset}', true);
             }
 
             // Check for required modules and install them
             $moduleConfigPath = PathUtil::append($targetPath, 'default', 'module.php');
-            if (!is_file($moduleConfigPath)) {
+            if (!\is_file($moduleConfigPath)) {
                 $moduleConfigPath = PathUtil::append($targetPath, 'module.php');
             }
-            
-            if (is_file($moduleConfigPath)) {
+
+            if (\is_file($moduleConfigPath)) {
                 try {
                     $moduleConfig = require $moduleConfigPath;
                     $requiredModules = $moduleConfig['require'] ?? [];
-                    
-                    if (!empty($requiredModules) && is_array($requiredModules)) {
+
+                    if (!empty($requiredModules) && \is_array($requiredModules)) {
                         $this->writeLineLogging('', true);
-                        $this->writeLineLogging('{@c:yellow}[DEPENDENCIES] This module requires ' . count($requiredModules) . ' other module(s){@reset}', true);
-                        
+                        $this->writeLineLogging('{@c:yellow}[DEPENDENCIES] This module requires ' . \count($requiredModules) . ' other module(s){@reset}', true);
+
                         // Load repository config for dependency resolution
                         $repositoryConfig = SYSTEM_ROOT . '/repository.inc.php';
-                        $hasRepoConfig = is_file($repositoryConfig);
-                        
+                        $hasRepoConfig = \is_file($repositoryConfig);
+
                         foreach ($requiredModules as $reqModuleCode => $reqVersion) {
                             $this->writeLineLogging('  - {@c:cyan}' . $reqModuleCode . '{@reset} (' . $reqVersion . ')', true);
-                            
+
                             // Check if module already installed
                             $reqModulePath = PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $reqModuleCode);
                             if ($distCode) {
-                                $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', basename($reqModuleCode));
-                                if (is_dir($reqModulePathDist)) {
+                                $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', \basename($reqModuleCode));
+                                if (\is_dir($reqModulePathDist)) {
                                     $this->writeLineLogging('    {@c:green}[INSTALLED] Already installed in distributor{@reset}', true);
                                     continue;
                                 }
                             }
-                            if (is_dir($reqModulePath)) {
+                            if (\is_dir($reqModulePath)) {
                                 $this->writeLineLogging('    {@c:green}[INSTALLED] Already installed in shared modules{@reset}', true);
                                 continue;
                             }
                         }
-                        
+
                         // Ask user if they want to install dependencies
                         $this->writeLineLogging('', true);
                         $installDeps = $autoConfirm;
                         if (!$autoConfirm) {
                             $this->writeLineLogging('Install required modules? (y/N): ', false);
-                            $handle = fopen('php://stdin', 'r');
-                            $response = strtolower(trim(fgets($handle)));
-                            fclose($handle);
+                            $handle = \fopen('php://stdin', 'r');
+                            $response = \strtolower(\trim(\fgets($handle)));
+                            \fclose($handle);
                             $installDeps = ($response === 'y' || $response === 'yes');
                         }
-                        
+
                         if ($installDeps) {
                             $this->writeLineLogging('', true);
-                            
+
                             if (!$hasRepoConfig) {
                                 $this->writeLineLogging('{@c:yellow}[WARNING] No repository.inc.php found.{@reset}', true);
                                 $this->writeLineLogging('Dependency installation requires a configured repository.', true);
@@ -760,22 +763,22 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                             } else {
                                 $repositories = include $repositoryConfig;
                                 $repoManager = new RepositoryManager($repositories);
-                                
+
                                 foreach ($requiredModules as $reqModuleCode => $reqVersion) {
                                     // Skip if already installed
                                     $reqModulePath = PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $reqModuleCode);
                                     if ($distCode) {
-                                        $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', basename($reqModuleCode));
-                                        if (is_dir($reqModulePathDist)) {
+                                        $reqModulePathDist = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', \basename($reqModuleCode));
+                                        if (\is_dir($reqModulePathDist)) {
                                             continue;
                                         }
                                     }
-                                    if (is_dir($reqModulePath)) {
+                                    if (\is_dir($reqModulePath)) {
                                         continue;
                                     }
-                                    
+
                                     $this->writeLineLogging('{@c:yellow}[INSTALL]{@reset} Installing dependency: {@c:cyan}' . $reqModuleCode . '{@reset}', true);
-                                    
+
                                     // Get module info from repository
                                     $depInfo = $repoManager->getModuleInfo($reqModuleCode);
                                     if (!$depInfo) {
@@ -783,28 +786,28 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                         $this->writeLineLogging('  Install manually: {@c:cyan}php Razy.phar install ' . $reqModuleCode . '{@reset}', true);
                                         continue;
                                     }
-                                    
+
                                     // Determine version to install
                                     $depVersion = $depInfo['latest'] ?? null;
                                     if (!$depVersion) {
                                         $this->writeLineLogging('  {@c:red}[ERROR] No version available{@reset}', true);
                                         continue;
                                     }
-                                    
+
                                     $depUrl = $repoManager->getDownloadUrl($reqModuleCode, $depVersion);
                                     if (!$depUrl) {
                                         $this->writeLineLogging('  {@c:red}[ERROR] Could not get download URL{@reset}', true);
                                         continue;
                                     }
-                                    
+
                                     // Determine target path for dependency
                                     $depTargetPath = PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $reqModuleCode);
                                     if ($distCode) {
-                                        $depTargetPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', basename($reqModuleCode));
+                                        $depTargetPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, 'modules', \basename($reqModuleCode));
                                     }
-                                    
+
                                     // Install dependency
-                                    $depInstaller = new RepoInstaller($depUrl, $depTargetPath, function($type, ...$data) {
+                                    $depInstaller = new RepoInstaller($depUrl, $depTargetPath, function ($type, ...$data) {
                                         // Minimal output for dependencies
                                         if ($type === RepoInstaller::TYPE_INSTALL_COMPLETE) {
                                             $this->writeLineLogging('  {@c:green}[✓] Installed{@reset}', true);
@@ -812,7 +815,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                             $this->writeLineLogging('  {@c:red}[ERROR] ' . $data[0] . '{@reset}', true);
                                         }
                                     });
-                                    
+
                                     if ($depInstaller->validate()) {
                                         $depInstaller->install();
                                     } else {
@@ -828,7 +831,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                             }
                         }
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Silently ignore if module.php can't be parsed
                 }
             }
@@ -839,7 +842,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             $this->writeLineLogging('{@c:red}[ERROR] Installation failed.{@reset}', true);
             exit(1);
         }
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         $this->writeLineLogging('', true);
         $this->writeLineLogging('{@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
         exit(1);

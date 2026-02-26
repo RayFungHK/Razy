@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: remove
+ * CLI Command: remove.
  *
  * Removes a site (domain + path binding) from the sites configuration.
  * After removal, the .htaccess rewrite rules are regenerated.
@@ -12,7 +13,6 @@
  *   fqdn/path  The fully qualified domain name and path to remove
  *              (e.g., "example.com/mysite")
  *
- * @package Razy
  * @license MIT
  */
 
@@ -20,7 +20,7 @@ namespace Razy;
 
 return function (string $fqdn = '') {
     // Check the parameters is valid
-    $fqdn = trim($fqdn);
+    $fqdn = \trim($fqdn);
     if (!$fqdn) {
         $this->writeLineLogging('{@c:red}[ERROR] The FQDN is required.', true);
 
@@ -32,8 +32,8 @@ return function (string $fqdn = '') {
     $config = $app->loadSiteConfig();
 
     // Normalize the FQDN string and extract domain + path components
-    $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
-    [$domain, $path] = explode('/', $fqdn, 2);
+    $fqdn = \trim(\preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
+    [$domain, $path] = \explode('/', $fqdn, 2);
     $path = '/' . $path;
 
     // Remove the domain/path binding from the configuration

@@ -11,7 +11,6 @@
  * PSR-11 compatible container not-found exception interface.
  * Fulfills the PSR-11 specification without requiring psr/container.
  *
- * @package Razy
  *
  * @license MIT
  *

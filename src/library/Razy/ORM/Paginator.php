@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -55,8 +54,6 @@ use Traversable;
  *
  * @implements ArrayAccess<string, mixed>
  * @implements IteratorAggregate<int, Model>
- *
- * @package Razy\ORM
  */
 class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerializable
 {

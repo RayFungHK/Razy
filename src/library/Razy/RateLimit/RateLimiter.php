@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -43,8 +42,6 @@ use Razy\Contract\RateLimitStoreInterface;
  *     $limiter->hit('login:user@example.com', 60);
  * }
  * ```
- *
- * @package Razy\RateLimit
  */
 class RateLimiter
 {

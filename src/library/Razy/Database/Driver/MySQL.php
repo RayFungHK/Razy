@@ -22,7 +22,6 @@ use Razy\Database\Driver;
  * including CONCAT(), LIMIT offset syntax, AUTO_INCREMENT, and
  * ON DUPLICATE KEY UPDATE for upsert operations.
  *
- * @package Razy
  *
  * @license MIT
  */

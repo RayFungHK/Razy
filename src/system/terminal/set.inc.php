@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: set
+ * CLI Command: set.
  *
  * Creates or updates a site binding in the sites configuration.
  * Maps a domain/path combination to a distributor code. Optionally
@@ -20,27 +21,26 @@
  *   php Razy.phar set localhost mysite -i
  *   php Razy.phar set example.com/api api_dist
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
 use Exception;
-
 use Razy\Util\PathUtil;
+
 return function (string $fqdn = '', string $code = '') use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Update the site or create a new sites', true);
 
     // Check the parameters is valid
-    $fqdn = trim($fqdn);
+    $fqdn = \trim($fqdn);
     if (!$fqdn) {
         $this->writeLineLogging('{@c:r}[ERROR] The FQDN is required.', true);
 
         exit;
     }
 
-    $code = trim($code);
+    $code = \trim($code);
     if (!$code) {
         $this->writeLineLogging('{@c:r}[ERROR] The distributor code is required.', true);
 
@@ -52,16 +52,16 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     $config = $app->loadSiteConfig();
 
     // Parse the FQDN into domain and path components
-    $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
-    if (!str_contains($fqdn, '/')) {
+    $fqdn = \trim(\preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
+    if (!\str_contains($fqdn, '/')) {
         $domain = $fqdn;
-        $path   = '/';
+        $path = '/';
     } else {
-        [$domain, $path] = explode('/', $fqdn, 2);
-        $path            = '/' . $path;
+        [$domain, $path] = \explode('/', $fqdn, 2);
+        $path = '/' . $path;
     }
 
-    if (!is_array($config['domains'][$domain] ?? null)) {
+    if (!\is_array($config['domains'][$domain] ?? null)) {
         $config['domains'][$domain] = [];
     }
 
@@ -72,23 +72,23 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     if (isset($parameters['i'])) {
         $distFolder = PathUtil::fixPath(PathUtil::append(SYSTEM_ROOT, 'sites', $code));
         // If the distributor path is not under Razy location
-        if (!str_starts_with($distFolder, SYSTEM_ROOT)) {
+        if (!\str_starts_with($distFolder, SYSTEM_ROOT)) {
             $this->writeLineLogging('{@c:r}[ERROR] The distributor folder ' . $distFolder . ' is not valid.', true);
 
             exit;
         }
-        if (!is_dir($distFolder)) {
-            if (mkdir($distFolder, 0777, true)) {
+        if (!\is_dir($distFolder)) {
+            if (\mkdir($distFolder, 0777, true)) {
                 $source = Template::loadFile(PHAR_PATH . '/asset/setup/dist.php.tpl');
-                $root   = $source->getRoot();
+                $root = $source->getRoot();
                 $root->assign([
                     'dist_code' => $code,
-                    'autoload'  => 'true',
-                    'greedy'    => 'true',
+                    'autoload' => 'true',
+                    'greedy' => 'true',
                 ]);
 
                 try {
-                    file_put_contents(PathUtil::append($distFolder, 'dist.php'), $source->output());
+                    \file_put_contents(PathUtil::append($distFolder, 'dist.php'), $source->output());
                 } catch (Exception) {
                     $this->writeLineLogging('{@c:r}[ERROR] Failed to create the distributor config file.', true);
                 }

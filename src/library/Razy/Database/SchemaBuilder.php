@@ -10,7 +10,6 @@
  *
  * Schema builder facade for database migrations.
  *
- * @package Razy
  *
  * @license MIT
  */

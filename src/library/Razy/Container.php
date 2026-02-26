@@ -42,8 +42,6 @@ use Throwable;
  *
  * @class Container
  *
- * @package Razy
- *
  * @license MIT
  */
 class Container implements ContainerInterface

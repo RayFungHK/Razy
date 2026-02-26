@@ -11,7 +11,6 @@
  * Extracted from Module god class (Phase 2.2).
  * Manages closure file loading, caching, and method binding for a module's controller.
  *
- * @package Razy
  *
  * @license MIT
  */

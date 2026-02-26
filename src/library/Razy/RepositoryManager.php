@@ -11,7 +11,6 @@
  * Manages module repositories for searching, listing, and downloading
  * Razy modules from GitHub or custom repository servers.
  *
- * @package Razy
  *
  * @license MIT
  */

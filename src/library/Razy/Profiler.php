@@ -11,7 +11,6 @@
  * Runtime performance profiler that captures memory usage, CPU time,
  * execution time, and declared symbols at checkpoints for comparison.
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -28,8 +27,6 @@ namespace Razy\Template;
  * Performance impact: 3-5x faster for repeated rendering scenarios.
  *
  * @class CompiledTemplate
- *
- * @package Razy\Template
  */
 class CompiledTemplate
 {

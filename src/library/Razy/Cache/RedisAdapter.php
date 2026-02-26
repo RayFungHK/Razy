@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -32,8 +31,6 @@ use Redis;
  * $cache->set('user:42', ['name' => 'Alice'], 3600);
  * $user = $cache->get('user:42');
  * ```
- *
- * @package Razy\Cache
  */
 class RedisAdapter implements CacheInterface
 {

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -29,8 +28,6 @@ use Razy\Contract\SessionInterface;
  *   - On `flash('key', value)`: key is placed in `_flash.new`
  *   - On `save()`: `_flash.old` items are removed, `_flash.new` → `_flash.old`
  *   - Next request's `start()` loads both; `getFlash()` reads from flash storage
- *
- * @package Razy\Session
  */
 class Session implements SessionInterface
 {

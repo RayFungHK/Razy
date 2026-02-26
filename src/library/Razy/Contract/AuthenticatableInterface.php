@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -20,8 +19,6 @@ namespace Razy\Contract;
  *
  * Any user model or entity used with the Auth system must implement
  * this interface to provide identity and credential information.
- *
- * @package Razy\Contract
  */
 interface AuthenticatableInterface
 {

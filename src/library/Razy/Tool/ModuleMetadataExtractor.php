@@ -12,7 +12,6 @@
  * from the file system without requiring full framework bootstrap. Used
  * primarily for generating skills documentation.
  *
- * @package Razy
  *
  * @license MIT
  */

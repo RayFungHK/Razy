@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -34,8 +33,6 @@ use Throwable;
  * Extracted from the Distributor god class to follow Single Responsibility Principle.
  *
  * @class ModuleScanner
- *
- * @package Razy\Distributor
  */
 class ModuleScanner
 {

@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: search
+ * CLI Command: search.
  *
  * Searches for modules across all configured repositories defined in
  * repository.inc.php. Displays matching modules with their descriptions,
@@ -16,13 +17,11 @@
  *   -v, --verbose    Show detailed information (all versions, repository URLs)
  *   --refresh        Force refresh repository index cache
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
-use Exception;
 return function (string $query = '', ...$options) use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Module Search', true);
     $this->writeLineLogging('Search modules from configured repositories', true);
@@ -57,7 +56,7 @@ return function (string $query = '', ...$options) use (&$parameters) {
 
     // Load repository configuration from the project root
     $repositoryConfig = SYSTEM_ROOT . '/repository.inc.php';
-    if (!is_file($repositoryConfig)) {
+    if (!\is_file($repositoryConfig)) {
         $this->writeLineLogging('{@c:yellow}[WARNING] No repository.inc.php found.{@reset}', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Create repository.inc.php in your project root:', true);
@@ -69,7 +68,7 @@ return function (string $query = '', ...$options) use (&$parameters) {
     }
 
     $repositories = include $repositoryConfig;
-    if (!is_array($repositories) || empty($repositories)) {
+    if (!\is_array($repositories) || empty($repositories)) {
         $this->writeLineLogging('{@c:yellow}[WARNING] No repositories configured.{@reset}', true);
         exit(1);
     }
@@ -88,7 +87,7 @@ return function (string $query = '', ...$options) use (&$parameters) {
         exit(0);
     }
 
-    $this->writeLineLogging('Found {@c:green}' . count($results) . '{@reset} module(s):', true);
+    $this->writeLineLogging('Found {@c:green}' . \count($results) . '{@reset} module(s):', true);
     $this->writeLineLogging('', true);
 
     foreach ($results as $moduleCode => $info) {
@@ -105,10 +104,10 @@ return function (string $query = '', ...$options) use (&$parameters) {
         $this->writeLineLogging('  Latest: {@c:cyan}' . ($info['latest'] ?? 'N/A') . '{@reset}', true);
 
         if ($verbose && !empty($info['versions'])) {
-            $versions = is_array($info['versions']) ? $info['versions'] : [$info['versions']];
-            $this->writeLineLogging('  Versions: ' . implode(', ', array_slice($versions, 0, 5)), true);
-            if (count($versions) > 5) {
-                $this->writeLineLogging('            ... and ' . (count($versions) - 5) . ' more', true);
+            $versions = \is_array($info['versions']) ? $info['versions'] : [$info['versions']];
+            $this->writeLineLogging('  Versions: ' . \implode(', ', \array_slice($versions, 0, 5)), true);
+            if (\count($versions) > 5) {
+                $this->writeLineLogging('            ... and ' . (\count($versions) - 5) . ' more', true);
             }
         }
 
@@ -120,7 +119,7 @@ return function (string $query = '', ...$options) use (&$parameters) {
     }
 
     // Show install instructions
-    $firstModule = array_key_first($results);
+    $firstModule = \array_key_first($results);
     $this->writeLineLogging('To install a module:', true);
     $this->writeLineLogging('  {@c:cyan}php Razy.phar install ' . $firstModule . '{@reset}', true);
     $this->writeLineLogging('', true);

@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: sync
+ * CLI Command: sync.
  *
  * Synchronizes modules for a distributor from its repository.inc.php
  * configuration. Reads the module definitions (with version requirements),
@@ -27,20 +28,23 @@
  *       ],
  *   ];
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
+
+use Exception;
+use Phar;
 use Razy\Util\PathUtil;
+
 return function (string $distCode = '', ...$options) use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Module Sync', true);
     $this->writeLineLogging('Sync modules from distributor repository configuration', true);
     $this->writeLineLogging('', true);
 
     // Treat leading-dash first argument as an option, not a distributor code
-    if (str_starts_with($distCode, '-')) {
-        array_unshift($options, $distCode);
+    if (\str_starts_with($distCode, '-')) {
+        \array_unshift($options, $distCode);
         $distCode = '';
     }
 
@@ -63,18 +67,18 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
     if (!$distCode) {
         $sitesPath = PathUtil::append(SYSTEM_ROOT, 'sites');
         $distributors = [];
-        
-        if (is_dir($sitesPath)) {
-            $dirs = glob(PathUtil::append($sitesPath, '*'), GLOB_ONLYDIR);
+
+        if (\is_dir($sitesPath)) {
+            $dirs = \glob(PathUtil::append($sitesPath, '*'), GLOB_ONLYDIR);
             foreach ($dirs as $dir) {
-                $distName = basename($dir);
+                $distName = \basename($dir);
                 $repoConfig = PathUtil::append($dir, 'repository.inc.php');
-                if (is_file($repoConfig)) {
+                if (\is_file($repoConfig)) {
                     $distributors[] = $distName;
                 }
             }
         }
-        
+
         if (empty($distributors)) {
             $this->writeLineLogging('{@c:red}[ERROR] No distributors with repository.inc.php found.{@reset}', true);
             $this->writeLineLogging('', true);
@@ -82,10 +86,10 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
             $this->writeLineLogging('  {@c:cyan}sites/mysite/repository.inc.php{@reset}', true);
             exit(1);
         }
-        
+
         $this->writeLineLogging('{@c:yellow}[SELECT] Which distributor to sync?{@reset}', true);
         $this->writeLineLogging('', true);
-        
+
         $index = 1;
         foreach ($distributors as $dist) {
             $this->writeLineLogging('  {@c:cyan}[' . $index . ']{@reset} ' . $dist, true);
@@ -93,14 +97,14 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         }
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Enter selection: ', false);
-        
-        $handle = fopen('php://stdin', 'r');
-        $selection = trim(fgets($handle));
-        fclose($handle);
+
+        $handle = \fopen('php://stdin', 'r');
+        $selection = \trim(\fgets($handle));
+        \fclose($handle);
         $this->writeLineLogging('', true);
-        
-        if (is_numeric($selection) && $selection > 0 && $selection <= count($distributors)) {
-            $distCode = $distributors[(int)$selection - 1];
+
+        if (\is_numeric($selection) && $selection > 0 && $selection <= \count($distributors)) {
+            $distCode = $distributors[(int) $selection - 1];
         } else {
             $this->writeLineLogging('{@c:red}[ERROR] Invalid selection{@reset}', true);
             exit(1);
@@ -109,14 +113,14 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
 
     // Verify the distributor directory exists
     $distPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode);
-    if (!is_dir($distPath)) {
+    if (!\is_dir($distPath)) {
         $this->writeLineLogging('{@c:red}[ERROR] Distributor not found: ' . $distCode . '{@reset}', true);
         exit(1);
     }
 
     // Load and validate the distributor's repository.inc.php
     $repoConfigPath = PathUtil::append($distPath, 'repository.inc.php');
-    if (!is_file($repoConfigPath)) {
+    if (!\is_file($repoConfigPath)) {
         $this->writeLineLogging('{@c:red}[ERROR] repository.inc.php not found for distributor: ' . $distCode . '{@reset}', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Expected at: {@c:cyan}' . $repoConfigPath . '{@reset}', true);
@@ -124,7 +128,7 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
     }
 
     $config = require $repoConfigPath;
-    if (!is_array($config)) {
+    if (!\is_array($config)) {
         $this->writeLineLogging('{@c:red}[ERROR] repository.inc.php must return an array{@reset}', true);
         exit(1);
     }
@@ -182,7 +186,7 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
     $repoManager = new RepositoryManager($repositories);
 
     // Process modules
-    $this->writeLineLogging('[{@c:blue}MODULES{@reset}] Modules to sync: {@c:cyan}' . count($modules) . '{@reset}', true);
+    $this->writeLineLogging('[{@c:blue}MODULES{@reset}] Modules to sync: {@c:cyan}' . \count($modules) . '{@reset}', true);
     $this->writeLineLogging('', true);
 
     $installCount = 0;
@@ -191,15 +195,15 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
 
     foreach ($modules as $moduleCode => $moduleConfig) {
         // Normalize config
-        if (is_string($moduleConfig)) {
+        if (\is_string($moduleConfig)) {
             $moduleConfig = ['version' => $moduleConfig];
         }
-        
+
         $version = $moduleConfig['version'] ?? 'latest';
         $isShared = $moduleConfig['is_shared'] ?? false;
-        
+
         $this->writeLineLogging('[{@c:yellow}CHECK{@reset}] ' . $moduleCode, true);
-        
+
         // Get module info from repository
         $moduleInfo = $repoManager->getModuleInfo($moduleCode);
         if (!$moduleInfo) {
@@ -224,13 +228,13 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         $targetPath = $isShared
             ? PathUtil::append(SYSTEM_ROOT, 'shared', 'module', $moduleCode)
             : PathUtil::append(SYSTEM_ROOT, 'sites', $distCode, $moduleCode);
-        
+
         // Check if the exact version is already installed at the target path
         $alreadyInstalled = false;
-        if (is_dir($targetPath)) {
+        if (\is_dir($targetPath)) {
             // Check installed version
             $installedConfigPath = PathUtil::append($targetPath, 'module.php');
-            if (is_file($installedConfigPath)) {
+            if (\is_file($installedConfigPath)) {
                 $installedConfig = require $installedConfigPath;
                 $installedVersion = $installedConfig['version'] ?? null;
                 if ($installedVersion === $targetVersion) {
@@ -240,7 +244,7 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         }
 
         $targetLabel = $isShared ? 'shared' : $distCode;
-        
+
         if ($alreadyInstalled) {
             $this->writeLineLogging('    {@c:green}[INSTALLED]{@reset} v' . $targetVersion . ' already installed (' . $targetLabel . ')', true);
             $skipCount++;
@@ -261,10 +265,10 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         // Confirm installation
         if (!$autoConfirm) {
             $this->writeLineLogging('    Install ' . $moduleCode . '@' . $targetVersion . ' to ' . $targetLabel . '? (y/N): ', false);
-            $handle = fopen('php://stdin', 'r');
-            $response = strtolower(trim(fgets($handle)));
-            fclose($handle);
-            
+            $handle = \fopen('php://stdin', 'r');
+            $response = \strtolower(\trim(\fgets($handle)));
+            \fclose($handle);
+
             if ($response !== 'y' && $response !== 'yes') {
                 $this->writeLineLogging('    {@c:yellow}[SKIP]{@reset} Skipped by user', true);
                 $skipCount++;
@@ -281,18 +285,18 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         }
 
         // Download the phar package via cURL
-        $this->writeLineLogging('    [{@c:yellow}DOWNLOAD{@reset}] ' . basename($downloadUrl), true);
+        $this->writeLineLogging('    [{@c:yellow}DOWNLOAD{@reset}] ' . \basename($downloadUrl), true);
 
-        $ch = curl_init($downloadUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
+        $ch = \curl_init($downloadUrl);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
 
-        $pharContent = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $downloadSize = curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
-        curl_close($ch);
+        $pharContent = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $downloadSize = \curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
+        \curl_close($ch);
 
         if ($httpCode !== 200 || $pharContent === false) {
             $this->writeLineLogging('    {@c:red}[ERROR] Download failed (HTTP ' . $httpCode . '){@reset}', true);
@@ -300,30 +304,30 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
             continue;
         }
 
-        $sizeInKB = round($downloadSize / 1024, 2);
+        $sizeInKB = \round($downloadSize / 1024, 2);
 
         // Write the downloaded content to a temporary file and extract into target
-        $tempPhar = sys_get_temp_dir() . '/razy_' . md5(microtime()) . '.phar';
-        file_put_contents($tempPhar, $pharContent);
+        $tempPhar = \sys_get_temp_dir() . '/razy_' . \md5(\microtime()) . '.phar';
+        \file_put_contents($tempPhar, $pharContent);
 
         try {
             // Ensure the target directory exists before extraction
-            if (!is_dir($targetPath)) {
-                mkdir($targetPath, 0755, true);
+            if (!\is_dir($targetPath)) {
+                \mkdir($targetPath, 0755, true);
             }
 
             // Extract the phar archive contents into the module directory
-            $phar = new \Phar($tempPhar);
+            $phar = new Phar($tempPhar);
             $phar->extractTo($targetPath, null, true);
 
             $this->writeLineLogging('    [{@c:green}✓{@reset}] Installed v' . $targetVersion . ' (' . $sizeInKB . ' KB) to ' . $targetLabel, true);
             $installCount++;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->writeLineLogging('    {@c:red}[ERROR] Extract failed: ' . $e->getMessage() . '{@reset}', true);
             $errorCount++;
         }
 
-        @unlink($tempPhar);
+        @\unlink($tempPhar);
     }
 
     $this->writeLineLogging('', true);

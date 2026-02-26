@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -32,8 +31,6 @@ use Traversable;
  *
  * @implements ArrayAccess<int, T>
  * @implements IteratorAggregate<int, T>
- *
- * @package Razy\ORM
  */
 class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
 {

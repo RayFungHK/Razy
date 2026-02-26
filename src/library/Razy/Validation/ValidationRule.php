@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -23,8 +22,6 @@ namespace Razy\Validation;
  *
  * Follows the Pipeline Action pattern: a rule is a small, composable unit of work
  * that processes a value and signals failure via external rejection (FieldValidator).
- *
- * @package Razy\Validation
  */
 abstract class ValidationRule implements ValidationRuleInterface
 {

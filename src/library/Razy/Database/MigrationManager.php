@@ -10,7 +10,6 @@
  *
  * Database migration manager for schema versioning.
  *
- * @package Razy
  *
  * @license MIT
  */

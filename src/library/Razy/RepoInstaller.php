@@ -11,7 +11,6 @@
  * Downloads and installs modules from GitHub repositories or custom
  * ZIP archive URLs, with support for versioned releases, branches, and tags.
  *
- * @package Razy
  *
  * @license MIT
  */

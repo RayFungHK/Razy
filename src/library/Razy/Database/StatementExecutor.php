@@ -20,7 +20,6 @@ use Throwable;
  * Separates the "execute SQL" concern from the "build SQL" concern,
  * providing a clean interface for query execution, view creation, and parameter merging.
  *
- * @package Razy\Database
  *
  * @license MIT
  */

@@ -13,7 +13,6 @@ declare(strict_types=1);
  * PSR-14 compatible stoppable event interface.
  * Fulfills the PSR-14 specification without requiring psr/event-dispatcher.
  *
- * @package Razy
  *
  * @license MIT
  *

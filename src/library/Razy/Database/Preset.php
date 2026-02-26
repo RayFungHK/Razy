@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -22,7 +21,6 @@ namespace Razy\Database;
  * query patterns that can be applied to a Statement via the TableJoinSyntax.
  * Subclasses implement specific query templates (e.g., pagination, search filters).
  *
- * @package Razy
  *
  * @license MIT
  */

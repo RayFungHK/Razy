@@ -34,8 +34,6 @@ use Throwable;
  *
  * @class Controller
  *
- * @package Razy
- *
  * @license MIT
  */
 class Controller

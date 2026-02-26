@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: standalone
+ * CLI Command: standalone.
  *
  * Scaffolds a standalone (lite-mode) application structure. Creates the
  * ultra-flat standalone/ folder with a main controller and index template —
@@ -23,7 +24,6 @@
  *   php Razy.phar standalone -f /var/www/myapp
  *   php Razy.phar standalone --force
  *
- * @package Razy
  * @license MIT
  */
 
@@ -34,13 +34,13 @@ use Razy\Util\PathUtil;
 return function (string ...$args) use (&$parameters) {
     // Helper: write a file and log the result
     $writeFile = function (string $path, string $content): bool {
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
+        $dir = \dirname($path);
+        if (!\is_dir($dir) && !\mkdir($dir, 0777, true)) {
             $this->writeLineLogging('{@c:red}  [FAIL]{@reset} ' . $path . ' - failed to create directory', true);
             return false;
         }
-        if (false !== file_put_contents($path, $content)) {
-            $this->writeLineLogging('{@c:green}  [OK]{@reset} ' . basename($path), true);
+        if (false !== \file_put_contents($path, $content)) {
+            $this->writeLineLogging('{@c:green}  [OK]{@reset} ' . \basename($path), true);
             return true;
         }
         $this->writeLineLogging('{@c:red}  [FAIL]{@reset} ' . $path . ' - write failed', true);
@@ -52,12 +52,12 @@ return function (string ...$args) use (&$parameters) {
     $this->writeLineLogging('', true);
 
     // Determine target directory
-    $targetPath = defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT;
+    $targetPath = \defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT;
     $standalonePath = PathUtil::append($targetPath, 'standalone');
     $force = isset($parameters['force']) || isset($parameters['-force']);
 
     // Check if standalone/ already exists
-    if (is_dir($standalonePath) && !$force) {
+    if (\is_dir($standalonePath) && !$force) {
         $this->writeLineLogging('{@c:yellow}[WARN]{@reset} standalone/ folder already exists at:', true);
         $this->writeLineLogging('  ' . $standalonePath, true);
         $this->writeLineLogging('', true);
@@ -67,8 +67,8 @@ return function (string ...$args) use (&$parameters) {
 
     // Check if multisite is enabled — warn if so
     $configPath = PathUtil::append($targetPath, 'config.inc.php');
-    $configData = is_file($configPath) ? (require $configPath) : [];
-    if (!empty($configData['multiple_site']) || getenv('RAZY_MULTIPLE_SITE') === 'true') {
+    $configData = \is_file($configPath) ? (require $configPath) : [];
+    if (!empty($configData['multiple_site']) || \getenv('RAZY_MULTIPLE_SITE') === 'true') {
         $this->writeLineLogging('{@c:yellow}[NOTE]{@reset} Multisite is enabled — standalone mode will NOT activate.', true);
         $this->writeLineLogging('  Set \'multiple_site\' => false in config.inc.php to enable standalone mode.', true);
         $this->writeLineLogging('', true);
@@ -90,8 +90,8 @@ return function (string ...$args) use (&$parameters) {
     $created = 0;
     foreach ($files as $relativePath => $sourceFile) {
         $destFile = PathUtil::append($standalonePath, $relativePath);
-        if (is_file($sourceFile)) {
-            $content = file_get_contents($sourceFile);
+        if (\is_file($sourceFile)) {
+            $content = \file_get_contents($sourceFile);
         } else {
             // Fallback: generate content inline if asset is missing
             $content = match ($relativePath) {
@@ -109,7 +109,7 @@ return function (string ...$args) use (&$parameters) {
 
     $this->writeLineLogging('', true);
 
-    if ($created === count($files)) {
+    if ($created === \count($files)) {
         $this->writeLineLogging('{@c:green}Standalone app created successfully!{@reset}', true);
     } else {
         $this->writeLineLogging('{@c:yellow}Standalone app created with some warnings.{@reset}', true);

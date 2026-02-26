@@ -11,7 +11,6 @@
  * Extracted from bootstrap.inc.php (Phase 2.5).
  * Provides static utility methods for string generation and formatting.
  *
- * @package Razy
  *
  * @license MIT
  */

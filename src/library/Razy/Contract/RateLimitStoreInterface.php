@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -25,8 +24,6 @@ namespace Razy\Contract;
  * Built-in implementations:
  * - `ArrayStore`  — In-memory (for testing)
  * - `CacheStore`  — Backed by PSR-16 CacheInterface (for production)
- *
- * @package Razy\Contract
  */
 interface RateLimitStoreInterface
 {

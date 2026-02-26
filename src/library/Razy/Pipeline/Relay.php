@@ -12,7 +12,6 @@
  * registered in a Pipeline. Uses magic `__call` to proxy any method
  * to each Action, silently ignoring individual failures.
  *
- * @package Razy
  *
  * @license MIT
  */

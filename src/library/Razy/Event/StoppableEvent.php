@@ -10,7 +10,6 @@
  *
  * Base stoppable event implementing PSR-14 StoppableEventInterface.
  *
- * @package Razy
  *
  * @license MIT
  */

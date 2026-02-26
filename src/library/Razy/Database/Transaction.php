@@ -15,7 +15,6 @@
  * / PDO::commit() / PDO::rollback(). Higher levels map to SAVEPOINT / RELEASE
  * SAVEPOINT / ROLLBACK TO SAVEPOINT statements.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -35,8 +34,6 @@ use Throwable;
  * PDO's native transaction methods.
  *
  * @class Transaction
- *
- * @package Razy\Database
  */
 class Transaction
 {

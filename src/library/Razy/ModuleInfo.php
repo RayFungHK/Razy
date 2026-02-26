@@ -12,7 +12,6 @@
  * package.php configuration, including its code, author, API name,
  * prerequisites, requirements, assets, and inter-module metadata.
  *
- * @package Razy
  *
  * @license MIT
  */

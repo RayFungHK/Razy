@@ -22,7 +22,6 @@ use Razy\Database\Driver;
  * including || concatenation, LIMIT/OFFSET syntax, INTEGER PRIMARY KEY
  * AUTOINCREMENT columns, and ON CONFLICT upsert support (SQLite 3.24+).
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -27,8 +26,6 @@ use PDOStatement;
  * Performance impact: Reduces prepare() overhead by ~50% in repeated query scenarios.
  *
  * @class StatementPool
- *
- * @package Razy\Database
  */
 class StatementPool
 {

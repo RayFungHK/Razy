@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -31,8 +30,6 @@ use Throwable;
  * respectively. The proxy methods on this class are retained for backward compatibility.
  *
  * @class Error
- *
- * @package Razy
  */
 class Error extends Exception
 {

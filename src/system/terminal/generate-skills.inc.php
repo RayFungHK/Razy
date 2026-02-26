@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: generate-skills
+ * CLI Command: generate-skills.
  *
  * Generates skills documentation files for the Razy framework, its
  * distributions, and modules. The generated Markdown files provide structured
@@ -19,7 +20,6 @@
  *   skills/{dist_code}.md             Distribution context
  *   skills/{dist_code}/{module}.md    Module context
  *
- * @package Razy
  * @license MIT
  */
 
@@ -30,7 +30,7 @@ $rootOnly = in_array('--root-only', $argv);
 
 try {
     echo "🚀 Generating skills documentation...\n\n";
-    
+
     // Instantiate the generator and produce all documentation artefacts
     $generator = new SkillsGenerator();
     $results = $generator->generate();
@@ -78,9 +78,8 @@ try {
         fwrite(STDERR, "\n⚠️  Error: " . $results['error'] . "\n");
         exit(1);
     }
-
 } catch (Throwable $e) {
-    fwrite(STDERR, "❌ Error: " . $e->getMessage() . "\n");
-    fwrite(STDERR, "   File: " . $e->getFile() . ":" . $e->getLine() . "\n");
+    fwrite(STDERR, '❌ Error: ' . $e->getMessage() . "\n");
+    fwrite(STDERR, '   File: ' . $e->getFile() . ':' . $e->getLine() . "\n");
     exit(1);
 }

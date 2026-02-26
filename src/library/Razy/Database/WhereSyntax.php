@@ -23,7 +23,6 @@ use Throwable;
  * (*=, ^=, $=, #=), JSON operators (~=, &=, @=, :=, |=), range/BETWEEN (><, <>),
  * NULL checks, array/IN operations, and logical grouping with AND (,) / OR (|).
  *
- * @package Razy
  *
  * @license MIT
  */

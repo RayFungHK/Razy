@@ -25,7 +25,6 @@ use Throwable;
  * from exception semantics. Supports HTML template-based exception pages
  * in web mode and plain text output in CLI mode.
  *
- * @package Razy\Error
  *
  * @license MIT
  */

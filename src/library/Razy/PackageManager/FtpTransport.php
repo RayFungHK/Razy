@@ -13,7 +13,6 @@
  *
  * Requires PHP ext-ftp.
  *
- * @package Razy
  *
  * @license MIT
  */

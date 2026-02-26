@@ -13,7 +13,6 @@
  *
  * Requires PHP ext-ssh2.
  *
- * @package Razy
  *
  * @license MIT
  */

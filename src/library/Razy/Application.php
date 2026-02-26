@@ -28,8 +28,6 @@ use Throwable;
  *
  * @class Application
  *
- * @package Razy
- *
  * @license MIT
  */
 class Application

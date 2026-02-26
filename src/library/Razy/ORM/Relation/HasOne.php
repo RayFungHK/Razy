@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -22,8 +21,6 @@ use Razy\ORM\ModelCollection;
  * HasOne relationship — the parent has one related model.
  *
  * Example: A User hasOne Profile, where profiles.user_id references users.id.
- *
- * @package Razy\ORM\Relation
  */
 class HasOne extends Relation
 {

@@ -12,7 +12,6 @@
  * interface for constructing HTML `<select>` elements with `<option>`
  * children, supporting bulk option creation and selected value management.
  *
- * @package Razy
  *
  * @license MIT
  */

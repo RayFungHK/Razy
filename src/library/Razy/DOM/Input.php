@@ -12,7 +12,6 @@
  * interface for constructing HTML `<input>` elements with common attributes
  * such as type, name, value, and placeholder.
  *
- * @package Razy
  *
  * @license MIT
  */

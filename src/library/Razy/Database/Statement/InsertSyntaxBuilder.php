@@ -10,7 +10,6 @@
  *
  * Extracted from Statement::getSyntax() INSERT/REPLACE branch (Phase 2.3).
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -11,7 +11,6 @@
  * Server-Sent Events (SSE) helper for streaming real-time data
  * from a PHP backend to the browser via the EventSource API.
  *
- * @package Razy
  *
  * @license MIT
  */

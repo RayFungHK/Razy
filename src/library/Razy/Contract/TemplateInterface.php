@@ -10,7 +10,6 @@
  *
  * Core interface contract for the template engine (Phase 2.4).
  *
- * @package Razy
  *
  * @license MIT
  */

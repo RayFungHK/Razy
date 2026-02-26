@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -24,8 +23,6 @@ namespace Razy\Validation;
  *
  * Supports builder-style fluent API (mirrors Pipeline::pipe() → Action::then()
  * chaining) and a static `make()` shorthand for one-shot validation.
- *
- * @package Razy\Validation
  */
 class Validator
 {

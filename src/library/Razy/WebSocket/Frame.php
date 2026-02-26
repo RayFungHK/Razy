@@ -10,7 +10,6 @@
  *
  * RFC 6455 WebSocket frame encoder and decoder.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -29,8 +28,6 @@ use InvalidArgumentException;
  * Close (0x8), Ping (0x9), Pong (0xA).
  *
  * @class Frame
- *
- * @package Razy\WebSocket
  */
 class Frame
 {

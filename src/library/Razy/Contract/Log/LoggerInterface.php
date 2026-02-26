@@ -11,7 +11,6 @@
  * PSR-3 compatible logger interface.
  * Fulfills the PSR-3 specification without requiring psr/log.
  *
- * @package Razy
  *
  * @license MIT
  *

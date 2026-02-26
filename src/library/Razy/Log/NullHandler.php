@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -21,8 +20,6 @@ use Razy\Contract\Log\LogHandlerInterface;
  * Null log handler — silently discards all log messages.
  *
  * Useful for testing or disabling logging on specific channels.
- *
- * @package Razy\Log
  */
 class NullHandler implements LogHandlerInterface
 {

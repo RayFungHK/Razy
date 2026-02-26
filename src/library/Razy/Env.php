@@ -16,7 +16,6 @@
  *  - Empty values
  *  - Casting helpers: `true`/`false`/`null`/`(empty)` literals
  *
- * @package Razy
  *
  * @license MIT
  */

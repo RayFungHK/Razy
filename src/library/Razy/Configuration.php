@@ -21,8 +21,6 @@ use Razy\Exception\ConfigurationException;
  *
  * @class Configuration
  *
- * @package Razy
- *
  * @license MIT
  */
 class Configuration extends Collection

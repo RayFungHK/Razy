@@ -10,7 +10,6 @@
  *
  * Fluent builder for contextual container bindings.
  *
- * @package Razy
  *
  * @license MIT
  */

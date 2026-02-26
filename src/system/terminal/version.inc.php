@@ -1,13 +1,13 @@
 <?php
+
 /**
- * CLI Command: version
+ * CLI Command: version.
  *
  * Displays the current Razy framework version.
  *
  * Usage:
  *   php Razy.phar version
  *
- * @package Razy
  * @license MIT
  */
 

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -33,8 +32,6 @@ use RuntimeException;
  *     // $e->getKey()          → 'api:192.168.1.1'
  * }
  * ```
- *
- * @package Razy\RateLimit
  */
 class RateLimitExceededException extends RuntimeException
 {

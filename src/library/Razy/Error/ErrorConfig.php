@@ -17,7 +17,6 @@ namespace Razy\Error;
  * Extracted from the Error class to separate configuration/state management
  * from exception semantics. Handles debug mode, cached output, and debug console.
  *
- * @package Razy\Error
  *
  * @license MIT
  */

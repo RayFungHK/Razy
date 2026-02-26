@@ -12,7 +12,6 @@
  * and orchestrating module controllers including routing, API commands,
  * bridge commands, event listeners, and inter-module communication.
  *
- * @package Razy
  *
  * @license MIT
  */

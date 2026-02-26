@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -28,8 +27,6 @@ use RuntimeException;
  * The pivot table must have at least two foreign key columns:
  *  - foreignPivotKey  → references the parent model's primary key
  *  - relatedPivotKey  → references the related model's primary key
- *
- * @package Razy\ORM\Relation
  */
 class BelongsToMany extends Relation
 {

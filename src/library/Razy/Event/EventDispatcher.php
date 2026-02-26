@@ -10,7 +10,6 @@
  *
  * PSR-14 compliant event dispatcher.
  *
- * @package Razy
  *
  * @license MIT
  */

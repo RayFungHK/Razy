@@ -13,7 +13,6 @@
  * entity collections. Entities handle template rendering by processing
  * parameter tags, function tags, and modifier chains.
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -20,8 +19,6 @@ namespace Razy\Validation;
  *
  * Replaces the ad-hoc `$rejected` array in the Pipeline's FormWorker with a
  * structured, queryable result object.
- *
- * @package Razy\Validation
  */
 class ValidationResult
 {

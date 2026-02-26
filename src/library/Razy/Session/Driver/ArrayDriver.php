@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -24,8 +23,6 @@ use Razy\Contract\SessionDriverInterface;
  * Ideal for unit tests where you need deterministic session behaviour.
  *
  * Supports GC simulation via last-write timestamps.
- *
- * @package Razy\Session\Driver
  */
 class ArrayDriver implements SessionDriverInterface
 {

@@ -12,7 +12,6 @@
  * attachments, HTML/text bodies, CC/BCC, TLS/SSL encryption,
  * and asynchronous background sending via ThreadManager.
  *
- * @package Razy
  *
  * @license MIT
  */

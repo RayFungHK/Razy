@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -36,8 +35,6 @@ use ReflectionProperty;
  * $users = User::query($db)->where('active=:active', ['active' => 1])->orderBy('name')->get();
  * $user  = User::query($db)->find(42);
  * ```
- *
- * @package Razy\ORM
  */
 class ModelQuery
 {

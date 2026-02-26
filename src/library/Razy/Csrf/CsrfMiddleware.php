@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -47,8 +46,6 @@ use Razy\Contract\MiddlewareInterface;
  * // With token rotation after each successful validation
  * $middleware = new CsrfMiddleware($csrf, rotateOnSuccess: true);
  * ```
- *
- * @package Razy\Csrf
  */
 class CsrfMiddleware implements MiddlewareInterface
 {

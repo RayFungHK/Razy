@@ -10,7 +10,6 @@
  *
  * Abstract base class for database migrations.
  *
- * @package Razy
  *
  * @license MIT
  */

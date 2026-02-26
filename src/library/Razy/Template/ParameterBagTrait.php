@@ -11,7 +11,6 @@
  * Provides shared parameter assignment and binding logic for all Template
  * scope levels (Template, Source, Block, Entity).
  *
- * @package Razy
  *
  * @license MIT
  */

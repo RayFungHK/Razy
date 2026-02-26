@@ -10,7 +10,6 @@
  *
  * Extracted from Statement::getSyntax() UPDATE branch + getUpdateSyntax() (Phase 2.3).
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -9,7 +9,6 @@
  *
  * Supports FrankenPHP / Caddy worker mode for persistent-process request handling.
  *
- * @package Razy
  *
  * @version 0.5
  *

@@ -31,7 +31,6 @@ use Throwable;
  * Usage (via CLI):
  *   php Razy.phar rewrite --caddy
  *
- * @package Razy\Routing
  *
  * @license MIT
  */

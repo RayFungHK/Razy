@@ -11,7 +11,6 @@
  * Lightweight STOMP-like message protocol for structured inter-process or
  * WebSocket communication with command, headers, and body.
  *
- * @package Razy
  *
  * @license MIT
  */

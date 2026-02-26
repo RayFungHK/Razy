@@ -11,7 +11,6 @@
  * PSR-16 compatible cache exception interface.
  * Fulfills the PSR-16 specification without requiring psr/simple-cache.
  *
- * @package Razy
  *
  * @license MIT
  *

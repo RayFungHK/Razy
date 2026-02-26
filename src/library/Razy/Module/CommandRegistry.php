@@ -11,7 +11,6 @@
  * Extracted from Module god class (Phase 2.2).
  * Manages API and bridge command registration and execution.
  *
- * @package Razy
  *
  * @license MIT
  */

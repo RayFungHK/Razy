@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -20,8 +19,6 @@ namespace Razy\Session;
  *
  * Replaces Razy's hardcoded `session_set_cookie_params(0, '/', HOSTNAME)` with
  * a configurable, type-safe structure.
- *
- * @package Razy\Session
  */
 class SessionConfig
 {

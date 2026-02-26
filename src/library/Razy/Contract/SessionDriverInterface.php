@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -21,8 +20,6 @@ namespace Razy\Contract;
  * Drivers handle the low-level read/write of session data by session ID.
  * The Session class delegates persistence to a driver, keeping session
  * logic (flash data, regeneration) decoupled from storage.
- *
- * @package Razy\Contract
  */
 interface SessionDriverInterface
 {

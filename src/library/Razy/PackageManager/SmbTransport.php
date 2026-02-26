@@ -15,7 +15,6 @@
  * Uses PHP stream wrappers (smb://) with smbclient integration,
  * or falls back to UNC path access on Windows.
  *
- * @package Razy
  *
  * @license MIT
  */

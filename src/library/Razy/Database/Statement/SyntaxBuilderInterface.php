@@ -10,7 +10,6 @@
  *
  * Interface for type-specific SQL syntax builders (Strategy Pattern).
  *
- * @package Razy
  *
  * @license MIT
  */

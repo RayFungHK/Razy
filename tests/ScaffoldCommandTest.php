@@ -574,7 +574,6 @@ class ScaffoldCommandTest extends TestCase
     {
         $path = SYSTEM_ROOT . '/src/system/terminal/scaffold.inc.php';
         $content = \file_get_contents($path);
-        $this->assertStringContainsString('@package Razy', $content);
         $this->assertStringContainsString('@license MIT', $content);
         $this->assertStringContainsString('CLI Command: scaffold', $content);
     }

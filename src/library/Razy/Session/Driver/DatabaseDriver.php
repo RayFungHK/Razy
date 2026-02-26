@@ -22,7 +22,6 @@
  *       last_activity INTEGER NOT NULL
  *   );
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -39,8 +38,6 @@ use Throwable;
  * Stores serialized session data in a database table. The driver
  * operates directly on PDO for maximum portability and minimal
  * coupling to the Razy Database class.
- *
- * @package Razy\Session\Driver
  */
 class DatabaseDriver implements SessionDriverInterface
 {

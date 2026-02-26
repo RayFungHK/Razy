@@ -19,8 +19,6 @@ namespace Razy;
  *
  * @class Crypt
  *
- * @package Razy
- *
  * @license MIT
  */
 class Crypt

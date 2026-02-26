@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -27,8 +26,6 @@ use Razy\ORM\ModelCollection;
  * The constructor signature is the same as Relation, but the semantics differ:
  *   - $foreignKey is the column on **this** model that holds the reference
  *   - $localKey   is the column on the **related** model that is referenced
- *
- * @package Razy\ORM\Relation
  */
 class BelongsTo extends Relation
 {

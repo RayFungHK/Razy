@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -40,8 +39,6 @@ use Throwable;
  * and execution, query history tracking, and table prefix management.
  *
  * @class Database
- *
- * @package Razy
  */
 class Database implements DatabaseInterface
 {

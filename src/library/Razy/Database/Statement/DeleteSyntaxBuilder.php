@@ -10,7 +10,6 @@
  *
  * Extracted from Statement::getSyntax() DELETE branch (Phase 2.3).
  *
- * @package Razy
  *
  * @license MIT
  */

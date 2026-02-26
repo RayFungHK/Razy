@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: compose
+ * CLI Command: compose.
  *
  * Composes a distributor by resolving and installing its required packages
  * and dependencies. This command reads the distributor's module configuration,
@@ -13,7 +14,6 @@
  * Arguments:
  *   distributor_code  The code identifying the target distributor
  *
- * @package Razy
  * @license MIT
  */
 
@@ -23,7 +23,7 @@ return function (string $distCode = '') use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Update distributor module and package', true);
 
     // Check the parameters is valid
-    $distCode = trim($distCode);
+    $distCode = \trim($distCode);
     if (!$distCode) {
         $this->writeLineLogging('{@c:r}[ERROR] The distributor code is required.', true);
 
@@ -52,9 +52,9 @@ return function (string $distCode = '') use (&$parameters) {
         } elseif (PackageManager::TYPE_READY == $type) {
             $this->writeLineLogging('Validating package: {@c:green}' . $packageName . '{@reset} (' . $args[0] . ')', true);
         } elseif (PackageManager::TYPE_DOWNLOAD_PROGRESS == $type) {
-            $size       = (int) $args[1];
+            $size = (int) $args[1];
             $downloaded = (int) $args[2];
-            echo $this->format('{@clear} - Downloading: {@c:green}' . $packageName . ' @' . $args[0] . '{@reset} (' . ((!$downloaded) ? '0' : floor(($downloaded / $size) * 100)) . '%)', true);
+            echo $this->format('{@clear} - Downloading: {@c:green}' . $packageName . ' @' . $args[0] . '{@reset} (' . ((!$downloaded) ? '0' : \floor(($downloaded / $size) * 100)) . '%)', true);
         } elseif (PackageManager::TYPE_DOWNLOAD_FINISHED == $type) {
             echo PHP_EOL;
         } elseif (PackageManager::TYPE_UPDATED == $type) {

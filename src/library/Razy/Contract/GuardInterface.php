@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -22,8 +21,6 @@ namespace Razy\Contract;
  * and providing access to the authenticated user entity. Different
  * guards implement different authentication strategies (session,
  * token, API key, etc.).
- *
- * @package Razy\Contract
  */
 interface GuardInterface
 {

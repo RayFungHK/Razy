@@ -16,7 +16,6 @@
  * FTP/FTPS, SFTP (SSH), SMB/CIFS network shares, and local filesystem.
  * Custom transports can be added by implementing PackageTransportInterface.
  *
- * @package Razy
  *
  * @license MIT
  */

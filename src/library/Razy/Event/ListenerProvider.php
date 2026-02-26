@@ -10,7 +10,6 @@
  *
  * PSR-14 compliant listener provider with priority support.
  *
- * @package Razy
  *
  * @license MIT
  */

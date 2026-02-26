@@ -12,7 +12,6 @@
  * a loaded template file, managing the root block/entity hierarchy, source-level
  * parameters, and template rendering output.
  *
- * @package Razy
  *
  * @license MIT
  */

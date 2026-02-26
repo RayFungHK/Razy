@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -56,8 +55,6 @@ use Stringable;
  * // Stack channel — logs to multiple channels at once
  * $logManager->stack(['app', 'errors'])->critical('Critical failure');
  * ```
- *
- * @package Razy\Log
  */
 class LogManager implements LoggerInterface
 {

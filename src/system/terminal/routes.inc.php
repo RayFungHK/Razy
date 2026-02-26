@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: routes
+ * CLI Command: routes.
  *
  * Lists all registered routes, closures, and optionally API commands
  * for a given distributor. Supports filtering by module, displaying
@@ -20,13 +21,14 @@
  *   --domain=<name>      Domain tag to use (default: *)
  *   --module=<code>      Filter by module code
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
 use Razy\Util\PathUtil;
+use Throwable;
+
 return function (string $distCode = '', ...$args) use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Route List', true);
     $this->writeLineLogging('List all registered routes and closures', true);
@@ -46,17 +48,17 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             $showRegex = true;
         } elseif ($arg === '--api' || $arg === '-a') {
             $showAPI = true;
-        } elseif (str_starts_with($arg, '--domain=')) {
-            $domain = substr($arg, 9);
-        } elseif (str_starts_with($arg, '--module=')) {
-            $moduleFilter = substr($arg, 9);
-        } elseif (!str_starts_with($arg, '-') && !$moduleFilter) {
+        } elseif (\str_starts_with($arg, '--domain=')) {
+            $domain = \substr($arg, 9);
+        } elseif (\str_starts_with($arg, '--module=')) {
+            $moduleFilter = \substr($arg, 9);
+        } elseif (!\str_starts_with($arg, '-') && !$moduleFilter) {
             $moduleFilter = $arg;
         }
     }
 
     // Validate required parameters
-    $distCode = trim($distCode);
+    $distCode = \trim($distCode);
     if (!$distCode) {
         $this->writeLineLogging('{@c:red}[ERROR] Distributor code is required.{@reset}', true);
         $this->writeLineLogging('', true);
@@ -91,7 +93,7 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
     try {
         // Verify the distributor directory exists
         $distPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode);
-        if (!is_dir($distPath)) {
+        if (!\is_dir($distPath)) {
             $this->writeLineLogging("{@c:red}[ERROR] Distributor folder not found: {$distPath}{@reset}", true);
             exit(1);
         }
@@ -104,30 +106,30 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
         $this->writeLineLogging('', true);
 
         // Initialize the distributor to trigger module loading
-        $this->writeLineLogging("{@c:yellow}Loading modules...{@reset}", true);
-        
+        $this->writeLineLogging('{@c:yellow}Loading modules...{@reset}', true);
+
         $distributor = new Distributor($distCode, $domain);
         $distributor->initialize();
-        
-        $this->writeLineLogging("{@c:green}Modules loaded{@reset}", true);
+
+        $this->writeLineLogging('{@c:green}Modules loaded{@reset}', true);
         $this->writeLineLogging('', true);
 
         // Retrieve all registered routes and loaded module info
         $routes = $distributor->getRouter()->getRoutes();
         $modulesInfo = $distributor->getRegistry()->getLoadedModulesInfo();
-        
+
         // Group routes by module code for organized display
         $routesByModule = [];
         foreach ($routes as $routePath => $routeInfo) {
             /** @var Module $module */
             $module = $routeInfo['module'];
             $moduleCode = $module->getModuleInfo()->getCode();
-            
+
             // Apply module filter
             if ($moduleFilter && $moduleCode !== $moduleFilter) {
                 continue;
             }
-            
+
             if (!isset($routesByModule[$moduleCode])) {
                 $routesByModule[$moduleCode] = [
                     'module' => $module,
@@ -137,17 +139,17 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             }
             $routesByModule[$moduleCode]['routes'][$routePath] = $routeInfo;
         }
-        
+
         // Collect API commands for each module
         foreach ($modulesInfo as $code => $info) {
             if ($moduleFilter && $code !== $moduleFilter) {
                 continue;
             }
-            
+
             /** @var Module $module */
             $module = $info['module'];
             $apiCommands = $module->getAPICommands();
-            
+
             if (!empty($apiCommands)) {
                 if (!isset($routesByModule[$code])) {
                     $routesByModule[$code] = [
@@ -164,7 +166,7 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             if ($moduleFilter) {
                 $this->writeLineLogging("{@c:yellow}No routes found for module: {$moduleFilter}{@reset}", true);
             } else {
-                $this->writeLineLogging("{@c:yellow}No routes registered{@reset}", true);
+                $this->writeLineLogging('{@c:yellow}No routes registered{@reset}', true);
             }
             exit(0);
         }
@@ -176,13 +178,13 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             /** @var Module $module */
             $module = $data['module'];
             $moduleInfo = $module->getModuleInfo();
-            
+
             $this->writeLineLogging("{@s:b}Module: {$code}{@reset}", true);
             $this->writeLineLogging("  {@c:cyan}Alias:{@reset} {$moduleInfo->getAlias()}", true);
-            
+
             // Sort routes by path
-            ksort($data['routes']);
-            
+            \ksort($data['routes']);
+
             foreach ($data['routes'] as $routePath => $routeInfo) {
                 $totalRoutes++;
                 $closurePath = $routeInfo['path'];
@@ -193,12 +195,12 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                     'script' => '{@c:magenta}[cli]{@reset}',
                     default => "[{$routeType}]",
                 };
-                
+
                 // Get closure path string
-                $closureStr = ($closurePath instanceof Route) 
+                $closureStr = ($closurePath instanceof Route)
                     ? '{@c:yellow}<inline handler>{@reset}'
                     : $closurePath;
-                
+
                 // Check if closure exists
                 if (!($closurePath instanceof Route)) {
                     $closure = $module->getClosure($closurePath);
@@ -206,63 +208,62 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                         $closureStr = "{@c:red}{$closurePath} (MISSING){@reset}";
                     }
                 }
-                
+
                 $this->writeLineLogging("  {$typeLabel} {$routePath}", true);
                 $this->writeLineLogging("       → {$closureStr}", true);
-                
+
                 if ($showRegex && $routeType === 'standard') {
                     // Generate regex like Distributor does
-                    $regex = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
-                        $r = (strlen($matches[2] ?? '')) > 0 ? $matches[2] : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
-                        return $r . ((0 !== strlen($matches[3] ?? '')) ? $matches[3] : '+');
+                    $regex = \preg_replace_callback('/\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\[\]]+]))({\d+,?\d*})?/', function ($matches) {
+                        $r = (\strlen($matches[2] ?? '')) > 0 ? $matches[2] : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
+                        return $r . ((0 !== \strlen($matches[3] ?? '')) ? $matches[3] : '+');
                     }, $routePath);
-                    $regex = '/^(' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $regex) . ')((?:.+)?)/';
+                    $regex = '/^(' . \preg_replace('/\\\.(*SKIP)(*FAIL)|\//', '\/', $regex) . ')((?:.+)?)/';
                     $this->writeLineLogging("       {@c:dim}Regex: {$regex}{@reset}", true);
                 }
-                
+
                 if ($verbose && isset($routeInfo['target'])) {
                     /** @var Module $target */
                     $target = $routeInfo['target'];
                     $this->writeLineLogging("       {@c:dim}Shadow route to: {$target->getModuleInfo()->getCode()}{@reset}", true);
                 }
             }
-            
+
             // Show API commands if --api flag is set
             if ($showAPI && !empty($data['api'])) {
-                $this->writeLineLogging("  {@c:magenta}API Commands:{@reset}", true);
-                ksort($data['api']);
-                
+                $this->writeLineLogging('  {@c:magenta}API Commands:{@reset}', true);
+                \ksort($data['api']);
+
                 foreach ($data['api'] as $command => $closurePath) {
                     $totalAPI++;
-                    
+
                     // Check if closure exists
                     $closure = $module->getClosure($closurePath);
-                    $closureStr = ($closure === null) 
+                    $closureStr = ($closure === null)
                         ? "{@c:red}{$closurePath} (MISSING){@reset}"
                         : $closurePath;
-                    
+
                     $this->writeLineLogging("  {@c:magenta}[api]{@reset} {$command}", true);
                     $this->writeLineLogging("       → {$closureStr}", true);
                 }
             }
-            
+
             $this->writeLineLogging('', true);
         }
 
         // Summary
         $this->writeLineLogging('{@s:b}Summary{@reset}', true);
-        $this->writeLineLogging("Total modules: " . count($routesByModule), true);
+        $this->writeLineLogging('Total modules: ' . \count($routesByModule), true);
         $this->writeLineLogging("Total routes: {$totalRoutes}", true);
         if ($showAPI) {
             $this->writeLineLogging("Total API commands: {$totalAPI}", true);
         }
 
         exit(0);
-
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $this->writeLineLogging("{@c:red}[ERROR] {$e->getMessage()}{@reset}", true);
         if ($verbose) {
-            $this->writeLineLogging("{@c:red}Stack trace:{@reset}", true);
+            $this->writeLineLogging('{@c:red}Stack trace:{@reset}', true);
             $this->writeLineLogging($e->getTraceAsString(), true);
         }
         exit(1);

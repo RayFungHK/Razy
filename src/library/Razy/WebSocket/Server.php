@@ -12,7 +12,6 @@
  * Accepts connections, performs the RFC 6455 handshake, and dispatches
  * events for open, message, close, and error.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -38,8 +37,6 @@ use Throwable;
  * ```
  *
  * @class Server
- *
- * @package Razy\WebSocket
  */
 class Server
 {

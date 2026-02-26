@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -31,8 +30,6 @@ use Razy\Contract\SessionInterface;
  * $session = new Session($driver, $config);
  * $dispatcher->addGlobalMiddleware(new SessionMiddleware($session));
  * ```
- *
- * @package Razy\Session
  */
 class SessionMiddleware implements MiddlewareInterface
 {

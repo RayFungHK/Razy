@@ -15,7 +15,6 @@
  *
  * Requires PHP ext-ssh2 for full functionality.
  *
- * @package Razy
  *
  * @license MIT
  */

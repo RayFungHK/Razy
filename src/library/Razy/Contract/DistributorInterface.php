@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -28,8 +27,6 @@ use Razy\Template;
  * Module, API, EventEmitter, and PackageManager depend on this interface rather
  * than the concrete Distributor class, enabling both runtime modes to share the
  * same module lifecycle engine.
- *
- * @package Razy\Contract
  */
 interface DistributorInterface
 {

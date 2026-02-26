@@ -12,7 +12,6 @@
  * transform parameter values inline via the `->modifier:arg` syntax in
  * template tags (e.g., `{$name->uppercase->truncate:50}`).
  *
- * @package Razy
  *
  * @license MIT
  */

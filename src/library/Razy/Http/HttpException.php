@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -21,8 +20,6 @@ use RuntimeException;
  * Exception thrown when an HTTP request fails.
  *
  * Contains the associated HttpResponse for inspection.
- *
- * @package Razy\Http
  */
 class HttpException extends RuntimeException
 {

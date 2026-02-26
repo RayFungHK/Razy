@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: queue
+ * CLI Command: queue.
  *
  * Manage the Razy job queue system. Supports running a worker loop,
  * checking queue status, retrying failed jobs, and clearing queues.
@@ -19,7 +20,6 @@
  *   --tries=3       Max attempts per job (default: 3)
  *   --timeout=60    Max execution time per job in seconds (default: 60)
  *
- * @package Razy
  * @license MIT
  */
 
@@ -27,17 +27,18 @@ namespace Razy;
 
 use Razy\Queue\JobStatus;
 use Razy\Queue\QueueManager;
+use Throwable;
 
 return function () {
-    $args = func_get_args();
+    $args = \func_get_args();
     $subcommand = $args[0] ?? 'help';
     $queueName = $args[1] ?? 'default';
 
     // Parse --flag=value options from arguments
     $options = [];
     foreach ($args as $arg) {
-        if (str_starts_with($arg, '--')) {
-            $parts = explode('=', substr($arg, 2), 2);
+        if (\str_starts_with($arg, '--')) {
+            $parts = \explode('=', \substr($arg, 2), 2);
             $options[$parts[0]] = $parts[1] ?? true;
         }
     }
@@ -46,16 +47,16 @@ return function () {
     $getManager = function (): ?QueueManager {
         try {
             // Attempt to get the QueueManager from the framework
-            if (class_exists(QueueManager::class)) {
+            if (\class_exists(QueueManager::class)) {
                 // Try to create a QueueManager using the default database
                 $db = Database::getSharedInstance();
                 if ($db !== null) {
-                    $store = new \Razy\Queue\DatabaseStore($db);
+                    $store = new Queue\DatabaseStore($db);
 
                     return new QueueManager($store);
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Fall through
         }
 
@@ -64,13 +65,13 @@ return function () {
 
     switch ($subcommand) {
         case 'work':
-            $sleep    = (int) ($options['sleep'] ?? 3);
-            $maxJobs  = (int) ($options['max-jobs'] ?? 0);
+            $sleep = (int) ($options['sleep'] ?? 3);
+            $maxJobs = (int) ($options['max-jobs'] ?? 0);
             $memLimit = (int) ($options['memory'] ?? 128);
             $processed = 0;
 
             $this->writeLineLogging("Starting queue worker for [{$queueName}]...");
-            $this->writeLineLogging(sprintf(
+            $this->writeLineLogging(\sprintf(
                 '  {@c:cyan}%-14s{@reset} sleep=%ds, max-jobs=%s, memory=%dMB',
                 'Options:',
                 $sleep,
@@ -88,9 +89,9 @@ return function () {
 
             // Register event listeners for logging
             $manager->on('reserved', function (array $ctx) {
-                $this->writeLineLogging(sprintf(
+                $this->writeLineLogging(\sprintf(
                     '{@c:cyan}[%s]{@reset} Processing job #%d (%s) attempt %d',
-                    date('H:i:s'),
+                    \date('H:i:s'),
                     $ctx['id'],
                     $ctx['handler'] ?? 'unknown',
                     $ctx['attempts']
@@ -98,26 +99,26 @@ return function () {
             });
 
             $manager->on('completed', function (array $ctx) {
-                $this->writeLineLogging(sprintf(
+                $this->writeLineLogging(\sprintf(
                     '{@c:green}[%s]{@reset} Completed job #%d',
-                    date('H:i:s'),
+                    \date('H:i:s'),
                     $ctx['id']
                 ));
             });
 
             $manager->on('failed', function (array $ctx) {
-                $this->writeLineLogging(sprintf(
+                $this->writeLineLogging(\sprintf(
                     '{@c:yellow}[%s]{@reset} Failed job #%d: %s',
-                    date('H:i:s'),
+                    \date('H:i:s'),
                     $ctx['id'],
                     $ctx['error'] ?? 'unknown error'
                 ));
             });
 
             $manager->on('buried', function (array $ctx) {
-                $this->writeLineLogging(sprintf(
+                $this->writeLineLogging(\sprintf(
                     '{@c:red}[%s]{@reset} Buried job #%d: %s',
-                    date('H:i:s'),
+                    \date('H:i:s'),
                     $ctx['id'],
                     $ctx['error'] ?? 'max attempts exceeded'
                 ));
@@ -125,9 +126,9 @@ return function () {
 
             while (true) {
                 // Memory check
-                $memUsage = memory_get_usage(true) / 1024 / 1024;
+                $memUsage = \memory_get_usage(true) / 1024 / 1024;
                 if ($memUsage >= $memLimit) {
-                    $this->writeLineLogging(sprintf(
+                    $this->writeLineLogging(\sprintf(
                         '{@c:yellow}Memory limit reached (%.1fMB / %dMB). Stopping worker.{@reset}',
                         $memUsage,
                         $memLimit
@@ -141,7 +142,7 @@ return function () {
                     $processed++;
 
                     if ($maxJobs > 0 && $processed >= $maxJobs) {
-                        $this->writeLineLogging(sprintf(
+                        $this->writeLineLogging(\sprintf(
                             '{@c:green}Processed %d jobs (max reached). Stopping worker.{@reset}',
                             $processed
                         ));
@@ -149,11 +150,11 @@ return function () {
                     }
                 } else {
                     // No job available — sleep
-                    sleep($sleep);
+                    \sleep($sleep);
                 }
             }
 
-            $this->writeLineLogging(sprintf(
+            $this->writeLineLogging(\sprintf(
                 '{@c:green}Worker stopped. Total processed: %d{@reset}',
                 $processed
             ));
@@ -185,20 +186,20 @@ return function () {
 
             $manager->ensureStorage();
 
-            $pending   = $manager->count($queueName, JobStatus::Pending);
-            $reserved  = $manager->count($queueName, JobStatus::Reserved);
+            $pending = $manager->count($queueName, JobStatus::Pending);
+            $reserved = $manager->count($queueName, JobStatus::Reserved);
             $completed = $manager->count($queueName, JobStatus::Completed);
-            $failed    = $manager->count($queueName, JobStatus::Failed);
-            $buried    = $manager->count($queueName, JobStatus::Buried);
-            $total     = $pending + $reserved + $completed + $failed + $buried;
+            $failed = $manager->count($queueName, JobStatus::Failed);
+            $buried = $manager->count($queueName, JobStatus::Buried);
+            $total = $pending + $reserved + $completed + $failed + $buried;
 
             $this->writeLineLogging("Queue Status: [{$queueName}]");
-            $this->writeLineLogging(sprintf('  {@c:cyan}%-14s{@reset} %d', 'Total:',     $total));
-            $this->writeLineLogging(sprintf('  {@c:cyan}%-14s{@reset} %d', 'Pending:',   $pending));
-            $this->writeLineLogging(sprintf('  {@c:cyan}%-14s{@reset} %d', 'Reserved:',  $reserved));
-            $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %d', 'Completed:', $completed));
-            $this->writeLineLogging(sprintf('  {@c:yellow}%-14s{@reset} %d', 'Failed:',   $failed));
-            $this->writeLineLogging(sprintf('  {@c:red}%-14s{@reset} %d', 'Buried:',    $buried));
+            $this->writeLineLogging(\sprintf('  {@c:cyan}%-14s{@reset} %d', 'Total:', $total));
+            $this->writeLineLogging(\sprintf('  {@c:cyan}%-14s{@reset} %d', 'Pending:', $pending));
+            $this->writeLineLogging(\sprintf('  {@c:cyan}%-14s{@reset} %d', 'Reserved:', $reserved));
+            $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %d', 'Completed:', $completed));
+            $this->writeLineLogging(\sprintf('  {@c:yellow}%-14s{@reset} %d', 'Failed:', $failed));
+            $this->writeLineLogging(\sprintf('  {@c:red}%-14s{@reset} %d', 'Buried:', $buried));
             break;
 
         case 'clear':
@@ -210,7 +211,7 @@ return function () {
 
             $manager->ensureStorage();
             $cleared = $manager->clear($queueName);
-            $this->writeLineLogging(sprintf(
+            $this->writeLineLogging(\sprintf(
                 '{@c:green}Cleared %d completed/buried jobs from [%s].{@reset}',
                 $cleared,
                 $queueName
@@ -240,7 +241,7 @@ return function () {
             }
 
             if ($job->status !== JobStatus::Failed && $job->status !== JobStatus::Buried) {
-                $this->writeLineLogging(sprintf(
+                $this->writeLineLogging(\sprintf(
                     '{@c:yellow}Job #%d is in [%s] status. Only failed/buried jobs can be retried.{@reset}',
                     $jobId,
                     $job->status->value
@@ -249,7 +250,7 @@ return function () {
             }
 
             $store->release($jobId, 0, null);
-            $this->writeLineLogging(sprintf(
+            $this->writeLineLogging(\sprintf(
                 '{@c:green}Job #%d has been re-queued for retry.{@reset}',
                 $jobId
             ));
@@ -258,16 +259,16 @@ return function () {
         default:
             $this->writeLineLogging('{@c:yellow}Usage:{@reset} php Razy.phar queue [work|once|status|clear|retry]');
             $this->writeLineLogging('');
-            $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'work [queue]',  'Process jobs in a loop'));
-            $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'once [queue]',  'Process a single job'));
-            $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'status [queue]', 'Show queue statistics'));
-            $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'clear [queue]',  'Remove completed/buried jobs'));
-            $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'retry <id>',     'Re-queue a failed/buried job'));
+            $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'work [queue]', 'Process jobs in a loop'));
+            $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'once [queue]', 'Process a single job'));
+            $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'status [queue]', 'Show queue statistics'));
+            $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'clear [queue]', 'Remove completed/buried jobs'));
+            $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'retry <id>', 'Re-queue a failed/buried job'));
             $this->writeLineLogging('');
             $this->writeLineLogging('{@c:yellow}Work Options:{@reset}');
-            $this->writeLineLogging(sprintf('  {@c:cyan}%-20s{@reset} %s', '--sleep=3',   'Seconds to sleep when idle'));
-            $this->writeLineLogging(sprintf('  {@c:cyan}%-20s{@reset} %s', '--max-jobs=0', 'Max jobs before exit (0=unlimited)'));
-            $this->writeLineLogging(sprintf('  {@c:cyan}%-20s{@reset} %s', '--memory=128', 'Memory limit in MB'));
+            $this->writeLineLogging(\sprintf('  {@c:cyan}%-20s{@reset} %s', '--sleep=3', 'Seconds to sleep when idle'));
+            $this->writeLineLogging(\sprintf('  {@c:cyan}%-20s{@reset} %s', '--max-jobs=0', 'Max jobs before exit (0=unlimited)'));
+            $this->writeLineLogging(\sprintf('  {@c:cyan}%-20s{@reset} %s', '--memory=128', 'Memory limit in MB'));
             break;
     }
 };

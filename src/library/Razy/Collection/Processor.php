@@ -12,7 +12,6 @@
  * enables chained data transformations on a subset of Collection values
  * using dynamically loaded processor plugins.
  *
- * @package Razy
  *
  * @license MIT
  */

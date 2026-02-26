@@ -14,7 +14,6 @@
  * via temporary files, automatic directory creation, and garbage collection
  * based on file modification times.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -29,8 +28,6 @@ use Razy\Contract\SessionDriverInterface;
  * Each session is stored as a single file named `{prefix}{id}` in the
  * configured save directory. Data is serialized with PHP's native
  * `serialize()`/`unserialize()` functions.
- *
- * @package Razy\Session\Driver
  */
 class FileDriver implements SessionDriverInterface
 {

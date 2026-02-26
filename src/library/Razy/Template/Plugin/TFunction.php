@@ -12,7 +12,6 @@
  * functions are invoked via `{@name ...}` tags and can optionally enclose
  * content between opening and closing tags.
  *
- * @package Razy
  *
  * @license MIT
  */

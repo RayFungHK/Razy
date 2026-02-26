@@ -11,7 +11,6 @@
  * WebSocket client that connects to a remote RFC 6455 server,
  * performs the opening handshake, and provides send/receive methods.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -37,8 +36,6 @@ use Throwable;
  * Supports both `ws://` and `wss://` (TLS) schemes.
  *
  * @class Client
- *
- * @package Razy\WebSocket
  */
 class Client
 {

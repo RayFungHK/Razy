@@ -11,7 +11,6 @@
  * Extracted from Module god class (Phase 2.2).
  * Manages event listener registration and dispatching within a module.
  *
- * @package Razy
  *
  * @license MIT
  */

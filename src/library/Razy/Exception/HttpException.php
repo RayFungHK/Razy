@@ -12,7 +12,6 @@
  * Represents an HTTP-level error that should terminate request processing
  * and render an appropriate error response.
  *
- * @package Razy
  *
  * @license MIT
  */

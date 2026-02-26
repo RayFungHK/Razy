@@ -31,7 +31,6 @@ use Throwable;
  * - Module webasset path rules
  * - Fallback routing rules
  *
- * @package Razy\Routing
  *
  * @license MIT
  */
@@ -56,7 +55,7 @@ class RewriteRuleCompiler
         // (used by the PHP layer) strips it.  Without this, .htaccess domain
         // detection silently fails for non-standard ports.
         if (!\str_contains($domain, ':')) {
-            $pattern .= '(:\\d+)?';
+            $pattern .= '(:\d+)?';
         }
 
         return $pattern;

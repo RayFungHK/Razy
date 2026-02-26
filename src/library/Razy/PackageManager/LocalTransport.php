@@ -12,7 +12,6 @@
  * from a directory that follows the Composer repository structure.
  * Useful for air-gapped environments, CI systems, or local mirrors.
  *
- * @package Razy
  *
  * @license MIT
  */

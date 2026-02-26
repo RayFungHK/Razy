@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -27,7 +26,6 @@ use Razy\Exception\DatabaseException;
  * and ALTER TABLE SQL statements, importing/exporting table configurations via
  * a compact syntax string, and tracking schema changes for migrations.
  *
- * @package Razy
  *
  * @license MIT
  */

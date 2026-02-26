@@ -12,7 +12,6 @@
  * units parsed from template tag comments, supporting nested sub-blocks,
  * parameter assignment, template inclusion, recursion, and wrapper patterns.
  *
- * @package Razy
  *
  * @license MIT
  */

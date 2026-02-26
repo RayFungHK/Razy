@@ -11,7 +11,6 @@
  * Parser for the Razy Simple Syntax, a lightweight expression language
  * supporting delimiter-based splitting and nested parenthetical grouping.
  *
- * @package Razy
  *
  * @license MIT
  */

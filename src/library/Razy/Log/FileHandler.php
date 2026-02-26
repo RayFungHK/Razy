@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -27,8 +26,6 @@ use Throwable;
  * Writes log entries to date-based files in a specified directory.
  * Uses LOCK_EX for thread-safe writes. Mirrors the core Logger's
  * file output behaviour but as a standalone handler.
- *
- * @package Razy\Log
  */
 class FileHandler implements LogHandlerInterface
 {

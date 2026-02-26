@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -23,8 +22,6 @@ use Throwable;
  * Any class that processes queued jobs must implement this interface.
  * The dispatcher reconstructs the handler and calls `handle()` with
  * the deserialized payload.
- *
- * @package Razy\Queue
  */
 interface JobHandlerInterface
 {

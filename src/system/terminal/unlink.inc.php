@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: unlink
+ * CLI Command: unlink.
  *
  * Removes a domain alias from the site configuration.
  * After removing the alias, the .htaccess rewrite rules are regenerated.
@@ -11,19 +12,19 @@
  * Arguments:
  *   alias  The alias FQDN to remove (e.g., www.example.com)
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
 use Razy\Util\NetworkUtil;
+
 return function (string $alias = '') {
     $this->writeLineLogging('{@s:bu}Remove an alias', true);
     $this->writeLineLogging('Removing an alias {@s:u}' . $alias . '{@reset}...', true);
 
     // Check the parameters is valid
-    $alias = trim($alias);
+    $alias = \trim($alias);
     if (!$alias || !NetworkUtil::isFqdn($alias)) {
         $this->writeLineLogging('{@c:r}[ERROR] The alias is required or the format is invalid.', true);
 

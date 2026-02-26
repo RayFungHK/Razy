@@ -12,7 +12,6 @@
  * Handles the RFC 6455 handshake, frame-level read/write, ping/pong,
  * and graceful close.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -31,8 +30,6 @@ use RuntimeException;
  * and the client side (after the opening handshake).
  *
  * @class Connection
- *
- * @package Razy\WebSocket
  */
 class Connection
 {

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -21,8 +20,6 @@ namespace Razy\Contract\Log;
  * Handlers are the output destinations for log messages: files, stderr,
  * syslog, external services, etc. A LogManager dispatches messages
  * to one or more handlers based on channel configuration.
- *
- * @package Razy\Contract\Log
  */
 interface LogHandlerInterface
 {

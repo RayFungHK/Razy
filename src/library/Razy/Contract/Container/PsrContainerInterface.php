@@ -13,7 +13,6 @@ declare(strict_types=1);
  * PSR-11 compatible container interface.
  * Fulfills the PSR-11 specification without requiring psr/container.
  *
- * @package Razy
  *
  * @license MIT
  *

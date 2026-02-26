@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -21,8 +20,6 @@ namespace Razy\Queue;
  * A queue store is responsible for persisting, reserving, updating,
  * and deleting jobs. Implementations may use a database, Redis, file
  * system, or in-memory storage.
- *
- * @package Razy\Queue
  */
 interface QueueStoreInterface
 {

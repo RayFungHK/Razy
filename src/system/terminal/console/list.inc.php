@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Console Sub-command: list
+ * Console Sub-command: list.
  *
  * Lists all modules loaded in the current distributor, showing their
  * status (Enabled/Disabled), version, author, and API code in a
@@ -9,7 +10,6 @@
  * Usage (inside console shell):
  *   list <distributor_code>
  *
- * @package Razy
  * @license MIT
  */
 
@@ -20,7 +20,6 @@ return function (string $distCode) {
     $this->writeLineLogging('{@s:ub}List modules', true);
     $app = new Application();
     if ($app->hasDistributor($distCode)) {
-
     }
     // Retrieve module metadata for the given distributor
     $info = Application::GetDistributorModules($distCode);

@@ -10,7 +10,6 @@
  *
  * Introduced in Phase 3.3 to replace exit() in Error::show404().
  *
- * @package Razy
  *
  * @license MIT
  */

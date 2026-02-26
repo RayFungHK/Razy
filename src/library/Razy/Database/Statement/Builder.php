@@ -22,7 +22,6 @@ use Razy\Database\Statement;
  * Subclasses override the build() method to apply custom joins, conditions, select columns,
  * and other SQL components to a Statement targeting a specific table.
  *
- * @package Razy
  *
  * @license MIT
  */

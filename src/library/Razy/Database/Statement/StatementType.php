@@ -10,7 +10,6 @@
  *
  * PHP 8.1 backed enum replacing magic type strings in Statement.
  *
- * @package Razy
  *
  * @license MIT
  */

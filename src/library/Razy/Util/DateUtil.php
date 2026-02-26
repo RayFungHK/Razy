@@ -11,7 +11,6 @@
  * Extracted from bootstrap.inc.php (Phase 2.5).
  * Provides static utility methods for date and weekday calculations.
  *
- * @package Razy
  *
  * @license MIT
  */

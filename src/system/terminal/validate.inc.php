@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: validate
+ * CLI Command: validate.
  *
  * Validates that all route and API closure files exist for modules in a
  * given distributor. The command initializes the distributor, inspects
@@ -19,13 +20,14 @@
  *   -v, --verbose        Show detailed validation information per route/API
  *   --domain=<name>      Domain tag to use for distributor init (default: *)
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
 use Razy\Util\PathUtil;
+use Throwable;
+
 return function (string $distCode = '', ...$args) use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Module Validator', true);
     $this->writeLineLogging('Validate module files and registered routes', true);
@@ -42,16 +44,16 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             $generateDummies = true;
         } elseif ($arg === '--verbose' || $arg === '-v') {
             $verbose = true;
-        } elseif (str_starts_with($arg, '--domain=')) {
-            $domain = substr($arg, 9);
-        } elseif (!str_starts_with($arg, '-') && !$moduleCode) {
+        } elseif (\str_starts_with($arg, '--domain=')) {
+            $domain = \substr($arg, 9);
+        } elseif (!\str_starts_with($arg, '-') && !$moduleCode) {
             // First non-option argument after distCode is moduleCode
             $moduleCode = $arg;
         }
     }
 
     // Validate required parameters
-    $distCode = trim($distCode);
+    $distCode = \trim($distCode);
     if (!$distCode) {
         $this->writeLineLogging('{@c:red}[ERROR] Distributor code is required.{@reset}', true);
         $this->writeLineLogging('', true);
@@ -84,7 +86,7 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
     try {
         // Check distributor folder exists
         $distPath = PathUtil::append(SYSTEM_ROOT, 'sites', $distCode);
-        if (!is_dir($distPath)) {
+        if (!\is_dir($distPath)) {
             $this->writeLineLogging("{@c:red}[ERROR] Distributor folder not found: {$distPath}{@reset}", true);
             exit(1);
         }
@@ -95,44 +97,44 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
         $this->writeLineLogging('', true);
 
         // Instantiate the distributor with the given code and domain tag
-        $this->writeLineLogging("{@c:yellow}Initializing modules...{@reset}", true);
-        
+        $this->writeLineLogging('{@c:yellow}Initializing modules...{@reset}', true);
+
         $distributor = new Distributor($distCode, $domain);
         // Trigger full lifecycle (__onInit, __onLoad, __onRequire) to register routes
         $distributor->initialize();
-        
-        $this->writeLineLogging("{@c:green}Modules initialized successfully{@reset}", true);
+
+        $this->writeLineLogging('{@c:green}Modules initialized successfully{@reset}', true);
         $this->writeLineLogging('', true);
 
         // Retrieve all routes and module metadata registered during initialization
         $routes = $distributor->getRouter()->getRoutes();
         $modulesInfo = $distributor->getRegistry()->getLoadedModulesInfo();
-        
+
         if ($verbose) {
-            $this->writeLineLogging("{@c:cyan}Total routes found:{@reset} " . count($routes), true);
-            $this->writeLineLogging("{@c:cyan}Total modules loaded:{@reset} " . count($modulesInfo), true);
+            $this->writeLineLogging('{@c:cyan}Total routes found:{@reset} ' . \count($routes), true);
+            $this->writeLineLogging('{@c:cyan}Total modules loaded:{@reset} ' . \count($modulesInfo), true);
             $this->writeLineLogging('', true);
         }
-        
+
         $totalErrors = 0;
         $totalWarnings = 0;
         $generatedFiles = 0;
         $validatedRoutes = 0;
         $validatedAPICommands = 0;
         $validatedModules = 0;
-        
+
         // Group routes by their owning module for per-module validation
         $routesByModule = [];
         foreach ($routes as $routePath => $routeInfo) {
             /** @var Module $module */
             $module = $routeInfo['module'];
             $moduleCodeKey = $module->getModuleInfo()->getCode();
-            
+
             // Filter by module code if specified
             if ($moduleCode && $moduleCodeKey !== $moduleCode) {
                 continue;
             }
-            
+
             if (!isset($routesByModule[$moduleCodeKey])) {
                 $routesByModule[$moduleCodeKey] = [
                     'module' => $module,
@@ -148,46 +150,46 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             if ($moduleCode && $code !== $moduleCode) {
                 continue;
             }
-            
+
             $validatedModules++;
             /** @var Module $module */
             $module = $info['module'];
             $moduleInfo = $module->getModuleInfo();
-            
+
             $this->writeLineLogging("{@s:b}Module: {$code}{@reset}", true);
             $this->writeLineLogging("  Alias: {$info['alias']}", true);
-            
+
             // Get routes and API commands for this module
             $moduleRoutes = $routesByModule[$code]['routes'] ?? [];
             $apiCommands = $module->getAPICommands();
-            
-            $this->writeLineLogging("  Routes: " . count($moduleRoutes) . ", API Commands: " . count($apiCommands), true);
-            
+
+            $this->writeLineLogging('  Routes: ' . \count($moduleRoutes) . ', API Commands: ' . \count($apiCommands), true);
+
             // Validate routes
             foreach ($moduleRoutes as $routePath => $routeInfo) {
                 $validatedRoutes++;
                 $closurePath = $routeInfo['path'];
                 $routeType = $routeInfo['type'] ?? 'standard';
-                
+
                 if ($verbose) {
                     $this->writeLineLogging("  {@c:cyan}Route:{@reset} {$routePath} [{$routeType}]", true);
                 }
-                
+
                 // Handle Route object vs string path
                 if ($closurePath instanceof Route) {
                     if ($verbose) {
-                        $this->writeLineLogging("    {@c:green}✓ Route object (inline handler){@reset}", true);
+                        $this->writeLineLogging('    {@c:green}✓ Route object (inline handler){@reset}', true);
                     }
                     continue;
                 }
-                
+
                 // Check if closure file exists
                 $closure = $module->getClosure($closurePath);
                 if ($closure === null) {
                     $this->writeLineLogging("  {@c:red}✗ Route missing closure: {$closurePath}{@reset}", true);
                     $this->writeLineLogging("    Route: {$routePath}", true);
                     $totalErrors++;
-                    
+
                     if ($generateDummies) {
                         $controllerDir = PathUtil::append($moduleInfo->getPath(), $moduleInfo->getVersion(), 'controller');
                         $closureFile = PathUtil::append($controllerDir, $closurePath . '.php');
@@ -199,22 +201,22 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                     $this->writeLineLogging("    {@c:green}✓ closure: {$closurePath}{@reset}", true);
                 }
             }
-            
+
             // Validate API commands
             foreach ($apiCommands as $command => $closurePath) {
                 $validatedAPICommands++;
-                
+
                 if ($verbose) {
                     $this->writeLineLogging("  {@c:magenta}API:{@reset} {$command}", true);
                 }
-                
+
                 // Check if closure file exists
                 $closure = $module->getClosure($closurePath);
                 if ($closure === null) {
                     $this->writeLineLogging("  {@c:red}✗ API missing closure: {$closurePath}{@reset}", true);
                     $this->writeLineLogging("    Command: {$command}", true);
                     $totalErrors++;
-                    
+
                     if ($generateDummies) {
                         $controllerDir = PathUtil::append($moduleInfo->getPath(), $moduleInfo->getVersion(), 'controller');
                         $closureFile = PathUtil::append($controllerDir, $closurePath . '.php');
@@ -235,29 +237,28 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
         $this->writeLineLogging("Modules validated: {$validatedModules}", true);
         $this->writeLineLogging("Routes validated: {$validatedRoutes}", true);
         $this->writeLineLogging("API commands validated: {$validatedAPICommands}", true);
-        
+
         if ($totalErrors > 0) {
             $this->writeLineLogging("{@c:red}Errors: {$totalErrors}{@reset}", true);
         } else {
-            $this->writeLineLogging("{@c:green}Errors: 0{@reset}", true);
+            $this->writeLineLogging('{@c:green}Errors: 0{@reset}', true);
         }
-        
+
         if ($totalWarnings > 0) {
             $this->writeLineLogging("{@c:yellow}Warnings: {$totalWarnings}{@reset}", true);
         } else {
-            $this->writeLineLogging("Warnings: 0", true);
+            $this->writeLineLogging('Warnings: 0', true);
         }
-        
+
         if ($generateDummies && $generatedFiles > 0) {
             $this->writeLineLogging("{@c:green}Files generated: {$generatedFiles}{@reset}", true);
         }
 
         exit($totalErrors > 0 ? 1 : 0);
-
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $this->writeLineLogging("{@c:red}[ERROR] {$e->getMessage()}{@reset}", true);
         if ($verbose) {
-            $this->writeLineLogging("{@c:red}Stack trace:{@reset}", true);
+            $this->writeLineLogging('{@c:red}Stack trace:{@reset}', true);
             $this->writeLineLogging($e->getTraceAsString(), true);
         }
         exit(1);
@@ -271,18 +272,18 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
  * allowing the framework to load without errors while signalling
  * that the handler still needs a real implementation.
  *
- * @param string $path        Absolute path where the file will be created
+ * @param string $path Absolute path where the file will be created
  * @param string $closurePath Logical closure path (used in docblock/handler name)
  */
 function generateClosureFile(string $path, string $closurePath): void
 {
-    $dir = dirname($path);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+    $dir = \dirname($path);
+    if (!\is_dir($dir)) {
+        \mkdir($dir, 0755, true);
     }
-    
-    $name = basename($closurePath);
-    
+
+    $name = \basename($closurePath);
+
     $content = <<<PHP
 <?php
 /**
@@ -300,5 +301,5 @@ return function (...\$args) {
 };
 PHP;
 
-    file_put_contents($path, $content);
+    \file_put_contents($path, $content);
 }

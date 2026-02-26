@@ -9,7 +9,6 @@
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -49,8 +48,6 @@ use Throwable;
  * ```
  *
  * @class Logger
- *
- * @package Razy
  */
 class Logger implements LoggerInterface
 {

@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -21,8 +20,6 @@ namespace Razy\Queue;
  * A Job is a value object holding all information needed to execute a
  * queued task: the handler class, serialized payload, attempt count,
  * scheduling metadata, and queue name.
- *
- * @package Razy\Queue
  */
 class Job
 {

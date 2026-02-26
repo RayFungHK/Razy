@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -36,8 +35,6 @@ use Throwable;
  *
  * $manager->send($user, $notification);
  * ```
- *
- * @package Razy\Notification
  */
 class NotificationManager
 {

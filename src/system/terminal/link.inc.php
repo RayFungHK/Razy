@@ -1,6 +1,7 @@
 <?php
+
 /**
- * CLI Command: link
+ * CLI Command: link.
  *
  * Adds or updates a domain alias in the site configuration.
  * An alias maps one FQDN to another, allowing multiple domain
@@ -13,26 +14,26 @@
  *   alias   The alias FQDN to create (e.g., www.example.com)
  *   domain  The target domain the alias points to (e.g., example.com)
  *
- * @package Razy
  * @license MIT
  */
 
 namespace Razy;
 
 use Razy\Util\NetworkUtil;
+
 return function (string $alias = '', string $domain = '') {
     $this->writeLineLogging('{@s:bu}Adding or update an alias', true);
     $this->writeLineLogging('Creating an alias {@s:u}' . $alias . '{@reset} linking to {@s:u}' . $domain . '{@reset}...', true);
 
     // Check the parameters is valid
-    $alias = trim($alias);
+    $alias = \trim($alias);
     if (!$alias || !NetworkUtil::isFqdn($alias)) {
         $this->writeLineLogging('{@c:r}[ERROR] The alias is required or the format is invalid.', true);
 
         exit;
     }
 
-    $domain = trim($domain);
+    $domain = \trim($domain);
     if (!$domain || !NetworkUtil::isFqdn($domain)) {
         $this->writeLineLogging('{@c:r}[ERROR] The domain is required or the format is invalid.', true);
 

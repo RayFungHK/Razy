@@ -8,7 +8,6 @@
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -26,7 +25,6 @@ use Razy\Util\StringUtil;
  * auto-increment configuration. Supports parsing column definition syntax
  * strings and generating SQL fragments for CREATE/ALTER TABLE statements.
  *
- * @package Razy
  *
  * @license MIT
  */

@@ -10,7 +10,6 @@
  *
  * Core interface contract for database access (Phase 2.4).
  *
- * @package Razy
  *
  * @license MIT
  */

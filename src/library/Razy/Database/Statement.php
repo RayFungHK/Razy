@@ -31,7 +31,6 @@ use Throwable;
  * Update Simple Syntax, parameterized queries, sub-queries, grouping, ordering,
  * pagination, and result parsing/collection.
  *
- * @package Razy
  *
  * @license MIT
  */
