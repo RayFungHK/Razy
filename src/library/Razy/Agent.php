@@ -14,6 +14,7 @@ namespace Razy;
 use Closure;
 use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
+use Razy\Distributor\RouteDispatcher;
 use Razy\Routing\RouteGroup;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -391,22 +392,45 @@ class Agent
             } elseif (\is_array($path)) {
                 // Recursively expand nested route arrays into flat route registrations.
                 // '@self' key maps the current level's path to a closure without appending a sub-path.
-                $extendRoute = function (array $routeSet, string $relativePath = '') use (&$extendRoute, $type) {
+                //
+                // HTTP method prefixes (e.g. 'POST api', 'GET|POST form') are supported at
+                // any nesting level — both directory keys and leaf keys. The method prefix is
+                // stripped before joining path segments and re-prepended to the final route,
+                // so the file-system handler path stays clean.
+                $extendRoute = function (array $routeSet, string $relativePath = '', string $inheritedMethod = '*') use (&$extendRoute, $type) {
                     foreach ($routeSet as $node => $path) {
+                        // Detect and strip HTTP method prefix from the key
+                        [$nodeMethod, $cleanNode] = RouteDispatcher::parseMethodPrefix((string) $node);
+
+                        // Child inherits the method constraint from its parent unless
+                        // it declares its own (non-wildcard) method prefix.
+                        $effectiveMethod = ($nodeMethod !== '*') ? $nodeMethod : $inheritedMethod;
+
                         if (\is_array($path)) {
                             // Recurse into sub-directory level
-                            $extendRoute($path, PathUtil::append($relativePath, $node));
+                            $extendRoute($path, PathUtil::append($relativePath, $cleanNode), $effectiveMethod);
                         } else {
                             $path = \trim($path);
                             if (\strlen($path) > 0) {
                                 // '@self' references the current directory level itself
-                                $routePath = ($node == '@self') ? $relativePath : PathUtil::append($relativePath, $node);
+                                $routePath = ($cleanNode === '@self') ? $relativePath : PathUtil::append($relativePath, $cleanNode);
+
+                                // Re-prepend the method prefix so Module::addLazyRoute / addRoute
+                                // can parse it via RouteDispatcher::parseMethodPrefix().
+                                if ($effectiveMethod !== '*') {
+                                    $routePath = $effectiveMethod . ' ' . $routePath;
+                                }
+
                                 \call_user_func_array([$this->module, 'add' . $type], [$routePath, PathUtil::append($relativePath, $path)]);
                             }
                         }
                     }
                 };
-                $extendRoute($path, $route);
+
+                // Strip method prefix from the top-level route key so the
+                // relative path used for file resolution stays clean.
+                [$topMethod, $cleanRoute] = RouteDispatcher::parseMethodPrefix($route);
+                $extendRoute($path, $cleanRoute, $topMethod);
             }
         }
 

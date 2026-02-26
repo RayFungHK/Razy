@@ -790,4 +790,180 @@ class AgentTest extends TestCase
 
         $this->assertSame($this->mockModule, $prop->getValue($this->agent));
     }
+
+    // ==================== Nested route HTTP method prefix ====================
+
+    #[Test]
+    public function addLazyRouteTopLevelMethodPrefixPropagatesToLeaves(): void
+    {
+        // addLazyRoute(['POST api' => ['fetch' => 'fetch', 'add' => 'add']])
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->exactly(2))
+            ->method('addLazyRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addLazyRoute(['POST api' => [
+            'fetch' => 'fetch',
+            'add' => 'add',
+        ]]);
+
+        $this->assertSame("POST api{$ds}fetch", $calls[0]['route']);
+        $this->assertSame("api{$ds}fetch", $calls[0]['path']);
+        $this->assertSame("POST api{$ds}add", $calls[1]['route']);
+        $this->assertSame("api{$ds}add", $calls[1]['path']);
+    }
+
+    #[Test]
+    public function addLazyRouteLeafLevelMethodPrefixAppliesPerRoute(): void
+    {
+        // addLazyRoute(['api' => ['fetch' => 'fetch', 'POST add' => 'add', 'POST delete' => 'delete']])
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->exactly(3))
+            ->method('addLazyRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addLazyRoute(['api' => [
+            'fetch' => 'fetch',
+            'POST add' => 'add',
+            'POST delete' => 'delete',
+        ]]);
+
+        // fetch has no method prefix → route is just the path
+        $this->assertSame("api{$ds}fetch", $calls[0]['route']);
+        $this->assertSame("api{$ds}fetch", $calls[0]['path']);
+
+        // POST add → method stripped from key, re-prepended to route
+        $this->assertSame("POST api{$ds}add", $calls[1]['route']);
+        $this->assertSame("api{$ds}add", $calls[1]['path']);
+
+        // POST delete → same pattern
+        $this->assertSame("POST api{$ds}delete", $calls[2]['route']);
+        $this->assertSame("api{$ds}delete", $calls[2]['path']);
+    }
+
+    #[Test]
+    public function addLazyRouteTopLevelMethodIsInheritedByNestedLevels(): void
+    {
+        // addLazyRoute(['POST api' => ['v1' => ['create' => 'create']]])
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->once())
+            ->method('addLazyRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addLazyRoute(['POST api' => [
+            'v1' => [
+                'create' => 'create',
+            ],
+        ]]);
+
+        $this->assertSame("POST api{$ds}v1{$ds}create", $calls[0]['route']);
+        $this->assertSame("api{$ds}v1{$ds}create", $calls[0]['path']);
+    }
+
+    #[Test]
+    public function addLazyRouteLeafMethodOverridesInheritedMethod(): void
+    {
+        // Top-level is GET, but leaf overrides with POST
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->exactly(2))
+            ->method('addLazyRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addLazyRoute(['GET api' => [
+            'list' => 'list',
+            'POST create' => 'create',
+        ]]);
+
+        // list inherits GET
+        $this->assertSame("GET api{$ds}list", $calls[0]['route']);
+        $this->assertSame("api{$ds}list", $calls[0]['path']);
+
+        // create overrides with POST
+        $this->assertSame("POST api{$ds}create", $calls[1]['route']);
+        $this->assertSame("api{$ds}create", $calls[1]['path']);
+    }
+
+    #[Test]
+    public function addLazyRouteMultiMethodPrefixSupported(): void
+    {
+        // GET|POST prefix
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->once())
+            ->method('addLazyRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addLazyRoute(['GET|POST form' => [
+            'submit' => 'submit',
+        ]]);
+
+        $this->assertSame("GET|POST form{$ds}submit", $calls[0]['route']);
+        $this->assertSame("form{$ds}submit", $calls[0]['path']);
+    }
+
+    #[Test]
+    public function addLazyRouteSelfKeyWithMethodPrefix(): void
+    {
+        // @self with a method-prefixed parent
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->exactly(2))
+            ->method('addLazyRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addLazyRoute(['POST api' => [
+            '@self' => 'index',
+            'action' => 'action',
+        ]]);
+
+        // @self maps to the parent path with HTTP method
+        $this->assertSame('POST api', $calls[0]['route']);
+        $this->assertSame("api{$ds}index", $calls[0]['path']);
+
+        $this->assertSame("POST api{$ds}action", $calls[1]['route']);
+        $this->assertSame("api{$ds}action", $calls[1]['path']);
+    }
+
+    #[Test]
+    public function addScriptNestedMethodPrefixIsStrippedFromFilePath(): void
+    {
+        // Scripts also use addRoutePath — verify method prefix doesn't pollute file path
+        $ds = DIRECTORY_SEPARATOR;
+        $calls = [];
+        $this->mockModule->expects($this->once())
+            ->method('addScript')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->addScript(['POST cli' => [
+            'deploy' => 'deploy',
+        ]]);
+
+        $this->assertSame("POST cli{$ds}deploy", $calls[0]['route']);
+        $this->assertSame("cli{$ds}deploy", $calls[0]['path']);
+    }
 }
