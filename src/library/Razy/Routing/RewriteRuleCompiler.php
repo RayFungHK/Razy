@@ -48,6 +48,17 @@ class RewriteRuleCompiler
     {
         $pattern = \str_replace('.', '\.', $domain);
         $pattern = \str_replace('*', '.+', $pattern);
+
+        // If the domain does not already specify a port (e.g. "localhost:8888"),
+        // append an optional port suffix so the pattern matches HTTP_HOST both
+        // with and without a port.  HTTP_HOST includes the port when the client
+        // uses a non-default port (e.g. "localhost:8888"), while SERVER_NAME
+        // (used by the PHP layer) strips it.  Without this, .htaccess domain
+        // detection silently fails for non-standard ports.
+        if (!\str_contains($domain, ':')) {
+            $pattern .= '(:\\d+)?';
+        }
+
         return $pattern;
     }
 
