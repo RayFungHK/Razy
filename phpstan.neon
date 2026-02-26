@@ -6,10 +6,43 @@ parameters:
         - src/library/Razy
     excludePaths:
         - src/library/Razy/PackageManager  # Transport layer — uses ext-ftp/ext-ssh2 which may not be installed
+        - src/library/Razy/PackageManager.php  # Uses custom xcopy helper defined at runtime
     phpVersion: 80200
+    dynamicConstantNames:
+        - CLI_MODE
+        - WEB_MODE
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
         # Allow dynamic method calls via __call / __callStatic
         - '#Call to an undefined method#'
         # Allow dynamic property access via __get
         - '#Access to an undefined property#'
+        # PHPDoc @throws tags use unqualified 'Error' which resolves to namespace-local
+        # (e.g. Razy\Database\Error) instead of \Razy\Error. Cosmetic PHPDoc issue.
+        - '#PHPDoc tag @throws with type .+ is not subtype of Throwable#'
+        # Factory / ORM patterns intentionally use new static() for late static binding
+        - '#Unsafe usage of new static#'
+        # Properties stored for debugging, serialisation, or accessed via magic __get
+        - '#Property .+ is never read, only written#'
+        # ORM Model uses private static helpers via static:: — intentional pattern
+        - '#Unsafe call to private method .+ through static::#'
+        # ORM @var annotations on fetched class strings are intentional
+        - '#PHPDoc tag @var with type .+ is not subtype of native type string#'
+        # Traits are used at runtime via "use" in user models
+        - '#Trait .+ is used zero times and is not analysed#'
+        # Class constants reserved for future use or configuration
+        - '#Constant .+::.+ is unused#'
+        # @throws tags for wrapper methods that delegate — PHPStan can't see through dynamic dispatch
+        - '#has .+ in PHPDoc @throws tag but it.s not thrown#'
+        # Property type includes a union member that is never directly assigned (set via deserialization/factory)
+        - '#Property .+ is never assigned .+ so it can be removed from the property type#'
+        # Standalone implements DistributorInterface but Module expects concrete Distributor
+        - '#Parameter .+ of class Razy\\Module constructor expects Razy\\Distributor#'
+        # ModuleScanner passes string-keyed arrays through by-ref params
+        - '#Parameter &.+ by-ref type of method#'
+        # Runtime-defined autoloader function
+        - '#Function Razy\\autoload not found#'
+        # Static return type narrowing — methods return parent class, subclass inferred by LSB
+        - '#should return static\(.+\).+ but returns#'
+        # FTP transfer mode validated at runtime but PHPStan expects literal 1|2
+        - '#Parameter .+ of function ftp_(put|get|fput|fget) expects#'

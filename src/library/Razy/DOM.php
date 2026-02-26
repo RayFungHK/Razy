@@ -205,11 +205,11 @@ class DOM
      * @param array|string $attribute The attribute name or an array contains the attribute value
      * @param mixed|null $value The value of the attribute
      *
-     * @return self Chainable
+     * @return static Chainable
      *
      * @throws InvalidArgumentException
      */
-    final public function setAttribute(array|string $attribute, mixed $value = null): self
+    final public function setAttribute(array|string $attribute, mixed $value = null): static
     {
         if (\is_string($attribute)) {
             $attribute = \trim($attribute);
@@ -357,9 +357,9 @@ class DOM
      *
      * @param mixed $value The value of the name
      *
-     * @return self Chainable
+     * @return static Chainable
      */
-    final public function setName(mixed $value): self
+    public function setName(mixed $value): static
     {
         $value = \trim($value);
         $this->name = $value;
@@ -370,7 +370,7 @@ class DOM
     /**
      * Set the text.
      *
-     * @param mixed $text
+     * @param string $text
      *
      * @return self Chainable
      */

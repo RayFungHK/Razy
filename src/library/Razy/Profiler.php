@@ -216,7 +216,7 @@ class Profiler
             'user_mode_time' => (int) $ru['ru_utime.tv_sec'] + ((int) $ru['ru_utime.tv_usec'] / 1000000),   // User-mode CPU seconds
             'system_mode_time' => (int) $ru['ru_stime.tv_sec'] + ((int) $ru['ru_stime.tv_usec'] / 1000000),   // Kernel-mode CPU seconds
             'execution_time' => \microtime(true),             // Wall-clock timestamp
-            'defined_functions' => $defined_functions['user'] ?? [],  // User-defined functions at this point
+            'defined_functions' => $defined_functions['user'],  // User-defined functions at this point
             'declared_classes' => \get_declared_classes(),      // All declared classes at this point
         ];
     }

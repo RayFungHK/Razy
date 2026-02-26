@@ -152,7 +152,7 @@ class Entity
                     $entityMatched[] = $entity->getEntity($matches[1], $matches[4]);
                 } else {
                     $entityList = $this->getEntities($matches[1]);
-                    if (null !== $matches[2]) {
+                    if ('' !== ($matches[2] ?? '')) {
                         // Lookup by numeric index
                         if ($matches[2] < \count($entityList)) {
                             $entityMatched[] = $entityList[$matches[2]];

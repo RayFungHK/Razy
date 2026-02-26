@@ -13,7 +13,6 @@ namespace Razy;
 
 use ArrayObject;
 use Closure;
-use InvalidArgumentException;
 use Razy\Collection\Processor;
 use Throwable;
 
@@ -117,13 +116,9 @@ class Collection extends ArrayObject
         if (!isset($this->plugins[$identify])) {
             if ($plugin = self::GetPlugin($identify)) {
                 if ($plugin['entity'] instanceof Closure) {
-                    try {
-                        $this->plugins[$identify] = $plugin['entity'];
+                    $this->plugins[$identify] = $plugin['entity'];
 
-                        return $this->plugins[$identify];
-                    } catch (Throwable) {
-                        throw new InvalidArgumentException('Missing or invalid Closure.');
-                    }
+                    return $this->plugins[$identify];
                 }
             }
         }
@@ -247,7 +242,7 @@ class Collection extends ArrayObject
             foreach ($matches as $match) {
                 // If all elements already filtered out, return empty Collection
                 if (empty($filtered)) {
-                    $filtered = new self([]);
+                    $filtered = [];
 
                     return;
                 }
@@ -272,7 +267,7 @@ class Collection extends ArrayObject
                             // Filter returned false: exclude this element
                             unset($filtered[$index]);
                             if (empty($filtered)) {
-                                $filtered = new self([]);
+                                $filtered = [];
                             }
                         }
                     }
@@ -280,7 +275,7 @@ class Collection extends ArrayObject
             }
         } else {
             // Invalid filter syntax pattern: reset to empty Collection
-            $filtered = new self([]);
+            $filtered = [];
         }
     }
 }

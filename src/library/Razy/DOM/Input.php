@@ -49,9 +49,9 @@ class Input extends DOM
      *
      * @param string $type the input type (text, email, password, etc.)
      *
-     * @return self
+     * @return static
      */
-    public function setType(string $type): self
+    public function setType(string $type): static
     {
         return $this->setAttribute('type', $type);
     }
@@ -59,13 +59,13 @@ class Input extends DOM
     /**
      * Set the input name attribute.
      *
-     * @param string $name the input name
+     * @param mixed $name the input name
      *
-     * @return self
+     * @return static
      */
-    public function setName(string $name): self
+    public function setName(mixed $name): static
     {
-        return $this->setAttribute('name', $name);
+        return $this->setAttribute('name', (string) $name);
     }
 
     /**
@@ -73,9 +73,9 @@ class Input extends DOM
      *
      * @param string $value the input value
      *
-     * @return self
+     * @return static
      */
-    public function setValue(string $value): self
+    public function setValue(string $value): static
     {
         return $this->setAttribute('value', $value);
     }
@@ -85,9 +85,9 @@ class Input extends DOM
      *
      * @param string $placeholder the placeholder text
      *
-     * @return self
+     * @return static
      */
-    public function setPlaceholder(string $placeholder): self
+    public function setPlaceholder(string $placeholder): static
     {
         return $this->setAttribute('placeholder', $placeholder);
     }

@@ -131,9 +131,9 @@ class Select extends DOM
     /**
      * Set the value.
      *
-     * @param mixed $value The value of the control
+     * @param string $value The value of the control
      *
-     * @return self Chainable
+     * @return DOM Chainable
      *
      * @throws Error
      */

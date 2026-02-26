@@ -192,7 +192,7 @@ class ModuleMetadataExtractor
 
         if (!empty($matches[1])) {
             // Filter to only custom implementations (not default no-ops)
-            $this->events = \array_unique(\array_filter($matches[1], function ($event) use ($content) {
+            $this->events = \array_unique(\array_filter($matches[1], function ($event) {
                 // Simple heuristic: if event body has more than just return/closing brace,
                 // it's likely implemented
                 return true; // For now, include all discovered events

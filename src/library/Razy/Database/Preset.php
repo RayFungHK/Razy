@@ -50,6 +50,8 @@ abstract class Preset
     public function __construct(Statement $statement, string $table, string $alias)
     {
         $this->statement = $statement;
+        $this->table = $table;
+        $this->alias = $alias;
     }
 
     /**

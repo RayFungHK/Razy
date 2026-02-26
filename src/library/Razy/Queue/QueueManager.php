@@ -37,7 +37,7 @@ use Throwable;
  */
 class QueueManager
 {
-    /** @var array<string, callable> Lifecycle listeners keyed by event name */
+    /** @var array<string, array<callable>> Lifecycle listeners keyed by event name */
     private array $listeners = [];
 
     /** @var callable|null Custom handler resolver */

@@ -110,9 +110,9 @@ class ClosureLoader
 
         if (!isset($this->closures[$fullPath])) {
             if (\is_file($fullPath)) {
-                /** @var Closure $closure */
+                /** @var mixed $closure */
                 $closure = require $fullPath;
-                if (!\is_callable($closure) && $closure instanceof Closure) {
+                if (!($closure instanceof Closure)) {
                     throw new ModuleLoadException("File '{$fullPath}' in module '{$this->moduleInfo->getCode()}' must return a Closure, got " . \gettype($closure) . '.');
                 }
                 // Bind the closure to the controller's scope for $this access

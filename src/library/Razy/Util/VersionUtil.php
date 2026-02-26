@@ -94,7 +94,7 @@ class VersionUtil
                         $result = \version_compare($version, $min, '>=') && \version_compare($version, $max, '<');
                     } elseif (\preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
                         $major = (int) $matches[3];
-                        $constraint = $matches[1] ?? '';
+                        $constraint = $matches[1];
                         $vs = self::standardize($matches[2]);
 
                         if ('^' == $constraint) {

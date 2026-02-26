@@ -54,7 +54,7 @@ class FTPClient
     /** @var bool Whether passive mode is enabled */
     private bool $passive = true;
 
-    /** @var int Default transfer mode */
+    /** @var int<1,2> Default transfer mode (FTP_ASCII=1 or FTP_BINARY=2) */
     private int $transferMode = FTP_BINARY;
 
     /** @var array<int, string> Session log entries for debugging */

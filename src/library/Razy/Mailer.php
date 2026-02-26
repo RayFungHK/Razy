@@ -73,7 +73,7 @@ class Mailer
     private string $charset = 'utf-8';
 
     /** @var array{0: string, 1: string} Sender address and display name */
-    private array $from = [];
+    private array $from = ['', ''];
 
     /** @var array<string, string> Custom SMTP headers: header name => value */
     private array $headers = [];
@@ -233,7 +233,7 @@ class Mailer
             foreach ($email as $address => $recipientName) {
                 $this->bcc($address, $recipientName);
             }
-        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif (\filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->blindCarbonCopy[$email] = $this->formatAddress($email, \trim($name));
         }
 
@@ -254,7 +254,7 @@ class Mailer
             foreach ($email as $address => $recipientName) {
                 $this->cc($address, $recipientName);
             }
-        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif (\filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->carbonCopy[$email] = $this->formatAddress($email, \trim($name));
         }
 
@@ -290,7 +290,7 @@ class Mailer
             foreach ($email as $address => $recipientName) {
                 $this->replyTo($address, $recipientName);
             }
-        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif (\filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->replyTo[$email] = $this->formatAddress($email, \trim($name));
         }
 
@@ -311,7 +311,7 @@ class Mailer
         $this->performSmtpHandshake($cryptoMethod);
 
         // Generate a unique MIME boundary for multipart message separation
-        $boundary = \md5(\uniqid(\microtime(true), true));
+        $boundary = \md5(\uniqid((string) \microtime(true), true));
         $body = $this->buildMimeBody($boundary);
         $headers = $this->buildMimeHeaders($boundary);
 
@@ -411,7 +411,7 @@ class Mailer
             foreach ($email as $address => $recipientName) {
                 $this->to($address, $recipientName);
             }
-        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif (\filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->recipient[$email] = $this->formatAddress($email, \trim($name));
         }
 

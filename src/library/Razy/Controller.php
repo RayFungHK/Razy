@@ -240,9 +240,9 @@ class Controller
         $moduleInfo = $this->module->getModuleInfo();
         $path = PathUtil::append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
         if (\is_file($path)) {
-            /** @var Closure $closure */
+            /** @var mixed $closure */
             $closure = require $path;
-            if (!\is_callable($closure) && $closure instanceof Closure) {
+            if (!($closure instanceof Closure)) {
                 throw new ModuleLoadException("File '{$path}' loaded for method '{$method}' must return a Closure, got " . \gettype($closure) . '.');
             }
             // Bind the closure to this controller instance and cache it
@@ -289,8 +289,6 @@ class Controller
      * Get the Configuration entity.
      *
      * @return Configuration
-     *
-     * @throws ConfigurationException
      */
     final public function getModuleConfig(): Configuration
     {
@@ -755,7 +753,7 @@ class Controller
     final public function fork(string $path, array ...$args): mixed
     {
         $result = null;
-        if ($closure = $this->module->getClosure($path, true)) {
+        if ($closure = $this->module->getClosure($path)) {
             $result = \call_user_func_array($closure, $args);
         }
         return $result;

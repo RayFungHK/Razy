@@ -24,6 +24,7 @@ use Razy\Application;
 use Razy\Distributor;
 use Razy\Module;
 use Razy\Template;
+use Razy\Template\Entity;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -402,9 +403,9 @@ class SkillsGenerator
             $sectionBlock = $root->newBlock('api_commands_section');
             foreach ($apiCommands as $api) {
                 $sectionBlock->newBlock('api_command')->assign([
-                    'command' => $api['command'] ?? 'unknown',
-                    'description' => $api['description'] ?? 'No description',
-                    'path' => $api['path'] ?? 'unknown',
+                    'command' => $api['command'],
+                    'description' => $api['description'],
+                    'path' => $api['path'],
                 ]);
             }
         }
@@ -690,7 +691,7 @@ class SkillsGenerator
 
                 // Read comments from template
                 $comments = Template::readComment($filePath);
-                if (empty($comments) || !\is_array($comments)) {
+                if (empty($comments)) {
                     continue;
                 }
 

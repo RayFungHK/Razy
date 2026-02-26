@@ -81,7 +81,7 @@ class MailChannel implements NotificationChannelInterface
     {
         $data = $notification->getData('mail', $notifiable);
 
-        if ($data === null) {
+        if (empty($data)) {
             return;
         }
 

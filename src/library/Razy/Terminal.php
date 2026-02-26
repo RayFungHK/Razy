@@ -318,7 +318,7 @@ class Terminal
         $escaped = 0;
         // Count the total length of ANSI escape sequences so they can be excluded
         if (\preg_match_all("/\e\\[(?:\\d+m|[ABCD])/", $text, $matches)) {
-            \array_walk($matches[0], function (&$value) use (&$lengthOfEscape, &$escaped) {
+            \array_walk($matches[0], function (&$value) use (&$escaped) {
                 $escaped += \strlen($value);
             });
         }

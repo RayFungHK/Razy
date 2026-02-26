@@ -109,7 +109,7 @@ class Domain
                 [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
                 $urlPath = PathUtil::tidy($urlPath, true, '/');
                 if (\str_starts_with($urlQuery, $urlPath)) {
-                    ($this->distributor = new Distributor($distCode, $tag ?? '*', $this, $urlPath, \substr($urlQuery, \strlen($urlPath) - 1)))->initialize();
+                    ($this->distributor = new Distributor($distCode, $tag ?: '*', $this, $urlPath, \substr($urlQuery, \strlen($urlPath) - 1)))->initialize();
                     return $this->distributor;
                 }
             }

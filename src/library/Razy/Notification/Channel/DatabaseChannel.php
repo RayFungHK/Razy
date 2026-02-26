@@ -72,7 +72,7 @@ class DatabaseChannel implements NotificationChannelInterface
     {
         $data = $notification->getData('database', $notifiable);
 
-        if ($data === null) {
+        if (empty($data)) {
             $data = $notification->getData('array', $notifiable);
         }
 

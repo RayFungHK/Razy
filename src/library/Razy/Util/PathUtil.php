@@ -82,7 +82,7 @@ class PathUtil
         $path = self::tidy($path);
         $root = self::tidy($root);
 
-        $relativePath = \preg_replace('/^' . \preg_quote($root, '/\\') . '/', '', $path);
+        $relativePath = \preg_replace('/^' . \preg_quote($root, '/') . '/', '', $path);
         return $relativePath ?? '';
     }
 

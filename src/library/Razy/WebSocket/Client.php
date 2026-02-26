@@ -256,7 +256,7 @@ class Client
      * Run a receive loop, calling $onMessage for each data frame.
      * Stops when the connection closes or $onMessage returns false.
      *
-     * @param Closure(Frame): bool|void $onMessage Called for each text/binary frame
+     * @param Closure $onMessage Called for each text/binary frame
      * @param int $pollMs Polling interval in milliseconds
      */
     public function listen(Closure $onMessage, int $pollMs = 50): void

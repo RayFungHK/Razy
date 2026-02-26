@@ -85,7 +85,7 @@ class Configuration extends Collection
             }
 
             // Cache the loaded data for non-PHP files
-            if (isset($realPath, $cacheKey, $data)) {
+            if (isset($cacheKey, $data) && $realPath !== false) {
                 Cache::setValidated($cacheKey, $realPath, $data);
             }
         }

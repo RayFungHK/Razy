@@ -574,7 +574,7 @@ class Database implements DatabaseInterface
      */
     public function lastID(): int
     {
-        return $this->adapter->lastInsertId();
+        return (int) $this->adapter->lastInsertId();
     }
 
     /**
@@ -625,7 +625,7 @@ class Database implements DatabaseInterface
     public function getMaxStatement(string $tableName, string $binding, string $valueColumn, array $extraSelect = []): Statement
     {
         $tableName = \trim($tableName);
-        if (!\preg_match('^[a-z]\w*$', $tableName)) {
+        if (!\preg_match('/^[a-z]\w*$/', $tableName)) {
             throw new QueryException('The table name format is invalid');
         }
         $binding = Statement::standardizeColumn($binding);

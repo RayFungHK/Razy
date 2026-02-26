@@ -89,9 +89,6 @@ class Crypt
 
         // Compute HMAC-SHA256 over the ciphertext for integrity verification
         $hmac = \hash_hmac('sha256', $cipherText, $key, true);
-        if (!$hmac) {
-            return '';
-        }
 
         // Assemble: IV + HMAC + ciphertext
         $result = $iv . $hmac . $cipherText;

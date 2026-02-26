@@ -436,7 +436,7 @@ class Statement
      */
     public function getRawType(): string
     {
-        return $this->type?->value ?? '';
+        return $this->type->value ?? '';
     }
 
     /**
@@ -455,7 +455,7 @@ class Statement
         }
 
         if (\is_bool($value)) {
-            return (int) $value;
+            return (string) (int) $value;
         }
 
         if (\is_array($value)) {
@@ -468,10 +468,10 @@ class Statement
                 $adapter = $this->database->getDBAdapter();
                 return $adapter->quote($value);
             }
-            return $value;
+            return (string) $value;
         }
 
-        return '\'\'';
+        return '';
     }
 
     /**
@@ -484,7 +484,7 @@ class Statement
      */
     public function getValue(string $name): mixed
     {
-        return (!isset($this->parameters[$name]) || $this->parameters[$name] === null) ? null : $this->parameters[$name];
+        return (!isset($this->parameters[$name])) ? null : $this->parameters[$name];
     }
 
     /**
@@ -922,7 +922,7 @@ class Statement
      */
     public function getType(): string
     {
-        return $this->type?->value ?? '';
+        return $this->type->value ?? '';
     }
 
     /**

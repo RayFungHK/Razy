@@ -292,7 +292,7 @@ class Column
     public function setCollation(string $collation): self
     {
         $charset = \trim($collation);
-        if ($charset && !\preg_match('/\w+^$', $collation)) {
+        if ($charset && !\preg_match('/^\w+$/', $collation)) {
             throw new DatabaseException($collation . ' is not in a correct character set format.');
         }
         $this->parameters['collation'] = $collation;
@@ -473,7 +473,7 @@ class Column
         $parameters = [];
 
         // Iterate through exportable parameters and build the config syntax string
-        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key', 'comment', 'oncurrent'] as $method) {
+        foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key', 'oncreate', 'onupdate', 'comment', 'oncurrent'] as $method) {
             if ('type' == $method) {
                 switch ($this->parameters['type']) {
                     case 'VARCHAR':
@@ -750,11 +750,7 @@ class Column
         }
 
         // Columns with explicit default values get an escaped string literal
-        if (null !== $this->parameters['default']) {
-            return ' DEFAULT \'' . \addslashes($this->parameters['default']) . '\'';
-        }
-
-        return '';
+        return ' DEFAULT \'' . \addslashes($this->parameters['default']) . '\'';
     }
 
     /**

@@ -130,11 +130,13 @@ class ModuleInfo
                     $code = \trim($moduleConfig['module_code']);
                     $this->code = $code;
                     $namespaces = \explode('/', $code);
-                    \array_shift($namespaces); // vendor
+                    $vendor = (string) \array_shift($namespaces);
                     $this->className = \array_pop($namespaces);
                 } else {
                     $this->code = 'standalone/app';
                     $this->className = 'app';
+                    $namespaces = [];
+                    $vendor = 'standalone';
                 }
 
                 $this->description = \trim($moduleConfig['description'] ?? 'Standalone application');
@@ -195,8 +197,6 @@ class ModuleInfo
                 }
 
                 $this->description = \trim($moduleConfig['description'] ?? '');
-
-                $settings ??= [];
             }
 
             $this->author = \trim($moduleConfig['author'] ?? ($this->standalone ? 'standalone' : ''));

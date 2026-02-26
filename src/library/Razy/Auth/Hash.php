@@ -40,13 +40,7 @@ class Hash
      */
     public static function make(string $password, string|int|null $algo = PASSWORD_BCRYPT, array $options = []): string
     {
-        $hash = \password_hash($password, $algo, $options);
-
-        if ($hash === false) {
-            throw new RuntimeException('Failed to hash password');
-        }
-
-        return $hash;
+        return \password_hash($password, $algo, $options);
     }
 
     /**

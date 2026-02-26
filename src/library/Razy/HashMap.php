@@ -59,7 +59,7 @@ class HashMap implements ArrayAccess, Iterator, Countable
     public function __construct(array $hashMap = [])
     {
         foreach ($hashMap as $hash => $value) {
-            $this->push($value, $hash ?? '');
+            $this->push($value, (string) $hash);
         }
     }
 

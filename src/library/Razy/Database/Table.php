@@ -176,9 +176,7 @@ class Table
                 $this->validate();
             } else {
                 $lastColumn = \end($this->columns);
-                if ($lastColumn) {
-                    $column->insertAfter($lastColumn->getName());
-                }
+                $column->insertAfter($lastColumn->getName());
             }
 
             return $column;
@@ -253,7 +251,7 @@ class Table
         } else {
             $destIndex = \array_search($dest, \array_keys($this->columns));
             $beginning = \array_slice($this->columns, 0, $destIndex + 1, true);
-            $ending = ($destIndex + 1 == \count($this->columns)) ? [] : \array_slice($this->columns, $destIndex + 1, true);
+            $ending = ($destIndex + 1 == \count($this->columns)) ? [] : \array_slice($this->columns, $destIndex + 1, null, true);
             $this->columns = \array_merge($beginning, [$selectedColumn], $ending);
         }
 
@@ -331,8 +329,8 @@ class Table
             // Build a map of original foreign key references for diff comparison
             $alterReferenceSyntax = '';
             $orgReference = [];
-            foreach ($this->committed as $committedColumn) {
-                $name = $committedColumn->getReferenceColumn() || $committedColumn->getName();
+            foreach ($this->committed->columns as $committedColumn) {
+                $name = $committedColumn->getReferenceColumn() ?: $committedColumn->getName();
                 $orgReference[$name] = $committedColumn;
             }
 
@@ -538,9 +536,7 @@ class Table
         $parameters = [];
         $parameters[] = 'charset(' . $this->charset . ')';
         $parameters[] = 'collation(' . $this->collation . ')';
-        if (!empty($parameters)) {
-            $config .= '=' . \implode(',', $parameters);
-        }
+        $config .= '=' . \implode(',', $parameters);
 
         if (\count($this->columns)) {
             $config .= '[';
@@ -712,9 +708,7 @@ class Table
      *
      * @param string $columnName Column name to remove
      *
-     * @return Table
-     *
-     * @throws Error
+     * @return static
      */
     public function alterRemoveColumn(string $columnName): static
     {

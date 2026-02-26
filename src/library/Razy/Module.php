@@ -172,7 +172,7 @@ class Module implements ModuleInterface
                     // Validate the controller extends the abstract Controller class
                     if (!$this->controller instanceof Controller) {
                         throw new ModuleLoadException(
-                            "Controller for module '{$this->moduleInfo->getCode()}' must extend Razy\\Controller, got '" . \get_class($this->controller) . "'.\n" .
+                            "Controller for module '{$this->moduleInfo->getCode()}' must extend Razy\\Controller, got '" . $reflected->getName() . "'.\n" .
                             "File: {$controllerPath}",
                         );
                     }
@@ -428,7 +428,7 @@ class Module implements ModuleInterface
      */
     public function getDataPath(string $module = '', bool $isURL = false): string
     {
-        return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode(), $isURL);
+        return $this->distributor->getDataPath($module ?: $this->moduleInfo->getCode(), $isURL);
     }
 
     /**

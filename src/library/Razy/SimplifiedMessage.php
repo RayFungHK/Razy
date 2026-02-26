@@ -88,12 +88,12 @@ class SimplifiedMessage
      *
      * @throws InvalidArgumentException
      */
-    public static function fetch(string $message): self
+    public static function fetch(string $message): static
     {
         // Match the STOMP-like frame: COMMAND\r\n[headers]\r\nbody\0\r\n
         // Group 1: command name, Group 2: header lines, Group 3: body content
         if (\preg_match('/^([A-Z][A-Z0-9_]*)\r\n(\w+:.*\r\n)*\r\n(.*)\0\r\n$/sm', $message, $matches)) {
-            $simplifiedMessage = new self($matches[1]);
+            $simplifiedMessage = new static($matches[1]);
             if ($matches[2]) {
                 // Parse individual header lines formatted as 'key:value\r\n'
                 \preg_match_all('/(\w+):(.*)\r\n/', $matches[2], $headers, PREG_SET_ORDER);
@@ -108,7 +108,7 @@ class SimplifiedMessage
         }
 
         // Return a default COMMAND message if the input doesn't match the expected format
-        return new self('COMMAND');
+        return new static('COMMAND');
     }
 
     /**
