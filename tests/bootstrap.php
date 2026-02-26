@@ -33,6 +33,21 @@ if (!defined('WEB_MODE')) {
 if (!defined('WORKER_MODE')) {
     define('WORKER_MODE', false);
 }
+if (!defined('SITE_URL_ROOT')) {
+    define('SITE_URL_ROOT', 'http://localhost');
+}
+if (!defined('HOSTNAME')) {
+    define('HOSTNAME', 'localhost');
+}
+if (!defined('SHARED_FOLDER')) {
+    define('SHARED_FOLDER', SYSTEM_ROOT . '/shared');
+}
+if (!defined('DATA_FOLDER')) {
+    define('DATA_FOLDER', SYSTEM_ROOT . '/data');
+}
+if (!defined('PHAR_FILE')) {
+    define('PHAR_FILE', '');
+}
 
 // Load test helper functions (provides Razy\tidy, Razy\append, Razy\guid, etc.)
 require_once __DIR__ . '/test_functions.php';
