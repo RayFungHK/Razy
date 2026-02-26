@@ -9,7 +9,7 @@
 FROM php:8.3-cli-alpine AS builder
 
 RUN apk add --no-cache zip libzip-dev curl-dev icu-dev oniguruma-dev \
-    && docker-php-ext-install zip curl mbstring phar
+    && docker-php-ext-install zip mbstring
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -23,8 +23,10 @@ RUN php build.php
 # ===== Stage 2: Runtime =====
 FROM php:8.3-cli-alpine AS runtime
 
-RUN apk add --no-cache libzip curl icu-libs \
-    && docker-php-ext-install zip curl mbstring phar pcntl
+RUN apk add --no-cache libzip-dev curl-dev icu-dev oniguruma-dev \
+    && docker-php-ext-install zip mbstring pcntl \
+    && apk del --no-cache libzip-dev curl-dev icu-dev oniguruma-dev \
+    && apk add --no-cache libzip curl icu-libs oniguruma
 
 WORKDIR /app
 
