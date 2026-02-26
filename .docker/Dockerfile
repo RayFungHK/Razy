@@ -18,7 +18,8 @@ COPY composer.json composer.lock* ./
 RUN composer install --prefer-dist --no-dev --no-interaction --no-scripts --optimize-autoloader
 
 COPY . .
-RUN php build.php
+RUN php -d phar.readonly=0 build.php && \
+    test -f /app/Razy.phar && echo "Razy.phar built OK" || (echo "ERROR: Razy.phar not found after build" && exit 1)
 
 # Generate a minimal site directory for the built-in web server
 RUN mkdir -p /app/site && \
