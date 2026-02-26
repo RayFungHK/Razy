@@ -9,7 +9,6 @@
  * Database transaction methods (beginTransaction, commit, rollback, inTransaction,
  * transaction), TransactionException, and integration with real SQLite databases.
  *
- * @package Razy
  *
  * @license MIT
  */

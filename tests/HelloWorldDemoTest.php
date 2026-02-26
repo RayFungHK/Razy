@@ -6,7 +6,6 @@
  * Validates file structure, module identity, controller registration,
  * and route handler — ensuring the demo stays minimal and correct.
  *
- * @package Razy\Tests
  *
  * @license MIT
  */

@@ -6,7 +6,6 @@
  * Tests the module scaffolding functionality by verifying file generation,
  * directory structure, and content correctness for various scaffold options.
  *
- * @package Razy\Tests
  *
  * @license MIT
  */

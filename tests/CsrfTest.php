@@ -11,7 +11,6 @@
  * - Integration (session + token manager + middleware lifecycle)
  * - Edge cases (empty tokens, tampered tokens, concurrent sessions)
  *
- * @package Razy
  *
  * @license MIT
  */

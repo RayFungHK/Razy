@@ -7,9 +7,10 @@ namespace Razy\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Razy\Database\Statement\Builder;
 use Razy\Database;
 use Razy\Database\Statement;
+use Razy\Database\Statement\Builder;
+use ReflectionProperty;
 
 #[CoversClass(Builder::class)]
 class BuilderTest extends TestCase
@@ -45,7 +46,7 @@ class BuilderTest extends TestCase
         $builder->init($stmt2); // Should NOT overwrite
 
         // Use reflection to verify
-        $ref = new \ReflectionProperty(Builder::class, 'statement');
+        $ref = new ReflectionProperty(Builder::class, 'statement');
         $ref->setAccessible(true);
         $this->assertSame($stmt1, $ref->getValue($builder));
     }
@@ -62,7 +63,7 @@ class BuilderTest extends TestCase
     public function postProcessDefaultIsNull(): void
     {
         $builder = new Builder();
-        $ref = new \ReflectionProperty(Builder::class, 'postProcess');
+        $ref = new ReflectionProperty(Builder::class, 'postProcess');
         $ref->setAccessible(true);
         $this->assertNull($ref->getValue($builder));
     }
@@ -71,7 +72,7 @@ class BuilderTest extends TestCase
     public function statementDefaultIsNull(): void
     {
         $builder = new Builder();
-        $ref = new \ReflectionProperty(Builder::class, 'statement');
+        $ref = new ReflectionProperty(Builder::class, 'statement');
         $ref->setAccessible(true);
         $this->assertNull($ref->getValue($builder));
     }
@@ -82,7 +83,7 @@ class BuilderTest extends TestCase
         $builder = new Builder();
         $builder->init(null);
 
-        $ref = new \ReflectionProperty(Builder::class, 'statement');
+        $ref = new ReflectionProperty(Builder::class, 'statement');
         $ref->setAccessible(true);
         // init(null) sets null, which is falsy, so subsequent init should bind
         $this->assertNull($ref->getValue($builder));
@@ -98,7 +99,7 @@ class BuilderTest extends TestCase
         $stmt = new Statement($db);
         $builder->init($stmt);
 
-        $ref = new \ReflectionProperty(Builder::class, 'statement');
+        $ref = new ReflectionProperty(Builder::class, 'statement');
         $ref->setAccessible(true);
         $this->assertSame($stmt, $ref->getValue($builder));
     }

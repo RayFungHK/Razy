@@ -10,7 +10,6 @@
  * URL generation (route/substituteParams), duplicate detection, and
  * integration with the existing routing pipeline.
  *
- * @package Razy
  *
  * @license MIT
  */

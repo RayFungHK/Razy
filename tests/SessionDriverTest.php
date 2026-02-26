@@ -9,7 +9,6 @@
  * DatabaseDriver (PDO-backed persistence, upsert, GC) — both implementing
  * SessionDriverInterface. Includes integration tests with the Session class.
  *
- * @package Razy
  *
  * @license MIT
  */

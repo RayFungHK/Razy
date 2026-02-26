@@ -10,6 +10,7 @@ use Razy\Contract\EventDispatcher\StoppableEventInterface;
 use Razy\Event\EventDispatcher;
 use Razy\Event\ListenerProvider;
 use Razy\Event\StoppableEvent;
+use stdClass;
 
 #[CoversClass(StoppableEvent::class)]
 #[CoversClass(ListenerProvider::class)]
@@ -54,7 +55,8 @@ class EventSystemTest extends TestCase
     public function testAddListenerReturnsSelf(): void
     {
         $provider = new ListenerProvider();
-        $result = $provider->addListener(StoppableEvent::class, function () {});
+        $result = $provider->addListener(StoppableEvent::class, function () {
+        });
         $this->assertSame($provider, $result);
     }
 
@@ -100,7 +102,7 @@ class EventSystemTest extends TestCase
     public function testNoListenersForUnregisteredEvent(): void
     {
         $provider = new ListenerProvider();
-        $listeners = \iterator_to_array($provider->getListenersForEvent(new \stdClass()));
+        $listeners = \iterator_to_array($provider->getListenersForEvent(new stdClass()));
         $this->assertEmpty($listeners);
     }
 
@@ -115,7 +117,7 @@ class EventSystemTest extends TestCase
         });
 
         // Create a concrete child event
-        $childEvent = new class extends StoppableEvent {};
+        $childEvent = new class() extends StoppableEvent {};
 
         foreach ($provider->getListenersForEvent($childEvent) as $listener) {
             $listener($childEvent);
@@ -216,15 +218,15 @@ class EventSystemTest extends TestCase
         $provider = new ListenerProvider();
         $counter = 0;
 
-        $provider->addListener(\stdClass::class, function () use (&$counter) {
+        $provider->addListener(stdClass::class, function () use (&$counter) {
             $counter++;
         });
-        $provider->addListener(\stdClass::class, function () use (&$counter) {
+        $provider->addListener(stdClass::class, function () use (&$counter) {
             $counter++;
         });
 
         $dispatcher = new EventDispatcher($provider);
-        $dispatcher->dispatch(new \stdClass());
+        $dispatcher->dispatch(new stdClass());
 
         $this->assertSame(2, $counter);
     }

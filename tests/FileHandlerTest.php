@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Contract\Log\LogLevel;
 use Razy\Log\FileHandler;
+use RuntimeException;
 
 #[CoversClass(FileHandler::class)]
 class FileHandlerTest extends TestCase
@@ -133,7 +134,7 @@ class FileHandlerTest extends TestCase
     {
         $handler = new FileHandler($this->logDir, LogLevel::DEBUG);
 
-        $exception = new \RuntimeException('Something went wrong', 42);
+        $exception = new RuntimeException('Something went wrong', 42);
         $handler->handle(
             LogLevel::ERROR,
             'Error occurred',

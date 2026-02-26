@@ -8,7 +8,6 @@
  * Tests the Env parser, variable loading, interpolation, escape sequences,
  * multiline values, casting, error handling, and the env() helper function.
  *
- * @package Razy
  *
  * @license MIT
  */

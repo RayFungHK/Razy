@@ -13,7 +13,6 @@
  * - Integration scenarios (multi-key, multi-limiter, window expiry)
  * - Edge cases (concurrent keys, zero limits, empty keys)
  *
- * @package Razy
  *
  * @license MIT
  */

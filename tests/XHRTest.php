@@ -169,7 +169,7 @@ class XHRTest extends TestCase
 
         $this->assertTrue($result['result']);
         $this->assertSame('done', $result['message']);
-        $this->assertSame(true, $result['response']['test']);
+        $this->assertTrue($result['response']['test']);
         $this->assertSame(5, $result['params']['count']);
     }
 
@@ -199,7 +199,8 @@ class XHRTest extends TestCase
     public function onCompleteReturnsChainable(): void
     {
         $xhr = new XHR(true);
-        $result = $xhr->onComplete(function () {});
+        $result = $xhr->onComplete(function () {
+        });
         $this->assertSame($xhr, $result);
     }
 
