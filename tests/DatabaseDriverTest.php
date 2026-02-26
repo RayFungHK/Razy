@@ -104,6 +104,9 @@ class DatabaseDriverTest extends TestCase
 
     public function testMySQLConnectionOptions(): void
     {
+        if (!\extension_loaded('pdo_mysql')) {
+            $this->markTestSkipped('ext-pdo_mysql not available');
+        }
         $opts = $this->mysql->getConnectionOptions();
         $this->assertSame(PDO::ERRMODE_EXCEPTION, $opts[PDO::ATTR_ERRMODE]);
         $this->assertTrue($opts[PDO::ATTR_PERSISTENT]);
@@ -460,6 +463,9 @@ class DatabaseDriverTest extends TestCase
 
     public function testMySQLConnectFailure(): void
     {
+        if (!\extension_loaded('pdo_mysql')) {
+            $this->markTestSkipped('ext-pdo_mysql not available');
+        }
         $result = $this->mysql->connect([
             'host' => '255.255.255.255',
             'database' => 'nonexistent',

@@ -72,6 +72,9 @@ class WebSocketServerTest extends TestCase
     #[Test]
     public function serverCanBindAndStopImmediately(): void
     {
+        if (!\function_exists('socket_create')) {
+            $this->markTestSkipped('ext-sockets not available');
+        }
         $server = new Server('127.0.0.1', 0);
         $server->onTick(function (Server $s) {
             $s->stop(); // Stop after first tick

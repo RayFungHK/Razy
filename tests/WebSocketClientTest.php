@@ -86,6 +86,9 @@ class WebSocketClientTest extends TestCase
     #[Test]
     public function connectAndExchangeMessages(): void
     {
+        if (!\function_exists('socket_create')) {
+            $this->markTestSkipped('ext-sockets not available');
+        }
         $port = $this->findFreePort();
 
         // Start a minimalist server in a separate process
