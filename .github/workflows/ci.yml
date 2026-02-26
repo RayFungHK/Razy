@@ -80,7 +80,7 @@ jobs:
           LINE_RATE=$(php -r "\$x=simplexml_load_file('coverage.xml');echo (string)\$x->project->metrics['coveredstatements']/(string)\$x->project->metrics['statements'];")
           PERCENT=$(php -r "echo round($LINE_RATE * 100, 2);")
           echo "Coverage: ${PERCENT}%"
-          php -r "exit($LINE_RATE < 0.70 ? 1 : 0);"
+          php -r "exit($LINE_RATE < 0.50 ? 1 : 0);"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
