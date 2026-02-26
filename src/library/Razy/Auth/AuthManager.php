@@ -9,14 +9,15 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Auth;
 
 use InvalidArgumentException;
-use Razy\Contract\GuardInterface;
 use Razy\Contract\AuthenticatableInterface;
+use Razy\Contract\GuardInterface;
 
 /**
  * Authentication manager supporting multiple named guards.
@@ -62,8 +63,8 @@ class AuthManager
     /**
      * Create a new AuthManager with optional initial guards.
      *
-     * @param array<string, GuardInterface> $guards       Initial guards to register
-     * @param string                        $defaultGuard The name of the default guard
+     * @param array<string, GuardInterface> $guards Initial guards to register
+     * @param string $defaultGuard The name of the default guard
      */
     public function __construct(array $guards = [], string $defaultGuard = 'default')
     {
@@ -77,7 +78,7 @@ class AuthManager
     /**
      * Register an authentication guard.
      *
-     * @param string         $name  Guard name (e.g., 'web', 'api')
+     * @param string $name Guard name (e.g., 'web', 'api')
      * @param GuardInterface $guard The guard instance
      *
      * @return static For method chaining
@@ -152,7 +153,7 @@ class AuthManager
      */
     public function getGuardNames(): array
     {
-        return array_keys($this->guards);
+        return \array_keys($this->guards);
     }
 
     // ── Default Guard Delegation ──────────────────────────────────

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Fluent builder for contextual container bindings.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -46,11 +48,11 @@ class ContextualBindingBuilder
      * ContextualBindingBuilder constructor.
      *
      * @param Container $container The container instance
-     * @param string    $consumer  The consuming class that triggers this contextual binding
+     * @param string $consumer The consuming class that triggers this contextual binding
      */
     public function __construct(
         private readonly Container $container,
-        private readonly string $consumer
+        private readonly string $consumer,
     ) {
     }
 
@@ -76,15 +78,13 @@ class ContextualBindingBuilder
      * - A Closure: invoked with ($container, $params) to produce the instance
      *
      * @param string|Closure $implementation The concrete class or factory closure
-     *
-     * @return void
      */
     public function give(string|Closure $implementation): void
     {
         $this->container->addContextualBinding(
             $this->consumer,
             $this->needs,
-            $implementation
+            $implementation,
         );
     }
 }

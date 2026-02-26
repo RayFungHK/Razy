@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * scope levels (Template, Source, Block, Entity).
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -20,7 +22,7 @@ use Closure;
 use Razy\Exception\TemplateException;
 
 /**
- * Trait ParameterBagTrait
+ * Trait ParameterBagTrait.
  *
  * Extracts the common assign() and bind() implementations shared across
  * Template, Source, Block, and Entity. All four classes previously had
@@ -43,15 +45,16 @@ trait ParameterBagTrait
      * @param mixed|null $value The parameter value (ignored when $parameter is an array)
      *
      * @return static Chainable
+     *
      * @throws Error If $parameter is neither string nor array
      */
     public function assign(mixed $parameter, mixed $value = null): static
     {
-        if (is_array($parameter)) {
+        if (\is_array($parameter)) {
             foreach ($parameter as $index => $value) {
                 $this->assign($index, $value);
             }
-        } elseif (is_string($parameter)) {
+        } elseif (\is_string($parameter)) {
             if ($value instanceof Closure) {
                 // If the value is closure, pass the current value to closure
                 $this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);

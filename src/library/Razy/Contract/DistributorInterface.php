@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -20,7 +22,7 @@ use Razy\Distributor\RouteDispatcher;
 use Razy\Template;
 
 /**
- * Interface DistributorInterface
+ * Interface DistributorInterface.
  *
  * Shared contract between Distributor (multisite) and Standalone (lite) mode.
  * Module, API, EventEmitter, and PackageManager depend on this interface rather
@@ -92,6 +94,7 @@ interface DistributorInterface
      *
      * @param string $module
      * @param bool $isURL
+     *
      * @return string
      */
     public function getDataPath(string $module = '', bool $isURL = false): string;

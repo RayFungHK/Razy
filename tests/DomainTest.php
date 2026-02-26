@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Razy\Tests;
@@ -31,75 +32,21 @@ use ReflectionProperty;
 class DomainTest extends TestCase
 {
     // ──────────────────────────────────────────────
-    // Helpers
+    // Data provider tests — various alias formats
     // ──────────────────────────────────────────────
 
     /**
-     * Create a mock Application (avoids its heavy constructor side-effects).
+     * @return array<string, array{string}>
      */
-    private function mockApp(): Application
+    public static function aliasProvider(): array
     {
-        return $this->createMock(Application::class);
-    }
-
-    /**
-     * Build a Domain instance with sensible defaults.
-     *
-     * @param string       $domain  Domain name
-     * @param string       $alias   Domain alias
-     * @param array        $mapping URL-path => distributor-identifier mapping
-     * @param Application|null $app Optional mock Application
-     */
-    private function makeDomain(
-        string $domain = 'example.com',
-        string $alias = '',
-        array $mapping = ['/' => 'default_dist'],
-        ?Application $app = null,
-    ): Domain {
-        return new Domain($app ?? $this->mockApp(), $domain, $alias, $mapping);
-    }
-
-    /**
-     * Get a private/protected property value via Reflection.
-     */
-    private function getPrivate(Domain $domain, string $property): mixed
-    {
-        $ref = new ReflectionProperty(Domain::class, $property);
-        $ref->setAccessible(true);
-        return $ref->getValue($domain);
-    }
-
-    /**
-     * Set a private/protected property value via Reflection.
-     */
-    private function setPrivate(Domain $domain, string $property, mixed $value): void
-    {
-        $ref = new ReflectionProperty(Domain::class, $property);
-        $ref->setAccessible(true);
-        $ref->setValue($domain, $value);
-    }
-
-    /**
-     * Create a Domain via Reflection without invoking the constructor,
-     * useful for testing methods in isolation without mapping validation.
-     */
-    private function makeDomainWithoutConstructor(
-        string $domain = 'example.com',
-        string $alias = '',
-        array $mapping = [],
-        ?Application $app = null,
-    ): Domain {
-        $ref = new ReflectionClass(Domain::class);
-        /** @var Domain $instance */
-        $instance = $ref->newInstanceWithoutConstructor();
-
-        $this->setPrivate($instance, 'app', $app ?? $this->mockApp());
-        $this->setPrivate($instance, 'domain', $domain);
-        $this->setPrivate($instance, 'alias', $alias);
-        $this->setPrivate($instance, 'mapping', $mapping);
-        // distributor defaults to null in the class definition
-
-        return $instance;
+        return [
+            'empty alias' => [''],
+            'simple alias' => ['myalias'],
+            'fqdn alias' => ['alias.example.com'],
+            'alias with port' => ['alias.example.com:9090'],
+            'wildcard alias' => ['*.alias.com'],
+        ];
     }
 
     // ──────────────────────────────────────────────
@@ -142,12 +89,12 @@ class DomainTest extends TestCase
         $domain = new Domain($this->mockApp(), 'example.com', '', $mapping);
 
         $sorted = $this->getPrivate($domain, 'mapping');
-        $keys = array_keys($sorted);
+        $keys = \array_keys($sorted);
 
         // Deepest paths should come first after sortPathLevel
         // /admin/users/ (depth 2) before /admin/ (depth 1) and /api/ (depth 1) before / (depth 0)
         $this->assertSame('/admin/users/', $keys[0], 'Deepest path should be first');
-        $this->assertSame('/', end($keys), 'Root path should be last');
+        $this->assertSame('/', \end($keys), 'Root path should be last');
     }
 
     // ──────────────────────────────────────────────
@@ -325,7 +272,7 @@ class DomainTest extends TestCase
         $domain = $this->makeDomain(mapping: ['/app/' => 'myapp']);
         $sorted = $this->getPrivate($domain, 'mapping');
         $this->assertCount(1, $sorted);
-        $this->assertSame('myapp', reset($sorted));
+        $this->assertSame('myapp', \reset($sorted));
     }
 
     #[Test]
@@ -341,7 +288,7 @@ class DomainTest extends TestCase
         $this->assertCount(3, $sorted);
 
         // All values must be present
-        $values = array_values($sorted);
+        $values = \array_values($sorted);
         $this->assertContains('root', $values);
         $this->assertContains('api', $values);
         $this->assertContains('admin', $values);
@@ -353,25 +300,7 @@ class DomainTest extends TestCase
         // Distributor identifiers can include a tag: "mysite@dev"
         $domain = $this->makeDomain(mapping: ['/' => 'mysite@dev']);
         $sorted = $this->getPrivate($domain, 'mapping');
-        $this->assertSame('mysite@dev', reset($sorted));
-    }
-
-    // ──────────────────────────────────────────────
-    // Data provider tests — various alias formats
-    // ──────────────────────────────────────────────
-
-    /**
-     * @return array<string, array{string}>
-     */
-    public static function aliasProvider(): array
-    {
-        return [
-            'empty alias' => [''],
-            'simple alias' => ['myalias'],
-            'fqdn alias' => ['alias.example.com'],
-            'alias with port' => ['alias.example.com:9090'],
-            'wildcard alias' => ['*.alias.com'],
-        ];
+        $this->assertSame('mysite@dev', \reset($sorted));
     }
 
     #[Test]
@@ -393,7 +322,7 @@ class DomainTest extends TestCase
 
         $mockDist = $this->createMock(Distributor::class);
         $mockDist->method('autoload')
-            ->willReturnCallback(fn(string $class) => $class === 'Found\\Class');
+            ->willReturnCallback(fn (string $class) => $class === 'Found\\Class');
 
         $this->setPrivate($domain, 'distributor', $mockDist);
 
@@ -421,5 +350,76 @@ class DomainTest extends TestCase
 
         $domain->dispose();
         $domain->dispose();
+    }
+    // ──────────────────────────────────────────────
+    // Helpers
+    // ──────────────────────────────────────────────
+
+    /**
+     * Create a mock Application (avoids its heavy constructor side-effects).
+     */
+    private function mockApp(): Application
+    {
+        return $this->createMock(Application::class);
+    }
+
+    /**
+     * Build a Domain instance with sensible defaults.
+     *
+     * @param string $domain Domain name
+     * @param string $alias Domain alias
+     * @param array $mapping URL-path => distributor-identifier mapping
+     * @param Application|null $app Optional mock Application
+     */
+    private function makeDomain(
+        string $domain = 'example.com',
+        string $alias = '',
+        array $mapping = ['/' => 'default_dist'],
+        ?Application $app = null,
+    ): Domain {
+        return new Domain($app ?? $this->mockApp(), $domain, $alias, $mapping);
+    }
+
+    /**
+     * Get a private/protected property value via Reflection.
+     */
+    private function getPrivate(Domain $domain, string $property): mixed
+    {
+        $ref = new ReflectionProperty(Domain::class, $property);
+        $ref->setAccessible(true);
+        return $ref->getValue($domain);
+    }
+
+    /**
+     * Set a private/protected property value via Reflection.
+     */
+    private function setPrivate(Domain $domain, string $property, mixed $value): void
+    {
+        $ref = new ReflectionProperty(Domain::class, $property);
+        $ref->setAccessible(true);
+        $ref->setValue($domain, $value);
+    }
+
+    /**
+     * Create a Domain via Reflection without invoking the constructor,
+     * useful for testing methods in isolation without mapping validation.
+     */
+    private function makeDomainWithoutConstructor(
+        string $domain = 'example.com',
+        string $alias = '',
+        array $mapping = [],
+        ?Application $app = null,
+    ): Domain {
+        $ref = new ReflectionClass(Domain::class);
+        /** @var Domain $instance */
+        $instance = $ref->newInstanceWithoutConstructor();
+
+        $this->setPrivate($instance, 'app', $app ?? $this->mockApp());
+        $this->setPrivate($instance, 'domain', $domain);
+        $this->setPrivate($instance, 'alias', $alias);
+        $this->setPrivate($instance, 'mapping', $mapping);
+        // distributor defaults to null in the class definition
+
+        return $instance;
     }
 }

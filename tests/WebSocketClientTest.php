@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\WebSocket\Client.
  *
@@ -16,7 +17,8 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Razy\WebSocket\Client;
 use Razy\WebSocket\Connection;
-use Razy\WebSocket\Frame;
+use ReflectionMethod;
+use RuntimeException;
 
 #[CoversClass(Client::class)]
 class WebSocketClientTest extends TestCase
@@ -67,7 +69,7 @@ class WebSocketClientTest extends TestCase
     #[Test]
     public function parseUrlThrowsOnInvalidScheme(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Unsupported scheme');
         $this->callParseUrl('http://host/path');
     }
@@ -75,7 +77,7 @@ class WebSocketClientTest extends TestCase
     #[Test]
     public function parseUrlThrowsOnInvalidUrl(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->callParseUrl('not a url at all');
     }
 
@@ -87,36 +89,36 @@ class WebSocketClientTest extends TestCase
         $port = $this->findFreePort();
 
         // Start a minimalist server in a separate process
-        $serverSocket = stream_socket_server(
+        $serverSocket = \stream_socket_server(
             "tcp://127.0.0.1:{$port}",
             $errno,
             $errstr,
             STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
         );
         $this->assertNotFalse($serverSocket, "Bind failed: {$errstr}");
-        stream_set_blocking($serverSocket, false);
+        \stream_set_blocking($serverSocket, false);
 
         // Connect the client (this spawns the TCP connection + handshake)
         // We need to accept + handshake on the server side concurrently.
         // Since PHP is single-threaded, we'll interleave manually.
 
         // 1. Client initiates TCP
-        $clientStream = @stream_socket_client(
+        $clientStream = @\stream_socket_client(
             "tcp://127.0.0.1:{$port}",
             $errno,
             $errstr,
             2,
         );
         $this->assertNotFalse($clientStream);
-        stream_set_blocking($clientStream, false);
+        \stream_set_blocking($clientStream, false);
 
         // 2. Server accepts
-        $acceptedStream = stream_socket_accept($serverSocket, 2);
+        $acceptedStream = \stream_socket_accept($serverSocket, 2);
         $this->assertNotFalse($acceptedStream);
-        stream_set_blocking($acceptedStream, false);
+        \stream_set_blocking($acceptedStream, false);
 
         // 3. Client sends WS handshake
-        $key = base64_encode(random_bytes(16));
+        $key = \base64_encode(\random_bytes(16));
         $handshake = "GET / HTTP/1.1\r\n"
             . "Host: 127.0.0.1:{$port}\r\n"
             . "Upgrade: websocket\r\n"
@@ -124,24 +126,24 @@ class WebSocketClientTest extends TestCase
             . "Sec-WebSocket-Key: {$key}\r\n"
             . "Sec-WebSocket-Version: 13\r\n"
             . "\r\n";
-        fwrite($clientStream, $handshake);
-        usleep(50000);
+        \fwrite($clientStream, $handshake);
+        \usleep(50000);
 
         // 4. Server performs handshake
         $serverConn = new Connection($acceptedStream, maskOutput: false);
         $this->assertTrue($serverConn->performServerHandshake());
 
         // 5. Client reads the 101 response
-        $expectedAccept = base64_encode(
-            sha1($key . '258EAFA5-E914-47DA-95CA-5AB5DC175AB2', true)
+        $expectedAccept = \base64_encode(
+            \sha1($key . '258EAFA5-E914-47DA-95CA-5AB5DC175AB2', true),
         );
         $clientConn = new Connection($clientStream, maskOutput: true);
-        usleep(50000);
+        \usleep(50000);
         $this->assertTrue($clientConn->completeClientHandshake($expectedAccept));
 
         // 6. Client sends text
         $clientConn->sendText('hello server');
-        usleep(50000);
+        \usleep(50000);
 
         $frame = $serverConn->readFrame();
         $this->assertNotNull($frame);
@@ -149,22 +151,22 @@ class WebSocketClientTest extends TestCase
 
         // 7. Server replies
         $serverConn->sendText('hello client');
-        usleep(50000);
+        \usleep(50000);
 
         $reply = $clientConn->readFrame();
         $this->assertNotNull($reply);
         $this->assertSame('hello client', $reply->getPayload());
 
         // Cleanup
-        fclose($clientStream);
-        fclose($acceptedStream);
-        fclose($serverSocket);
+        \fclose($clientStream);
+        \fclose($acceptedStream);
+        \fclose($serverSocket);
     }
 
     #[Test]
     public function connectThrowsOnUnreachableHost(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         Client::connect('ws://127.0.0.1:1', timeout: 1);
     }
 
@@ -172,7 +174,7 @@ class WebSocketClientTest extends TestCase
 
     private function callParseUrl(string $url): array
     {
-        $method = new \ReflectionMethod(Client::class, 'parseUrl');
+        $method = new ReflectionMethod(Client::class, 'parseUrl');
         $method->setAccessible(true);
 
         return $method->invoke(null, $url);
@@ -180,10 +182,10 @@ class WebSocketClientTest extends TestCase
 
     private function findFreePort(): int
     {
-        $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-        socket_bind($sock, '127.0.0.1', 0);
-        socket_getsockname($sock, $addr, $port);
-        socket_close($sock);
+        $sock = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+        \socket_bind($sock, '127.0.0.1', 0);
+        \socket_getsockname($sock, $addr, $port);
+        \socket_close($sock);
 
         return $port;
     }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,12 +9,12 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
-use Throwable;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
 use Razy\Distributor\ModuleRegistry;
@@ -22,9 +23,10 @@ use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Module\ModuleStatus;
 use Razy\Util\PathUtil;
+use Throwable;
 
 /**
- * Class Standalone
+ * Class Standalone.
  *
  * Lightweight runtime for standalone (lite) mode. Manages a single ultra-flat
  * module directly from the standalone/ folder without Domain resolution,
@@ -34,6 +36,7 @@ use Razy\Util\PathUtil;
  * PackageManager can work identically in both multisite and standalone mode.
  *
  * @class Standalone
+ *
  * @package Razy
  */
 class Standalone implements DistributorInterface
@@ -83,25 +86,12 @@ class Standalone implements DistributorInterface
     }
 
     /**
-     * Create sub-component instances and register this Standalone in the DI container.
-     */
-    private function initializeSubComponents(): void
-    {
-        $this->registry = new ModuleRegistry($this, true);
-        $this->scanner = new ModuleScanner($this);
-        $this->router = new RouteDispatcher();
-        $this->prerequisites = new PrerequisiteResolver($this->code, $this);
-
-        if ($this->container) {
-            $this->container->instance(self::class, $this);
-        }
-    }
-
-    /**
      * Load the single standalone module and resolve its lifecycle.
      *
      * @param bool $initialOnly When true, only trigger __onInit (skip __onLoad/__onRequire)
+     *
      * @return $this
+     *
      * @throws Error
      * @throws Throwable
      */
@@ -128,12 +118,12 @@ class Standalone implements DistributorInterface
         }
 
         // Preparation Stage (__onLoad)
-        $this->registry->setQueue(array_filter($this->registry->getQueue(), function (Module $module) {
+        $this->registry->setQueue(\array_filter($this->registry->getQueue(), function (Module $module) {
             return $module->prepare();
         }));
 
         // Validation Stage (__onRequire)
-        $this->registry->setQueue(array_filter($this->registry->getQueue(), function (Module $module) {
+        $this->registry->setQueue(\array_filter($this->registry->getQueue(), function (Module $module) {
             return $module->validate();
         }));
 
@@ -144,6 +134,7 @@ class Standalone implements DistributorInterface
      * Match the registered route and execute the matched path.
      *
      * @return bool
+     *
      * @throws Throwable
      */
     public function matchRoute(): bool
@@ -160,6 +151,7 @@ class Standalone implements DistributorInterface
      * Autoload a class from the standalone module's library folder.
      *
      * @param string $className
+     *
      * @return bool
      */
     public function autoload(string $className): bool
@@ -171,7 +163,6 @@ class Standalone implements DistributorInterface
      * Set the URL query string for route matching.
      *
      * @param string $urlQuery
-     * @return void
      */
     public function setUrlQuery(string $urlQuery): void
     {
@@ -189,9 +180,9 @@ class Standalone implements DistributorInterface
     public function setSession(): static
     {
         if (WEB_MODE) {
-            session_set_cookie_params(0, '/', HOSTNAME);
-            session_name($this->code);
-            session_start();
+            \session_set_cookie_params(0, '/', HOSTNAME);
+            \session_name($this->code);
+            \session_start();
         }
 
         return $this;
@@ -268,7 +259,7 @@ class Standalone implements DistributorInterface
     /** {@inheritDoc} */
     public function getSiteURL(): string
     {
-        return (defined('RAZY_URL_ROOT')) ? RAZY_URL_ROOT : '';
+        return (\defined('RAZY_URL_ROOT')) ? RAZY_URL_ROOT : '';
     }
 
     /** {@inheritDoc} */
@@ -287,6 +278,21 @@ class Standalone implements DistributorInterface
         return $this->globalTemplate;
     }
 
+    /**
+     * Create sub-component instances and register this Standalone in the DI container.
+     */
+    private function initializeSubComponents(): void
+    {
+        $this->registry = new ModuleRegistry($this, true);
+        $this->scanner = new ModuleScanner($this);
+        $this->router = new RouteDispatcher();
+        $this->prerequisites = new PrerequisiteResolver($this->code, $this);
+
+        if ($this->container) {
+            $this->container->instance(self::class, $this);
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
@@ -295,7 +301,9 @@ class Standalone implements DistributorInterface
      * Recursively resolve and initialize a module and its dependencies.
      *
      * @param Module $module
+     *
      * @return bool
+     *
      * @throws Throwable
      */
     private function require(Module $module): bool

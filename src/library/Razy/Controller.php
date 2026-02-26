@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,18 +11,20 @@
 
 namespace Razy;
 
+use BadMethodCallException;
 use Closure;
+use InvalidArgumentException;
 use Razy\Contract\ContainerInterface;
 use Razy\Database\MigrationManager;
 use Razy\Database\Statement;
-use Razy\Template\Source;
 use Razy\Exception\ContainerException;
 use Razy\Exception\ModuleLoadException;
 use Razy\Exception\RedirectException;
 use Razy\ORM\Model;
+use Razy\Template\Source;
+use Razy\Util\PathUtil;
 use Throwable;
 
-use Razy\Util\PathUtil;
 /**
  * The Controller class is responsible for handling the lifecycle events of a module,
  * managing assets, configurations, templates, and API interactions.
@@ -30,20 +33,27 @@ use Razy\Util\PathUtil;
  * and route handlers. Undeclared methods are resolved via closure file autoloading.
  *
  * @class Controller
+ *
  * @package Razy
+ *
  * @license MIT
  */
-class Controller {
+class Controller
+{
     /** @var int Bitmask flag: load all plugin types */
-    const PLUGIN_ALL = 0b1111;
+    public const PLUGIN_ALL = 0b1111;
+
     /** @var int Bitmask flag: load Template plugins */
-    const PLUGIN_TEMPLATE = 0b0001;
+    public const PLUGIN_TEMPLATE = 0b0001;
+
     /** @var int Bitmask flag: load Collection plugins */
-    const PLUGIN_COLLECTION = 0b0010;
+    public const PLUGIN_COLLECTION = 0b0010;
+
     /** @var int Bitmask flag: load Pipeline plugins */
-    const PLUGIN_PIPELINE = 0b0100;
+    public const PLUGIN_PIPELINE = 0b0100;
+
     /** @var int Bitmask flag: load Statement (Database) plugins */
-    const PLUGIN_STATEMENT = 0b1000;
+    public const PLUGIN_STATEMENT = 0b1000;
 
     /** @var array<string, Closure> Dynamically loaded closure methods bound to this controller */
     private array $externalClosure = [];
@@ -55,11 +65,13 @@ class Controller {
     private array $loadedModels = [];
 
     /**
-     * Controller constructor
+     * Controller constructor.
      *
      * @param Module|null $module The module associated with this controller
      */
-    final public function __construct(private readonly ?Module $module = null) { }
+    final public function __construct(private readonly ?Module $module = null)
+    {
+    }
 
     /**
      * Controller Event __onInit, will be triggered when the module is scanned and ready to load.
@@ -68,24 +80,26 @@ class Controller {
      *
      * @return bool Return true if the module is loaded, or return false to mark the module status as "Failed"
      */
-    public function __onInit(Agent $agent): bool {
+    public function __onInit(Agent $agent): bool
+    {
         return true;
     }
 
     /**
-     * __onDispose event, all modules will be executed after route and script is completed
-     *
-     * @return void
+     * __onDispose event, all modules will be executed after route and script is completed.
      */
-    public function __onDispose(): void { }
+    public function __onDispose(): void
+    {
+    }
 
     /**
      * __onDispatch event, all modules will be executed before verify the module require
-     * Return false to remove from the queue
+     * Return false to remove from the queue.
      *
      * @return bool
      */
-    public function __onDispatch(): bool {
+    public function __onDispatch(): bool
+    {
         return true;
     }
 
@@ -93,43 +107,47 @@ class Controller {
      * __onRouted event, will trigger when other module has matched the route.
      *
      * @param ModuleInfo $moduleInfo Information about the matched module
-     *
-     * @return void
      */
-    public function __onRouted(ModuleInfo $moduleInfo): void { }
+    public function __onRouted(ModuleInfo $moduleInfo): void
+    {
+    }
 
     /**
      * __onScriptReady event, will be triggered when other module is ready to execute the script.
      *
      * @param ModuleInfo $module Information about the module ready to execute the script
-     *
-     * @return void
      */
-    public function __onScriptReady(ModuleInfo $module): void { }
+    public function __onScriptReady(ModuleInfo $module): void
+    {
+    }
 
     /**
      * __onLoad event, trigger after all modules are loaded in queue.
      *
      * @param Agent $agent The agent responsible for loading the module
+     *
      * @return bool
      */
-    public function __onLoad(Agent $agent): bool {
+    public function __onLoad(Agent $agent): bool
+    {
         return true;
     }
 
     /**
-     * Controller Event __onReady, will be triggered if all modules are loaded
+     * Controller Event __onReady, will be triggered if all modules are loaded.
      */
-    public function __onReady(): void { }
+    public function __onReady(): void
+    {
+    }
 
     /**
-     * __onEntry event, execute when route is matched and ready to execute
+     * __onEntry event, execute when route is matched and ready to execute.
      *
      * @param array $routedInfo Information about the matched route
-     *
-     * @return void
      */
-    public function __onEntry(array $routedInfo): void { }
+    public function __onEntry(array $routedInfo): void
+    {
+    }
 
     /**
      * Handling the error of the closure.
@@ -139,7 +157,8 @@ class Controller {
      *
      * @throws Throwable
      */
-    public function __onError(string $path, Throwable $exception): void {
+    public function __onError(string $path, Throwable $exception): void
+    {
         Error::showException($exception);
     }
 
@@ -153,7 +172,8 @@ class Controller {
      *
      * @return bool Return false to refuse API access
      */
-    public function __onAPICall(ModuleInfo $module, string $method, string $fqdn = ''): bool {
+    public function __onAPICall(ModuleInfo $module, string $method, string $fqdn = ''): bool
+    {
         return true;
     }
 
@@ -166,8 +186,75 @@ class Controller {
      *
      * @return bool Return false to refuse bridge access
      */
-    public function __onBridgeCall(string $sourceDistributor, string $command): bool {
+    public function __onBridgeCall(string $sourceDistributor, string $command): bool
+    {
         return true;
+    }
+
+    /**
+     * __onTouch event, handling touch request from another module.
+     *
+     * @param ModuleInfo $module The module sending the touch request
+     * @param string $version The version of the module
+     * @param string $message The message associated with the touch request
+     *
+     * @return bool
+     */
+    public function __onTouch(ModuleInfo $module, string $version, string $message = ''): bool
+    {
+        return true;
+    }
+
+    /**
+     * __onRequire event, return false if the module is not ready.
+     *
+     * @return bool
+     */
+    public function __onRequire(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Controller method bridge.
+     * When the method called which is not declared, the Controller will
+     * inject the Closure from the specified path that is configured in __onInit state.
+     *
+     * @param string $method The string of the method name which is called
+     * @param array $arguments The arguments will pass to the method
+     *
+     * @return mixed The return result of the method
+     *
+     * @throws Throwable
+     */
+    final public function __call(string $method, array $arguments)
+    {
+        // 1) Check if a closure binding exists for this method name
+        if ($path = $this->module->getBinding($method)) {
+            if (null !== ($closure = $this->module->getClosure($path))) {
+                return \call_user_func_array($closure, $arguments);
+            }
+        }
+
+        // 2) Attempt to load an external closure file: controller/{ClassName}.{method}.php
+        $moduleInfo = $this->module->getModuleInfo();
+        $path = PathUtil::append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
+        if (\is_file($path)) {
+            /** @var Closure $closure */
+            $closure = require $path;
+            if (!\is_callable($closure) && $closure instanceof Closure) {
+                throw new ModuleLoadException("File '{$path}' loaded for method '{$method}' must return a Closure, got " . \gettype($closure) . '.');
+            }
+            // Bind the closure to this controller instance and cache it
+            $this->externalClosure[$method] = $closure->bindTo($this);
+        }
+
+        // 3) Execute the cached external closure or throw if method is undefined
+        $closure = $this->externalClosure[$method] ?? null;
+        if (!$closure) {
+            throw new BadMethodCallException('The method `' . $method . '` is not defined in `' . \get_class($this) . '`.');
+        }
+        return \call_user_func_array($closure, $arguments);
     }
 
     /**
@@ -175,14 +262,15 @@ class Controller {
      *
      * @return string The asset URL
      */
-    final public function getAssetPath(): string {
+    final public function getAssetPath(): string
+    {
         // Build URL: {siteURL}/webassets/{moduleAlias}/{moduleVersion}/
         return PathUtil::append(
-                $this->module->getSiteURL(),
-                'webassets',
-                $this->module->getModuleInfo()->getAlias(),
-                $this->module->getModuleInfo()->getVersion()
-            ) . '/';
+            $this->module->getSiteURL(),
+            'webassets',
+            $this->module->getModuleInfo()->getAlias(),
+            $this->module->getModuleInfo()->getVersion(),
+        ) . '/';
     }
 
     /**
@@ -192,7 +280,8 @@ class Controller {
      *
      * @return string The data path
      */
-    final public function getDataPath(string $module = ''): string {
+    final public function getDataPath(string $module = ''): string
+    {
         return $this->module->getDataPath($module);
     }
 
@@ -200,9 +289,11 @@ class Controller {
      * Get the Configuration entity.
      *
      * @return Configuration
+     *
      * @throws ConfigurationException
      */
-    final public function getModuleConfig(): Configuration {
+    final public function getModuleConfig(): Configuration
+    {
         return $this->module->loadConfig();
     }
 
@@ -211,20 +302,21 @@ class Controller {
      *
      * @return string The module URL
      */
-    final public function getModuleURL(): string {
+    final public function getModuleURL(): string
+    {
         return $this->module->getModuleURL();
     }
 
     /**
-     * Redirect to a specified path in the module
+     * Redirect to a specified path in the module.
      *
      * @param string $path The path to redirect to
      * @param array $query The query parameters to append to the URL
-     * @return void
      */
-    final public function goto(string $path, array $query = []): void {
+    final public function goto(string $path, array $query = []): void
+    {
         $url = PathUtil::append($this->getModuleURL(), $path);
-        header('location: ' . $url, true, 301);
+        \header('location: ' . $url, true, 301);
         throw new RedirectException($url, 301);
     }
 
@@ -246,7 +338,8 @@ class Controller {
      *
      * @return EventEmitter The emitter instance - call resolve() to dispatch
      */
-    final public function trigger(string $event, ?callable $callback = null): EventEmitter {
+    final public function trigger(string $event, ?callable $callback = null): EventEmitter
+    {
         return $this->module->createEmitter($event, !$callback ? null : $callback(...));
     }
 
@@ -256,12 +349,14 @@ class Controller {
      * @param string $path The path to the template file
      *
      * @return Source
+     *
      * @throws Throwable
      */
-    final public function loadTemplate(string $path): Template\Source {
+    final public function loadTemplate(string $path): Source
+    {
         $path = $this->getTemplateFilePath($path);
-        if (!is_file($path)) {
-            throw new \InvalidArgumentException('The path ' . $path . ' is not a valid path.');
+        if (!\is_file($path)) {
+            throw new InvalidArgumentException('The path ' . $path . ' is not a valid path.');
         }
         $template = $this->module->getGlobalTemplateEntity();
         return $template->load($path, $this->getModuleInfo());
@@ -271,9 +366,11 @@ class Controller {
      * Get the XHR entity.
      *
      * @param bool $returnAsArray Whether to return the XHR data as an array
+     *
      * @return XHR
      */
-    final public function xhr(bool $returnAsArray = false): XHR {
+    final public function xhr(bool $returnAsArray = false): XHR
+    {
         return new XHR($returnAsArray);
     }
 
@@ -284,12 +381,13 @@ class Controller {
      *
      * @return string The full file system path to the view
      */
-    final public function getTemplateFilePath(string $path): string {
+    final public function getTemplateFilePath(string $path): string
+    {
         // Resolve to the module's view/ directory
         $path = PathUtil::append($this->module->getModuleInfo()->getPath(), 'view', $path);
-        $filename = basename($path);
+        $filename = \basename($path);
         // Auto-append .tpl extension if no extension is present
-        if (!preg_match('/[^.]+\..+/', $filename)) {
+        if (!\preg_match('/[^.]+\..+/', $filename)) {
             $path .= '.tpl';
         }
         return $path;
@@ -300,7 +398,8 @@ class Controller {
      *
      * @return ModuleInfo
      */
-    final public function getModuleInfo(): ModuleInfo {
+    final public function getModuleInfo(): ModuleInfo
+    {
         return $this->module->getModuleInfo();
     }
 
@@ -309,7 +408,8 @@ class Controller {
      *
      * @return string
      */
-    final public function getSiteURL(): string {
+    final public function getSiteURL(): string
+    {
         return $this->module->getSiteURL();
     }
 
@@ -318,7 +418,8 @@ class Controller {
      *
      * @return string The module version
      */
-    final public function getModuleVersion(): string {
+    final public function getModuleVersion(): string
+    {
         return $this->module->getModuleInfo()->getVersion();
     }
 
@@ -327,7 +428,8 @@ class Controller {
      *
      * @return string The module code
      */
-    final public function getModuleCode(): string {
+    final public function getModuleCode(): string
+    {
         return $this->module->getModuleInfo()->getCode();
     }
 
@@ -336,7 +438,8 @@ class Controller {
      *
      * @return Template The global template entity
      */
-    final public function getTemplate(): Template {
+    final public function getTemplate(): Template
+    {
         return $this->module->getGlobalTemplateEntity();
     }
 
@@ -345,7 +448,8 @@ class Controller {
      *
      * @return ContainerInterface|null The Container instance, or null if unavailable
      */
-    final public function container(): ?ContainerInterface {
+    final public function container(): ?ContainerInterface
+    {
         return $this->module?->getContainer();
     }
 
@@ -360,12 +464,14 @@ class Controller {
      *   $service = $this->resolve(MyService::class, ['param' => $value]);
      *
      * @param string $abstract The class or interface to resolve
-     * @param array  $params   Optional parameters to pass to the constructor
+     * @param array $params Optional parameters to pass to the constructor
      *
      * @return mixed The resolved instance
+     *
      * @throws ContainerException If the DI container is not available
      */
-    final public function resolve(string $abstract, array $params = []): mixed {
+    final public function resolve(string $abstract, array $params = []): mixed
+    {
         $container = $this->container();
         if (!$container) {
             throw new ContainerException('DI container is not available. Ensure the Controller is attached to a Module with a valid Distributor chain.');
@@ -380,7 +486,8 @@ class Controller {
      *
      * @return bool True if the service can be resolved, false if not or container unavailable
      */
-    final public function hasService(string $abstract): bool {
+    final public function hasService(string $abstract): bool
+    {
         $container = $this->container();
         return $container !== null && $container->has($abstract);
     }
@@ -390,7 +497,8 @@ class Controller {
      *
      * @return array The routed information
      */
-    final public function getRoutedInfo(): array {
+    final public function getRoutedInfo(): array
+    {
         return $this->module->getRoutedInfo();
     }
 
@@ -398,11 +506,13 @@ class Controller {
      * Get the API Emitter.
      *
      * @param string $moduleCode The module code for which to get the Emitter
+     *
      * @return Emitter The Emitter instance
      */
-    final public function api(string $moduleCode): Emitter {
+    final public function api(string $moduleCode): Emitter
+    {
         // Cache emitters to avoid re-creating them for repeated API calls
-        $this->cachedAPI[$moduleCode] = $this->cachedAPI[$moduleCode] ?? $this->module->getEmitter($moduleCode);
+        $this->cachedAPI[$moduleCode] ??= $this->module->getEmitter($moduleCode);
         return $this->cachedAPI[$moduleCode];
     }
 
@@ -413,7 +523,8 @@ class Controller {
      *
      * @throws Throwable
      */
-    final public function view(array $sources): void {
+    final public function view(array $sources): void
+    {
         echo $this->module->getGlobalTemplateEntity()->outputQueued($sources);
     }
 
@@ -422,7 +533,8 @@ class Controller {
      *
      * @return string The module system path
      */
-    final public function getModuleSystemPath(): string {
+    final public function getModuleSystemPath(): string
+    {
         return $this->module->getModuleInfo()->getPath();
     }
 
@@ -458,10 +570,11 @@ class Controller {
      *
      * @return class-string<Model> The fully-qualified anonymous class name
      *
-     * @throws \InvalidArgumentException If the model file does not exist
-     * @throws ModuleLoadException       If the file does not return a valid Model subclass
+     * @throws InvalidArgumentException If the model file does not exist
+     * @throws ModuleLoadException If the file does not return a valid Model subclass
      */
-    final public function loadModel(string $name): string {
+    final public function loadModel(string $name): string
+    {
         // Return cached model class if already loaded
         if (isset($this->loadedModels[$name])) {
             return $this->loadedModels[$name];
@@ -469,9 +582,9 @@ class Controller {
 
         $path = PathUtil::append($this->module->getModuleInfo()->getPath(), 'model', $name . '.php');
 
-        if (!is_file($path)) {
-            throw new \InvalidArgumentException(
-                "Model file not found: '{$path}'. Ensure the file exists in the module's model/ directory."
+        if (!\is_file($path)) {
+            throw new InvalidArgumentException(
+                "Model file not found: '{$path}'. Ensure the file exists in the module's model/ directory.",
             );
         }
 
@@ -480,11 +593,11 @@ class Controller {
         // The file should return an anonymous class instance extending Model
         if (!$result instanceof Model) {
             throw new ModuleLoadException(
-                "Model file '{$path}' must return an instance of Razy\\ORM\\Model (anonymous class), got " . (is_object($result) ? get_class($result) : gettype($result)) . '.'
+                "Model file '{$path}' must return an instance of Razy\\ORM\\Model (anonymous class), got " . (\is_object($result) ? \get_class($result) : \gettype($result)) . '.',
             );
         }
 
-        $fqcn = get_class($result);
+        $fqcn = \get_class($result);
         $this->loadedModels[$name] = $fqcn;
 
         return $fqcn;
@@ -554,15 +667,15 @@ class Controller {
      *
      * @return MigrationManager A manager with the module's migration/ path registered
      *
-     * @throws \InvalidArgumentException If the migration/ directory does not exist
+     * @throws InvalidArgumentException If the migration/ directory does not exist
      */
     final public function getMigrationManager(Database $database): MigrationManager
     {
         $migrationPath = PathUtil::append($this->module->getModuleInfo()->getPath(), 'migration');
 
-        if (!is_dir($migrationPath)) {
-            throw new \InvalidArgumentException(
-                "Migration directory not found: '{$migrationPath}'. Create a migration/ folder in the module's package directory."
+        if (!\is_dir($migrationPath)) {
+            throw new InvalidArgumentException(
+                "Migration directory not found: '{$migrationPath}'. Create a migration/ folder in the module's package directory.",
             );
         }
 
@@ -573,12 +686,14 @@ class Controller {
     }
 
     /**
-     * Register the module's plugin loader
+     * Register the module's plugin loader.
      *
      * @param int $flag The flag to determine which plugins to load
+     *
      * @return $this
      */
-    final public function registerPluginLoader(int $flag = 0): self {
+    final public function registerPluginLoader(int $flag = 0): self
+    {
         // Register plugin folders based on bitmask flags
         if ($flag & self::PLUGIN_TEMPLATE) {
             Template::addPluginFolder(PathUtil::append($this->getModuleSystemPath(), 'plugins', 'Template'), $this);
@@ -603,11 +718,12 @@ class Controller {
      *
      * @return bool
      */
-    final public function handshake(string $modules, string $message = ''): bool {
+    final public function handshake(string $modules, string $message = ''): bool
+    {
         // Split comma-separated module codes and handshake each one
-        $modules = explode(',', $modules);
+        $modules = \explode(',', $modules);
         foreach ($modules as $module) {
-            $module = trim($module);
+            $module = \trim($module);
             // If any module refuses the handshake, fail immediately
             if (!$this->module->handshake($module, $message)) {
                 return false;
@@ -617,75 +733,15 @@ class Controller {
     }
 
     /**
-     * __onTouch event, handling touch request from another module.
-     *
-     * @param ModuleInfo $module The module sending the touch request
-     * @param string $version The version of the module
-     * @param string $message The message associated with the touch request
-     *
-     * @return bool
-     */
-    public function __onTouch(ModuleInfo $module, string $version, string $message = ''): bool {
-        return true;
-    }
-
-    /**
-     * __onRequire event, return false if the module is not ready.
-     *
-     * @return bool
-     */
-    public function __onRequire(): bool {
-        return true;
-    }
-
-    /**
-     * Get the data path URL
+     * Get the data path URL.
      *
      * @param string $module The module name
+     *
      * @return string The data path URL
      */
-    final public function getDataPathURL(string $module = ''): string {
+    final public function getDataPathURL(string $module = ''): string
+    {
         return $this->module->getDataPath($module, true);
-    }
-
-    /**
-     * Controller method bridge.
-     * When the method called which is not declared, the Controller will
-     * inject the Closure from the specified path that is configured in __onInit state.
-     *
-     * @param string $method The string of the method name which is called
-     * @param array $arguments The arguments will pass to the method
-     *
-     * @return mixed The return result of the method
-     * @throws Throwable
-     */
-    final public function __call(string $method, array $arguments) {
-        // 1) Check if a closure binding exists for this method name
-        if ($path = $this->module->getBinding($method)) {
-            if (null !== ($closure = $this->module->getClosure($path))) {
-                return call_user_func_array($closure, $arguments);
-            }
-        }
-
-        // 2) Attempt to load an external closure file: controller/{ClassName}.{method}.php
-        $moduleInfo = $this->module->getModuleInfo();
-        $path = PathUtil::append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
-        if (is_file($path)) {
-            /** @var Closure $closure */
-            $closure = require $path;
-            if (!is_callable($closure) && $closure instanceof Closure) {
-                throw new ModuleLoadException("File '{$path}' loaded for method '{$method}' must return a Closure, got " . gettype($closure) . '.');
-            }
-            // Bind the closure to this controller instance and cache it
-            $this->externalClosure[$method] = $closure->bindTo($this);
-        }
-
-        // 3) Execute the cached external closure or throw if method is undefined
-        $closure = $this->externalClosure[$method] ?? null;
-        if (!$closure) {
-            throw new \BadMethodCallException('The method `' . $method . '` is not defined in `' . get_class($this) . '`.');
-        }
-        return call_user_func_array($closure, $arguments);
     }
 
     /**
@@ -696,10 +752,11 @@ class Controller {
      *
      * @return mixed|null The result of the function execution
      */
-    final public function fork(string $path, array ...$args): mixed {
+    final public function fork(string $path, array ...$args): mixed
+    {
         $result = null;
         if ($closure = $this->module->getClosure($path, true)) {
-            $result = call_user_func_array($closure, $args);
+            $result = \call_user_func_array($closure, $args);
         }
         return $result;
     }

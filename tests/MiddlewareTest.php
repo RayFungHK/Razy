@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for P2: HTTP Middleware Pipeline.
  *
@@ -22,6 +23,8 @@ use Razy\Module;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
 use Razy\Route;
+use RuntimeException;
+use stdClass;
 
 #[CoversClass(MiddlewarePipeline::class)]
 #[CoversClass(Route::class)]
@@ -60,7 +63,7 @@ class MiddlewareTest extends TestCase
 
     public function testPipeAddsMiddlewareInterface(): void
     {
-        $mw = new class implements MiddlewareInterface {
+        $mw = new class() implements MiddlewareInterface {
             public function handle(array $context, Closure $next): mixed
             {
                 return $next($context);
@@ -76,17 +79,27 @@ class MiddlewareTest extends TestCase
     {
         $pipeline = new MiddlewarePipeline();
         $pipeline->pipeMany([
-            function (array $ctx, Closure $next) { return $next($ctx); },
-            function (array $ctx, Closure $next) { return $next($ctx); },
-            function (array $ctx, Closure $next) { return $next($ctx); },
+            function (array $ctx, Closure $next) {
+                return $next($ctx);
+            },
+            function (array $ctx, Closure $next) {
+                return $next($ctx);
+            },
+            function (array $ctx, Closure $next) {
+                return $next($ctx);
+            },
         ]);
         $this->assertSame(3, $pipeline->count());
     }
 
     public function testGetMiddlewareReturnsAll(): void
     {
-        $mw1 = function (array $ctx, Closure $next) { return $next($ctx); };
-        $mw2 = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw1 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
+        $mw2 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
 
         $pipeline = new MiddlewarePipeline();
         $pipeline->pipe($mw1)->pipe($mw2);
@@ -121,7 +134,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process(['key' => 'value'], function (array $ctx) use (&$receivedCtx) {
             $receivedCtx = $ctx;
-            return null;
         });
 
         $this->assertSame(['key' => 'value'], $receivedCtx);
@@ -150,7 +162,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process([], function (array $ctx) use (&$order) {
             $order[] = 'handler';
-            return null;
         });
 
         $this->assertSame(['mw1-before', 'handler', 'mw1-after'], $order);
@@ -158,11 +169,16 @@ class MiddlewareTest extends TestCase
 
     public function testProcessInterfaceMiddlewareWrapsHandler(): void
     {
-        $tracker = new \stdClass();
+        $tracker = new stdClass();
         $tracker->order = [];
         $mw = new class($tracker) implements MiddlewareInterface {
-            private \stdClass $tracker;
-            public function __construct(\stdClass $tracker) { $this->tracker = $tracker; }
+            private stdClass $tracker;
+
+            public function __construct(stdClass $tracker)
+            {
+                $this->tracker = $tracker;
+            }
+
             public function handle(array $context, Closure $next): mixed
             {
                 $this->tracker->order[] = 'interface-before';
@@ -177,7 +193,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process([], function (array $ctx) use ($tracker) {
             $tracker->order[] = 'handler';
-            return null;
         });
 
         $this->assertSame(['interface-before', 'handler', 'interface-after'], $tracker->order);
@@ -211,7 +226,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process([], function (array $ctx) use (&$order) {
             $order[] = 'handler';
-            return null;
         });
 
         $this->assertSame([
@@ -252,7 +266,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process(['original' => true], function (array $ctx) use (&$receivedCtx) {
             $receivedCtx = $ctx;
-            return null;
         });
 
         $this->assertArrayHasKey('injected', $receivedCtx);
@@ -278,11 +291,16 @@ class MiddlewareTest extends TestCase
 
     public function testProcessMixedMiddlewareTypes(): void
     {
-        $tracker = new \stdClass();
+        $tracker = new stdClass();
         $tracker->order = [];
         $interfaceMw = new class($tracker) implements MiddlewareInterface {
-            private \stdClass $tracker;
-            public function __construct(\stdClass $tracker) { $this->tracker = $tracker; }
+            private stdClass $tracker;
+
+            public function __construct(stdClass $tracker)
+            {
+                $this->tracker = $tracker;
+            }
+
             public function handle(array $context, Closure $next): mixed
             {
                 $this->tracker->order[] = 'interface';
@@ -300,7 +318,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process([], function (array $ctx) use ($tracker) {
             $tracker->order[] = 'handler';
-            return null;
         });
 
         $this->assertSame(['interface', 'closure', 'handler'], $tracker->order);
@@ -337,7 +354,9 @@ class MiddlewareTest extends TestCase
 
     public function testRouteMiddlewareAddsSingle(): void
     {
-        $mw = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
         $route = new Route('handler');
         $route->middleware($mw);
 
@@ -347,8 +366,12 @@ class MiddlewareTest extends TestCase
 
     public function testRouteMiddlewareAddsMultipleVariadic(): void
     {
-        $mw1 = function (array $ctx, Closure $next) { return $next($ctx); };
-        $mw2 = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw1 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
+        $mw2 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
 
         $route = new Route('handler');
         $route->middleware($mw1, $mw2);
@@ -358,7 +381,7 @@ class MiddlewareTest extends TestCase
 
     public function testRouteMiddlewareAcceptsInterface(): void
     {
-        $mw = new class implements MiddlewareInterface {
+        $mw = new class() implements MiddlewareInterface {
             public function handle(array $context, Closure $next): mixed
             {
                 return $next($context);
@@ -373,7 +396,9 @@ class MiddlewareTest extends TestCase
 
     public function testRouteMiddlewareChainsWithMethodAndContain(): void
     {
-        $mw = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
         $route = new Route('handler');
         $route->method('POST')
               ->middleware($mw)
@@ -387,33 +412,17 @@ class MiddlewareTest extends TestCase
     public function testRouteMiddlewareAccumulates(): void
     {
         $route = new Route('handler');
-        $mw1 = function (array $ctx, Closure $next) { return $next($ctx); };
-        $mw2 = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw1 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
+        $mw2 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
 
         $route->middleware($mw1);
         $route->middleware($mw2);
 
         $this->assertCount(2, $route->getMiddleware());
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  RouteDispatcher — Global Middleware Registration
-    // ═══════════════════════════════════════════════════════
-
-    private function createModuleMock(
-        string $alias = 'test',
-        string $code = 'vendor/test',
-        ModuleStatus $status = ModuleStatus::Loaded
-    ): Module {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getAlias')->willReturn($alias);
-        $moduleInfo->method('getCode')->willReturn($code);
-
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-        $module->method('getStatus')->willReturn($status);
-
-        return $module;
     }
 
     public function testGlobalMiddlewareEmptyByDefault(): void
@@ -433,7 +442,9 @@ class MiddlewareTest extends TestCase
 
     public function testAddGlobalMiddlewareSingle(): void
     {
-        $mw = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
         $dispatcher = new RouteDispatcher();
         $dispatcher->addGlobalMiddleware($mw);
 
@@ -444,8 +455,12 @@ class MiddlewareTest extends TestCase
 
     public function testAddGlobalMiddlewareMultipleVariadic(): void
     {
-        $mw1 = function (array $ctx, Closure $next) { return $next($ctx); };
-        $mw2 = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw1 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
+        $mw2 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
 
         $dispatcher = new RouteDispatcher();
         $dispatcher->addGlobalMiddleware($mw1, $mw2);
@@ -456,8 +471,12 @@ class MiddlewareTest extends TestCase
     public function testAddGlobalMiddlewareAccumulates(): void
     {
         $dispatcher = new RouteDispatcher();
-        $dispatcher->addGlobalMiddleware(function (array $ctx, Closure $next) { return $next($ctx); });
-        $dispatcher->addGlobalMiddleware(function (array $ctx, Closure $next) { return $next($ctx); });
+        $dispatcher->addGlobalMiddleware(function (array $ctx, Closure $next) {
+            return $next($ctx);
+        });
+        $dispatcher->addGlobalMiddleware(function (array $ctx, Closure $next) {
+            return $next($ctx);
+        });
 
         $this->assertCount(2, $dispatcher->getGlobalMiddleware());
     }
@@ -483,8 +502,12 @@ class MiddlewareTest extends TestCase
 
     public function testAddModuleMiddlewareStoresPerModule(): void
     {
-        $mw1 = function (array $ctx, Closure $next) { return $next($ctx); };
-        $mw2 = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw1 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
+        $mw2 = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
 
         $dispatcher = new RouteDispatcher();
         $dispatcher->addModuleMiddleware('vendor/auth', $mw1);
@@ -498,8 +521,12 @@ class MiddlewareTest extends TestCase
     public function testAddModuleMiddlewareAccumulates(): void
     {
         $dispatcher = new RouteDispatcher();
-        $dispatcher->addModuleMiddleware('vendor/test', function (array $ctx, Closure $next) { return $next($ctx); });
-        $dispatcher->addModuleMiddleware('vendor/test', function (array $ctx, Closure $next) { return $next($ctx); });
+        $dispatcher->addModuleMiddleware('vendor/test', function (array $ctx, Closure $next) {
+            return $next($ctx);
+        });
+        $dispatcher->addModuleMiddleware('vendor/test', function (array $ctx, Closure $next) {
+            return $next($ctx);
+        });
 
         $this->assertCount(2, $dispatcher->getModuleMiddleware('vendor/test'));
     }
@@ -512,14 +539,13 @@ class MiddlewareTest extends TestCase
     {
         $pipeline = new MiddlewarePipeline();
         $pipeline->pipe(function (array $ctx, Closure $next) {
-            throw new \RuntimeException('Auth failed');
+            throw new RuntimeException('Auth failed');
         });
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Auth failed');
 
         $pipeline->process([], function (array $ctx) {
-            return null;
         });
     }
 
@@ -532,7 +558,7 @@ class MiddlewareTest extends TestCase
         for ($i = 0; $i < 20; $i++) {
             $pipeline->pipe(function (array $ctx, Closure $next) use (&$depth, &$maxDepth) {
                 $depth++;
-                $maxDepth = max($maxDepth, $depth);
+                $maxDepth = \max($maxDepth, $depth);
                 $result = $next($ctx);
                 $depth--;
                 return $result;
@@ -541,9 +567,8 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process([], function (array $ctx) use (&$depth, &$maxDepth) {
             $depth++;
-            $maxDepth = max($maxDepth, $depth);
+            $maxDepth = \max($maxDepth, $depth);
             $depth--;
-            return null;
         });
 
         $this->assertSame(21, $maxDepth, 'Should nest to depth 20 middleware + 1 handler');
@@ -564,7 +589,6 @@ class MiddlewareTest extends TestCase
         $receivedCtx = null;
         $pipeline->process($originalCtx, function (array $ctx) use (&$receivedCtx) {
             $receivedCtx = $ctx;
-            return null;
         });
 
         // Array is passed by value — original should be untouched
@@ -586,7 +610,8 @@ class MiddlewareTest extends TestCase
             return $next($ctx);
         });
 
-        $pipeline->process([], function (array $ctx) { return null; });
+        $pipeline->process([], function (array $ctx) {
+        });
 
         $this->assertFalse($secondCalled, 'Second middleware should not be called after short-circuit');
     }
@@ -597,7 +622,9 @@ class MiddlewareTest extends TestCase
 
     public function testSetRouteWithRouteObjectMiddleware(): void
     {
-        $mw = function (array $ctx, Closure $next) { return $next($ctx); };
+        $mw = function (array $ctx, Closure $next) {
+            return $next($ctx);
+        };
         $routeObj = (new Route('handler'))->middleware($mw);
 
         $dispatcher = new RouteDispatcher();
@@ -605,7 +632,7 @@ class MiddlewareTest extends TestCase
         $dispatcher->setRoute($module, '/api', $routeObj);
 
         $routes = $dispatcher->getRoutes();
-        $entry = reset($routes);
+        $entry = \reset($routes);
 
         // The path should be the Route object (middleware is on it)
         $this->assertInstanceOf(Route::class, $entry['path']);
@@ -640,7 +667,6 @@ class MiddlewareTest extends TestCase
 
         $pipeline->process([], function (array $ctx) use (&$order) {
             $order[] = 'handler';
-            return null;
         });
 
         $this->assertSame(['global', 'module', 'route', 'handler'], $order);
@@ -659,7 +685,7 @@ class MiddlewareTest extends TestCase
         $dispatcher->setRoute($module, '/legacy', '/handler');
 
         $routes = $dispatcher->getRoutes();
-        $entry = reset($routes);
+        $entry = \reset($routes);
 
         // Should work fine — path is a string, no middleware
         $this->assertIsString($entry['path']);
@@ -671,5 +697,25 @@ class MiddlewareTest extends TestCase
         $dispatcher = new RouteDispatcher();
         $this->assertSame([], $dispatcher->getGlobalMiddleware());
         // No exceptions thrown when no middleware is registered
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  RouteDispatcher — Global Middleware Registration
+    // ═══════════════════════════════════════════════════════
+
+    private function createModuleMock(
+        string $alias = 'test',
+        string $code = 'vendor/test',
+        ModuleStatus $status = ModuleStatus::Loaded,
+    ): Module {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getAlias')->willReturn($alias);
+        $moduleInfo->method('getCode')->willReturn($code);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+        $module->method('getStatus')->willReturn($status);
+
+        return $module;
     }
 }

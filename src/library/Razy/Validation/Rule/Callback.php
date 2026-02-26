@@ -2,6 +2,7 @@
 
 namespace Razy\Validation\Rule;
 
+use Closure;
 use Razy\Validation\ValidationRule;
 
 /**
@@ -15,8 +16,8 @@ use Razy\Validation\ValidationRule;
  */
 class Callback extends ValidationRule
 {
-    /** @var \Closure(mixed, string, array): (bool|mixed) */
-    private \Closure $callback;
+    /** @var Closure(mixed, string, array): (bool|mixed) */
+    private Closure $callback;
 
     public function __construct(callable $callback)
     {

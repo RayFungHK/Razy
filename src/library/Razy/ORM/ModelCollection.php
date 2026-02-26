@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -18,6 +19,7 @@ use ArrayAccess;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use JsonException;
 use Traversable;
 
 /**
@@ -27,6 +29,7 @@ use Traversable;
  * (map, filter, pluck) for working with result sets.
  *
  * @template T of \Razy\ORM\Model
+ *
  * @implements ArrayAccess<int, T>
  * @implements IteratorAggregate<int, T>
  *
@@ -42,7 +45,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function __construct(array $items = [])
     {
-        $this->items = array_values($items);
+        $this->items = \array_values($items);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -66,7 +69,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function last(): ?Model
     {
-        return $this->items ? $this->items[array_key_last($this->items)] : null;
+        return $this->items ? $this->items[\array_key_last($this->items)] : null;
     }
 
     /**
@@ -106,7 +109,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function toArray(): array
     {
-        return array_map(fn(Model $model) => $model->toArray(), $this->items);
+        return \array_map(fn (Model $model) => $model->toArray(), $this->items);
     }
 
     /**
@@ -116,18 +119,18 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      *
      * @return string
      *
-     * @throws \JsonException
+     * @throws JsonException
      */
     public function toJson(int $options = 0): string
     {
-        return json_encode($this->toArray(), $options | JSON_THROW_ON_ERROR);
+        return \json_encode($this->toArray(), $options | JSON_THROW_ON_ERROR);
     }
 
     /**
      * Extract a single attribute from each model.
      *
-     * @param string      $attribute The attribute name to extract
-     * @param string|null $keyBy     Optional attribute to use as array key
+     * @param string $attribute The attribute name to extract
+     * @param string|null $keyBy Optional attribute to use as array key
      *
      * @return array
      */
@@ -156,7 +159,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function map(callable $callback): array
     {
-        return array_map($callback, $this->items, array_keys($this->items));
+        return \array_map($callback, $this->items, \array_keys($this->items));
     }
 
     /**
@@ -168,7 +171,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function filter(callable $callback): static
     {
-        return new static(array_values(array_filter($this->items, $callback)));
+        return new static(\array_values(\array_filter($this->items, $callback)));
     }
 
     /**
@@ -213,13 +216,13 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      * Reduce the collection to a single value.
      *
      * @param callable $callback fn(mixed $carry, Model $model): mixed
-     * @param mixed    $initial  Starting accumulator value
+     * @param mixed $initial Starting accumulator value
      *
      * @return mixed
      */
     public function reduce(callable $callback, mixed $initial = null): mixed
     {
-        return array_reduce($this->items, $callback, $initial);
+        return \array_reduce($this->items, $callback, $initial);
     }
 
     /**
@@ -231,11 +234,11 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function sum(string|callable $attribute): int|float
     {
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
-        return array_reduce($this->items, fn($carry, $m) => $carry + $extractor($m), 0);
+        return \array_reduce($this->items, fn ($carry, $m) => $carry + $extractor($m), 0);
     }
 
     /**
@@ -251,7 +254,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
             return null;
         }
 
-        return $this->sum($attribute) / count($this->items);
+        return $this->sum($attribute) / \count($this->items);
     }
 
     /**
@@ -267,11 +270,11 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
             return null;
         }
 
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
-        return min(array_map($extractor, $this->items));
+        return \min(\array_map($extractor, $this->items));
     }
 
     /**
@@ -287,11 +290,11 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
             return null;
         }
 
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
-        return max(array_map($extractor, $this->items));
+        return \max(\array_map($extractor, $this->items));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -302,18 +305,18 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      * Sort items by an attribute or callback and return a new collection.
      *
      * @param string|callable $attribute Attribute name or callback fn(Model): mixed
-     * @param string          $direction 'asc' or 'desc'
+     * @param string $direction 'asc' or 'desc'
      *
      * @return static
      */
     public function sortBy(string|callable $attribute, string $direction = 'asc'): static
     {
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
         $items = $this->items;
-        usort($items, function ($a, $b) use ($extractor, $direction) {
+        \usort($items, function ($a, $b) use ($extractor, $direction) {
             $va = $extractor($a);
             $vb = $extractor($b);
 
@@ -334,16 +337,16 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function unique(string|callable $attribute): static
     {
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
         $seen = [];
         $result = [];
 
         foreach ($this->items as $item) {
             $key = $extractor($item);
-            if (!in_array($key, $seen, true)) {
+            if (!\in_array($key, $seen, true)) {
                 $seen[] = $key;
                 $result[] = $item;
             }
@@ -361,9 +364,9 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function groupBy(string|callable $attribute): array
     {
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
         $groups = [];
 
@@ -372,7 +375,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
             $groups[$key][] = $item;
         }
 
-        return array_map(fn($items) => new static($items), $groups);
+        return \array_map(fn ($items) => new static($items), $groups);
     }
 
     /**
@@ -384,9 +387,9 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function keyBy(string|callable $attribute): array
     {
-        $extractor = is_callable($attribute)
+        $extractor = \is_callable($attribute)
             ? $attribute
-            : fn(Model $m) => $m->{$attribute};
+            : fn (Model $m) => $m->{$attribute};
 
         $result = [];
 
@@ -410,14 +413,14 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function flatMap(callable $callback): array
     {
-        return array_merge([], ...array_map($callback, $this->items));
+        return \array_merge([], ...\array_map($callback, $this->items));
     }
 
     /**
      * Get the first model where an attribute matches a value.
      *
      * @param string $attribute Attribute name
-     * @param mixed  $value     Value to match (uses loose comparison)
+     * @param mixed $value Value to match (uses loose comparison)
      *
      * @return Model|null
      */
@@ -441,9 +444,9 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
      */
     public function chunk(int $size): array
     {
-        $chunks = array_chunk($this->items, $size);
+        $chunks = \array_chunk($this->items, $size);
 
-        return array_map(fn($chunk) => new static($chunk), $chunks);
+        return \array_map(fn ($chunk) => new static($chunk), $chunks);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -472,7 +475,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
     public function offsetUnset(mixed $offset): void
     {
         unset($this->items[$offset]);
-        $this->items = array_values($this->items);
+        $this->items = \array_values($this->items);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -481,7 +484,7 @@ class ModelCollection implements ArrayAccess, Countable, IteratorAggregate
 
     public function count(): int
     {
-        return count($this->items);
+        return \count($this->items);
     }
 
     public function getIterator(): Traversable

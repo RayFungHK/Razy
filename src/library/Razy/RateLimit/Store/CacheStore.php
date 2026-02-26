@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -40,13 +41,14 @@ use Razy\Contract\RateLimitStoreInterface;
 class CacheStore implements RateLimitStoreInterface
 {
     /**
-     * @param CacheInterface $cache  The PSR-16 cache adapter.
-     * @param string         $prefix Key prefix for rate limit entries.
+     * @param CacheInterface $cache The PSR-16 cache adapter.
+     * @param string $prefix Key prefix for rate limit entries.
      */
     public function __construct(
         private readonly CacheInterface $cache,
         private readonly string $prefix = 'ratelimit_',
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}
@@ -55,7 +57,7 @@ class CacheStore implements RateLimitStoreInterface
     {
         $record = $this->cache->get($this->prefixKey($key));
 
-        if ($record === null || !is_array($record)) {
+        if ($record === null || !\is_array($record)) {
             return null;
         }
 
@@ -65,7 +67,7 @@ class CacheStore implements RateLimitStoreInterface
         }
 
         // Expired — let the cache TTL handle cleanup, but don't return stale data
-        if ($record['resetAt'] <= time()) {
+        if ($record['resetAt'] <= \time()) {
             $this->cache->delete($this->prefixKey($key));
 
             return null;
@@ -80,7 +82,7 @@ class CacheStore implements RateLimitStoreInterface
     public function set(string $key, int $hits, int $resetAt): void
     {
         // TTL = seconds until the window expires (minimum 1 second)
-        $ttl = max(1, $resetAt - time());
+        $ttl = \max(1, $resetAt - \time());
 
         $this->cache->set($this->prefixKey($key), [
             'hits' => $hits,

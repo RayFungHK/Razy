@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -25,15 +26,16 @@ namespace Razy\Validation;
 class ValidationResult
 {
     /**
-     * @param bool                        $passed      Whether all fields passed
-     * @param array<string, list<string>> $errors      Field → error messages
-     * @param array<string, mixed>        $validated   Processed/sanitised values for valid fields
+     * @param bool $passed Whether all fields passed
+     * @param array<string, list<string>> $errors Field → error messages
+     * @param array<string, mixed> $validated Processed/sanitised values for valid fields
      */
     public function __construct(
         private readonly bool $passed,
         private readonly array $errors,
         private readonly array $validated,
-    ) {}
+    ) {
+    }
 
     /**
      * Whether all validation rules passed.
@@ -146,7 +148,7 @@ class ValidationResult
     {
         $count = 0;
         foreach ($this->errors as $messages) {
-            $count += count($messages);
+            $count += \count($messages);
         }
 
         return $count;

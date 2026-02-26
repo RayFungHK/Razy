@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Error class.
  *
@@ -7,10 +8,12 @@
 
 namespace Razy\Tests;
 
+use Exception;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Error;
 use Razy\Exception\NotFoundException;
+use RuntimeException;
 
 #[CoversClass(Error::class)]
 class ErrorTest extends TestCase
@@ -50,7 +53,7 @@ class ErrorTest extends TestCase
 
     public function testConstructorWithPreviousException(): void
     {
-        $prev = new \RuntimeException('inner');
+        $prev = new RuntimeException('inner');
         $e = new Error('outer', 400, Error::DEFAULT_HEADING, '', $prev);
         $this->assertSame($prev, $e->getPrevious());
     }
@@ -58,7 +61,7 @@ class ErrorTest extends TestCase
     public function testExtendsException(): void
     {
         $e = new Error('test');
-        $this->assertInstanceOf(\Exception::class, $e);
+        $this->assertInstanceOf(Exception::class, $e);
     }
 
     // ?�?� configure debug / Reset ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�

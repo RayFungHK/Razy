@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Schema builder facade for database migrations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -57,10 +59,8 @@ class SchemaBuilder
      * the table structure. After the callback executes, the CREATE TABLE SQL
      * is generated and executed.
      *
-     * @param string  $tableName The table name (prefix is NOT auto-applied)
-     * @param Closure $callback  Receives Table instance for configuration
-     *
-     * @return void
+     * @param string $tableName The table name (prefix is NOT auto-applied)
+     * @param Closure $callback Receives Table instance for configuration
      */
     public function create(string $tableName, Closure $callback): void
     {
@@ -77,10 +77,8 @@ class SchemaBuilder
      * dropping columns, indexes, foreign keys, etc. After the callback,
      * the ALTER TABLE SQL is generated and executed.
      *
-     * @param string  $tableName The table name to alter
-     * @param Closure $callback  Receives TableHelper instance for configuration
-     *
-     * @return void
+     * @param string $tableName The table name to alter
+     * @param Closure $callback Receives TableHelper instance for configuration
      */
     public function table(string $tableName, Closure $callback): void
     {
@@ -97,13 +95,11 @@ class SchemaBuilder
      * Drop a table.
      *
      * @param string $tableName The table name to drop
-     *
-     * @return void
      */
     public function drop(string $tableName): void
     {
         $this->database->execute(
-            $this->database->prepare('DROP TABLE `' . addslashes($tableName) . '`')
+            $this->database->prepare('DROP TABLE `' . \addslashes($tableName) . '`'),
         );
     }
 
@@ -111,13 +107,11 @@ class SchemaBuilder
      * Drop a table if it exists.
      *
      * @param string $tableName The table name to drop
-     *
-     * @return void
      */
     public function dropIfExists(string $tableName): void
     {
         $this->database->execute(
-            $this->database->prepare('DROP TABLE IF EXISTS `' . addslashes($tableName) . '`')
+            $this->database->prepare('DROP TABLE IF EXISTS `' . \addslashes($tableName) . '`'),
         );
     }
 
@@ -125,16 +119,14 @@ class SchemaBuilder
      * Rename a table.
      *
      * @param string $from Current table name
-     * @param string $to   New table name
-     *
-     * @return void
+     * @param string $to New table name
      */
     public function rename(string $from, string $to): void
     {
         $this->database->execute(
             $this->database->prepare(
-                'ALTER TABLE `' . addslashes($from) . '` RENAME TO `' . addslashes($to) . '`'
-            )
+                'ALTER TABLE `' . \addslashes($from) . '` RENAME TO `' . \addslashes($to) . '`',
+            ),
         );
     }
 

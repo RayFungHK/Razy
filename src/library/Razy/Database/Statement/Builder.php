@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -14,7 +15,7 @@ use Closure;
 use Razy\Database\Statement;
 
 /**
- * Class Builder
+ * Class Builder.
  *
  * Abstract base class for Statement builder plugins that customize SQL generation.
  * Builders are registered via the PluginTrait and initialized through Statement::builder().
@@ -22,12 +23,13 @@ use Razy\Database\Statement;
  * and other SQL components to a Statement targeting a specific table.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class Builder
 {
-	/** @var Closure|null Optional post-processing callback applied after statement execution */
-	protected ?Closure $postProcess = null;
+    /** @var Closure|null Optional post-processing callback applied after statement execution */
+    protected ?Closure $postProcess = null;
 
     /** @var Statement|null The Statement instance this builder is attached to */
     protected ?Statement $statement = null;
@@ -56,11 +58,8 @@ class Builder
      * (e.g., adding joins, where clauses, select columns).
      *
      * @param string $tableName The target table name
-     *
-     * @return void
      */
-	public function build(string $tableName): void
-	{
-
-	}
+    public function build(string $tableName): void
+    {
+    }
 }

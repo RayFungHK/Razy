@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -76,12 +77,12 @@ class DatabaseChannel implements NotificationChannelInterface
         }
 
         $record = [
-            'id'              => $notification->getId(),
-            'type'            => $notification->getType(),
-            'notifiable_type' => get_class($notifiable),
-            'notifiable_id'   => $this->resolveNotifiableId($notifiable),
-            'data'            => $data,
-            'created_at'      => date('Y-m-d H:i:s'),
+            'id' => $notification->getId(),
+            'type' => $notification->getType(),
+            'notifiable_type' => \get_class($notifiable),
+            'notifiable_id' => $this->resolveNotifiableId($notifiable),
+            'data' => $data,
+            'created_at' => \date('Y-m-d H:i:s'),
         ];
 
         $this->records[] = $record;
@@ -118,13 +119,13 @@ class DatabaseChannel implements NotificationChannelInterface
      */
     public function getRecordsFor(object $notifiable): array
     {
-        $id   = $this->resolveNotifiableId($notifiable);
-        $type = get_class($notifiable);
+        $id = $this->resolveNotifiableId($notifiable);
+        $type = \get_class($notifiable);
 
-        return array_values(array_filter(
+        return \array_values(\array_filter(
             $this->records,
-            fn(array $record) => $record['notifiable_type'] === $type
-                && $record['notifiable_id'] === $id
+            fn (array $record) => $record['notifiable_type'] === $type
+                && $record['notifiable_id'] === $id,
         ));
     }
 
@@ -145,7 +146,7 @@ class DatabaseChannel implements NotificationChannelInterface
      */
     public function count(): int
     {
-        return count($this->records);
+        return \count($this->records);
     }
 
     /**
@@ -153,14 +154,14 @@ class DatabaseChannel implements NotificationChannelInterface
      */
     private function resolveNotifiableId(object $notifiable): mixed
     {
-        if (method_exists($notifiable, 'getId')) {
+        if (\method_exists($notifiable, 'getId')) {
             return $notifiable->getId();
         }
 
-        if (property_exists($notifiable, 'id')) {
+        if (\property_exists($notifiable, 'id')) {
             return $notifiable->id;
         }
 
-        return spl_object_id($notifiable);
+        return \spl_object_id($notifiable);
     }
 }

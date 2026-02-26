@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -19,6 +20,24 @@ namespace Razy\Worker;
  */
 enum WorkerState: string
 {
+    /**
+     * Check if the worker can accept new requests.
+     */
+    public function canAcceptRequests(): bool
+    {
+        return match ($this) {
+            self::Ready, self::Swapping => true,
+            default => false,
+        };
+    }
+
+    /**
+     * Check if the worker should exit the process loop.
+     */
+    public function shouldExit(): bool
+    {
+        return $this === self::Terminated;
+    }
     /** Worker is performing initial boot (loading modules). */
     case Booting = 'booting';
 
@@ -40,23 +59,4 @@ enum WorkerState: string
 
     /** Worker should terminate and let the process supervisor restart it. */
     case Terminated = 'terminated';
-
-    /**
-     * Check if the worker can accept new requests.
-     */
-    public function canAcceptRequests(): bool
-    {
-        return match ($this) {
-            self::Ready, self::Swapping => true,
-            default => false,
-        };
-    }
-
-    /**
-     * Check if the worker should exit the process loop.
-     */
-    public function shouldExit(): bool
-    {
-        return $this === self::Terminated;
-    }
 }

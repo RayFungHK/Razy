@@ -11,6 +11,7 @@
  * integration with the existing routing pipeline.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -34,23 +35,41 @@ use RuntimeException;
 class NamedRoutesTest extends TestCase
 {
     // ══════════════════════════════════════════════════════════════
-    //  Helper — Module mock
+    //  Route — Name validation
     // ══════════════════════════════════════════════════════════════
 
-    private function createModuleMock(
-        string $alias = 'test',
-        string $code = 'vendor/test',
-        ModuleStatus $status = ModuleStatus::Loaded,
-    ): Module {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getAlias')->willReturn($alias);
-        $moduleInfo->method('getCode')->willReturn($code);
+    public static function validNameProvider(): array
+    {
+        return [
+            'simple' => ['users'],
+            'dotted' => ['users.index'],
+            'deeply_dotted' => ['api.v1.users.show'],
+            'with_hyphens' => ['user-profile'],
+            'underscored' => ['user_profile'],
+            'starts_under' => ['_private'],
+            'mixed' => ['api.users-list_v2'],
+            'with_numbers' => ['route123'],
+            'single_char' => ['a'],
+        ];
+    }
 
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-        $module->method('getStatus')->willReturn($status);
+    // ══════════════════════════════════════════════════════════════
+    //  DataProvider — URL generation patterns
+    // ══════════════════════════════════════════════════════════════
 
-        return $module;
+    public static function urlGenerationProvider(): array
+    {
+        return [
+            'no params' => ['/about/', [], '/about/'],
+            'single digit' => ['/users/:d+/', [1], '/users/1/'],
+            'large id' => ['/users/:d+/', [99999], '/users/99999/'],
+            'string param' => ['/posts/:a+/', ['my-post'], '/posts/my-post/'],
+            'two params' => ['/u/:d+/p/:a+/', [10, 'slug'], '/u/10/p/slug/'],
+            'three params' => ['/:a+/:d+/:w+/', ['api', 1, 'test'], '/api/1/test/'],
+            'quantified' => ['/code/:d{3}/', [123], '/code/123/'],
+            'char class' => ['/tag/:[a-z-]+/', ['my-tag'], '/tag/my-tag/'],
+            'zero as param' => ['/item/:d+/', [0], '/item/0/'],
+        ];
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -98,25 +117,6 @@ class NamedRoutesTest extends TestCase
         $route->name('second');
 
         $this->assertSame('second', $route->getName());
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  Route — Name validation
-    // ══════════════════════════════════════════════════════════════
-
-    public static function validNameProvider(): array
-    {
-        return [
-            'simple'         => ['users'],
-            'dotted'         => ['users.index'],
-            'deeply_dotted'  => ['api.v1.users.show'],
-            'with_hyphens'   => ['user-profile'],
-            'underscored'    => ['user_profile'],
-            'starts_under'   => ['_private'],
-            'mixed'          => ['api.users-list_v2'],
-            'with_numbers'   => ['route123'],
-            'single_char'    => ['a'],
-        ];
     }
 
     #[DataProvider('validNameProvider')]
@@ -465,7 +465,9 @@ class NamedRoutesTest extends TestCase
         $dispatcher = new RouteDispatcher();
         $module = $this->createModuleMock();
 
-        $mw = function ($ctx, $next) { return $next($ctx); };
+        $mw = function ($ctx, $next) {
+            return $next($ctx);
+        };
         $route = (new Route('AdminController/index'))
             ->name('admin.dashboard')
             ->middleware($mw);
@@ -486,7 +488,9 @@ class NamedRoutesTest extends TestCase
         $dispatcher = new RouteDispatcher();
         $module = $this->createModuleMock();
 
-        $mw = function ($ctx, $next) { return $next($ctx); };
+        $mw = function ($ctx, $next) {
+            return $next($ctx);
+        };
         $route = (new Route('Controller/action'))
             ->name('my.route')
             ->method('PUT')
@@ -506,25 +510,6 @@ class NamedRoutesTest extends TestCase
         $this->assertCount(1, $data['path']->getMiddleware());
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  DataProvider — URL generation patterns
-    // ══════════════════════════════════════════════════════════════
-
-    public static function urlGenerationProvider(): array
-    {
-        return [
-            'no params'      => ['/about/',              [],                       '/about/'],
-            'single digit'   => ['/users/:d+/',          [1],                      '/users/1/'],
-            'large id'       => ['/users/:d+/',          [99999],                  '/users/99999/'],
-            'string param'   => ['/posts/:a+/',          ['my-post'],              '/posts/my-post/'],
-            'two params'     => ['/u/:d+/p/:a+/',        [10, 'slug'],             '/u/10/p/slug/'],
-            'three params'   => ['/:a+/:d+/:w+/',        ['api', 1, 'test'],       '/api/1/test/'],
-            'quantified'     => ['/code/:d{3}/',         [123],                    '/code/123/'],
-            'char class'     => ['/tag/:[a-z-]+/',       ['my-tag'],               '/tag/my-tag/'],
-            'zero as param'  => ['/item/:d+/',           [0],                      '/item/0/'],
-        ];
-    }
-
     #[DataProvider('urlGenerationProvider')]
     public function testUrlGenerationPatterns(string $pattern, array $params, string $expected): void
     {
@@ -538,7 +523,7 @@ class NamedRoutesTest extends TestCase
 
     public function testNameWithMaxLengthWorks(): void
     {
-        $name = str_repeat('a', 100) . '.route';
+        $name = \str_repeat('a', 100) . '.route';
         $route = new Route('handler');
         $route->name($name);
         $this->assertSame($name, $route->getName());
@@ -590,5 +575,24 @@ class NamedRoutesTest extends TestCase
         // Params are cast to string in the URL
         $result = RouteDispatcher::substituteParams('/api/:d+/', ['42']);
         $this->assertSame('/api/42/', $result);
+    }
+    // ══════════════════════════════════════════════════════════════
+    //  Helper — Module mock
+    // ══════════════════════════════════════════════════════════════
+
+    private function createModuleMock(
+        string $alias = 'test',
+        string $code = 'vendor/test',
+        ModuleStatus $status = ModuleStatus::Loaded,
+    ): Module {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getAlias')->willReturn($alias);
+        $moduleInfo->method('getCode')->willReturn($code);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+        $module->method('getStatus')->willReturn($status);
+
+        return $module;
     }
 }

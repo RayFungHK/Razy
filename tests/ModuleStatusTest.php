@@ -15,6 +15,20 @@ use Razy\Module\ModuleStatus;
 #[CoversClass(ModuleStatus::class)]
 class ModuleStatusTest extends TestCase
 {
+    public static function statusValueProvider(): array
+    {
+        return [
+            'Failed' => [ModuleStatus::Failed, -3],
+            'Disabled' => [ModuleStatus::Disabled, -2],
+            'Unloaded' => [ModuleStatus::Unloaded, -1],
+            'Pending' => [ModuleStatus::Pending, 0],
+            'Initialing' => [ModuleStatus::Initialing, 1],
+            'Processing' => [ModuleStatus::Processing, 2],
+            'InQueue' => [ModuleStatus::InQueue, 3],
+            'Loaded' => [ModuleStatus::Loaded, 4],
+        ];
+    }
+
     public function testAllCasesExist(): void
     {
         $cases = ModuleStatus::cases();
@@ -25,20 +39,6 @@ class ModuleStatusTest extends TestCase
     public function testEnumValues(ModuleStatus $status, int $expectedValue): void
     {
         $this->assertSame($expectedValue, $status->value);
-    }
-
-    public static function statusValueProvider(): array
-    {
-        return [
-            'Failed'     => [ModuleStatus::Failed, -3],
-            'Disabled'   => [ModuleStatus::Disabled, -2],
-            'Unloaded'   => [ModuleStatus::Unloaded, -1],
-            'Pending'    => [ModuleStatus::Pending, 0],
-            'Initialing' => [ModuleStatus::Initialing, 1],
-            'Processing' => [ModuleStatus::Processing, 2],
-            'InQueue'    => [ModuleStatus::InQueue, 3],
-            'Loaded'     => [ModuleStatus::Loaded, 4],
-        ];
     }
 
     public function testFromInt(): void
@@ -67,7 +67,7 @@ class ModuleStatusTest extends TestCase
 
     public function testLoadedIsMaxPositive(): void
     {
-        $maxValue = max(array_map(fn(ModuleStatus $s) => $s->value, ModuleStatus::cases()));
+        $maxValue = \max(\array_map(fn (ModuleStatus $s) => $s->value, ModuleStatus::cases()));
         $this->assertSame(ModuleStatus::Loaded->value, $maxValue);
     }
 

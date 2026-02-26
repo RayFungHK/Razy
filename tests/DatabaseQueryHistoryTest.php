@@ -52,7 +52,7 @@ class DatabaseQueryHistoryTest extends TestCase
         $db->connectWithDriver('sqlite', ['path' => ':memory:']);
 
         $db->execute($db->prepare('CREATE TABLE test_hist (id INTEGER PRIMARY KEY)'));
-        $db->execute($db->prepare("INSERT INTO test_hist (id) VALUES (1)"));
+        $db->execute($db->prepare('INSERT INTO test_hist (id) VALUES (1)'));
 
         $queried = $db->getQueried();
         $this->assertCount(2, $queried);
@@ -66,7 +66,7 @@ class DatabaseQueryHistoryTest extends TestCase
         $db->connectWithDriver('sqlite', ['path' => ':memory:']);
 
         $db->execute($db->prepare('CREATE TABLE test_last (id INTEGER PRIMARY KEY)'));
-        $db->execute($db->prepare("INSERT INTO test_last (id) VALUES (1)"));
+        $db->execute($db->prepare('INSERT INTO test_last (id) VALUES (1)'));
 
         $last = $db->getLastQueried();
         $this->assertStringContainsString('INSERT INTO', $last);
@@ -78,8 +78,8 @@ class DatabaseQueryHistoryTest extends TestCase
         $db->connectWithDriver('sqlite', ['path' => ':memory:']);
 
         $db->execute($db->prepare('CREATE TABLE test_count (id INTEGER PRIMARY KEY)'));
-        $db->execute($db->prepare("INSERT INTO test_count (id) VALUES (1)"));
-        $db->execute($db->prepare("SELECT * FROM test_count"));
+        $db->execute($db->prepare('INSERT INTO test_count (id) VALUES (1)'));
+        $db->execute($db->prepare('SELECT * FROM test_count'));
 
         $this->assertSame(3, $db->getTotalQueryCount());
     }
@@ -95,7 +95,7 @@ class DatabaseQueryHistoryTest extends TestCase
         $this->assertSame(0, $db->getTotalQueryCount());
         $this->assertSame([], $db->getQueried());
 
-        $db->execute($db->prepare("INSERT INTO test_clr (id) VALUES (1)"));
+        $db->execute($db->prepare('INSERT INTO test_clr (id) VALUES (1)'));
         $this->assertSame(1, $db->getTotalQueryCount());
     }
 

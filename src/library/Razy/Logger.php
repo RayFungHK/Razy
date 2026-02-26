@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,17 +10,20 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use Razy\Contract\Log\InvalidArgumentException;
 use Razy\Contract\Log\LoggerInterface;
 use Razy\Contract\Log\LoggerTrait;
 use Razy\Contract\Log\LogLevel;
 use Stringable;
+use Throwable;
 
 /**
  * A concrete PSR-3 logger implementation for the Razy framework.
@@ -45,6 +49,7 @@ use Stringable;
  * ```
  *
  * @class Logger
+ *
  * @package Razy
  */
 class Logger implements LoggerInterface
@@ -55,13 +60,13 @@ class Logger implements LoggerInterface
      * PSR-3 log level severity map (higher = more severe).
      */
     private const LEVEL_PRIORITY = [
-        LogLevel::DEBUG     => 0,
-        LogLevel::INFO      => 1,
-        LogLevel::NOTICE    => 2,
-        LogLevel::WARNING   => 3,
-        LogLevel::ERROR     => 4,
-        LogLevel::CRITICAL  => 5,
-        LogLevel::ALERT     => 6,
+        LogLevel::DEBUG => 0,
+        LogLevel::INFO => 1,
+        LogLevel::NOTICE => 2,
+        LogLevel::WARNING => 3,
+        LogLevel::ERROR => 4,
+        LogLevel::CRITICAL => 5,
+        LogLevel::ALERT => 6,
         LogLevel::EMERGENCY => 7,
     ];
 
@@ -93,10 +98,10 @@ class Logger implements LoggerInterface
     /**
      * Create a new Logger instance.
      *
-     * @param string|null $logDirectory   Directory for log files. Null disables file output (null-logger mode).
-     * @param string      $minLevel       Minimum PSR-3 log level to record (default: DEBUG, i.e., log everything)
-     * @param string      $filenamePattern Date format for the log filename (default: 'Y-m-d', producing files like 2026-02-23.log)
-     * @param bool        $bufferEnabled  Whether to keep log entries in memory (default: false)
+     * @param string|null $logDirectory Directory for log files. Null disables file output (null-logger mode).
+     * @param string $minLevel Minimum PSR-3 log level to record (default: DEBUG, i.e., log everything)
+     * @param string $filenamePattern Date format for the log filename (default: 'Y-m-d', producing files like 2026-02-23.log)
+     * @param bool $bufferEnabled Whether to keep log entries in memory (default: false)
      */
     public function __construct(
         ?string $logDirectory = null,
@@ -104,14 +109,14 @@ class Logger implements LoggerInterface
         string $filenamePattern = 'Y-m-d',
         bool $bufferEnabled = false,
     ) {
-        $this->logDirectory = $logDirectory !== null ? rtrim($logDirectory, '/\\') : null;
+        $this->logDirectory = $logDirectory !== null ? \rtrim($logDirectory, '/\\') : null;
         $this->minLevel = $this->validateLevel($minLevel);
         $this->filenamePattern = $filenamePattern;
         $this->bufferEnabled = $bufferEnabled;
 
         // Ensure log directory exists if specified
-        if ($this->logDirectory !== null && !is_dir($this->logDirectory)) {
-            mkdir($this->logDirectory, 0775, true);
+        if ($this->logDirectory !== null && !\is_dir($this->logDirectory)) {
+            \mkdir($this->logDirectory, 0o775, true);
         }
     }
 
@@ -122,9 +127,9 @@ class Logger implements LoggerInterface
      * (debug, info, notice, warning, error, critical, alert, emergency)
      * all delegate to this method.
      *
-     * @param mixed              $level   A PSR-3 LogLevel constant
-     * @param string|Stringable  $message The log message, may contain {placeholder} tokens
-     * @param array              $context Replacement values for placeholders and additional data
+     * @param mixed $level A PSR-3 LogLevel constant
+     * @param string|Stringable $message The log message, may contain {placeholder} tokens
+     * @param array $context Replacement values for placeholders and additional data
      */
     public function log(mixed $level, string|Stringable $message, array $context = []): void
     {
@@ -142,9 +147,9 @@ class Logger implements LoggerInterface
         if ($this->bufferEnabled) {
             $this->buffer[] = [
                 'timestamp' => $timestamp,
-                'level'     => $level,
-                'message'   => $interpolated,
-                'context'   => $context,
+                'level' => $level,
+                'message' => $interpolated,
+                'context' => $context,
             ];
         }
 
@@ -190,6 +195,7 @@ class Logger implements LoggerInterface
      * Set the minimum log level threshold at runtime.
      *
      * @param string $level A PSR-3 LogLevel constant
+     *
      * @return $this
      */
     public function setMinLevel(string $level): static
@@ -214,29 +220,29 @@ class Logger implements LoggerInterface
      *
      * Uses LOCK_EX for thread-safe writes.
      *
-     * @param string $timestamp  Formatted timestamp
-     * @param string $level      Log level
-     * @param string $message    Interpolated message
-     * @param array  $context    Original context (for JSON encoding extra data)
+     * @param string $timestamp Formatted timestamp
+     * @param string $level Log level
+     * @param string $message Interpolated message
+     * @param array $context Original context (for JSON encoding extra data)
      */
     private function writeToFile(string $timestamp, string $level, string $message, array $context): void
     {
         $filename = (new DateTimeImmutable())->format($this->filenamePattern) . '.log';
         $filepath = $this->logDirectory . DIRECTORY_SEPARATOR . $filename;
 
-        $levelUpper = strtoupper($level);
+        $levelUpper = \strtoupper($level);
         $line = "[{$timestamp}] [{$levelUpper}] {$message}";
 
         // Append context data if present (excluding interpolated keys)
         $extra = $this->getExtraContext($context);
         if (!empty($extra)) {
-            $encoded = json_encode($extra, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $encoded = \json_encode($extra, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             $line .= ' ' . $encoded;
         }
 
         $line .= PHP_EOL;
 
-        file_put_contents($filepath, $line, FILE_APPEND | LOCK_EX);
+        \file_put_contents($filepath, $line, FILE_APPEND | LOCK_EX);
     }
 
     /**
@@ -247,33 +253,34 @@ class Logger implements LoggerInterface
      * other types are skipped.
      *
      * @param string $message The raw message with {placeholder} tokens
-     * @param array  $context The context array
+     * @param array $context The context array
+     *
      * @return string The interpolated message
      */
     private function interpolate(string $message, array $context): string
     {
-        if (empty($context) || !str_contains($message, '{')) {
+        if (empty($context) || !\str_contains($message, '{')) {
             return $message;
         }
 
         $replacements = [];
         foreach ($context as $key => $value) {
-            if (!is_string($key)) {
+            if (!\is_string($key)) {
                 continue;
             }
             $token = '{' . $key . '}';
-            if (!str_contains($message, $token)) {
+            if (!\str_contains($message, $token)) {
                 continue;
             }
 
-            if ($value instanceof Stringable || $value instanceof \DateTimeInterface) {
+            if ($value instanceof Stringable || $value instanceof DateTimeInterface) {
                 $replacements[$token] = (string) $value;
-            } elseif (is_scalar($value) || $value === null) {
+            } elseif (\is_scalar($value) || $value === null) {
                 $replacements[$token] = (string) $value;
             }
         }
 
-        return strtr($message, $replacements);
+        return \strtr($message, $replacements);
     }
 
     /**
@@ -283,6 +290,7 @@ class Logger implements LoggerInterface
      * it's a Throwable, its message and trace are included.
      *
      * @param array $context The full context array
+     *
      * @return array Extra context data for appending to log line
      */
     private function getExtraContext(array $context): array
@@ -290,19 +298,19 @@ class Logger implements LoggerInterface
         $extra = [];
 
         foreach ($context as $key => $value) {
-            if ($key === 'exception' && $value instanceof \Throwable) {
+            if ($key === 'exception' && $value instanceof Throwable) {
                 $extra['exception'] = [
-                    'class'   => get_class($value),
+                    'class' => \get_class($value),
                     'message' => $value->getMessage(),
-                    'code'    => $value->getCode(),
-                    'file'    => $value->getFile(),
-                    'line'    => $value->getLine(),
+                    'code' => $value->getCode(),
+                    'file' => $value->getFile(),
+                    'line' => $value->getLine(),
                 ];
                 continue;
             }
 
             // Include non-scalar values that couldn't be interpolated
-            if (!is_scalar($value) && $value !== null && !($value instanceof Stringable)) {
+            if (!\is_scalar($value) && $value !== null && !($value instanceof Stringable)) {
                 $extra[$key] = $value;
             }
         }
@@ -314,6 +322,7 @@ class Logger implements LoggerInterface
      * Validate that a level string is a known PSR-3 log level.
      *
      * @param string $level The level to validate
+     *
      * @return string The validated level
      *
      * @throws InvalidArgumentException If the level is not recognized
@@ -322,7 +331,7 @@ class Logger implements LoggerInterface
     {
         if (!isset(self::LEVEL_PRIORITY[$level])) {
             throw new InvalidArgumentException(
-                "Unknown log level '{$level}'. Valid levels: " . implode(', ', array_keys(self::LEVEL_PRIORITY))
+                "Unknown log level '{$level}'. Valid levels: " . \implode(', ', \array_keys(self::LEVEL_PRIORITY)),
             );
         }
 
@@ -333,6 +342,7 @@ class Logger implements LoggerInterface
      * Get the numeric priority for a log level.
      *
      * @param string $level A PSR-3 LogLevel constant
+     *
      * @return int Priority (0 = DEBUG through 7 = EMERGENCY)
      */
     private function getLevelPriority(string $level): int

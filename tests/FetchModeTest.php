@@ -15,6 +15,15 @@ use Razy\Database\FetchMode;
 #[CoversClass(FetchMode::class)]
 class FetchModeTest extends TestCase
 {
+    public static function fetchModeValueProvider(): array
+    {
+        return [
+            'Standard' => [FetchMode::Standard, 'standard'],
+            'Group' => [FetchMode::Group, 'group'],
+            'KeyPair' => [FetchMode::KeyPair, 'keypair'],
+        ];
+    }
+
     public function testAllCasesExist(): void
     {
         $cases = FetchMode::cases();
@@ -25,15 +34,6 @@ class FetchModeTest extends TestCase
     public function testEnumValues(FetchMode $mode, string $expectedValue): void
     {
         $this->assertSame($expectedValue, $mode->value);
-    }
-
-    public static function fetchModeValueProvider(): array
-    {
-        return [
-            'Standard' => [FetchMode::Standard, 'standard'],
-            'Group'    => [FetchMode::Group, 'group'],
-            'KeyPair'  => [FetchMode::KeyPair, 'keypair'],
-        ];
     }
 
     public function testFromString(): void

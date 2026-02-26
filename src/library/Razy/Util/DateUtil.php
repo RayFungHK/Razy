@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Provides static utility methods for date and weekday calculations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -40,7 +42,7 @@ class DateUtil
      */
     public static function getFutureWeekday(string $startDate, int $numberOfDays, array $holidays = []): string
     {
-        $holidays = array_fill_keys($holidays, true);
+        $holidays = \array_fill_keys($holidays, true);
         $datetime = new DateTime($startDate);
         for ($day = 0; $day < $numberOfDays; ++$day) {
             do {
@@ -63,7 +65,7 @@ class DateUtil
      */
     public static function getWeekdayDiff(?string $startDate = '', ?string $endDate = '', array $holidays = []): int
     {
-        $holidays = array_fill_keys($holidays, true);
+        $holidays = \array_fill_keys($holidays, true);
         $datetime = $startDate ? new DateTime($startDate) : new DateTime('now');
         $endDate = $endDate ? new DateTime($endDate) : new DateTime('now');
 

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Authenticator.
  *
@@ -9,6 +10,7 @@
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Authenticator;
@@ -36,7 +38,7 @@ class AuthenticatorTest extends TestCase
 
         $this->assertNotEmpty($secret);
         // 20 bytes = 32 Base32 characters
-        $this->assertEquals(32, strlen($secret));
+        $this->assertEquals(32, \strlen($secret));
     }
 
     public function testGenerateSecretCustomLength(): void
@@ -45,7 +47,7 @@ class AuthenticatorTest extends TestCase
 
         $this->assertNotEmpty($secret);
         // 32 bytes → more Base32 characters
-        $this->assertGreaterThan(32, strlen($secret));
+        $this->assertGreaterThan(32, \strlen($secret));
     }
 
     public function testGenerateSecretMinimumLength(): void
@@ -57,7 +59,7 @@ class AuthenticatorTest extends TestCase
 
     public function testGenerateSecretTooShortThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('at least 16 bytes');
 
         Authenticator::generateSecret(8);
@@ -71,7 +73,7 @@ class AuthenticatorTest extends TestCase
         }
 
         // All generated secrets should be unique
-        $this->assertCount(10, array_unique($secrets));
+        $this->assertCount(10, \array_unique($secrets));
     }
 
     public function testGenerateSecretBase32Valid(): void
@@ -105,7 +107,7 @@ class AuthenticatorTest extends TestCase
 
     public function testBase32RoundTripBinary(): void
     {
-        $binary = random_bytes(20);
+        $binary = \random_bytes(20);
         $encoded = Authenticator::base32Encode($binary);
         $decoded = Authenticator::base32Decode($encoded);
 
@@ -145,7 +147,7 @@ class AuthenticatorTest extends TestCase
 
     public function testBase32DecodeInvalidCharacterThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid Base32 character');
 
         Authenticator::base32Decode('INVALID!CHARS');
@@ -153,7 +155,7 @@ class AuthenticatorTest extends TestCase
 
     public function testBase32DecodeDigit0Throws(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         // '0' and '1' are not valid Base32 characters
         Authenticator::base32Decode('A0B1C');
@@ -165,7 +167,7 @@ class AuthenticatorTest extends TestCase
     {
         $code = Authenticator::getCode($this->rfcSecret);
 
-        $this->assertEquals(6, strlen($code));
+        $this->assertEquals(6, \strlen($code));
         $this->assertMatchesRegularExpression('/^\d{6}$/', $code);
     }
 
@@ -173,7 +175,7 @@ class AuthenticatorTest extends TestCase
     {
         $code = Authenticator::getCode($this->rfcSecret, 8);
 
-        $this->assertEquals(8, strlen($code));
+        $this->assertEquals(8, \strlen($code));
         $this->assertMatchesRegularExpression('/^\d{8}$/', $code);
     }
 
@@ -300,14 +302,14 @@ class AuthenticatorTest extends TestCase
         $code = Authenticator::getCode($this->rfcSecret, 6, 30, 'sha1', $timestamp);
 
         $this->assertTrue(
-            Authenticator::verifyCode($this->rfcSecret, $code, 6, 30, 'sha1', 1, $timestamp)
+            Authenticator::verifyCode($this->rfcSecret, $code, 6, 30, 'sha1', 1, $timestamp),
         );
     }
 
     public function testVerifyCodeInvalid(): void
     {
         $this->assertFalse(
-            Authenticator::verifyCode($this->rfcSecret, '000000', 6, 30, 'sha1', 1, 1234567890)
+            Authenticator::verifyCode($this->rfcSecret, '000000', 6, 30, 'sha1', 1, 1234567890),
         );
     }
 
@@ -319,7 +321,7 @@ class AuthenticatorTest extends TestCase
 
         // Should be valid with window=1
         $this->assertTrue(
-            Authenticator::verifyCode($this->rfcSecret, $futureCode, 6, 30, 'sha1', 1, $timestamp)
+            Authenticator::verifyCode($this->rfcSecret, $futureCode, 6, 30, 'sha1', 1, $timestamp),
         );
     }
 
@@ -331,7 +333,7 @@ class AuthenticatorTest extends TestCase
 
         // Should be invalid with window=1
         $this->assertFalse(
-            Authenticator::verifyCode($this->rfcSecret, $farCode, 6, 30, 'sha1', 1, $timestamp)
+            Authenticator::verifyCode($this->rfcSecret, $farCode, 6, 30, 'sha1', 1, $timestamp),
         );
     }
 
@@ -343,7 +345,7 @@ class AuthenticatorTest extends TestCase
 
         // Should be valid with window=3
         $this->assertTrue(
-            Authenticator::verifyCode($this->rfcSecret, $farCode, 6, 30, 'sha1', 3, $timestamp)
+            Authenticator::verifyCode($this->rfcSecret, $farCode, 6, 30, 'sha1', 3, $timestamp),
         );
     }
 
@@ -355,7 +357,7 @@ class AuthenticatorTest extends TestCase
 
         // Past codes should also be valid within the window
         $this->assertTrue(
-            Authenticator::verifyCode($this->rfcSecret, $pastCode, 6, 30, 'sha1', 1, $timestamp)
+            Authenticator::verifyCode($this->rfcSecret, $pastCode, 6, 30, 'sha1', 1, $timestamp),
         );
     }
 
@@ -366,7 +368,7 @@ class AuthenticatorTest extends TestCase
 
         // Code with whitespace should still verify
         $this->assertTrue(
-            Authenticator::verifyCode($this->rfcSecret, "  {$code}  ", 6, 30, 'sha1', 1, $timestamp)
+            Authenticator::verifyCode($this->rfcSecret, "  {$code}  ", 6, 30, 'sha1', 1, $timestamp),
         );
     }
 
@@ -376,7 +378,7 @@ class AuthenticatorTest extends TestCase
     {
         $code = Authenticator::getHotpCode($this->rfcSecret, 0);
 
-        $this->assertEquals(6, strlen($code));
+        $this->assertEquals(6, \strlen($code));
         $this->assertMatchesRegularExpression('/^\d{6}$/', $code);
     }
 
@@ -421,7 +423,7 @@ class AuthenticatorTest extends TestCase
             $this->assertEquals(
                 $expectedCode,
                 $code,
-                "RFC 4226 HOTP counter={$counter}"
+                "RFC 4226 HOTP counter={$counter}",
             );
         }
     }
@@ -476,7 +478,7 @@ class AuthenticatorTest extends TestCase
         $uri = Authenticator::getProvisioningUri(
             'JBSWY3DPEHPK3PXP',
             'user@example.com',
-            'MyApp'
+            'MyApp',
         );
 
         $this->assertStringStartsWith('otpauth://totp/', $uri);
@@ -496,7 +498,7 @@ class AuthenticatorTest extends TestCase
             'Enterprise',
             8,
             60,
-            'sha256'
+            'sha256',
         );
 
         $this->assertStringContainsString('digits=8', $uri);
@@ -511,7 +513,7 @@ class AuthenticatorTest extends TestCase
             'JBSWY3DPEHPK3PXP',
             'user@example.com',
             'MyApp',
-            0
+            0,
         );
 
         $this->assertStringStartsWith('otpauth://hotp/', $uri);
@@ -525,7 +527,7 @@ class AuthenticatorTest extends TestCase
             'JBSWY3DPEHPK3PXP',
             'user@example.com',
             'MyApp',
-            42
+            42,
         );
 
         $this->assertStringContainsString('counter=42', $uri);
@@ -539,7 +541,7 @@ class AuthenticatorTest extends TestCase
         $qrUri = Authenticator::getQrCodeDataUri($provUri);
 
         $this->assertStringContainsString('chart.googleapis.com', $qrUri);
-        $this->assertStringContainsString(urlencode($provUri), $qrUri);
+        $this->assertStringContainsString(\urlencode($provUri), $qrUri);
     }
 
     public function testGetQrCodeDataUriCustomSize(): void
@@ -571,7 +573,7 @@ class AuthenticatorTest extends TestCase
         $codes = Authenticator::generateBackupCodes();
 
         foreach ($codes as $code) {
-            $this->assertEquals(8, strlen($code));
+            $this->assertEquals(8, \strlen($code));
         }
     }
 
@@ -580,7 +582,7 @@ class AuthenticatorTest extends TestCase
         $codes = Authenticator::generateBackupCodes(5, 10);
 
         foreach ($codes as $code) {
-            $this->assertEquals(10, strlen($code));
+            $this->assertEquals(10, \strlen($code));
         }
     }
 
@@ -598,77 +600,77 @@ class AuthenticatorTest extends TestCase
         $codes = Authenticator::generateBackupCodes(20);
 
         // With 36^8 possible codes, collisions are extremely unlikely
-        $this->assertCount(20, array_unique($codes));
+        $this->assertCount(20, \array_unique($codes));
     }
 
     // ==================== PARAMETER VALIDATION ====================
 
     public function testGetCodeInvalidDigitsLowThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getCode($this->rfcSecret, 5);
     }
 
     public function testGetCodeInvalidDigitsHighThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getCode($this->rfcSecret, 9);
     }
 
     public function testGetCodeInvalidPeriodThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getCode($this->rfcSecret, 6, 0);
     }
 
     public function testGetCodeInvalidAlgorithmThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getCode($this->rfcSecret, 6, 30, 'md5');
     }
 
     public function testVerifyCodeInvalidAlgorithmThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::verifyCode($this->rfcSecret, '123456', 6, 30, 'md5');
     }
 
     public function testGetHotpCodeInvalidDigitsThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getHotpCode($this->rfcSecret, 0, 5);
     }
 
     public function testGetHotpCodeInvalidAlgorithmThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getHotpCode($this->rfcSecret, 0, 6, 'md5');
     }
 
     public function testVerifyHotpCodeInvalidDigitsThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::verifyHotpCode($this->rfcSecret, '123456', 0, 5);
     }
 
     public function testProvisioningUriInvalidDigitsThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getProvisioningUri('SECRET', 'user', 'App', 5);
     }
 
     public function testHotpProvisioningUriInvalidAlgorithmThrows(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         Authenticator::getHotpProvisioningUri('SECRET', 'user', 'App', 0, 6, 'md5');
     }
@@ -688,11 +690,11 @@ class AuthenticatorTest extends TestCase
         // 3. Generate code at a known time
         $timestamp = 1700000000;
         $code = Authenticator::getCode($secret, 6, 30, 'sha1', $timestamp);
-        $this->assertEquals(6, strlen($code));
+        $this->assertEquals(6, \strlen($code));
 
         // 4. Verify the code
         $this->assertTrue(
-            Authenticator::verifyCode($secret, $code, 6, 30, 'sha1', 1, $timestamp)
+            Authenticator::verifyCode($secret, $code, 6, 30, 'sha1', 1, $timestamp),
         );
 
         // 5. Generate backup codes
@@ -710,6 +712,6 @@ class AuthenticatorTest extends TestCase
 
         // Different algorithms should produce different codes (with overwhelming probability)
         $codes = [$sha1, $sha256, $sha512];
-        $this->assertGreaterThan(1, count(array_unique($codes)));
+        $this->assertGreaterThan(1, \count(\array_unique($codes)));
     }
 }

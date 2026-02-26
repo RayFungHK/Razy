@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -67,6 +68,16 @@ trait SoftDeletes
     }
 
     /**
+     * Get the name of the "deleted at" column.
+     *
+     * Override in your model to use a different column name.
+     */
+    public static function getDeletedAtColumn(): string
+    {
+        return 'deleted_at';
+    }
+
+    /**
      * Soft-delete this model (set `deleted_at` to the current timestamp).
      *
      * Overrides `Model::delete()`.  The model remains in the database but
@@ -119,7 +130,7 @@ trait SoftDeletes
 
         $table = static::resolveTable();
         $this->database->execute(
-            $this->database->delete($table, [$pk => $id])
+            $this->database->delete($table, [$pk => $id]),
         );
 
         $deleted = $this->database->affectedRows() > 0;
@@ -160,7 +171,7 @@ trait SoftDeletes
         $this->database->execute(
             $this->database->update($table, [$column])
                 ->where($pk . '=:_pk')
-                ->assign([$column => null, '_pk' => $id])
+                ->assign([$column => null, '_pk' => $id]),
         );
 
         $updated = $this->database->affectedRows() > 0;
@@ -208,16 +219,6 @@ trait SoftDeletes
             ->whereNotNull($column);
     }
 
-    /**
-     * Get the name of the "deleted at" column.
-     *
-     * Override in your model to use a different column name.
-     */
-    public static function getDeletedAtColumn(): string
-    {
-        return 'deleted_at';
-    }
-
     // -----------------------------------------------------------------------
     //  Internal
     // -----------------------------------------------------------------------
@@ -235,13 +236,13 @@ trait SoftDeletes
         }
 
         $column = static::getDeletedAtColumn();
-        $now = date('Y-m-d H:i:s');
+        $now = \date('Y-m-d H:i:s');
         $table = static::resolveTable();
 
         $this->database->execute(
             $this->database->update($table, [$column])
                 ->where($pk . '=:_pk')
-                ->assign([$column => $now, '_pk' => $id])
+                ->assign([$column => $now, '_pk' => $id]),
         );
 
         $updated = $this->database->affectedRows() > 0;

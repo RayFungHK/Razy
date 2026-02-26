@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,26 +9,27 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
-use Throwable;
 use Razy\Config\ConfigLoader;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
-use Razy\Exception\ConfigurationException;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\ModuleScanner;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
+use Razy\Exception\ConfigurationException;
 use Razy\Module\ModuleStatus;
-
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
+use Throwable;
+
 /**
- * Class Distributor
+ * Class Distributor.
  *
  * Core routing and module management engine for a Razy site. A Distributor represents
  * a single site distribution (identified by code + tag), responsible for:
@@ -38,26 +40,35 @@ use Razy\Util\PathUtil;
  * - Session management, data path resolution, and package prerequisite validation
  *
  * @class Distributor
+ *
  * @package Razy
  */
 class Distributor implements DistributorInterface
 {
     /** @var string The distribution code from dist.php configuration */
     private string $code = '';
+
     /** @var array<string, string|null> Required module codes mapped to their version constraints */
     private array $requires = [];
+
     /** @var bool Whether to also scan the shared/module folder for global modules */
     private bool $globalModule = false;
+
     /** @var bool Strict mode: throw errors for missing closure/route files */
     private bool $strict = false;
+
     /** @var string Filesystem path to the distributor's configuration folder (sites/) */
     private string $folderPath = '';
+
     /** @var string Filesystem path where modules are loaded from (may differ from folderPath) */
     private string $moduleSourcePath = '';
+
     /** @var Template|null Lazy-initialized global Template instance shared across modules */
     private ?Template $globalTemplate = null;
+
     /** @var array<string, array{domain: string, dist: string}> Cross-site data mapping configuration */
     private array $dataMapping = [];
+
     /** @var bool Whether unmatched requests fall back to index.php for route matching */
     private bool $fallback = true;
 
@@ -65,10 +76,13 @@ class Distributor implements DistributorInterface
 
     /** @var ModuleRegistry Module tracking, lookup, API registration, and lifecycle management */
     private ModuleRegistry $registry;
+
     /** @var ModuleScanner Filesystem scanning, manifest caching, module autoloading */
     private ModuleScanner $scanner;
+
     /** @var RouteDispatcher Route registration, matching, and dispatching */
     private RouteDispatcher $router;
+
     /** @var PrerequisiteResolver Package prerequisite tracking and conflict detection */
     private PrerequisiteResolver $prerequisites;
 
@@ -80,7 +94,7 @@ class Distributor implements DistributorInterface
      *
      * @param string $distCode The folder path of the distributor
      * @param string $tag The distributor tag
-     * @param null|Domain $domain The Domain Instance
+     * @param Domain|null $domain The Domain Instance
      * @param string $urlPath The URL path of the distributor
      * @param string $urlQuery The URL Query string
      * @param ConfigLoader|null $configLoader Optional config loader (defaults to new ConfigLoader)
@@ -103,133 +117,18 @@ class Distributor implements DistributorInterface
         $this->parseDataMappings($config);
         $this->resolveModuleSourcePath($config);
 
-        $this->globalModule = (bool)($config['global_module'] ?? false);
-        $this->strict = (bool)($config['strict'] ?? false);
-        $this->fallback = (bool)($config['fallback'] ?? true);
+        $this->globalModule = (bool) ($config['global_module'] ?? false);
+        $this->strict = (bool) ($config['strict'] ?? false);
+        $this->fallback = (bool) ($config['fallback'] ?? true);
 
-        $this->initializeSubComponents((bool)($config['autoload'] ?? false));
-    }
-
-    /**
-     * Load dist.php, validate the dist code format, and return the config array.
-     *
-     * @return array The validated distributor configuration
-     * @throws ConfigurationException
-     */
-    private function loadAndValidateConfig(): array
-    {
-        if (!$configFile = realpath(PathUtil::append($this->folderPath, 'dist.php'))) {
-            throw new ConfigurationException("Missing distributor configuration file: '{$this->folderPath}/dist.php'.");
-        }
-
-        $config = $this->configLoader->load($configFile);
-
-        if (!($config['dist'] = $config['dist'] ?? '')) {
-            throw new ConfigurationException('The distributor code is empty.');
-        }
-
-        if (!preg_match('/^[a-z][\w\-]*$/i', $config['dist'])) {
-            throw new ConfigurationException("Invalid distribution code '{$config['dist']}' in '{$configFile}'. Must match pattern /^[a-z][\w\-]*$/i.");
-        }
-        $this->code = $config['dist'];
-
-        return $config;
-    }
-
-    /**
-     * Extract module requirements from config for the current tag.
-     *
-     * @param array $config The distributor configuration
-     */
-    private function parseModuleRequirements(array $config): void
-    {
-        $config['modules'] = $config['modules'] ?? [];
-        if (is_array($config['modules'])) {
-            if (isset($config['modules'][$this->tag])) {
-                foreach ($config['modules'][$this->tag] as $moduleCode => $version) {
-                    $moduleCode = trim($moduleCode);
-                    $version = trim($version);
-                    if (strlen($moduleCode) > 0 && strlen($version) > 0) {
-                        $this->requires[$moduleCode] = null;
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Parse cross-site data_mapping config into $this->dataMapping.
-     *
-     * @param array $config The distributor configuration
-     */
-    private function parseDataMappings(array $config): void
-    {
-        $config['data_mapping'] = $config['data_mapping'] ?? [];
-        if (is_array($config['data_mapping'])) {
-            foreach ($config['data_mapping'] as $path => $site) {
-                if (is_string($site)) {
-                    [$domain, $dist] = explode(':', $site . ':');
-                    if (NetworkUtil::isFqdn($domain) && preg_match('/^[a-z][\w\-]*$/i', $dist)) {
-                        $this->dataMapping[$path] = [
-                            'domain' => $domain,
-                            'dist' => $dist,
-                        ];
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Validate and resolve module_path from config, or fall back to the distributor folder.
-     *
-     * @param array $config The distributor configuration
-     * @throws ConfigurationException
-     */
-    private function resolveModuleSourcePath(array $config): void
-    {
-        $customModulePath = $config['module_path'] ?? '';
-        if (is_string($customModulePath) && strlen(trim($customModulePath)) > 0) {
-            $customModulePath = PathUtil::fixPath($customModulePath);
-            if (!is_dir($customModulePath)) {
-                throw new ConfigurationException('The custom module_path does not exist: ' . $customModulePath);
-            }
-
-            // Validate that the path is within SYSTEM_ROOT
-            $realCustomPath = realpath($customModulePath);
-            $realSystemRoot = realpath(SYSTEM_ROOT);
-            if ($realCustomPath === false || $realSystemRoot === false || !str_starts_with($realCustomPath, $realSystemRoot)) {
-                throw new ConfigurationException('The module_path must be inside the Razy project folder (SYSTEM_ROOT): ' . $customModulePath);
-            }
-
-            $this->moduleSourcePath = $customModulePath;
-        } else {
-            $this->moduleSourcePath = $this->folderPath;
-        }
-    }
-
-    /**
-     * Create ModuleRegistry, ModuleScanner, RouteDispatcher, PrerequisiteResolver
-     * and register this Distributor in the DI container.
-     *
-     * @param bool $autoload Whether module autoloading is enabled
-     */
-    private function initializeSubComponents(bool $autoload): void
-    {
-        $this->registry = new ModuleRegistry($this, $autoload);
-        $this->scanner = new ModuleScanner($this);
-        $this->router = new RouteDispatcher();
-        $this->prerequisites = new PrerequisiteResolver($this->distCode, $this);
-
-        if ($container = $this->getContainer()) {
-            $container->instance(self::class, $this);
-        }
+        $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
     }
 
     /**
      * Initial Distributor and scan the module folder.
      *
      * @return $this
+     *
      * @throws Error
      * @throws Throwable
      */
@@ -254,7 +153,7 @@ class Distributor implements DistributorInterface
         }
 
         // Preparation Stage, __onLoad event
-        $this->registry->setQueue(array_filter($this->registry->getQueue(), function (Module $module) {
+        $this->registry->setQueue(\array_filter($this->registry->getQueue(), function (Module $module) {
             // Remove modules that fail the preparation/load phase
             if (!$module->prepare()) {
                 return false;
@@ -263,7 +162,7 @@ class Distributor implements DistributorInterface
         }));
 
         // Validation Stage, __onRequire event
-        $this->registry->setQueue(array_filter($this->registry->getQueue(), function (Module $module) {
+        $this->registry->setQueue(\array_filter($this->registry->getQueue(), function (Module $module) {
             // Remove modules that fail validation (e.g., missing dependencies)
             if (!$module->validate()) {
                 return false;
@@ -276,7 +175,7 @@ class Distributor implements DistributorInterface
     }
 
     /**
-     * Autoload the class from the distributor's module library folder
+     * Autoload the class from the distributor's module library folder.
      *
      * @param string $className
      *
@@ -292,15 +191,15 @@ class Distributor implements DistributorInterface
      *
      * @param string $module
      * @param bool $isURL
+     *
      * @return string
      */
     public function getDataPath(string $module = '', bool $isURL = false): string
     {
         if ($isURL) {
             return PathUtil::append($this->getSiteURL(), 'data', $module);
-        } else {
-            return PathUtil::append(DATA_FOLDER, $this->getIdentity(), $module);
         }
+        return PathUtil::append(DATA_FOLDER, $this->getIdentity(), $module);
     }
 
     /**
@@ -317,50 +216,6 @@ class Distributor implements DistributorInterface
     }
 
     /**
-     * Start to activate the module.
-     *
-     * @param Module $module
-     *
-     * @return bool
-     * @throws Throwable
-     */
-    private function require(Module $module): bool
-    {
-        if ($this->registry->isLoadable($module)) {
-            if ($module->getStatus() === ModuleStatus::Pending) {
-                $module->standby();
-            }
-
-            // Recursively resolve all required dependencies before initializing this module
-            $requireModules = $module->getModuleInfo()->getRequire();
-            foreach ($requireModules as $moduleCode => $version) {
-                $reqModule = $this->registry->get($moduleCode);
-                if (!$reqModule) {
-                    return false;
-                }
-
-                if ($reqModule->getStatus() === ModuleStatus::Pending) {
-                    if (!$this->require($reqModule)) {
-                        return false;
-                    }
-                } elseif ($reqModule->getStatus() === ModuleStatus::Failed) {
-                    return false;
-                }
-            }
-
-            if ($module->getStatus() === ModuleStatus::Processing) {
-                if (!$module->initialize()) {
-                    $module->unload();
-                    return false;
-                }
-                $this->registry->enqueue($module->getModuleInfo()->getCode(), $module);
-            }
-        }
-
-        return ($module->getStatus() === ModuleStatus::InQueue);
-    }
-
-    /**
      * Set the cookie path and start the session.
      *
      * @return $this
@@ -368,9 +223,9 @@ class Distributor implements DistributorInterface
     public function setSession(): static
     {
         if (WEB_MODE) {
-            session_set_cookie_params(0, '/', HOSTNAME);
-            session_name($this->code);
-            session_start();
+            \session_set_cookie_params(0, '/', HOSTNAME);
+            \session_name($this->code);
+            \session_start();
         }
 
         return $this;
@@ -380,6 +235,7 @@ class Distributor implements DistributorInterface
      * Match the registered route and execute the matched path.
      *
      * @return bool
+     *
      * @throws Throwable
      */
     public function matchRoute(): bool
@@ -417,7 +273,7 @@ class Distributor implements DistributorInterface
         }
 
         // Check if proc_open is available for CLI process isolation
-        if (!function_exists('proc_open') || in_array('proc_open', explode(',', ini_get('disable_functions')), true)) {
+        if (!\function_exists('proc_open') || \in_array('proc_open', \explode(',', \ini_get('disable_functions')), true)) {
             return null;
         }
 
@@ -425,7 +281,7 @@ class Distributor implements DistributorInterface
         $pharFile = SYSTEM_ROOT . DIRECTORY_SEPARATOR . PHAR_FILE;
 
         // Serialize API call data and spawn an isolated CLI bridge process
-        $payload = json_encode([
+        $payload = \json_encode([
             'dist' => $this->code,
             'module' => $module->getModuleInfo()->getCode(),
             'command' => $command,
@@ -433,28 +289,28 @@ class Distributor implements DistributorInterface
         ]);
 
         // Open process with stdout and stderr pipes for capturing output
-        $process = proc_open(
+        $process = \proc_open(
             [PHP_BINARY, $pharFile, 'bridge', $payload],
             [
                 1 => ['pipe', 'w'],
                 2 => ['pipe', 'w'],
             ],
-            $pipes
+            $pipes,
         );
 
-        if (!is_resource($process)) {
+        if (!\is_resource($process)) {
             throw new ConfigurationException('Failed to spawn CLI bridge process');
         }
 
         // Read process output, close pipes, and parse the JSON response
-        $output = stream_get_contents($pipes[1]);
-        $error = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        proc_close($process);
+        $output = \stream_get_contents($pipes[1]);
+        $error = \stream_get_contents($pipes[2]);
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+        \proc_close($process);
 
-        $response = json_decode($output, true);
-        if (!is_array($response)) {
+        $response = \json_decode($output, true);
+        if (!\is_array($response)) {
             throw new ConfigurationException('Invalid CLI bridge response: ' . ($error ?: $output));
         }
 
@@ -466,7 +322,7 @@ class Distributor implements DistributorInterface
     }
 
     /**
-     * Get the distributor code
+     * Get the distributor code.
      *
      * @return string
      */
@@ -557,6 +413,7 @@ class Distributor implements DistributorInterface
      * - "siteC@default" - default tag
      *
      * @param bool $shorthand If true, omit @default suffix (returns "siteB" instead of "siteB@default")
+     *
      * @return string
      */
     public function getIdentifier(bool $shorthand = false): string
@@ -618,11 +475,11 @@ class Distributor implements DistributorInterface
      */
     public function getSiteURL(): string
     {
-        return (defined('RAZY_URL_ROOT')) ? PathUtil::append(RAZY_URL_ROOT, $this->urlPath) : '';
+        return (\defined('RAZY_URL_ROOT')) ? PathUtil::append(RAZY_URL_ROOT, $this->urlPath) : '';
     }
 
     /**
-     * Get the data mapping
+     * Get the data mapping.
      *
      * @return array
      */
@@ -657,5 +514,168 @@ class Distributor implements DistributorInterface
         }
 
         return $this->globalTemplate;
+    }
+
+    /**
+     * Load dist.php, validate the dist code format, and return the config array.
+     *
+     * @return array The validated distributor configuration
+     *
+     * @throws ConfigurationException
+     */
+    private function loadAndValidateConfig(): array
+    {
+        if (!$configFile = \realpath(PathUtil::append($this->folderPath, 'dist.php'))) {
+            throw new ConfigurationException("Missing distributor configuration file: '{$this->folderPath}/dist.php'.");
+        }
+
+        $config = $this->configLoader->load($configFile);
+
+        if (!($config['dist'] ??= '')) {
+            throw new ConfigurationException('The distributor code is empty.');
+        }
+
+        if (!\preg_match('/^[a-z][\w\-]*$/i', $config['dist'])) {
+            throw new ConfigurationException("Invalid distribution code '{$config['dist']}' in '{$configFile}'. Must match pattern /^[a-z][\\w\\-]*$/i.");
+        }
+        $this->code = $config['dist'];
+
+        return $config;
+    }
+
+    /**
+     * Extract module requirements from config for the current tag.
+     *
+     * @param array $config The distributor configuration
+     */
+    private function parseModuleRequirements(array $config): void
+    {
+        $config['modules'] ??= [];
+        if (\is_array($config['modules'])) {
+            if (isset($config['modules'][$this->tag])) {
+                foreach ($config['modules'][$this->tag] as $moduleCode => $version) {
+                    $moduleCode = \trim($moduleCode);
+                    $version = \trim($version);
+                    if (\strlen($moduleCode) > 0 && \strlen($version) > 0) {
+                        $this->requires[$moduleCode] = null;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Parse cross-site data_mapping config into $this->dataMapping.
+     *
+     * @param array $config The distributor configuration
+     */
+    private function parseDataMappings(array $config): void
+    {
+        $config['data_mapping'] ??= [];
+        if (\is_array($config['data_mapping'])) {
+            foreach ($config['data_mapping'] as $path => $site) {
+                if (\is_string($site)) {
+                    [$domain, $dist] = \explode(':', $site . ':');
+                    if (NetworkUtil::isFqdn($domain) && \preg_match('/^[a-z][\w\-]*$/i', $dist)) {
+                        $this->dataMapping[$path] = [
+                            'domain' => $domain,
+                            'dist' => $dist,
+                        ];
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate and resolve module_path from config, or fall back to the distributor folder.
+     *
+     * @param array $config The distributor configuration
+     *
+     * @throws ConfigurationException
+     */
+    private function resolveModuleSourcePath(array $config): void
+    {
+        $customModulePath = $config['module_path'] ?? '';
+        if (\is_string($customModulePath) && \strlen(\trim($customModulePath)) > 0) {
+            $customModulePath = PathUtil::fixPath($customModulePath);
+            if (!\is_dir($customModulePath)) {
+                throw new ConfigurationException('The custom module_path does not exist: ' . $customModulePath);
+            }
+
+            // Validate that the path is within SYSTEM_ROOT
+            $realCustomPath = \realpath($customModulePath);
+            $realSystemRoot = \realpath(SYSTEM_ROOT);
+            if ($realCustomPath === false || $realSystemRoot === false || !\str_starts_with($realCustomPath, $realSystemRoot)) {
+                throw new ConfigurationException('The module_path must be inside the Razy project folder (SYSTEM_ROOT): ' . $customModulePath);
+            }
+
+            $this->moduleSourcePath = $customModulePath;
+        } else {
+            $this->moduleSourcePath = $this->folderPath;
+        }
+    }
+
+    /**
+     * Create ModuleRegistry, ModuleScanner, RouteDispatcher, PrerequisiteResolver
+     * and register this Distributor in the DI container.
+     *
+     * @param bool $autoload Whether module autoloading is enabled
+     */
+    private function initializeSubComponents(bool $autoload): void
+    {
+        $this->registry = new ModuleRegistry($this, $autoload);
+        $this->scanner = new ModuleScanner($this);
+        $this->router = new RouteDispatcher();
+        $this->prerequisites = new PrerequisiteResolver($this->distCode, $this);
+
+        if ($container = $this->getContainer()) {
+            $container->instance(self::class, $this);
+        }
+    }
+
+    /**
+     * Start to activate the module.
+     *
+     * @param Module $module
+     *
+     * @return bool
+     *
+     * @throws Throwable
+     */
+    private function require(Module $module): bool
+    {
+        if ($this->registry->isLoadable($module)) {
+            if ($module->getStatus() === ModuleStatus::Pending) {
+                $module->standby();
+            }
+
+            // Recursively resolve all required dependencies before initializing this module
+            $requireModules = $module->getModuleInfo()->getRequire();
+            foreach ($requireModules as $moduleCode => $version) {
+                $reqModule = $this->registry->get($moduleCode);
+                if (!$reqModule) {
+                    return false;
+                }
+
+                if ($reqModule->getStatus() === ModuleStatus::Pending) {
+                    if (!$this->require($reqModule)) {
+                        return false;
+                    }
+                } elseif ($reqModule->getStatus() === ModuleStatus::Failed) {
+                    return false;
+                }
+            }
+
+            if ($module->getStatus() === ModuleStatus::Processing) {
+                if (!$module->initialize()) {
+                    $module->unload();
+                    return false;
+                }
+                $this->registry->enqueue($module->getModuleInfo()->getCode(), $module);
+            }
+        }
+
+        return ($module->getStatus() === ModuleStatus::InQueue);
     }
 }

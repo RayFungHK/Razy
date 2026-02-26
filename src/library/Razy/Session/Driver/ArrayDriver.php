@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -78,7 +79,7 @@ class ArrayDriver implements SessionDriverInterface
     {
         $this->sessions[$id] = [
             'data' => $data,
-            'time' => time(),
+            'time' => \time(),
         ];
 
         return true;
@@ -99,8 +100,8 @@ class ArrayDriver implements SessionDriverInterface
      */
     public function gc(int $maxLifetime): int
     {
-        $cutoff = time() - $maxLifetime;
-        $count  = 0;
+        $cutoff = \time() - $maxLifetime;
+        $count = 0;
 
         foreach ($this->sessions as $id => $entry) {
             if ($entry['time'] < $cutoff) {
@@ -139,7 +140,7 @@ class ArrayDriver implements SessionDriverInterface
      */
     public function count(): int
     {
-        return count($this->sessions);
+        return \count($this->sessions);
     }
 
     /**

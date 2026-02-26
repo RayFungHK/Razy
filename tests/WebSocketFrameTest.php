@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\WebSocket\Frame.
  *
@@ -9,6 +10,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +34,7 @@ class WebSocketFrameTest extends TestCase
     #[Test]
     public function constructorRejectsInvalidOpcode(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         new Frame(0x10);
     }
 
@@ -117,7 +119,7 @@ class WebSocketFrameTest extends TestCase
     #[Test]
     public function closeCodeOnlyPayloadReturnsCodeNoReason(): void
     {
-        $frame = new Frame(Frame::OPCODE_CLOSE, pack('n', 1000));
+        $frame = new Frame(Frame::OPCODE_CLOSE, \pack('n', 1000));
         $this->assertSame(1000, $frame->getCloseCode());
         $this->assertSame('', $frame->getCloseReason());
     }
@@ -134,13 +136,13 @@ class WebSocketFrameTest extends TestCase
     public function encodeDecodeUnmaskedTextFrame(): void
     {
         $original = Frame::text('Hello, WebSocket!');
-        $binary   = $original->encode(false);
+        $binary = $original->encode(false);
 
         $result = Frame::decode($binary);
         $this->assertNotNull($result);
 
         [$decoded, $consumed] = $result;
-        $this->assertSame(strlen($binary), $consumed);
+        $this->assertSame(\strlen($binary), $consumed);
         $this->assertSame(Frame::OPCODE_TEXT, $decoded->getOpcode());
         $this->assertTrue($decoded->isFin());
         $this->assertSame('Hello, WebSocket!', $decoded->getPayload());
@@ -151,13 +153,13 @@ class WebSocketFrameTest extends TestCase
     public function encodeDecodeMaskedTextFrame(): void
     {
         $original = Frame::text('masked payload', true);
-        $binary   = $original->encode(true);
+        $binary = $original->encode(true);
 
         $result = Frame::decode($binary);
         $this->assertNotNull($result);
 
         [$decoded, $consumed] = $result;
-        $this->assertSame(strlen($binary), $consumed);
+        $this->assertSame(\strlen($binary), $consumed);
         $this->assertSame('masked payload', $decoded->getPayload());
         $this->assertTrue($decoded->isMasked());
     }
@@ -173,20 +175,20 @@ class WebSocketFrameTest extends TestCase
 
         [$decoded, $consumed] = $result;
         $this->assertSame('', $decoded->getPayload());
-        $this->assertSame(strlen($binary), $consumed);
+        $this->assertSame(\strlen($binary), $consumed);
     }
 
     #[Test]
     public function encodeDecodeBinaryFrame(): void
     {
-        $data     = random_bytes(256);
+        $data = \random_bytes(256);
         $original = Frame::binary($data);
-        $binary   = $original->encode();
+        $binary = $original->encode();
 
         $result = Frame::decode($binary);
         $this->assertNotNull($result);
 
-        [$decoded,] = $result;
+        [$decoded] = $result;
         $this->assertSame(Frame::OPCODE_BINARY, $decoded->getOpcode());
         $this->assertSame($data, $decoded->getPayload());
     }
@@ -195,12 +197,12 @@ class WebSocketFrameTest extends TestCase
     public function encodeDecodePingPong(): void
     {
         $ping = Frame::ping('heartbeat');
-        [$decodedPing,] = Frame::decode($ping->encode());
+        [$decodedPing] = Frame::decode($ping->encode());
         $this->assertTrue($decodedPing->isPing());
         $this->assertSame('heartbeat', $decodedPing->getPayload());
 
         $pong = Frame::pong('heartbeat');
-        [$decodedPong,] = Frame::decode($pong->encode());
+        [$decodedPong] = Frame::decode($pong->encode());
         $this->assertTrue($decodedPong->isPong());
         $this->assertSame('heartbeat', $decodedPong->getPayload());
     }
@@ -209,7 +211,7 @@ class WebSocketFrameTest extends TestCase
     public function encodeDecodeCloseFrame(): void
     {
         $close = Frame::close(1000, 'Normal');
-        [$decoded,] = Frame::decode($close->encode());
+        [$decoded] = Frame::decode($close->encode());
         $this->assertTrue($decoded->isClose());
         $this->assertSame(1000, $decoded->getCloseCode());
         $this->assertSame('Normal', $decoded->getCloseReason());
@@ -220,14 +222,14 @@ class WebSocketFrameTest extends TestCase
     #[Test]
     public function encodeDecodeMediumPayload(): void
     {
-        $data   = str_repeat('X', 300);
-        $frame  = Frame::text($data);
+        $data = \str_repeat('X', 300);
+        $frame = Frame::text($data);
         $binary = $frame->encode();
 
         [$decoded, $consumed] = Frame::decode($binary);
         $this->assertSame(300, $decoded->getPayloadLength());
         $this->assertSame($data, $decoded->getPayload());
-        $this->assertSame(strlen($binary), $consumed);
+        $this->assertSame(\strlen($binary), $consumed);
     }
 
     // ── Large payload (64-bit extended length) ───────────────────
@@ -235,14 +237,14 @@ class WebSocketFrameTest extends TestCase
     #[Test]
     public function encodeDecodeLargePayload(): void
     {
-        $data   = str_repeat('Y', 70000);
-        $frame  = Frame::text($data);
+        $data = \str_repeat('Y', 70000);
+        $frame = Frame::text($data);
         $binary = $frame->encode();
 
         [$decoded, $consumed] = Frame::decode($binary);
         $this->assertSame(70000, $decoded->getPayloadLength());
         $this->assertSame($data, $decoded->getPayload());
-        $this->assertSame(strlen($binary), $consumed);
+        $this->assertSame(\strlen($binary), $consumed);
     }
 
     // ── Masked large payload ─────────────────────────────────────
@@ -250,11 +252,11 @@ class WebSocketFrameTest extends TestCase
     #[Test]
     public function encodeDecodeMaskedLargePayload(): void
     {
-        $data   = str_repeat('Z', 70000);
-        $frame  = Frame::text($data, true);
+        $data = \str_repeat('Z', 70000);
+        $frame = Frame::text($data, true);
         $binary = $frame->encode(true);
 
-        [$decoded,] = Frame::decode($binary);
+        [$decoded] = Frame::decode($binary);
         $this->assertSame($data, $decoded->getPayload());
     }
 
@@ -276,9 +278,9 @@ class WebSocketFrameTest extends TestCase
     public function decodeReturnsNullOnIncompletePayload(): void
     {
         // Build a valid text frame header for 10 bytes, but only supply 5
-        $frame  = Frame::text(str_repeat('A', 10));
+        $frame = Frame::text(\str_repeat('A', 10));
         $binary = $frame->encode();
-        $partial = substr($binary, 0, 7); // header(2) + 5 payload bytes
+        $partial = \substr($binary, 0, 7); // header(2) + 5 payload bytes
 
         $this->assertNull(Frame::decode($partial));
     }
@@ -287,9 +289,9 @@ class WebSocketFrameTest extends TestCase
     public function decodeReturnsNullOnIncompleteMediumHeader(): void
     {
         // 126-byte length needs 2 extra header bytes
-        $frame  = Frame::text(str_repeat('B', 200));
+        $frame = Frame::text(\str_repeat('B', 200));
         $binary = $frame->encode();
-        $partial = substr($binary, 0, 3); // Cut in the middle of the length field
+        $partial = \substr($binary, 0, 3); // Cut in the middle of the length field
 
         $this->assertNull(Frame::decode($partial));
     }
@@ -297,9 +299,9 @@ class WebSocketFrameTest extends TestCase
     #[Test]
     public function decodeReturnsNullOnIncompleteLargeHeader(): void
     {
-        $frame  = Frame::text(str_repeat('C', 70000));
+        $frame = Frame::text(\str_repeat('C', 70000));
         $binary = $frame->encode();
-        $partial = substr($binary, 0, 5); // Cut in the middle of the 8-byte length field
+        $partial = \substr($binary, 0, 5); // Cut in the middle of the 8-byte length field
 
         $this->assertNull(Frame::decode($partial));
     }
@@ -308,10 +310,10 @@ class WebSocketFrameTest extends TestCase
     public function decodeReturnsNullOnIncompleteMaskKey(): void
     {
         // Masked frame: header (2) + mask-key (4) + payload
-        $frame  = Frame::text('Hi', true);
+        $frame = Frame::text('Hi', true);
         $binary = $frame->encode(true);
         // Cut before the mask key is complete
-        $partial = substr($binary, 0, 4);
+        $partial = \substr($binary, 0, 4);
 
         $this->assertNull(Frame::decode($partial));
     }
@@ -328,10 +330,10 @@ class WebSocketFrameTest extends TestCase
         [$decoded1, $consumed1] = Frame::decode($buffer);
         $this->assertSame('first', $decoded1->getPayload());
 
-        $remaining = substr($buffer, $consumed1);
+        $remaining = \substr($buffer, $consumed1);
         [$decoded2, $consumed2] = Frame::decode($remaining);
         $this->assertSame('second', $decoded2->getPayload());
-        $this->assertSame(0, strlen(substr($remaining, $consumed2)));
+        $this->assertSame(0, \strlen(\substr($remaining, $consumed2)));
     }
 
     // ── Non-FIN frames ───────────────────────────────────────────
@@ -342,7 +344,7 @@ class WebSocketFrameTest extends TestCase
         $frame = new Frame(Frame::OPCODE_TEXT, 'partial', false, false);
         $binary = $frame->encode();
 
-        [$decoded,] = Frame::decode($binary);
+        [$decoded] = Frame::decode($binary);
         $this->assertFalse($decoded->isFin());
         $this->assertSame('partial', $decoded->getPayload());
     }
@@ -353,9 +355,9 @@ class WebSocketFrameTest extends TestCase
     public function applyMaskIsSymmetric(): void
     {
         $data = 'Hello, masked world!';
-        $key  = random_bytes(4);
+        $key = \random_bytes(4);
 
-        $masked   = Frame::applyMask($data, $key);
+        $masked = Frame::applyMask($data, $key);
         $unmasked = Frame::applyMask($masked, $key);
         $this->assertSame($data, $unmasked);
     }

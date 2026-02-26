@@ -1,11 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Closure;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Razy\Agent;
 use Razy\Module;
@@ -13,6 +16,7 @@ use Razy\ModuleInfo;
 use Razy\Route;
 use Razy\ThreadManager;
 use ReflectionClass;
+use TypeError;
 
 /**
  * Comprehensive unit tests for the Agent class.
@@ -27,7 +31,9 @@ use ReflectionClass;
 class AgentTest extends TestCase
 {
     private Module $mockModule;
+
     private ModuleInfo $mockModuleInfo;
+
     private Agent $agent;
 
     protected function setUp(): void
@@ -41,6 +47,76 @@ class AgentTest extends TestCase
         $this->mockModule->method('getModuleInfo')->willReturn($this->mockModuleInfo);
 
         $this->agent = new Agent($this->mockModule);
+    }
+
+    public static function invalidAPICommandNames(): array
+    {
+        return [
+            'starts with digit' => ['1command'],
+            'starts with underscore' => ['_command'],
+            'contains hyphen' => ['my-command'],
+            'contains dot' => ['my.command'],
+            'contains space' => ['my command'],
+            'empty string' => [''],
+            'only hash' => ['#'],
+            'hash with digit start' => ['#1cmd'],
+            'special characters' => ['cmd!@#'],
+            'starts with uppercase digit' => ['0Cmd'],
+        ];
+    }
+
+    public static function validAPICommandNames(): array
+    {
+        return [
+            'lowercase' => ['command'],
+            'uppercase' => ['Command'],
+            'with underscore' => ['my_command'],
+            'with digits' => ['cmd123'],
+            'single letter' => ['x'],
+            'hash prefix' => ['#myCmd'],
+            'hash with underscore' => ['#my_cmd'],
+            'mixed case' => ['MyCommand'],
+        ];
+    }
+
+    public static function invalidBridgeCommandNames(): array
+    {
+        return [
+            'starts with digit' => ['1bridge'],
+            'starts with underscore' => ['_bridge'],
+            'hash prefix not allowed' => ['#bridge'],
+            'contains hyphen' => ['my-bridge'],
+            'contains dot' => ['my.bridge'],
+            'contains space' => ['my bridge'],
+            'empty string' => [''],
+            'special characters' => ['cmd!@'],
+        ];
+    }
+
+    public static function validBridgeCommandNames(): array
+    {
+        return [
+            'lowercase' => ['bridge'],
+            'uppercase' => ['Bridge'],
+            'with underscore' => ['my_bridge'],
+            'with digits' => ['bridge123'],
+            'single letter' => ['b'],
+            'mixed case' => ['MyBridge'],
+        ];
+    }
+
+    public static function invalidEventNames(): array
+    {
+        return [
+            'no colon separator' => ['vendorModule'],
+            'empty event name' => ['vendor/Module:'],
+            'event starts with digit' => ['vendor/Module:1event'],
+            'invalid module code' => ['InvalidCode:eventName'],
+            'empty module code' => [':eventName'],
+            'event with spaces' => ['vendor/Module:my event'],
+            'event with special chars' => ['vendor/Module:evt!@#'],
+            'no event name after colon' => ['vendor/Module:'],
+        ];
     }
 
     // ==================== addAPICommand ====================
@@ -105,40 +181,10 @@ class AgentTest extends TestCase
     #[DataProvider('invalidAPICommandNames')]
     public function addAPICommandWithInvalidNameThrowsException(string $name): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid command name format');
 
         $this->agent->addAPICommand($name, 'handler');
-    }
-
-    public static function invalidAPICommandNames(): array
-    {
-        return [
-            'starts with digit' => ['1command'],
-            'starts with underscore' => ['_command'],
-            'contains hyphen' => ['my-command'],
-            'contains dot' => ['my.command'],
-            'contains space' => ['my command'],
-            'empty string' => [''],
-            'only hash' => ['#'],
-            'hash with digit start' => ['#1cmd'],
-            'special characters' => ['cmd!@#'],
-            'starts with uppercase digit' => ['0Cmd'],
-        ];
-    }
-
-    public static function validAPICommandNames(): array
-    {
-        return [
-            'lowercase' => ['command'],
-            'uppercase' => ['Command'],
-            'with underscore' => ['my_command'],
-            'with digits' => ['cmd123'],
-            'single letter' => ['x'],
-            'hash prefix' => ['#myCmd'],
-            'hash with underscore' => ['#my_cmd'],
-            'mixed case' => ['MyCommand'],
-        ];
     }
 
     #[Test]
@@ -204,36 +250,10 @@ class AgentTest extends TestCase
     #[DataProvider('invalidBridgeCommandNames')]
     public function addBridgeCommandWithInvalidNameThrowsException(string $name): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid bridge command name format');
 
         $this->agent->addBridgeCommand($name, 'handler');
-    }
-
-    public static function invalidBridgeCommandNames(): array
-    {
-        return [
-            'starts with digit' => ['1bridge'],
-            'starts with underscore' => ['_bridge'],
-            'hash prefix not allowed' => ['#bridge'],
-            'contains hyphen' => ['my-bridge'],
-            'contains dot' => ['my.bridge'],
-            'contains space' => ['my bridge'],
-            'empty string' => [''],
-            'special characters' => ['cmd!@'],
-        ];
-    }
-
-    public static function validBridgeCommandNames(): array
-    {
-        return [
-            'lowercase' => ['bridge'],
-            'uppercase' => ['Bridge'],
-            'with underscore' => ['my_bridge'],
-            'with digits' => ['bridge123'],
-            'single letter' => ['b'],
-            'mixed case' => ['MyBridge'],
-        ];
     }
 
     #[Test]
@@ -292,7 +312,7 @@ class AgentTest extends TestCase
     {
         $this->mockModule->expects($this->once())
             ->method('listen')
-            ->with('vendor/Module:evt', $this->isInstanceOf(\Closure::class))
+            ->with('vendor/Module:evt', $this->isInstanceOf(Closure::class))
             ->willReturn(true);
 
         $this->agent->listen('vendor/Module:evt', function () {
@@ -304,24 +324,10 @@ class AgentTest extends TestCase
     #[DataProvider('invalidEventNames')]
     public function listenWithInvalidEventNameThrowsException(string $event): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid event name format');
 
         $this->agent->listen($event, 'handler');
-    }
-
-    public static function invalidEventNames(): array
-    {
-        return [
-            'no colon separator' => ['vendorModule'],
-            'empty event name' => ['vendor/Module:'],
-            'event starts with digit' => ['vendor/Module:1event'],
-            'invalid module code' => ['InvalidCode:eventName'],
-            'empty module code' => [':eventName'],
-            'event with spaces' => ['vendor/Module:my event'],
-            'event with special chars' => ['vendor/Module:evt!@#'],
-            'no event name after colon' => ['vendor/Module:'],
-        ];
     }
 
     #[Test]
@@ -374,7 +380,7 @@ class AgentTest extends TestCase
     #[Test]
     public function addShadowRouteToSelfModuleThrowsException(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('You cannot add a shadow route');
 
         // Module code matches the mocked module info code 'test/AgentModule'
@@ -441,7 +447,7 @@ class AgentTest extends TestCase
     #[Test]
     public function addRouteWithInvalidPathThrowsException(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The route must be a string or a Route entity');
 
         $this->agent->addRoute('myRoute', 12345);
@@ -450,7 +456,7 @@ class AgentTest extends TestCase
     #[Test]
     public function addRouteWithNullPathThrowsException(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The route must be a string or a Route entity');
 
         $this->agent->addRoute('myRoute', null);
@@ -493,7 +499,7 @@ class AgentTest extends TestCase
     #[Test]
     public function addLazyRouteWithNonStringRouteKeyThrowsException(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The route must be a string or an array');
 
         $this->agent->addLazyRoute(12345, 'handler');
@@ -506,7 +512,7 @@ class AgentTest extends TestCase
         // triggers a TypeError at the Module level. Agent does allow Route through
         // addRoutePath but Module rejects it.
         $routeEntity = new Route('lazy/closure');
-        $this->expectException(\TypeError::class);
+        $this->expectException(TypeError::class);
 
         $this->agent->addLazyRoute('lazyRoute', $routeEntity);
     }
@@ -548,7 +554,7 @@ class AgentTest extends TestCase
     #[Test]
     public function addScriptWithNonStringRouteThrowsException(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The route must be a string or an array');
 
         $this->agent->addScript(999, 'handler');
@@ -560,7 +566,7 @@ class AgentTest extends TestCase
         // Module::addScript expects string $path, so passing a Route entity
         // triggers a TypeError at the Module level.
         $routeEntity = new Route('script/closure');
-        $this->expectException(\TypeError::class);
+        $this->expectException(TypeError::class);
 
         $this->agent->addScript('scriptRoute', $routeEntity);
     }
@@ -571,7 +577,7 @@ class AgentTest extends TestCase
     public function addRouteWithArrayPathThrowsException(): void
     {
         // addRoute does not support nested arrays as path (unlike addLazyRoute/addScript)
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The route must be a string or a Route entity');
 
         $this->agent->addRoute('base', [
@@ -637,7 +643,7 @@ class AgentTest extends TestCase
 
         $this->mockModule->expects($this->once())
             ->method('await')
-            ->with('vendor/OtherModule', $this->isInstanceOf(\Closure::class));
+            ->with('vendor/OtherModule', $this->isInstanceOf(Closure::class));
 
         $result = $this->agent->await('vendor/OtherModule', $callback);
         $this->assertSame($this->agent, $result, 'await should return $this');

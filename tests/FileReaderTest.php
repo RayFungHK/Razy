@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\FileReader.
  *
@@ -12,8 +13,8 @@ namespace Razy\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Razy\FileReader;
 use Razy\Exception\FileException;
+use Razy\FileReader;
 
 #[CoversClass(FileReader::class)]
 class FileReaderTest extends TestCase
@@ -25,44 +26,17 @@ class FileReaderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir();
+        $this->tempDir = \sys_get_temp_dir();
     }
 
     protected function tearDown(): void
     {
         foreach ($this->tempFiles as $file) {
-            if (file_exists($file)) {
-                unlink($file);
+            if (\file_exists($file)) {
+                \unlink($file);
             }
         }
         $this->tempFiles = [];
-    }
-
-    /**
-     * Create a temporary file with the given content and register it for cleanup.
-     */
-    private function createTempFile(string $content, string $prefix = 'fr_test_'): string
-    {
-        $path = tempnam($this->tempDir, $prefix);
-        file_put_contents($path, $content);
-        $this->tempFiles[] = $path;
-
-        return $path;
-    }
-
-    /**
-     * Drain all lines from the reader until null is returned.
-     *
-     * @return string[]
-     */
-    private function drainAll(FileReader $reader): array
-    {
-        $lines = [];
-        while (($line = $reader->fetch()) !== null) {
-            $lines[] = $line;
-        }
-
-        return $lines;
     }
 
     // ══════════════════════════════════════════════════════
@@ -81,7 +55,7 @@ class FileReaderTest extends TestCase
     public function constructorWithNonexistentFileThrowsFileException(): void
     {
         $this->expectException(FileException::class);
-        new FileReader($this->tempDir . '/nonexistent_' . uniqid() . '.txt');
+        new FileReader($this->tempDir . '/nonexistent_' . \uniqid() . '.txt');
     }
 
     // ══════════════════════════════════════════════════════
@@ -199,8 +173,8 @@ class FileReaderTest extends TestCase
         $this->assertContains('B', $lines);
 
         // A must come before B
-        $posA = array_search('A', $lines, true);
-        $posB = array_search('B', $lines, true);
+        $posA = \array_search('A', $lines, true);
+        $posB = \array_search('B', $lines, true);
         $this->assertLessThan($posB, $posA);
     }
 
@@ -211,7 +185,7 @@ class FileReaderTest extends TestCase
         $reader = new FileReader($path);
 
         $this->expectException(FileException::class);
-        $reader->append($this->tempDir . '/nonexistent_' . uniqid() . '.txt');
+        $reader->append($this->tempDir . '/nonexistent_' . \uniqid() . '.txt');
     }
 
     #[Test]
@@ -226,7 +200,7 @@ class FileReaderTest extends TestCase
 
         $lines = $this->drainAll($reader);
         // Filter out any empty strings from SplFileObject boundary effects
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
         $this->assertSame(['1', '2', '3'], $meaningful);
     }
 
@@ -256,7 +230,7 @@ class FileReaderTest extends TestCase
         $reader->prepend($path2);
 
         $lines = $this->drainAll($reader);
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
 
         // B was prepended, so it comes first
         $this->assertSame(['B', 'A'], $meaningful);
@@ -269,7 +243,7 @@ class FileReaderTest extends TestCase
         $reader = new FileReader($path);
 
         $this->expectException(FileException::class);
-        $reader->prepend($this->tempDir . '/nonexistent_' . uniqid() . '.txt');
+        $reader->prepend($this->tempDir . '/nonexistent_' . \uniqid() . '.txt');
     }
 
     #[Test]
@@ -284,7 +258,7 @@ class FileReaderTest extends TestCase
         $reader->prepend($path3);
 
         $lines = $this->drainAll($reader);
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
 
         // second_prepend was prepended last, so it's at the front
         $this->assertSame(['second_prepend', 'first_prepend', 'original'], $meaningful);
@@ -306,7 +280,7 @@ class FileReaderTest extends TestCase
         $reader->prepend($pathB);  // queue: B, A, C
 
         $lines = $this->drainAll($reader);
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
 
         $this->assertSame(['B', 'A', 'C'], $meaningful);
     }
@@ -326,7 +300,7 @@ class FileReaderTest extends TestCase
         $reader->append($path2);
 
         $lines = $this->drainAll($reader);
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
 
         $this->assertSame([
             "L1a\n",
@@ -354,7 +328,7 @@ class FileReaderTest extends TestCase
 
         // queue: 4, 1, 2, 3
         $lines = $this->drainAll($reader);
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
 
         $this->assertSame(['4', '1', '2', '3'], $meaningful);
     }
@@ -386,7 +360,7 @@ class FileReaderTest extends TestCase
 
         $lines = $this->drainAll($reader);
         // Three newlines = three "\n" lines + one trailing empty string
-        $newlineLines = array_filter($lines, fn($l) => $l === "\n");
+        $newlineLines = \array_filter($lines, fn ($l) => $l === "\n");
         $this->assertCount(3, $newlineLines);
     }
 
@@ -406,7 +380,7 @@ class FileReaderTest extends TestCase
         }
 
         $lines = $this->drainAll($reader);
-        $meaningful = array_values(array_filter($lines, fn($l) => $l !== ''));
+        $meaningful = \array_values(\array_filter($lines, fn ($l) => $l !== ''));
 
         $this->assertCount(21, $meaningful);
         $this->assertSame('file0', $meaningful[0]);
@@ -420,7 +394,7 @@ class FileReaderTest extends TestCase
     #[Test]
     public function exceptionMessageContainsFilePath(): void
     {
-        $fakePath = $this->tempDir . '/nonexistent_' . uniqid() . '.txt';
+        $fakePath = $this->tempDir . '/nonexistent_' . \uniqid() . '.txt';
 
         try {
             new FileReader($fakePath);
@@ -438,7 +412,7 @@ class FileReaderTest extends TestCase
     public function appendExceptionMessageContainsFilePath(): void
     {
         $validPath = $this->createTempFile('ok');
-        $fakePath = $this->tempDir . '/no_such_file_' . uniqid() . '.txt';
+        $fakePath = $this->tempDir . '/no_such_file_' . \uniqid() . '.txt';
         $reader = new FileReader($validPath);
 
         try {
@@ -457,7 +431,7 @@ class FileReaderTest extends TestCase
     public function prependExceptionMessageContainsFilePath(): void
     {
         $validPath = $this->createTempFile('ok');
-        $fakePath = $this->tempDir . '/no_such_file_' . uniqid() . '.txt';
+        $fakePath = $this->tempDir . '/no_such_file_' . \uniqid() . '.txt';
         $reader = new FileReader($validPath);
 
         try {
@@ -466,5 +440,32 @@ class FileReaderTest extends TestCase
         } catch (FileException $e) {
             $this->assertStringContainsString($fakePath, $e->getMessage());
         }
+    }
+
+    /**
+     * Create a temporary file with the given content and register it for cleanup.
+     */
+    private function createTempFile(string $content, string $prefix = 'fr_test_'): string
+    {
+        $path = \tempnam($this->tempDir, $prefix);
+        \file_put_contents($path, $content);
+        $this->tempFiles[] = $path;
+
+        return $path;
+    }
+
+    /**
+     * Drain all lines from the reader until null is returned.
+     *
+     * @return string[]
+     */
+    private function drainAll(FileReader $reader): array
+    {
+        $lines = [];
+        while (($line = $reader->fetch()) !== null) {
+            $lines[] = $line;
+        }
+
+        return $lines;
     }
 }

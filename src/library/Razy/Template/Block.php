@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,18 +13,21 @@
  * parameter assignment, template inclusion, recursion, and wrapper patterns.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Template;
+
 use Razy\Exception\TemplateException;
 use Razy\FileReader;
 use Razy\ModuleInfo;
+use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
-use Razy\Template\Plugin\TFunction;
-use Throwable;
 use Razy\Util\PathUtil;
+use Throwable;
+
 /**
  * Represents a structural block within a parsed template file.
  *
@@ -66,7 +70,7 @@ class Block
      * @param string $blockName The block name
      * @param FileReader $reader The FileReader of the template file reader
      * @param bool $readonly
-     * @param null|self $parent Current block parent
+     * @param self|null $parent Current block parent
      *
      * @throws Throwable
      */
@@ -85,10 +89,10 @@ class Block
 
         while (($line = $reader->fetch()) !== null) {
             // If the line is a block tag
-            if (str_contains($line, '<!-- ')) {
-                if (preg_match('/^\s*<!-- (INCLUDE|TEMPLATE|START|END|WRAPPER|RECURSION|USE (\w[\w-]*)) BLOCK: (.+) -->\s*$/', $line, $matches)) {
+            if (\str_contains($line, '<!-- ')) {
+                if (\preg_match('/^\s*<!-- (INCLUDE|TEMPLATE|START|END|WRAPPER|RECURSION|USE (\w[\w-]*)) BLOCK: (.+) -->\s*$/', $line, $matches)) {
                     // Skip non-INCLUDE tags with invalid block names (treat as plain text)
-                    if ('INCLUDE' !== $matches[1] && !preg_match('/^\w[\w\-]+(?=[^-])\w$/', $matches[3])) {
+                    if ('INCLUDE' !== $matches[1] && !\preg_match('/^\w[\w\-]+(?=[^-])\w$/', $matches[3])) {
                         $concat .= $line;
                     } else {
                         // Flush accumulated text before processing a structural tag
@@ -99,13 +103,13 @@ class Block
 
                         // INCLUDE: resolve and prepend an external template file into the reader
                         if ('INCLUDE' === $matches[1]) {
-                            $path = realpath(PathUtil::append($this->source->getFileDirectory(), $matches[3]));
+                            $path = \realpath(PathUtil::append($this->source->getFileDirectory(), $matches[3]));
                             if ($path) {
                                 $reader->prepend($path);
                             }
                         } elseif ('WRAPPER' === $matches[1] || 'START' === $matches[1] || 'TEMPLATE' === $matches[1]) {
                             // Block opening: create a new child Block (TEMPLATE blocks are readonly)
-                            $matches[3] = trim($matches[3]);
+                            $matches[3] = \trim($matches[3]);
                             if (isset($this->structure[$matches[3]])) {
                                 throw new TemplateException('The block ' . $this->path . '/' . $matches[3] . ' is already exists.');
                             }
@@ -120,7 +124,7 @@ class Block
 
                             $this->blocks[$matches[3]] = $parent;
                             $this->structure[$matches[3]] = $this->blocks[$matches[3]];
-                        } elseif (str_starts_with($matches[1], 'USE ')) {
+                        } elseif (\str_starts_with($matches[1], 'USE ')) {
                             // USE directive: reuse a named block from a parent block's scope
                             $found = false;
                             $parent = $this->parent;
@@ -168,10 +172,10 @@ class Block
         // These can use the tokenized form at render time, skipping both
         // the function tag regex (parseFunctionTag) and variable tag regex (parseText).
         foreach ($this->structure as $index => $segment) {
-            if (is_string($segment)
-                && !str_contains($segment, '{@')
-                && !str_contains($segment, '{/')
-                && !str_contains($segment, '{#')
+            if (\is_string($segment)
+                && !\str_contains($segment, '{@')
+                && !\str_contains($segment, '{/')
+                && !\str_contains($segment, '{#')
             ) {
                 $this->compiledSegments[$index] = CompiledTemplate::compile($segment);
             }
@@ -182,6 +186,7 @@ class Block
      * Get the pre-compiled template for a specific structure segment.
      *
      * @param int|string $index The structure index
+     *
      * @return CompiledTemplate|null The compiled template or null if segment has function tags
      */
     public function getCompiledSegment(int|string $index): ?CompiledTemplate
@@ -226,9 +231,9 @@ class Block
      *
      * @return Block|null The Block object
      */
-    public function getClosest(string $block): ?Block
+    public function getClosest(string $block): ?self
     {
-        $block = trim($block);
+        $block = \trim($block);
         if (!$block || !$this->parent) {
             return null;
         }
@@ -271,7 +276,7 @@ class Block
      */
     public function hasBlock(string $name): bool
     {
-        return array_key_exists($name, $this->blocks);
+        return \array_key_exists($name, $this->blocks);
     }
 
     /**
@@ -280,11 +285,12 @@ class Block
      * @param string $name The block name
      *
      * @return Block The Block object
+     *
      * @throws Throwable
      */
-    public function getBlock(string $name): Block
+    public function getBlock(string $name): self
     {
-        $name = trim($name);
+        $name = \trim($name);
         if (!$this->hasBlock($name)) {
             throw new TemplateException('Block ' . $name . ' is not exists in ' . $this->getPath() . '.');
         }
@@ -293,7 +299,7 @@ class Block
     }
 
     /**
-     * Get the template file located system path
+     * Get the template file located system path.
      *
      * @return string Get the template file location
      */
@@ -307,7 +313,7 @@ class Block
      *
      * @return Block|null The parent Block object, or null for the root block
      */
-    public function getParent(): ?Block
+    public function getParent(): ?self
     {
         return $this->parent;
     }
@@ -323,14 +329,15 @@ class Block
     }
 
     /**
-     * Get the template block by given name
+     * Get the template block by given name.
      *
      * @param string $name
      *
      * @return Block|null
+     *
      * @throws Throwable
      */
-    public function getTemplate(string $name): ?Block
+    public function getTemplate(string $name): ?self
     {
         $parent = $this;
         $depth = 0;
@@ -392,16 +399,17 @@ class Block
      */
     public function parameterAssigned(string $parameter): bool
     {
-        return array_key_exists($parameter, $this->parameters);
+        return \array_key_exists($parameter, $this->parameters);
     }
 
     /**
-     * Load the plugin from registered plugin folder
+     * Load the plugin from registered plugin folder.
      *
      * @param string $type
      * @param string $name
      *
      * @return TModifier|TFunction|TFunctionCustom|null
+     *
      * @throws Error
      * @throws Throwable
      */
@@ -411,9 +419,10 @@ class Block
     }
 
     /**
-     * Return a new Entity object related on this Block
+     * Return a new Entity object related on this Block.
      *
      * @return Entity
+     *
      * @throws Throwable
      */
     public function newEntity(): Entity

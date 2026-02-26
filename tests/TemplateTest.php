@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Template.
  *
@@ -11,7 +12,6 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Template;
 use Razy\Template\Source;
-use Razy\Error;
 
 #[CoversClass(Template::class)]
 class TemplateTest extends TestCase
@@ -21,32 +21,18 @@ class TemplateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->tempDir = sys_get_temp_dir() . '/razy-template-test-' . uniqid();
-        if (!is_dir($this->tempDir)) {
-            mkdir($this->tempDir, 0755, true);
+        $this->tempDir = \sys_get_temp_dir() . '/razy-template-test-' . \uniqid();
+        if (!\is_dir($this->tempDir)) {
+            \mkdir($this->tempDir, 0o755, true);
         }
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        if (is_dir($this->tempDir)) {
+        if (\is_dir($this->tempDir)) {
             $this->deleteDirectory($this->tempDir);
         }
-    }
-
-    private function deleteDirectory(string $dir): void
-    {
-        if (!is_dir($dir)) {
-            return;
-        }
-
-        $files = array_diff(scandir($dir), ['.', '..']);
-        foreach ($files as $file) {
-            $path = $dir . '/' . $file;
-            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
-        }
-        rmdir($dir);
     }
 
     // ==================== BASIC FUNCTIONALITY ====================
@@ -60,7 +46,7 @@ class TemplateTest extends TestCase
     public function testLoadSimpleTemplate(): void
     {
         $file = $this->tempDir . '/simple.tpl';
-        file_put_contents($file, 'Hello, World!');
+        \file_put_contents($file, 'Hello, World!');
 
         $template = new Template();
         $source = $template->load($file);
@@ -86,7 +72,7 @@ class TemplateTest extends TestCase
         $params = [
             'greeting' => 'Hello',
             'name' => 'Alice',
-            'count' => 5
+            'count' => 5,
         ];
 
         $result = Template::ParseContent($content, $params);
@@ -100,8 +86,8 @@ class TemplateTest extends TestCase
         $params = [
             'user' => [
                 'name' => 'Bob',
-                'email' => 'bob@example.com'
-            ]
+                'email' => 'bob@example.com',
+            ],
         ];
 
         $result = Template::ParseContent($content, $params);
@@ -112,9 +98,10 @@ class TemplateTest extends TestCase
     public function testParseContentObjectProperty(): void
     {
         $content = 'Product: {$product.name}, Price: {$product.price}';
-        
-        $product = new class {
+
+        $product = new class() {
             public string $name = 'iPhone';
+
             public int $price = 999;
         };
 
@@ -146,9 +133,9 @@ class TemplateTest extends TestCase
         $data = [
             'user' => [
                 'profile' => [
-                    'name' => 'John'
-                ]
-            ]
+                    'name' => 'John',
+                ],
+            ],
         ];
 
         $value = Template::GetValueByPath($data, '.user.profile.name');
@@ -157,8 +144,9 @@ class TemplateTest extends TestCase
 
     public function testGetValueByPathObject(): void
     {
-        $obj = new class {
+        $obj = new class() {
             public string $name = 'Test';
+
             public array $data = ['key' => 'value'];
         };
 
@@ -190,7 +178,7 @@ class TemplateTest extends TestCase
         $template->assign([
             'name' => 'Bob',
             'age' => 30,
-            'active' => true
+            'active' => true,
         ]);
 
         $this->assertEquals('Bob', $template->getValue('name'));
@@ -202,7 +190,7 @@ class TemplateTest extends TestCase
     {
         $template = new Template();
         $template->assign('counter', 0);
-        $template->assign('counter', fn($current) => ($current ?? 0) + 1);
+        $template->assign('counter', fn ($current) => ($current ?? 0) + 1);
 
         $this->assertEquals(1, $template->getValue('counter'));
     }
@@ -240,7 +228,7 @@ class TemplateTest extends TestCase
     public function testLoadTemplateWithParameters(): void
     {
         $file = $this->tempDir . '/param.tpl';
-        file_put_contents($file, 'Hello, {$name}!');
+        \file_put_contents($file, 'Hello, {$name}!');
 
         $template = new Template();
         $source = $template->load($file);
@@ -255,9 +243,9 @@ class TemplateTest extends TestCase
     {
         $file1 = $this->tempDir . '/first.tpl';
         $file2 = $this->tempDir . '/second.tpl';
-        
-        file_put_contents($file1, 'First template');
-        file_put_contents($file2, 'Second template');
+
+        \file_put_contents($file1, 'First template');
+        \file_put_contents($file2, 'Second template');
 
         $template = new Template();
         $source1 = $template->load($file1);
@@ -271,7 +259,7 @@ class TemplateTest extends TestCase
     public function testStaticLoadFile(): void
     {
         $file = $this->tempDir . '/static.tpl';
-        file_put_contents($file, 'Static load test');
+        \file_put_contents($file, 'Static load test');
 
         $source = Template::loadFile($file);
 
@@ -283,7 +271,7 @@ class TemplateTest extends TestCase
     public function testAddQueue(): void
     {
         $file = $this->tempDir . '/queue.tpl';
-        file_put_contents($file, 'Queued content');
+        \file_put_contents($file, 'Queued content');
 
         $template = new Template();
         $source = $template->load($file);
@@ -296,9 +284,9 @@ class TemplateTest extends TestCase
     {
         $file1 = $this->tempDir . '/queue1.tpl';
         $file2 = $this->tempDir . '/queue2.tpl';
-        
-        file_put_contents($file1, 'First');
-        file_put_contents($file2, 'Second');
+
+        \file_put_contents($file1, 'First');
+        \file_put_contents($file2, 'Second');
 
         $template = new Template();
         $source1 = $template->load($file1);
@@ -318,7 +306,7 @@ class TemplateTest extends TestCase
     public function testLoadGlobalTemplate(): void
     {
         $file = $this->tempDir . '/global.tpl';
-        file_put_contents($file, 'Global template');
+        \file_put_contents($file, 'Global template');
 
         $template = new Template();
         $template->loadTemplate('mytemplate', $file);
@@ -331,14 +319,14 @@ class TemplateTest extends TestCase
     {
         $file1 = $this->tempDir . '/tpl1.tpl';
         $file2 = $this->tempDir . '/tpl2.tpl';
-        
-        file_put_contents($file1, 'Template 1');
-        file_put_contents($file2, 'Template 2');
+
+        \file_put_contents($file1, 'Template 1');
+        \file_put_contents($file2, 'Template 2');
 
         $template = new Template();
         $template->loadTemplate([
             $file1 => 'first',
-            $file2 => 'second'
+            $file2 => 'second',
         ]);
 
         $this->assertNotNull($template->getTemplate('first'));
@@ -358,11 +346,11 @@ class TemplateTest extends TestCase
     public function testInsertSource(): void
     {
         $file = $this->tempDir . '/external.tpl';
-        file_put_contents($file, 'External source');
+        \file_put_contents($file, 'External source');
 
         $template = new Template();
         $source = new Source($file, new Template());
-        
+
         $result = $template->insert($source);
 
         $this->assertInstanceOf(Template::class, $result);
@@ -375,7 +363,7 @@ class TemplateTest extends TestCase
         $content = 'Active: {$active}, Inactive: {$inactive}';
         $params = [
             'active' => true,
-            'inactive' => false
+            'inactive' => false,
         ];
 
         $result = Template::ParseContent($content, $params);
@@ -389,7 +377,7 @@ class TemplateTest extends TestCase
         $content = 'Int: {$int}, Float: {$float}';
         $params = [
             'int' => 42,
-            'float' => 3.14
+            'float' => 3.14,
         ];
 
         $result = Template::ParseContent($content, $params);
@@ -402,7 +390,7 @@ class TemplateTest extends TestCase
     {
         $content = 'First: {$items.0}, Second: {$items.1}';
         $params = [
-            'items' => ['apple', 'banana']
+            'items' => ['apple', 'banana'],
         ];
 
         $result = Template::ParseContent($content, $params);
@@ -441,13 +429,27 @@ class TemplateTest extends TestCase
             'level1' => [
                 'level2' => [
                     'level3' => [
-                        'level4' => 'deep value'
-                    ]
-                ]
-            ]
+                        'level4' => 'deep value',
+                    ],
+                ],
+            ],
         ];
 
         $value = Template::GetValueByPath($data, '.level1.level2.level3.level4');
         $this->assertEquals('deep value', $value);
+    }
+
+    private function deleteDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+
+        $files = \array_diff(\scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            \is_dir($path) ? $this->deleteDirectory($path) : \unlink($path);
+        }
+        \rmdir($dir);
     }
 }

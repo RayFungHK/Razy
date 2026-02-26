@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Core interface contract for event dispatching (Phase 2.4).
  *
  * @package Razy
+ *
  * @license MIT
  */
 

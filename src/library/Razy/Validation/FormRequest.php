@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -86,69 +87,6 @@ abstract class FormRequest
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // Abstract methods — subclasses must implement
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Define the validation rules.
-     *
-     * @return array<string, list<ValidationRuleInterface>> Field → rules mapping
-     */
-    abstract protected function rules(): array;
-
-    // ═══════════════════════════════════════════════════════════════
-    // Overridable hooks
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * Override to add authorization logic.
-     *
-     * @return bool Default true (all requests authorized)
-     */
-    protected function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Custom error messages.
-     *
-     * Override to provide custom messages per field.rule.
-     *
-     * @return array<string, string> e.g. ['name.required' => 'Name is required']
-     */
-    protected function messages(): array
-    {
-        return [];
-    }
-
-    /**
-     * Default values for missing fields.
-     *
-     * @return array<string, mixed>
-     */
-    protected function defaults(): array
-    {
-        return [];
-    }
-
-    /**
-     * Prepare the data before validation.
-     *
-     * Override to sanitize/transform input.
-     *
-     * @param array<string, mixed> $data
-     *
-     * @return array<string, mixed> Transformed data
-     */
-    protected function prepareForValidation(array $data): array
-    {
-        return $data;
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     // Factory methods
     // ═══════════════════════════════════════════════════════════════
 
@@ -159,7 +97,7 @@ abstract class FormRequest
      */
     public static function fromGlobals(): static
     {
-        $data = array_merge($_GET, $_POST);
+        $data = \array_merge($_GET, $_POST);
 
         return new static($data);
     }
@@ -169,8 +107,8 @@ abstract class FormRequest
      */
     public static function fromJson(): static
     {
-        $raw = file_get_contents('php://input') ?: '';
-        $data = json_decode($raw, true) ?? [];
+        $raw = \file_get_contents('php://input') ?: '';
+        $data = \json_decode($raw, true) ?? [];
 
         return new static($data);
     }
@@ -286,7 +224,7 @@ abstract class FormRequest
      */
     public function only(array $keys): array
     {
-        return array_intersect_key($this->data, array_flip($keys));
+        return \array_intersect_key($this->data, \array_flip($keys));
     }
 
     /**
@@ -298,7 +236,7 @@ abstract class FormRequest
      */
     public function except(array $keys): array
     {
-        return array_diff_key($this->data, array_flip($keys));
+        return \array_diff_key($this->data, \array_flip($keys));
     }
 
     /**
@@ -306,7 +244,7 @@ abstract class FormRequest
      */
     public function has(string $key): bool
     {
-        return array_key_exists($key, $this->data);
+        return \array_key_exists($key, $this->data);
     }
 
     /**
@@ -314,7 +252,7 @@ abstract class FormRequest
      */
     public function filled(string $key): bool
     {
-        return array_key_exists($key, $this->data) && $this->data[$key] !== '' && $this->data[$key] !== null;
+        return \array_key_exists($key, $this->data) && $this->data[$key] !== '' && $this->data[$key] !== null;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -326,7 +264,7 @@ abstract class FormRequest
      */
     public function errorsAsJson(int $options = 0): string
     {
-        return json_encode([
+        return \json_encode([
             'errors' => $this->errors(),
         ], $options);
     }
@@ -346,5 +284,68 @@ abstract class FormRequest
         }
 
         return $all;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Abstract methods — subclasses must implement
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Define the validation rules.
+     *
+     * @return array<string, list<ValidationRuleInterface>> Field → rules mapping
+     */
+    abstract protected function rules(): array;
+
+    // ═══════════════════════════════════════════════════════════════
+    // Overridable hooks
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * Override to add authorization logic.
+     *
+     * @return bool Default true (all requests authorized)
+     */
+    protected function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Custom error messages.
+     *
+     * Override to provide custom messages per field.rule.
+     *
+     * @return array<string, string> e.g. ['name.required' => 'Name is required']
+     */
+    protected function messages(): array
+    {
+        return [];
+    }
+
+    /**
+     * Default values for missing fields.
+     *
+     * @return array<string, mixed>
+     */
+    protected function defaults(): array
+    {
+        return [];
+    }
+
+    /**
+     * Prepare the data before validation.
+     *
+     * Override to sanitize/transform input.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed> Transformed data
+     */
+    protected function prepareForValidation(array $data): array
+    {
+        return $data;
     }
 }

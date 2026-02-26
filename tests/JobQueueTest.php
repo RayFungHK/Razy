@@ -14,6 +14,9 @@ use Razy\Queue\JobHandlerInterface;
 use Razy\Queue\JobStatus;
 use Razy\Queue\QueueManager;
 use Razy\Queue\QueueStoreInterface;
+use RuntimeException;
+use stdClass;
+use Throwable;
 
 /**
  * Tests for P6: Job Queue System.
@@ -299,7 +302,7 @@ class JobQueueTest extends TestCase
 
     public function testQueueExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('root cause');
+        $prev = new RuntimeException('root cause');
         $e = new QueueException('Wrapped', 500, $prev);
         $this->assertSame($prev, $e->getPrevious());
         $this->assertSame(500, $e->getCode());
@@ -366,7 +369,7 @@ class JobQueueTest extends TestCase
 
         $this->assertNotNull($job);
         // available_at should be in the future
-        $this->assertGreaterThan(date('Y-m-d H:i:s'), $job->availableAt);
+        $this->assertGreaterThan(\date('Y-m-d H:i:s'), $job->availableAt);
     }
 
     public function testDatabaseStorePushDefaultValues(): void
@@ -557,7 +560,7 @@ class JobQueueTest extends TestCase
         $job = $store->find($id);
         $this->assertSame(JobStatus::Pending, $job->status);
         // available_at should be in the future
-        $this->assertGreaterThan(date('Y-m-d H:i:s'), $job->availableAt);
+        $this->assertGreaterThan(\date('Y-m-d H:i:s'), $job->availableAt);
     }
 
     // ─── DatabaseStore: bury ─────────────────────────────────────
@@ -1016,8 +1019,12 @@ class JobQueueTest extends TestCase
         $manager->ensureStorage();
 
         $count = 0;
-        $manager->on('dispatched', function () use (&$count) { $count++; });
-        $manager->on('dispatched', function () use (&$count) { $count++; });
+        $manager->on('dispatched', function () use (&$count) {
+            $count++;
+        });
+        $manager->on('dispatched', function () use (&$count) {
+            $count++;
+        });
 
         $manager->dispatch('q', SuccessHandler::class, []);
         $this->assertSame(2, $count);
@@ -1052,7 +1059,7 @@ class JobQueueTest extends TestCase
         $manager->ensureStorage();
 
         $manager->setHandlerResolver(function (string $class) {
-            return new \stdClass(); // Does not implement JobHandlerInterface
+            return new stdClass(); // Does not implement JobHandlerInterface
         });
 
         $id = $manager->dispatch('q', 'Whatever', [], 0, 1);
@@ -1127,7 +1134,8 @@ class JobQueueTest extends TestCase
     public function testQueueManagerOnReturnsSelf(): void
     {
         $manager = $this->createQueueManager();
-        $result = $manager->on('dispatched', function () {});
+        $result = $manager->on('dispatched', function () {
+        });
 
         $this->assertSame($manager, $result);
     }
@@ -1265,7 +1273,7 @@ class SuccessHandler implements JobHandlerInterface
         self::$handled[] = $payload;
     }
 
-    public function failed(array $payload, \Throwable $error): void
+    public function failed(array $payload, Throwable $error): void
     {
         // Not expected to be called
     }
@@ -1281,10 +1289,10 @@ class FailHandler implements JobHandlerInterface
 
     public function handle(array $payload): void
     {
-        throw new \RuntimeException('Always fails');
+        throw new RuntimeException('Always fails');
     }
 
-    public function failed(array $payload, \Throwable $error): void
+    public function failed(array $payload, Throwable $error): void
     {
         self::$failedCalls[] = [
             'payload' => $payload,
@@ -1298,5 +1306,7 @@ class FailHandler implements JobHandlerInterface
  */
 class NotAHandler
 {
-    public function doSomething(): void {}
+    public function doSomething(): void
+    {
+    }
 }

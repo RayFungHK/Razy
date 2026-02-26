@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for ChangeType enum.
  * This file is part of Razy v0.5.

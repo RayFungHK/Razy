@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * PSR-14 compliant listener provider with priority support.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -45,9 +47,9 @@ class ListenerProvider implements ListenerProviderInterface
     /**
      * Register a listener for a specific event class.
      *
-     * @param string   $eventClass Fully-qualified class name of the event
-     * @param callable $listener   The listener callable — receives the event as its only argument
-     * @param int      $priority   Listener priority (higher = invoked first, default 0)
+     * @param string $eventClass Fully-qualified class name of the event
+     * @param callable $listener The listener callable — receives the event as its only argument
+     * @param int $priority Listener priority (higher = invoked first, default 0)
      *
      * @return static
      */
@@ -67,13 +69,13 @@ class ListenerProvider implements ListenerProviderInterface
      */
     public function getListenersForEvent(object $event): iterable
     {
-        $eventClass = get_class($event);
+        $eventClass = \get_class($event);
 
         // Collect listeners for the concrete class, its parents, and interfaces
-        $matchingClasses = array_merge(
+        $matchingClasses = \array_merge(
             [$eventClass],
-            class_parents($event),
-            class_implements($event)
+            \class_parents($event),
+            \class_implements($event),
         );
 
         $matched = [];
@@ -85,7 +87,7 @@ class ListenerProvider implements ListenerProviderInterface
 
             // Sort by priority descending (higher first) if needed
             if (empty($this->sorted[$class])) {
-                usort($this->listeners[$class], static fn(array $a, array $b): int => $b[0] <=> $a[0]);
+                \usort($this->listeners[$class], static fn (array $a, array $b): int => $b[0] <=> $a[0]);
                 $this->sorted[$class] = true;
             }
 
@@ -95,7 +97,7 @@ class ListenerProvider implements ListenerProviderInterface
         }
 
         // Re-sort the merged set by priority descending
-        usort($matched, static fn(array $a, array $b): int => $b[0] <=> $a[0]);
+        \usort($matched, static fn (array $a, array $b): int => $b[0] <=> $a[0]);
 
         foreach ($matched as [, $listener]) {
             yield $listener;

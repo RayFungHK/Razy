@@ -9,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Queue;
 
 use Razy\Exception\QueueException;
+use Throwable;
 
 /**
  * Central facade for dispatching and processing queued jobs.
@@ -46,7 +48,8 @@ class QueueManager
      */
     public function __construct(
         private readonly QueueStoreInterface $store,
-    ) {}
+    ) {
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // Dispatching
@@ -55,13 +58,13 @@ class QueueManager
     /**
      * Push a job onto the queue.
      *
-     * @param string $queue       Queue name (e.g. 'emails', 'reports')
-     * @param string $handler     Fully-qualified class name implementing JobHandlerInterface
-     * @param array  $payload     Arbitrary data passed to the handler
-     * @param int    $delay       Seconds to delay availability (0 = immediate)
-     * @param int    $maxAttempts Max processing attempts (default 3)
-     * @param int    $retryDelay  Seconds to wait between retries (default 0)
-     * @param int    $priority    Lower = higher priority (default 100)
+     * @param string $queue Queue name (e.g. 'emails', 'reports')
+     * @param string $handler Fully-qualified class name implementing JobHandlerInterface
+     * @param array $payload Arbitrary data passed to the handler
+     * @param int $delay Seconds to delay availability (0 = immediate)
+     * @param int $maxAttempts Max processing attempts (default 3)
+     * @param int $retryDelay Seconds to wait between retries (default 0)
+     * @param int $priority Lower = higher priority (default 100)
      *
      * @return int|string Job ID
      */
@@ -139,7 +142,7 @@ class QueueManager
                 'queue' => $queue,
                 'handler' => $job->handler,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->handleFailure($job, $e, $queue);
         }
 
@@ -150,7 +153,7 @@ class QueueManager
      * Process up to $limit jobs from the queue.
      *
      * @param string $queue Queue name
-     * @param int    $limit Maximum jobs to process (0 = drain all available)
+     * @param int $limit Maximum jobs to process (0 = drain all available)
      *
      * @return int Number of jobs processed
      */
@@ -223,7 +226,7 @@ class QueueManager
      *
      * Supported events: 'dispatched', 'reserved', 'completed', 'failed', 'buried', 'released'
      *
-     * @param string   $event    Event name
+     * @param string $event Event name
      * @param callable $listener Receives array context
      *
      * @return static
@@ -277,7 +280,7 @@ class QueueManager
 
             if (!$handler instanceof JobHandlerInterface) {
                 throw new QueueException(
-                    "Handler resolver must return a JobHandlerInterface instance, got " . get_debug_type($handler)
+                    'Handler resolver must return a JobHandlerInterface instance, got ' . \get_debug_type($handler),
                 );
             }
 
@@ -285,7 +288,7 @@ class QueueManager
         }
 
         // Default: instantiate directly
-        if (!class_exists($handlerClass)) {
+        if (!\class_exists($handlerClass)) {
             throw new QueueException("Handler class '{$handlerClass}' not found.");
         }
 
@@ -293,7 +296,7 @@ class QueueManager
 
         if (!$handler instanceof JobHandlerInterface) {
             throw new QueueException(
-                "Handler '{$handlerClass}' must implement " . JobHandlerInterface::class
+                "Handler '{$handlerClass}' must implement " . JobHandlerInterface::class,
             );
         }
 
@@ -303,7 +306,7 @@ class QueueManager
     /**
      * Handle a job failure — retry or bury.
      */
-    private function handleFailure(Job $job, \Throwable $e, string $queue): void
+    private function handleFailure(Job $job, Throwable $e, string $queue): void
     {
         $errorMessage = $e->getMessage();
 
@@ -315,7 +318,7 @@ class QueueManager
             try {
                 $handler = $this->resolveHandler($job->handler);
                 $handler->failed($job->payload, $e);
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Ignore failures in the failure handler
             }
 

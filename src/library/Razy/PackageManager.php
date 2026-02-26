@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -16,6 +17,7 @@
  * Custom transports can be added by implementing PackageTransportInterface.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -23,13 +25,12 @@ namespace Razy;
 
 use Closure;
 use Exception;
-use ZipArchive;
-
 use Razy\Contract\DistributorInterface;
 use Razy\Contract\PackageTransportInterface;
 use Razy\PackageManager\HttpTransport;
-use Razy\Util\VersionUtil;
 use Razy\Util\PathUtil;
+use Razy\Util\VersionUtil;
+use ZipArchive;
 
 /**
  * PackageManager - Download, extract, and manage Composer-compatible packages.
@@ -114,11 +115,11 @@ class PackageManager
     /**
      * PackageManager constructor.
      *
-     * @param DistributorInterface           $distributor  The distributor context for lock-file scoping
-     * @param string                         $packageName  Composer package name (vendor/package)
-     * @param string                         $versionRequired Version constraint (e.g. '^1.0', '~2.0', '*')
-     * @param callable|null                  $notify       Optional progress/status notification callback
-     * @param PackageTransportInterface|null $transport    Transport for fetching/downloading; defaults to HTTP (Packagist)
+     * @param DistributorInterface $distributor The distributor context for lock-file scoping
+     * @param string $packageName Composer package name (vendor/package)
+     * @param string $versionRequired Version constraint (e.g. '^1.0', '~2.0', '*')
+     * @param callable|null $notify Optional progress/status notification callback
+     * @param PackageTransportInterface|null $transport Transport for fetching/downloading; defaults to HTTP (Packagist)
      */
     public function __construct(
         DistributorInterface $distributor,
@@ -128,8 +129,8 @@ class PackageManager
         ?PackageTransportInterface $transport = null,
     ) {
         $this->distributor = $distributor;
-        $this->name = trim($packageName);
-        $this->versionRequired = trim($versionRequired);
+        $this->name = \trim($packageName);
+        $this->versionRequired = \trim($versionRequired);
         $this->notifyClosure = !$notify ? null : $notify(...);
         $this->transport = $transport ?? self::getDefaultTransport();
 
@@ -137,11 +138,11 @@ class PackageManager
         if (null === self::$versionLock) {
             $config = [];
             $versionLockFile = PathUtil::append(SYSTEM_ROOT, 'autoload', 'lock.json');
-            if (is_file($versionLockFile)) {
+            if (\is_file($versionLockFile)) {
                 try {
-                    $config = file_get_contents($versionLockFile);
-                    $config = json_decode($config, true);
-                    if (!is_array($config)) {
+                    $config = \file_get_contents($versionLockFile);
+                    $config = \json_decode($config, true);
+                    if (!\is_array($config)) {
                         $config = [];
                     }
                 } catch (Exception) {
@@ -187,16 +188,6 @@ class PackageManager
     }
 
     /**
-     * Get the transport instance used by this PackageManager.
-     *
-     * @return PackageTransportInterface
-     */
-    public function getTransport(): PackageTransportInterface
-    {
-        return $this->transport;
-    }
-
-    /**
      * Update the version lock file.
      *
      * @return bool
@@ -205,12 +196,22 @@ class PackageManager
     {
         if (null !== self::$versionLock) {
             $versionLockFile = PathUtil::append(SYSTEM_ROOT, 'autoload', 'lock.json');
-            file_put_contents($versionLockFile, json_encode(self::$versionLock));
+            \file_put_contents($versionLockFile, \json_encode(self::$versionLock));
 
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Get the transport instance used by this PackageManager.
+     *
+     * @return PackageTransportInterface
+     */
+    public function getTransport(): PackageTransportInterface
+    {
+        return $this->transport;
     }
 
     /**
@@ -227,6 +228,7 @@ class PackageManager
      * Validate the package and update to the newest version.
      *
      * @return bool
+     *
      * @throws Error
      */
     public function validate(): bool
@@ -243,14 +245,14 @@ class PackageManager
 
         // Compare current locked version against the resolved package version
         $currentVersion = self::$versionLock[$this->distributor->getCode()][$this->name]['version'] ?? '0.0.0.0';
-        if (version_compare($currentVersion, $this->package['version_normalized'], '>=')) {
+        if (\version_compare($currentVersion, $this->package['version_normalized'], '>=')) {
             // Current version meets or exceeds the available version; skip download
             $this->status = self::STATUS_UPDATED;
         } else {
             $this->notify(self::TYPE_DOWNLOAD, [$this->name, $distUrl]);
 
             // Create a temporary file to hold the downloaded archive
-            $temporaryFilePath = tempnam(sys_get_temp_dir(), 'rtmp');
+            $temporaryFilePath = \tempnam(\sys_get_temp_dir(), 'rtmp');
 
             // Download via the configured transport (HTTP, FTP, SFTP, SMB, local, etc.)
             $downloadSuccess = $this->transport->download(
@@ -274,32 +276,32 @@ class PackageManager
             // Open and extract the downloaded zip archive
             $zip = new ZipArchive();
             if (true === $zip->open($temporaryFilePath)) {
-                $temporaryExtractPath = PathUtil::append(sys_get_temp_dir(), $this->name . '-' . $this->package['version']);
-                mkdir($temporaryExtractPath);
+                $temporaryExtractPath = PathUtil::append(\sys_get_temp_dir(), $this->name . '-' . $this->package['version']);
+                \mkdir($temporaryExtractPath);
 
                 // Extract to a temporary directory before moving to the final location
                 $zip->extractTo($temporaryExtractPath);
                 $pathOfExtract = PathUtil::append(SYSTEM_ROOT, 'autoload', $this->distributor->getCode());
-                if (!is_dir($pathOfExtract)) {
-                    mkdir($pathOfExtract, 0777, true);
+                if (!\is_dir($pathOfExtract)) {
+                    \mkdir($pathOfExtract, 0o777, true);
                 }
 
                 // GitHub/Packagist archives typically wrap contents in a single root folder
-                $files = array_diff(scandir($temporaryExtractPath), ['.', '..']);
-                $path = end($files);
+                $files = \array_diff(\scandir($temporaryExtractPath), ['.', '..']);
+                $path = \end($files);
 
                 // Copy files for each PSR-4/PSR-0 autoload namespace mapping
                 $autoload = $this->package['autoload']['psr-4'] ?? $this->package['autoload']['psr-0'] ?? [];
                 foreach ($autoload as $namespace => $extract) {
                     $this->notify(self::TYPE_EXTRACT, [$this->name, $namespace, $extract ?: '/']);
-                    xcopy(PathUtil::append($temporaryExtractPath, $path, $extract), PathUtil::append($pathOfExtract, $namespace));
+                    \xcopy(PathUtil::append($temporaryExtractPath, $path, $extract), PathUtil::append($pathOfExtract, $namespace));
                 }
                 $zip->close();
 
                 $this->status = self::STATUS_UPDATED;
                 self::$versionLock[$this->distributor->getCode()][$this->name] = [
                     'version' => $this->package['version_normalized'],
-                    'timestamp' => time(),
+                    'timestamp' => \time(),
                 ];
                 $this->package['updated'] = true;
                 $this->notify(self::TYPE_UPDATED, [$this->name]);
@@ -312,9 +314,9 @@ class PackageManager
         // Recursively validate required sub-packages (ignore php/ext-* requirements)
         foreach ($this->package['require'] as $package => $requirement) {
             // Match only vendor/package names (skip php, ext-*, etc.)
-            if (preg_match('/^[^\/]+\/(.+)/', $package)) {
+            if (\preg_match('/^[^\/]+\/(.+)/', $package)) {
                 // Propagate the same transport to sub-package resolution
-                $package = new PackageManager($this->distributor, $package, $requirement, null, $this->transport);
+                $package = new self($this->distributor, $package, $requirement, null, $this->transport);
                 if (!$package->fetch() || !$package->validate()) {
                     $this->notify(self::TYPE_FAILED, [$this->name, $package->getName(), $package->getVersion()]);
                 }
@@ -322,19 +324,6 @@ class PackageManager
         }
 
         return true;
-    }
-
-    /**
-     * Send notify message to the inspector.
-     *
-     * @param string $type
-     * @param array $args
-     */
-    private function notify(string $type, array $args = []): void
-    {
-        if ($this->notifyClosure) {
-            call_user_func_array($this->notifyClosure, array_merge([$type], $args));
-        }
     }
 
     /**
@@ -349,7 +338,7 @@ class PackageManager
     {
         $this->status = self::STATUS_FETCHING;
 
-        $packageName = strtolower($this->name);
+        $packageName = \strtolower($this->name);
 
         // Use cached package data if available to avoid redundant requests
         if (empty(self::$cached[$this->name])) {
@@ -372,9 +361,9 @@ class PackageManager
         $versionRequirement = $this->versionRequired;
         $minStability = 'stable'; // default minimum stability
         // Extract @stability suffix if present (e.g. 'dev', 'alpha', 'beta', 'RC', 'stable')
-        if (preg_match('/^(.+)@(dev|alpha|beta|RC|stable)$/i', $versionRequirement, $matches)) {
+        if (\preg_match('/^(.+)@(dev|alpha|beta|RC|stable)$/i', $versionRequirement, $matches)) {
             $versionRequirement = $matches[1];
-            $minStability = strtolower($matches[2]);
+            $minStability = \strtolower($matches[2]);
         }
 
         // Sort versions by stability and version number (prefer stable over dev)
@@ -405,6 +394,39 @@ class PackageManager
     }
 
     /**
+     * Get the package name.
+     *
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get the package version.
+     *
+     * @return string
+     */
+    public function getVersion(): string
+    {
+        return $this->package['version'] ?? '';
+    }
+
+    /**
+     * Send notify message to the inspector.
+     *
+     * @param string $type
+     * @param array $args
+     */
+    private function notify(string $type, array $args = []): void
+    {
+        if ($this->notifyClosure) {
+            \call_user_func_array($this->notifyClosure, \array_merge([$type], $args));
+        }
+    }
+
+    /**
      * Sort packages by stability preference and version.
      *
      * @param array $packages
@@ -431,7 +453,7 @@ class PackageManager
         }
 
         // Sort: prefer stable versions first, then descending by version number
-        usort($filtered, function ($a, $b) use ($stabilityOrder) {
+        \usort($filtered, function ($a, $b) use ($stabilityOrder) {
             $aStability = $this->getVersionStability($a['version']);
             $bStability = $this->getVersionStability($b['version']);
             $aLevel = $stabilityOrder[$aStability] ?? 4;
@@ -443,7 +465,7 @@ class PackageManager
             }
 
             // Secondary sort: higher version number first (descending)
-            return version_compare($b['version_normalized'], $a['version_normalized']);
+            return \version_compare($b['version_normalized'], $a['version_normalized']);
         });
 
         return $filtered;
@@ -458,20 +480,20 @@ class PackageManager
      */
     private function getVersionStability(string $version): string
     {
-        $version = strtolower($version);
+        $version = \strtolower($version);
 
         // Match dev versions (prefixed with 'dev-' or suffixed with '-dev')
-        if (str_starts_with($version, 'dev-') || str_ends_with($version, '-dev')) {
+        if (\str_starts_with($version, 'dev-') || \str_ends_with($version, '-dev')) {
             return 'dev';
         }
         // Check for pre-release stability labels in order of instability
-        if (str_contains($version, 'alpha')) {
+        if (\str_contains($version, 'alpha')) {
             return 'alpha';
         }
-        if (str_contains($version, 'beta')) {
+        if (\str_contains($version, 'beta')) {
             return 'beta';
         }
-        if (str_contains($version, 'rc')) {
+        if (\str_contains($version, 'rc')) {
             return 'rc';
         }
 
@@ -492,36 +514,16 @@ class PackageManager
     private function versionMatches(string $requirement, string $version, string $versionNormalized, string $minStability): bool
     {
         // Handle exact dev branch references (e.g. 'dev-master')
-        if (str_starts_with($requirement, 'dev-')) {
-            return strtolower($version) === strtolower($requirement);
+        if (\str_starts_with($requirement, 'dev-')) {
+            return \strtolower($version) === \strtolower($requirement);
         }
 
         // Strip '-dev' suffix from version constraints (e.g. '1.0.x-dev' → '1.0.x')
-        if (str_ends_with($requirement, '-dev')) {
-            $requirement = substr($requirement, 0, -4);
+        if (\str_ends_with($requirement, '-dev')) {
+            $requirement = \substr($requirement, 0, -4);
         }
 
         // Delegate to the framework's vc() function for semver constraint matching
         return VersionUtil::vc($requirement, $versionNormalized);
-    }
-
-    /**
-     * Get the package name.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Get the package version.
-     *
-     * @return string
-     */
-    public function getVersion(): string
-    {
-        return $this->package['version'] ?? '';
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\DOM and Razy\DOM\Select.
  *
@@ -142,7 +143,7 @@ class DOMTest extends TestCase
         $dom->setTag('div')->addClass('btn')->addClass('btn');
         $html = $dom->saveHTML();
         // class attribute should only list 'btn' once
-        $this->assertSame(1, substr_count($html, 'btn'));
+        $this->assertSame(1, \substr_count($html, 'btn'));
     }
 
     #[Test]
@@ -192,7 +193,7 @@ class DOMTest extends TestCase
     {
         $dom = new DOM();
         $dom->setTag('input')->setAttribute([
-            'type'        => 'text',
+            'type' => 'text',
             'placeholder' => 'Enter name',
         ]);
         $this->assertSame('text', $dom->getAttribute('type'));
@@ -431,9 +432,9 @@ class DOMTest extends TestCase
     public function getHTMLValueReturnsEmptyForResource(): void
     {
         $dom = new DOM();
-        $fp = fopen('php://memory', 'r');
+        $fp = \fopen('php://memory', 'r');
         $this->assertSame('', $dom->getHTMLValue($fp));
-        fclose($fp);
+        \fclose($fp);
     }
 
     // ─── Method Chaining (Fluent API) ────────────────────────────────
@@ -514,7 +515,7 @@ class DOMTest extends TestCase
         $html = $outer->saveHTML();
         $this->assertSame(
             '<div class="level-1"><div class="level-2"><span class="level-3">Deep</span></div></div>',
-            $html
+            $html,
         );
     }
 
@@ -531,11 +532,11 @@ class DOMTest extends TestCase
 
         $html = $dom->saveHTML();
         // Verify name and id appear before custom attributes
-        $namePos = strpos($html, 'name="n"');
-        $idPos = strpos($html, 'id="i"');
-        $stylePos = strpos($html, 'style=');
-        $dataPos = strpos($html, 'data-x=');
-        $classPos = strpos($html, 'class=');
+        $namePos = \strpos($html, 'name="n"');
+        $idPos = \strpos($html, 'id="i"');
+        $stylePos = \strpos($html, 'style=');
+        $dataPos = \strpos($html, 'data-x=');
+        $classPos = \strpos($html, 'class=');
 
         $this->assertNotFalse($namePos);
         $this->assertNotFalse($idPos);
@@ -590,8 +591,8 @@ class DOMTest extends TestCase
         $select->addOption('Two', '2');
         $select->addOption('Three', '3');
         $html = $select->saveHTML();
-        $this->assertSame(3, substr_count($html, '<option'));
-        $this->assertSame(3, substr_count($html, '</option>'));
+        $this->assertSame(3, \substr_count($html, '<option'));
+        $this->assertSame(3, \substr_count($html, '</option>'));
     }
 
     #[Test]
@@ -620,7 +621,7 @@ class DOMTest extends TestCase
             ['a' => ['label' => 'Alpha', 'val' => '1']],
             function (DOM $option, string $key, array $value) {
                 $option->setText($value['label'])->setAttribute('value', $value['val']);
-            }
+            },
         );
         $html = $select->saveHTML();
         $this->assertStringContainsString('Alpha', $html);
@@ -648,7 +649,7 @@ class DOMTest extends TestCase
         $this->assertStringContainsString('selected="selected"', $html);
 
         // Verify only banana is selected
-        $this->assertSame(1, substr_count($html, 'selected="selected"'));
+        $this->assertSame(1, \substr_count($html, 'selected="selected"'));
     }
 
     #[Test]
@@ -667,11 +668,11 @@ class DOMTest extends TestCase
         $select->addOption('B', 'b');
 
         $select->setValue('a');
-        $this->assertSame(1, substr_count($select->saveHTML(), 'selected="selected"'));
+        $this->assertSame(1, \substr_count($select->saveHTML(), 'selected="selected"'));
 
         $select->setValue('b');
         $html = $select->saveHTML();
-        $this->assertSame(1, substr_count($html, 'selected="selected"'));
+        $this->assertSame(1, \substr_count($html, 'selected="selected"'));
     }
 
     #[Test]

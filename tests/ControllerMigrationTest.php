@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Controller;
@@ -32,8 +33,8 @@ class ControllerMigrationTest extends TestCase
     {
         parent::setUp();
 
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_ctrl_migration_test_' . uniqid();
-        mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'migration', 0777, true);
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_ctrl_migration_test_' . \uniqid();
+        \mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'migration', 0o777, true);
         $this->tempDirs[] = $this->tempDir;
     }
 
@@ -43,77 +44,6 @@ class ControllerMigrationTest extends TestCase
             $this->removeDirectory($dir);
         }
         parent::tearDown();
-    }
-
-    private function removeDirectory(string $dir): void
-    {
-        if (!is_dir($dir)) {
-            return;
-        }
-        foreach (scandir($dir) as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            is_dir($path) ? $this->removeDirectory($path) : @unlink($path);
-        }
-        @rmdir($dir);
-    }
-
-    /**
-     * Create a Controller with a mocked Module whose ModuleInfo::getPath()
-     * returns the given temp directory.
-     */
-    private function createController(?string $path = null): Controller
-    {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getPath')->willReturn($path ?? $this->tempDir);
-
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-
-        return (new ReflectionClass(Controller::class))->newInstance($module);
-    }
-
-    /**
-     * Create an SQLite in-memory Database instance.
-     */
-    private function createDb(): Database
-    {
-        static $counter = 0;
-        $db = new Database('ctrl_migration_' . (++$counter));
-        $db->connectWithDriver('sqlite', ['path' => ':memory:']);
-
-        return $db;
-    }
-
-    /**
-     * Write a migration file into the temp migration/ directory.
-     */
-    private function writeMigrationFile(string $filename, string $tableName = 'test_table'): void
-    {
-        $content = <<<PHP
-<?php
-use Razy\Database\Migration;
-use Razy\Database\SchemaBuilder;
-
-return new class extends Migration {
-    public function up(SchemaBuilder \$schema): void {
-        \$schema->raw('CREATE TABLE {$tableName} (id INTEGER PRIMARY KEY, name TEXT)');
-    }
-    public function down(SchemaBuilder \$schema): void {
-        \$schema->dropIfExists('{$tableName}');
-    }
-    public function getDescription(): string {
-        return 'Create {$tableName} table';
-    }
-};
-PHP;
-
-        file_put_contents(
-            $this->tempDir . DIRECTORY_SEPARATOR . 'migration' . DIRECTORY_SEPARATOR . $filename . '.php',
-            $content
-        );
     }
 
     // ───────────────────────────────────────────────────────────────
@@ -145,14 +75,14 @@ PHP;
     public function testThrowsWhenMigrationDirectoryMissing(): void
     {
         // Create a temp dir WITHOUT a migration/ subfolder
-        $emptyDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_ctrl_no_migration_' . uniqid();
-        mkdir($emptyDir, 0777, true);
+        $emptyDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_ctrl_no_migration_' . \uniqid();
+        \mkdir($emptyDir, 0o777, true);
         $this->tempDirs[] = $emptyDir;
 
         $controller = $this->createController($emptyDir);
         $db = $this->createDb();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Migration directory not found');
 
         $controller->getMigrationManager($db);
@@ -332,20 +262,20 @@ PHP;
     public function testMigrationAndModelWorkflowIntegration(): void
     {
         // Set up both model/ and migration/ dirs
-        mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'model', 0777, true);
+        \mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'model', 0o777, true);
 
         // Write a migration
         $this->writeMigrationFile('2026_02_24_100000_CreateProducts', 'products');
 
         // Write a model
-        file_put_contents(
+        \file_put_contents(
             $this->tempDir . DIRECTORY_SEPARATOR . 'model' . DIRECTORY_SEPARATOR . 'Product.php',
             '<?php
 use Razy\ORM\Model;
 return new class extends Model {
     protected static string $table = "products";
     protected static array $fillable = ["name"];
-};'
+};',
         );
 
         $controller = $this->createController();
@@ -360,5 +290,76 @@ return new class extends Model {
         // Load model
         $Product = $controller->loadModel('Product');
         $this->assertSame('products', $Product::resolveTable());
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        foreach (\scandir($dir) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            \is_dir($path) ? $this->removeDirectory($path) : @\unlink($path);
+        }
+        @\rmdir($dir);
+    }
+
+    /**
+     * Create a Controller with a mocked Module whose ModuleInfo::getPath()
+     * returns the given temp directory.
+     */
+    private function createController(?string $path = null): Controller
+    {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getPath')->willReturn($path ?? $this->tempDir);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+
+        return (new ReflectionClass(Controller::class))->newInstance($module);
+    }
+
+    /**
+     * Create an SQLite in-memory Database instance.
+     */
+    private function createDb(): Database
+    {
+        static $counter = 0;
+        $db = new Database('ctrl_migration_' . (++$counter));
+        $db->connectWithDriver('sqlite', ['path' => ':memory:']);
+
+        return $db;
+    }
+
+    /**
+     * Write a migration file into the temp migration/ directory.
+     */
+    private function writeMigrationFile(string $filename, string $tableName = 'test_table'): void
+    {
+        $content = <<<PHP
+            <?php
+            use Razy\\Database\\Migration;
+            use Razy\\Database\\SchemaBuilder;
+
+            return new class extends Migration {
+                public function up(SchemaBuilder \$schema): void {
+                    \$schema->raw('CREATE TABLE {$tableName} (id INTEGER PRIMARY KEY, name TEXT)');
+                }
+                public function down(SchemaBuilder \$schema): void {
+                    \$schema->dropIfExists('{$tableName}');
+                }
+                public function getDescription(): string {
+                    return 'Create {$tableName} table';
+                }
+            };
+            PHP;
+
+        \file_put_contents(
+            $this->tempDir . DIRECTORY_SEPARATOR . 'migration' . DIRECTORY_SEPARATOR . $filename . '.php',
+            $content,
+        );
     }
 }

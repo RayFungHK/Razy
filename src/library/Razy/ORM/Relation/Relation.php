@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -28,17 +29,18 @@ use Razy\ORM\ModelQuery;
 abstract class Relation
 {
     /**
-     * @param Model  $parent     The parent model instance
-     * @param string $related    Fully-qualified class name of the related model
+     * @param Model $parent The parent model instance
+     * @param string $related Fully-qualified class name of the related model
      * @param string $foreignKey The foreign key column
-     * @param string $localKey   The local key column
+     * @param string $localKey The local key column
      */
     public function __construct(
         protected readonly Model $parent,
         protected readonly string $related,
         protected readonly string $foreignKey,
         protected readonly string $localKey,
-    ) {}
+    ) {
+    }
 
     /**
      * Resolve the relationship — execute the query and return the result.
@@ -46,6 +48,22 @@ abstract class Relation
      * @return Model|ModelCollection|null
      */
     abstract public function resolve(): Model|ModelCollection|null;
+
+    /**
+     * Get the foreign key column name.
+     */
+    public function getForeignKey(): string
+    {
+        return $this->foreignKey;
+    }
+
+    /**
+     * Get the local key column name.
+     */
+    public function getLocalKey(): string
+    {
+        return $this->localKey;
+    }
 
     /**
      * Get a query builder pre-configured for this relationship.
@@ -64,21 +82,5 @@ abstract class Relation
     protected function getLocalKeyValue(): mixed
     {
         return $this->parent->{$this->localKey};
-    }
-
-    /**
-     * Get the foreign key column name.
-     */
-    public function getForeignKey(): string
-    {
-        return $this->foreignKey;
-    }
-
-    /**
-     * Get the local key column name.
-     */
-    public function getLocalKey(): string
-    {
-        return $this->localKey;
     }
 }

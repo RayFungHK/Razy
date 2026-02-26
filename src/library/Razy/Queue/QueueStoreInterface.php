@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -28,13 +29,13 @@ interface QueueStoreInterface
     /**
      * Push a new job onto the queue.
      *
-     * @param string              $queue       The queue name
-     * @param string              $handler     Fully-qualified handler class name
-     * @param array<string,mixed> $payload     Job payload data
-     * @param int                 $delay       Seconds to delay before the job becomes available
-     * @param int                 $maxAttempts Maximum number of attempts
-     * @param int                 $retryDelay  Seconds to wait between retries
-     * @param int                 $priority    Lower number = higher priority
+     * @param string $queue The queue name
+     * @param string $handler Fully-qualified handler class name
+     * @param array<string,mixed> $payload Job payload data
+     * @param int $delay Seconds to delay before the job becomes available
+     * @param int $maxAttempts Maximum number of attempts
+     * @param int $retryDelay Seconds to wait between retries
+     * @param int $priority Lower number = higher priority
      *
      * @return int|string The job ID
      */
@@ -73,9 +74,9 @@ interface QueueStoreInterface
      * Updates the status to pending and sets the available_at timestamp
      * based on the retry delay.
      *
-     * @param int|string $jobId      The job ID
-     * @param int        $retryDelay Seconds to delay before available again
-     * @param string     $error      The error message from the failed attempt
+     * @param int|string $jobId The job ID
+     * @param int $retryDelay Seconds to delay before available again
+     * @param string $error The error message from the failed attempt
      */
     public function release(int|string $jobId, int $retryDelay = 0, string $error = ''): void;
 
@@ -83,7 +84,7 @@ interface QueueStoreInterface
      * Permanently bury a job that has exhausted all retries.
      *
      * @param int|string $jobId The job ID
-     * @param string     $error The final error message
+     * @param string $error The final error message
      */
     public function bury(int|string $jobId, string $error = ''): void;
 
@@ -106,7 +107,7 @@ interface QueueStoreInterface
     /**
      * Get the count of jobs by status.
      *
-     * @param string    $queue  The queue name
+     * @param string $queue The queue name
      * @param JobStatus $status The status to count
      *
      * @return int The count

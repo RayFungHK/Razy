@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -15,6 +16,7 @@
  * SAVEPOINT / ROLLBACK TO SAVEPOINT statements.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,6 +35,7 @@ use Throwable;
  * PDO's native transaction methods.
  *
  * @class Transaction
+ *
  * @package Razy\Database
  */
 class Transaction
@@ -137,8 +140,11 @@ class Transaction
      * a savepoint is used instead of a new PDO transaction.
      *
      * @template T
+     *
      * @param callable(Transaction): T $callback The callback to execute
+     *
      * @return T The callback's return value
+     *
      * @throws Throwable Re-throws the exception after rollback
      */
     public function run(callable $callback): mixed
@@ -181,6 +187,7 @@ class Transaction
      * Generate a savepoint name for the given level.
      *
      * @param int $level The savepoint level (1-based)
+     *
      * @return string The savepoint name (e.g., "razy_sp_1")
      */
     private function getSavepointName(int $level): string

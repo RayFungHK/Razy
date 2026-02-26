@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for the scaffold CLI command.
  *
@@ -6,6 +7,7 @@
  * directory structure, and content correctness for various scaffold options.
  *
  * @package Razy\Tests
+ *
  * @license MIT
  */
 
@@ -13,12 +15,14 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Razy\Template;
 use Razy\Terminal;
-use Razy\Util\PathUtil;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 #[CoversClass(Terminal::class)]
 class ScaffoldCommandTest extends TestCase
@@ -27,55 +31,17 @@ class ScaffoldCommandTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_scaffold_test_' . uniqid();
-        mkdir($this->tempDir, 0777, true);
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_scaffold_test_' . \uniqid();
+        \mkdir($this->tempDir, 0o777, true);
 
         // Create the sites directory structure that scaffold expects
-        mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'testdist', 0777, true);
-        mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'shared' . DIRECTORY_SEPARATOR . 'module', 0777, true);
+        \mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'testdist', 0o777, true);
+        \mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'shared' . DIRECTORY_SEPARATOR . 'module', 0o777, true);
     }
 
     protected function tearDown(): void
     {
         $this->removeDir($this->tempDir);
-    }
-
-    private function removeDir(string $dir): void
-    {
-        if (!is_dir($dir)) {
-            return;
-        }
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
-        );
-        foreach ($items as $item) {
-            if ($item->isDir()) {
-                rmdir($item->getPathname());
-            } else {
-                unlink($item->getPathname());
-            }
-        }
-        rmdir($dir);
-    }
-
-    /**
-     * Execute the scaffold command in a controlled environment.
-     *
-     * @param string $moduleCode Module code argument
-     * @param array  $args       Positional arguments
-     * @param array  $parameters Named parameters (flags)
-     * @return string Captured output
-     */
-    private function runScaffold(string $moduleCode, array $args = [], array $parameters = []): string
-    {
-        // Temporarily override SYSTEM_ROOT to use our temp directory
-        $originalRoot = defined('SYSTEM_ROOT') ? SYSTEM_ROOT : null;
-
-        // We cannot redefine constants, so we'll test file generation directly
-        // by calling the logic that creates the files. Instead, we test the
-        // generated file structure and content by simulating what scaffold does.
-        return '';
     }
 
     // ══════════════════════════════════════════════════════
@@ -135,25 +101,25 @@ class ScaffoldCommandTest extends TestCase
         $version = '1.0.0';
 
         $content = <<<PHP
-<?php
-/**
- * {$moduleName}
- *
- * @package Razy
- * @license MIT
- */
-return [
-    'module_code' => '{$moduleCode}',
-    'name'        => '{$moduleName}',
-    'author'      => '{$author}',
-    'description' => '{$description}',
-    'version'     => '{$version}',
-];
+            <?php
+            /**
+             * {$moduleName}
+             *
+             * @package Razy
+             * @license MIT
+             */
+            return [
+                'module_code' => '{$moduleCode}',
+                'name'        => '{$moduleName}',
+                'author'      => '{$author}',
+                'description' => '{$description}',
+                'version'     => '{$version}',
+            ];
 
-PHP;
+            PHP;
 
         $filePath = $this->tempDir . '/module.php';
-        file_put_contents($filePath, $content);
+        \file_put_contents($filePath, $content);
 
         $result = include $filePath;
         $this->assertIsArray($result);
@@ -177,24 +143,24 @@ PHP;
         $version = '1.0.0';
 
         $content = <<<PHP
-<?php
-/**
- * Package configuration for Hello Module
- *
- * @package Razy
- * @license MIT
- */
-return [
-    'module_code' => '{$moduleCode}',
-    'author'      => '{$author}',
-    'description' => '{$description}',
-    'version'     => '{$version}',
-];
+            <?php
+            /**
+             * Package configuration for Hello Module
+             *
+             * @package Razy
+             * @license MIT
+             */
+            return [
+                'module_code' => '{$moduleCode}',
+                'author'      => '{$author}',
+                'description' => '{$description}',
+                'version'     => '{$version}',
+            ];
 
-PHP;
+            PHP;
 
         $filePath = $this->tempDir . '/package.php';
-        file_put_contents($filePath, $content);
+        \file_put_contents($filePath, $content);
 
         $result = include $filePath;
         $this->assertIsArray($result);
@@ -210,7 +176,7 @@ PHP;
     public function generatedControllerHasCorrectNamespace(): void
     {
         $moduleCode = 'app/hello';
-        $namespace = str_replace('/', '_', $moduleCode);
+        $namespace = \str_replace('/', '_', $moduleCode);
         $this->assertSame('app_hello', $namespace);
     }
 
@@ -218,27 +184,27 @@ PHP;
     public function generatedControllerExtendsController(): void
     {
         $content = <<<'PHP'
-<?php
-namespace Razy\Module\app_hello;
+            <?php
+            namespace Razy\Module\app_hello;
 
-use Razy\Agent;
-use Razy\Controller;
+            use Razy\Agent;
+            use Razy\Controller;
 
-return new class extends Controller {
-    public function __onInit(Agent $agent): bool
-    {
-        $agent->addLazyRoute([
-            '/' => 'index',
-        ]);
+            return new class extends Controller {
+                public function __onInit(Agent $agent): bool
+                {
+                    $agent->addLazyRoute([
+                        '/' => 'index',
+                    ]);
 
-        return true;
-    }
-};
-PHP;
+                    return true;
+                }
+            };
+            PHP;
 
         $this->assertStringContainsString('extends Controller', $content);
         $this->assertStringContainsString('__onInit(Agent $agent)', $content);
-        $this->assertStringContainsString("addLazyRoute", $content);
+        $this->assertStringContainsString('addLazyRoute', $content);
         $this->assertStringContainsString("'/' => 'index'", $content);
     }
 
@@ -273,31 +239,31 @@ PHP;
         $controllerName = 'hello';
 
         $content = <<<HANDLER
-<?php
-use Razy\Controller;
+            <?php
+            use Razy\\Controller;
 
-return function (): void {
-    /** @var Controller \$this */
-    header('Content-Type: text/html; charset=UTF-8');
+            return function (): void {
+                /** @var Controller \$this */
+                header('Content-Type: text/html; charset=UTF-8');
 
-    echo <<<'HTML'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>{$moduleName}</title>
-</head>
-<body>
-    <h1>{$moduleName}</h1>
-    <div class="card">
-        <p>Your module is working!</p>
-        <p>Handler file: <code>controller/{$controllerName}.index.php</code></p>
-    </div>
-</body>
-</html>
-HTML;
-};
-HANDLER;
+                echo <<<'HTML'
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>{$moduleName}</title>
+            </head>
+            <body>
+                <h1>{$moduleName}</h1>
+                <div class="card">
+                    <p>Your module is working!</p>
+                    <p>Handler file: <code>controller/{$controllerName}.index.php</code></p>
+                </div>
+            </body>
+            </html>
+            HTML;
+            };
+            HANDLER;
 
         $this->assertStringContainsString('Content-Type: text/html', $content);
         $this->assertStringContainsString('Hello Module', $content);
@@ -308,24 +274,24 @@ HANDLER;
     public function templateHandlerUsesLoadTemplate(): void
     {
         $content = <<<'PHP'
-<?php
-use Razy\Controller;
+            <?php
+            use Razy\Controller;
 
-return function (): void {
-    /** @var Controller $this */
-    header('Content-Type: text/html; charset=UTF-8');
-    $source = $this->loadTemplate('index');
-    $source->assign([
-        'title'   => 'Hello Module',
-        'message' => 'Your module is working!',
-    ]);
-    echo $source->output();
-};
-PHP;
+            return function (): void {
+                /** @var Controller $this */
+                header('Content-Type: text/html; charset=UTF-8');
+                $source = $this->loadTemplate('index');
+                $source->assign([
+                    'title'   => 'Hello Module',
+                    'message' => 'Your module is working!',
+                ]);
+                echo $source->output();
+            };
+            PHP;
 
         $this->assertStringContainsString('loadTemplate', $content);
-        $this->assertStringContainsString("->assign(", $content);
-        $this->assertStringContainsString("->output()", $content);
+        $this->assertStringContainsString('->assign(', $content);
+        $this->assertStringContainsString('->output()', $content);
     }
 
     // ══════════════════════════════════════════════════════
@@ -336,20 +302,20 @@ PHP;
     public function generatedTemplateUsesRazySyntax(): void
     {
         $tplContent = <<<'TPL'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>{$title}</title>
-</head>
-<body>
-    <h1>{$title}</h1>
-    <div class="card">
-        <p>{$message}</p>
-    </div>
-</body>
-</html>
-TPL;
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>{$title}</title>
+            </head>
+            <body>
+                <h1>{$title}</h1>
+                <div class="card">
+                    <p>{$message}</p>
+                </div>
+            </body>
+            </html>
+            TPL;
 
         // Razy template syntax uses {$variable}
         $this->assertStringContainsString('{$title}', $tplContent);
@@ -366,20 +332,20 @@ TPL;
     {
         $moduleCode = 'app/hello';
         $content = <<<PHP
-<?php
-/**
- * API Command: hello
- *
- * Called by other modules via: \$this->api('{$moduleCode}')->hello(\$name)
- */
+            <?php
+            /**
+             * API Command: hello
+             *
+             * Called by other modules via: \$this->api('{$moduleCode}')->hello(\$name)
+             */
 
-return function (string \$name = 'World'): string {
-    return "Hello, {\$name}!";
-};
-PHP;
+            return function (string \$name = 'World'): string {
+                return "Hello, {\$name}!";
+            };
+            PHP;
 
         $filePath = $this->tempDir . '/api_hello.php';
-        file_put_contents($filePath, $content);
+        \file_put_contents($filePath, $content);
 
         $fn = include $filePath;
         $this->assertIsCallable($fn);
@@ -401,7 +367,7 @@ PHP;
     public function scaffoldCreatesCorrectDirectoryStructure(): void
     {
         $moduleCode = 'app/hello';
-        $parts = explode('/', $moduleCode);
+        $parts = \explode('/', $moduleCode);
         $basePath = $this->tempDir . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'testdist';
         $moduleDir = $basePath . DIRECTORY_SEPARATOR . $parts[0] . DIRECTORY_SEPARATOR . $parts[1];
         $versionDir = $moduleDir . DIRECTORY_SEPARATOR . 'default';
@@ -410,9 +376,9 @@ PHP;
         $apiDir = $controllerDir . DIRECTORY_SEPARATOR . 'api';
 
         // Simulate full scaffold directory creation
-        mkdir($controllerDir, 0777, true);
-        mkdir($viewDir, 0777, true);
-        mkdir($apiDir, 0777, true);
+        \mkdir($controllerDir, 0o777, true);
+        \mkdir($viewDir, 0o777, true);
+        \mkdir($apiDir, 0o777, true);
 
         // Verify structure
         $this->assertDirectoryExists($moduleDir);
@@ -426,13 +392,13 @@ PHP;
     public function scaffoldCreatesMinimalDirectoryStructure(): void
     {
         $moduleCode = 'app/hello';
-        $parts = explode('/', $moduleCode);
+        $parts = \explode('/', $moduleCode);
         $basePath = $this->tempDir . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'testdist';
         $moduleDir = $basePath . DIRECTORY_SEPARATOR . $parts[0] . DIRECTORY_SEPARATOR . $parts[1];
         $controllerDir = $moduleDir . DIRECTORY_SEPARATOR . 'default' . DIRECTORY_SEPARATOR . 'controller';
 
         // Minimal scaffold: only controller dir needed
-        mkdir($controllerDir, 0777, true);
+        \mkdir($controllerDir, 0o777, true);
 
         $this->assertDirectoryExists($controllerDir);
         // view/ and api/ should NOT exist in minimal mode
@@ -448,7 +414,7 @@ PHP;
     public function fullScaffoldGeneratesAllFiles(): void
     {
         $moduleCode = 'app/hello';
-        $parts = explode('/', $moduleCode);
+        $parts = \explode('/', $moduleCode);
         $controllerName = $parts[1]; // 'hello'
         $basePath = $this->tempDir . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'testdist';
         $moduleDir = $basePath . DIRECTORY_SEPARATOR . $parts[0] . DIRECTORY_SEPARATOR . $parts[1];
@@ -458,8 +424,8 @@ PHP;
         $viewDir = $versionDir . DIRECTORY_SEPARATOR . 'view';
 
         // Create directories
-        mkdir($apiDir, 0777, true);
-        mkdir($viewDir, 0777, true);
+        \mkdir($apiDir, 0o777, true);
+        \mkdir($viewDir, 0o777, true);
 
         // Simulate file generation
         $files = [
@@ -472,12 +438,12 @@ PHP;
         ];
 
         foreach ($files as $path => $content) {
-            file_put_contents($path, $content);
+            \file_put_contents($path, $content);
         }
 
         // Verify all files exist
         foreach ($files as $path => $content) {
-            $this->assertFileExists($path, 'Missing: ' . basename($path));
+            $this->assertFileExists($path, 'Missing: ' . \basename($path));
         }
         $this->assertCount(6, $files, 'Full scaffold should generate 6 files');
     }
@@ -497,7 +463,7 @@ PHP;
         ];
 
         foreach ($testCases as $moduleCode => $expectedController) {
-            $parts = explode('/', $moduleCode);
+            $parts = \explode('/', $moduleCode);
             $controllerName = $parts[1];
             $this->assertSame($expectedController, $controllerName, "Module '{$moduleCode}'");
         }
@@ -514,7 +480,7 @@ PHP;
         ];
 
         foreach ($testCases as $controllerName => $expectedName) {
-            $name = ucwords(str_replace('_', ' ', $controllerName)) . ' Module';
+            $name = \ucwords(\str_replace('_', ' ', $controllerName)) . ' Module';
             $this->assertSame($expectedName, $name, "Controller '{$controllerName}'");
         }
     }
@@ -529,7 +495,7 @@ PHP;
         ];
 
         foreach ($testCases as $moduleCode => $expectedNamespace) {
-            $namespace = str_replace('/', '_', $moduleCode);
+            $namespace = \str_replace('/', '_', $moduleCode);
             $this->assertSame($expectedNamespace, $namespace, "Module '{$moduleCode}'");
         }
     }
@@ -542,7 +508,7 @@ PHP;
     public function sharedModulePathResolution(): void
     {
         $moduleCode = 'shared/auth';
-        $parts = explode('/', $moduleCode);
+        $parts = \explode('/', $moduleCode);
 
         $sharedBase = $this->tempDir . DIRECTORY_SEPARATOR . 'shared' . DIRECTORY_SEPARATOR . 'module';
         $moduleDir = $sharedBase . DIRECTORY_SEPARATOR . $parts[0] . DIRECTORY_SEPARATOR . $parts[1];
@@ -562,8 +528,8 @@ PHP;
 
         foreach ($codes as $moduleCode) {
             $content = "<?php\nreturn [\n    'module_code' => '{$moduleCode}',\n];\n";
-            $filePath = $this->tempDir . '/test_module_' . md5($moduleCode) . '.php';
-            file_put_contents($filePath, $content);
+            $filePath = $this->tempDir . '/test_module_' . \md5($moduleCode) . '.php';
+            \file_put_contents($filePath, $content);
 
             $result = include $filePath;
             $this->assertSame($moduleCode, $result['module_code']);
@@ -575,12 +541,12 @@ PHP;
     {
         // Module name with underscores should be converted to spaces in display name
         $controllerName = 'user_profile_manager';
-        $moduleName = ucwords(str_replace('_', ' ', $controllerName)) . ' Module';
+        $moduleName = \ucwords(\str_replace('_', ' ', $controllerName)) . ' Module';
         $this->assertSame('User Profile Manager Module', $moduleName);
 
         // Single word
         $controllerName = 'dashboard';
-        $moduleName = ucwords(str_replace('_', ' ', $controllerName)) . ' Module';
+        $moduleName = \ucwords(\str_replace('_', ' ', $controllerName)) . ' Module';
         $this->assertSame('Dashboard Module', $moduleName);
     }
 
@@ -601,14 +567,14 @@ PHP;
         // The scaffold command file should return a Closure
         $path = SYSTEM_ROOT . '/src/system/terminal/scaffold.inc.php';
         $result = include $path;
-        $this->assertInstanceOf(\Closure::class, $result);
+        $this->assertInstanceOf(Closure::class, $result);
     }
 
     #[Test]
     public function scaffoldCommandFileHasProperDocblock(): void
     {
         $path = SYSTEM_ROOT . '/src/system/terminal/scaffold.inc.php';
-        $content = file_get_contents($path);
+        $content = \file_get_contents($path);
         $this->assertStringContainsString('@package Razy', $content);
         $this->assertStringContainsString('@license MIT', $content);
         $this->assertStringContainsString('CLI Command: scaffold', $content);
@@ -654,7 +620,7 @@ PHP;
     #[Test]
     public function moduleTemplateUsesTemplateEngineVars(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/module.php.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/module.php.tpl');
         $this->assertStringContainsString('{$module_code}', $content);
         $this->assertStringContainsString('{$module_name}', $content);
         $this->assertStringContainsString('{$author}', $content);
@@ -667,7 +633,7 @@ PHP;
     #[Test]
     public function packageTemplateUsesTemplateEngineVars(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/package.php.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/package.php.tpl');
         $this->assertStringContainsString('{$module_code}', $content);
         $this->assertStringContainsString('{$author}', $content);
         $this->assertStringContainsString('{$version}', $content);
@@ -677,7 +643,7 @@ PHP;
     #[Test]
     public function controllerTemplateUsesBlocksForOptionalSections(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/controller.php.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/controller.php.tpl');
         $this->assertStringContainsString('{$module_name}', $content);
         $this->assertStringContainsString('{$namespace}', $content);
         $this->assertStringContainsString('extends Controller', $content);
@@ -695,7 +661,7 @@ PHP;
     #[Test]
     public function handlerTemplateUsesTemplateEngineVars(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/handler.index.php.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/handler.index.php.tpl');
         $this->assertStringContainsString('{$module_name}', $content);
         $this->assertStringContainsString('{$controller_name}', $content);
         $this->assertStringContainsString('Content-Type: text/html', $content);
@@ -705,7 +671,7 @@ PHP;
     #[Test]
     public function handlerTplTemplateUsesLoadTemplate(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/handler.index.tpl.php.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/handler.index.tpl.php.tpl');
         $this->assertStringContainsString('{$module_name}', $content);
         $this->assertStringContainsString('loadTemplate', $content);
         $this->assertStringContainsString('->output()', $content);
@@ -715,7 +681,7 @@ PHP;
     #[Test]
     public function viewTemplateUsesRazySyntax(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/view.index.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/view.index.tpl');
         $this->assertStringContainsString('{$title}', $content);
         $this->assertStringContainsString('{$message}', $content);
         // Must NOT contain scaffold placeholders -- this is a static-copy template
@@ -725,7 +691,7 @@ PHP;
     #[Test]
     public function apiTemplateUsesTemplateEngineVars(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/api.hello.php.tpl');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/scaffold/api.hello.php.tpl');
         $this->assertStringContainsString('{$module_code}', $content);
         $this->assertStringContainsString('return function', $content);
         $this->assertStringNotContainsString('{{', $content);
@@ -735,18 +701,18 @@ PHP;
     public function templateEngineRendersModulePhp(): void
     {
         $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/module.php.tpl');
-        $root   = $source->getRoot();
+        $root = $source->getRoot();
         $root->assign([
             'module_code' => 'app/hello',
             'module_name' => 'Hello Module',
-            'author'      => 'Test Author',
+            'author' => 'Test Author',
             'description' => 'A test module',
-            'version'     => '1.0.0',
+            'version' => '1.0.0',
         ]);
 
-        $output   = $source->output();
+        $output = $source->output();
         $filePath = $this->tempDir . '/tpl_module.php';
-        file_put_contents($filePath, $output);
+        \file_put_contents($filePath, $output);
         $result = include $filePath;
 
         $this->assertIsArray($result);
@@ -760,18 +726,18 @@ PHP;
     public function templateEngineRendersPackagePhp(): void
     {
         $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/package.php.tpl');
-        $root   = $source->getRoot();
+        $root = $source->getRoot();
         $root->assign([
             'module_code' => 'app/hello',
             'module_name' => 'Hello Module',
-            'author'      => 'Test Author',
+            'author' => 'Test Author',
             'description' => 'A test module',
-            'version'     => '1.0.0',
+            'version' => '1.0.0',
         ]);
 
-        $output   = $source->output();
+        $output = $source->output();
         $filePath = $this->tempDir . '/tpl_package.php';
-        file_put_contents($filePath, $output);
+        \file_put_contents($filePath, $output);
         $result = include $filePath;
 
         $this->assertIsArray($result);
@@ -783,15 +749,15 @@ PHP;
     public function templateEngineRendersControllerWithBlocks(): void
     {
         $assigns = [
-            'module_code'     => 'app/hello',
-            'module_name'     => 'Hello Module',
-            'namespace'       => 'app_hello',
+            'module_code' => 'app/hello',
+            'module_name' => 'Hello Module',
+            'namespace' => 'app_hello',
             'controller_name' => 'hello',
         ];
 
         // Render with both blocks active
         $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/controller.php.tpl');
-        $root   = $source->getRoot();
+        $root = $source->getRoot();
         $root->assign($assigns);
         $root->newBlock('api_section')->assign($assigns);
         $root->newBlock('event_section')->assign($assigns);
@@ -807,15 +773,15 @@ PHP;
     public function templateEngineRendersControllerWithoutBlocks(): void
     {
         $assigns = [
-            'module_code'     => 'app/hello',
-            'module_name'     => 'Hello Module',
-            'namespace'       => 'app_hello',
+            'module_code' => 'app/hello',
+            'module_name' => 'Hello Module',
+            'namespace' => 'app_hello',
             'controller_name' => 'hello',
         ];
 
         // Render without blocks -- no API or event sections
         $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/controller.php.tpl');
-        $root   = $source->getRoot();
+        $root = $source->getRoot();
         $root->assign($assigns);
 
         $output = $source->output();
@@ -829,12 +795,12 @@ PHP;
     public function templateEngineRendersApiHandler(): void
     {
         $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/api.hello.php.tpl');
-        $root   = $source->getRoot();
+        $root = $source->getRoot();
         $root->assign(['module_code' => 'app/hello']);
 
-        $output   = $source->output();
+        $output = $source->output();
         $filePath = $this->tempDir . '/tpl_api_hello.php';
-        file_put_contents($filePath, $output);
+        \file_put_contents($filePath, $output);
 
         $fn = include $filePath;
         $this->assertIsCallable($fn);
@@ -845,7 +811,7 @@ PHP;
     #[Test]
     public function scaffoldCommandUsesTemplateEngine(): void
     {
-        $content = file_get_contents(SYSTEM_ROOT . '/src/system/terminal/scaffold.inc.php');
+        $content = \file_get_contents(SYSTEM_ROOT . '/src/system/terminal/scaffold.inc.php');
         $this->assertStringContainsString('Template::loadFile', $content);
         $this->assertStringContainsString('->getRoot()', $content);
         $this->assertStringContainsString('->assign(', $content);
@@ -861,7 +827,7 @@ PHP;
     public function helpCommandListsScaffold(): void
     {
         $path = SYSTEM_ROOT . '/src/system/terminal/help.inc.php';
-        $content = file_get_contents($path);
+        $content = \file_get_contents($path);
         $this->assertStringContainsString('scaffold', $content);
         $this->assertStringContainsString('module skeleton', $content);
     }
@@ -876,8 +842,8 @@ PHP;
         // Simulating the option parsing logic from scaffold
         $parameters = ['full' => true];
 
-        $withApi   = isset($parameters['with-api']) || isset($parameters['full']);
-        $withTpl   = isset($parameters['with-template']) || isset($parameters['full']);
+        $withApi = isset($parameters['with-api']) || isset($parameters['full']);
+        $withTpl = isset($parameters['with-template']) || isset($parameters['full']);
         $withEvent = isset($parameters['with-event']) || isset($parameters['full']);
 
         $this->assertTrue($withApi);
@@ -890,8 +856,8 @@ PHP;
     {
         $parameters = ['with-api' => true];
 
-        $withApi   = isset($parameters['with-api']) || isset($parameters['full']);
-        $withTpl   = isset($parameters['with-template']) || isset($parameters['full']);
+        $withApi = isset($parameters['with-api']) || isset($parameters['full']);
+        $withTpl = isset($parameters['with-template']) || isset($parameters['full']);
         $withEvent = isset($parameters['with-event']) || isset($parameters['full']);
 
         $this->assertTrue($withApi);
@@ -904,8 +870,8 @@ PHP;
     {
         $parameters = [];
 
-        $withApi   = isset($parameters['with-api']) || isset($parameters['full']);
-        $withTpl   = isset($parameters['with-template']) || isset($parameters['full']);
+        $withApi = isset($parameters['with-api']) || isset($parameters['full']);
+        $withTpl = isset($parameters['with-template']) || isset($parameters['full']);
         $withEvent = isset($parameters['with-event']) || isset($parameters['full']);
 
         $this->assertFalse($withApi);
@@ -921,36 +887,36 @@ PHP;
     public function endToEndMinimalScaffoldCreatesValidFiles(): void
     {
         $moduleCode = 'app/demo';
-        $parts = explode('/', $moduleCode);
+        $parts = \explode('/', $moduleCode);
         $controllerName = $parts[1];
-        $moduleName = ucwords(str_replace('_', ' ', $controllerName)) . ' Module';
+        $moduleName = \ucwords(\str_replace('_', ' ', $controllerName)) . ' Module';
         $author = 'Test Author';
         $description = 'A test module';
         $version = '1.0.0';
-        $namespace = str_replace('/', '_', $moduleCode);
+        $namespace = \str_replace('/', '_', $moduleCode);
 
         $basePath = $this->tempDir . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'testdist';
         $moduleDir = $basePath . DIRECTORY_SEPARATOR . $parts[0] . DIRECTORY_SEPARATOR . $parts[1];
         $versionDir = $moduleDir . DIRECTORY_SEPARATOR . 'default';
         $controllerDir = $versionDir . DIRECTORY_SEPARATOR . 'controller';
 
-        mkdir($controllerDir, 0777, true);
+        \mkdir($controllerDir, 0o777, true);
 
         // Generate module.php
         $modulePhp = "<?php\nreturn [\n    'module_code' => '{$moduleCode}',\n    'name' => '{$moduleName}',\n    'author' => '{$author}',\n    'description' => '{$description}',\n    'version' => '{$version}',\n];\n";
-        file_put_contents($moduleDir . DIRECTORY_SEPARATOR . 'module.php', $modulePhp);
+        \file_put_contents($moduleDir . DIRECTORY_SEPARATOR . 'module.php', $modulePhp);
 
         // Generate package.php
         $packagePhp = "<?php\nreturn [\n    'module_code' => '{$moduleCode}',\n    'author' => '{$author}',\n    'description' => '{$description}',\n    'version' => '{$version}',\n];\n";
-        file_put_contents($versionDir . DIRECTORY_SEPARATOR . 'package.php', $packagePhp);
+        \file_put_contents($versionDir . DIRECTORY_SEPARATOR . 'package.php', $packagePhp);
 
         // Generate controller
         $ctrlPhp = "<?php\nnamespace Razy\\Module\\{$namespace};\nuse Razy\\Agent;\nuse Razy\\Controller;\nreturn new class extends Controller {\n    public function __onInit(Agent \$agent): bool {\n        \$agent->addLazyRoute(['/' => 'index']);\n        return true;\n    }\n};\n";
-        file_put_contents($controllerDir . DIRECTORY_SEPARATOR . $controllerName . '.php', $ctrlPhp);
+        \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . $controllerName . '.php', $ctrlPhp);
 
         // Generate handler
         $handlerPhp = "<?php\nreturn function (): void {\n    header('Content-Type: text/html; charset=UTF-8');\n    echo '<h1>{$moduleName}</h1><p>It works!</p>';\n};\n";
-        file_put_contents($controllerDir . DIRECTORY_SEPARATOR . $controllerName . '.index.php', $handlerPhp);
+        \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . $controllerName . '.index.php', $handlerPhp);
 
         // Verify all 4 files exist and are valid PHP
         $this->assertFileExists($moduleDir . DIRECTORY_SEPARATOR . 'module.php');
@@ -971,5 +937,44 @@ PHP;
         // Verify handler is callable
         $handler = include $controllerDir . DIRECTORY_SEPARATOR . $controllerName . '.index.php';
         $this->assertIsCallable($handler);
+    }
+
+    private function removeDir(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        $items = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($items as $item) {
+            if ($item->isDir()) {
+                \rmdir($item->getPathname());
+            } else {
+                \unlink($item->getPathname());
+            }
+        }
+        \rmdir($dir);
+    }
+
+    /**
+     * Execute the scaffold command in a controlled environment.
+     *
+     * @param string $moduleCode Module code argument
+     * @param array $args Positional arguments
+     * @param array $parameters Named parameters (flags)
+     *
+     * @return string Captured output
+     */
+    private function runScaffold(string $moduleCode, array $args = [], array $parameters = []): string
+    {
+        // Temporarily override SYSTEM_ROOT to use our temp directory
+        $originalRoot = \defined('SYSTEM_ROOT') ? SYSTEM_ROOT : null;
+
+        // We cannot redefine constants, so we'll test file generation directly
+        // by calling the logic that creates the files. Instead, we test the
+        // generated file structure and content by simulating what scaffold does.
+        return '';
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -17,7 +19,7 @@ use PDO;
 use PDOStatement;
 
 /**
- * Class StatementPool
+ * Class StatementPool.
  *
  * Caches PDOStatement objects keyed by SQL string to avoid redundant prepare() calls.
  * Uses LRU (Least Recently Used) eviction when the pool exceeds its maximum size.
@@ -25,6 +27,7 @@ use PDOStatement;
  * Performance impact: Reduces prepare() overhead by ~50% in repeated query scenarios.
  *
  * @class StatementPool
+ *
  * @package Razy\Database
  */
 class StatementPool
@@ -46,7 +49,7 @@ class StatementPool
      */
     public function __construct(
         private readonly PDO $pdo,
-        private readonly int $maxSize = 100
+        private readonly int $maxSize = 100,
     ) {
     }
 
@@ -59,6 +62,7 @@ class StatementPool
      * LRU entry if the pool is at capacity.
      *
      * @param string $sql The SQL string to prepare
+     *
      * @return PDOStatement|false The prepared statement, or false on failure
      */
     public function getOrPrepare(string $sql): PDOStatement|false
@@ -78,7 +82,7 @@ class StatementPool
         }
 
         // Evict LRU entry if pool is full
-        if (count($this->pool) >= $this->maxSize) {
+        if (\count($this->pool) >= $this->maxSize) {
             $this->evictLRU();
         }
 
@@ -90,25 +94,13 @@ class StatementPool
     }
 
     /**
-     * Evict the least recently used statement from the pool.
-     */
-    private function evictLRU(): void
-    {
-        $lruKey = array_search(min($this->accessOrder), $this->accessOrder, true);
-        if ($lruKey !== false) {
-            $this->pool[$lruKey]->closeCursor();
-            unset($this->pool[$lruKey], $this->accessOrder[$lruKey]);
-        }
-    }
-
-    /**
      * Get the current number of cached statements.
      *
      * @return int
      */
     public function getPoolSize(): int
     {
-        return count($this->pool);
+        return \count($this->pool);
     }
 
     /**
@@ -123,5 +115,17 @@ class StatementPool
         $this->pool = [];
         $this->accessOrder = [];
         $this->accessCounter = 0;
+    }
+
+    /**
+     * Evict the least recently used statement from the pool.
+     */
+    private function evictLRU(): void
+    {
+        $lruKey = \array_search(\min($this->accessOrder), $this->accessOrder, true);
+        if ($lruKey !== false) {
+            $this->pool[$lruKey]->closeCursor();
+            unset($this->pool[$lruKey], $this->accessOrder[$lruKey]);
+        }
     }
 }

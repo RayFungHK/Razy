@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * content between opening and closing tags.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -42,39 +44,24 @@ class TFunction
     /** @var array<string, mixed> Declared parameters with default values */
     protected array $allowedParameters = [];
 
+    /** @var Controller|null The bound controller instance, if any */
+    protected ?Controller $controller = null;
+
     /** @var string The registered name of this function plugin */
     private string $name;
 
-	/** @var Controller|null The bound controller instance, if any */
-	protected ?Controller $controller = null;
-
-	/**
-	 * Bind a Controller instance to this plugin for module context access.
-	 *
-	 * @param Controller $entity The controller to bind
-	 * @return static Chainable
-	 */
-	final public function bind(Controller $entity): static
-	{
-		$this->controller = $entity;
-
-		return $this;
-	}
-
     /**
-     * Process the function tag and return rendered output.
+     * Bind a Controller instance to this plugin for module context access.
      *
-     * Override this method in subclasses to implement custom function logic.
+     * @param Controller $entity The controller to bind
      *
-     * @param Entity $entity The current template Entity context
-     * @param array $parameters Parsed named parameters with their values
-     * @param array $arguments Colon-separated arguments from the tag syntax
-     * @param string $wrappedText Content enclosed between open/close tags (if encloseContent is true)
-     * @return string|null The rendered output string
+     * @return static Chainable
      */
-    protected function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): ?string
+    final public function bind(Controller $entity): static
     {
-        return '';
+        $this->controller = $entity;
+
+        return $this;
     }
 
     /**
@@ -85,6 +72,7 @@ class TFunction
      * @param string $wrappedText The wrapped content if the plugin is an enclosure tag
      *
      * @return string|null
+     *
      * @throws Throwable
      */
     final public function parse(Entity $entity, string $syntax = '', string $wrappedText = ''): ?string
@@ -92,23 +80,23 @@ class TFunction
         $parameters = [];
         $arguments = [];
 
-        $text = trim($syntax);
-        if (0 === strlen($text)) {
+        $text = \trim($syntax);
+        if (0 === \strlen($text)) {
             // No parameters provided; use defaults
             $parameters = $this->allowedParameters;
         } else {
             $syntax = ' ' . $syntax;
-            if (preg_match('/^\s((?::\w+)*)((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)$/', $syntax, $matches)) {
+            if (\preg_match('/^\s((?::\w+)*)((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)$/', $syntax, $matches)) {
                 $parameters = $this->allowedParameters;
-                $arguments = explode(':', ltrim(trim($matches[1]), ':'));
-                $syntax = trim($matches[2]);
-                $clips = preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\.)(*SKIP)(*FAIL)|\s+/', $syntax);
+                $arguments = \explode(':', \ltrim(\trim($matches[1]), ':'));
+                $syntax = \trim($matches[2]);
+                $clips = \preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\.)(*SKIP)(*FAIL)|\s+/', $syntax);
 
                 if (isset($matches[6])) {
                     // Positional parameters: assign values in order to allowedParameters
                     foreach ($parameters as &$value) {
-                        if (count($clips) > 0) {
-                            $clip = array_shift($clips);
+                        if (\count($clips) > 0) {
+                            $clip = \array_shift($clips);
                             $value = $entity->parseValue($clip);
                         }
 
@@ -118,10 +106,10 @@ class TFunction
                     }
                 } else {
                     // Named parameters: parse key=value pairs
-                    preg_match_all('/\s+(\w+)=(?:(\$\w+(?:\.(?:\w+|(?P>rq)))*)|true|false|(-?\d+(?:\.\d+)?)|(?<rq>(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $syntax, $matches, PREG_SET_ORDER);
+                    \preg_match_all('/\s+(\w+)=(?:(\$\w+(?:\.(?:\w+|(?P>rq)))*)|true|false|(-?\d+(?:\.\d+)?)|(?<rq>(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $syntax, $matches, PREG_SET_ORDER);
                     foreach ($clips as $param) {
-                        [$parameter, $value] = explode('=', $param);
-                        if ($this->extendedParameter || array_key_exists($parameter, $this->allowedParameters)) {
+                        [$parameter, $value] = \explode('=', $param);
+                        if ($this->extendedParameter || \array_key_exists($parameter, $this->allowedParameters)) {
                             $parameters[$parameter] = $entity->parseValue($value);
                         }
                     }
@@ -132,7 +120,7 @@ class TFunction
         // Invoke the processor and handle callable return values
         $result = $this->processor($entity, $parameters, $arguments, $wrappedText);
 
-        return is_callable($result) ? call_user_func($result) : $result;
+        return \is_callable($result) ? \call_user_func($result) : $result;
     }
 
     /**
@@ -179,12 +167,30 @@ class TFunction
      * Set the registered name of this function plugin.
      *
      * @param string $name The plugin name
+     *
      * @return TFunction Chainable
      */
-    final public function setName(string $name): TFunction
+    final public function setName(string $name): self
     {
         $this->name = $name;
 
         return $this;
+    }
+
+    /**
+     * Process the function tag and return rendered output.
+     *
+     * Override this method in subclasses to implement custom function logic.
+     *
+     * @param Entity $entity The current template Entity context
+     * @param array $parameters Parsed named parameters with their values
+     * @param array $arguments Colon-separated arguments from the tag syntax
+     * @param string $wrappedText Content enclosed between open/close tags (if encloseContent is true)
+     *
+     * @return string|null The rendered output string
+     */
+    protected function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): ?string
+    {
+        return '';
     }
 }

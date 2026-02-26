@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for RestartSignal - file-based worker signal mechanism.
  * This file is part of Razy v0.5.
@@ -17,17 +18,17 @@ class RestartSignalTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->signalPath = sys_get_temp_dir() . '/razy_signal_test_' . uniqid() . '.json';
+        $this->signalPath = \sys_get_temp_dir() . '/razy_signal_test_' . \uniqid() . '.json';
     }
 
     protected function tearDown(): void
     {
-        if (is_file($this->signalPath)) {
-            unlink($this->signalPath);
+        if (\is_file($this->signalPath)) {
+            \unlink($this->signalPath);
         }
-        $tmp = $this->signalPath . '.tmp.' . getmypid();
-        if (is_file($tmp)) {
-            unlink($tmp);
+        $tmp = $this->signalPath . '.tmp.' . \getmypid();
+        if (\is_file($tmp)) {
+            \unlink($tmp);
         }
     }
 
@@ -69,10 +70,10 @@ class RestartSignalTest extends TestCase
     public function testClearRemovesSignalFile(): void
     {
         RestartSignal::send($this->signalPath, RestartSignal::ACTION_RESTART);
-        $this->assertTrue(is_file($this->signalPath));
+        $this->assertTrue(\is_file($this->signalPath));
 
         $this->assertTrue(RestartSignal::clear($this->signalPath));
-        $this->assertFalse(is_file($this->signalPath));
+        $this->assertFalse(\is_file($this->signalPath));
     }
 
     public function testClearReturnsTrueWhenFileDoesNotExist(): void
@@ -82,37 +83,37 @@ class RestartSignalTest extends TestCase
 
     public function testCheckReturnsNullForInvalidJson(): void
     {
-        file_put_contents($this->signalPath, 'not json');
+        \file_put_contents($this->signalPath, 'not json');
         $this->assertNull(RestartSignal::check($this->signalPath));
     }
 
     public function testCheckReturnsNullForMissingAction(): void
     {
-        file_put_contents($this->signalPath, json_encode(['timestamp' => time()]));
+        \file_put_contents($this->signalPath, \json_encode(['timestamp' => \time()]));
         $this->assertNull(RestartSignal::check($this->signalPath));
     }
 
     public function testCheckReturnsNullForInvalidAction(): void
     {
-        file_put_contents($this->signalPath, json_encode(['action' => 'invalid']));
+        \file_put_contents($this->signalPath, \json_encode(['action' => 'invalid']));
         $this->assertNull(RestartSignal::check($this->signalPath));
     }
 
     public function testCheckReturnsNullForEmptyFile(): void
     {
-        file_put_contents($this->signalPath, '');
+        \file_put_contents($this->signalPath, '');
         $this->assertNull(RestartSignal::check($this->signalPath));
     }
 
     public function testIsStaleReturnsTrueForOldSignal(): void
     {
-        $signal = ['action' => 'restart', 'timestamp' => time() - 600];
+        $signal = ['action' => 'restart', 'timestamp' => \time() - 600];
         $this->assertTrue(RestartSignal::isStale($signal, 300));
     }
 
     public function testIsStaleReturnsFalseForFreshSignal(): void
     {
-        $signal = ['action' => 'restart', 'timestamp' => time()];
+        $signal = ['action' => 'restart', 'timestamp' => \time()];
         $this->assertFalse(RestartSignal::isStale($signal, 300));
     }
 

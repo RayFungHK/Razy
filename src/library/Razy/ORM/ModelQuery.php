@@ -9,17 +9,21 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\ORM;
 
+use BadMethodCallException;
+use Generator;
 use Razy\Database;
 use Razy\ORM\Relation\BelongsTo;
 use Razy\ORM\Relation\BelongsToMany;
 use Razy\ORM\Relation\HasMany;
 use Razy\ORM\Relation\HasOne;
 use Razy\ORM\Relation\Relation;
+use ReflectionProperty;
 
 /**
  * Fluent query builder for ORM models.
@@ -102,13 +106,48 @@ class ModelQuery
     private bool $globalScopesApplied = false;
 
     /**
-     * @param Database $database   The database connection
-     * @param string   $modelClass Fully-qualified model class name
+     * @param Database $database The database connection
+     * @param string $modelClass Fully-qualified model class name
      */
     public function __construct(
         private readonly Database $database,
         private readonly string $modelClass,
-    ) {}
+    ) {
+    }
+
+    /**
+     * Forward calls to local scope methods defined on the model.
+     *
+     * Any method named `scope{Name}` on the model class can be invoked on
+     * the query builder as `{name}()`.
+     *
+     * ```php
+     * // Model:
+     * public function scopeActive(ModelQuery $query): ModelQuery {
+     *     return $query->where('active=:_s_active', ['_s_active' => 1]);
+     * }
+     *
+     * // Usage:
+     * User::query($db)->active()->get();
+     * ```
+     *
+     * @throws BadMethodCallException If no matching scope method exists
+     */
+    public function __call(string $method, array $parameters): mixed
+    {
+        $scopeMethod = 'scope' . \ucfirst($method);
+
+        if (\method_exists($this->modelClass, $scopeMethod)) {
+            $instance = new ($this->modelClass)();
+            $result = $instance->{$scopeMethod}($this, ...$parameters);
+
+            return $result ?? $this;
+        }
+
+        throw new BadMethodCallException(
+            \sprintf('Method %s() does not exist on %s.', $method, static::class),
+        );
+    }
 
     // -----------------------------------------------------------------------
     //  Constraints
@@ -123,7 +162,7 @@ class ModelQuery
      */
     public function whereNull(string $column): static
     {
-        $paramKey = '_wn_' . str_replace('.', '_', $column);
+        $paramKey = '_wn_' . \str_replace('.', '_', $column);
         $this->wheres[] = [',', $column . '=:' . $paramKey];
         $this->bindings[$paramKey] = null;
 
@@ -139,7 +178,7 @@ class ModelQuery
      */
     public function whereNotNull(string $column): static
     {
-        $paramKey = '_wnn_' . str_replace('.', '_', $column);
+        $paramKey = '_wnn_' . \str_replace('.', '_', $column);
         $this->wheres[] = [',', '!' . $column . '=:' . $paramKey];
         $this->bindings[$paramKey] = null;
 
@@ -151,7 +190,7 @@ class ModelQuery
      *
      * Multiple calls are combined with AND (`,`).
      *
-     * @param string               $syntax Simple Syntax expression, e.g. `name=:name`
+     * @param string $syntax Simple Syntax expression, e.g. `name=:name`
      * @param array<string, mixed> $params Parameter bindings for placeholders
      *
      * @return $this
@@ -159,7 +198,7 @@ class ModelQuery
     public function where(string $syntax, array $params = []): static
     {
         $this->wheres[] = [',', $syntax];
-        $this->bindings = array_merge($this->bindings, $params);
+        $this->bindings = \array_merge($this->bindings, $params);
 
         return $this;
     }
@@ -178,7 +217,7 @@ class ModelQuery
      * // WHERE role = 'admin' OR is_super = 1
      * ```
      *
-     * @param string               $syntax Simple Syntax expression
+     * @param string $syntax Simple Syntax expression
      * @param array<string, mixed> $params Parameter bindings
      *
      * @return $this
@@ -186,7 +225,7 @@ class ModelQuery
     public function orWhere(string $syntax, array $params = []): static
     {
         $this->wheres[] = ['|', $syntax];
-        $this->bindings = array_merge($this->bindings, $params);
+        $this->bindings = \array_merge($this->bindings, $params);
 
         return $this;
     }
@@ -199,13 +238,13 @@ class ModelQuery
      * ```
      *
      * @param string $column Column name
-     * @param array  $values Values for the IN list
+     * @param array $values Values for the IN list
      *
      * @return $this
      */
     public function whereIn(string $column, array $values): static
     {
-        $paramKey = '_wi_' . str_replace('.', '_', $column);
+        $paramKey = '_wi_' . \str_replace('.', '_', $column);
         $this->wheres[] = [',', $column . '|=:' . $paramKey];
         $this->bindings[$paramKey] = $values;
 
@@ -216,13 +255,13 @@ class ModelQuery
      * Add a WHERE NOT IN condition.
      *
      * @param string $column Column name
-     * @param array  $values Values for the NOT IN list
+     * @param array $values Values for the NOT IN list
      *
      * @return $this
      */
     public function whereNotIn(string $column, array $values): static
     {
-        $paramKey = '_wni_' . str_replace('.', '_', $column);
+        $paramKey = '_wni_' . \str_replace('.', '_', $column);
         $this->wheres[] = [',', '!' . $column . '|=:' . $paramKey];
         $this->bindings[$paramKey] = $values;
 
@@ -237,14 +276,14 @@ class ModelQuery
      * ```
      *
      * @param string $column Column name
-     * @param mixed  $min    Minimum value (inclusive)
-     * @param mixed  $max    Maximum value (inclusive)
+     * @param mixed $min Minimum value (inclusive)
+     * @param mixed $max Maximum value (inclusive)
      *
      * @return $this
      */
     public function whereBetween(string $column, mixed $min, mixed $max): static
     {
-        $paramKey = '_wb_' . str_replace('.', '_', $column);
+        $paramKey = '_wb_' . \str_replace('.', '_', $column);
         $this->wheres[] = [',', $column . '><:' . $paramKey];
         $this->bindings[$paramKey] = [$min, $max];
 
@@ -255,14 +294,14 @@ class ModelQuery
      * Add a WHERE NOT BETWEEN condition.
      *
      * @param string $column Column name
-     * @param mixed  $min    Minimum value
-     * @param mixed  $max    Maximum value
+     * @param mixed $min Minimum value
+     * @param mixed $max Maximum value
      *
      * @return $this
      */
     public function whereNotBetween(string $column, mixed $min, mixed $max): static
     {
-        $paramKey = '_wnb_' . str_replace('.', '_', $column);
+        $paramKey = '_wnb_' . \str_replace('.', '_', $column);
         $this->wheres[] = [',', '!' . $column . '><:' . $paramKey];
         $this->bindings[$paramKey] = [$min, $max];
 
@@ -272,14 +311,14 @@ class ModelQuery
     /**
      * Set the ORDER BY clause.
      *
-     * @param string $column    Column name
+     * @param string $column Column name
      * @param string $direction 'ASC' or 'DESC'
      *
      * @return $this
      */
     public function orderBy(string $column, string $direction = 'ASC'): static
     {
-        $prefix = strtoupper($direction) === 'DESC' ? '>' : '<';
+        $prefix = \strtoupper($direction) === 'DESC' ? '>' : '<';
         $this->orders[] = $prefix . $column;
 
         return $this;
@@ -374,7 +413,7 @@ class ModelQuery
      */
     public function with(string ...$relations): static
     {
-        $this->eagerLoad = array_unique(array_merge($this->eagerLoad, $relations));
+        $this->eagerLoad = \array_unique(\array_merge($this->eagerLoad, $relations));
 
         return $this;
     }
@@ -470,15 +509,15 @@ class ModelQuery
      * `currentPage()`, etc.), URL generation, JSON serialization, and
      * backward-compatible `ArrayAccess` (`$page['data']`, `$page['total']`).
      *
-     * @param int $page    Page number (1-based)
+     * @param int $page Page number (1-based)
      * @param int $perPage Results per page
      */
     public function paginate(int $page = 1, int $perPage = 15): Paginator
     {
         $total = $this->count();
-        $perPage = max(1, $perPage);
-        $lastPage = max(1, (int) ceil($total / $perPage));
-        $page = max(1, min($page, $lastPage));
+        $perPage = \max(1, $perPage);
+        $lastPage = \max(1, (int) \ceil($total / $perPage));
+        $page = \max(1, \min($page, $lastPage));
 
         $this->limitValue = $perPage;
         $this->offsetValue = ($page - 1) * $perPage;
@@ -497,13 +536,13 @@ class ModelQuery
      *
      * Returns a `Paginator` with `total()` = null and `lastPage()` = null.
      *
-     * @param int $page    Page number (1-based)
+     * @param int $page Page number (1-based)
      * @param int $perPage Results per page
      */
     public function simplePaginate(int $page = 1, int $perPage = 15): Paginator
     {
-        $perPage = max(1, $perPage);
-        $page = max(1, $page);
+        $perPage = \max(1, $perPage);
+        $page = \max(1, $page);
 
         // Fetch one extra record to check if there are more pages
         $this->limitValue = $perPage + 1;
@@ -511,11 +550,11 @@ class ModelQuery
 
         $data = $this->get();
         $all = $data->all();
-        $hasMore = count($all) > $perPage;
+        $hasMore = \count($all) > $perPage;
 
         // Trim the extra record if present
         if ($hasMore) {
-            array_pop($all);
+            \array_pop($all);
             $data = new ModelCollection($all);
         }
 
@@ -534,7 +573,7 @@ class ModelQuery
      * });
      * ```
      *
-     * @param int      $size     Number of records per chunk
+     * @param int $size Number of records per chunk
      * @param callable $callback fn(ModelCollection $chunk, int $page): bool|void
      *
      * @return bool True if all chunks were processed
@@ -577,9 +616,9 @@ class ModelQuery
      * }
      * ```
      *
-     * @return \Generator<int, Model>
+     * @return Generator<int, Model>
      */
-    public function cursor(): \Generator
+    public function cursor(): Generator
     {
         $rows = $this->executeSelect();
 
@@ -606,10 +645,10 @@ class ModelQuery
         $modelClass = $this->modelClass;
         $table = $modelClass::resolveTable();
 
-        $columns = array_keys($attributes);
+        $columns = \array_keys($attributes);
 
         $this->database->execute(
-            $this->database->insert($table, $columns)->assign($attributes)
+            $this->database->insert($table, $columns)->assign($attributes),
         );
 
         $id = (int) $this->database->lastID();
@@ -630,11 +669,11 @@ class ModelQuery
     {
         $this->applyGlobalScopes();
         $table = $this->getTable();
-        $updateSyntax = array_keys($attributes);
+        $updateSyntax = \array_keys($attributes);
 
         $stmt = $this->database->update($table, $updateSyntax);
         $this->applyWhere($stmt);
-        $stmt->assign(array_merge($attributes, $this->bindings));
+        $stmt->assign(\array_merge($attributes, $this->bindings));
 
         $this->database->execute($stmt);
 
@@ -678,7 +717,7 @@ class ModelQuery
     /**
      * Build a fully-configured SELECT Statement object.
      */
-    private function buildSelectStatement(): \Razy\Database\Statement
+    private function buildSelectStatement(): Database\Statement
     {
         $stmt = $this->database->prepare()
             ->select($this->selectColumns)
@@ -687,7 +726,7 @@ class ModelQuery
         $this->applyWhere($stmt);
 
         if (!empty($this->orders)) {
-            $stmt->order(implode(',', $this->orders));
+            $stmt->order(\implode(',', $this->orders));
         }
 
         if ($this->limitValue !== null) {
@@ -704,7 +743,7 @@ class ModelQuery
     /**
      * Apply accumulated where clauses and bindings to a Statement.
      */
-    private function applyWhere(\Razy\Database\Statement $stmt): void
+    private function applyWhere(Database\Statement $stmt): void
     {
         $syntax = $this->buildWhereSyntax();
 
@@ -739,7 +778,7 @@ class ModelQuery
             }
         }
 
-        return implode('', $parts);
+        return \implode('', $parts);
     }
 
     /**
@@ -767,40 +806,6 @@ class ModelQuery
                 $scope($this);
             }
         }
-    }
-
-    /**
-     * Forward calls to local scope methods defined on the model.
-     *
-     * Any method named `scope{Name}` on the model class can be invoked on
-     * the query builder as `{name}()`.
-     *
-     * ```php
-     * // Model:
-     * public function scopeActive(ModelQuery $query): ModelQuery {
-     *     return $query->where('active=:_s_active', ['_s_active' => 1]);
-     * }
-     *
-     * // Usage:
-     * User::query($db)->active()->get();
-     * ```
-     *
-     * @throws \BadMethodCallException If no matching scope method exists
-     */
-    public function __call(string $method, array $parameters): mixed
-    {
-        $scopeMethod = 'scope' . ucfirst($method);
-
-        if (method_exists($this->modelClass, $scopeMethod)) {
-            $instance = new ($this->modelClass)();
-            $result = $instance->{$scopeMethod}($this, ...$parameters);
-
-            return $result ?? $this;
-        }
-
-        throw new \BadMethodCallException(
-            sprintf('Method %s() does not exist on %s.', $method, static::class)
-        );
     }
 
     /**
@@ -841,10 +846,10 @@ class ModelQuery
 
             match (true) {
                 $relation instanceof BelongsToMany => $this->eagerLoadBelongsToMany($models, $relationName, $relation),
-                $relation instanceof HasMany       => $this->eagerLoadHasMany($models, $relationName, $relation),
-                $relation instanceof HasOne        => $this->eagerLoadHasOne($models, $relationName, $relation),
-                $relation instanceof BelongsTo     => $this->eagerLoadBelongsTo($models, $relationName, $relation),
-                default                            => null, // Unknown relation type — skip
+                $relation instanceof HasMany => $this->eagerLoadHasMany($models, $relationName, $relation),
+                $relation instanceof HasOne => $this->eagerLoadHasOne($models, $relationName, $relation),
+                $relation instanceof BelongsTo => $this->eagerLoadBelongsTo($models, $relationName, $relation),
+                default => null, // Unknown relation type — skip
             };
         }
     }
@@ -1024,7 +1029,7 @@ class ModelQuery
 
         // Step 2: Fetch all related models in one query
         $relatedClass = $this->getRelatedClass($models[0], $relationName);
-        $relatedRows = $this->queryRelatedWhereIn($relatedClass, $relatedKey, array_keys($allRelatedIds));
+        $relatedRows = $this->queryRelatedWhereIn($relatedClass, $relatedKey, \array_keys($allRelatedIds));
 
         // Index related models by their key
         $relatedIndex = [];
@@ -1068,15 +1073,15 @@ class ModelQuery
             }
         }
 
-        return array_keys($keys);
+        return \array_keys($keys);
     }
 
     /**
      * Query a model's table with WHERE column IN (...).
      *
      * @param string $modelClass Fully-qualified Model class
-     * @param string $column     Column name
-     * @param array  $values     Values for IN clause
+     * @param string $column Column name
+     * @param array $values Values for IN clause
      *
      * @return array<int, array<string, mixed>>
      */
@@ -1087,7 +1092,7 @@ class ModelQuery
 
         $whereParts = [];
         $bindings = [];
-        foreach (array_values($values) as $i => $val) {
+        foreach (\array_values($values) as $i => $val) {
             $param = '_ei' . $i;
             $whereParts[] = $column . '=:' . $param;
             $bindings[$param] = $val;
@@ -1097,7 +1102,7 @@ class ModelQuery
             ->select('*')
             ->from($table);
 
-        $stmt->where(implode('|', $whereParts));
+        $stmt->where(\implode('|', $whereParts));
         $stmt->assign($bindings);
 
         return $stmt->lazyGroup();
@@ -1116,7 +1121,7 @@ class ModelQuery
     ): array {
         $whereParts = [];
         $bindings = [];
-        foreach (array_values($parentKeys) as $i => $val) {
+        foreach (\array_values($parentKeys) as $i => $val) {
             $param = '_pk' . $i;
             $whereParts[] = $foreignPivotKey . '=:' . $param;
             $bindings[$param] = $val;
@@ -1126,7 +1131,7 @@ class ModelQuery
             ->select($foreignPivotKey . ',' . $relatedPivotKey)
             ->from($pivotTable);
 
-        $stmt->where(implode('|', $whereParts));
+        $stmt->where(\implode('|', $whereParts));
         $stmt->assign($bindings);
 
         return $stmt->lazyGroup();
@@ -1135,7 +1140,7 @@ class ModelQuery
     /**
      * Get the related model class from a relation method.
      *
-     * @param Model  $model        Parent model
+     * @param Model $model Parent model
      * @param string $relationName Relation method name
      *
      * @return string Fully-qualified class name
@@ -1143,7 +1148,7 @@ class ModelQuery
     private function getRelatedClass(Model $model, string $relationName): string
     {
         $relation = $model->getRelationInstance($relationName);
-        $ref = new \ReflectionProperty(Relation::class, 'related');
+        $ref = new ReflectionProperty(Relation::class, 'related');
 
         return $ref->getValue($relation);
     }

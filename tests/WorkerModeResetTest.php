@@ -41,7 +41,7 @@ class WorkerModeResetTest extends TestCase
 
     public function testResetAllClearsFolders(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder(Template::class, $dir);
         $this->assertNotEmpty($this->manager->getFolders(Template::class));
 
@@ -51,7 +51,7 @@ class WorkerModeResetTest extends TestCase
 
     public function testFoldersCanBeReRegisteredAfterResetAll(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         // Simulate bootstrap registration
         $this->manager->addFolder(Template::class, $dir, 'initial');
         $this->manager->addFolder(Collection::class, $dir, 'initial');
@@ -73,7 +73,7 @@ class WorkerModeResetTest extends TestCase
 
     public function testAllFourPluginOwnersCanReRegister(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $owners = [
             Template::class,
             Collection::class,
@@ -98,14 +98,14 @@ class WorkerModeResetTest extends TestCase
         foreach ($owners as $owner) {
             $this->assertNotEmpty(
                 $this->manager->getFolders($owner),
-                "Plugin folders for {$owner} should be available after re-registration"
+                "Plugin folders for {$owner} should be available after re-registration",
             );
         }
     }
 
     public function testMultipleResetAndReRegisterCycles(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
 
         for ($cycle = 1; $cycle <= 5; $cycle++) {
             $this->manager->addFolder(Template::class, $dir, "cycle-{$cycle}");
@@ -115,14 +115,14 @@ class WorkerModeResetTest extends TestCase
             $this->manager->resetAll();
             $this->assertEmpty(
                 $this->manager->getFolders(Template::class),
-                "Cycle {$cycle}: folders should be cleared after resetAll"
+                "Cycle {$cycle}: folders should be cleared after resetAll",
             );
         }
     }
 
     public function testPluginCacheIsClearedOnResetAll(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder(Template::class, $dir);
 
         // Access cached plugins before reset
@@ -163,7 +163,7 @@ class WorkerModeResetTest extends TestCase
 
     public function testWorkerResetSequenceSimulation(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
 
         // Simulate a full worker request lifecycle (3 cycles)
         for ($request = 1; $request <= 3; $request++) {
@@ -183,7 +183,7 @@ class WorkerModeResetTest extends TestCase
 
             $this->assertNotEmpty(
                 $this->manager->getFolders(Template::class),
-                "Request {$request}: Template folders should survive reset+re-register"
+                "Request {$request}: Template folders should survive reset+re-register",
             );
         }
     }

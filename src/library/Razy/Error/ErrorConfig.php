@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -17,6 +18,7 @@ namespace Razy\Error;
  * from exception semantics. Handles debug mode, cached output, and debug console.
  *
  * @package Razy\Error
+ *
  * @license MIT
  */
 class ErrorConfig

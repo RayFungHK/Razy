@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Distributor;
 
 use Closure;
+use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 
 /**
@@ -33,6 +36,7 @@ use Razy\Contract\MiddlewareInterface;
  * ```
  *
  * @class MiddlewarePipeline
+ *
  * @package Razy\Distributor
  */
 class MiddlewarePipeline
@@ -47,8 +51,10 @@ class MiddlewarePipeline
      * The first middleware added is the outermost layer.
      *
      * @param MiddlewareInterface|Closure $middleware A middleware object or closure
+     *
      * @return $this Fluent interface
-     * @throws \InvalidArgumentException If the argument is neither MiddlewareInterface nor Closure
+     *
+     * @throws InvalidArgumentException If the argument is neither MiddlewareInterface nor Closure
      */
     public function pipe(MiddlewareInterface|Closure $middleware): static
     {
@@ -60,6 +66,7 @@ class MiddlewarePipeline
      * Add multiple middleware at once.
      *
      * @param array<MiddlewareInterface|Closure> $middlewareList
+     *
      * @return $this Fluent interface
      */
     public function pipeMany(array $middlewareList): static
@@ -78,6 +85,7 @@ class MiddlewarePipeline
      *
      * @param array $context The route context (routedInfo + any extras)
      * @param Closure $coreHandler The final handler: function(array $context): mixed
+     *
      * @return mixed The result from the pipeline
      */
     public function process(array $context, Closure $coreHandler): mixed
@@ -85,7 +93,7 @@ class MiddlewarePipeline
         // Build the pipeline from inside-out (reverse order)
         $pipeline = $coreHandler;
 
-        foreach (array_reverse($this->middleware) as $mw) {
+        foreach (\array_reverse($this->middleware) as $mw) {
             $next = $pipeline;
             if ($mw instanceof MiddlewareInterface) {
                 $pipeline = static function (array $ctx) use ($mw, $next): mixed {
@@ -109,7 +117,7 @@ class MiddlewarePipeline
      */
     public function isEmpty(): bool
     {
-        return count($this->middleware) === 0;
+        return \count($this->middleware) === 0;
     }
 
     /**
@@ -119,7 +127,7 @@ class MiddlewarePipeline
      */
     public function count(): int
     {
-        return count($this->middleware);
+        return \count($this->middleware);
     }
 
     /**

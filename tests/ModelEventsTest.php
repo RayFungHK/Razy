@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
@@ -384,10 +385,18 @@ class ModelEventsTest extends TestCase
         $this->createSchema($db);
 
         $log = [];
-        ME_Post::saving(function () use (&$log) { $log[] = 'saving'; });
-        ME_Post::creating(function () use (&$log) { $log[] = 'creating'; });
-        ME_Post::created(function () use (&$log) { $log[] = 'created'; });
-        ME_Post::saved(function () use (&$log) { $log[] = 'saved'; });
+        ME_Post::saving(function () use (&$log) {
+            $log[] = 'saving';
+        });
+        ME_Post::creating(function () use (&$log) {
+            $log[] = 'creating';
+        });
+        ME_Post::created(function () use (&$log) {
+            $log[] = 'created';
+        });
+        ME_Post::saved(function () use (&$log) {
+            $log[] = 'saved';
+        });
 
         ME_Post::create($db, ['title' => 'Test', 'body' => 'Body']);
 
@@ -402,10 +411,18 @@ class ModelEventsTest extends TestCase
         $post = ME_Post::create($db, ['title' => 'Original', 'body' => 'Body']);
 
         $log = [];
-        ME_Post::saving(function () use (&$log) { $log[] = 'saving'; });
-        ME_Post::updating(function () use (&$log) { $log[] = 'updating'; });
-        ME_Post::updated(function () use (&$log) { $log[] = 'updated'; });
-        ME_Post::saved(function () use (&$log) { $log[] = 'saved'; });
+        ME_Post::saving(function () use (&$log) {
+            $log[] = 'saving';
+        });
+        ME_Post::updating(function () use (&$log) {
+            $log[] = 'updating';
+        });
+        ME_Post::updated(function () use (&$log) {
+            $log[] = 'updated';
+        });
+        ME_Post::saved(function () use (&$log) {
+            $log[] = 'saved';
+        });
 
         $post->title = 'Modified';
         $post->save();
@@ -423,9 +440,15 @@ class ModelEventsTest extends TestCase
         $this->createSchema($db);
 
         $log = [];
-        ME_Post::creating(function () use (&$log) { $log[] = 'listener1'; });
-        ME_Post::creating(function () use (&$log) { $log[] = 'listener2'; });
-        ME_Post::creating(function () use (&$log) { $log[] = 'listener3'; });
+        ME_Post::creating(function () use (&$log) {
+            $log[] = 'listener1';
+        });
+        ME_Post::creating(function () use (&$log) {
+            $log[] = 'listener2';
+        });
+        ME_Post::creating(function () use (&$log) {
+            $log[] = 'listener3';
+        });
 
         ME_Post::create($db, ['title' => 'Test', 'body' => 'Body']);
 
@@ -464,8 +487,12 @@ class ModelEventsTest extends TestCase
         $article = ME_Article::create($db, ['title' => 'Soft', 'body' => 'Body']);
 
         $log = [];
-        ME_Article::deleting(function () use (&$log) { $log[] = 'deleting'; });
-        ME_Article::deleted(function () use (&$log) { $log[] = 'deleted'; });
+        ME_Article::deleting(function () use (&$log) {
+            $log[] = 'deleting';
+        });
+        ME_Article::deleted(function () use (&$log) {
+            $log[] = 'deleted';
+        });
 
         $article->delete();
 
@@ -498,8 +525,12 @@ class ModelEventsTest extends TestCase
         $article = ME_Article::create($db, ['title' => 'ToForce', 'body' => 'Body']);
 
         $log = [];
-        ME_Article::registerPublicEvent('forceDeleting', function () use (&$log) { $log[] = 'forceDeleting'; });
-        ME_Article::registerPublicEvent('forceDeleted', function () use (&$log) { $log[] = 'forceDeleted'; });
+        ME_Article::registerPublicEvent('forceDeleting', function () use (&$log) {
+            $log[] = 'forceDeleting';
+        });
+        ME_Article::registerPublicEvent('forceDeleted', function () use (&$log) {
+            $log[] = 'forceDeleted';
+        });
 
         $article->forceDelete();
 
@@ -533,8 +564,12 @@ class ModelEventsTest extends TestCase
         $article->delete();
 
         $log = [];
-        ME_Article::restoring(function () use (&$log) { $log[] = 'restoring'; });
-        ME_Article::restored(function () use (&$log) { $log[] = 'restored'; });
+        ME_Article::restoring(function () use (&$log) {
+            $log[] = 'restoring';
+        });
+        ME_Article::restored(function () use (&$log) {
+            $log[] = 'restored';
+        });
 
         $article->restore();
 
@@ -573,8 +608,12 @@ class ModelEventsTest extends TestCase
         $postLog = [];
         $commentLog = [];
 
-        ME_Post::creating(function () use (&$postLog) { $postLog[] = 'post-creating'; });
-        ME_Comment::creating(function () use (&$commentLog) { $commentLog[] = 'comment-creating'; });
+        ME_Post::creating(function () use (&$postLog) {
+            $postLog[] = 'post-creating';
+        });
+        ME_Comment::creating(function () use (&$commentLog) {
+            $commentLog[] = 'comment-creating';
+        });
 
         ME_Post::create($db, ['title' => 'Post', 'body' => 'Body']);
 
@@ -592,7 +631,9 @@ class ModelEventsTest extends TestCase
         $this->createSchema($db);
 
         $log = [];
-        ME_Post::creating(function () use (&$log) { $log[] = 'creating'; });
+        ME_Post::creating(function () use (&$log) {
+            $log[] = 'creating';
+        });
 
         Model::clearBootedModels();
 
@@ -611,10 +652,18 @@ class ModelEventsTest extends TestCase
         $this->createSchema($db);
 
         $log = [];
-        ME_Post::saving(function () use (&$log) { $log[] = 'saving'; });
-        ME_Post::creating(function () use (&$log) { $log[] = 'creating'; });
-        ME_Post::created(function () use (&$log) { $log[] = 'created'; });
-        ME_Post::saved(function () use (&$log) { $log[] = 'saved'; });
+        ME_Post::saving(function () use (&$log) {
+            $log[] = 'saving';
+        });
+        ME_Post::creating(function () use (&$log) {
+            $log[] = 'creating';
+        });
+        ME_Post::created(function () use (&$log) {
+            $log[] = 'created';
+        });
+        ME_Post::saved(function () use (&$log) {
+            $log[] = 'saved';
+        });
 
         $post = new ME_Post(['title' => 'Manual', 'body' => 'Body']);
         $post->setDatabase($db);
@@ -632,10 +681,18 @@ class ModelEventsTest extends TestCase
         $post = ME_Post::create($db, ['title' => 'Original', 'body' => 'Body']);
 
         $log = [];
-        ME_Post::saving(function () use (&$log) { $log[] = 'saving'; });
-        ME_Post::updating(function () use (&$log) { $log[] = 'updating'; });
-        ME_Post::updated(function () use (&$log) { $log[] = 'updated'; });
-        ME_Post::saved(function () use (&$log) { $log[] = 'saved'; });
+        ME_Post::saving(function () use (&$log) {
+            $log[] = 'saving';
+        });
+        ME_Post::updating(function () use (&$log) {
+            $log[] = 'updating';
+        });
+        ME_Post::updated(function () use (&$log) {
+            $log[] = 'updated';
+        });
+        ME_Post::saved(function () use (&$log) {
+            $log[] = 'saved';
+        });
 
         $post->title = 'Changed';
         $post->save();
@@ -650,7 +707,9 @@ class ModelEventsTest extends TestCase
     public function testDeleteOnNonExistingModelDoesNotFireEvents(): void
     {
         $log = [];
-        ME_Post::deleting(function () use (&$log) { $log[] = 'deleting'; });
+        ME_Post::deleting(function () use (&$log) {
+            $log[] = 'deleting';
+        });
 
         $post = new ME_Post(['title' => 'Never Saved']);
         $post->delete();
@@ -682,7 +741,7 @@ class ModelEventsTest extends TestCase
         $this->createSchema($db);
 
         ME_Post::creating(function () {
-            return null; // should NOT cancel
+             // should NOT cancel
         });
 
         $post = ME_Post::create($db, ['title' => 'Test', 'body' => 'Body']);
@@ -712,7 +771,9 @@ class ModelEventsTest extends TestCase
         $post = ME_Post::create($db, ['title' => 'Same', 'body' => 'Body']);
 
         $log = [];
-        ME_Post::saved(function () use (&$log) { $log[] = 'saved'; });
+        ME_Post::saved(function () use (&$log) {
+            $log[] = 'saved';
+        });
 
         // No changes — save() returns false, 'saved' should not fire
         $post->save();
@@ -783,12 +844,14 @@ class ModelEventsTest extends TestCase
 class ME_Post extends Model
 {
     protected static string $table = 'me_posts';
+
     protected static array $fillable = ['title', 'body'];
 }
 
 class ME_Comment extends Model
 {
     protected static string $table = 'me_comments';
+
     protected static array $fillable = ['content'];
 }
 
@@ -797,12 +860,13 @@ class ME_Article extends Model
     use SoftDeletes;
 
     protected static string $table = 'me_articles';
+
     protected static array $fillable = ['title', 'body'];
 
     /**
      * Public wrapper for registerModelEvent (for testing forceDeleting/forceDeleted).
      */
-    public static function registerPublicEvent(string $event, \Closure $callback): void
+    public static function registerPublicEvent(string $event, Closure $callback): void
     {
         static::registerModelEvent($event, $callback);
     }

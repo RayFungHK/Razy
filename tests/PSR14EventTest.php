@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for the PSR-14 Event Dispatcher implementation.
  *
@@ -16,8 +17,8 @@ namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Razy\Contract\EventDispatcher\PsrEventDispatcherInterface;
 use Razy\Contract\EventDispatcher\ListenerProviderInterface;
+use Razy\Contract\EventDispatcher\PsrEventDispatcherInterface;
 use Razy\Contract\EventDispatcher\StoppableEventInterface;
 use Razy\Event\EventDispatcher;
 use Razy\Event\ListenerProvider;
@@ -25,17 +26,29 @@ use Razy\Event\StoppableEvent;
 
 // ── Test event hierarchy ──────────────────────────────────
 
-interface PSR14TestEventInterface {}
+interface PSR14TestEventInterface
+{
+}
 
-class PSR14SimpleEvent {}
+class PSR14SimpleEvent
+{
+}
 
-class PSR14StoppableTestEvent extends StoppableEvent {}
+class PSR14StoppableTestEvent extends StoppableEvent
+{
+}
 
-class PSR14ParentEvent {}
+class PSR14ParentEvent
+{
+}
 
-class PSR14ChildEvent extends PSR14ParentEvent implements PSR14TestEventInterface {}
+class PSR14ChildEvent extends PSR14ParentEvent implements PSR14TestEventInterface
+{
+}
 
-class PSR14InterfaceOnlyEvent implements PSR14TestEventInterface {}
+class PSR14InterfaceOnlyEvent implements PSR14TestEventInterface
+{
+}
 
 class PSR14ModifiableEvent
 {
@@ -102,7 +115,7 @@ class PSR14EventTest extends TestCase
         $provider->addListener(PSR14SimpleEvent::class, $listener);
 
         $event = new PSR14SimpleEvent();
-        $listeners = iterator_to_array($provider->getListenersForEvent($event));
+        $listeners = \iterator_to_array($provider->getListenersForEvent($event));
 
         $this->assertCount(1, $listeners);
         $listeners[0]($event);
@@ -143,7 +156,7 @@ class PSR14EventTest extends TestCase
         });
 
         $event = new PSR14ChildEvent();
-        $listeners = iterator_to_array($provider->getListenersForEvent($event));
+        $listeners = \iterator_to_array($provider->getListenersForEvent($event));
 
         $this->assertCount(1, $listeners);
         $listeners[0]($event);
@@ -159,7 +172,7 @@ class PSR14EventTest extends TestCase
         });
 
         $event = new PSR14InterfaceOnlyEvent();
-        $listeners = iterator_to_array($provider->getListenersForEvent($event));
+        $listeners = \iterator_to_array($provider->getListenersForEvent($event));
 
         $this->assertCount(1, $listeners);
         $listeners[0]($event);
@@ -195,14 +208,15 @@ class PSR14EventTest extends TestCase
     {
         $provider = new ListenerProvider();
         $event = new PSR14SimpleEvent();
-        $listeners = iterator_to_array($provider->getListenersForEvent($event));
+        $listeners = \iterator_to_array($provider->getListenersForEvent($event));
         $this->assertSame([], $listeners);
     }
 
     public function testListenerProviderAddListenerReturnsSelf(): void
     {
         $provider = new ListenerProvider();
-        $result = $provider->addListener(PSR14SimpleEvent::class, function () {});
+        $result = $provider->addListener(PSR14SimpleEvent::class, function () {
+        });
         $this->assertSame($provider, $result);
     }
 

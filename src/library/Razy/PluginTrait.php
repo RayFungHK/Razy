@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
+
 /**
  * Trait for loading and caching plugin closures from registered folders.
  *
@@ -29,27 +32,12 @@ use Closure;
 trait PluginTrait
 {
     /**
-     * Get the plugin closure from the plugin pool.
-     *
-     * Delegates to PluginManager::getInstance()->getPlugin().
-     *
-     * @param string $pluginName
-     * @return array|null
-     * @throws Error
-     */
-    static private function GetPlugin(string $pluginName): ?array
-    {
-        return PluginManager::getInstance()->getPlugin(static::class, $pluginName);
-    }
-
-    /**
-     * Add a plugin folder which the plugin is load
+     * Add a plugin folder which the plugin is load.
      *
      * Delegates to PluginManager::getInstance()->addFolder().
      *
      * @param string $folder
      * @param mixed $args
-     * @return void
      */
     final public static function addPluginFolder(string $folder, mixed $args = null): void
     {
@@ -65,5 +53,21 @@ trait PluginTrait
     final public static function resetPlugins(): void
     {
         PluginManager::getInstance()->reset(static::class);
+    }
+
+    /**
+     * Get the plugin closure from the plugin pool.
+     *
+     * Delegates to PluginManager::getInstance()->getPlugin().
+     *
+     * @param string $pluginName
+     *
+     * @return array|null
+     *
+     * @throws Error
+     */
+    private static function GetPlugin(string $pluginName): ?array
+    {
+        return PluginManager::getInstance()->getPlugin(static::class, $pluginName);
     }
 }

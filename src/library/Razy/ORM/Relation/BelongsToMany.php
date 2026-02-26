@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -17,6 +18,7 @@ namespace Razy\ORM\Relation;
 use Razy\Database;
 use Razy\ORM\Model;
 use Razy\ORM\ModelCollection;
+use RuntimeException;
 
 /**
  * BelongsToMany relationship — many-to-many via a pivot (junction) table.
@@ -32,13 +34,13 @@ use Razy\ORM\ModelCollection;
 class BelongsToMany extends Relation
 {
     /**
-     * @param Model  $parent          The parent model instance
-     * @param string $related         Fully-qualified class of the related model
-     * @param string $pivotTable      Name of the pivot / junction table
+     * @param Model $parent The parent model instance
+     * @param string $related Fully-qualified class of the related model
+     * @param string $pivotTable Name of the pivot / junction table
      * @param string $foreignPivotKey Column in pivot referencing the parent model
      * @param string $relatedPivotKey Column in pivot referencing the related model
-     * @param string $parentKey       Column on the parent model (usually PK)
-     * @param string $relatedKey      Column on the related model (usually PK)
+     * @param string $parentKey Column on the parent model (usually PK)
+     * @param string $relatedKey Column on the related model (usually PK)
      */
     public function __construct(
         Model $parent,
@@ -88,7 +90,7 @@ class BelongsToMany extends Relation
      * ID => extra pivot attributes.
      *
      * @param int|array<int|string, mixed> $ids
-     * @param array<string, mixed>         $extraAttributes Extra columns to set on ALL pivot rows
+     * @param array<string, mixed> $extraAttributes Extra columns to set on ALL pivot rows
      */
     public function attach(int|array $ids, array $extraAttributes = []): void
     {
@@ -96,13 +98,13 @@ class BelongsToMany extends Relation
         $parentKeyValue = $this->getLocalKeyValue();
 
         if ($parentKeyValue === null) {
-            throw new \RuntimeException('Cannot attach: parent model has no primary key value.');
+            throw new RuntimeException('Cannot attach: parent model has no primary key value.');
         }
 
         $ids = $this->normalizeIds($ids);
 
         foreach ($ids as $relatedId => $pivotAttributes) {
-            $data = array_merge(
+            $data = \array_merge(
                 $extraAttributes,
                 $pivotAttributes,
                 [
@@ -111,9 +113,9 @@ class BelongsToMany extends Relation
                 ],
             );
 
-            $columns = array_keys($data);
+            $columns = \array_keys($data);
             $db->execute(
-                $db->insert($this->pivotTable, $columns)->assign($data)
+                $db->insert($this->pivotTable, $columns)->assign($data),
             );
         }
     }
@@ -143,13 +145,13 @@ class BelongsToMany extends Relation
                     $this->pivotTable,
                     ['_fk' => $parentKeyValue],
                     $this->foreignPivotKey . '=:_fk',
-                )
+                ),
             );
 
             return $db->affectedRows();
         }
 
-        if (is_int($ids)) {
+        if (\is_int($ids)) {
             $ids = [$ids];
         }
 
@@ -164,7 +166,7 @@ class BelongsToMany extends Relation
                         '_rk' => $relatedId,
                     ],
                     $this->foreignPivotKey . '=:_fk,' . $this->relatedPivotKey . '=:_rk',
-                )
+                ),
             );
             $totalDeleted += $db->affectedRows();
         }
@@ -187,25 +189,25 @@ class BelongsToMany extends Relation
         $parentKeyValue = $this->getLocalKeyValue();
 
         if ($parentKeyValue === null) {
-            throw new \RuntimeException('Cannot sync: parent model has no primary key value.');
+            throw new RuntimeException('Cannot sync: parent model has no primary key value.');
         }
 
         $currentIds = $this->fetchPivotIds($db, $parentKeyValue);
 
-        $toAttach = array_diff($ids, $currentIds);
-        $toDetach = array_diff($currentIds, $ids);
+        $toAttach = \array_diff($ids, $currentIds);
+        $toDetach = \array_diff($currentIds, $ids);
 
         if (!empty($toDetach)) {
-            $this->detach(array_values($toDetach));
+            $this->detach(\array_values($toDetach));
         }
 
         if (!empty($toAttach)) {
-            $this->attach(array_values($toAttach));
+            $this->attach(\array_values($toAttach));
         }
 
         return [
-            'attached' => array_values($toAttach),
-            'detached' => array_values($toDetach),
+            'attached' => \array_values($toAttach),
+            'detached' => \array_values($toDetach),
         ];
     }
 
@@ -261,8 +263,8 @@ class BelongsToMany extends Relation
 
         $rows = $stmt->lazyGroup();
 
-        return array_map(
-            fn(array $row) => (int) $row[$this->relatedPivotKey],
+        return \array_map(
+            fn (array $row) => (int) $row[$this->relatedPivotKey],
             $rows,
         );
     }
@@ -278,13 +280,13 @@ class BelongsToMany extends Relation
         // Build WHERE IN via OR syntax: relatedKey=:_r0|relatedKey=:_r1|...
         $whereParts = [];
         $bindings = [];
-        foreach (array_values($relatedIds) as $i => $id) {
+        foreach (\array_values($relatedIds) as $i => $id) {
             $param = '_r' . $i;
             $whereParts[] = $this->relatedKey . '=:' . $param;
             $bindings[$param] = $id;
         }
 
-        $whereSyntax = implode('|', $whereParts);
+        $whereSyntax = \implode('|', $whereParts);
 
         return $related::query($db)
             ->where($whereSyntax, $bindings)
@@ -300,15 +302,15 @@ class BelongsToMany extends Relation
      */
     private function normalizeIds(int|array $ids): array
     {
-        if (is_int($ids)) {
+        if (\is_int($ids)) {
             return [$ids => []];
         }
 
         $normalized = [];
         foreach ($ids as $key => $value) {
-            if (is_int($key)) {
+            if (\is_int($key)) {
                 // Numeric key — value is either an ID or extra attributes
-                if (is_array($value)) {
+                if (\is_array($value)) {
                     // Should not happen in simple case, treat key as ID
                     $normalized[$key] = $value;
                 } else {
@@ -317,7 +319,7 @@ class BelongsToMany extends Relation
                 }
             } else {
                 // String key — key is the ID, value is extra attributes
-                $normalized[(int) $key] = is_array($value) ? $value : [];
+                $normalized[(int) $key] = \is_array($value) ? $value : [];
             }
         }
 

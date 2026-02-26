@@ -136,7 +136,7 @@ class CompiledTemplateTest extends TestCase
 
     public function testIsCachedReturnsFalseForUncachedContent(): void
     {
-        $this->assertFalse(CompiledTemplate::isCached(md5('nonexistent')));
+        $this->assertFalse(CompiledTemplate::isCached(\md5('nonexistent')));
     }
 
     public function testFromCacheReturnsInstance(): void
@@ -159,14 +159,14 @@ class CompiledTemplateTest extends TestCase
         $content = 'Hello {$name}!';
         $compiled = CompiledTemplate::compile($content);
 
-        $this->assertSame(md5($content), $compiled->hash);
+        $this->assertSame(\md5($content), $compiled->hash);
     }
 
     public function testCompiledAtIsTimestamp(): void
     {
-        $before = time();
+        $before = \time();
         $compiled = CompiledTemplate::compile('Test');
-        $after = time();
+        $after = \time();
 
         $this->assertGreaterThanOrEqual($before, $compiled->compiledAt);
         $this->assertLessThanOrEqual($after, $compiled->compiledAt);

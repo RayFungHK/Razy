@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Closure;
 use PHPUnit\Framework\TestCase;
 use Razy\PluginManager;
 
@@ -56,12 +57,12 @@ class PluginManagerTest extends TestCase
 
     public function testAddFolderRegistersValidDirectory(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir, ['key' => 'val']);
         $folders = $this->manager->getFolders('OwnerA');
         $this->assertArrayHasKey(
             \Razy\Util\PathUtil::tidy($dir),
-            $folders
+            $folders,
         );
         $this->assertSame(['key' => 'val'], $folders[\Razy\Util\PathUtil::tidy($dir)]);
     }
@@ -86,7 +87,7 @@ class PluginManagerTest extends TestCase
 
     public function testAddFolderMultipleFoldersSameOwner(): void
     {
-        $dir1 = sys_get_temp_dir();
+        $dir1 = \sys_get_temp_dir();
         // Use a known subdirectory that exists
         $this->manager->addFolder('OwnerA', $dir1);
         $folders = $this->manager->getFolders('OwnerA');
@@ -95,7 +96,7 @@ class PluginManagerTest extends TestCase
 
     public function testAddFolderDifferentOwners(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir, 'argsA');
         $this->manager->addFolder('OwnerB', $dir, 'argsB');
         $this->assertCount(1, $this->manager->getFolders('OwnerA'));
@@ -104,7 +105,7 @@ class PluginManagerTest extends TestCase
 
     public function testAddFolderDefaultArgsIsNull(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir);
         $folders = $this->manager->getFolders('OwnerA');
         $this->assertNull($folders[\Razy\Util\PathUtil::tidy($dir)]);
@@ -120,31 +121,31 @@ class PluginManagerTest extends TestCase
     public function testGetPluginLoadsClosureFromFile(): void
     {
         // Create a temp plugin file
-        $pluginDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . uniqid();
-        mkdir($pluginDir, 0777, true);
+        $pluginDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . \uniqid();
+        \mkdir($pluginDir, 0o777, true);
         $pluginFile = $pluginDir . DIRECTORY_SEPARATOR . 'test.plugin.php';
-        file_put_contents($pluginFile, '<?php return function() { return "hello"; };');
+        \file_put_contents($pluginFile, '<?php return function() { return "hello"; };');
 
         try {
             $this->manager->addFolder('OwnerA', $pluginDir, 'myArgs');
             $result = $this->manager->getPlugin('OwnerA', 'test.plugin');
 
             $this->assertNotNull($result);
-            $this->assertInstanceOf(\Closure::class, $result['entity']);
+            $this->assertInstanceOf(Closure::class, $result['entity']);
             $this->assertSame('myArgs', $result['args']);
             $this->assertSame('hello', ($result['entity'])());
         } finally {
-            @unlink($pluginFile);
-            @rmdir($pluginDir);
+            @\unlink($pluginFile);
+            @\rmdir($pluginDir);
         }
     }
 
     public function testGetPluginCachesResult(): void
     {
-        $pluginDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . uniqid();
-        mkdir($pluginDir, 0777, true);
+        $pluginDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . \uniqid();
+        \mkdir($pluginDir, 0o777, true);
         $pluginFile = $pluginDir . DIRECTORY_SEPARATOR . 'cached.plugin.php';
-        file_put_contents($pluginFile, '<?php return function() { return 42; };');
+        \file_put_contents($pluginFile, '<?php return function() { return 42; };');
 
         try {
             $this->manager->addFolder('OwnerA', $pluginDir);
@@ -155,40 +156,40 @@ class PluginManagerTest extends TestCase
             // Verify it's in cache
             $this->assertArrayHasKey('cached.plugin', $this->manager->getCachedPlugins('OwnerA'));
         } finally {
-            @unlink($pluginFile);
-            @rmdir($pluginDir);
+            @\unlink($pluginFile);
+            @\rmdir($pluginDir);
         }
     }
 
     public function testGetPluginReturnsNullForNonClosureReturn(): void
     {
-        $pluginDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . uniqid();
-        mkdir($pluginDir, 0777, true);
+        $pluginDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . \uniqid();
+        \mkdir($pluginDir, 0o777, true);
         $pluginFile = $pluginDir . DIRECTORY_SEPARATOR . 'nonclosure.plugin.php';
-        file_put_contents($pluginFile, '<?php return "not a closure";');
+        \file_put_contents($pluginFile, '<?php return "not a closure";');
 
         try {
             $this->manager->addFolder('OwnerA', $pluginDir);
             $result = $this->manager->getPlugin('OwnerA', 'nonclosure.plugin');
             $this->assertNull($result);
         } finally {
-            @unlink($pluginFile);
-            @rmdir($pluginDir);
+            @\unlink($pluginFile);
+            @\rmdir($pluginDir);
         }
     }
 
     public function testGetPluginReturnsNullForNonexistentPlugin(): void
     {
-        $this->manager->addFolder('OwnerA', sys_get_temp_dir());
+        $this->manager->addFolder('OwnerA', \sys_get_temp_dir());
         $this->assertNull($this->manager->getPlugin('OwnerA', 'nonexistent.plugin'));
     }
 
     public function testGetPluginOwnerIsolation(): void
     {
-        $pluginDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . uniqid();
-        mkdir($pluginDir, 0777, true);
+        $pluginDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . \uniqid();
+        \mkdir($pluginDir, 0o777, true);
         $pluginFile = $pluginDir . DIRECTORY_SEPARATOR . 'isolated.plugin.php';
-        file_put_contents($pluginFile, '<?php return function() { return "ownerA"; };');
+        \file_put_contents($pluginFile, '<?php return function() { return "ownerA"; };');
 
         try {
             $this->manager->addFolder('OwnerA', $pluginDir);
@@ -196,25 +197,25 @@ class PluginManagerTest extends TestCase
             $this->assertNotNull($this->manager->getPlugin('OwnerA', 'isolated.plugin'));
             $this->assertNull($this->manager->getPlugin('OwnerB', 'isolated.plugin'));
         } finally {
-            @unlink($pluginFile);
-            @rmdir($pluginDir);
+            @\unlink($pluginFile);
+            @\rmdir($pluginDir);
         }
     }
 
     public function testGetPluginThrowsOnThrowingFile(): void
     {
-        $pluginDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . uniqid();
-        mkdir($pluginDir, 0777, true);
+        $pluginDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . \uniqid();
+        \mkdir($pluginDir, 0o777, true);
         $pluginFile = $pluginDir . DIRECTORY_SEPARATOR . 'throwing.plugin.php';
-        file_put_contents($pluginFile, '<?php throw new \RuntimeException("broken plugin");');
+        \file_put_contents($pluginFile, '<?php throw new \RuntimeException("broken plugin");');
 
         try {
             $this->manager->addFolder('OwnerA', $pluginDir);
             $this->expectException(\Razy\Exception\ConfigurationException::class);
             $this->manager->getPlugin('OwnerA', 'throwing.plugin');
         } finally {
-            @unlink($pluginFile);
-            @rmdir($pluginDir);
+            @\unlink($pluginFile);
+            @\rmdir($pluginDir);
         }
     }
 
@@ -222,7 +223,7 @@ class PluginManagerTest extends TestCase
 
     public function testResetClearsSpecificOwner(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir);
         $this->manager->addFolder('OwnerB', $dir);
 
@@ -241,7 +242,7 @@ class PluginManagerTest extends TestCase
 
     public function testResetAllClearsEverything(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir);
         $this->manager->addFolder('OwnerB', $dir);
         $this->manager->addFolder('OwnerC', $dir);
@@ -260,10 +261,10 @@ class PluginManagerTest extends TestCase
 
     public function testResetClearsCachedPlugins(): void
     {
-        $pluginDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . uniqid();
-        mkdir($pluginDir, 0777, true);
+        $pluginDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_test_plugins_' . \uniqid();
+        \mkdir($pluginDir, 0o777, true);
         $pluginFile = $pluginDir . DIRECTORY_SEPARATOR . 'resettable.plugin.php';
-        file_put_contents($pluginFile, '<?php return function() { return "data"; };');
+        \file_put_contents($pluginFile, '<?php return function() { return "data"; };');
 
         try {
             $this->manager->addFolder('OwnerA', $pluginDir);
@@ -273,8 +274,8 @@ class PluginManagerTest extends TestCase
             $this->manager->reset('OwnerA');
             $this->assertEmpty($this->manager->getCachedPlugins('OwnerA'));
         } finally {
-            @unlink($pluginFile);
-            @rmdir($pluginDir);
+            @\unlink($pluginFile);
+            @\rmdir($pluginDir);
         }
     }
 
@@ -297,7 +298,7 @@ class PluginManagerTest extends TestCase
 
     public function testGetRegisteredOwnersReflectsAdded(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('Alpha', $dir);
         $this->manager->addFolder('Beta', $dir);
         $owners = $this->manager->getRegisteredOwners();
@@ -310,7 +311,7 @@ class PluginManagerTest extends TestCase
 
     public function testCanReRegisterAfterReset(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir, 'first');
         $this->manager->reset('OwnerA');
         $this->manager->addFolder('OwnerA', $dir, 'second');
@@ -321,7 +322,7 @@ class PluginManagerTest extends TestCase
 
     public function testCanReRegisterAfterResetAll(): void
     {
-        $dir = sys_get_temp_dir();
+        $dir = \sys_get_temp_dir();
         $this->manager->addFolder('OwnerA', $dir);
         $this->manager->resetAll();
         $this->manager->addFolder('OwnerA', $dir, 'rebuilt');

@@ -9,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Distributor;
 
 use Closure;
+use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 
 /**
@@ -60,8 +62,8 @@ class MiddlewareGroupRegistry
      *
      * Overwrites any existing group with the same name.
      *
-     * @param string                              $name       The group name (e.g. 'web', 'api')
-     * @param list<MiddlewareInterface|Closure>    $middleware Ordered list of middleware
+     * @param string $name The group name (e.g. 'web', 'api')
+     * @param list<MiddlewareInterface|Closure> $middleware Ordered list of middleware
      *
      * @return $this
      */
@@ -80,8 +82,8 @@ class MiddlewareGroupRegistry
      *
      * Creates the group if it does not exist.
      *
-     * @param string                              $name       The group name
-     * @param list<MiddlewareInterface|Closure>    $middleware Middleware to append
+     * @param string $name The group name
+     * @param list<MiddlewareInterface|Closure> $middleware Middleware to append
      *
      * @return $this
      */
@@ -103,8 +105,8 @@ class MiddlewareGroupRegistry
      *
      * Creates the group if it does not exist.
      *
-     * @param string                              $name       The group name
-     * @param list<MiddlewareInterface|Closure>    $middleware Middleware to prepend
+     * @param string $name The group name
+     * @param list<MiddlewareInterface|Closure> $middleware Middleware to prepend
      *
      * @return $this
      */
@@ -114,7 +116,7 @@ class MiddlewareGroupRegistry
             $this->groups[$name] = [];
         }
 
-        $this->groups[$name] = array_merge($middleware, $this->groups[$name]);
+        $this->groups[$name] = \array_merge($middleware, $this->groups[$name]);
 
         return $this;
     }
@@ -126,13 +128,13 @@ class MiddlewareGroupRegistry
      *
      * @return list<MiddlewareInterface|Closure> The middleware in the group
      *
-     * @throws \InvalidArgumentException If the group is not defined
+     * @throws InvalidArgumentException If the group is not defined
      */
     public function resolve(string $name): array
     {
         if (!isset($this->groups[$name])) {
-            throw new \InvalidArgumentException(
-                "Middleware group '{$name}' is not defined."
+            throw new InvalidArgumentException(
+                "Middleware group '{$name}' is not defined.",
             );
         }
 
@@ -154,8 +156,8 @@ class MiddlewareGroupRegistry
         $result = [];
 
         foreach ($items as $item) {
-            if (is_string($item)) {
-                $result = array_merge($result, $this->resolve($item));
+            if (\is_string($item)) {
+                $result = \array_merge($result, $this->resolve($item));
             } else {
                 $result[] = $item;
             }
@@ -181,7 +183,7 @@ class MiddlewareGroupRegistry
      */
     public function getGroupNames(): array
     {
-        return array_keys($this->groups);
+        return \array_keys($this->groups);
     }
 
     /**
@@ -189,7 +191,7 @@ class MiddlewareGroupRegistry
      */
     public function count(): int
     {
-        return count($this->groups);
+        return \count($this->groups);
     }
 
     /**

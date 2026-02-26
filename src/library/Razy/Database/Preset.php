@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,19 +9,21 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Database;
 
 /**
- * Class Preset
+ * Class Preset.
  *
  * Abstract base class for statement presets. Presets provide pre-configured
  * query patterns that can be applied to a Statement via the TableJoinSyntax.
  * Subclasses implement specific query templates (e.g., pagination, search filters).
  *
  * @package Razy
+ *
  * @license MIT
  */
 abstract class Preset
@@ -29,10 +32,10 @@ abstract class Preset
     protected ?Statement $statement = null;
 
     /** @var string The target table name */
-    protected string $table         = '';
+    protected string $table = '';
 
     /** @var string The alias for the target table in the query */
-    protected string $alias         = '';
+    protected string $alias = '';
 
     /** @var array Initialization parameters passed to the preset */
     protected array $params = [];

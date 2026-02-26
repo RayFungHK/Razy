@@ -424,7 +424,7 @@ class EagerLoadingTest extends TestCase
         $this->assertCount(2, $author->tags);
 
         $labels = $author->tags->pluck('label');
-        sort($labels);
+        \sort($labels);
         $this->assertSame(['laravel', 'php'], $labels);
     }
 
@@ -449,12 +449,12 @@ class EagerLoadingTest extends TestCase
 
         // Alice → php, js
         $aliceTags = $authors[0]->tags->pluck('label');
-        sort($aliceTags);
+        \sort($aliceTags);
         $this->assertSame(['js', 'php'], $aliceTags);
 
         // Bob → go, js
         $bobTags = $authors[1]->tags->pluck('label');
-        sort($bobTags);
+        \sort($bobTags);
         $this->assertSame(['go', 'js'], $bobTags);
     }
 
@@ -757,7 +757,7 @@ class EagerLoadingTest extends TestCase
         // HasMany
         $this->assertCount(2, $author->posts);
         $titles = $author->posts->pluck('title');
-        sort($titles);
+        \sort($titles);
         $this->assertSame(['Post 1', 'Post 2'], $titles);
 
         // HasOne
@@ -923,6 +923,7 @@ class EagerLoadingTest extends TestCase
 class EL_Author extends Model
 {
     protected static string $table = 'el_authors';
+
     protected static array $fillable = ['name'];
 
     public function posts(): HasMany
@@ -944,6 +945,7 @@ class EL_Author extends Model
 class EL_Post extends Model
 {
     protected static string $table = 'el_posts';
+
     protected static array $fillable = ['title', 'author_id'];
 
     public function author(): BelongsTo
@@ -955,6 +957,7 @@ class EL_Post extends Model
 class EL_Profile extends Model
 {
     protected static string $table = 'el_profiles';
+
     protected static array $fillable = ['bio', 'author_id'];
 
     public function author(): BelongsTo
@@ -966,7 +969,9 @@ class EL_Profile extends Model
 class EL_Tag extends Model
 {
     protected static string $table = 'el_tags';
+
     protected static array $fillable = ['label'];
+
     protected static bool $timestamps = false;
 
     public function authors(): BelongsToMany

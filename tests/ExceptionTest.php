@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Exception\* classes.
  *
@@ -7,6 +8,7 @@
 
 namespace Razy\Tests;
 
+use PDOException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Contract\Container\ContainerExceptionInterface;
@@ -34,6 +36,7 @@ use Razy\Exception\RoutingException;
 use Razy\Exception\SSHException;
 use Razy\Exception\TemplateException;
 use RuntimeException;
+use Throwable;
 
 #[CoversClass(HttpException::class)]
 #[CoversClass(NotFoundException::class)]
@@ -72,7 +75,7 @@ class ExceptionTest extends TestCase
 
     public function testHttpExceptionCustomValues(): void
     {
-        $prev = new \RuntimeException('inner');
+        $prev = new RuntimeException('inner');
         $e = new HttpException(503, 'Service Unavailable', $prev);
         $this->assertSame(503, $e->getStatusCode());
         $this->assertSame('Service Unavailable', $e->getMessage());
@@ -187,7 +190,7 @@ class ExceptionTest extends TestCase
 
     public function testConfigurationExceptionWithPreviousException(): void
     {
-        $prev = new \RuntimeException('file not found');
+        $prev = new RuntimeException('file not found');
         $e = new ConfigurationException('Config failed', $prev);
         $this->assertSame($prev, $e->getPrevious());
         $this->assertSame('Config failed', $e->getMessage());
@@ -283,7 +286,7 @@ class ExceptionTest extends TestCase
 
     public function testQueryExceptionWithPrevious(): void
     {
-        $pdo = new \PDOException('SQLSTATE[42000]');
+        $pdo = new PDOException('SQLSTATE[42000]');
         $e = new QueryException('Query failed', 42000, $pdo);
         $this->assertSame($pdo, $e->getPrevious());
         $this->assertSame(42000, $e->getCode());
@@ -479,7 +482,7 @@ class ExceptionTest extends TestCase
 
     public function testContainerExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('inner');
+        $prev = new RuntimeException('inner');
         $e = new ContainerException('Container error', 42, $prev);
         $this->assertSame($prev, $e->getPrevious());
         $this->assertSame(42, $e->getCode());
@@ -515,7 +518,7 @@ class ExceptionTest extends TestCase
 
     public function testContainerNotFoundExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('lookup failed');
+        $prev = new RuntimeException('lookup failed');
         $e = new ContainerNotFoundException('Not found', 0, $prev);
         $this->assertSame($prev, $e->getPrevious());
     }
@@ -564,7 +567,7 @@ class ExceptionTest extends TestCase
 
     public function testFileExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('permission denied');
+        $prev = new RuntimeException('permission denied');
         $e = new FileException('Write failed', 13, $prev);
         $this->assertSame($prev, $e->getPrevious());
         $this->assertSame(13, $e->getCode());
@@ -601,7 +604,7 @@ class ExceptionTest extends TestCase
 
     public function testMailerExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('socket timeout');
+        $prev = new RuntimeException('socket timeout');
         $e = new MailerException('Send failed', 110, $prev);
         $this->assertSame($prev, $e->getPrevious());
         $this->assertSame(110, $e->getCode());
@@ -644,7 +647,7 @@ class ExceptionTest extends TestCase
 
     public function testOAuthExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('HTTP 401');
+        $prev = new RuntimeException('HTTP 401');
         $e = new OAuthException('Unauthorized', 401, $prev);
         $this->assertSame($prev, $e->getPrevious());
         $this->assertSame(401, $e->getCode());
@@ -681,7 +684,7 @@ class ExceptionTest extends TestCase
 
     public function testPipelineExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('action error');
+        $prev = new RuntimeException('action error');
         $e = new PipelineException('Action creation failed', 0, $prev);
         $this->assertSame($prev, $e->getPrevious());
     }
@@ -717,7 +720,7 @@ class ExceptionTest extends TestCase
 
     public function testRoutingExceptionWithPrevious(): void
     {
-        $prev = new \RuntimeException('regex error');
+        $prev = new RuntimeException('regex error');
         $e = new RoutingException('Shadow route conflict', 0, $prev);
         $this->assertSame($prev, $e->getPrevious());
     }
@@ -821,7 +824,7 @@ class ExceptionTest extends TestCase
         $this->assertInstanceOf(ConnectionException::class, $e);
         $this->assertInstanceOf(DatabaseException::class, $e);
         $this->assertInstanceOf(RuntimeException::class, $e);
-        $this->assertInstanceOf(\Throwable::class, $e);
+        $this->assertInstanceOf(Throwable::class, $e);
 
         // SSHException → NetworkException → RuntimeException
         $e2 = new SSHException('test');

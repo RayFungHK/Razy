@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -31,9 +32,9 @@ interface ValidationRuleInterface
     /**
      * Validate and optionally transform a field value.
      *
-     * @param mixed          $value The current field value
-     * @param string         $field The field name being validated
-     * @param array          $data  The full dataset (for cross-field rules like `confirmed`)
+     * @param mixed $value The current field value
+     * @param string $field The field name being validated
+     * @param array $data The full dataset (for cross-field rules like `confirmed`)
      *
      * @return mixed The processed value (may be transformed)
      */

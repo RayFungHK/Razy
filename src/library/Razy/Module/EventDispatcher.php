@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Manages event listener registration and dispatching within a module.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -44,12 +46,12 @@ class EventDispatcher implements EventDispatcherInterface
     public function listen(string $event, string|Closure $path): void
     {
         // Parse "vendor/module:event_name" into module code and event name
-        [$moduleCode, $eventName] = explode(':', $event);
+        [$moduleCode, $eventName] = \explode(':', $event);
         if (!isset($this->events[$moduleCode])) {
             $this->events[$moduleCode] = [];
         }
 
-        if (array_key_exists($eventName, $this->events[$moduleCode])) {
+        if (\array_key_exists($eventName, $this->events[$moduleCode])) {
             throw new ModuleException('The event `' . $eventName . '` is already registered.');
         }
         $this->events[$moduleCode][$eventName] = $path;
@@ -65,7 +67,7 @@ class EventDispatcher implements EventDispatcherInterface
      */
     public function isEventListening(string $moduleCode, string $event): bool
     {
-        return isset($this->events[$moduleCode]) && array_key_exists($event, $this->events[$moduleCode]);
+        return isset($this->events[$moduleCode]) && \array_key_exists($event, $this->events[$moduleCode]);
     }
 
     /**
@@ -87,23 +89,23 @@ class EventDispatcher implements EventDispatcherInterface
         $result = null;
 
         try {
-            if (isset($this->events[$moduleCode]) && array_key_exists($event, $this->events[$moduleCode])) {
+            if (isset($this->events[$moduleCode]) && \array_key_exists($event, $this->events[$moduleCode])) {
                 $path = $this->events[$moduleCode][$event];
-                if (is_string($path)) {
+                if (\is_string($path)) {
                     // String path: try direct controller method first, then load closure file
                     $closure = null;
-                    if (!str_contains($event, '/') && method_exists($controller, $event)) {
+                    if (!\str_contains($event, '/') && \method_exists($controller, $event)) {
                         $closure = [$controller, $event];
                     } elseif (($closure = $closureLoader->getClosure($path, $controller)) !== null) {
                         $closure = $closure->bindTo($controller);
                     }
 
                     if ($closure) {
-                        $result = call_user_func_array($closure, $args);
+                        $result = \call_user_func_array($closure, $args);
                     }
                 } else {
                     // Closure path: invoke directly as a callable
-                    $result = call_user_func_array($path, $args);
+                    $result = \call_user_func_array($path, $args);
                 }
             }
         } catch (Throwable $exception) {

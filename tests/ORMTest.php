@@ -16,6 +16,7 @@ use Razy\ORM\Relation\BelongsTo;
 use Razy\ORM\Relation\HasMany;
 use Razy\ORM\Relation\HasOne;
 use Razy\ORM\Relation\Relation;
+use RuntimeException;
 
 /**
  * Tests for P7: ORM / Active Record System.
@@ -40,7 +41,7 @@ class ORMTest extends TestCase
     public function testModelNotFoundExceptionIsRuntimeException(): void
     {
         $e = new ModelNotFoundException();
-        $this->assertInstanceOf(\RuntimeException::class, $e);
+        $this->assertInstanceOf(RuntimeException::class, $e);
     }
 
     public function testModelNotFoundExceptionSetModel(): void
@@ -171,7 +172,7 @@ class ORMTest extends TestCase
         $m1 = $this->createStubModel(['id' => 1]);
         $m2 = $this->createStubModel(['id' => 2]);
         $c = new ModelCollection([$m1, $m2]);
-        $mapped = $c->map(fn(Model $m) => $m->id * 10);
+        $mapped = $c->map(fn (Model $m) => $m->id * 10);
         $this->assertSame([10, 20], $mapped);
     }
 
@@ -181,7 +182,7 @@ class ORMTest extends TestCase
         $m2 = $this->createStubModel(['id' => 2]);
         $m3 = $this->createStubModel(['id' => 3]);
         $c = new ModelCollection([$m1, $m2, $m3]);
-        $filtered = $c->filter(fn(Model $m) => $m->id > 1);
+        $filtered = $c->filter(fn (Model $m) => $m->id > 1);
         $this->assertCount(2, $filtered);
         $this->assertSame(2, $filtered->first()->id);
     }
@@ -218,14 +219,14 @@ class ORMTest extends TestCase
     {
         $m1 = $this->createStubModel(['id' => 1]);
         $c = new ModelCollection([$m1]);
-        $this->assertTrue($c->contains(fn(Model $m) => $m->id === 1));
+        $this->assertTrue($c->contains(fn (Model $m) => $m->id === 1));
     }
 
     public function testCollectionContainsFalse(): void
     {
         $m1 = $this->createStubModel(['id' => 1]);
         $c = new ModelCollection([$m1]);
-        $this->assertFalse($c->contains(fn(Model $m) => $m->id === 999));
+        $this->assertFalse($c->contains(fn (Model $m) => $m->id === 999));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -737,7 +738,7 @@ class ORMTest extends TestCase
         $user = new ORM_TestUser();
         $user->setRawAttribute('name', 'NoDb');
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $user->save();
     }
 
@@ -799,7 +800,7 @@ class ORMTest extends TestCase
         $db->execute(
             $db->update('users', ['name'])
                 ->where('id=:id')
-                ->assign(['name' => 'DirectUpdate', 'id' => $user->getKey()])
+                ->assign(['name' => 'DirectUpdate', 'id' => $user->getKey()]),
         );
 
         $user->name = 'InMemory';
@@ -1085,7 +1086,7 @@ class ORMTest extends TestCase
             $db->insert('profiles', ['user_id', 'bio'])->assign([
                 'user_id' => $user->getKey(),
                 'bio' => 'Hello world',
-            ])
+            ]),
         );
 
         $profile = $user->profile;
@@ -1114,7 +1115,7 @@ class ORMTest extends TestCase
             $db->insert('profiles', ['user_id', 'bio'])->assign([
                 'user_id' => $user->getKey(),
                 'bio' => 'Cached',
-            ])
+            ]),
         );
 
         $p1 = $user->profile;
@@ -1136,13 +1137,13 @@ class ORMTest extends TestCase
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => $user->getKey(),
                 'title' => 'Post 1',
-            ])
+            ]),
         );
         $db->execute(
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => $user->getKey(),
                 'title' => 'Post 2',
-            ])
+            ]),
         );
 
         $posts = $user->posts;
@@ -1176,7 +1177,7 @@ class ORMTest extends TestCase
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => $user->getKey(),
                 'title' => 'My Post',
-            ])
+            ]),
         );
 
         $post = ORM_TestPost::find($db, 1);
@@ -1196,7 +1197,7 @@ class ORMTest extends TestCase
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => null,
                 'title' => 'Orphan',
-            ])
+            ]),
         );
 
         $post = ORM_TestPost::find($db, 1);
@@ -1213,9 +1214,9 @@ class ORMTest extends TestCase
         $db = $this->createSqliteDb();
         $this->createUsersTable($db);
 
-        $before = date('Y-m-d H:i:s');
+        $before = \date('Y-m-d H:i:s');
         $user = ORM_TestUser::create($db, ['name' => 'TS', 'email' => 'ts@test.com']);
-        $after = date('Y-m-d H:i:s');
+        $after = \date('Y-m-d H:i:s');
 
         $createdAt = $user->getRawAttribute('created_at');
         $this->assertGreaterThanOrEqual($before, $createdAt);
@@ -1231,7 +1232,7 @@ class ORMTest extends TestCase
         $createdAt = $user->getRawAttribute('created_at');
 
         // Force a tiny delay so updated_at differs
-        usleep(10000);
+        \usleep(10000);
 
         $user->name = 'Updated';
         $user->save();
@@ -1294,7 +1295,7 @@ class ORMTest extends TestCase
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => 1,
                 'title' => 'Test',
-            ])
+            ]),
         );
 
         $post = ORM_TestPost::find($db, 1);
@@ -1344,7 +1345,7 @@ class ORMTest extends TestCase
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => $user->getKey(),
                 'title' => 'First Post',
-            ])
+            ]),
         );
 
         $this->assertCount(1, ORM_TestUser::all($db));
@@ -1401,7 +1402,7 @@ class ORMTest extends TestCase
         $this->assertContains('User1', $names);
         $this->assertContains('User5', $names);
 
-        $filtered = $collection->filter(fn(Model $m) => (int)$m->id <= 3);
+        $filtered = $collection->filter(fn (Model $m) => (int) $m->id <= 3);
         $this->assertCount(3, $filtered);
     }
 
@@ -1417,7 +1418,7 @@ class ORMTest extends TestCase
             $db->insert('posts', ['user_id', 'title'])->assign([
                 'user_id' => $user->getKey(),
                 'title' => 'Chain Post',
-            ])
+            ]),
         );
 
         // User → posts → first post → user (back via belongsTo)
@@ -1452,9 +1453,11 @@ class ORMTest extends TestCase
      */
     private function createStubModel(array $attributes): Model
     {
-        return new class ($attributes) extends Model {
+        return new class($attributes) extends Model {
             protected static string $table = 'stubs';
+
             protected static array $fillable = [];
+
             protected static array $guarded = [];
 
             public function __construct(array $attrs = [])
@@ -1538,6 +1541,7 @@ class ORMTest extends TestCase
 class ORM_TestUser extends Model
 {
     protected static string $table = 'users';
+
     protected static array $fillable = ['name', 'email'];
 
     /**
@@ -1563,7 +1567,9 @@ class ORM_TestUser extends Model
 class ORM_TestProfile extends Model
 {
     protected static string $table = 'profiles';
+
     protected static array $fillable = ['user_id', 'bio'];
+
     protected static bool $timestamps = false;
 }
 
@@ -1573,7 +1579,9 @@ class ORM_TestProfile extends Model
 class ORM_TestPost extends Model
 {
     protected static string $table = 'posts';
+
     protected static array $fillable = ['user_id', 'title'];
+
     protected static bool $timestamps = false;
 
     /**
@@ -1599,6 +1607,7 @@ class ORM_TestAutoTable extends Model
 class ORM_TestCustomPK extends Model
 {
     protected static string $table = 'custom';
+
     protected static string $primaryKey = 'uid';
 }
 
@@ -1617,7 +1626,9 @@ class ORM_TestGuardedModel extends Model
 class ORM_TestPartialGuardModel extends Model
 {
     protected static string $table = 'partial';
+
     protected static array $fillable = [];
+
     protected static array $guarded = ['secret'];
 }
 
@@ -1627,8 +1638,11 @@ class ORM_TestPartialGuardModel extends Model
 class ORM_TestCastModel extends Model
 {
     protected static string $table = 'casts';
+
     protected static array $fillable = [];
+
     protected static array $guarded = [];
+
     protected static array $casts = [
         'age' => 'int',
         'price' => 'float',
@@ -1645,6 +1659,8 @@ class ORM_TestCastModel extends Model
 class ORM_TestNoTimestamps extends Model
 {
     protected static string $table = 'simple_items';
+
     protected static array $fillable = ['name'];
+
     protected static bool $timestamps = false;
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
-use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -14,6 +13,8 @@ use Razy\Database\MigrationManager;
 use Razy\Database\SchemaBuilder;
 use Razy\Database\Table;
 use Razy\Database\Table\TableHelper;
+use ReflectionClass;
+use Throwable;
 
 /**
  * Tests for P3: Database Migration System.
@@ -28,6 +29,40 @@ class MigrationTest extends TestCase
 {
     /** @var string Temporary directory for migration files */
     private string $tempDir;
+
+    protected function tearDown(): void
+    {
+        // Clean up temp directories
+        if (isset($this->tempDir) && \is_dir($this->tempDir)) {
+            $files = \glob($this->tempDir . '/*');
+            if ($files) {
+                \array_map('unlink', $files);
+            }
+            @\rmdir($this->tempDir);
+        }
+    }
+
+    public static function validMigrationFilenameProvider(): array
+    {
+        return [
+            'basic' => ['2025_01_15_120000_CreateUsersTable.php'],
+            'single word' => ['2025_06_30_235959_Init.php'],
+            'underscores in name' => ['2025_01_01_000000_Create_Users_Table.php'],
+            'long name' => ['2025_12_31_235959_AddEmailVerificationColumnToUsersTable.php'],
+        ];
+    }
+
+    public static function invalidMigrationFilenameProvider(): array
+    {
+        return [
+            'no extension' => ['2025_01_15_120000_Create'],
+            'wrong extension' => ['2025_01_15_120000_Create.txt'],
+            'no timestamp' => ['CreateUsersTable.php'],
+            'short timestamp' => ['2025_01_15_1200_Create.php'],
+            'no underscore before name' => ['20250115120000Create.php'],
+            'markdown file' => ['README.md'],
+        ];
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // Section 1: SchemaBuilder
@@ -66,7 +101,7 @@ class MigrationTest extends TestCase
         $schema = new SchemaBuilder($db);
 
         $schema->raw('CREATE TABLE test_return (id INTEGER PRIMARY KEY)');
-        $result = $schema->raw("INSERT INTO test_return (id) VALUES (42)");
+        $result = $schema->raw('INSERT INTO test_return (id) VALUES (42)');
 
         $this->assertInstanceOf(Database\Query::class, $result);
     }
@@ -82,8 +117,8 @@ class MigrationTest extends TestCase
         $schema->drop('drop_test');
 
         // Inserting should now fail
-        $this->expectException(\Throwable::class);
-        $db->execute($db->prepare("INSERT INTO drop_test (id) VALUES (1)"));
+        $this->expectException(Throwable::class);
+        $db->execute($db->prepare('INSERT INTO drop_test (id) VALUES (1)'));
     }
 
     public function testSchemaBuilderDropIfExistsNonExistent(): void
@@ -105,8 +140,8 @@ class MigrationTest extends TestCase
         $schema->dropIfExists('drop_if_test');
 
         // Table should be gone
-        $this->expectException(\Throwable::class);
-        $db->execute($db->prepare("INSERT INTO drop_if_test (id) VALUES (1)"));
+        $this->expectException(Throwable::class);
+        $db->execute($db->prepare('INSERT INTO drop_if_test (id) VALUES (1)'));
     }
 
     // ─── SchemaBuilder: rename() ─────────────────────────────────
@@ -117,7 +152,7 @@ class MigrationTest extends TestCase
         $schema = new SchemaBuilder($db);
 
         $schema->raw('CREATE TABLE old_name (id INTEGER PRIMARY KEY)');
-        $db->execute($db->prepare("INSERT INTO old_name (id) VALUES (1)"));
+        $db->execute($db->prepare('INSERT INTO old_name (id) VALUES (1)'));
 
         $schema->rename('old_name', 'new_name');
 
@@ -127,7 +162,7 @@ class MigrationTest extends TestCase
         $this->assertSame(1, (int) $row['id']);
 
         // Old name should fail
-        $this->expectException(\Throwable::class);
+        $this->expectException(Throwable::class);
         $db->execute($db->prepare('SELECT * FROM old_name'));
     }
 
@@ -160,7 +195,7 @@ class MigrationTest extends TestCase
                 $receivedTable = $table;
                 $table->addColumn('id=type(int),auto');
             });
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Expected: MySQL DDL fails on SQLite — callback was still called
         }
 
@@ -182,7 +217,7 @@ class MigrationTest extends TestCase
                 $receivedHelper = $helper;
                 // Don't add changes — getSyntax() returns '' for no-ops
             });
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Ignore
         }
 
@@ -210,7 +245,7 @@ class MigrationTest extends TestCase
 
     public function testMigrationUpAndDownAreAbstract(): void
     {
-        $ref = new \ReflectionClass(Migration::class);
+        $ref = new ReflectionClass(Migration::class);
 
         $this->assertTrue($ref->isAbstract());
         $this->assertTrue($ref->getMethod('up')->isAbstract());
@@ -219,9 +254,14 @@ class MigrationTest extends TestCase
 
     public function testMigrationGetDescriptionDefaultsToEmpty(): void
     {
-        $migration = new class extends Migration {
-            public function up(SchemaBuilder $schema): void {}
-            public function down(SchemaBuilder $schema): void {}
+        $migration = new class() extends Migration {
+            public function up(SchemaBuilder $schema): void
+            {
+            }
+
+            public function down(SchemaBuilder $schema): void
+            {
+            }
         };
 
         $this->assertSame('', $migration->getDescription());
@@ -229,9 +269,15 @@ class MigrationTest extends TestCase
 
     public function testMigrationGetDescriptionCanBeOverridden(): void
     {
-        $migration = new class extends Migration {
-            public function up(SchemaBuilder $schema): void {}
-            public function down(SchemaBuilder $schema): void {}
+        $migration = new class() extends Migration {
+            public function up(SchemaBuilder $schema): void
+            {
+            }
+
+            public function down(SchemaBuilder $schema): void
+            {
+            }
+
             public function getDescription(): string
             {
                 return 'Create the users table';
@@ -246,12 +292,18 @@ class MigrationTest extends TestCase
         $receivedSchema = null;
 
         $migration = new class($receivedSchema) extends Migration {
-            public function __construct(private mixed &$capture) {}
+            public function __construct(private mixed &$capture)
+            {
+            }
+
             public function up(SchemaBuilder $schema): void
             {
                 $this->capture = $schema;
             }
-            public function down(SchemaBuilder $schema): void {}
+
+            public function down(SchemaBuilder $schema): void
+            {
+            }
         };
 
         $db = $this->createSqliteDb();
@@ -266,8 +318,14 @@ class MigrationTest extends TestCase
         $receivedSchema = null;
 
         $migration = new class($receivedSchema) extends Migration {
-            public function __construct(private mixed &$capture) {}
-            public function up(SchemaBuilder $schema): void {}
+            public function __construct(private mixed &$capture)
+            {
+            }
+
+            public function up(SchemaBuilder $schema): void
+            {
+            }
+
             public function down(SchemaBuilder $schema): void
             {
                 $this->capture = $schema;
@@ -363,7 +421,7 @@ class MigrationTest extends TestCase
 
         // Verify table exists by inserting a row
         $db->execute($db->prepare(
-            "INSERT INTO \"razy_migrations\" (migration, batch) VALUES ('test', 1)"
+            "INSERT INTO \"razy_migrations\" (migration, batch) VALUES ('test', 1)",
         ));
         $query = $db->execute($db->prepare('SELECT migration FROM "razy_migrations"'));
         $row = $query->fetch();
@@ -389,10 +447,10 @@ class MigrationTest extends TestCase
         $manager->ensureTrackingTable();
 
         $db->execute($db->prepare(
-            "INSERT INTO \"razy_migrations\" (migration, batch) VALUES ('m1', 1)"
+            "INSERT INTO \"razy_migrations\" (migration, batch) VALUES ('m1', 1)",
         ));
         $db->execute($db->prepare(
-            "INSERT INTO \"razy_migrations\" (migration, batch) VALUES ('m2', 1)"
+            "INSERT INTO \"razy_migrations\" (migration, batch) VALUES ('m2', 1)",
         ));
 
         $query = $db->execute($db->prepare('SELECT id FROM "razy_migrations" ORDER BY id'));
@@ -440,7 +498,7 @@ class MigrationTest extends TestCase
         $manager = new MigrationManager($db);
         $manager->addPath($dir);
 
-        $names = array_keys($manager->discover());
+        $names = \array_keys($manager->discover());
 
         $this->assertSame([
             '2025_01_01_000000_First',
@@ -455,9 +513,9 @@ class MigrationTest extends TestCase
         $this->createMigrationFile($dir, '2025_01_15_120000_Valid');
 
         // Create invalid files
-        file_put_contents($dir . '/not_a_migration.php', '<?php return true;');
-        file_put_contents($dir . '/README.md', '# Migrations');
-        file_put_contents($dir . '/2025_13_01_Invalid.php', '<?php return true;'); // wrong format
+        \file_put_contents($dir . '/not_a_migration.php', '<?php return true;');
+        \file_put_contents($dir . '/README.md', '# Migrations');
+        \file_put_contents($dir . '/2025_13_01_Invalid.php', '<?php return true;'); // wrong format
 
         $db = $this->createSqliteDb();
         $manager = new MigrationManager($db);
@@ -512,18 +570,8 @@ class MigrationTest extends TestCase
     {
         $this->assertMatchesRegularExpression(
             MigrationManager::MIGRATION_FILENAME_PATTERN,
-            $filename
+            $filename,
         );
-    }
-
-    public static function validMigrationFilenameProvider(): array
-    {
-        return [
-            'basic' => ['2025_01_15_120000_CreateUsersTable.php'],
-            'single word' => ['2025_06_30_235959_Init.php'],
-            'underscores in name' => ['2025_01_01_000000_Create_Users_Table.php'],
-            'long name' => ['2025_12_31_235959_AddEmailVerificationColumnToUsersTable.php'],
-        ];
     }
 
     #[DataProvider('invalidMigrationFilenameProvider')]
@@ -531,20 +579,8 @@ class MigrationTest extends TestCase
     {
         $this->assertDoesNotMatchRegularExpression(
             MigrationManager::MIGRATION_FILENAME_PATTERN,
-            $filename
+            $filename,
         );
-    }
-
-    public static function invalidMigrationFilenameProvider(): array
-    {
-        return [
-            'no extension' => ['2025_01_15_120000_Create'],
-            'wrong extension' => ['2025_01_15_120000_Create.txt'],
-            'no timestamp' => ['CreateUsersTable.php'],
-            'short timestamp' => ['2025_01_15_1200_Create.php'],
-            'no underscore before name' => ['20250115120000Create.php'],
-            'markdown file' => ['README.md'],
-        ];
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -569,8 +605,8 @@ class MigrationTest extends TestCase
         ], $executed);
 
         // Verify tables were created
-        $db->execute($db->prepare("INSERT INTO alpha_table (id) VALUES (1)"));
-        $db->execute($db->prepare("INSERT INTO beta_table (id) VALUES (1)"));
+        $db->execute($db->prepare('INSERT INTO alpha_table (id) VALUES (1)'));
+        $db->execute($db->prepare('INSERT INTO beta_table (id) VALUES (1)'));
         $this->assertTrue(true); // No exception means tables exist
     }
 
@@ -602,7 +638,7 @@ class MigrationTest extends TestCase
 
         // Check batch number
         $query = $db->execute($db->prepare(
-            'SELECT batch FROM "razy_migrations" WHERE migration = \'2025_01_01_000000_First\''
+            'SELECT batch FROM "razy_migrations" WHERE migration = \'2025_01_01_000000_First\'',
         ));
         $row = $query->fetch();
         $this->assertSame(1, (int) $row['batch']);
@@ -625,7 +661,7 @@ class MigrationTest extends TestCase
         $manager->migrate(); // Batch 2
 
         $query = $db->execute($db->prepare(
-            'SELECT batch FROM "razy_migrations" WHERE migration = \'2025_01_02_000000_BatchTwo\''
+            'SELECT batch FROM "razy_migrations" WHERE migration = \'2025_01_02_000000_BatchTwo\'',
         ));
         $row = $query->fetch();
         $this->assertSame(2, (int) $row['batch']);
@@ -672,7 +708,7 @@ class MigrationTest extends TestCase
 
         // All should be in batch 1
         $query = $db->execute($db->prepare(
-            'SELECT DISTINCT batch FROM "razy_migrations"'
+            'SELECT DISTINCT batch FROM "razy_migrations"',
         ));
         $rows = $query->fetchAll();
         $this->assertCount(1, $rows);
@@ -708,7 +744,7 @@ class MigrationTest extends TestCase
         $this->assertSame(['2025_01_01_000000_RollA'], $applied);
 
         // roll_b table should be dropped
-        $this->expectException(\Throwable::class);
+        $this->expectException(Throwable::class);
         $db->execute($db->prepare('SELECT * FROM roll_b'));
     }
 
@@ -997,7 +1033,7 @@ class MigrationTest extends TestCase
         $manager->migrate();
 
         // Delete the migration file
-        unlink($dir . '/2025_01_01_000000_Orphan.php');
+        \unlink($dir . '/2025_01_01_000000_Orphan.php');
 
         $status = $manager->getStatus();
 
@@ -1016,16 +1052,16 @@ class MigrationTest extends TestCase
         $dir = $this->createTempMigrationDir();
 
         // Create a file that returns a non-Migration object
-        file_put_contents(
+        \file_put_contents(
             $dir . '/2025_01_01_000000_BadMigration.php',
-            '<?php return new \stdClass();'
+            '<?php return new \stdClass();',
         );
 
         $db = $this->createSqliteDb();
         $manager = new MigrationManager($db);
         $manager->addPath($dir);
 
-        $this->expectException(\Throwable::class);
+        $this->expectException(Throwable::class);
         $this->expectExceptionMessage('Migration file must return a Migration instance');
         $manager->migrate();
     }
@@ -1134,7 +1170,7 @@ class MigrationTest extends TestCase
         // Migrate again — should start at batch 1 (tracking table is empty)
         $manager->migrate();
         $query = $db->execute($db->prepare(
-            'SELECT DISTINCT batch FROM "razy_migrations"'
+            'SELECT DISTINCT batch FROM "razy_migrations"',
         ));
         $rows = $query->fetchAll();
         $this->assertSame(1, (int) $rows[0]['batch']);
@@ -1156,7 +1192,7 @@ class MigrationTest extends TestCase
         $manager->migrate();
 
         // Insert into the table created by migration
-        $db->execute($db->prepare("INSERT INTO real_test (id) VALUES (42)"));
+        $db->execute($db->prepare('INSERT INTO real_test (id) VALUES (42)'));
         $query = $db->execute($db->prepare('SELECT id FROM real_test'));
         $row = $query->fetch();
 
@@ -1175,12 +1211,12 @@ class MigrationTest extends TestCase
         $manager->migrate();
 
         // Table should exist
-        $db->execute($db->prepare("INSERT INTO drop_verify (id) VALUES (1)"));
+        $db->execute($db->prepare('INSERT INTO drop_verify (id) VALUES (1)'));
 
         $manager->rollback();
 
         // Table should be gone
-        $this->expectException(\Throwable::class);
+        $this->expectException(Throwable::class);
         $db->execute($db->prepare('SELECT * FROM drop_verify'));
     }
 
@@ -1189,27 +1225,27 @@ class MigrationTest extends TestCase
         $dir = $this->createTempMigrationDir();
 
         $content = <<<'PHP'
-<?php
-use Razy\Database\Migration;
-use Razy\Database\SchemaBuilder;
+            <?php
+            use Razy\Database\Migration;
+            use Razy\Database\SchemaBuilder;
 
-return new class extends Migration {
-    public function up(SchemaBuilder $schema): void
-    {
-        $schema->raw('CREATE TABLE desc_test (id INTEGER PRIMARY KEY)');
-    }
-    public function down(SchemaBuilder $schema): void
-    {
-        $schema->dropIfExists('desc_test');
-    }
-    public function getDescription(): string
-    {
-        return 'A migration with a description';
-    }
-};
-PHP;
+            return new class extends Migration {
+                public function up(SchemaBuilder $schema): void
+                {
+                    $schema->raw('CREATE TABLE desc_test (id INTEGER PRIMARY KEY)');
+                }
+                public function down(SchemaBuilder $schema): void
+                {
+                    $schema->dropIfExists('desc_test');
+                }
+                public function getDescription(): string
+                {
+                    return 'A migration with a description';
+                }
+            };
+            PHP;
 
-        file_put_contents($dir . '/2025_01_01_000000_WithDescription.php', $content);
+        \file_put_contents($dir . '/2025_01_01_000000_WithDescription.php', $content);
 
         // Verify the migration instance has the description
         $migration = require $dir . '/2025_01_01_000000_WithDescription.php';
@@ -1232,7 +1268,7 @@ PHP;
         $manager->migrate();
 
         // Delete the file
-        unlink($dir . '/2025_01_01_000000_WillDelete.php');
+        \unlink($dir . '/2025_01_01_000000_WillDelete.php');
 
         // Rollback should still remove the tracking record even though it can't
         // execute down() (file is missing)
@@ -1263,9 +1299,9 @@ PHP;
      */
     private function createTempMigrationDir(string $suffix = ''): string
     {
-        $dir = sys_get_temp_dir() . '/razy_migration_test_' . uniqid() . ($suffix ? '_' . $suffix : '');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
+        $dir = \sys_get_temp_dir() . '/razy_migration_test_' . \uniqid() . ($suffix ? '_' . $suffix : '');
+        if (!\is_dir($dir)) {
+            \mkdir($dir, 0o777, true);
         }
 
         // Track for cleanup
@@ -1280,34 +1316,22 @@ PHP;
     private function createMigrationFile(string $dir, string $name, string $tableName = 'test_table'): void
     {
         $content = <<<PHP
-<?php
-use Razy\Database\Migration;
-use Razy\Database\SchemaBuilder;
+            <?php
+            use Razy\\Database\\Migration;
+            use Razy\\Database\\SchemaBuilder;
 
-return new class extends Migration {
-    public function up(SchemaBuilder \$schema): void
-    {
-        \$schema->raw('CREATE TABLE {$tableName} (id INTEGER PRIMARY KEY)');
-    }
-    public function down(SchemaBuilder \$schema): void
-    {
-        \$schema->dropIfExists('{$tableName}');
-    }
-};
-PHP;
+            return new class extends Migration {
+                public function up(SchemaBuilder \$schema): void
+                {
+                    \$schema->raw('CREATE TABLE {$tableName} (id INTEGER PRIMARY KEY)');
+                }
+                public function down(SchemaBuilder \$schema): void
+                {
+                    \$schema->dropIfExists('{$tableName}');
+                }
+            };
+            PHP;
 
-        file_put_contents($dir . '/' . $name . '.php', $content);
-    }
-
-    protected function tearDown(): void
-    {
-        // Clean up temp directories
-        if (isset($this->tempDir) && is_dir($this->tempDir)) {
-            $files = glob($this->tempDir . '/*');
-            if ($files) {
-                array_map('unlink', $files);
-            }
-            @rmdir($this->tempDir);
-        }
+        \file_put_contents($dir . '/' . $name . '.php', $content);
     }
 }

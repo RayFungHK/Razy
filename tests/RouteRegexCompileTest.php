@@ -119,7 +119,7 @@ class RouteRegexCompileTest extends TestCase
     {
         $regex = RouteDispatcher::compileRouteRegex('/api');
         // The compiled regex captures trailing path segments
-        preg_match($regex, '/api/extra/path', $matches);
+        \preg_match($regex, '/api/extra/path', $matches);
         $this->assertNotEmpty($matches);
     }
 }

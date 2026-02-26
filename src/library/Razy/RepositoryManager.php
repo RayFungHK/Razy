@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Razy modules from GitHub or custom repository servers.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -18,6 +20,7 @@ namespace Razy;
 
 use Closure;
 use Razy\Util\PathUtil;
+
 /**
  * RepositoryManager - Manage module repositories for searching and downloading.
  *
@@ -63,12 +66,12 @@ class RepositoryManager
         if ($repositories === null) {
             // Load default repository list from the system-level configuration file
             $repoFile = PathUtil::append(SYSTEM_ROOT, 'repository.inc.php');
-            if (is_file($repoFile)) {
+            if (\is_file($repoFile)) {
                 $repositories = require $repoFile;
             }
         }
 
-        if (is_array($repositories)) {
+        if (\is_array($repositories)) {
             foreach ($repositories as $url => $branch) {
                 $this->addRepository($url, $branch);
             }
@@ -76,19 +79,76 @@ class RepositoryManager
     }
 
     /**
-     * Add a repository source
+     * Generate index.json content from local modules.
+     *
+     * @param string $basePath Base path containing vendor/module folders
+     *
+     * @return array Index data
+     */
+    public static function generateIndex(string $basePath): array
+    {
+        $index = [];
+        $basePath = \rtrim($basePath, DIRECTORY_SEPARATOR);
+
+        // Scan top-level vendor directories
+        $vendors = \glob($basePath . '/*', GLOB_ONLYDIR);
+        foreach ($vendors as $vendorPath) {
+            $vendor = \basename($vendorPath);
+
+            // Scan module directories within each vendor
+            $modules = \glob($vendorPath . '/*', GLOB_ONLYDIR);
+            foreach ($modules as $modulePath) {
+                $module = \basename($modulePath);
+                $moduleCode = $vendor . '/' . $module;
+
+                // Read and parse the module's manifest.json for metadata
+                $manifestPath = $modulePath . '/manifest.json';
+                if (\is_file($manifestPath)) {
+                    $manifest = \json_decode(\file_get_contents($manifestPath), true);
+                    if (\json_last_error() === JSON_ERROR_NONE) {
+                        $index[$moduleCode] = [
+                            'description' => $manifest['description'] ?? '',
+                            'author' => $manifest['author'] ?? '',
+                            'latest' => $manifest['latest'] ?? '',
+                            'versions' => $manifest['versions'] ?? [],
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * Write index.json file.
+     *
+     * @param string $basePath Base path for repository
+     * @param array $index Index data
+     *
+     * @return bool Success
+     */
+    public static function writeIndex(string $basePath, array $index): bool
+    {
+        $indexPath = \rtrim($basePath, DIRECTORY_SEPARATOR) . '/index.json';
+        $json = \json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        return \file_put_contents($indexPath, $json) !== false;
+    }
+
+    /**
+     * Add a repository source.
      *
      * @param string $url Repository base URL
      * @param string $branch Branch name (for GitHub repos)
      */
     public function addRepository(string $url, string $branch = 'main'): void
     {
-        $url = rtrim($url, '/');
+        $url = \rtrim($url, '/');
         $this->repositories[$url] = $branch;
     }
 
     /**
-     * Get all configured repositories
+     * Get all configured repositories.
      *
      * @return array
      */
@@ -98,7 +158,7 @@ class RepositoryManager
     }
 
     /**
-     * Fetch repository index
+     * Fetch repository index.
      *
      * @param string $repoUrl Repository URL
      *
@@ -123,8 +183,8 @@ class RepositoryManager
             return null;
         }
 
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        $data = \json_decode($response, true);
+        if (\json_last_error() !== JSON_ERROR_NONE) {
             $this->notify(self::TYPE_ERROR, ['Invalid index JSON', $repoUrl]);
             return null;
         }
@@ -134,7 +194,7 @@ class RepositoryManager
     }
 
     /**
-     * Search for modules across all repositories
+     * Search for modules across all repositories.
      *
      * @param string $query Search query (module code or keyword)
      *
@@ -143,7 +203,7 @@ class RepositoryManager
     public function search(string $query): array
     {
         $results = [];
-        $query = strtolower(trim($query));
+        $query = \strtolower(\trim($query));
 
         // Search across all registered repositories
         foreach ($this->repositories as $repoUrl => $branch) {
@@ -155,9 +215,9 @@ class RepositoryManager
             foreach ($index as $moduleCode => $info) {
                 // Match query against module code, description, or author (case-insensitive)
                 if (
-                    str_contains(strtolower($moduleCode), $query) ||
-                    str_contains(strtolower($info['description'] ?? ''), $query) ||
-                    str_contains(strtolower($info['author'] ?? ''), $query)
+                    \str_contains(\strtolower($moduleCode), $query)
+                    || \str_contains(\strtolower($info['description'] ?? ''), $query)
+                    || \str_contains(\strtolower($info['author'] ?? ''), $query)
                 ) {
                     $results[] = [
                         'module_code' => $moduleCode,
@@ -175,7 +235,7 @@ class RepositoryManager
     }
 
     /**
-     * Get module info from repositories
+     * Get module info from repositories.
      *
      * @param string $moduleCode Module code (vendor/module)
      *
@@ -206,7 +266,7 @@ class RepositoryManager
     }
 
     /**
-     * Get manifest for a specific module
+     * Get manifest for a specific module.
      *
      * @param string $moduleCode Module code (vendor/module)
      * @param string|null $repoUrl Specific repository URL (auto-detect if null)
@@ -231,12 +291,12 @@ class RepositoryManager
             return null;
         }
 
-        $data = json_decode($response, true);
-        return json_last_error() === JSON_ERROR_NONE ? $data : null;
+        $data = \json_decode($response, true);
+        return \json_last_error() === JSON_ERROR_NONE ? $data : null;
     }
 
     /**
-     * Get download URL for a module version
+     * Get download URL for a module version.
      *
      * @param string $moduleCode Module code (vendor/module)
      * @param string $version Version string or 'latest'/'stable'
@@ -264,7 +324,7 @@ class RepositoryManager
         }
 
         // Check if version exists
-        if (!in_array($version, $info['versions'] ?? [])) {
+        if (!\in_array($version, $info['versions'] ?? [])) {
             $this->notify(self::TYPE_ERROR, ['Version not found', "$moduleCode@$version"]);
             return null;
         }
@@ -274,7 +334,7 @@ class RepositoryManager
     }
 
     /**
-     * Build release asset URL for GitHub repositories
+     * Build release asset URL for GitHub repositories.
      *
      * Uses GitHub Releases to download .phar files
      * URL format: https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}
@@ -288,19 +348,19 @@ class RepositoryManager
     public function buildReleaseAssetUrl(string $repoUrl, string $moduleCode, string $version): string
     {
         // Construct a GitHub Releases tag name: vendor-module-vX.Y.Z
-        $tagName = str_replace('/', '-', $moduleCode) . '-v' . $version;
+        $tagName = \str_replace('/', '-', $moduleCode) . '-v' . $version;
         $filename = $version . '.phar';
 
         // Transform GitHub web URL to Releases download URL
-        if (preg_match('#^https?://github\.com/([^/]+)/([^/]+)/?$#i', $repoUrl, $matches)) {
+        if (\preg_match('#^https?://github\.com/([^/]+)/([^/]+)/?$#i', $repoUrl, $matches)) {
             $owner = $matches[1];
-            $repo = rtrim($matches[2], '/');
-            return sprintf(
+            $repo = \rtrim($matches[2], '/');
+            return \sprintf(
                 'https://github.com/%s/%s/releases/download/%s/%s',
                 $owner,
                 $repo,
                 $tagName,
-                $filename
+                $filename,
             );
         }
 
@@ -309,7 +369,7 @@ class RepositoryManager
     }
 
     /**
-     * Build raw content URL for GitHub or other repositories
+     * Build raw content URL for GitHub or other repositories.
      *
      * @param string $repoUrl Repository URL
      * @param string $branch Branch name
@@ -320,74 +380,37 @@ class RepositoryManager
     public function buildRawUrl(string $repoUrl, string $branch, string $path = ''): string
     {
         // GitHub: transform web URL to raw.githubusercontent.com for direct file access
-        if (preg_match('#^https?://github\.com/([^/]+)/([^/]+)/?$#i', $repoUrl, $matches)) {
+        if (\preg_match('#^https?://github\.com/([^/]+)/([^/]+)/?$#i', $repoUrl, $matches)) {
             $owner = $matches[1];
-            $repo = rtrim($matches[2], '/');
-            return sprintf(
+            $repo = \rtrim($matches[2], '/');
+            return \sprintf(
                 'https://raw.githubusercontent.com/%s/%s/%s/%s',
                 $owner,
                 $repo,
                 $branch,
-                $path
+                $path,
             );
         }
 
         // GitLab: transform web URL to raw file endpoint
-        if (preg_match('#^https?://gitlab\.com/([^/]+)/([^/]+)/?$#i', $repoUrl, $matches)) {
+        if (\preg_match('#^https?://gitlab\.com/([^/]+)/([^/]+)/?$#i', $repoUrl, $matches)) {
             $owner = $matches[1];
-            $repo = rtrim($matches[2], '/');
-            return sprintf(
+            $repo = \rtrim($matches[2], '/');
+            return \sprintf(
                 'https://gitlab.com/%s/%s/-/raw/%s/%s',
                 $owner,
                 $repo,
                 $branch,
-                $path
+                $path,
             );
         }
 
         // For non-GitHub/GitLab repositories, simply append the path
-        return rtrim($repoUrl, '/') . '/' . $path;
+        return \rtrim($repoUrl, '/') . '/' . $path;
     }
 
     /**
-     * HTTP GET request
-     *
-     * @param string $url URL to fetch
-     *
-     * @return string|null Response body or null on failure
-     */
-    private function httpGet(string $url): ?string
-    {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'User-Agent: Razy-RepositoryManager',
-            'Accept: application/json, */*',
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return ($httpCode >= 200 && $httpCode < 300) ? $response : null;
-    }
-
-    /**
-     * Send notification to callback
-     *
-     * @param string $type Notification type
-     * @param array $data Notification data
-     */
-    private function notify(string $type, array $data = []): void
-    {
-        if ($this->notifyClosure) {
-            ($this->notifyClosure)($type, ...$data);
-        }
-    }
-
-    /**
-     * List all available modules across repositories
+     * List all available modules across repositories.
      *
      * @return array All modules
      */
@@ -417,59 +440,39 @@ class RepositoryManager
     }
 
     /**
-     * Generate index.json content from local modules
+     * HTTP GET request.
      *
-     * @param string $basePath Base path containing vendor/module folders
+     * @param string $url URL to fetch
      *
-     * @return array Index data
+     * @return string|null Response body or null on failure
      */
-    public static function generateIndex(string $basePath): array
+    private function httpGet(string $url): ?string
     {
-        $index = [];
-        $basePath = rtrim($basePath, DIRECTORY_SEPARATOR);
+        $ch = \curl_init($url);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'User-Agent: Razy-RepositoryManager',
+            'Accept: application/json, */*',
+        ]);
 
-        // Scan top-level vendor directories
-        $vendors = glob($basePath . '/*', GLOB_ONLYDIR);
-        foreach ($vendors as $vendorPath) {
-            $vendor = basename($vendorPath);
+        $response = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        \curl_close($ch);
 
-            // Scan module directories within each vendor
-            $modules = glob($vendorPath . '/*', GLOB_ONLYDIR);
-            foreach ($modules as $modulePath) {
-                $module = basename($modulePath);
-                $moduleCode = $vendor . '/' . $module;
-
-                // Read and parse the module's manifest.json for metadata
-                $manifestPath = $modulePath . '/manifest.json';
-                if (is_file($manifestPath)) {
-                    $manifest = json_decode(file_get_contents($manifestPath), true);
-                    if (json_last_error() === JSON_ERROR_NONE) {
-                        $index[$moduleCode] = [
-                            'description' => $manifest['description'] ?? '',
-                            'author' => $manifest['author'] ?? '',
-                            'latest' => $manifest['latest'] ?? '',
-                            'versions' => $manifest['versions'] ?? [],
-                        ];
-                    }
-                }
-            }
-        }
-
-        return $index;
+        return ($httpCode >= 200 && $httpCode < 300) ? $response : null;
     }
 
     /**
-     * Write index.json file
+     * Send notification to callback.
      *
-     * @param string $basePath Base path for repository
-     * @param array $index Index data
-     *
-     * @return bool Success
+     * @param string $type Notification type
+     * @param array $data Notification data
      */
-    public static function writeIndex(string $basePath, array $index): bool
+    private function notify(string $type, array $data = []): void
     {
-        $indexPath = rtrim($basePath, DIRECTORY_SEPARATOR) . '/index.json';
-        $json = json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        return file_put_contents($indexPath, $json) !== false;
+        if ($this->notifyClosure) {
+            ($this->notifyClosure)($type, ...$data);
+        }
     }
 }

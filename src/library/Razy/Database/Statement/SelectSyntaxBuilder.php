@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Extracted from Statement::getSyntax() SELECT branch (Phase 2.3).
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -42,7 +44,7 @@ class SelectSyntaxBuilder implements SyntaxBuilderInterface
         }
 
         // Build SELECT ... FROM ... clause
-        $sql = 'SELECT ' . implode(', ', $statement->getSelectColumnsArray()) . ' FROM ' . $fromSyntax;
+        $sql = 'SELECT ' . \implode(', ', $statement->getSelectColumnsArray()) . ' FROM ' . $fromSyntax;
 
         // Append WHERE clause if defined and non-empty
         $where = $statement->getWhereSyntax();
@@ -52,8 +54,8 @@ class SelectSyntaxBuilder implements SyntaxBuilderInterface
 
         // Append GROUP BY clause
         $groupby = $statement->getGroupByArray();
-        if (count($groupby)) {
-            $sql .= ' GROUP BY ' . implode(', ', $groupby);
+        if (\count($groupby)) {
+            $sql .= ' GROUP BY ' . \implode(', ', $groupby);
         }
 
         // Append HAVING clause for aggregate filtering
@@ -64,16 +66,16 @@ class SelectSyntaxBuilder implements SyntaxBuilderInterface
 
         // Append ORDER BY clause, resolving any deferred WhereSyntax-based expressions
         $orderby = $statement->getOrderByArray();
-        if (count($orderby)) {
+        if (\count($orderby)) {
             $resolved = [];
             foreach ($orderby as $entry) {
-                if (is_array($entry)) {
+                if (\is_array($entry)) {
                     $resolved[] = $entry['syntax']->parseSyntax($entry['column'])->getSyntax() . ' ' . $entry['ordering'];
                 } else {
                     $resolved[] = $entry;
                 }
             }
-            $sql .= ' ORDER BY ' . implode(', ', $resolved);
+            $sql .= ' ORDER BY ' . \implode(', ', $resolved);
         }
 
         // Append LIMIT/OFFSET using driver-specific syntax when available

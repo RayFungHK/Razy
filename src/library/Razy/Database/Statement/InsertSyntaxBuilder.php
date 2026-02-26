@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Extracted from Statement::getSyntax() INSERT/REPLACE branch (Phase 2.3).
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -45,36 +47,36 @@ class InsertSyntaxBuilder implements SyntaxBuilderInterface
             $onDuplicateKey = $statement->getOnDuplicateKey();
 
             // Use driver-specific upsert (INSERT ON DUPLICATE / ON CONFLICT) if available
-            if ($driver && count($onDuplicateKey)) {
+            if ($driver && \count($onDuplicateKey)) {
                 return $driver->getUpsertSyntax(
                     $tableName,
                     $columns,
                     $onDuplicateKey,
-                    fn($col) => $statement->getValueAsStatement($col)
+                    fn ($col) => $statement->getValueAsStatement($col),
                 );
             }
 
             // Standard INSERT/REPLACE syntax
-            $quote = $driver ? fn($c) => $driver->quoteIdentifier($c) : fn($c) => '`' . $c . '`';
+            $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
             $rawType = $statement->getRawType();
-            $sql = strtoupper($rawType) . ' INTO ' . $tableName . ' (' . implode(', ', array_map($quote, $columns)) . ') VALUES (';
+            $sql = \strtoupper($rawType) . ' INTO ' . $tableName . ' (' . \implode(', ', \array_map($quote, $columns)) . ') VALUES (';
             $values = [];
             foreach ($columns as $column) {
                 $values[] = $statement->getValueAsStatement($column);
             }
-            $sql .= implode(', ', $values) . ')';
+            $sql .= \implode(', ', $values) . ')';
 
-            if (count($onDuplicateKey)) {
+            if (\count($onDuplicateKey)) {
                 // Legacy MySQL fallback for ON DUPLICATE KEY UPDATE
                 $duplicatedKeys = [];
                 foreach ($onDuplicateKey as $column) {
-                    if (is_string($column)) {
+                    if (\is_string($column)) {
                         $duplicatedKeys[] = '`' . $column . '` = ' . $statement->getValueAsStatement($column);
                     }
                 }
 
-                if (count($duplicatedKeys)) {
-                    $sql .= ' ON DUPLICATE KEY UPDATE ' . implode(', ', $duplicatedKeys);
+                if (\count($duplicatedKeys)) {
+                    $sql .= ' ON DUPLICATE KEY UPDATE ' . \implode(', ', $duplicatedKeys);
                 }
             }
 

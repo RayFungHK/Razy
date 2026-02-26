@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Comprehensive tests for #16: Array/Nested Validation.
  *
@@ -13,16 +14,15 @@ declare(strict_types=1);
 namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\Validation\NestedValidator;
-use Razy\Validation\ValidationResult;
 use Razy\Validation\Rule\Each;
 use Razy\Validation\Rule\Email;
 use Razy\Validation\Rule\IsArray;
 use Razy\Validation\Rule\MinLength;
 use Razy\Validation\Rule\Numeric;
 use Razy\Validation\Rule\Required;
+use Razy\Validation\ValidationResult;
 
 #[CoversClass(NestedValidator::class)]
 #[CoversClass(IsArray::class)]
@@ -179,9 +179,9 @@ class NestedValidationTest extends TestCase
         $result = NestedValidator::make(
             ['user' => ['name' => 'Alice', 'email' => 'alice@example.com']],
             [
-                'user.name'  => [new Required()],
+                'user.name' => [new Required()],
                 'user.email' => [new Required(), new Email()],
-            ]
+            ],
         );
 
         $this->assertTrue($result->passes());
@@ -191,7 +191,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['user' => []],
-            ['user.name' => [new Required()]]
+            ['user.name' => [new Required()]],
         );
 
         $this->assertTrue($result->fails());
@@ -202,7 +202,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['config' => ['db' => ['host' => 'localhost']]],
-            ['config.db.host' => [new Required()]]
+            ['config.db.host' => [new Required()]],
         );
 
         $this->assertTrue($result->passes());
@@ -212,7 +212,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['user' => ['name' => 'Alice']],
-            ['user.name' => [new Required()]]
+            ['user.name' => [new Required()]],
         );
 
         $validated = $result->validated();
@@ -236,7 +236,7 @@ class NestedValidationTest extends TestCase
             [
                 'items.*.sku' => [new Required()],
                 'items.*.qty' => [new Required(), new Numeric()],
-            ]
+            ],
         );
 
         $this->assertTrue($result->passes());
@@ -254,7 +254,7 @@ class NestedValidationTest extends TestCase
                     ['sku' => ''],
                 ],
             ],
-            ['items.*.sku' => [new Required()]]
+            ['items.*.sku' => [new Required()]],
         );
 
         $this->assertTrue($result->fails());
@@ -265,7 +265,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['items' => []],
-            ['items.*.name' => [new Required()]]
+            ['items.*.name' => [new Required()]],
         );
 
         $this->assertTrue($result->passes());
@@ -275,7 +275,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['items' => 'not-an-array'],
-            ['items.*.name' => [new Required()]]
+            ['items.*.name' => [new Required()]],
         );
 
         $this->assertTrue($result->passes());
@@ -291,13 +291,13 @@ class NestedValidationTest extends TestCase
                     ['email' => 'c@z.com'],
                 ],
             ],
-            ['users.*.email' => [new Required(), new Email()]]
+            ['users.*.email' => [new Required(), new Email()]],
         );
 
         $this->assertTrue($result->passes());
-        $this->assertCount(3, array_filter(
-            array_keys($result->validated()),
-            fn($k) => str_starts_with($k, 'users.')
+        $this->assertCount(3, \array_filter(
+            \array_keys($result->validated()),
+            fn ($k) => \str_starts_with($k, 'users.'),
         ));
     }
 
@@ -311,9 +311,9 @@ class NestedValidationTest extends TestCase
                 ],
             ],
             [
-                'products.*.name'  => [new Required()],
+                'products.*.name' => [new Required()],
                 'products.*.price' => [new Required(), new Numeric()],
-            ]
+            ],
         );
 
         $this->assertTrue($result->passes());
@@ -325,7 +325,7 @@ class NestedValidationTest extends TestCase
             [
                 'emails' => ['valid@test.com', 'bad', 'also@test.com'],
             ],
-            ['emails.*' => [new Email()]]
+            ['emails.*' => [new Email()]],
         );
 
         // Note: wildcard on scalar items: emails.0, emails.1, emails.2
@@ -672,7 +672,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['tags' => ['php', 'laravel']],
-            ['tags' => [new IsArray()]]
+            ['tags' => [new IsArray()]],
         );
         $this->assertTrue($result->passes());
     }
@@ -681,7 +681,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['tags' => 'not-an-array'],
-            ['tags' => [new IsArray()]]
+            ['tags' => [new IsArray()]],
         );
         $this->assertTrue($result->fails());
     }
@@ -690,7 +690,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['emails' => ['a@b.com', 'c@d.com']],
-            ['emails' => [new IsArray(), new Each([new Email()])]]
+            ['emails' => [new IsArray(), new Each([new Email()])]],
         );
         $this->assertTrue($result->passes());
     }
@@ -699,7 +699,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['emails' => ['a@b.com', 'bad']],
-            ['emails' => [new IsArray(), new Each([new Email()])]]
+            ['emails' => [new IsArray(), new Each([new Email()])]],
         );
         $this->assertTrue($result->fails());
     }
@@ -708,7 +708,7 @@ class NestedValidationTest extends TestCase
     {
         $result = NestedValidator::make(
             ['user' => ['roles' => ['admin', 'editor']]],
-            ['user.roles' => [new Required(), new IsArray()]]
+            ['user.roles' => [new Required(), new IsArray()]],
         );
         $this->assertTrue($result->passes());
     }
@@ -724,7 +724,7 @@ class NestedValidationTest extends TestCase
             ],
             [
                 'orders.*.items' => [new IsArray(), new Each([new Required()])],
-            ]
+            ],
         );
         $this->assertTrue($result->passes());
     }
@@ -736,8 +736,8 @@ class NestedValidationTest extends TestCase
     public function testComplexFormValidation(): void
     {
         $data = [
-            'user'  => [
-                'name'  => 'Alice',
+            'user' => [
+                'name' => 'Alice',
                 'email' => 'alice@example.com',
             ],
             'items' => [
@@ -747,8 +747,8 @@ class NestedValidationTest extends TestCase
         ];
 
         $result = NestedValidator::make($data, [
-            'user.name'   => [new Required()],
-            'user.email'  => [new Required(), new Email()],
+            'user.name' => [new Required()],
+            'user.email' => [new Required(), new Email()],
             'items.*.sku' => [new Required()],
             'items.*.qty' => [new Required(), new Numeric()],
             'items.*.tags' => [new IsArray()],
@@ -760,15 +760,15 @@ class NestedValidationTest extends TestCase
     public function testComplexFormValidationFails(): void
     {
         $data = [
-            'user'  => ['name' => '', 'email' => 'bad'],
+            'user' => ['name' => '', 'email' => 'bad'],
             'items' => [
                 ['sku' => '', 'qty' => 'abc'],
             ],
         ];
 
         $result = NestedValidator::make($data, [
-            'user.name'   => [new Required()],
-            'user.email'  => [new Required(), new Email()],
+            'user.name' => [new Required()],
+            'user.email' => [new Required(), new Email()],
             'items.*.sku' => [new Required()],
             'items.*.qty' => [new Numeric()],
         ]);

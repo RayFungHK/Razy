@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,6 +10,10 @@
  */
 
 namespace Razy\Worker;
+
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use SplFileInfo;
 
 /**
  * Detects file changes in module directories and classifies the change type.
@@ -26,29 +31,6 @@ namespace Razy\Worker;
  */
 class ModuleChangeDetector
 {
-    /**
-     * File hash snapshots per module.
-     * Structure: [moduleCode => [relativePath => md5Hash]]
-     *
-     * @var array<string, array<string, string>>
-     */
-    private array $snapshots = [];
-
-    /**
-     * Map of module code => base directory path.
-     *
-     * @var array<string, string>
-     */
-    private array $modulePaths = [];
-
-    /**
-     * Modules that had changes on last detect() call.
-     * Structure: [moduleCode => ChangeType]
-     *
-     * @var array<string, ChangeType>
-     */
-    private array $lastChanges = [];
-
     /**
      * File extensions that are considered non-class (config/template/asset).
      * All .php files except package.php are treated as class files.
@@ -68,6 +50,29 @@ class ModuleChangeDetector
     ];
 
     /**
+     * File hash snapshots per module.
+     * Structure: [moduleCode => [relativePath => md5Hash]].
+     *
+     * @var array<string, array<string, string>>
+     */
+    private array $snapshots = [];
+
+    /**
+     * Map of module code => base directory path.
+     *
+     * @var array<string, string>
+     */
+    private array $modulePaths = [];
+
+    /**
+     * Modules that had changes on last detect() call.
+     * Structure: [moduleCode => ChangeType].
+     *
+     * @var array<string, ChangeType>
+     */
+    private array $lastChanges = [];
+
+    /**
      * Take a snapshot of all files in a module directory.
      * Call this after initial module loading to establish a baseline.
      *
@@ -76,7 +81,7 @@ class ModuleChangeDetector
      */
     public function snapshot(string $moduleCode, string $modulePath): void
     {
-        $modulePath = rtrim($modulePath, '/\\');
+        $modulePath = \rtrim($modulePath, '/\\');
         $this->modulePaths[$moduleCode] = $modulePath;
         $this->snapshots[$moduleCode] = $this->hashDirectory($modulePath);
     }
@@ -93,6 +98,7 @@ class ModuleChangeDetector
      * classes or closures are present, the change is Rebindable.
      *
      * @param string $moduleCode The module to check
+     *
      * @return ChangeType The type of change detected
      */
     public function detect(string $moduleCode): ChangeType
@@ -152,7 +158,7 @@ class ModuleChangeDetector
     /**
      * Get the overall change type across all modules.
      * Returns the most severe change type using severity ordering:
-     *   ClassFile > Rebindable > Config > None
+     *   ClassFile > Rebindable > Config > None.
      *
      * @return ChangeType The most severe change type
      */
@@ -195,9 +201,9 @@ class ModuleChangeDetector
      */
     public function getHotSwappableModules(): array
     {
-        return array_keys(array_filter(
+        return \array_keys(\array_filter(
             $this->lastChanges,
-            fn(ChangeType $ct) => $ct === ChangeType::Config
+            fn (ChangeType $ct) => $ct === ChangeType::Config,
         ));
     }
 
@@ -208,9 +214,9 @@ class ModuleChangeDetector
      */
     public function getRestartRequiredModules(): array
     {
-        return array_keys(array_filter(
+        return \array_keys(\array_filter(
             $this->lastChanges,
-            fn(ChangeType $ct) => $ct === ChangeType::ClassFile
+            fn (ChangeType $ct) => $ct === ChangeType::ClassFile,
         ));
     }
 
@@ -221,9 +227,9 @@ class ModuleChangeDetector
      */
     public function getRebindableModules(): array
     {
-        return array_keys(array_filter(
+        return \array_keys(\array_filter(
             $this->lastChanges,
-            fn(ChangeType $ct) => $ct === ChangeType::Rebindable
+            fn (ChangeType $ct) => $ct === ChangeType::Rebindable,
         ));
     }
 
@@ -253,6 +259,7 @@ class ModuleChangeDetector
      * Check if a module is registered.
      *
      * @param string $moduleCode
+     *
      * @return bool
      */
     public function hasModule(string $moduleCode): bool
@@ -267,7 +274,7 @@ class ModuleChangeDetector
      */
     public function getRegisteredModules(): array
     {
-        return array_keys($this->modulePaths);
+        return \array_keys($this->modulePaths);
     }
 
     /**
@@ -279,11 +286,12 @@ class ModuleChangeDetector
      * - All other .php files → IS a class file (controller, library, model)
      *
      * @param string $relativePath Relative path within the module directory
+     *
      * @return bool
      */
     public function isClassFile(string $relativePath): bool
     {
-        $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+        $extension = \strtolower(\pathinfo($relativePath, PATHINFO_EXTENSION));
 
         // Non-PHP files are never class files
         if ($extension !== 'php') {
@@ -291,8 +299,8 @@ class ModuleChangeDetector
         }
 
         // Check if this PHP file is a known config file
-        $basename = basename($relativePath);
-        return !in_array($basename, self::CONFIG_PHP_FILES, true);
+        $basename = \basename($relativePath);
+        return !\in_array($basename, self::CONFIG_PHP_FILES, true);
     }
 
     /**
@@ -308,11 +316,12 @@ class ModuleChangeDetector
      *
      * @param string $relativePath Relative path within the module directory
      * @param string $modulePath Absolute path to the module directory
+     *
      * @return ChangeType
      */
     public function classifyFile(string $relativePath, string $modulePath): ChangeType
     {
-        $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+        $extension = \strtolower(\pathinfo($relativePath, PATHINFO_EXTENSION));
 
         // Non-PHP files are always config
         if ($extension !== 'php') {
@@ -320,16 +329,16 @@ class ModuleChangeDetector
         }
 
         // Known config PHP files
-        $basename = basename($relativePath);
-        if (in_array($basename, self::CONFIG_PHP_FILES, true)) {
+        $basename = \basename($relativePath);
+        if (\in_array($basename, self::CONFIG_PHP_FILES, true)) {
             return ChangeType::Config;
         }
 
         // Build absolute path
-        $absolutePath = rtrim($modulePath, '/\\') . '/' . ltrim(str_replace('\\', '/', $relativePath), '/');
+        $absolutePath = \rtrim($modulePath, '/\\') . '/' . \ltrim(\str_replace('\\', '/', $relativePath), '/');
 
         // Deleted PHP files — the class was already loaded, so no conflict
-        if (!is_file($absolutePath)) {
+        if (!\is_file($absolutePath)) {
             return ChangeType::Rebindable;
         }
 
@@ -345,26 +354,27 @@ class ModuleChangeDetector
      * (return new class { ... }) or closures are classified as Rebindable.
      *
      * @param string $absolutePath Absolute filesystem path to the PHP file
+     *
      * @return ChangeType ClassFile if named declarations found, Rebindable otherwise
      */
     public function classifyPhpFile(string $absolutePath): ChangeType
     {
-        if (!is_file($absolutePath)) {
+        if (!\is_file($absolutePath)) {
             return ChangeType::Rebindable;
         }
 
-        $content = file_get_contents($absolutePath);
+        $content = \file_get_contents($absolutePath);
         if ($content === false) {
             // Cannot read — be safe, treat as ClassFile
             return ChangeType::ClassFile;
         }
 
         // Use PHP tokenizer for accurate detection
-        $tokens = token_get_all($content);
-        $tokenCount = count($tokens);
+        $tokens = \token_get_all($content);
+        $tokenCount = \count($tokens);
 
         for ($i = 0; $i < $tokenCount; $i++) {
-            if (!is_array($tokens[$i])) {
+            if (!\is_array($tokens[$i])) {
                 continue;
             }
 
@@ -377,7 +387,7 @@ class ModuleChangeDetector
                     // Scan backwards over whitespace/comments to find T_NEW
                     $isAnonymous = false;
                     for ($j = $i - 1; $j >= 0; $j--) {
-                        if (is_array($tokens[$j])) {
+                        if (\is_array($tokens[$j])) {
                             if ($tokens[$j][0] === T_NEW) {
                                 $isAnonymous = true;
                                 break;
@@ -395,7 +405,7 @@ class ModuleChangeDetector
 
                 // Look forward for a T_STRING (the class/interface/trait/enum name)
                 for ($k = $i + 1; $k < $tokenCount; $k++) {
-                    if (is_array($tokens[$k])) {
+                    if (\is_array($tokens[$k])) {
                         if ($tokens[$k][0] === T_WHITESPACE) {
                             continue;
                         }
@@ -417,35 +427,36 @@ class ModuleChangeDetector
      * Recursively hash all files in a directory.
      *
      * @param string $directory Absolute path
+     *
      * @return array<string, string> Map of relative path => md5 hash
      */
     private function hashDirectory(string $directory): array
     {
         $hashes = [];
 
-        if (!is_dir($directory)) {
+        if (!\is_dir($directory)) {
             return $hashes;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator(
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
                 $directory,
-                \RecursiveDirectoryIterator::SKIP_DOTS
+                RecursiveDirectoryIterator::SKIP_DOTS,
             ),
-            \RecursiveIteratorIterator::LEAVES_ONLY
+            RecursiveIteratorIterator::LEAVES_ONLY,
         );
 
         foreach ($iterator as $file) {
-            /** @var \SplFileInfo $file */
+            /** @var SplFileInfo $file */
             if (!$file->isFile()) {
                 continue;
             }
 
             $relativePath = $this->getRelativePath($directory, $file->getPathname());
-            $hashes[$relativePath] = md5_file($file->getPathname());
+            $hashes[$relativePath] = \md5_file($file->getPathname());
         }
 
-        ksort($hashes);
+        \ksort($hashes);
         return $hashes;
     }
 
@@ -455,6 +466,7 @@ class ModuleChangeDetector
      *
      * @param array<string, string> $old Old hashes
      * @param array<string, string> $new Current hashes
+     *
      * @return string[] List of changed file relative paths
      */
     private function diffHashes(array $old, array $new): array
@@ -475,7 +487,7 @@ class ModuleChangeDetector
             }
         }
 
-        return array_unique($changed);
+        return \array_unique($changed);
     }
 
     /**
@@ -483,15 +495,16 @@ class ModuleChangeDetector
      *
      * @param string $base Base directory
      * @param string $path Full file path
+     *
      * @return string Relative path with forward slashes
      */
     private function getRelativePath(string $base, string $path): string
     {
-        $base = str_replace('\\', '/', rtrim($base, '/\\')) . '/';
-        $path = str_replace('\\', '/', $path);
+        $base = \str_replace('\\', '/', \rtrim($base, '/\\')) . '/';
+        $path = \str_replace('\\', '/', $path);
 
-        if (str_starts_with($path, $base)) {
-            return substr($path, strlen($base));
+        if (\str_starts_with($path, $base)) {
+            return \substr($path, \strlen($base));
         }
 
         return $path;

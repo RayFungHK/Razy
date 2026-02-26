@@ -9,16 +9,18 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\ORM;
 
 use ArrayAccess;
-use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use JsonException;
 use JsonSerializable;
+use LogicException;
 use Traversable;
 
 /**
@@ -108,11 +110,11 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
     /**
      * Create a new paginator instance.
      *
-     * @param ModelCollection $items       Items for the current page
-     * @param int|null        $total       Total record count (null for simple pagination)
-     * @param int             $currentPage Current page number (1-based)
-     * @param int             $perPage     Items per page
-     * @param bool|null       $hasMore     Whether more pages exist (for simple pagination)
+     * @param ModelCollection $items Items for the current page
+     * @param int|null $total Total record count (null for simple pagination)
+     * @param int $currentPage Current page number (1-based)
+     * @param int $perPage Items per page
+     * @param bool|null $hasMore Whether more pages exist (for simple pagination)
      */
     public function __construct(
         ModelCollection $items,
@@ -123,15 +125,15 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
     ) {
         $this->items = $items;
         $this->total = $total;
-        $this->perPage = max(1, $perPage);
+        $this->perPage = \max(1, $perPage);
         $this->hasMore = $hasMore;
 
         if ($total !== null) {
-            $this->lastPage = max(1, (int) ceil($total / $this->perPage));
-            $this->currentPage = max(1, min($currentPage, $this->lastPage));
+            $this->lastPage = \max(1, (int) \ceil($total / $this->perPage));
+            $this->currentPage = \max(1, \min($currentPage, $this->lastPage));
         } else {
             $this->lastPage = null;
-            $this->currentPage = max(1, $currentPage);
+            $this->currentPage = \max(1, $currentPage);
         }
     }
 
@@ -262,7 +264,7 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      */
     public function setPath(string $path): static
     {
-        $this->path = rtrim($path, '/') ?: '/';
+        $this->path = \rtrim($path, '/') ?: '/';
 
         return $this;
     }
@@ -302,7 +304,7 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      */
     public function appends(array $params): static
     {
-        $this->queryParams = array_merge($this->queryParams, $params);
+        $this->queryParams = \array_merge($this->queryParams, $params);
 
         return $this;
     }
@@ -312,10 +314,10 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      */
     public function url(int $page): string
     {
-        $page = max(1, $page);
+        $page = \max(1, $page);
 
-        $params = array_merge($this->queryParams, [$this->pageName => $page]);
-        $query = http_build_query($params, '', '&');
+        $params = \array_merge($this->queryParams, [$this->pageName => $page]);
+        $query = \http_build_query($params, '', '&');
 
         return $this->path . '?' . $query;
     }
@@ -388,10 +390,10 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
             return null;
         }
 
-        $start = max(1, $this->currentPage - $onEachSide);
-        $end = min($this->lastPage, $this->currentPage + $onEachSide);
+        $start = \max(1, $this->currentPage - $onEachSide);
+        $end = \min($this->lastPage, $this->currentPage + $onEachSide);
 
-        return range($start, $end);
+        return \range($start, $end);
     }
 
     /**
@@ -454,7 +456,7 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      */
     public function toArray(): array
     {
-        $count = count($this->items);
+        $count = \count($this->items);
 
         return [
             'data' => $this->items->toArray(),
@@ -473,11 +475,11 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      *
      * @param int $options `json_encode` flags
      *
-     * @throws \JsonException
+     * @throws JsonException
      */
     public function toJson(int $options = 0): string
     {
-        return json_encode($this->toArray(), $options | JSON_THROW_ON_ERROR);
+        return \json_encode($this->toArray(), $options | JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -499,7 +501,7 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      */
     public function offsetExists(mixed $offset): bool
     {
-        return in_array($offset, ['data', 'total', 'page', 'per_page', 'last_page'], true);
+        return \in_array($offset, ['data', 'total', 'page', 'per_page', 'last_page'], true);
     }
 
     /**
@@ -520,21 +522,21 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
     /**
      * Not supported — paginator is read-only.
      *
-     * @throws \LogicException always
+     * @throws LogicException always
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        throw new \LogicException('Paginator is read-only.');
+        throw new LogicException('Paginator is read-only.');
     }
 
     /**
      * Not supported — paginator is read-only.
      *
-     * @throws \LogicException always
+     * @throws LogicException always
      */
     public function offsetUnset(mixed $offset): void
     {
-        throw new \LogicException('Paginator is read-only.');
+        throw new LogicException('Paginator is read-only.');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -546,7 +548,7 @@ class Paginator implements ArrayAccess, Countable, IteratorAggregate, JsonSerial
      */
     public function count(): int
     {
-        return count($this->items);
+        return \count($this->items);
     }
 
     /**

@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ class ArrayStore implements RateLimitStoreInterface
 {
     /**
      * In-memory storage.
-     * Format: ['key' => ['hits' => int, 'resetAt' => int], ...]
+     * Format: ['key' => ['hits' => int, 'resetAt' => int], ...].
      *
      * @var array<string, array{hits: int, resetAt: int}>
      */
@@ -106,7 +107,7 @@ class ArrayStore implements RateLimitStoreInterface
      */
     public function count(): int
     {
-        return count($this->records);
+        return \count($this->records);
     }
 
     /**
@@ -144,6 +145,6 @@ class ArrayStore implements RateLimitStoreInterface
      */
     private function now(): int
     {
-        return $this->currentTime ?? time();
+        return $this->currentTime ?? \time();
     }
 }

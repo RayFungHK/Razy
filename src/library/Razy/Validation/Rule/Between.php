@@ -12,7 +12,8 @@ class Between extends ValidationRule
     public function __construct(
         private readonly float|int $min,
         private readonly float|int $max,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {
@@ -22,7 +23,7 @@ class Between extends ValidationRule
             return $value;
         }
 
-        if (!is_numeric($value)) {
+        if (!\is_numeric($value)) {
             $this->fail();
 
             return $value;

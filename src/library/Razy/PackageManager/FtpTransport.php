@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -13,6 +14,7 @@
  * Requires PHP ext-ftp.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -41,13 +43,13 @@ class FtpTransport implements PackageTransportInterface
     private ?FTPClient $client = null;
 
     /**
-     * @param string      $host     FTP hostname
-     * @param string      $username FTP username
-     * @param string      $password FTP password
-     * @param int         $port     FTP port (default 21)
-     * @param bool        $secure   Use FTPS (TLS) connection
-     * @param string      $basePath Root path on the FTP server where the repo structure lives
-     * @param bool        $passive  Use passive mode (default true)
+     * @param string $host FTP hostname
+     * @param string $username FTP username
+     * @param string $password FTP password
+     * @param int $port FTP port (default 21)
+     * @param bool $secure Use FTPS (TLS) connection
+     * @param string $basePath Root path on the FTP server where the repo structure lives
+     * @param bool $passive Use passive mode (default true)
      */
     public function __construct(
         private readonly string $host,
@@ -61,6 +63,16 @@ class FtpTransport implements PackageTransportInterface
     }
 
     /**
+     * Disconnect the FTP client when the transport is destroyed.
+     */
+    public function __destruct()
+    {
+        if (null !== $this->client && $this->client->isConnected()) {
+            $this->client->disconnect();
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function fetchMetadata(string $packageName): ?array
@@ -70,8 +82,8 @@ class FtpTransport implements PackageTransportInterface
             return null;
         }
 
-        $packageName = strtolower($packageName);
-        $remotePath = rtrim($this->basePath, '/') . '/p2/' . $packageName . '.json';
+        $packageName = \strtolower($packageName);
+        $remotePath = \rtrim($this->basePath, '/') . '/p2/' . $packageName . '.json';
 
         try {
             $content = $client->downloadString($remotePath);
@@ -79,9 +91,9 @@ class FtpTransport implements PackageTransportInterface
                 return null;
             }
 
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            $data = \json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
-            return is_array($data) ? $data : null;
+            return \is_array($data) ? $data : null;
         } catch (Exception) {
             return null;
         }
@@ -126,16 +138,6 @@ class FtpTransport implements PackageTransportInterface
     }
 
     /**
-     * Disconnect the FTP client when the transport is destroyed.
-     */
-    public function __destruct()
-    {
-        if (null !== $this->client && $this->client->isConnected()) {
-            $this->client->disconnect();
-        }
-    }
-
-    /**
      * Lazily connect and authenticate the FTP client.
      *
      * @return FTPClient|null
@@ -169,7 +171,7 @@ class FtpTransport implements PackageTransportInterface
     private function resolveRemotePath(string $url): string
     {
         // If it looks like a full ftp:// URI, extract the path
-        $parsed = parse_url($url);
+        $parsed = \parse_url($url);
         if (isset($parsed['path'])) {
             return $parsed['path'];
         }

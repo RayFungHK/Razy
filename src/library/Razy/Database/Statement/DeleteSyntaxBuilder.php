@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Extracted from Statement::getSyntax() DELETE branch (Phase 2.3).
  *
  * @package Razy
+ *
  * @license MIT
  */
 

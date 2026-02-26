@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Interface for type-specific SQL syntax builders (Strategy Pattern).
  *
  * @package Razy
+ *
  * @license MIT
  */
 

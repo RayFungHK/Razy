@@ -9,10 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Queue;
+
+use Throwable;
 
 /**
  * Interface for job handler classes.
@@ -30,7 +33,7 @@ interface JobHandlerInterface
      *
      * @param array<string, mixed> $payload The deserialized job payload
      *
-     * @throws \Throwable Any exception causes the job to be marked as failed
+     * @throws Throwable Any exception causes the job to be marked as failed
      */
     public function handle(array $payload): void;
 
@@ -41,7 +44,7 @@ interface JobHandlerInterface
      * log the permanent failure.
      *
      * @param array<string, mixed> $payload The deserialized job payload
-     * @param \Throwable           $error   The last error that caused failure
+     * @param Throwable $error The last error that caused failure
      */
-    public function failed(array $payload, \Throwable $error): void;
+    public function failed(array $payload, Throwable $error): void;
 }

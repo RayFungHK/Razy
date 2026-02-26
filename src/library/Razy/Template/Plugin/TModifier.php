@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * template tags (e.g., `{$name->uppercase->truncate:50}`).
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -31,16 +33,17 @@ use Razy\Controller;
  */
 class TModifier
 {
-    /** @var string The registered name of this modifier plugin */
-    private string $name;
-
     /** @var Controller|null The bound controller instance, if any */
     protected ?Controller $controller = null;
+
+    /** @var string The registered name of this modifier plugin */
+    private string $name;
 
     /**
      * Bind a Controller instance to this plugin for module context access.
      *
      * @param Controller $entity The controller to bind
+     *
      * @return static Chainable
      */
     final public function bind(Controller $entity): static
@@ -48,20 +51,6 @@ class TModifier
         $this->controller = $entity;
 
         return $this;
-    }
-
-    /**
-     * Process the modifier and transform the given value.
-     *
-     * Override this method in subclasses to implement custom transformation.
-     *
-     * @param mixed $value The current value to transform
-     * @param string ...$args Additional colon-separated arguments from the modifier syntax
-     * @return string|null The transformed value
-     */
-    protected function process(mixed $value, string ...$args): ?string
-    {
-        return '';
     }
 
     /**
@@ -75,14 +64,14 @@ class TModifier
     final public function modify(mixed $value, string $paramText = ''): mixed
     {
         $arguments = [$value];
-        preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText ?? '', $args);
+        \preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText ?? '', $args);
 
         // Build argument list: first element is always the value, followed by parsed modifier args
         foreach ($args as $arg) {
-            $arguments[] = (array_key_exists(4, $arg)) ? $arg[4] : ($arg[2] ?? $arg[1] ?? '');
+            $arguments[] = (\array_key_exists(4, $arg)) ? $arg[4] : ($arg[2] ?? $arg[1] ?? '');
         }
 
-        return call_user_func_array([$this, 'process'], $arguments);
+        return \call_user_func_array([$this, 'process'], $arguments);
     }
 
     /**
@@ -99,6 +88,7 @@ class TModifier
      * Set the registered name of this modifier plugin.
      *
      * @param string $name The plugin name
+     *
      * @return static Chainable
      */
     final public function setName(string $name): static
@@ -106,5 +96,20 @@ class TModifier
         $this->name = $name;
 
         return $this;
+    }
+
+    /**
+     * Process the modifier and transform the given value.
+     *
+     * Override this method in subclasses to implement custom transformation.
+     *
+     * @param mixed $value The current value to transform
+     * @param string ...$args Additional colon-separated arguments from the modifier syntax
+     *
+     * @return string|null The transformed value
+     */
+    protected function process(mixed $value, string ...$args): ?string
+    {
+        return '';
     }
 }

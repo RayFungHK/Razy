@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Configuration.
  *
@@ -20,32 +21,18 @@ class ConfigurationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->tempDir = sys_get_temp_dir() . '/razy-config-test-' . uniqid();
-        if (!is_dir($this->tempDir)) {
-            mkdir($this->tempDir, 0755, true);
+        $this->tempDir = \sys_get_temp_dir() . '/razy-config-test-' . \uniqid();
+        if (!\is_dir($this->tempDir)) {
+            \mkdir($this->tempDir, 0o755, true);
         }
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        if (is_dir($this->tempDir)) {
+        if (\is_dir($this->tempDir)) {
             $this->deleteDirectory($this->tempDir);
         }
-    }
-
-    private function deleteDirectory(string $dir): void
-    {
-        if (!is_dir($dir)) {
-            return;
-        }
-
-        $files = array_diff(scandir($dir), ['.', '..']);
-        foreach ($files as $file) {
-            $path = $dir . '/' . $file;
-            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
-        }
-        rmdir($dir);
     }
 
     // ==================== PHP FORMAT ====================
@@ -53,7 +40,7 @@ class ConfigurationTest extends TestCase
     public function testLoadPHPConfig(): void
     {
         $file = $this->tempDir . '/config.php';
-        file_put_contents($file, "<?php\nreturn ['name' => 'TestApp', 'version' => '1.0'];");
+        \file_put_contents($file, "<?php\nreturn ['name' => 'TestApp', 'version' => '1.0'];");
 
         $config = new Configuration($file);
 
@@ -64,7 +51,7 @@ class ConfigurationTest extends TestCase
     public function testSavePHPConfig(): void
     {
         $file = $this->tempDir . '/config.php';
-        file_put_contents($file, "<?php\nreturn ['name' => 'TestApp'];");
+        \file_put_contents($file, "<?php\nreturn ['name' => 'TestApp'];");
 
         $config = new Configuration($file);
         $config['version'] = '2.0';
@@ -79,7 +66,7 @@ class ConfigurationTest extends TestCase
     public function testLoadJSONConfig(): void
     {
         $file = $this->tempDir . '/config.json';
-        file_put_contents($file, json_encode(['name' => 'TestApp', 'debug' => true]));
+        \file_put_contents($file, \json_encode(['name' => 'TestApp', 'debug' => true]));
 
         $config = new Configuration($file);
 
@@ -90,14 +77,14 @@ class ConfigurationTest extends TestCase
     public function testSaveJSONConfig(): void
     {
         $file = $this->tempDir . '/config.json';
-        file_put_contents($file, json_encode(['name' => 'TestApp']));
+        \file_put_contents($file, \json_encode(['name' => 'TestApp']));
 
         $config = new Configuration($file);
         $config['port'] = 8080;
         $config->save();
 
-        $content = file_get_contents($file);
-        $data = json_decode($content, true);
+        $content = \file_get_contents($file);
+        $data = \json_decode($content, true);
 
         $this->assertEquals(8080, $data['port']);
     }
@@ -108,14 +95,14 @@ class ConfigurationTest extends TestCase
     {
         $file = $this->tempDir . '/config.ini';
         $content = <<<INI
-name = "TestApp"
-port = 8080
+            name = "TestApp"
+            port = 8080
 
-[database]
-host = "localhost"
-port = 3306
-INI;
-        file_put_contents($file, $content);
+            [database]
+            host = "localhost"
+            port = 3306
+            INI;
+        \file_put_contents($file, $content);
 
         $config = new Configuration($file);
 
@@ -127,13 +114,13 @@ INI;
     public function testSaveINIConfig(): void
     {
         $file = $this->tempDir . '/config.ini';
-        file_put_contents($file, "name = \"TestApp\"\n");
+        \file_put_contents($file, "name = \"TestApp\"\n");
 
         $config = new Configuration($file);
         $config['version'] = '1.0';
         $config->save();
 
-        $content = file_get_contents($file);
+        $content = \file_get_contents($file);
 
         // Numeric-looking values are written unquoted in INI format
         $this->assertStringContainsString('version = 1.0', $content);
@@ -145,13 +132,13 @@ INI;
     {
         $file = $this->tempDir . '/config.yaml';
         $content = <<<YAML
-name: TestApp
-version: 1.0
-database:
-  host: localhost
-  port: 3306
-YAML;
-        file_put_contents($file, $content);
+            name: TestApp
+            version: 1.0
+            database:
+              host: localhost
+              port: 3306
+            YAML;
+        \file_put_contents($file, $content);
 
         $config = new Configuration($file);
 
@@ -165,7 +152,7 @@ YAML;
     {
         $file = $this->tempDir . '/config.yml';
         $content = "name: TestApp\nfeatures:\n  - auth\n  - api";
-        file_put_contents($file, $content);
+        \file_put_contents($file, $content);
 
         $config = new Configuration($file);
 
@@ -176,16 +163,16 @@ YAML;
     public function testSaveYAMLConfig(): void
     {
         $file = $this->tempDir . '/config.yaml';
-        file_put_contents($file, "name: TestApp\n");
+        \file_put_contents($file, "name: TestApp\n");
 
         $config = new Configuration($file);
         $config['database'] = [
             'host' => 'localhost',
-            'port' => 3306
+            'port' => 3306,
         ];
         $config->save();
 
-        $content = file_get_contents($file);
+        $content = \file_get_contents($file);
 
         $this->assertStringContainsString('database:', $content);
         $this->assertStringContainsString('host: localhost', $content);
@@ -212,20 +199,20 @@ YAML;
     public function testChangeTracking(): void
     {
         $file = $this->tempDir . '/config.json';
-        file_put_contents($file, '{"name":"Test"}');
+        \file_put_contents($file, '{"name":"Test"}');
 
         $config = new Configuration($file);
-        
+
         // No changes yet
         $config->save();
-        $modified = filemtime($file);
-        sleep(1);
-        
+        $modified = \filemtime($file);
+        \sleep(1);
+
         // Make a change
         $config['version'] = '2.0';
         $config->save();
-        
-        $newModified = filemtime($file);
+
+        $newModified = \filemtime($file);
         $this->assertGreaterThan($modified, $newModified);
     }
 
@@ -233,13 +220,13 @@ YAML;
     {
         $file = $this->tempDir . '/nested.yaml';
         $content = <<<YAML
-app:
-  name: MyApp
-  settings:
-    debug: true
-    timezone: UTC
-YAML;
-        file_put_contents($file, $content);
+            app:
+              name: MyApp
+              settings:
+                debug: true
+                timezone: UTC
+            YAML;
+        \file_put_contents($file, $content);
 
         $config = new Configuration($file);
 
@@ -251,7 +238,7 @@ YAML;
     public function testArrayAccess(): void
     {
         $file = $this->tempDir . '/array.json';
-        file_put_contents($file, '{}');
+        \file_put_contents($file, '{}');
 
         $config = new Configuration($file);
 
@@ -281,25 +268,25 @@ YAML;
             'version' => '1.0',
             'settings' => [
                 'debug' => true,
-                'port' => 8080
-            ]
+                'port' => 8080,
+            ],
         ];
 
         // PHP
         $phpFile = $this->tempDir . '/config.php';
-        file_put_contents($phpFile, "<?php\nreturn " . var_export($data, true) . ";");
+        \file_put_contents($phpFile, "<?php\nreturn " . \var_export($data, true) . ';');
         $phpConfig = new Configuration($phpFile);
         $this->assertEquals('TestApp', $phpConfig['name']);
 
         // JSON
         $jsonFile = $this->tempDir . '/config.json';
-        file_put_contents($jsonFile, json_encode($data));
+        \file_put_contents($jsonFile, \json_encode($data));
         $jsonConfig = new Configuration($jsonFile);
         $this->assertEquals('TestApp', $jsonConfig['name']);
 
         // YAML
         $yamlFile = $this->tempDir . '/config.yaml';
-        file_put_contents($yamlFile, "name: TestApp\nversion: \"1.0\"\nsettings:\n  debug: true\n  port: 8080\n");
+        \file_put_contents($yamlFile, "name: TestApp\nversion: \"1.0\"\nsettings:\n  debug: true\n  port: 8080\n");
         $yamlConfig = new Configuration($yamlFile);
         $this->assertEquals('TestApp', $yamlConfig['name']);
     }
@@ -319,7 +306,7 @@ YAML;
     public function testIteration(): void
     {
         $file = $this->tempDir . '/config.yaml';
-        file_put_contents($file, "a: 1\nb: 2\nc: 3\n");
+        \file_put_contents($file, "a: 1\nb: 2\nc: 3\n");
 
         $config = new Configuration($file);
 
@@ -343,15 +330,29 @@ YAML;
                     'port' => 3306,
                     'credentials' => [
                         'username' => 'root',
-                        'password' => 'secret'
-                    ]
-                ]
-            ]
+                        'password' => 'secret',
+                    ],
+                ],
+            ],
         ];
         $config->save();
 
         $reloaded = new Configuration($file);
         $this->assertEquals('localhost', $reloaded['database']['connections']['mysql']['host']);
         $this->assertEquals('root', $reloaded['database']['connections']['mysql']['credentials']['username']);
+    }
+
+    private function deleteDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+
+        $files = \array_diff(\scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            \is_dir($path) ? $this->deleteDirectory($path) : \unlink($path);
+        }
+        \rmdir($dir);
     }
 }

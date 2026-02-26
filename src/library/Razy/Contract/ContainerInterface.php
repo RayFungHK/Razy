@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -26,6 +27,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Find an entry by its identifier and return it.
      *
      * @param string $id Identifier of the entry to look for
+     *
      * @return mixed The entry
      */
     public function get(string $id): mixed;
@@ -34,6 +36,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Returns true if the container can return an entry for the given identifier.
      *
      * @param string $id Identifier of the entry to look for
+     *
      * @return bool
      */
     public function has(string $id): bool;
@@ -81,6 +84,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string $abstract The abstract type or service name
      * @param array $params Optional parameters to pass to the constructor
+     *
      * @return mixed The resolved instance
      */
     public function make(string $abstract, array $params = []): mixed;
@@ -97,6 +101,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Resolve all services registered under the given tag.
      *
      * @param string $tag The tag name
+     *
      * @return array<object> Resolved instances
      */
     public function tagged(string $tag): array;
@@ -130,6 +135,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Unlike has(), this does NOT consider auto-wiring or parent container.
      *
      * @param string $abstract The abstract type or service name
+     *
      * @return bool True if explicitly bound or instantiated
      */
     public function bound(string $abstract): bool;
@@ -138,6 +144,7 @@ interface ContainerInterface extends PsrContainerInterface
      * Get a closure that resolves a fresh instance of the given type each time.
      *
      * @param string $abstract The abstract type or service name
+     *
      * @return Closure A factory closure
      */
     public function factory(string $abstract): Closure;
@@ -180,6 +187,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param callable|array $callback The callable to invoke
      * @param array $params Named parameters to override auto-wired dependencies
+     *
      * @return mixed The return value of the callable
      */
     public function call(callable|array $callback, array $params = []): mixed;
@@ -190,6 +198,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string $abstract Service identifier
      * @param string|Closure $concrete New class name or factory closure
+     *
      * @return object|null The previous cached instance, or null
      */
     public function rebind(string $abstract, string|Closure $concrete): ?object;
@@ -209,8 +218,8 @@ interface ContainerInterface extends PsrContainerInterface
      * parameter type-hinted as $abstract, it will use $concrete instead of
      * the global binding.
      *
-     * @param string         $consumer The consuming class
-     * @param string         $abstract The abstract dependency type
+     * @param string $consumer The consuming class
+     * @param string $abstract The abstract dependency type
      * @param string|Closure $concrete The implementation to provide
      */
     public function addContextualBinding(string $consumer, string $abstract, string|Closure $concrete): void;

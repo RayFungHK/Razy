@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * performs the opening handshake, and provides send/receive methods.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -18,6 +20,7 @@ namespace Razy\WebSocket;
 
 use Closure;
 use RuntimeException;
+use Throwable;
 
 /**
  * WebSocket client for connecting to a remote WebSocket server.
@@ -34,6 +37,7 @@ use RuntimeException;
  * Supports both `ws://` and `wss://` (TLS) schemes.
  *
  * @class Client
+ *
  * @package Razy\WebSocket
  */
 class Client
@@ -51,14 +55,14 @@ class Client
      * Use Client::connect() factory instead.
      *
      * @param Connection $connection
-     * @param string     $host
-     * @param string     $path
+     * @param string $host
+     * @param string $path
      */
     private function __construct(Connection $connection, string $host, string $path)
     {
         $this->connection = $connection;
-        $this->host       = $host;
-        $this->path       = $path;
+        $this->host = $host;
+        $this->path = $path;
     }
 
     // ── Factory ──────────────────────────────────────────────────
@@ -66,9 +70,9 @@ class Client
     /**
      * Connect to a WebSocket server and perform the opening handshake.
      *
-     * @param string               $url     Full URL (ws://host:port/path or wss://...)
+     * @param string $url Full URL (ws://host:port/path or wss://...)
      * @param array<string,string> $headers Extra HTTP headers for the handshake
-     * @param int                  $timeout Connection timeout in seconds
+     * @param int $timeout Connection timeout in seconds
      *
      * @return static
      *
@@ -78,14 +82,14 @@ class Client
     {
         $parsed = self::parseUrl($url);
 
-        $scheme  = $parsed['scheme'];
-        $host    = $parsed['host'];
-        $port    = $parsed['port'];
-        $path    = $parsed['path'];
+        $scheme = $parsed['scheme'];
+        $host = $parsed['host'];
+        $port = $parsed['port'];
+        $path = $parsed['path'];
         $address = ($scheme === 'wss' ? 'tls' : 'tcp') . "://{$host}:{$port}";
 
-        $context = stream_context_create();
-        $stream  = @stream_socket_client(
+        $context = \stream_context_create();
+        $stream = @\stream_socket_client(
             $address,
             $errno,
             $errstr,
@@ -98,19 +102,49 @@ class Client
             throw new RuntimeException("Failed to connect to {$address}: [{$errno}] {$errstr}");
         }
 
-        stream_set_blocking($stream, true);
-        stream_set_timeout($stream, $timeout);
+        \stream_set_blocking($stream, true);
+        \stream_set_timeout($stream, $timeout);
 
         // Client connections MUST mask outgoing frames (RFC 6455 §5.3)
         $connection = new Connection($stream, maskOutput: true);
-        $client     = new static($connection, $host . ':' . $port, $path);
+        $client = new static($connection, $host . ':' . $port, $path);
 
         $client->performHandshake($headers);
 
         // Switch to non-blocking for normal operation
-        stream_set_blocking($stream, false);
+        \stream_set_blocking($stream, false);
 
         return $client;
+    }
+
+    /**
+     * Parse a ws:// or wss:// URL into components.
+     *
+     * @return array{scheme: string, host: string, port: int, path: string}
+     *
+     * @throws RuntimeException on invalid URL
+     */
+    private static function parseUrl(string $url): array
+    {
+        $parsed = \parse_url($url);
+        if ($parsed === false || !isset($parsed['host'])) {
+            throw new RuntimeException('Invalid WebSocket URL: ' . $url);
+        }
+
+        $scheme = \strtolower($parsed['scheme'] ?? 'ws');
+        if (!\in_array($scheme, ['ws', 'wss'], true)) {
+            throw new RuntimeException("Unsupported scheme: {$scheme} (use ws:// or wss://)");
+        }
+
+        $host = $parsed['host'];
+        $port = $parsed['port'] ?? ($scheme === 'wss' ? 443 : 80);
+        $path = ($parsed['path'] ?? '/');
+
+        if (isset($parsed['query'])) {
+            $path .= '?' . $parsed['query'];
+        }
+
+        return \compact('scheme', 'host', 'port', 'path');
     }
 
     // ── Messaging ────────────────────────────────────────────────
@@ -160,17 +194,17 @@ class Client
     public function receiveBlocking(int $timeoutSeconds = 30): ?Frame
     {
         $stream = $this->connection->getStream();
-        if (!is_resource($stream)) {
+        if (!\is_resource($stream)) {
             return null;
         }
 
         // Temporarily switch to blocking with a timeout
-        stream_set_blocking($stream, true);
-        stream_set_timeout($stream, $timeoutSeconds);
+        \stream_set_blocking($stream, true);
+        \stream_set_timeout($stream, $timeoutSeconds);
 
         $frame = $this->connection->readFrame();
 
-        stream_set_blocking($stream, false);
+        \stream_set_blocking($stream, false);
 
         return $frame;
     }
@@ -178,7 +212,7 @@ class Client
     /**
      * Send a close frame and disconnect.
      *
-     * @param int    $code   Status code (default: 1000 normal closure)
+     * @param int $code Status code (default: 1000 normal closure)
      * @param string $reason Reason string
      */
     public function close(int $code = 1000, string $reason = ''): void
@@ -188,12 +222,12 @@ class Client
 
             // Try to read the server's close response
             $stream = $this->connection->getStream();
-            if (is_resource($stream)) {
-                stream_set_blocking($stream, true);
-                stream_set_timeout($stream, 2);
+            if (\is_resource($stream)) {
+                \stream_set_blocking($stream, true);
+                \stream_set_timeout($stream, 2);
                 $this->connection->readFrame();
             }
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Best-effort close
         } finally {
             $this->connection->disconnect();
@@ -223,17 +257,17 @@ class Client
      * Stops when the connection closes or $onMessage returns false.
      *
      * @param Closure(Frame): bool|void $onMessage Called for each text/binary frame
-     * @param int                       $pollMs    Polling interval in milliseconds
+     * @param int $pollMs Polling interval in milliseconds
      */
     public function listen(Closure $onMessage, int $pollMs = 50): void
     {
         $stream = $this->connection->getStream();
 
         while ($this->connection->isOpen()) {
-            $read    = [$stream];
-            $write   = null;
-            $except  = null;
-            $changed = @stream_select($read, $write, $except, 0, $pollMs * 1000);
+            $read = [$stream];
+            $write = null;
+            $except = null;
+            $changed = @\stream_select($read, $write, $except, 0, $pollMs * 1000);
 
             if ($changed === false) {
                 break;
@@ -259,7 +293,7 @@ class Client
             }
 
             // Check for EOF
-            if (feof($stream)) {
+            if (\feof($stream)) {
                 break;
             }
         }
@@ -276,15 +310,15 @@ class Client
      */
     private function performHandshake(array $extraHeaders): void
     {
-        $key = base64_encode(random_bytes(16));
+        $key = \base64_encode(\random_bytes(16));
 
         $headers = [
             "GET {$this->path} HTTP/1.1",
             "Host: {$this->host}",
-            "Upgrade: websocket",
-            "Connection: Upgrade",
+            'Upgrade: websocket',
+            'Connection: Upgrade',
             "Sec-WebSocket-Key: {$key}",
-            "Sec-WebSocket-Version: 13",
+            'Sec-WebSocket-Version: 13',
         ];
 
         foreach ($extraHeaders as $name => $value) {
@@ -294,52 +328,22 @@ class Client
         $headers[] = '';
         $headers[] = '';
 
-        $request = implode("\r\n", $headers);
-        fwrite($this->connection->getStream(), $request);
+        $request = \implode("\r\n", $headers);
+        \fwrite($this->connection->getStream(), $request);
 
         // Expected accept value
-        $expectedAccept = base64_encode(
-            sha1($key . '258EAFA5-E914-47DA-95CA-5AB5DC175AB2', true)
+        $expectedAccept = \base64_encode(
+            \sha1($key . '258EAFA5-E914-47DA-95CA-5AB5DC175AB2', true),
         );
 
         // Wait for handshake response (blocking)
-        $deadline = microtime(true) + 5;
+        $deadline = \microtime(true) + 5;
         while (!$this->connection->isHandshakeCompleted()) {
-            if (microtime(true) > $deadline) {
+            if (\microtime(true) > $deadline) {
                 throw new RuntimeException('WebSocket handshake timed out');
             }
             $this->connection->completeClientHandshake($expectedAccept);
-            usleep(10000);
+            \usleep(10000);
         }
-    }
-
-    /**
-     * Parse a ws:// or wss:// URL into components.
-     *
-     * @return array{scheme: string, host: string, port: int, path: string}
-     *
-     * @throws RuntimeException on invalid URL
-     */
-    private static function parseUrl(string $url): array
-    {
-        $parsed = parse_url($url);
-        if ($parsed === false || !isset($parsed['host'])) {
-            throw new RuntimeException('Invalid WebSocket URL: ' . $url);
-        }
-
-        $scheme = strtolower($parsed['scheme'] ?? 'ws');
-        if (!in_array($scheme, ['ws', 'wss'], true)) {
-            throw new RuntimeException("Unsupported scheme: {$scheme} (use ws:// or wss://)");
-        }
-
-        $host = $parsed['host'];
-        $port = $parsed['port'] ?? ($scheme === 'wss' ? 443 : 80);
-        $path = ($parsed['path'] ?? '/');
-
-        if (isset($parsed['query'])) {
-            $path .= '?' . $parsed['query'];
-        }
-
-        return compact('scheme', 'host', 'port', 'path');
     }
 }

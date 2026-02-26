@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -25,30 +26,6 @@ namespace Razy\Worker;
  */
 enum ChangeType: string
 {
-    /** No changes detected. */
-    case None = 'none';
-
-    /**
-     * Only configuration / template / asset files changed.
-     * Safe for in-process hot-swap (Strategy B or C).
-     */
-    case Config = 'config';
-
-    /**
-     * PHP files changed but contain only anonymous classes or closures.
-     * Safe for in-process rebind via Container (Strategy C+).
-     * Anonymous classes produce unique internal names on each include,
-     * so they do not conflict with previously loaded definitions.
-     */
-    case Rebindable = 'rebindable';
-
-    /**
-     * PHP files changed that contain named class/interface/trait/enum definitions.
-     * Requires full process restart (Strategy A) because PHP cannot
-     * unload named class definitions from memory.
-     */
-    case ClassFile = 'class';
-
     /**
      * Whether a full process restart is required.
      */
@@ -88,4 +65,27 @@ enum ChangeType: string
             self::ClassFile => 3,
         };
     }
+    /** No changes detected. */
+    case None = 'none';
+
+    /**
+     * Only configuration / template / asset files changed.
+     * Safe for in-process hot-swap (Strategy B or C).
+     */
+    case Config = 'config';
+
+    /**
+     * PHP files changed but contain only anonymous classes or closures.
+     * Safe for in-process rebind via Container (Strategy C+).
+     * Anonymous classes produce unique internal names on each include,
+     * so they do not conflict with previously loaded definitions.
+     */
+    case Rebindable = 'rebindable';
+
+    /**
+     * PHP files changed that contain named class/interface/trait/enum definitions.
+     * Requires full process restart (Strategy A) because PHP cannot
+     * unload named class definitions from memory.
+     */
+    case ClassFile = 'class';
 }

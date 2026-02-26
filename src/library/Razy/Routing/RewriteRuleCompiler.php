@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -14,6 +15,8 @@ use Exception;
 use Razy\Distributor;
 use Razy\Template;
 use Razy\Util\PathUtil;
+use Throwable;
+
 /**
  * Compiles Apache .htaccess rewrite rules from the multisite configuration.
  *
@@ -29,19 +32,35 @@ use Razy\Util\PathUtil;
  * - Fallback routing rules
  *
  * @package Razy\Routing
+ *
  * @license MIT
  */
 class RewriteRuleCompiler
 {
     /**
+     * Convert a domain name to an Apache-compatible regex pattern.
+     *
+     * @param string $domain The domain name or pattern
+     *
+     * @return string The escaped regex pattern
+     */
+    public static function domainToPattern(string $domain): string
+    {
+        $pattern = \str_replace('.', '\\.', $domain);
+        $pattern = \str_replace('*', '.+', $pattern);
+        return $pattern;
+    }
+
+    /**
      * Compile and write the .htaccess rewrite rules.
      *
      * @param array<string, array<string, string>> $multisite Domain => path => distributor mapping
-     * @param array<string, string>                $aliases   Alias domain => canonical domain mapping
-     * @param string                               $outputPath Path to write the .htaccess file
+     * @param array<string, string> $aliases Alias domain => canonical domain mapping
+     * @param string $outputPath Path to write the .htaccess file
      *
      * @return bool True on success
-     * @throws \Throwable
+     *
+     * @throws Throwable
      */
     public function compile(array $multisite, array $aliases, string $outputPath): bool
     {
@@ -54,16 +73,16 @@ class RewriteRuleCompiler
         // ── Phase 2: Per-Distributor Rewrite Rules ──
         $this->compileDistributorRules($rootBlock, $multisite);
 
-        file_put_contents($outputPath, $source->output());
+        \file_put_contents($outputPath, $source->output());
         return true;
     }
 
     /**
      * Generate RewriteCond/RewriteRule pairs for domain detection and alias mapping.
      *
-     * @param mixed $rootBlock   The template root block
-     * @param array $multisite   Domain => path => distributor mapping
-     * @param array $aliases     Alias => canonical domain mapping
+     * @param mixed $rootBlock The template root block
+     * @param array $multisite Domain => path => distributor mapping
+     * @param array $aliases Alias => canonical domain mapping
      */
     private function compileDomainRules(mixed $rootBlock, array $multisite, array $aliases): void
     {
@@ -108,8 +127,8 @@ class RewriteRuleCompiler
     /**
      * Generate webassets, data, and fallback rules for each distributor.
      *
-     * @param mixed $rootBlock  The template root block
-     * @param array $multisite  Domain => path => distributor mapping
+     * @param mixed $rootBlock The template root block
+     * @param array $multisite Domain => path => distributor mapping
      */
     private function compileDistributorRules(mixed $rootBlock, array $multisite): void
     {
@@ -118,12 +137,12 @@ class RewriteRuleCompiler
         foreach ($multisite as $domain => $paths) {
             foreach ($paths as $urlPath => $distIdentifier) {
                 try {
-                    [$code, $tag] = explode('@', $distIdentifier . '@', 2);
+                    [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
                     $distributor = new Distributor($code, $tag ?: '*');
                     $distributor->initialize(true);
                     $modules = $distributor->getRegistry()->getModules();
 
-                    $routePath = ($urlPath === '/') ? '' : trim($urlPath, '/') . '/';
+                    $routePath = ($urlPath === '/') ? '' : \trim($urlPath, '/') . '/';
 
                     $rewriteBlock = $rootBlock->newBlock('rewrite')->assign([
                         'domain' => $domain,
@@ -144,9 +163,8 @@ class RewriteRuleCompiler
                             'route_path' => $routePath,
                         ]);
                     }
-
                 } catch (Exception $e) {
-                    error_log('Warning: Failed to process distribution ' . $distIdentifier . ' for domain ' . $domain . ': ' . $e->getMessage());
+                    \error_log('Warning: Failed to process distribution ' . $distIdentifier . ' for domain ' . $domain . ': ' . $e->getMessage());
                     continue;
                 }
             }
@@ -156,16 +174,16 @@ class RewriteRuleCompiler
     /**
      * Compile data mapping rewrite rules for a single distributor.
      *
-     * @param mixed       $rewriteBlock The template rewrite block
-     * @param Distributor $distributor   The distributor instance
-     * @param string      $domain       The domain name
-     * @param string      $code         The distributor code
-     * @param string      $routePath    The URL route path prefix
+     * @param mixed $rewriteBlock The template rewrite block
+     * @param Distributor $distributor The distributor instance
+     * @param string $domain The domain name
+     * @param string $code The distributor code
+     * @param string $routePath The URL route path prefix
      */
     private function compileDataMappingRules(mixed $rewriteBlock, Distributor $distributor, string $domain, string $code, string $routePath): void
     {
         $dataMapping = $distributor->getDataMapping();
-        if (!count($dataMapping) || !isset($dataMapping['/'])) {
+        if (!\count($dataMapping) || !isset($dataMapping['/'])) {
             $dataPath = '%{ENV:BASE}data/' . $domain . '-' . $code . '/$1';
 
             $rewriteBlock->newBlock('data_mapping')->assign([
@@ -177,7 +195,7 @@ class RewriteRuleCompiler
         foreach ($dataMapping as $path => $site) {
             $mappingRoutePath = ($path === '/')
                 ? $routePath
-                : rtrim($routePath . trim($path, '/'), '/') . '/';
+                : \rtrim($routePath . \trim($path, '/'), '/') . '/';
 
             $dataPath = '%{ENV:BASE}data/' . $site['domain'] . '-' . $site['dist'] . '/$1';
 
@@ -192,12 +210,12 @@ class RewriteRuleCompiler
     /**
      * Compile webasset rewrite rules for modules in a distributor.
      *
-     * @param mixed  $rewriteBlock  The template rewrite block
-     * @param array  $modules       The modules loaded by the distributor
-     * @param string $domain        The domain name
-     * @param string $code          The distributor code
-     * @param string $routePath     The URL route path prefix
-     * @param array  &$addedWebAssets Tracking array to prevent duplicate rules
+     * @param mixed $rewriteBlock The template rewrite block
+     * @param array $modules The modules loaded by the distributor
+     * @param string $domain The domain name
+     * @param string $code The distributor code
+     * @param string $routePath The URL route path prefix
+     * @param array &$addedWebAssets Tracking array to prevent duplicate rules
      */
     private function compileWebAssetRules(mixed $rewriteBlock, array $modules, string $domain, string $code, string $routePath, array &$addedWebAssets): void
     {
@@ -205,17 +223,17 @@ class RewriteRuleCompiler
             $moduleInfo = $module->getModuleInfo();
             $modulePath = $moduleInfo->getPath();
 
-            if (!empty($modulePath) && is_dir($modulePath)) {
+            if (!empty($modulePath) && \is_dir($modulePath)) {
                 $webassetPath = PathUtil::append($modulePath, 'webassets');
 
-                if (is_dir($webassetPath)) {
+                if (\is_dir($webassetPath)) {
                     $webAssetKey = $domain . '::' . $code . '::' . $moduleInfo->getAlias();
 
                     if (!isset($addedWebAssets[$webAssetKey])) {
                         $addedWebAssets[$webAssetKey] = true;
 
                         $containerPathRel = $moduleInfo->getContainerPath(true);
-                        $containerPathRel = ltrim(str_replace('\\', '/', $containerPathRel), '/');
+                        $containerPathRel = \ltrim(\str_replace('\\', '/', $containerPathRel), '/');
                         $distPath = $containerPathRel . '/$1/webassets/$2';
 
                         $rewriteBlock->newBlock('webassets')->assign([
@@ -228,18 +246,5 @@ class RewriteRuleCompiler
                 }
             }
         }
-    }
-
-    /**
-     * Convert a domain name to an Apache-compatible regex pattern.
-     *
-     * @param string $domain The domain name or pattern
-     * @return string The escaped regex pattern
-     */
-    public static function domainToPattern(string $domain): string
-    {
-        $pattern = str_replace('.', '\\.', $domain);
-        $pattern = str_replace('*', '.+', $pattern);
-        return $pattern;
     }
 }

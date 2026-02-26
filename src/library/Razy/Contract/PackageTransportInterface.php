@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -38,8 +40,8 @@ interface PackageTransportInterface
     /**
      * Download a distribution archive to a local temporary file.
      *
-     * @param string       $url              The distribution URL or path from package metadata
-     * @param string       $destinationPath  Absolute path to write the downloaded file
+     * @param string $url The distribution URL or path from package metadata
+     * @param string $destinationPath Absolute path to write the downloaded file
      * @param Closure|null $progressCallback Optional callback: fn(int $downloadSize, int $downloaded) => void
      *
      * @return bool True on success, false on failure

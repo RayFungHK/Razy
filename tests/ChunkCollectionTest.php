@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Generator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
@@ -69,7 +70,8 @@ class ChunkCollectionTest extends TestCase
         $this->createSchema($db);
         $this->seedItems($db, 5);
 
-        $result = CC_Item::query($db)->chunk(2, function () {});
+        $result = CC_Item::query($db)->chunk(2, function () {
+        });
 
         $this->assertTrue($result);
     }
@@ -134,7 +136,7 @@ class ChunkCollectionTest extends TestCase
 
         $cursor = CC_Item::query($db)->cursor();
 
-        $this->assertInstanceOf(\Generator::class, $cursor);
+        $this->assertInstanceOf(Generator::class, $cursor);
     }
 
     public function testCursorYieldsAllModels(): void
@@ -217,7 +219,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = $this->makeCollection([5, 5]);
 
-        $result = $collection->reduce(fn($carry, $m) => $carry + $m->price, 100);
+        $result = $collection->reduce(fn ($carry, $m) => $carry + $m->price, 100);
 
         $this->assertSame(110, $result);
     }
@@ -226,7 +228,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = new ModelCollection([]);
 
-        $result = $collection->reduce(fn($carry, $m) => $carry + 1, 0);
+        $result = $collection->reduce(fn ($carry, $m) => $carry + 1, 0);
 
         $this->assertSame(0, $result);
     }
@@ -246,7 +248,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = $this->makeCollection([10, 20, 30]);
 
-        $result = $collection->sum(fn($m) => $m->price * 2);
+        $result = $collection->sum(fn ($m) => $m->price * 2);
 
         $this->assertSame(120, $result);
     }
@@ -308,7 +310,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = $this->makeCollection([30, 10, 20]);
 
-        $this->assertSame(10, $collection->min(fn($m) => $m->price));
+        $this->assertSame(10, $collection->min(fn ($m) => $m->price));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -339,7 +341,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = $this->makeCollection([30, 10, 20]);
 
-        $sorted = $collection->sortBy(fn($m) => $m->price);
+        $sorted = $collection->sortBy(fn ($m) => $m->price);
         $prices = $sorted->pluck('price');
 
         $this->assertSame([10, 20, 30], $prices);
@@ -378,7 +380,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = $this->makeCollection([10, 10, 20]);
 
-        $unique = $collection->unique(fn($m) => $m->price);
+        $unique = $collection->unique(fn ($m) => $m->price);
 
         $this->assertCount(2, $unique);
     }
@@ -410,7 +412,7 @@ class ChunkCollectionTest extends TestCase
     {
         $collection = $this->makeCollection([10, 20, 30, 40]);
 
-        $groups = $collection->groupBy(fn($m) => $m->price >= 25 ? 'high' : 'low');
+        $groups = $collection->groupBy(fn ($m) => $m->price >= 25 ? 'high' : 'low');
 
         $this->assertCount(2, $groups);
         $this->assertCount(2, $groups['low']);
@@ -445,7 +447,7 @@ class ChunkCollectionTest extends TestCase
         CC_Item::create($db, ['name' => 'B', 'price' => '200', 'category' => 'y']);
 
         $all = CC_Item::all($db);
-        $keyed = $all->keyBy(fn($m) => 'item_' . $m->name);
+        $keyed = $all->keyBy(fn ($m) => 'item_' . $m->name);
 
         $this->assertArrayHasKey('item_A', $keyed);
         $this->assertArrayHasKey('item_B', $keyed);
@@ -463,7 +465,7 @@ class ChunkCollectionTest extends TestCase
         CC_Item::create($db, ['name' => 'B', 'price' => '200', 'category' => 'y']);
 
         $all = CC_Item::all($db);
-        $result = $all->flatMap(fn($m) => [$m->name, $m->name . '!']);
+        $result = $all->flatMap(fn ($m) => [$m->name, $m->name . '!']);
 
         $this->assertSame(['A', 'A!', 'B', 'B!'], $result);
     }
@@ -471,7 +473,7 @@ class ChunkCollectionTest extends TestCase
     public function testFlatMapOnEmpty(): void
     {
         $collection = new ModelCollection([]);
-        $result = $collection->flatMap(fn($m) => [$m->name]);
+        $result = $collection->flatMap(fn ($m) => [$m->name]);
 
         $this->assertSame([], $result);
     }
@@ -605,6 +607,8 @@ class ChunkCollectionTest extends TestCase
 class CC_Item extends Model
 {
     protected static string $table = 'cc_items';
+
     protected static array $fillable = ['name', 'price', 'category'];
+
     protected static array $casts = ['price' => 'int'];
 }

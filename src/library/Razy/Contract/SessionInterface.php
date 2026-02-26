@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -78,8 +79,8 @@ interface SessionInterface
     /**
      * Get a value from the session.
      *
-     * @param string $key     The session key
-     * @param mixed  $default Default if key does not exist
+     * @param string $key The session key
+     * @param mixed $default Default if key does not exist
      */
     public function get(string $key, mixed $default = null): mixed;
 

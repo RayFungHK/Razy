@@ -10,6 +10,7 @@
  * transaction), TransactionException, and integration with real SQLite databases.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -24,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 use Razy\Database;
 use Razy\Database\Transaction;
 use Razy\Exception\TransactionException;
+use RuntimeException;
 
 #[CoversClass(Transaction::class)]
 #[CoversClass(Database::class)]
@@ -31,6 +33,7 @@ use Razy\Exception\TransactionException;
 class DatabaseTransactionTest extends TestCase
 {
     private PDO $pdo;
+
     private Transaction $tx;
 
     protected function setUp(): void
@@ -41,25 +44,22 @@ class DatabaseTransactionTest extends TestCase
         $this->tx = new Transaction($this->pdo);
     }
 
-    // Helper: count rows in items table
-    private function rowCount(): int
-    {
-        return (int) $this->pdo->query('SELECT COUNT(*) FROM items')->fetchColumn();
-    }
+    // ══════════════════════════════════════════════════════════════
+    //  DataProvider Tests
+    // ══════════════════════════════════════════════════════════════
 
-    // Helper: insert a row and return it
-    private function insertItem(string $name): void
+    public static function returnValueProvider(): array
     {
-        $this->pdo->exec("INSERT INTO items (name) VALUES ('" . $this->pdo->quote($name)[1] . "')");
-    }
-
-    // Helper: create a connected Database with SQLite :memory:
-    private function createDatabase(): Database
-    {
-        $db = new Database('tx_test_' . bin2hex(random_bytes(4)));
-        $db->connectWithDriver('sqlite', ['path' => ':memory:']);
-
-        return $db;
+        return [
+            'string' => ['hello'],
+            'int' => [42],
+            'float' => [3.14],
+            'bool true' => [true],
+            'bool false' => [false],
+            'null' => [null],
+            'array' => [['a' => 1, 'b' => 2]],
+            'empty array' => [[]],
+        ];
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -163,7 +163,7 @@ class DatabaseTransactionTest extends TestCase
 
         $this->assertSame(1, $this->rowCount());
 
-        $row = $this->pdo->query("SELECT name FROM items")->fetchColumn();
+        $row = $this->pdo->query('SELECT name FROM items')->fetchColumn();
         $this->assertSame('outer', $row);
     }
 
@@ -198,7 +198,7 @@ class DatabaseTransactionTest extends TestCase
 
         $this->assertSame(2, $this->rowCount());
 
-        $names = $this->pdo->query("SELECT name FROM items ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+        $names = $this->pdo->query('SELECT name FROM items ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
         $this->assertSame(['L1', 'L2'], $names);
     }
 
@@ -236,9 +236,9 @@ class DatabaseTransactionTest extends TestCase
             $this->tx->run(function () {
                 $this->pdo->exec("INSERT INTO items (name) VALUES ('will_rollback')");
 
-                throw new \RuntimeException('Simulated error');
+                throw new RuntimeException('Simulated error');
             });
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             $this->assertSame('Simulated error', $e->getMessage());
         }
 
@@ -259,11 +259,11 @@ class DatabaseTransactionTest extends TestCase
 
     public function testRunRethrowsException(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Test error');
 
         $this->tx->run(function () {
-            throw new \RuntimeException('Test error');
+            throw new RuntimeException('Test error');
         });
     }
 
@@ -289,16 +289,16 @@ class DatabaseTransactionTest extends TestCase
                 $this->tx->run(function () {
                     $this->pdo->exec("INSERT INTO items (name) VALUES ('inner_fail')");
 
-                    throw new \RuntimeException('inner error');
+                    throw new RuntimeException('inner error');
                 });
-            } catch (\RuntimeException) {
+            } catch (RuntimeException) {
                 // Inner rolled back, outer continues
             }
         });
 
         // Only outer's row should survive
         $this->assertSame(1, $this->rowCount());
-        $name = $this->pdo->query("SELECT name FROM items")->fetchColumn();
+        $name = $this->pdo->query('SELECT name FROM items')->fetchColumn();
         $this->assertSame('outer', $name);
     }
 
@@ -382,7 +382,7 @@ class DatabaseTransactionTest extends TestCase
         $this->tx->commit();
 
         $this->assertSame(1, $this->rowCount());
-        $name = $this->pdo->query("SELECT name FROM items")->fetchColumn();
+        $name = $this->pdo->query('SELECT name FROM items')->fetchColumn();
         $this->assertSame('kept', $name);
     }
 
@@ -393,7 +393,7 @@ class DatabaseTransactionTest extends TestCase
     public function testExceptionIsRuntimeException(): void
     {
         $e = new TransactionException('test');
-        $this->assertInstanceOf(\RuntimeException::class, $e);
+        $this->assertInstanceOf(RuntimeException::class, $e);
     }
 
     public function testExceptionMessage(): void
@@ -410,7 +410,7 @@ class DatabaseTransactionTest extends TestCase
 
     public function testExceptionPreviousChain(): void
     {
-        $prev = new \RuntimeException('cause');
+        $prev = new RuntimeException('cause');
         $e = new TransactionException('wrapper', 0, $prev);
         $this->assertSame($prev, $e->getPrevious());
     }
@@ -509,9 +509,9 @@ class DatabaseTransactionTest extends TestCase
             $db->transaction(function (Database $db) {
                 $db->getDBAdapter()->exec("INSERT INTO test (val) VALUES ('gone')");
 
-                throw new \RuntimeException('boom');
+                throw new RuntimeException('boom');
             });
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             // expected
         }
 
@@ -641,9 +641,9 @@ class DatabaseTransactionTest extends TestCase
                 $stmt = $db->insert('test', ['val'])->assign(['val' => 'will_rollback']);
                 $db->execute($stmt);
 
-                throw new \RuntimeException('abort');
+                throw new RuntimeException('abort');
             });
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             // expected
         }
 
@@ -688,7 +688,7 @@ class DatabaseTransactionTest extends TestCase
 
         $this->assertSame(3, $this->rowCount());
 
-        $names = $this->pdo->query("SELECT name FROM items ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+        $names = $this->pdo->query('SELECT name FROM items ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
         $this->assertSame(['L1', 'L2', 'L3'], $names);
     }
 
@@ -704,7 +704,7 @@ class DatabaseTransactionTest extends TestCase
         $this->tx->commit();      // commit L1
 
         $this->assertSame(1, $this->rowCount());
-        $name = $this->pdo->query("SELECT name FROM items")->fetchColumn();
+        $name = $this->pdo->query('SELECT name FROM items')->fetchColumn();
         $this->assertSame('L1', $name);
     }
 
@@ -732,7 +732,7 @@ class DatabaseTransactionTest extends TestCase
 
         $this->assertSame(3, $this->rowCount());
 
-        $names = $this->pdo->query("SELECT name FROM items ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+        $names = $this->pdo->query('SELECT name FROM items ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
         $this->assertSame(['base', 'inner1', 'inner3'], $names);
     }
 
@@ -776,11 +776,11 @@ class DatabaseTransactionTest extends TestCase
                 $pdo = $db->getDBAdapter();
 
                 $pdo->exec("INSERT INTO users (name) VALUES ('Bob')");
-                $pdo->exec("INSERT INTO orders (user_id, total) VALUES (1, 50.00)");
+                $pdo->exec('INSERT INTO orders (user_id, total) VALUES (1, 50.00)');
 
-                throw new \RuntimeException('Payment declined');
+                throw new RuntimeException('Payment declined');
             });
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             // expected
         }
 
@@ -877,28 +877,10 @@ class DatabaseTransactionTest extends TestCase
         $this->assertInstanceOf(\Razy\Contract\DatabaseInterface::class, $db);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  DataProvider Tests
-    // ══════════════════════════════════════════════════════════════
-
-    public static function returnValueProvider(): array
-    {
-        return [
-            'string' => ['hello'],
-            'int' => [42],
-            'float' => [3.14],
-            'bool true' => [true],
-            'bool false' => [false],
-            'null' => [null],
-            'array' => [['a' => 1, 'b' => 2]],
-            'empty array' => [[]],
-        ];
-    }
-
     #[DataProvider('returnValueProvider')]
     public function testRunPreservesReturnType(mixed $expected): void
     {
-        $result = $this->tx->run(fn() => $expected);
+        $result = $this->tx->run(fn () => $expected);
 
         $this->assertSame($expected, $result);
     }
@@ -908,8 +890,29 @@ class DatabaseTransactionTest extends TestCase
     {
         $db = $this->createDatabase();
 
-        $result = $db->transaction(fn(Database $db) => $expected);
+        $result = $db->transaction(fn (Database $db) => $expected);
 
         $this->assertSame($expected, $result);
+    }
+
+    // Helper: count rows in items table
+    private function rowCount(): int
+    {
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    }
+
+    // Helper: insert a row and return it
+    private function insertItem(string $name): void
+    {
+        $this->pdo->exec("INSERT INTO items (name) VALUES ('" . $this->pdo->quote($name)[1] . "')");
+    }
+
+    // Helper: create a connected Database with SQLite :memory:
+    private function createDatabase(): Database
+    {
+        $db = new Database('tx_test_' . \bin2hex(\random_bytes(4)));
+        $db->connectWithDriver('sqlite', ['path' => ':memory:']);
+
+        return $db;
     }
 }

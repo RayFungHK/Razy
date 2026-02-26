@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -56,7 +57,8 @@ class FieldValidator
      */
     public function __construct(
         private readonly string $field,
-    ) {}
+    ) {
+    }
 
     /**
      * Append a rule to the chain.
@@ -91,8 +93,8 @@ class FieldValidator
     /**
      * Conditionally append a rule (mirrors Action::when()).
      *
-     * @param bool     $condition If true, the callback is invoked
-     * @param callable $callback  fn(FieldValidator): void
+     * @param bool $condition If true, the callback is invoked
+     * @param callable $callback fn(FieldValidator): void
      *
      * @return $this
      */
@@ -123,7 +125,7 @@ class FieldValidator
      * Follows Pipeline Validate::process() — sequential, stop on reject.
      *
      * @param mixed $value The raw field value
-     * @param array $data  The full dataset (for cross-field rules)
+     * @param array $data The full dataset (for cross-field rules)
      *
      * @return array{value: mixed, errors: list<string>} Processed value and error messages
      */

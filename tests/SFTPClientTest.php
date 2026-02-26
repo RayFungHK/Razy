@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\SFTPClient.
  *
@@ -15,13 +16,14 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Exception\SSHException;
 use Razy\SFTPClient;
+use ReflectionClass;
 
 #[CoversClass(SFTPClient::class)]
 class SFTPClientTest extends TestCase
 {
     protected function setUp(): void
     {
-        if (!extension_loaded('ssh2')) {
+        if (!\extension_loaded('ssh2')) {
             $this->markTestSkipped('The SSH2 extension (ext-ssh2) is not available.');
         }
     }
@@ -142,7 +144,7 @@ class SFTPClientTest extends TestCase
         $this->expectExceptionMessage('SFTP subsystem not initialized');
 
         $client = $this->createInstanceWithoutConnection();
-        $client->chmod('/remote/file.txt', 0644);
+        $client->chmod('/remote/file.txt', 0o644);
     }
 
     public function testMkdirWithoutSftpThrows(): void
@@ -332,7 +334,7 @@ class SFTPClientTest extends TestCase
      */
     private function createInstanceWithoutConnection(): SFTPClient
     {
-        $reflection = new \ReflectionClass(SFTPClient::class);
+        $reflection = new ReflectionClass(SFTPClient::class);
         return $reflection->newInstanceWithoutConstructor();
     }
 }

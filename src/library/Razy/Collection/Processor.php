@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * using dynamically loaded processor plugins.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -42,11 +44,11 @@ class Processor
      * Processor constructor.
      *
      * @param Collection $collection
-     * @param array      $reference
+     * @param array $reference
      */
     public function __construct(Collection $collection, array $reference = [])
     {
-        $this->reference  = $reference;
+        $this->reference = $reference;
         $this->collection = $collection;
     }
 
@@ -54,18 +56,19 @@ class Processor
      * Implement magic method __call to pass the value to the processor by the method name and its arguments.
      *
      * @param string $method
-     * @param array  $arguments
+     * @param array $arguments
      *
      * @return Processor $this
+     *
      * @throws Throwable
      */
-    public function __call(string $method, array $arguments): Processor
+    public function __call(string $method, array $arguments): self
     {
         // Apply the named processor plugin to each referenced value in-place
         foreach ($this->reference as &$data) {
             $plugin = $this->collection->loadPlugin('processor', $method);
             if ($plugin) {
-                $data = call_user_func_array($plugin, array_merge([&$data], $arguments));
+                $data = \call_user_func_array($plugin, \array_merge([&$data], $arguments));
             }
         }
 

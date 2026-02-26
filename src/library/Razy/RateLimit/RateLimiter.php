@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -67,7 +68,8 @@ class RateLimiter
      */
     public function __construct(
         private readonly RateLimitStoreInterface $store,
-    ) {}
+    ) {
+    }
 
     /**
      * Register a named rate limiter.
@@ -75,10 +77,8 @@ class RateLimiter
      * The callback receives the middleware context array and must return
      * a `Limit` instance defining the rate limit for that request.
      *
-     * @param string  $name     Unique limiter name (e.g., 'api', 'login').
+     * @param string $name Unique limiter name (e.g., 'api', 'login').
      * @param Closure $callback Receives `(array $context)`, returns `Limit`.
-     *
-     * @return void
      */
     public function for(string $name, Closure $callback): void
     {
@@ -116,9 +116,9 @@ class RateLimiter
      * the limit has been exceeded. When allowed, the hit counter is
      * automatically incremented.
      *
-     * @param string $key          The rate limit bucket key.
-     * @param int    $maxAttempts  Maximum attempts within the window.
-     * @param int    $decaySeconds Duration of the window in seconds.
+     * @param string $key The rate limit bucket key.
+     * @param int $maxAttempts Maximum attempts within the window.
+     * @param int $decaySeconds Duration of the window in seconds.
      *
      * @return bool True if the attempt is permitted.
      */
@@ -138,8 +138,8 @@ class RateLimiter
      *
      * Does NOT increment the counter — this is a read-only check.
      *
-     * @param string $key         The rate limit bucket key.
-     * @param int    $maxAttempts Maximum attempts allowed.
+     * @param string $key The rate limit bucket key.
+     * @param int $maxAttempts Maximum attempts allowed.
      *
      * @return bool True if the limit has been exceeded.
      */
@@ -167,8 +167,8 @@ class RateLimiter
      * If no active window exists for the key (or the previous window has
      * expired), a new window is created with `resetAt = now + decaySeconds`.
      *
-     * @param string $key          The rate limit bucket key.
-     * @param int    $decaySeconds Duration of the window in seconds.
+     * @param string $key The rate limit bucket key.
+     * @param int $decaySeconds Duration of the window in seconds.
      *
      * @return int The total number of hits in the current window (after this hit).
      */
@@ -194,8 +194,8 @@ class RateLimiter
     /**
      * Get the number of remaining attempts for a key.
      *
-     * @param string $key         The rate limit bucket key.
-     * @param int    $maxAttempts Maximum attempts allowed.
+     * @param string $key The rate limit bucket key.
+     * @param int $maxAttempts Maximum attempts allowed.
      *
      * @return int Remaining attempts (0 if limit reached, never negative).
      */
@@ -207,7 +207,7 @@ class RateLimiter
             return $maxAttempts;
         }
 
-        return max(0, $maxAttempts - $record['hits']);
+        return \max(0, $maxAttempts - $record['hits']);
     }
 
     /**
@@ -227,7 +227,7 @@ class RateLimiter
 
         $seconds = $record['resetAt'] - $this->now();
 
-        return max(0, $seconds);
+        return \max(0, $seconds);
     }
 
     /**
@@ -270,8 +270,6 @@ class RateLimiter
      * Clear the hit counter for a key, resetting the rate limit.
      *
      * @param string $key The rate limit bucket key.
-     *
-     * @return void
      */
     public function clear(string $key): void
     {
@@ -284,8 +282,8 @@ class RateLimiter
      * Invokes the registered callback with the provided context to produce
      * a `Limit` instance. Returns `null` if the limiter is not registered.
      *
-     * @param string $name    The limiter name.
-     * @param array  $context The middleware context (route info, IP, etc.).
+     * @param string $name The limiter name.
+     * @param array $context The middleware context (route info, IP, etc.).
      *
      * @return Limit|null The resolved Limit, or null if no limiter registered.
      */
@@ -330,6 +328,6 @@ class RateLimiter
      */
     private function now(): int
     {
-        return $this->currentTime ?? time();
+        return $this->currentTime ?? \time();
     }
 }

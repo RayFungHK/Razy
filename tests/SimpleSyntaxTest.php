@@ -62,7 +62,7 @@ class SimpleSyntaxTest extends TestCase
     public function parseParensNestedGroupsNonFunctionCall(): void
     {
         // " (x(y)z) " ??outer parens are not preceded by \w, inner x(y) is function call
-        $result = SimpleSyntax::parseParens(' (x)');  
+        $result = SimpleSyntax::parseParens(' (x)');
         $this->assertSame([' ', ['x']], $result);
     }
 
@@ -271,7 +271,7 @@ class SimpleSyntaxTest extends TestCase
     public function parseSyntaxWithParserCallback(): void
     {
         $result = SimpleSyntax::parseSyntax('a,b,c', ',', '', function (string $token): string {
-            return strtoupper($token);
+            return \strtoupper($token);
         }, true);
         $this->assertSame(['A', 'B', 'C'], $result);
     }
@@ -298,7 +298,7 @@ class SimpleSyntaxTest extends TestCase
         // The nested part should be an array
         $hasNested = false;
         foreach ($result as $item) {
-            if (is_array($item)) {
+            if (\is_array($item)) {
                 $hasNested = true;
                 $this->assertContains('b', $item);
                 $this->assertContains('c', $item);
@@ -395,14 +395,14 @@ class SimpleSyntaxTest extends TestCase
     {
         // Parser should apply to nested (parenthetical) content too
         $result = SimpleSyntax::parseSyntax('a,(b,c)', ',', '', function (string $token): string {
-            return strtoupper($token);
+            return \strtoupper($token);
         }, true);
 
         // Check that top-level tokens are uppercased
         $this->assertContains('A', $result);
         // The nested array should contain uppercased tokens
         foreach ($result as $item) {
-            if (is_array($item)) {
+            if (\is_array($item)) {
                 $this->assertContains('B', $item);
                 $this->assertContains('C', $item);
             }

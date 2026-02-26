@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * and asynchronous background sending via ThreadManager.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -32,31 +34,31 @@ use Razy\Exception\MailerException;
 class Mailer
 {
     /** @var string CRLF line ending required by the SMTP protocol (RFC 2821) */
-    const CRLF = "\r\n";
+    public const CRLF = "\r\n";
 
     /** @var string No encryption */
-    const SECURE_NONE = '';
+    public const SECURE_NONE = '';
 
     /** @var string SSLv2 encryption protocol */
-    const SECURE_SSLv2 = 'sslv2';
+    public const SECURE_SSLv2 = 'sslv2';
 
     /** @var string SSLv2/v3 combined encryption protocol */
-    const SECURE_SSLv23 = 'sslv23';
+    public const SECURE_SSLv23 = 'sslv23';
 
     /** @var string SSLv3 encryption protocol */
-    const SECURE_SSLv3 = 'sslv3';
+    public const SECURE_SSLv3 = 'sslv3';
 
     /** @var string TLS encryption protocol (generic) */
-    const SECURE_TLS = 'tls';
+    public const SECURE_TLS = 'tls';
 
     /** @var string TLS v1.0 encryption protocol */
-    const SECURE_TLSv10 = 'tls1.0';
+    public const SECURE_TLSv10 = 'tls1.0';
 
     /** @var string TLS v1.1 encryption protocol */
-    const SECURE_TLSv11 = 'tls1.1';
+    public const SECURE_TLSv11 = 'tls1.1';
 
     /** @var string TLS v1.2 encryption protocol (default) */
-    const SECURE_TLSv12 = 'tls1.2';
+    public const SECURE_TLSv12 = 'tls1.2';
 
     /** @var array<string, string> File path => filename map of attachments */
     private array $attachments = [];
@@ -107,7 +109,7 @@ class Mailer
     private string $username = '';
 
     /**
-     * Mailer constructor
+     * Mailer constructor.
      *
      * @param string $hostname
      * @param int $port
@@ -117,9 +119,66 @@ class Mailer
      */
     public function __construct(private readonly string $hostname, private int $port = 25, private readonly int $connectionTimeout = 30, private readonly int $responseTimeout = 5, private string $origin = '')
     {
-        $this->origin = (empty($this->origin)) ? gethostname() : $this->origin;
-        $this->setHeader('X-Mailer', 'PHP/' . phpversion());
+        $this->origin = (empty($this->origin)) ? \gethostname() : $this->origin;
+        $this->setHeader('X-Mailer', 'PHP/' . \phpversion());
         $this->setHeader('MIME-Version', '1.0');
+    }
+
+    /**
+     * Send email using a payload file (used by background runner).
+     *
+     * @param string $payloadPath
+     *
+     * @return bool
+     */
+    public static function sendPayloadFile(string $payloadPath): bool
+    {
+        if (!\is_file($payloadPath)) {
+            return false;
+        }
+
+        $payload = \json_decode(\file_get_contents($payloadPath), true);
+        if (!\is_array($payload)) {
+            return false;
+        }
+
+        $mailer = self::fromPayload($payload);
+        return $mailer->send();
+    }
+
+    /**
+     * Rebuild a Mailer instance from payload.
+     *
+     * @param array $payload
+     *
+     * @return Mailer
+     */
+    private static function fromPayload(array $payload): self
+    {
+        $mailer = new self(
+            (string) ($payload['hostname'] ?? ''),
+            (int) ($payload['port'] ?? 25),
+            (int) ($payload['connection_timeout'] ?? 30),
+            (int) ($payload['response_timeout'] ?? 5),
+            (string) ($payload['origin'] ?? ''),
+        );
+
+        $mailer->protocol = (string) ($payload['protocol'] ?? self::SECURE_TLSv12);
+        $mailer->username = (string) ($payload['username'] ?? '');
+        $mailer->password = (string) ($payload['password'] ?? '');
+        $mailer->from = (array) ($payload['from'] ?? []);
+        $mailer->recipient = (array) ($payload['recipient'] ?? []);
+        $mailer->carbonCopy = (array) ($payload['carbon_copy'] ?? []);
+        $mailer->blindCarbonCopy = (array) ($payload['blind_carbon_copy'] ?? []);
+        $mailer->replyTo = (array) ($payload['reply_to'] ?? []);
+        $mailer->subject = (string) ($payload['subject'] ?? '');
+        $mailer->textMessage = (string) ($payload['text_message'] ?? '');
+        $mailer->htmlMessage = (string) ($payload['html_message'] ?? '');
+        $mailer->charset = (string) ($payload['charset'] ?? 'utf-8');
+        $mailer->attachments = (array) ($payload['attachments'] ?? []);
+        $mailer->headers = (array) ($payload['headers'] ?? []);
+
+        return $mailer;
     }
 
     /**
@@ -130,9 +189,9 @@ class Mailer
      *
      * @return $this
      */
-    public function setHeader(string $key, string $value = ''): Mailer
+    public function setHeader(string $key, string $value = ''): self
     {
-        $this->headers[$key] = trim($value);
+        $this->headers[$key] = \trim($value);
 
         return $this;
     }
@@ -142,17 +201,18 @@ class Mailer
      *
      * @param array|string $attachment
      * @param string $name
+     *
      * @return $this
      */
-    public function addAttachment(array|string $attachment, string $name = ''): Mailer
+    public function addAttachment(array|string $attachment, string $name = ''): self
     {
-        if (is_array($attachment)) {
+        if (\is_array($attachment)) {
             foreach ($attachment as $path => $filename) {
                 $this->addAttachment($path, $filename);
             }
-        } elseif (is_string($attachment)) {
-            if (file_exists($attachment)) {
-                $this->attachments[realpath($attachment)] = (trim($name)) ?: pathinfo($attachment, PATHINFO_BASENAME);
+        } elseif (\is_string($attachment)) {
+            if (\file_exists($attachment)) {
+                $this->attachments[\realpath($attachment)] = (\trim($name)) ?: \pathinfo($attachment, PATHINFO_BASENAME);
             }
         }
 
@@ -167,30 +227,17 @@ class Mailer
      *
      * @return $this
      */
-    public function bcc(array|string $email, string $name = null): Mailer
+    public function bcc(array|string $email, string $name = null): self
     {
-        if (is_array($email)) {
+        if (\is_array($email)) {
             foreach ($email as $address => $recipientName) {
                 $this->bcc($address, $recipientName);
             }
-        } elseif (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->blindCarbonCopy[$email] = $this->formatAddress($email, trim($name));
+        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->blindCarbonCopy[$email] = $this->formatAddress($email, \trim($name));
         }
 
         return $this;
-    }
-
-    /**
-     * Format the email address with the name.
-     *
-     * @param string $address
-     * @param string $name
-     *
-     * @return string
-     */
-    private function formatAddress(string $address, string $name = ''): string
-    {
-        return (!$name) ? $address : '"' . addslashes($address) . '" <' . $name . '>';
     }
 
     /**
@@ -201,14 +248,14 @@ class Mailer
      *
      * @return $this
      */
-    public function cc(array|string $email, string $name = null): Mailer
+    public function cc(array|string $email, string $name = null): self
     {
-        if (is_array($email)) {
+        if (\is_array($email)) {
             foreach ($email as $address => $recipientName) {
                 $this->cc($address, $recipientName);
             }
-        } elseif (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->carbonCopy[$email] = $this->formatAddress($email, trim($name));
+        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->carbonCopy[$email] = $this->formatAddress($email, \trim($name));
         }
 
         return $this;
@@ -222,7 +269,7 @@ class Mailer
      *
      * @return $this
      */
-    public function from(string $address, string $name = ''): Mailer
+    public function from(string $address, string $name = ''): self
     {
         $this->from = [$address, $name];
 
@@ -237,14 +284,14 @@ class Mailer
      *
      * @return $this
      */
-    public function replyTo(array|string $email, string $name = null): Mailer
+    public function replyTo(array|string $email, string $name = null): self
     {
-        if (is_array($email)) {
+        if (\is_array($email)) {
             foreach ($email as $address => $recipientName) {
                 $this->replyTo($address, $recipientName);
             }
-        } elseif (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->replyTo[$email] = $this->formatAddress($email, trim($name));
+        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->replyTo[$email] = $this->formatAddress($email, \trim($name));
         }
 
         return $this;
@@ -254,6 +301,7 @@ class Mailer
      * Start send the email via SMTP.
      *
      * @return bool
+     *
      * @throws MailerException
      */
     public function send(): bool
@@ -263,7 +311,7 @@ class Mailer
         $this->performSmtpHandshake($cryptoMethod);
 
         // Generate a unique MIME boundary for multipart message separation
-        $boundary = md5(uniqid(microtime(true), true));
+        $boundary = \md5(\uniqid(\microtime(true), true));
         $body = $this->buildMimeBody($boundary);
         $headers = $this->buildMimeHeaders($boundary);
 
@@ -271,15 +319,164 @@ class Mailer
     }
 
     /**
+     * Set the email charset.
+     *
+     * @param string $charset
+     *
+     * @return $this
+     */
+    public function setCharset(string $charset): self
+    {
+        $this->charset = $charset;
+
+        return $this;
+    }
+
+    /**
+     * Set the HTML message body.
+     *
+     * @param string $message
+     *
+     * @return $this
+     */
+    public function setHTML(string $message): self
+    {
+        $this->htmlMessage = $message;
+
+        return $this;
+    }
+
+    /**
+     * Set the secure protocol.
+     *
+     * @param string $protocol
+     *
+     * @return $this
+     */
+    public function setProtocol(string $protocol): self
+    {
+        // Determine the standard SMTP port based on the protocol prefix
+        $protocol = \substr($this->protocol, 0, 3);
+        if ($protocol == 'ssl') {
+            $this->port = 465; // SSL uses port 465
+        } elseif ($protocol == 'tls') {
+            $this->port = 587; // TLS uses submission port 587
+        } else {
+            $this->port = 25;  // Plain SMTP uses port 25
+        }
+
+        $this->protocol = \strtolower($protocol);
+        return $this;
+    }
+
+    /**
+     * Set the subject.
+     *
+     * @param string $subject
+     *
+     * @return $this
+     */
+    public function setSubject(string $subject): self
+    {
+        $this->subject = $subject;
+
+        return $this;
+    }
+
+    /**
+     * Set the text message body.
+     *
+     * @param string $message
+     *
+     * @return $this
+     */
+    public function setText(string $message): self
+    {
+        $this->textMessage = $message;
+
+        return $this;
+    }
+
+    /**
+     * Add recipient.
+     *
+     * @param array|string $email
+     * @param string|null $name
+     *
+     * @return $this
+     */
+    public function to(array|string $email, string $name = null): self
+    {
+        if (\is_array($email)) {
+            foreach ($email as $address => $recipientName) {
+                $this->to($address, $recipientName);
+            }
+        } elseif (\is_string($email) && \filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->recipient[$email] = $this->formatAddress($email, \trim($name));
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the username and password for SMTP authentication.
+     *
+     * @param string $username
+     * @param string $password
+     *
+     * @return $this
+     */
+    public function useLogin(string $username, string $password): self
+    {
+        $this->username = $username;
+        $this->password = $password;
+
+        return $this;
+    }
+
+    /**
+     * Send the email via a background process (non-blocking).
+     *
+     * @param ThreadManager $threadManager
+     * @param string|null $phpBinary
+     *
+     * @return Thread
+     *
+     * @throws MailerException
+     */
+    public function sendAsync(ThreadManager $threadManager, ?string $phpBinary = null): Thread
+    {
+        $payload = $this->buildPayload();
+        $payloadPath = $this->writePayloadFile($payload);
+        $runnerPath = $this->writeRunnerFile();
+
+        $phpBinary ??= PHP_BINARY;
+
+        return $threadManager->spawnProcessCommand($phpBinary, [$runnerPath, $payloadPath]);
+    }
+
+    /**
+     * Format the email address with the name.
+     *
+     * @param string $address
+     * @param string $name
+     *
+     * @return string
+     */
+    private function formatAddress(string $address, string $name = ''): string
+    {
+        return (!$name) ? $address : '"' . \addslashes($address) . '" <' . $name . '>';
+    }
+
+    /**
      * Open a TCP socket connection to the SMTP server.
      *
-     * @return void
      * @throws MailerException
      */
     private function openSmtpConnection(): void
     {
         // Open a TCP socket connection to the SMTP server
-        $this->socket = stream_socket_client('tcp://' . $this->hostname . ':' . $this->port, $errno, $error, $this->connectionTimeout);
+        $this->socket = \stream_socket_client('tcp://' . $this->hostname . ':' . $this->port, $errno, $error, $this->connectionTimeout);
         if (!$this->socket) {
             throw new MailerException($errno . ' - ' . $error);
         }
@@ -294,10 +491,10 @@ class Mailer
     {
         // Map the configured protocol to the PHP stream crypto constant
         $map = [
-            self::SECURE_SSLv2  => STREAM_CRYPTO_METHOD_SSLv2_CLIENT,
+            self::SECURE_SSLv2 => STREAM_CRYPTO_METHOD_SSLv2_CLIENT,
             self::SECURE_SSLv23 => STREAM_CRYPTO_METHOD_SSLv23_CLIENT,
-            self::SECURE_SSLv3  => STREAM_CRYPTO_METHOD_SSLv3_CLIENT,
-            self::SECURE_TLS    => STREAM_CRYPTO_METHOD_TLS_CLIENT,
+            self::SECURE_SSLv3 => STREAM_CRYPTO_METHOD_SSLv3_CLIENT,
+            self::SECURE_TLS => STREAM_CRYPTO_METHOD_TLS_CLIENT,
             self::SECURE_TLSv10 => STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT,
             self::SECURE_TLSv11 => STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT,
             self::SECURE_TLSv12 => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
@@ -310,8 +507,6 @@ class Mailer
      * Perform the SMTP handshake: EHLO, STARTTLS, AUTH LOGIN, MAIL FROM, and RCPT TO.
      *
      * @param int $cryptoMethod The stream crypto method constant (0 for no encryption)
-     *
-     * @return void
      */
     private function performSmtpHandshake(int $cryptoMethod): void
     {
@@ -322,19 +517,19 @@ class Mailer
         if ($cryptoMethod) {
             // Upgrade connection to encrypted channel via STARTTLS
             $this->logs[] = $this->push('STARTTLS');
-            stream_socket_enable_crypto($this->socket, true, $cryptoMethod);
+            \stream_socket_enable_crypto($this->socket, true, $cryptoMethod);
             // Re-send EHLO after TLS handshake as required by RFC 3207
             $this->logs[] = $this->push('EHLO ' . $this->origin);
         }
 
         // Authenticate with base64-encoded credentials (AUTH LOGIN)
         $this->logs[] = $this->push('AUTH LOGIN');
-        $this->logs[] = $this->push(base64_encode($this->username));
-        $this->logs[] = $this->push(base64_encode($this->password));
+        $this->logs[] = $this->push(\base64_encode($this->username));
+        $this->logs[] = $this->push(\base64_encode($this->password));
         $this->logs[] = $this->push('MAIL FROM: <' . $this->from[0] . '>');
 
         // Notify the server of all recipients (To, CC, and BCC combined)
-        $recipients = array_merge($this->recipient, $this->carbonCopy, $this->blindCarbonCopy);
+        $recipients = \array_merge($this->recipient, $this->carbonCopy, $this->blindCarbonCopy);
         foreach ($recipients as $address => $fullAddress) {
             $this->logs[] = $this->push('RCPT TO: <' . $address . '>');
         }
@@ -352,22 +547,22 @@ class Mailer
      */
     private function buildMimeHeaders(string $boundary): string
     {
-        $this->setHeader('Date', date('r'));
+        $this->setHeader('Date', \date('r'));
         $this->setHeader('Subject', $this->subject);
         $this->setHeader('From', $this->formatAddress($this->from[0], $this->from[1]));
         $this->setHeader('Return-Path', $this->formatAddress($this->from[0], $this->from[1]));
-        $this->setHeader('To', implode(', ', $this->recipient));
+        $this->setHeader('To', \implode(', ', $this->recipient));
 
         if (!empty($this->replyTo)) {
-            $this->setHeader('Reply-To', implode(', ', $this->replyTo));
+            $this->setHeader('Reply-To', \implode(', ', $this->replyTo));
         }
 
         if (!empty($this->cc)) {
-            $this->setHeader('Cc', implode(', ', $this->carbonCopy));
+            $this->setHeader('Cc', \implode(', ', $this->carbonCopy));
         }
 
         if (!empty($this->bcc)) {
-            $this->setHeader('Bcc', implode(', ', $this->blindCarbonCopy));
+            $this->setHeader('Bcc', \implode(', ', $this->blindCarbonCopy));
         }
 
         if (!empty($this->attachments)) {
@@ -407,7 +602,7 @@ class Mailer
             $message .= '--alt-' . $boundary . self::CRLF;
             $message .= 'Content-Type: text/plain; charset=' . $this->charset . self::CRLF;
             $message .= 'Content-Transfer-Encoding: base64' . self::CRLF . self::CRLF;
-            $message .= chunk_split(base64_encode($this->textMessage)) . self::CRLF;
+            $message .= \chunk_split(\base64_encode($this->textMessage)) . self::CRLF;
         }
 
         // Encode and attach the HTML body part (if provided)
@@ -415,7 +610,7 @@ class Mailer
             $message .= '--alt-' . $boundary . self::CRLF;
             $message .= 'Content-Type: text/html; charset=' . $this->charset . self::CRLF;
             $message .= 'Content-Transfer-Encoding: base64' . self::CRLF . self::CRLF;
-            $message .= chunk_split(base64_encode($this->htmlMessage)) . self::CRLF;
+            $message .= \chunk_split(\base64_encode($this->htmlMessage)) . self::CRLF;
         }
 
         // Close the alternative boundary section
@@ -424,8 +619,8 @@ class Mailer
         // Encode each file attachment as a base64 MIME part
         if (!empty($this->attachments)) {
             foreach ($this->attachments as $attachment => $filename) {
-                $contents = file_get_contents($attachment);
-                $type = mime_content_type($attachment);
+                $contents = \file_get_contents($attachment);
+                $type = \mime_content_type($attachment);
 
                 if (!$type) {
                     $type = 'application/octet-stream';
@@ -435,7 +630,7 @@ class Mailer
                 $message .= 'Content-Type: ' . $type . '; name="' . $filename . '"' . self::CRLF;
                 $message .= 'Content-Disposition: attachment; filename="' . $filename . '"' . self::CRLF;
                 $message .= 'Content-Transfer-Encoding: base64' . self::CRLF . self::CRLF;
-                $message .= chunk_split(base64_encode($contents)) . self::CRLF;
+                $message .= \chunk_split(\base64_encode($contents)) . self::CRLF;
             }
 
             $message .= '--' . $boundary . '--';
@@ -463,10 +658,10 @@ class Mailer
         $this->logs[] = $headers;
         $this->logs[] = $response = $this->push($headers . self::CRLF . $body . self::CRLF . '.');
         $this->logs[] = $this->push('QUIT');
-        fclose($this->socket);
+        \fclose($this->socket);
 
         // SMTP 250 response indicates the message was accepted for delivery
-        return str_starts_with($response, '250');
+        return \str_starts_with($response, '250');
     }
 
     /**
@@ -477,16 +672,16 @@ class Mailer
     private function getResponse(): string
     {
         $response = '';
-        stream_set_timeout($this->socket, $this->responseTimeout);
-        while (($line = fread($this->socket, 515)) !== false) {
-            $response .= trim($line) . "\n";
+        \stream_set_timeout($this->socket, $this->responseTimeout);
+        while (($line = \fread($this->socket, 515)) !== false) {
+            $response .= \trim($line) . "\n";
             // SMTP multi-line responses use "-" as the 4th char; a space means final line
-            if (substr($line, 3, 1) == ' ') {
+            if (\substr($line, 3, 1) == ' ') {
                 break;
             }
         }
 
-        return trim($response);
+        return \trim($response);
     }
 
     /**
@@ -499,170 +694,12 @@ class Mailer
     private function push($command): string
     {
         if ($this->socket) {
-            fwrite($this->socket, $command . self::CRLF);
+            \fwrite($this->socket, $command . self::CRLF);
 
             return $this->getResponse();
         }
 
         return '';
-    }
-
-    /**
-     * Set the email charset.
-     *
-     * @param string $charset
-     *
-     * @return $this
-     */
-    public function setCharset(string $charset): Mailer
-    {
-        $this->charset = $charset;
-
-        return $this;
-    }
-
-    /**
-     * Set the HTML message body.
-     *
-     * @param string $message
-     *
-     * @return $this
-     */
-    public function setHTML(string $message): Mailer
-    {
-        $this->htmlMessage = $message;
-
-        return $this;
-    }
-
-    /**
-     * Set the secure protocol.
-     *
-     * @param string $protocol
-     *
-     * @return $this
-     */
-    public function setProtocol(string $protocol): Mailer
-    {
-        // Determine the standard SMTP port based on the protocol prefix
-        $protocol = substr($this->protocol, 0, 3);
-        if ($protocol == 'ssl') {
-            $this->port = 465; // SSL uses port 465
-        } elseif ($protocol == 'tls') {
-            $this->port = 587; // TLS uses submission port 587
-        } else {
-            $this->port = 25;  // Plain SMTP uses port 25
-        }
-
-        $this->protocol = strtolower($protocol);
-        return $this;
-    }
-
-    /**
-     * Set the subject.
-     *
-     * @param string $subject
-     *
-     * @return $this
-     */
-    public function setSubject(string $subject): Mailer
-    {
-        $this->subject = $subject;
-
-        return $this;
-    }
-
-    /**
-     * Set the text message body
-     *
-     * @param string $message
-     *
-     * @return $this
-     */
-    public function setText(string $message): Mailer
-    {
-        $this->textMessage = $message;
-
-        return $this;
-    }
-
-    /**
-     * Add recipient.
-     *
-     * @param array|string $email
-     * @param string|null $name
-     *
-     * @return $this
-     */
-    public function to(array|string $email, string $name = null): Mailer
-    {
-        if (is_array($email)) {
-            foreach ($email as $address => $recipientName) {
-                $this->to($address, $recipientName);
-            }
-        } elseif (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->recipient[$email] = $this->formatAddress($email, trim($name));
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set the username and password for SMTP authentication.
-     *
-     * @param string $username
-     * @param string $password
-     *
-     * @return $this
-     */
-    public function useLogin(string $username, string $password): Mailer
-    {
-        $this->username = $username;
-        $this->password = $password;
-
-        return $this;
-    }
-
-    /**
-     * Send the email via a background process (non-blocking).
-     *
-     * @param ThreadManager $threadManager
-     * @param string|null $phpBinary
-     *
-     * @return Thread
-     * @throws MailerException
-     */
-    public function sendAsync(ThreadManager $threadManager, ?string $phpBinary = null): Thread
-    {
-        $payload = $this->buildPayload();
-        $payloadPath = $this->writePayloadFile($payload);
-        $runnerPath = $this->writeRunnerFile();
-
-        $phpBinary = $phpBinary ?? PHP_BINARY;
-
-        return $threadManager->spawnProcessCommand($phpBinary, [$runnerPath, $payloadPath]);
-    }
-
-    /**
-     * Send email using a payload file (used by background runner).
-     *
-     * @param string $payloadPath
-     *
-     * @return bool
-     */
-    public static function sendPayloadFile(string $payloadPath): bool
-    {
-        if (!is_file($payloadPath)) {
-            return false;
-        }
-
-        $payload = json_decode(file_get_contents($payloadPath), true);
-        if (!is_array($payload)) {
-            return false;
-        }
-
-        $mailer = self::fromPayload($payload);
-        return $mailer->send();
     }
 
     /**
@@ -696,56 +733,22 @@ class Mailer
     }
 
     /**
-     * Rebuild a Mailer instance from payload.
-     *
-     * @param array $payload
-     *
-     * @return Mailer
-     */
-    private static function fromPayload(array $payload): Mailer
-    {
-        $mailer = new self(
-            (string)($payload['hostname'] ?? ''),
-            (int)($payload['port'] ?? 25),
-            (int)($payload['connection_timeout'] ?? 30),
-            (int)($payload['response_timeout'] ?? 5),
-            (string)($payload['origin'] ?? '')
-        );
-
-        $mailer->protocol = (string)($payload['protocol'] ?? self::SECURE_TLSv12);
-        $mailer->username = (string)($payload['username'] ?? '');
-        $mailer->password = (string)($payload['password'] ?? '');
-        $mailer->from = (array)($payload['from'] ?? []);
-        $mailer->recipient = (array)($payload['recipient'] ?? []);
-        $mailer->carbonCopy = (array)($payload['carbon_copy'] ?? []);
-        $mailer->blindCarbonCopy = (array)($payload['blind_carbon_copy'] ?? []);
-        $mailer->replyTo = (array)($payload['reply_to'] ?? []);
-        $mailer->subject = (string)($payload['subject'] ?? '');
-        $mailer->textMessage = (string)($payload['text_message'] ?? '');
-        $mailer->htmlMessage = (string)($payload['html_message'] ?? '');
-        $mailer->charset = (string)($payload['charset'] ?? 'utf-8');
-        $mailer->attachments = (array)($payload['attachments'] ?? []);
-        $mailer->headers = (array)($payload['headers'] ?? []);
-
-        return $mailer;
-    }
-
-    /**
      * Write payload to a temp file.
      *
      * @param array $payload
      *
      * @return string
+     *
      * @throws MailerException
      */
     private function writePayloadFile(array $payload): string
     {
-        $payloadPath = tempnam(sys_get_temp_dir(), 'razy-mailer-');
+        $payloadPath = \tempnam(\sys_get_temp_dir(), 'razy-mailer-');
         if (!$payloadPath) {
             throw new MailerException('Unable to create payload file for Mailer.');
         }
 
-        file_put_contents($payloadPath, json_encode($payload));
+        \file_put_contents($payloadPath, \json_encode($payload));
         return $payloadPath;
     }
 
@@ -753,16 +756,17 @@ class Mailer
      * Write the background runner file.
      *
      * @return string
+     *
      * @throws MailerException
      */
     private function writeRunnerFile(): string
     {
-        $runnerPath = tempnam(sys_get_temp_dir(), 'razy-mailer-runner-');
+        $runnerPath = \tempnam(\sys_get_temp_dir(), 'razy-mailer-runner-');
         if (!$runnerPath) {
             throw new MailerException('Unable to create runner file for Mailer.');
         }
 
-        $mailerPath = str_replace('\\', '/', __FILE__);
+        $mailerPath = \str_replace('\\', '/', __FILE__);
         $runner = "<?php\n" .
             "require '" . $mailerPath . "';\n" .
             "use Razy\\Mailer;\n" .
@@ -772,7 +776,7 @@ class Mailer
             "@unlink(__FILE__);\n" .
             "exit(\$ok ? 0 : 1);\n";
 
-        file_put_contents($runnerPath, $runner);
+        \file_put_contents($runnerPath, $runner);
         return $runnerPath;
     }
 }

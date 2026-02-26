@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -17,6 +18,8 @@ namespace Razy\Log;
 use DateTimeImmutable;
 use Razy\Contract\Log\LogHandlerInterface;
 use Razy\Contract\Log\LogLevel;
+use Stringable;
+use Throwable;
 
 /**
  * File-based log handler.
@@ -33,19 +36,19 @@ class FileHandler implements LogHandlerInterface
      * PSR-3 log level severity map.
      */
     private const LEVEL_PRIORITY = [
-        LogLevel::DEBUG     => 0,
-        LogLevel::INFO      => 1,
-        LogLevel::NOTICE    => 2,
-        LogLevel::WARNING   => 3,
-        LogLevel::ERROR     => 4,
-        LogLevel::CRITICAL  => 5,
-        LogLevel::ALERT     => 6,
+        LogLevel::DEBUG => 0,
+        LogLevel::INFO => 1,
+        LogLevel::NOTICE => 2,
+        LogLevel::WARNING => 3,
+        LogLevel::ERROR => 4,
+        LogLevel::CRITICAL => 5,
+        LogLevel::ALERT => 6,
         LogLevel::EMERGENCY => 7,
     ];
 
     /**
-     * @param string $directory       Log file directory
-     * @param string $minLevel        Minimum log level to handle
+     * @param string $directory Log file directory
+     * @param string $minLevel Minimum log level to handle
      * @param string $filenamePattern Date format for filename (default: 'Y-m-d')
      */
     public function __construct(
@@ -53,8 +56,8 @@ class FileHandler implements LogHandlerInterface
         private string $minLevel = LogLevel::DEBUG,
         private readonly string $filenamePattern = 'Y-m-d',
     ) {
-        if (!is_dir($this->directory)) {
-            mkdir($this->directory, 0775, true);
+        if (!\is_dir($this->directory)) {
+            \mkdir($this->directory, 0o775, true);
         }
     }
 
@@ -70,19 +73,19 @@ class FileHandler implements LogHandlerInterface
         $filename = (new DateTimeImmutable())->format($this->filenamePattern) . '.log';
         $filepath = $this->directory . DIRECTORY_SEPARATOR . $filename;
 
-        $levelUpper = strtoupper($level);
+        $levelUpper = \strtoupper($level);
         $channelTag = $channel !== '' ? "[{$channel}] " : '';
         $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$message}";
 
         // Append extra context
         $extra = $this->getExtraContext($context);
         if (!empty($extra)) {
-            $line .= ' ' . json_encode($extra, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $line .= ' ' . \json_encode($extra, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
 
         $line .= PHP_EOL;
 
-        file_put_contents($filepath, $line, FILE_APPEND | LOCK_EX);
+        \file_put_contents($filepath, $line, FILE_APPEND | LOCK_EX);
     }
 
     /**
@@ -126,17 +129,17 @@ class FileHandler implements LogHandlerInterface
     {
         $extra = [];
         foreach ($context as $key => $value) {
-            if ($key === 'exception' && $value instanceof \Throwable) {
+            if ($key === 'exception' && $value instanceof Throwable) {
                 $extra['exception'] = [
-                    'class'   => get_class($value),
+                    'class' => \get_class($value),
                     'message' => $value->getMessage(),
-                    'code'    => $value->getCode(),
-                    'file'    => $value->getFile(),
-                    'line'    => $value->getLine(),
+                    'code' => $value->getCode(),
+                    'file' => $value->getFile(),
+                    'line' => $value->getLine(),
                 ];
                 continue;
             }
-            if (!is_scalar($value) && $value !== null && !($value instanceof \Stringable)) {
+            if (!\is_scalar($value) && $value !== null && !($value instanceof Stringable)) {
                 $extra[$key] = $value;
             }
         }

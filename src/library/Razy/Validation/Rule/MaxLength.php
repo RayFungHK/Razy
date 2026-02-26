@@ -11,7 +11,8 @@ class MaxLength extends ValidationRule
 {
     public function __construct(
         private readonly int $max,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {
@@ -21,7 +22,7 @@ class MaxLength extends ValidationRule
             return $value;
         }
 
-        if (mb_strlen((string) $value) > $this->max) {
+        if (\mb_strlen((string) $value) > $this->max) {
             $this->fail();
 
             return $value;

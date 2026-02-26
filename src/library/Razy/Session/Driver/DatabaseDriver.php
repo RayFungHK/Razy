@@ -23,6 +23,7 @@
  *   );
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -52,7 +53,7 @@ class DatabaseDriver implements SessionDriverInterface
     /**
      * DatabaseDriver constructor.
      *
-     * @param PDO    $pdo   The PDO connection to use
+     * @param PDO $pdo The PDO connection to use
      * @param string $table The session table name (default: 'sessions')
      */
     public function __construct(
@@ -86,7 +87,7 @@ class DatabaseDriver implements SessionDriverInterface
     {
         try {
             $stmt = $this->pdo->prepare(
-                "SELECT data FROM {$this->table} WHERE id = :id LIMIT 1"
+                "SELECT data FROM {$this->table} WHERE id = :id LIMIT 1",
             );
             $stmt->execute(['id' => $id]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -95,9 +96,9 @@ class DatabaseDriver implements SessionDriverInterface
                 return [];
             }
 
-            $data = @unserialize($row['data']);
+            $data = @\unserialize($row['data']);
 
-            return is_array($data) ? $data : [];
+            return \is_array($data) ? $data : [];
         } catch (Throwable) {
             return [];
         }
@@ -112,19 +113,19 @@ class DatabaseDriver implements SessionDriverInterface
     public function write(string $id, array $data): bool
     {
         try {
-            $serialized = serialize($data);
-            $time = time();
+            $serialized = \serialize($data);
+            $time = \time();
 
             // Use a driver-agnostic approach: try to UPDATE first, INSERT if no rows affected
             $stmt = $this->pdo->prepare(
-                "UPDATE {$this->table} SET data = :data, last_activity = :time WHERE id = :id"
+                "UPDATE {$this->table} SET data = :data, last_activity = :time WHERE id = :id",
             );
             $stmt->execute(['id' => $id, 'data' => $serialized, 'time' => $time]);
 
             if ($stmt->rowCount() === 0) {
                 // Row doesn't exist — insert
                 $stmt = $this->pdo->prepare(
-                    "INSERT INTO {$this->table} (id, data, last_activity) VALUES (:id, :data, :time)"
+                    "INSERT INTO {$this->table} (id, data, last_activity) VALUES (:id, :data, :time)",
                 );
                 $stmt->execute(['id' => $id, 'data' => $serialized, 'time' => $time]);
             }
@@ -142,7 +143,7 @@ class DatabaseDriver implements SessionDriverInterface
     {
         try {
             $stmt = $this->pdo->prepare(
-                "DELETE FROM {$this->table} WHERE id = :id"
+                "DELETE FROM {$this->table} WHERE id = :id",
             );
             $stmt->execute(['id' => $id]);
 
@@ -160,10 +161,10 @@ class DatabaseDriver implements SessionDriverInterface
     public function gc(int $maxLifetime): int
     {
         try {
-            $cutoff = time() - $maxLifetime;
+            $cutoff = \time() - $maxLifetime;
 
             $stmt = $this->pdo->prepare(
-                "DELETE FROM {$this->table} WHERE last_activity < :cutoff"
+                "DELETE FROM {$this->table} WHERE last_activity < :cutoff",
             );
             $stmt->execute(['cutoff' => $cutoff]);
 

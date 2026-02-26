@@ -17,7 +17,7 @@ class Url extends ValidationRule
             return $value;
         }
 
-        if (filter_var($value, FILTER_VALIDATE_URL) === false) {
+        if (\filter_var($value, FILTER_VALIDATE_URL) === false) {
             $this->fail();
 
             return $value;

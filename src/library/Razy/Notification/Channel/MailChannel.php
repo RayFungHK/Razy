@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -16,6 +17,7 @@ namespace Razy\Notification\Channel;
 
 use Razy\Notification\Notification;
 use Razy\Notification\NotificationChannelInterface;
+use RuntimeException;
 
 /**
  * Mail notification channel.
@@ -63,12 +65,12 @@ class MailChannel implements NotificationChannelInterface
      * responsible for actually sending the email. This decouples the channel
      * from any specific mailer implementation.
      *
-     * @param callable $mailerFn  A callable that sends email: fn(string $to, array $data): void
-     * @param bool     $recording Whether to record sent messages for inspection
+     * @param callable $mailerFn A callable that sends email: fn(string $to, array $data): void
+     * @param bool $recording Whether to record sent messages for inspection
      */
     public function __construct(callable $mailerFn, bool $recording = false)
     {
-        $this->mailerFn  = $mailerFn;
+        $this->mailerFn = $mailerFn;
         $this->recording = $recording;
     }
 
@@ -86,8 +88,8 @@ class MailChannel implements NotificationChannelInterface
         $to = $this->resolveRecipient($notifiable);
 
         if ($to === null) {
-            throw new \RuntimeException(
-                'Notifiable entity must provide getEmail() method or public $email property.'
+            throw new RuntimeException(
+                'Notifiable entity must provide getEmail() method or public $email property.',
             );
         }
 
@@ -134,12 +136,12 @@ class MailChannel implements NotificationChannelInterface
     private function resolveRecipient(object $notifiable): ?string
     {
         // Method-based resolution
-        if (method_exists($notifiable, 'getEmail')) {
+        if (\method_exists($notifiable, 'getEmail')) {
             return $notifiable->getEmail();
         }
 
         // Property-based resolution
-        if (property_exists($notifiable, 'email')) {
+        if (\property_exists($notifiable, 'email')) {
             return $notifiable->email;
         }
 

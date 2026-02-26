@@ -8,7 +8,6 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
 use Razy\ORM\Model;
-use Razy\ORM\ModelCollection;
 use Razy\ORM\ModelQuery;
 use Razy\ORM\SoftDeletes;
 
@@ -357,8 +356,8 @@ class SoftDeletesTest extends TestCase
 
         // Verify: only active post was updated
         $rows = $db->prepare()->select('*')->from('sd_posts')->lazyGroup();
-        $activeRow = array_values(array_filter($rows, fn($r) => $r['title'] === 'Active'))[0];
-        $deletedRow = array_values(array_filter($rows, fn($r) => $r['title'] === 'Deleted'))[0];
+        $activeRow = \array_values(\array_filter($rows, fn ($r) => $r['title'] === 'Active'))[0];
+        $deletedRow = \array_values(\array_filter($rows, fn ($r) => $r['title'] === 'Deleted'))[0];
 
         $this->assertSame('updated', $activeRow['body']);
         $this->assertSame('y', $deletedRow['body']);
@@ -493,7 +492,7 @@ class SoftDeletesTest extends TestCase
         $firstTimestamp = $post->deleted_at;
 
         // Deleting again should still succeed (update deleted_at again)
-        sleep(1);
+        \sleep(1);
         $result = $post->delete();
         $this->assertTrue($result);
     }
@@ -684,6 +683,7 @@ class SD_Post extends Model
     use SoftDeletes;
 
     protected static string $table = 'sd_posts';
+
     protected static array $fillable = ['title', 'body'];
 }
 
@@ -695,6 +695,7 @@ class SD_PublishedPost extends Model
     use SoftDeletes;
 
     protected static string $table = 'sd_published_posts';
+
     protected static array $fillable = ['title', 'status', 'body'];
 
     protected static function boot(): void
@@ -713,6 +714,7 @@ class SD_CustomColumn extends Model
     use SoftDeletes;
 
     protected static string $table = 'sd_custom_columns';
+
     protected static array $fillable = ['name'];
 
     public static function getDeletedAtColumn(): string

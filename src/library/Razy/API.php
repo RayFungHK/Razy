@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -19,7 +20,9 @@ use Razy\Contract\DistributorInterface;
  * which can then be used to invoke that module's registered API commands.
  *
  * @class API
+ *
  * @package Razy
+ *
  * @license MIT
  */
 class API

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,17 +9,18 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
-use Throwable;
 use Razy\Contract\DistributorInterface;
+use Throwable;
 
 /**
- * Class EventEmitter
+ * Class EventEmitter.
  *
  * Facilitates event-driven communication between modules within a Distributor.
  * When a module emits an event, EventEmitter iterates over all loaded modules
@@ -26,7 +28,9 @@ use Razy\Contract\DistributorInterface;
  * invokes a callback for each response.
  *
  * @class EventEmitter
+ *
  * @package Razy
+ *
  * @method EventEmitter bind(DistributorInterface $distributor)
  */
 class EventEmitter
@@ -34,17 +38,16 @@ class EventEmitter
     /** @var array<mixed> Collected responses from event listeners after resolve() */
     private array $responses = [];
 
-	/**
-	 * API constructor.
-	 *
-	 * @param DistributorInterface $distributor
-	 * @param Module $module
-	 * @param string $event
-	 * @param Closure|null $callback
-	 */
+    /**
+     * API constructor.
+     *
+     * @param DistributorInterface $distributor
+     * @param Module $module
+     * @param string $event
+     * @param Closure|null $callback
+     */
     public function __construct(private readonly DistributorInterface $distributor, private readonly Module $module, private readonly string $event, private readonly ?Closure $callback = null)
     {
-
     }
 
     /**

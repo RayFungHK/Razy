@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Logger (PSR-3 compliant logger).
  *
@@ -16,6 +17,7 @@ use Razy\Contract\Log\InvalidArgumentException;
 use Razy\Contract\Log\LoggerInterface;
 use Razy\Contract\Log\LogLevel;
 use Razy\Logger;
+use RuntimeException;
 use Stringable;
 
 #[CoversClass(Logger::class)]
@@ -25,21 +27,21 @@ class LoggerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_logger_test_' . uniqid();
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_logger_test_' . \uniqid();
     }
 
     protected function tearDown(): void
     {
-        if ($this->tempDir !== null && is_dir($this->tempDir)) {
-            $files = glob($this->tempDir . DIRECTORY_SEPARATOR . '*');
+        if ($this->tempDir !== null && \is_dir($this->tempDir)) {
+            $files = \glob($this->tempDir . DIRECTORY_SEPARATOR . '*');
             if ($files !== false) {
                 foreach ($files as $file) {
-                    if (is_file($file)) {
-                        unlink($file);
+                    if (\is_file($file)) {
+                        \unlink($file);
                     }
                 }
             }
-            rmdir($this->tempDir);
+            \rmdir($this->tempDir);
         }
     }
 
@@ -155,7 +157,7 @@ class LoggerTest extends TestCase
     {
         $logger = new Logger(bufferEnabled: true);
         $logger->info('User {user} performed {action}', [
-            'user'   => 'john',
+            'user' => 'john',
             'action' => 'login',
         ]);
 
@@ -173,7 +175,7 @@ class LoggerTest extends TestCase
         $logger = new Logger($this->tempDir);
         $logger->info('test entry');
 
-        $expectedFilename = date('Y-m-d') . '.log';
+        $expectedFilename = \date('Y-m-d') . '.log';
         $expectedPath = $this->tempDir . DIRECTORY_SEPARATOR . $expectedFilename;
 
         $this->assertFileExists($expectedPath);
@@ -186,8 +188,8 @@ class LoggerTest extends TestCase
         $logger->info('first entry');
         $logger->warning('second entry');
 
-        $expectedPath = $this->tempDir . DIRECTORY_SEPARATOR . date('Y-m-d') . '.log';
-        $content = file_get_contents($expectedPath);
+        $expectedPath = $this->tempDir . DIRECTORY_SEPARATOR . \date('Y-m-d') . '.log';
+        $content = \file_get_contents($expectedPath);
 
         // Both entries should be present
         $this->assertStringContainsString('[INFO] first entry', $content);
@@ -196,11 +198,11 @@ class LoggerTest extends TestCase
         // Timestamp format check: [YYYY-MM-DD HH:MM:SS.microseconds]
         $this->assertMatchesRegularExpression(
             '/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+\]/',
-            $content
+            $content,
         );
 
         // Each entry is on its own line
-        $lines = array_filter(explode(PHP_EOL, trim($content)));
+        $lines = \array_filter(\explode(PHP_EOL, \trim($content)));
         $this->assertCount(2, $lines);
     }
 
@@ -210,7 +212,7 @@ class LoggerTest extends TestCase
         $logger = new Logger($this->tempDir, filenamePattern: 'Y-m');
         $logger->info('monthly log');
 
-        $expectedFilename = date('Y-m') . '.log';
+        $expectedFilename = \date('Y-m') . '.log';
         $expectedPath = $this->tempDir . DIRECTORY_SEPARATOR . $expectedFilename;
 
         $this->assertFileExists($expectedPath);
@@ -228,13 +230,13 @@ class LoggerTest extends TestCase
         $this->assertDirectoryExists($nestedDir);
 
         $logger->info('nested log');
-        $expectedPath = $nestedDir . DIRECTORY_SEPARATOR . date('Y-m-d') . '.log';
+        $expectedPath = $nestedDir . DIRECTORY_SEPARATOR . \date('Y-m-d') . '.log';
         $this->assertFileExists($expectedPath);
 
         // Clean up the nested structure
-        unlink($expectedPath);
-        rmdir($nestedDir);
-        rmdir($originalTempDir . DIRECTORY_SEPARATOR . 'sub');
+        \unlink($expectedPath);
+        \rmdir($nestedDir);
+        \rmdir($originalTempDir . DIRECTORY_SEPARATOR . 'sub');
         // Reset tempDir to parent for tearDown
         $this->tempDir = $originalTempDir;
     }
@@ -280,7 +282,7 @@ class LoggerTest extends TestCase
         $logger->info('below threshold');
         $logger->warning('below threshold');
 
-        $expectedPath = $this->tempDir . DIRECTORY_SEPARATOR . date('Y-m-d') . '.log';
+        $expectedPath = $this->tempDir . DIRECTORY_SEPARATOR . \date('Y-m-d') . '.log';
         $this->assertFileDoesNotExist($expectedPath);
     }
 
@@ -404,12 +406,12 @@ class LoggerTest extends TestCase
     #[Test]
     public function exceptionContextKeyIsSerialized(): void
     {
-        $exception = new \RuntimeException('Something broke', 42);
+        $exception = new RuntimeException('Something broke', 42);
         $logger = new Logger($this->tempDir);
         $logger->error('Failure occurred', ['exception' => $exception]);
 
-        $logFile = $this->tempDir . DIRECTORY_SEPARATOR . date('Y-m-d') . '.log';
-        $content = file_get_contents($logFile);
+        $logFile = $this->tempDir . DIRECTORY_SEPARATOR . \date('Y-m-d') . '.log';
+        $content = \file_get_contents($logFile);
 
         $this->assertStringContainsString('[ERROR] Failure occurred', $content);
         $this->assertStringContainsString('RuntimeException', $content);
@@ -419,7 +421,7 @@ class LoggerTest extends TestCase
     #[Test]
     public function exceptionContextInBufferPreservesOriginal(): void
     {
-        $exception = new \RuntimeException('test error');
+        $exception = new RuntimeException('test error');
         $logger = new Logger(bufferEnabled: true);
         $logger->error('error with exception', ['exception' => $exception]);
 
@@ -525,15 +527,15 @@ class LoggerTest extends TestCase
         $logger = new Logger($this->tempDir);
         $logger->info('');
 
-        $logFile = $this->tempDir . DIRECTORY_SEPARATOR . date('Y-m-d') . '.log';
-        $content = file_get_contents($logFile);
+        $logFile = $this->tempDir . DIRECTORY_SEPARATOR . \date('Y-m-d') . '.log';
+        $content = \file_get_contents($logFile);
         $this->assertStringContainsString('[INFO] ', $content);
     }
 
     #[Test]
     public function stringableMessageObjectInterpolated(): void
     {
-        $message = new class implements Stringable {
+        $message = new class() implements Stringable {
             public function __toString(): string
             {
                 return 'stringable message';
@@ -550,7 +552,7 @@ class LoggerTest extends TestCase
     #[Test]
     public function stringableContextValueInterpolated(): void
     {
-        $value = new class implements Stringable {
+        $value = new class() implements Stringable {
             public function __toString(): string
             {
                 return 'object-string';
@@ -573,7 +575,7 @@ class LoggerTest extends TestCase
         $buffer = $logger->getBuffer();
         $this->assertMatchesRegularExpression(
             '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+$/',
-            $buffer[0]['timestamp']
+            $buffer[0]['timestamp'],
         );
     }
 
@@ -617,8 +619,8 @@ class LoggerTest extends TestCase
         $logger = new Logger($this->tempDir);
         $logger->info('with extra', ['data' => ['key' => 'value']]);
 
-        $logFile = $this->tempDir . DIRECTORY_SEPARATOR . date('Y-m-d') . '.log';
-        $content = file_get_contents($logFile);
+        $logFile = $this->tempDir . DIRECTORY_SEPARATOR . \date('Y-m-d') . '.log';
+        $content = \file_get_contents($logFile);
 
         $this->assertStringContainsString('[INFO] with extra', $content);
         $this->assertStringContainsString('"key":"value"', $content);

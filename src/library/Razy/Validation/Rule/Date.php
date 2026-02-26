@@ -2,6 +2,8 @@
 
 namespace Razy\Validation\Rule;
 
+use DateTimeImmutable;
+use Exception;
 use Razy\Validation\ValidationRule;
 
 /**
@@ -12,7 +14,8 @@ class Date extends ValidationRule
 {
     public function __construct(
         private readonly ?string $format = null,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {
@@ -25,7 +28,7 @@ class Date extends ValidationRule
         $strValue = (string) $value;
 
         if ($this->format !== null) {
-            $parsed = \DateTimeImmutable::createFromFormat($this->format, $strValue);
+            $parsed = DateTimeImmutable::createFromFormat($this->format, $strValue);
 
             if ($parsed === false || $parsed->format($this->format) !== $strValue) {
                 $this->fail();
@@ -34,8 +37,8 @@ class Date extends ValidationRule
             }
         } else {
             try {
-                new \DateTimeImmutable($strValue);
-            } catch (\Exception) {
+                new DateTimeImmutable($strValue);
+            } catch (Exception) {
                 $this->fail();
 
                 return $value;

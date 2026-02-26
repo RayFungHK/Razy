@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * prerequisites, requirements, assets, and inter-module metadata.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -21,6 +23,8 @@ use Exception;
 use Razy\Config\ConfigLoader;
 use Razy\Exception\ModuleConfigException;
 use Razy\Util\PathUtil;
+use Throwable;
+
 /**
  * Immutable metadata descriptor for a Razy module.
  *
@@ -40,7 +44,7 @@ class ModuleInfo
      *
      * @var string
      */
-    const REGEX_MODULE_CODE = '/^[a-z0-9]([_.-]?[a-z0-9]+)*(\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*)+$/i';
+    public const REGEX_MODULE_CODE = '/^[a-z0-9]([_.-]?[a-z0-9]+)*(\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*)+$/i';
 
     /** @var string Module display alias (defaults to class name) */
     private string $alias = '';
@@ -102,6 +106,7 @@ class ModuleInfo
      * @param bool $sharedModule
      * @param ConfigLoader|null $configLoader Optional config loader (defaults to new ConfigLoader)
      * @param bool $standalone When true, uses ultra-flat layout (no version subdir, no package.php required)
+     *
      * @throws ModuleConfigException
      */
     public function __construct(private readonly string $containerPath, array $moduleConfig, private string $version = 'default', private readonly bool $sharedModule = false, ?ConfigLoader $configLoader = null, bool $standalone = false)
@@ -110,9 +115,9 @@ class ModuleInfo
         $this->standalone = $standalone;
         // Compute the relative path from SYSTEM_ROOT for URL generation
         $this->relativePath = PathUtil::getRelativePath($this->containerPath, SYSTEM_ROOT);
-        $this->version = trim($this->version);
+        $this->version = \trim($this->version);
 
-        if (is_dir($this->containerPath)) {
+        if (\is_dir($this->containerPath)) {
             $this->modulePath = $this->containerPath;
 
             if ($this->standalone) {
@@ -122,24 +127,24 @@ class ModuleInfo
                 $settings = $moduleConfig['_standalone_settings'] ?? [];
 
                 if (isset($moduleConfig['module_code'])) {
-                    $code = trim($moduleConfig['module_code']);
+                    $code = \trim($moduleConfig['module_code']);
                     $this->code = $code;
-                    $namespaces = explode('/', $code);
-                    array_shift($namespaces); // vendor
-                    $this->className = array_pop($namespaces);
+                    $namespaces = \explode('/', $code);
+                    \array_shift($namespaces); // vendor
+                    $this->className = \array_pop($namespaces);
                 } else {
                     $this->code = 'standalone/app';
                     $this->className = 'app';
                 }
 
-                $this->description = trim($moduleConfig['description'] ?? 'Standalone application');
-                $this->author = trim($moduleConfig['author'] ?? 'standalone');
+                $this->description = \trim($moduleConfig['description'] ?? 'Standalone application');
+                $this->author = \trim($moduleConfig['author'] ?? 'standalone');
             } else {
                 // Standard mode: version subdirectory and package.php required
 
                 // Validate version format: must be semver-like (e.g. 1.0.0) unless 'default' or 'dev'
                 if ($this->version !== 'default' && $this->version !== 'dev') {
-                    if (!preg_match('/^(\d+)(?:\.(?:\d+|\*)){0,3}$/', $this->version)) {
+                    if (!\preg_match('/^(\d+)(?:\.(?:\d+|\*)){0,3}$/', $this->version)) {
                         throw new ModuleConfigException("Invalid version format '{$this->version}' for module at '{$this->containerPath}'. Expected semver (e.g. '1.0.0'), 'default', or 'dev'.");
                     }
                 }
@@ -149,7 +154,7 @@ class ModuleInfo
                 $this->relativePath = PathUtil::append($this->relativePath, $this->version);
 
                 // Check for phar archive packaging (app.phar in the version directory)
-                if (is_file(PathUtil::append($this->modulePath, 'app.phar'))) {
+                if (\is_file(PathUtil::append($this->modulePath, 'app.phar'))) {
                     $this->pharArchive = true;
                     $this->modulePath = 'phar://' . PathUtil::append($this->modulePath, 'app.phar');
                 }
@@ -158,8 +163,8 @@ class ModuleInfo
                     // Load the module's package.php settings file
                     $packagePath = PathUtil::append($this->modulePath, 'package.php');
                     $settings = $this->configLoader->loadRaw($packagePath);
-                    if (!is_array($settings)) {
-                        throw new ModuleConfigException("Invalid module settings in '{$packagePath}': expected array, got " . gettype($settings) . '.');
+                    if (!\is_array($settings)) {
+                        throw new ModuleConfigException("Invalid module settings in '{$packagePath}': expected array, got " . \gettype($settings) . '.');
                     }
                 } catch (ModuleConfigException $e) {
                     throw $e;
@@ -168,45 +173,45 @@ class ModuleInfo
                 }
 
                 if (isset($moduleConfig['module_code'])) {
-                    if (!is_string($moduleConfig['module_code'])) {
-                        throw new ModuleConfigException("The module code should be a string, got " . gettype($moduleConfig['module_code']) . " in '{$this->containerPath}'.");
+                    if (!\is_string($moduleConfig['module_code'])) {
+                        throw new ModuleConfigException('The module code should be a string, got ' . \gettype($moduleConfig['module_code']) . " in '{$this->containerPath}'.");
                     }
-                    $code = trim($moduleConfig['module_code']);
+                    $code = \trim($moduleConfig['module_code']);
 
                     // Validate module code format: must match "vendor/package" pattern
-                    if (!preg_match(self::REGEX_MODULE_CODE, $code)) {
+                    if (!\preg_match(self::REGEX_MODULE_CODE, $code)) {
                         throw new ModuleConfigException('The module code ' . $code . ' is not a correct format, it should be `vendor/package`.');
                     }
 
                     $this->code = $code;
                     // Extract vendor and class name from the module code path segments
-                    $namespaces = explode('/', $code);
-                    $vendor = array_shift($namespaces);
-                    $className = array_pop($namespaces);
+                    $namespaces = \explode('/', $code);
+                    $vendor = \array_shift($namespaces);
+                    $className = \array_pop($namespaces);
 
                     $this->className = $className;
                 } else {
                     throw new ModuleConfigException("Missing 'module_code' in module.php at '{$this->containerPath}'.");
                 }
 
-                $this->description = trim($moduleConfig['description'] ?? '');
+                $this->description = \trim($moduleConfig['description'] ?? '');
 
-                $settings = $settings ?? [];
+                $settings ??= [];
             }
 
-            $this->author = trim($moduleConfig['author'] ?? ($this->standalone ? 'standalone' : ''));
+            $this->author = \trim($moduleConfig['author'] ?? ($this->standalone ? 'standalone' : ''));
             if (!$this->author && !$this->standalone) {
                 throw new ModuleConfigException("Missing 'author' for module '{$this->code}' at '{$this->containerPath}'.");
             }
 
-            $this->alias = trim($settings['alias'] ?? '');
+            $this->alias = \trim($settings['alias'] ?? '');
             if (empty($this->alias)) {
                 // Default the alias to the class name when not explicitly set
                 $this->alias = $this->className;
             }
 
             // Map asset paths from package.php to their resolved filesystem locations
-            if (!is_array($settings['assets'] = $settings['assets'] ?? [])) {
+            if (!\is_array($settings['assets'] ??= [])) {
                 $settings['assets'] = [];
             }
             foreach ($settings['assets'] as $asset => $destPath) {
@@ -215,46 +220,46 @@ class ModuleInfo
                 if (false !== $assetPath) {
                     $this->assets[$destPath] = [
                         'path' => $asset,
-                        'system_path' => realpath($assetPath),
+                        'system_path' => \realpath($assetPath),
                     ];
                 }
             }
 
             // Collect prerequisite package constraints (e.g., external dependencies)
-            if (!is_array($settings['prerequisite'] = $settings['prerequisite'] ?? [])) {
+            if (!\is_array($settings['prerequisite'] ??= [])) {
                 $settings['prerequisite'] = [];
             }
             foreach ($settings['prerequisite'] as $package => $version) {
-                if (is_string($package) && ($version)) {
+                if (\is_string($package) && ($version)) {
                     $this->prerequisite[$package] = $version;
                 }
             }
 
             // Parse and validate the API name for inter-module API registration
-            $this->apiName = trim($settings['api_name'] ?? '');
-            if (strlen($this->apiName) > 0) {
+            $this->apiName = \trim($settings['api_name'] ?? '');
+            if (\strlen($this->apiName) > 0) {
                 // API name must start with a letter followed by word characters
-                if (!preg_match('/^[a-z]\w*$/i', $this->apiName)) {
+                if (!\preg_match('/^[a-z]\w*$/i', $this->apiName)) {
                     throw new ModuleConfigException("Invalid API name '{$this->apiName}' for module '{$this->code}'. Must start with a letter followed by word characters (a-z, 0-9, _).");
                 }
             }
 
             // Shadow asset mode: symlink assets instead of copying (disabled for phar archives)
-            $settings['shadow_asset'] = $settings['shadow_asset'] ?? false;
-            $this->shadowAsset = !!$settings['shadow_asset'] && !preg_match('/^phar:\/\//', $this->modulePath);
+            $settings['shadow_asset'] ??= false;
+            $this->shadowAsset = !!$settings['shadow_asset'] && !\preg_match('/^phar:\/\//', $this->modulePath);
 
-            if (isset($settings['require']) && is_array($settings['require'])) {
+            if (isset($settings['require']) && \is_array($settings['require'])) {
                 // Parse explicit module dependencies with version constraints
                 foreach ($settings['require'] as $moduleCode => $version) {
-                    $moduleCode = trim($moduleCode);
+                    $moduleCode = \trim($moduleCode);
                     // Validate the required module code format and version string
-                    if (preg_match(self::REGEX_MODULE_CODE, $moduleCode) && is_string($version)) {
-                        $this->require[$moduleCode] = trim($version);
+                    if (\preg_match(self::REGEX_MODULE_CODE, $moduleCode) && \is_string($version)) {
+                        $this->require[$moduleCode] = \trim($version);
                     }
                 }
 
                 // Auto-add implicit parent namespace dependencies (e.g., vendor/parent for vendor/parent/child)
-                if (count($namespaces)) {
+                if (\count($namespaces)) {
                     $requireNamespace = $vendor;
                     foreach ($namespaces as $namespace) {
                         $requireNamespace .= '/' . $namespace;
@@ -268,9 +273,9 @@ class ModuleInfo
 
             // Load module-level DI service bindings (abstract → concrete class)
             // These are registered in the module's child container during initialization
-            if (isset($settings['services']) && is_array($settings['services'])) {
+            if (isset($settings['services']) && \is_array($settings['services'])) {
                 foreach ($settings['services'] as $abstract => $concrete) {
-                    if (is_string($abstract) && is_string($concrete)) {
+                    if (\is_string($abstract) && \is_string($concrete)) {
                         $this->services[$abstract] = $concrete;
                     }
                 }
@@ -278,10 +283,10 @@ class ModuleInfo
 
             // Load per-module metadata for inter-module communication
             // Metadata entries are keyed by target module code in package.php
-            if (isset($settings['metadata']) && is_array($settings['metadata'])) {
+            if (isset($settings['metadata']) && \is_array($settings['metadata'])) {
                 foreach ($settings['metadata'] as $moduleCode => $variables) {
                     // Validate module code format; only accept array values
-                    if (preg_match(self::REGEX_MODULE_CODE, $moduleCode) && is_array($variables)) {
+                    if (\preg_match(self::REGEX_MODULE_CODE, $moduleCode) && \is_array($variables)) {
                         $this->moduleMetadata[$moduleCode] = $variables;
                     }
                 }
@@ -354,7 +359,7 @@ class ModuleInfo
     }
 
     /**
-     * Return the module description
+     * Return the module description.
      *
      * @return string
      */
@@ -384,9 +389,10 @@ class ModuleInfo
     }
 
     /**
-     * Get the module container path
+     * Get the module container path.
      *
      * @param bool $isRelative
+     *
      * @return string
      */
     public function getContainerPath(bool $isRelative = false): string
@@ -435,7 +441,7 @@ class ModuleInfo
     }
 
     /**
-     * Return turn if the module is a phar archive
+     * Return turn if the module is a phar archive.
      *
      * @return bool
      */
@@ -445,7 +451,7 @@ class ModuleInfo
     }
 
     /**
-     * Return the asset list
+     * Return the asset list.
      *
      * @return array
      */
@@ -483,15 +489,15 @@ class ModuleInfo
         try {
             $packagePath = PathUtil::append($this->modulePath, 'package.php');
             $settings = $this->configLoader->loadRaw($packagePath);
-            if (!is_array($settings)) {
+            if (!\is_array($settings)) {
                 return false;
             }
 
             // Reload service bindings
             $this->services = [];
-            if (isset($settings['services']) && is_array($settings['services'])) {
+            if (isset($settings['services']) && \is_array($settings['services'])) {
                 foreach ($settings['services'] as $abstract => $concrete) {
-                    if (is_string($abstract) && is_string($concrete)) {
+                    if (\is_string($abstract) && \is_string($concrete)) {
                         $this->services[$abstract] = $concrete;
                     }
                 }
@@ -499,16 +505,16 @@ class ModuleInfo
 
             // Reload metadata
             $this->moduleMetadata = [];
-            if (isset($settings['metadata']) && is_array($settings['metadata'])) {
+            if (isset($settings['metadata']) && \is_array($settings['metadata'])) {
                 foreach ($settings['metadata'] as $moduleCode => $variables) {
-                    if (preg_match(self::REGEX_MODULE_CODE, $moduleCode) && is_array($variables)) {
+                    if (\preg_match(self::REGEX_MODULE_CODE, $moduleCode) && \is_array($variables)) {
                         $this->moduleMetadata[$moduleCode] = $variables;
                     }
                 }
             }
 
             return true;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -533,9 +539,10 @@ class ModuleInfo
      *
      * @param ModuleInfo $requesterInfo The ModuleInfo object of the requesting module (for access verification)
      * @param string|null $key Optional specific metadata key to retrieve. If null, returns all metadata for the requester.
+     *
      * @return mixed The metadata array or specific metadata value. Returns null if not found.
      */
-    public function getMetadata(ModuleInfo $requesterInfo, ?string $key = null): mixed
+    public function getMetadata(self $requesterInfo, ?string $key = null): mixed
     {
         // Derive the requester's module code for metadata lookup
         $requesterCode = $requesterInfo->getCode();

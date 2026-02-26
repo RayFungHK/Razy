@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Comprehensive tests for #15: Form Request Validation.
  *
@@ -15,29 +16,15 @@ namespace Razy\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Validation\FormRequest;
-use Razy\Validation\ValidationResult;
 use Razy\Validation\Rule\Email;
 use Razy\Validation\Rule\MinLength;
 use Razy\Validation\Rule\Numeric;
 use Razy\Validation\Rule\Required;
+use Razy\Validation\ValidationResult;
 
 #[CoversClass(FormRequest::class)]
 class FormRequestTest extends TestCase
 {
-    // ─────────────────────────────────────────────────────
-    //  Helpers
-    // ─────────────────────────────────────────────────────
-
-    private function validData(): array
-    {
-        return ['name' => 'Alice', 'email' => 'alice@example.com'];
-    }
-
-    private function invalidData(): array
-    {
-        return ['name' => '', 'email' => 'bad'];
-    }
-
     // ═══════════════════════════════════════════════════════
     //  1. Factory Methods
     // ═══════════════════════════════════════════════════════
@@ -51,7 +38,7 @@ class FormRequestTest extends TestCase
     public function testFromArrayPreservesData(): void
     {
         $data = ['name' => 'Bob', 'email' => 'bob@test.com', 'extra' => 'info'];
-        $req  = FRTest_UserRequest::fromArray($data);
+        $req = FRTest_UserRequest::fromArray($data);
         $this->assertSame($data, $req->all());
     }
 
@@ -69,7 +56,7 @@ class FormRequestTest extends TestCase
     public function testValidatedReturnsOnlyValidatedFields(): void
     {
         $req = FRTest_UserRequest::fromArray(
-            ['name' => 'Alice', 'email' => 'alice@example.com', 'extra' => 'garbage']
+            ['name' => 'Alice', 'email' => 'alice@example.com', 'extra' => 'garbage'],
         );
         $validated = $req->validated();
 
@@ -98,7 +85,7 @@ class FormRequestTest extends TestCase
 
     public function testErrorsContainFailedFields(): void
     {
-        $req    = FRTest_UserRequest::fromArray(['name' => '', 'email' => '']);
+        $req = FRTest_UserRequest::fromArray(['name' => '', 'email' => '']);
         $errors = $req->errors();
 
         $this->assertNotEmpty($errors);
@@ -141,7 +128,7 @@ class FormRequestTest extends TestCase
 
     public function testUnauthorizedShowsAuthorizationError(): void
     {
-        $req    = FRTest_UnauthorizedRequest::fromArray($this->validData());
+        $req = FRTest_UnauthorizedRequest::fromArray($this->validData());
         $errors = $req->errors();
 
         $this->assertArrayHasKey('_authorization', $errors);
@@ -150,7 +137,7 @@ class FormRequestTest extends TestCase
 
     public function testUnauthorizedErrorsDoNotContainFieldErrors(): void
     {
-        $req    = FRTest_UnauthorizedRequest::fromArray(['name' => '', 'email' => '']);
+        $req = FRTest_UnauthorizedRequest::fromArray(['name' => '', 'email' => '']);
         $errors = $req->errors();
 
         // Should only have _authorization, not field errors
@@ -165,7 +152,7 @@ class FormRequestTest extends TestCase
     public function testAllReturnsRawData(): void
     {
         $data = ['name' => 'Ray', 'email' => 'ray@test.com', 'extra' => 'data'];
-        $req  = FRTest_UserRequest::fromArray($data);
+        $req = FRTest_UserRequest::fromArray($data);
         $this->assertSame($data, $req->all());
     }
 
@@ -189,7 +176,7 @@ class FormRequestTest extends TestCase
 
     public function testOnlyReturnsSubset(): void
     {
-        $req  = FRTest_UserRequest::fromArray(['name' => 'A', 'email' => 'b', 'extra' => 'c']);
+        $req = FRTest_UserRequest::fromArray(['name' => 'A', 'email' => 'b', 'extra' => 'c']);
         $only = $req->only(['name', 'email']);
 
         $this->assertSame(['name' => 'A', 'email' => 'b'], $only);
@@ -197,7 +184,7 @@ class FormRequestTest extends TestCase
 
     public function testOnlyWithNonexistentKeys(): void
     {
-        $req  = FRTest_UserRequest::fromArray(['name' => 'A']);
+        $req = FRTest_UserRequest::fromArray(['name' => 'A']);
         $only = $req->only(['name', 'nope']);
 
         $this->assertSame(['name' => 'A'], $only);
@@ -205,7 +192,7 @@ class FormRequestTest extends TestCase
 
     public function testExceptExcludesKeys(): void
     {
-        $req    = FRTest_UserRequest::fromArray(['name' => 'A', 'email' => 'b', 'extra' => 'c']);
+        $req = FRTest_UserRequest::fromArray(['name' => 'A', 'email' => 'b', 'extra' => 'c']);
         $except = $req->except(['extra']);
 
         $this->assertArrayHasKey('name', $except);
@@ -215,7 +202,7 @@ class FormRequestTest extends TestCase
 
     public function testExceptWithAllKeys(): void
     {
-        $req    = FRTest_UserRequest::fromArray(['name' => 'A']);
+        $req = FRTest_UserRequest::fromArray(['name' => 'A']);
         $except = $req->except(['name']);
 
         $this->assertSame([], $except);
@@ -281,17 +268,17 @@ class FormRequestTest extends TestCase
 
     public function testErrorsAsJsonReturnsValidJson(): void
     {
-        $req  = FRTest_UserRequest::fromArray(['name' => '', 'email' => '']);
+        $req = FRTest_UserRequest::fromArray(['name' => '', 'email' => '']);
         $json = $req->errorsAsJson();
 
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertIsArray($decoded);
         $this->assertArrayHasKey('errors', $decoded);
     }
 
     public function testErrorsAsJsonWithPrettyPrint(): void
     {
-        $req  = FRTest_UserRequest::fromArray(['name' => '', 'email' => '']);
+        $req = FRTest_UserRequest::fromArray(['name' => '', 'email' => '']);
         $json = $req->errorsAsJson(JSON_PRETTY_PRINT);
 
         $this->assertStringContainsString("\n", $json);
@@ -299,10 +286,10 @@ class FormRequestTest extends TestCase
 
     public function testErrorsAsJsonEmptyWhenValid(): void
     {
-        $req  = FRTest_UserRequest::fromArray($this->validData());
+        $req = FRTest_UserRequest::fromArray($this->validData());
         $json = $req->errorsAsJson();
 
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertSame(['errors' => []], $decoded);
     }
 
@@ -331,8 +318,8 @@ class FormRequestTest extends TestCase
     public function testValidateIsCached(): void
     {
         $req = FRTest_UserRequest::fromArray($this->validData());
-        $r1  = $req->validate();
-        $r2  = $req->validate();
+        $r1 = $req->validate();
+        $r2 = $req->validate();
 
         $this->assertSame($r1, $r2, 'validate() should return the same cached instance');
     }
@@ -424,10 +411,10 @@ class FormRequestTest extends TestCase
     public function testValidDataWithExtraFieldsStillPasses(): void
     {
         $req = FRTest_UserRequest::fromArray([
-            'name'     => 'Alice',
-            'email'    => 'alice@example.com',
+            'name' => 'Alice',
+            'email' => 'alice@example.com',
             'password' => 'secret',
-            'age'      => 25,
+            'age' => 25,
         ]);
         $this->assertTrue($req->passes());
     }
@@ -454,11 +441,24 @@ class FormRequestTest extends TestCase
 
     public function testPassesAndFailsAreAlwaysOpposite(): void
     {
-        $valid   = FRTest_UserRequest::fromArray($this->validData());
+        $valid = FRTest_UserRequest::fromArray($this->validData());
         $invalid = FRTest_UserRequest::fromArray($this->invalidData());
 
         $this->assertNotSame($valid->passes(), $valid->fails());
         $this->assertNotSame($invalid->passes(), $invalid->fails());
+    }
+    // ─────────────────────────────────────────────────────
+    //  Helpers
+    // ─────────────────────────────────────────────────────
+
+    private function validData(): array
+    {
+        return ['name' => 'Alice', 'email' => 'alice@example.com'];
+    }
+
+    private function invalidData(): array
+    {
+        return ['name' => '', 'email' => 'bad'];
     }
 }
 
@@ -472,7 +472,7 @@ class FRTest_UserRequest extends FormRequest
     protected function rules(): array
     {
         return [
-            'name'  => [new Required()],
+            'name' => [new Required()],
             'email' => [new Required(), new Email()],
         ];
     }
@@ -484,7 +484,7 @@ class FRTest_UnauthorizedRequest extends FormRequest
     protected function rules(): array
     {
         return [
-            'name'  => [new Required()],
+            'name' => [new Required()],
             'email' => [new Required(), new Email()],
         ];
     }
@@ -501,7 +501,7 @@ class FRTest_TrimmingRequest extends FormRequest
     protected function rules(): array
     {
         return [
-            'name'  => [new Required()],
+            'name' => [new Required()],
             'email' => [new Required(), new Email()],
         ];
     }
@@ -509,7 +509,7 @@ class FRTest_TrimmingRequest extends FormRequest
     protected function prepareForValidation(array $data): array
     {
         if (isset($data['name'])) {
-            $data['name'] = trim($data['name']);
+            $data['name'] = \trim($data['name']);
         }
 
         return $data;
@@ -522,7 +522,7 @@ class FRTest_DefaultsRequest extends FormRequest
     protected function rules(): array
     {
         return [
-            'name'  => [new Required()],
+            'name' => [new Required()],
             'email' => [new Required(), new Email()],
         ];
     }
@@ -539,7 +539,7 @@ class FRTest_StrictRequest extends FormRequest
     protected function rules(): array
     {
         return [
-            'name'  => [new Required(), new MinLength(3)],
+            'name' => [new Required(), new MinLength(3)],
             'email' => [new Required(), new Email()],
         ];
     }

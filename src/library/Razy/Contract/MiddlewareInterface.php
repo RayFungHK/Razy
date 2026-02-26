@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -50,15 +52,15 @@ interface MiddlewareInterface
      * Handle the request through this middleware.
      *
      * @param array $context Route context containing:
-     *   - 'url_query'    => string  The matched URL
-     *   - 'route'        => string  The route pattern
-     *   - 'module'       => string  The module code
-     *   - 'closure_path' => string  Path to the closure
-     *   - 'arguments'    => array   URL arguments
-     *   - 'method'       => string  HTTP method ('GET', 'POST', '*')
-     *   - 'type'         => string  Route type ('standard', 'lazy', 'script')
-     *   - 'is_shadow'    => bool    Whether this is a shadow route
-     *   - 'contains'     => mixed   (optional) Data from Route::contain()
+     *                       - 'url_query'    => string  The matched URL
+     *                       - 'route'        => string  The route pattern
+     *                       - 'module'       => string  The module code
+     *                       - 'closure_path' => string  Path to the closure
+     *                       - 'arguments'    => array   URL arguments
+     *                       - 'method'       => string  HTTP method ('GET', 'POST', '*')
+     *                       - 'type'         => string  Route type ('standard', 'lazy', 'script')
+     *                       - 'is_shadow'    => bool    Whether this is a shadow route
+     *                       - 'contains'     => mixed   (optional) Data from Route::contain()
      * @param Closure $next Call to pass to the next middleware or final handler.
      *                      Signature: function(array $context): mixed
      *

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,14 +10,15 @@
  */
 
 namespace Razy;
+
 use Exception;
 use Razy\Contract\ContainerInterface;
 use Razy\Exception\ConfigurationException;
+use Razy\Util\NetworkUtil;
+use Razy\Util\PathUtil;
+use Razy\Util\StringUtil;
 use Throwable;
 
-use Razy\Util\NetworkUtil;
-use Razy\Util\StringUtil;
-use Razy\Util\PathUtil;
 /**
  * Application is the top-level entry point for the Razy framework.
  *
@@ -25,13 +27,15 @@ use Razy\Util\PathUtil;
  * Only one unlocked Application instance may exist at a time.
  *
  * @class Application
+ *
  * @package Razy
+ *
  * @license MIT
  */
 class Application
 {
     /** @var bool Whether the application is locked (prevents config changes) */
-    static bool $locked = false;
+    public static bool $locked = false;
 
     /** @var array<string, string> Map of alias FQDN => canonical domain FQDN */
     private array $alias = [];
@@ -60,6 +64,9 @@ class Application
     /** @var Container The dependency injection container for this request */
     private Container $container;
 
+    /** @var Standalone|null Standalone mode runtime (bypasses Domain/multisite) */
+    private ?Standalone $standaloneDistributor = null;
+
     /**
      * Container constructor.
      *
@@ -71,7 +78,7 @@ class Application
             throw new ConfigurationException('Application is locked.');
         }
 
-        $this->guid = spl_object_hash($this);
+        $this->guid = \spl_object_hash($this);
 
         // Initialize the DI container and register core bindings
         $this->container = new Container();
@@ -80,18 +87,38 @@ class Application
         $this->container->alias(ContainerInterface::class, Container::class);
 
         // Register framework-level services as singletons
-        $this->container->singleton(PluginManager::class, fn() => PluginManager::getInstance());
+        $this->container->singleton(PluginManager::class, fn () => PluginManager::getInstance());
+    }
+
+    /**
+     * Lock the Application to not allow update or change config.
+     */
+    public static function Lock(): void
+    {
+        self::$locked = true;
+    }
+
+    /**
+     * Unlock the Application for worker mode (reset state between requests)
+     * Only used in Caddy/FrankenPHP worker mode.
+     */
+    public static function UnlockForWorker(): void
+    {
+        if (\defined('WORKER_MODE') && WORKER_MODE) {
+            self::$locked = false;
+        }
     }
 
     /**
      * @param string $fqdn the well-formatted FQDN string
      *
      * @return bool
+     *
      * @throws Throwable
      */
     public function host(string $fqdn): bool
     {
-        $fqdn = trim($fqdn);
+        $fqdn = \trim($fqdn);
         if (!empty($fqdn)) {
             $fqdn = NetworkUtil::formatFqdn($fqdn);
             if (!NetworkUtil::isFqdn($fqdn, true)) {
@@ -103,7 +130,7 @@ class Application
         $this->ensureInitialized();
 
         // Register the SPL autoloader for distributor-managed libraries
-        spl_autoload_register(function (string $className): void {
+        \spl_autoload_register(function (string $className): void {
             // Delegate autoloading to the matched domain's distributor chain
             if ($this->domain) {
                 $this->domain->autoload($className);
@@ -118,9 +145,6 @@ class Application
         return true;
     }
 
-    /** @var Standalone|null Standalone mode runtime (bypasses Domain/multisite) */
-    private ?Standalone $standaloneDistributor = null;
-
     /**
      * Activate standalone/lite mode.
      *
@@ -132,13 +156,15 @@ class Application
      * enabled in config.inc.php (or RAZY_MULTIPLE_SITE env var).
      *
      * @param string $standalonePath Absolute path to the standalone folder
+     *
      * @return bool
+     *
      * @throws Throwable
      */
     public function standalone(string $standalonePath): bool
     {
         // Register autoloader for standalone runtime
-        spl_autoload_register(function ($className) {
+        \spl_autoload_register(function ($className) {
             return $this->standaloneDistributor?->autoload($className);
         });
 
@@ -155,7 +181,9 @@ class Application
      * and dispatches the URL query to the route matcher.
      *
      * @param string $urlQuery The URL query string
+     *
      * @return bool True if a matching route was found and dispatched
+     *
      * @throws Throwable
      */
     public function queryStandalone(string $urlQuery): bool
@@ -192,66 +220,10 @@ class Application
     }
 
     /**
-     * Get the Domain instance by given FQDN string.
-     *
-     * @param string $fqdn The well-formatted FQDN string used to match the domain
-     *
-     * @return Domain|null Return the matched Domain instance or return null if no FQDN has matched
-     *
-     * @throws Throwable
-     */
-    private function matchDomain(string $fqdn): ?Domain
-    {
-        [$domain,] = explode(':', $fqdn . ':', 2);
-
-        // Match fqdn string
-        if (array_key_exists($fqdn, $this->multisite)) {
-            return new Domain($this, $fqdn, '', $this->multisite[$fqdn]);
-        }
-
-        // Match domain name
-        if (array_key_exists($domain, $this->multisite)) {
-            return new Domain($this, $domain, '', $this->multisite[$domain]);
-        }
-
-        // Match alias by fqdn string
-        if (array_key_exists($fqdn, $this->alias) && isset($this->multisite[$this->alias[$fqdn]])) {
-            return new Domain($this, $this->alias[$fqdn], $fqdn, $this->multisite[$this->alias[$fqdn]]);
-        }
-
-        // Match alias by domain name
-        if (array_key_exists($domain, $this->alias) && isset($this->multisite[$this->alias[$domain]])) {
-            return new Domain($this, $this->alias[$domain], $domain, $this->multisite[$this->alias[$domain]]);
-        }
-
-        // Match the domain in multisite list that with the wildcard character
-        foreach ($this->multisite as $wildcardFqdn => $path) {
-            if (NetworkUtil::isFqdn($wildcardFqdn, true)) {
-                // If the FQDN string contains * (wildcard)
-                if ('*' !== $wildcardFqdn && str_contains($wildcardFqdn, '*')) {
-                    $wildcard = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $wildcardFqdn);
-                    if (preg_match('/^' . $wildcard . '$/', $fqdn)) {
-                        // Given fqdn becomes the domain's alias
-                        return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$wildcardFqdn]);
-                    }
-                }
-            }
-        }
-
-        // Default sites
-        if (isset($this->multisite['*'])) {
-            // If there is a wildcard domain exists
-            return new Domain($this, '*', $fqdn, $this->multisite['*']);
-        }
-
-        // Return null if no domain has matched
-        return null;
-    }
-
-    /**
      * Update the multisite config.
      *
      * @return $this
+     *
      * @throws Error
      */
     public function updateSites(): static
@@ -266,14 +238,14 @@ class Application
 
         // Load extra alias mappings and associate them with configured domains
         $aliasMapping = [];
-        if (is_array($this->config['alias'])) {
+        if (\is_array($this->config['alias'])) {
             foreach ($this->config['alias'] as $alias => $domain) {
-                if (is_string($domain)) {
+                if (\is_string($domain)) {
                     // Normalize both domain and alias to standard FQDN format
                     $domain = NetworkUtil::formatFqdn($domain);
                     $alias = NetworkUtil::formatFqdn($alias);
                     if (NetworkUtil::isFqdn($domain, true) && NetworkUtil::isFqdn($alias, true)) {
-                        $aliasMapping[$domain] = $aliasMapping[$domain] ?? [];
+                        $aliasMapping[$domain] ??= [];
                         $aliasMapping[$domain][] = $alias;
                         $this->alias[$alias] = $domain;
                     }
@@ -282,26 +254,26 @@ class Application
         }
 
         // Parse the domain list and validate each distributor entry
-        if (is_array($this->config['domains'] ?? null)) {
+        if (\is_array($this->config['domains'] ?? null)) {
             foreach ($this->config['domains'] as $domain => $distPaths) {
                 $domain = NetworkUtil::formatFqdn($domain);
-                if (NetworkUtil::isFqdn($domain, true) && is_array($distPaths)) {
+                if (NetworkUtil::isFqdn($domain, true) && \is_array($distPaths)) {
                     foreach ($distPaths as $relativePath => $distCode) {
                         // Recursively validate distributor identifiers and register them
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
-                            if (is_string($distIdentifier)) {
+                            if (\is_string($distIdentifier)) {
                                 // Validate distributor identifier format: code[@tag]
-                                if (preg_match('/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i', $distIdentifier)) {
+                                if (\preg_match('/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i', $distIdentifier)) {
                                     if (isset($this->distributors[$distIdentifier])) {
                                         // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
                                     } else {
-                                        [$code, $tag] = explode('@', $distIdentifier . '@', 2);
+                                        [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
 
                                         // Verify the distributor's config file (dist.php) exists
                                         $distConfigPath = PathUtil::append(SITES_FOLDER, $code, 'dist.php');
-                                        if (is_file($distConfigPath)) {
-                                            $this->multisite[$domain] = $this->multisite[$domain] ?? [];
+                                        if (\is_file($distConfigPath)) {
+                                            $this->multisite[$domain] ??= [];
                                             $this->multisite[$domain][$urlPath] = $distIdentifier;
 
                                             $this->distributors[$distIdentifier] = [
@@ -315,7 +287,7 @@ class Application
                                         }
                                     }
                                 }
-                            } elseif (is_array($distIdentifier)) {
+                            } elseif (\is_array($distIdentifier)) {
                                 // Nested distributor definitions: recurse with appended URL path
                                 foreach ($distIdentifier as $subPath => $identifier) {
                                     // Load the list of distributor recursively
@@ -328,7 +300,7 @@ class Application
             }
         }
 
-        if (count($this->multisite)) {
+        if (\count($this->multisite)) {
             foreach ($this->multisite as $domain => &$distPaths) {
                 // Sort URL paths by depth so deeper paths are matched before shallower ones
                 StringUtil::sortPathLevel($distPaths);
@@ -339,45 +311,15 @@ class Application
     }
 
     /**
-     * Ensure the application is initialized (lazy deferred from constructor).
-     * This loads config and sets up multisite mappings on first call.
-     *
-     * @throws Throwable
-     */
-    private function ensureInitialized(): void
-    {
-        if (!$this->initialized) {
-            $this->initialize();
-            $this->initialized = true;
-        }
-    }
-
-    /**
-     * Load the site configuration to setup the multisite setting.
-     *
-     * @throws Throwable
-     */
-    private function initialize(): void
-    {
-        if (!defined('SYSTEM_ROOT')) {
-            throw new ConfigurationException('SYSTEM_ROOT is not defined, initialize failed.');
-        }
-
-        // Load the site configuration file
-        $this->config = $this->loadSiteConfig();
-
-        $this->updateSites();
-    }
-
-    /**
-     * Load the multisites config from file
+     * Load the multisites config from file.
      *
      * @return array[]
+     *
      * @throws Error
      */
     public function loadSiteConfig(): array
     {
-        $configFilePath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
+        $configFilePath = PathUtil::append(\defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
 
         // Load default config setting
         $this->config = [
@@ -387,20 +329,20 @@ class Application
 
         // Import the config file setting
         try {
-            if (is_file($configFilePath)) {
+            if (\is_file($configFilePath)) {
                 $this->config = require $configFilePath;
                 if (!isset($this->protection['config_file'])) {
                     $this->protection['config_file'] = [
-                        'checksums' => md5_file($configFilePath),
+                        'checksums' => \md5_file($configFilePath),
                         'path' => $configFilePath,
                     ];
                 }
 
                 $rewriteFilePath = PathUtil::append(SYSTEM_ROOT, '.htaccess');
-                if (is_file($rewriteFilePath)) {
+                if (\is_file($rewriteFilePath)) {
                     if (!isset($this->protection['rewrite_file'])) {
                         $this->protection['rewrite_file'] = [
-                            'checksums' => md5_file($rewriteFilePath),
+                            'checksums' => \md5_file($rewriteFilePath),
                             'path' => $rewriteFilePath,
                         ];
                     }
@@ -410,11 +352,11 @@ class Application
             throw new ConfigurationException('Failed to load site configuration: ' . $configFilePath, $e);
         }
 
-        if (!is_array($this->config['domains'] ?? null)) {
+        if (!\is_array($this->config['domains'] ?? null)) {
             $this->config['domains'] = [];
         }
 
-        if (!is_array($this->config['alias'] ?? null)) {
+        if (!\is_array($this->config['alias'] ?? null)) {
             $this->config['alias'] = [];
         }
 
@@ -425,6 +367,7 @@ class Application
      * Start to query the distributor by the URL query.
      *
      * @param string $urlQuery The URL query string
+     *
      * @return bool Return true if Distributor is matched
      *
      * @throws ConfigurationException
@@ -451,6 +394,7 @@ class Application
      * Update the rewrite.
      *
      * @return bool
+     *
      * @throws Error
      * @throws Throwable
      */
@@ -459,7 +403,7 @@ class Application
         $this->ensureInitialized();
         if (!self::$locked) {
             $compiler = new Routing\RewriteRuleCompiler();
-            $outputPath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess');
+            $outputPath = PathUtil::append(\defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess');
             return $compiler->compile($this->multisite, $this->alias, $outputPath);
         }
 
@@ -473,7 +417,7 @@ class Application
      * domain, webasset handlers, data mapping, and FrankenPHP worker mode
      * directives. This is the Caddy equivalent of updateRewriteRules().
      *
-     * @param bool   $workerMode   Whether to enable FrankenPHP worker mode (default: true)
+     * @param bool $workerMode Whether to enable FrankenPHP worker mode (default: true)
      * @param string $documentRoot The server document root path (default: '/app/public')
      *
      * @return bool True on success
@@ -486,7 +430,7 @@ class Application
         $this->ensureInitialized();
         if (!self::$locked) {
             $compiler = new Routing\CaddyfileCompiler();
-            $outputPath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'Caddyfile');
+            $outputPath = PathUtil::append(\defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'Caddyfile');
             return $compiler->compile($this->multisite, $this->alias, $outputPath, $workerMode, $documentRoot);
         }
 
@@ -499,18 +443,19 @@ class Application
      * @param array|null $config
      *
      * @return bool
+     *
      * @throws Throwable
      */
     public function writeSiteConfig(?array $config = null): bool
     {
         if (!self::$locked) {
-            $configFilePath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
+            $configFilePath = PathUtil::append(\defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
 
             // Write the config file
             $source = Template::loadFile(PHAR_PATH . '/asset/setup/sites.inc.php.tpl');
             $root = $source->getRoot();
 
-            $config = $config ?? $this->config;
+            $config ??= $this->config;
             foreach ($config['domains'] as $domainName => $sites) {
                 $domainBlock = $root->newBlock('domain')->assign('domain', $domainName);
                 foreach ($sites as $path => $code) {
@@ -522,8 +467,8 @@ class Application
             }
 
             foreach ($config['alias'] as $alias => $domain) {
-                if (is_string($domain)) {
-                    $domain = trim($domain);
+                if (\is_string($domain)) {
+                    $domain = \trim($domain);
                     if ($domain) {
                         $root->newBlock('alias')->assign([
                             'alias' => $alias,
@@ -534,16 +479,16 @@ class Application
             }
 
             try {
-                $file = fopen($configFilePath, 'w');
+                $file = \fopen($configFilePath, 'w');
                 if (!$file) {
                     throw new Exception('Can\'t create lock file!');
                 }
 
-                if (flock($file, LOCK_EX)) {
-                    ftruncate($file, 0);
-                    fwrite($file, $source->output());
-                    fflush($file);
-                    flock($file, LOCK_UN);
+                if (\flock($file, LOCK_EX)) {
+                    \ftruncate($file, 0);
+                    \fwrite($file, $source->output());
+                    \fflush($file);
+                    \flock($file, LOCK_UN);
                 }
 
                 $this->config = $config;
@@ -585,7 +530,7 @@ class Application
     }
 
     /**
-     * Run if the module under the distributor is need to unpack the asset or install the package from composer
+     * Run if the module under the distributor is need to unpack the asset or install the package from composer.
      *
      * @param string $code
      * @param callable $closure
@@ -597,7 +542,7 @@ class Application
      */
     public function compose(string $code, callable $closure): bool
     {
-        $code = trim($code);
+        $code = \trim($code);
         if ($this->hasDistributor($code)) {
             $distributor = (new Distributor($code))->initialize(true);
             return $distributor->getPrerequisites()->compose($closure(...));
@@ -607,32 +552,8 @@ class Application
     }
 
     /**
-     * Lock the Application to not allow update or change config
+     * Make sure the config file and rewrite has not modified or remove in application.
      *
-     * @return void
-     */
-    static public function Lock(): void
-    {
-        self::$locked = true;
-    }
-
-    /**
-     * Unlock the Application for worker mode (reset state between requests)
-     * Only used in Caddy/FrankenPHP worker mode
-     *
-     * @return void
-     */
-    static public function UnlockForWorker(): void
-    {
-        if (defined('WORKER_MODE') && WORKER_MODE) {
-            self::$locked = false;
-        }
-    }
-
-    /**
-     * Make sure the config file and rewrite has not modified or remove in application
-     *
-     * @return void
      * @throws Error
      * @throws Throwable
      */
@@ -640,16 +561,104 @@ class Application
     {
         if (!self::$locked) {
             if (isset($this->protection['config_file'])) {
-                if (!is_file($this->protection['config_file']['path']) || md5_file($this->protection['config_file']['path']) !== $this->protection['config_file']['checksums']) {
+                if (!\is_file($this->protection['config_file']['path']) || \md5_file($this->protection['config_file']['path']) !== $this->protection['config_file']['checksums']) {
                     $this->writeSiteConfig();
                 }
             }
         }
 
         if (isset($this->protection['rewrite_file'])) {
-            if (!is_file($this->protection['rewrite_file']['path']) || md5_file($this->protection['rewrite_file']['path']) !== $this->protection['rewrite_file']['checksums']) {
+            if (!\is_file($this->protection['rewrite_file']['path']) || \md5_file($this->protection['rewrite_file']['path']) !== $this->protection['rewrite_file']['checksums']) {
                 $this->updateRewriteRules();
             }
         }
+    }
+
+    /**
+     * Get the Domain instance by given FQDN string.
+     *
+     * @param string $fqdn The well-formatted FQDN string used to match the domain
+     *
+     * @return Domain|null Return the matched Domain instance or return null if no FQDN has matched
+     *
+     * @throws Throwable
+     */
+    private function matchDomain(string $fqdn): ?Domain
+    {
+        [$domain] = \explode(':', $fqdn . ':', 2);
+
+        // Match fqdn string
+        if (\array_key_exists($fqdn, $this->multisite)) {
+            return new Domain($this, $fqdn, '', $this->multisite[$fqdn]);
+        }
+
+        // Match domain name
+        if (\array_key_exists($domain, $this->multisite)) {
+            return new Domain($this, $domain, '', $this->multisite[$domain]);
+        }
+
+        // Match alias by fqdn string
+        if (\array_key_exists($fqdn, $this->alias) && isset($this->multisite[$this->alias[$fqdn]])) {
+            return new Domain($this, $this->alias[$fqdn], $fqdn, $this->multisite[$this->alias[$fqdn]]);
+        }
+
+        // Match alias by domain name
+        if (\array_key_exists($domain, $this->alias) && isset($this->multisite[$this->alias[$domain]])) {
+            return new Domain($this, $this->alias[$domain], $domain, $this->multisite[$this->alias[$domain]]);
+        }
+
+        // Match the domain in multisite list that with the wildcard character
+        foreach ($this->multisite as $wildcardFqdn => $path) {
+            if (NetworkUtil::isFqdn($wildcardFqdn, true)) {
+                // If the FQDN string contains * (wildcard)
+                if ('*' !== $wildcardFqdn && \str_contains($wildcardFqdn, '*')) {
+                    $wildcard = \preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $wildcardFqdn);
+                    if (\preg_match('/^' . $wildcard . '$/', $fqdn)) {
+                        // Given fqdn becomes the domain's alias
+                        return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$wildcardFqdn]);
+                    }
+                }
+            }
+        }
+
+        // Default sites
+        if (isset($this->multisite['*'])) {
+            // If there is a wildcard domain exists
+            return new Domain($this, '*', $fqdn, $this->multisite['*']);
+        }
+
+        // Return null if no domain has matched
+        return null;
+    }
+
+    /**
+     * Ensure the application is initialized (lazy deferred from constructor).
+     * This loads config and sets up multisite mappings on first call.
+     *
+     * @throws Throwable
+     */
+    private function ensureInitialized(): void
+    {
+        if (!$this->initialized) {
+            $this->initialize();
+            $this->initialized = true;
+        }
+    }
+
+    /**
+     * Load the site configuration to setup the multisite setting.
+     *
+     * @throws Throwable
+     */
+    private function initialize(): void
+    {
+        if (!\defined('SYSTEM_ROOT')) {
+            throw new ConfigurationException('SYSTEM_ROOT is not defined, initialize failed.');
+        }
+
+        // Load the site configuration file
+        $this->config = $this->loadSiteConfig();
+
+        $this->updateSites();
     }
 }

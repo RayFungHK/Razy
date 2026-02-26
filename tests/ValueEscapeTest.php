@@ -30,18 +30,32 @@ class ValueEscapeTest extends TestCase
         $this->db->connectWithDriver('sqlite', ['path' => ':memory:']);
     }
 
-    // ─── Helper ──────────────────────────────────────────────────
+    // ─── DataProvider: Comprehensive Special Characters ──────────
 
     /**
-     * Create a Statement with a single parameter assigned and return
-     * the SQL literal representation.
+     * @return array<string, array{string, string}>
      */
-    private function quoteValue(mixed $value): string
+    public static function specialCharactersProvider(): array
     {
-        $stmt = new Statement($this->db);
-        $stmt->assign(['col' => $value]);
-
-        return $stmt->getValueAsStatement('col');
+        return [
+            'single quote' => ["'", 'single quote'],
+            'double quote' => ['"', 'double quote'],
+            'backslash' => ['\\', 'backslash'],
+            'null byte' => ["\0", 'null byte'],
+            'tab' => ["\t", 'tab'],
+            'newline' => ["\n", 'newline'],
+            'carriage return' => ["\r", 'carriage return'],
+            'percent (LIKE)' => ['%', 'percent'],
+            'underscore (LIKE)' => ['_', 'underscore'],
+            'semicolon' => [';', 'semicolon'],
+            'dash dash comment' => ['--', 'dash dash'],
+            'hash comment' => ['#', 'hash'],
+            'slash star comment' => ['/*', 'slash star'],
+            'CJK ideograph' => ['漢', 'CJK'],
+            'combining diacritical' => ["e\u{0301}", 'combining accent'],
+            'zero-width space' => ["\u{200B}", 'zero-width space'],
+            'right-to-left mark' => ["\u{200F}", 'RTL mark'],
+        ];
     }
 
     // ─── Null / Boolean / Numeric ────────────────────────────────
@@ -227,10 +241,10 @@ class ValueEscapeTest extends TestCase
 
     public function testVeryLongString(): void
     {
-        $long = str_repeat('a', 10000);
+        $long = \str_repeat('a', 10000);
         $result = $this->quoteValue($long);
         $this->assertIsString($result);
-        $this->assertGreaterThan(10000, strlen($result));
+        $this->assertGreaterThan(10000, \strlen($result));
     }
 
     public function testStringOfOnlySingleQuotes(): void
@@ -247,34 +261,6 @@ class ValueEscapeTest extends TestCase
         $this->assertMatchesRegularExpression("/^'.+'$/s", $result);
     }
 
-    // ─── DataProvider: Comprehensive Special Characters ──────────
-
-    /**
-     * @return array<string, array{string, string}>
-     */
-    public static function specialCharactersProvider(): array
-    {
-        return [
-            'single quote'          => ["'", "single quote"],
-            'double quote'          => ['"', 'double quote'],
-            'backslash'             => ['\\', 'backslash'],
-            'null byte'             => ["\0", 'null byte'],
-            'tab'                   => ["\t", 'tab'],
-            'newline'               => ["\n", 'newline'],
-            'carriage return'       => ["\r", 'carriage return'],
-            'percent (LIKE)'        => ['%', 'percent'],
-            'underscore (LIKE)'     => ['_', 'underscore'],
-            'semicolon'             => [';', 'semicolon'],
-            'dash dash comment'     => ['--', 'dash dash'],
-            'hash comment'          => ['#', 'hash'],
-            'slash star comment'    => ['/*', 'slash star'],
-            'CJK ideograph'         => ['漢', 'CJK'],
-            'combining diacritical' => ["e\u{0301}", 'combining accent'],
-            'zero-width space'      => ["\u{200B}", 'zero-width space'],
-            'right-to-left mark'    => ["\u{200F}", 'RTL mark'],
-        ];
-    }
-
     #[DataProvider('specialCharactersProvider')]
     public function testSpecialCharacterIsProperlyQuoted(string $char, string $description): void
     {
@@ -283,5 +269,19 @@ class ValueEscapeTest extends TestCase
         // Every quoted result must be wrapped in outer single quotes
         // (null byte may yield empty-interior '' due to PDO truncation)
         $this->assertMatchesRegularExpression("/^'.*'$/s", $result, "Result not properly quoted for: {$description}");
+    }
+
+    // ─── Helper ──────────────────────────────────────────────────
+
+    /**
+     * Create a Statement with a single parameter assigned and return
+     * the SQL literal representation.
+     */
+    private function quoteValue(mixed $value): string
+    {
+        $stmt = new Statement($this->db);
+        $stmt->assign(['col' => $value]);
+
+        return $stmt->getValueAsStatement('col');
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Provides static utility methods for network-related operations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -34,7 +36,7 @@ class NetworkUtil
      */
     public static function isFqdn(string $domain, bool $withPort = false): bool
     {
-        return 1 === preg_match('/^(?:(?:(?:[a-z\d[\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((?:2[0-4]|1\d|[1-9])?\d|25[0-5])(?:\.(?-1)){3})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
+        return 1 === \preg_match('/^(?:(?:(?:[a-z\d[\w\-*]*(?<![-_]))\.)*[a-z*]{2,}|((?:2[0-4]|1\d|[1-9])?\d|25[0-5])(?:\.(?-1)){3})' . ($withPort ? '(?::\d+)?' : '') . '$/', $domain);
     }
 
     /**
@@ -46,7 +48,7 @@ class NetworkUtil
      */
     public static function formatFqdn(string $domain): string
     {
-        return trim(ltrim($domain, '.'));
+        return \trim(\ltrim($domain, '.'));
     }
 
     /**
@@ -102,22 +104,22 @@ class NetworkUtil
      */
     public static function ipInRange(string $ip, string $cidr): bool
     {
-        if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip)) {
+        if (!\preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip)) {
             return false;
         }
 
-        if (!preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$/', $cidr)) {
+        if (!\preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$/', $cidr)) {
             return false;
         }
 
-        if (!str_contains($cidr, '/')) {
+        if (!\str_contains($cidr, '/')) {
             $cidr .= '/32';
         }
 
-        [$range, $netmask] = explode('/', $cidr, 2);
-        $rangeDecimal = ip2long($range);
-        $ipDecimal = ip2long($ip);
-        $wildcardDecimal = pow(2, (32 - $netmask)) - 1;
+        [$range, $netmask] = \explode('/', $cidr, 2);
+        $rangeDecimal = \ip2long($range);
+        $ipDecimal = \ip2long($ip);
+        $wildcardDecimal = \pow(2, (32 - $netmask)) - 1;
         $netmaskDecimal = ~$wildcardDecimal;
         return (($ipDecimal & $netmaskDecimal) === ($rangeDecimal & $netmaskDecimal));
     }

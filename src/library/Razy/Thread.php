@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -216,23 +218,19 @@ class Thread
 
     /**
      * Transition the thread to running state and record the start time.
-     *
-     * @return void
      */
     public function markRunning(): void
     {
         $this->status = self::STATUS_RUNNING;
-        $this->startedAt = microtime(true);
+        $this->startedAt = \microtime(true);
     }
 
     /**
      * Configure the thread for process mode with the given process handle and pipes.
      *
-     * @param mixed $process  The proc_open process resource
-     * @param array $pipes    Array of pipe resources [stdin, stdout, stderr]
+     * @param mixed $process The proc_open process resource
+     * @param array $pipes Array of pipe resources [stdin, stdout, stderr]
      * @param string $command The shell command being executed
-     *
-     * @return void
      */
     public function markProcess(mixed $process, array $pipes, string $command): void
     {
@@ -247,22 +245,18 @@ class Thread
      * Mark the thread as successfully completed with a result value.
      *
      * @param mixed $result The execution result
-     *
-     * @return void
      */
     public function resolve(mixed $result): void
     {
         $this->status = self::STATUS_COMPLETED;
         $this->result = $result;
-        $this->endedAt = microtime(true);
+        $this->endedAt = \microtime(true);
     }
 
     /**
      * Set the result value without changing the thread status.
      *
      * @param mixed $result The result to store
-     *
-     * @return void
      */
     public function setResult(mixed $result): void
     {
@@ -273,22 +267,18 @@ class Thread
      * Mark the thread as failed with the given error.
      *
      * @param Throwable $error The error that caused the failure
-     *
-     * @return void
      */
     public function fail(Throwable $error): void
     {
         $this->status = self::STATUS_FAILED;
         $this->error = $error;
-        $this->endedAt = microtime(true);
+        $this->endedAt = \microtime(true);
     }
 
     /**
      * Append a chunk of data to the stdout buffer.
      *
      * @param string $chunk The output data to append
-     *
-     * @return void
      */
     public function appendStdout(string $chunk): void
     {
@@ -301,8 +291,6 @@ class Thread
      * Append a chunk of data to the stderr buffer.
      *
      * @param string $chunk The error data to append
-     *
-     * @return void
      */
     public function appendStderr(string $chunk): void
     {
@@ -315,8 +303,6 @@ class Thread
      * Set the process exit code.
      *
      * @param int|null $exitCode The exit code to store
-     *
-     * @return void
      */
     public function setExitCode(?int $exitCode): void
     {
@@ -345,8 +331,6 @@ class Thread
 
     /**
      * Release the process resource and associated pipes.
-     *
-     * @return void
      */
     public function clearProcess(): void
     {

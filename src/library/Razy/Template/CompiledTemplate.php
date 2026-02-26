@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,13 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Template;
 
 /**
- * Class CompiledTemplate
+ * Class CompiledTemplate.
  *
  * Pre-tokenizes template text segments into an intermediate representation,
  * eliminating redundant regex matching on every render cycle.
@@ -26,6 +28,7 @@ namespace Razy\Template;
  * Performance impact: 3-5x faster for repeated rendering scenarios.
  *
  * @class CompiledTemplate
+ *
  * @package Razy\Template
  */
 class CompiledTemplate
@@ -43,15 +46,15 @@ class CompiledTemplate
      * CompiledTemplate constructor.
      *
      * @param array<string|array> $segments Pre-tokenized segments:
-     *   - string: literal text (output as-is)
-     *   - array: ['clips' => string[]] — variable reference with pipe-delimited alternatives
+     *                                      - string: literal text (output as-is)
+     *                                      - array: ['clips' => string[]] — variable reference with pipe-delimited alternatives
      * @param string $hash MD5 hash of the source content
      * @param int $compiledAt Unix timestamp when compiled
      */
     private function __construct(
         public readonly array $segments,
         public readonly string $hash,
-        public readonly int $compiledAt
+        public readonly int $compiledAt,
     ) {
     }
 
@@ -62,32 +65,33 @@ class CompiledTemplate
      * will return the same CompiledTemplate instance.
      *
      * @param string $content Raw template text segment
+     *
      * @return self Compiled template with pre-tokenized segments
      */
     public static function compile(string $content): self
     {
-        $hash = md5($content);
+        $hash = \md5($content);
         if (isset(self::$cache[$hash])) {
             return self::$cache[$hash];
         }
 
         $segments = [];
         $offset = 0;
-        $contentLen = strlen($content);
+        $contentLen = \strlen($content);
 
         // Find all variable tag positions and pre-split their pipe alternatives
-        if (preg_match_all(self::VAR_TAG_REGEX, $content, $allMatches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+        if (\preg_match_all(self::VAR_TAG_REGEX, $content, $allMatches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($allMatches as $match) {
                 $matchStart = (int) $match[0][1];
-                $matchLen = strlen($match[0][0]);
+                $matchLen = \strlen($match[0][0]);
 
                 // Add literal text before this variable tag
                 if ($matchStart > $offset) {
-                    $segments[] = substr($content, $offset, $matchStart - $offset);
+                    $segments[] = \substr($content, $offset, $matchStart - $offset);
                 }
 
                 // Pre-split pipe-delimited alternatives for this variable tag
-                $clips = preg_split(self::PIPE_SPLIT_REGEX, $match[1][0]);
+                $clips = \preg_split(self::PIPE_SPLIT_REGEX, $match[1][0]);
                 $segments[] = ['clips' => $clips];
 
                 $offset = $matchStart + $matchLen;
@@ -96,13 +100,13 @@ class CompiledTemplate
 
         // Add remaining literal text after last variable tag
         if ($offset < $contentLen) {
-            $segments[] = substr($content, $offset);
+            $segments[] = \substr($content, $offset);
         } elseif (empty($segments)) {
             // Content has no variable tags — single literal segment
             $segments[] = $content;
         }
 
-        $instance = new self($segments, $hash, time());
+        $instance = new self($segments, $hash, \time());
         self::$cache[$hash] = $instance;
 
         return $instance;
@@ -112,6 +116,7 @@ class CompiledTemplate
      * Retrieve a compiled template from the in-memory cache.
      *
      * @param string $cacheKey Content hash
+     *
      * @return self|null Cached instance or null if not found
      */
     public static function fromCache(string $cacheKey): ?self
@@ -123,6 +128,7 @@ class CompiledTemplate
      * Check if a compiled template exists in the in-memory cache.
      *
      * @param string $hash Content hash
+     *
      * @return bool
      */
     public static function isCached(string $hash): bool
@@ -146,6 +152,6 @@ class CompiledTemplate
      */
     public static function getCacheSize(): int
     {
-        return count(self::$cache);
+        return \count(self::$cache);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Config\ConfigLoader.
  */
@@ -17,28 +18,28 @@ class ConfigLoaderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir() . '/razy_config_loader_test_' . uniqid();
-        mkdir($this->tempDir, 0777, true);
+        $this->tempDir = \sys_get_temp_dir() . '/razy_config_loader_test_' . \uniqid();
+        \mkdir($this->tempDir, 0o777, true);
     }
 
     protected function tearDown(): void
     {
         // Clean up temp files
-        $files = glob($this->tempDir . '/*');
+        $files = \glob($this->tempDir . '/*');
         if ($files) {
             foreach ($files as $file) {
-                unlink($file);
+                \unlink($file);
             }
         }
-        if (is_dir($this->tempDir)) {
-            rmdir($this->tempDir);
+        if (\is_dir($this->tempDir)) {
+            \rmdir($this->tempDir);
         }
     }
 
     public function testLoadReturnsArray(): void
     {
         $file = $this->tempDir . '/config.php';
-        file_put_contents($file, '<?php return ["key" => "value"];');
+        \file_put_contents($file, '<?php return ["key" => "value"];');
 
         $loader = new ConfigLoader();
         $result = $loader->load($file);
@@ -49,7 +50,7 @@ class ConfigLoaderTest extends TestCase
     public function testLoadNonArrayReturnsEmptyArray(): void
     {
         $file = $this->tempDir . '/config.php';
-        file_put_contents($file, '<?php return "not an array";');
+        \file_put_contents($file, '<?php return "not an array";');
 
         $loader = new ConfigLoader();
         $result = $loader->load($file);
@@ -69,7 +70,7 @@ class ConfigLoaderTest extends TestCase
     public function testLoadRawReturnsRawValue(): void
     {
         $file = $this->tempDir . '/raw.php';
-        file_put_contents($file, '<?php return "a string";');
+        \file_put_contents($file, '<?php return "a string";');
 
         $loader = new ConfigLoader();
         $result = $loader->loadRaw($file);
@@ -80,7 +81,7 @@ class ConfigLoaderTest extends TestCase
     public function testLoadRawReturnsArray(): void
     {
         $file = $this->tempDir . '/raw_array.php';
-        file_put_contents($file, '<?php return ["a" => 1, "b" => 2];');
+        \file_put_contents($file, '<?php return ["a" => 1, "b" => 2];');
 
         $loader = new ConfigLoader();
         $result = $loader->loadRaw($file);
@@ -124,16 +125,16 @@ class ConfigLoaderTest extends TestCase
     {
         $file = $this->tempDir . '/complex.php';
         $content = <<<'PHP'
-<?php
-return [
-    'dist' => 'test-dist',
-    'modules' => [
-        '*' => ['vendor/core' => '1.0.0'],
-    ],
-    'fallback' => true,
-];
-PHP;
-        file_put_contents($file, $content);
+            <?php
+            return [
+                'dist' => 'test-dist',
+                'modules' => [
+                    '*' => ['vendor/core' => '1.0.0'],
+                ],
+                'fallback' => true,
+            ];
+            PHP;
+        \file_put_contents($file, $content);
 
         $loader = new ConfigLoader();
         $result = $loader->load($file);

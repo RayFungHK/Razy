@@ -17,7 +17,7 @@ class Numeric extends ValidationRule
             return $value;
         }
 
-        if (!is_numeric($value)) {
+        if (!\is_numeric($value)) {
             $this->fail();
 
             return $value;

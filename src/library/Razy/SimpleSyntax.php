@@ -12,10 +12,14 @@
  * supporting delimiter-based splitting and nested parenthetical grouping.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
+
+use InvalidArgumentException;
+
 /**
  * Simple Syntax parser for expression tokenization.
  *
@@ -36,25 +40,26 @@ class SimpleSyntax
      * @param string $negativeLookahead
      * @param callable|null $parser
      * @param bool $notCaptureDelimiter
+     *
      * @return array
      */
     public static function parseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?callable $parser = null, bool $notCaptureDelimiter = false): array
     {
         $clips = self::parseParens($syntax);
 
-        if (is_callable($parser)) {
+        if (\is_callable($parser)) {
             $parser = $parser(...);
         }
 
         return ($parseExpr = function ($clips) use ($parser, $delimiter, $negativeLookahead, &$parseExpr, $notCaptureDelimiter) {
             $extracted = [];
             foreach ($clips as $clip) {
-                if (is_array($clip)) {
+                if (\is_array($clip)) {
                     $extracted[] = $parseExpr($clip);
                 } else {
-                    $splits = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\((?:\\\\.(*SKIP)|[^()])*\)|\\\\.|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|\s*([' . preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, ($notCaptureDelimiter) ? PREG_SPLIT_NO_EMPTY : PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    $splits = \preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\((?:\\\\.(*SKIP)|[^()])*\)|\\\\.|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|\s*([' . \preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . \preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, ($notCaptureDelimiter) ? PREG_SPLIT_NO_EMPTY : PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
                     if (false === $splits) {
-                        throw new \InvalidArgumentException('The delimiter or the ignored lookahead characters is invalid.');
+                        throw new InvalidArgumentException('The delimiter or the ignored lookahead characters is invalid.');
                     }
 
                     // Apply the optional user-defined parser to each split token
@@ -64,7 +69,7 @@ class SimpleSyntax
                         }
                     }
 
-                    $extracted = array_merge($extracted, $splits);
+                    $extracted = \array_merge($extracted, $splits);
                 }
             }
 
@@ -76,6 +81,7 @@ class SimpleSyntax
      * Extract the string that containing `(` and `)` into a nested array.
      *
      * @param string $text
+     *
      * @return array
      */
     public static function parseParens(string $text): array
@@ -89,14 +95,14 @@ class SimpleSyntax
 
             // Match the next unescaped '(' or ')' while skipping quoted strings,
             // bracketed expressions and nested function calls
-            while (preg_match('/(?:\\\\.|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|[()]/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
+            while (\preg_match('/(?:\\\\.|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|[()]/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
                 // Capture any text preceding the matched parenthesis
                 if ($matches[0][1] > 0) {
-                    $extracted[] = substr($clip, 0, $matches[0][1]);
+                    $extracted[] = \substr($clip, 0, $matches[0][1]);
                 }
 
                 // Advance past the matched character
-                $clip = substr($clip, (int) $matches[0][1] + 1);
+                $clip = \substr($clip, (int) $matches[0][1] + 1);
                 if (')' == $matches[0][0]) {
                     // Closing paren: return the group if we're inside an opening; discard otherwise
                     return ($opening) ? $extracted : [];

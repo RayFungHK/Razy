@@ -9,10 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Notification;
+
+use RuntimeException;
+use Throwable;
 
 /**
  * Notification dispatcher — sends notifications to entities.
@@ -53,7 +57,7 @@ class NotificationManager
     private array $afterHooks = [];
 
     /**
-     * @var list<callable(object, Notification, string, \Throwable): void> Error hooks
+     * @var list<callable(object, Notification, string, Throwable): void> Error hooks
      */
     private array $errorHooks = [];
 
@@ -104,7 +108,7 @@ class NotificationManager
      */
     public function getChannelNames(): array
     {
-        return array_keys($this->channels);
+        return \array_keys($this->channels);
     }
 
     /**
@@ -118,10 +122,10 @@ class NotificationManager
     /**
      * Send a notification to a notifiable entity.
      *
-     * @param object       $notifiable  The entity receiving the notification
+     * @param object $notifiable The entity receiving the notification
      * @param Notification $notification The notification to send
      *
-     * @throws \RuntimeException If a required channel is not registered
+     * @throws RuntimeException If a required channel is not registered
      */
     public function send(object $notifiable, Notification $notification): void
     {
@@ -131,8 +135,8 @@ class NotificationManager
             $channel = $this->channels[$channelName] ?? null;
 
             if ($channel === null) {
-                throw new \RuntimeException(
-                    "Notification channel '{$channelName}' is not registered."
+                throw new RuntimeException(
+                    "Notification channel '{$channelName}' is not registered.",
                 );
             }
 
@@ -147,10 +151,10 @@ class NotificationManager
                 // Log if enabled
                 if ($this->logging) {
                     $this->sentLog[] = [
-                        'notifiable'   => get_class($notifiable),
+                        'notifiable' => \get_class($notifiable),
                         'notification' => $notification->getType(),
-                        'channel'      => $channelName,
-                        'id'           => $notification->getId(),
+                        'channel' => $channelName,
+                        'id' => $notification->getId(),
                     ];
                 }
 
@@ -158,7 +162,7 @@ class NotificationManager
                 foreach ($this->afterHooks as $hook) {
                     $hook($notifiable, $notification, $channelName);
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // Error hooks
                 foreach ($this->errorHooks as $hook) {
                     $hook($notifiable, $notification, $channelName, $e);
@@ -176,7 +180,7 @@ class NotificationManager
      * Send a notification to multiple notifiable entities.
      *
      * @param iterable<object> $notifiables
-     * @param Notification     $notification
+     * @param Notification $notification
      */
     public function sendToMany(iterable $notifiables, Notification $notification): void
     {
@@ -219,7 +223,7 @@ class NotificationManager
      * When error hooks are present, exceptions from channels are caught
      * and passed to the hooks rather than re-thrown.
      *
-     * @param callable(object, Notification, string, \Throwable): void $callback
+     * @param callable(object, Notification, string, Throwable): void $callback
      *
      * @return $this
      */

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,13 +11,14 @@
  * PSR-14 compliant event dispatcher.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Event;
 
-use Razy\Contract\EventDispatcher\PsrEventDispatcherInterface;
 use Razy\Contract\EventDispatcher\ListenerProviderInterface;
+use Razy\Contract\EventDispatcher\PsrEventDispatcherInterface;
 use Razy\Contract\EventDispatcher\StoppableEventInterface;
 
 /**
@@ -31,7 +33,7 @@ class EventDispatcher implements PsrEventDispatcherInterface
      * @param ListenerProviderInterface $listenerProvider The provider that supplies listeners for each event
      */
     public function __construct(
-        private readonly ListenerProviderInterface $listenerProvider
+        private readonly ListenerProviderInterface $listenerProvider,
     ) {
     }
 

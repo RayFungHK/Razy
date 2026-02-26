@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for WorkerLifecycleManager - orchestrates all three update strategies.
  * This file is part of Razy v0.5.
@@ -12,22 +13,25 @@ use Razy\Worker\ModuleChangeDetector;
 use Razy\Worker\RestartSignal;
 use Razy\Worker\WorkerLifecycleManager;
 use Razy\Worker\WorkerState;
+use ReflectionProperty;
 
 #[CoversClass(WorkerLifecycleManager::class)]
 class WorkerLifecycleManagerTest extends TestCase
 {
     private WorkerLifecycleManager $manager;
+
     private string $signalPath;
+
     private array $logs;
 
     protected function setUp(): void
     {
-        $this->signalPath = sys_get_temp_dir() . '/razy_wlm_test_' . uniqid() . '.json';
+        $this->signalPath = \sys_get_temp_dir() . '/razy_wlm_test_' . \uniqid() . '.json';
         $this->logs = [];
         $this->manager = new WorkerLifecycleManager(
             signalPath: $this->signalPath,
             drainTimeoutSeconds: 5,
-            checkInterval: 0  // check every request for testing
+            checkInterval: 0,  // check every request for testing
         );
         $this->manager->setLogger(function (string $msg) {
             $this->logs[] = $msg;
@@ -36,8 +40,8 @@ class WorkerLifecycleManagerTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (is_file($this->signalPath)) {
-            unlink($this->signalPath);
+        if (\is_file($this->signalPath)) {
+            \unlink($this->signalPath);
         }
     }
 
@@ -166,14 +170,14 @@ class WorkerLifecycleManagerTest extends TestCase
     public function testStaleSignalIsIgnored(): void
     {
         $this->simulateBoot();
-        file_put_contents($this->signalPath, json_encode([
+        \file_put_contents($this->signalPath, \json_encode([
             'action' => 'restart',
-            'timestamp' => time() - 600,
+            'timestamp' => \time() - 600,
         ]));
 
         $result = $this->manager->checkForChanges();
         $this->assertSame('continue', $result);
-        $this->assertFalse(is_file($this->signalPath));
+        $this->assertFalse(\is_file($this->signalPath));
     }
 
     public function testSignalClearedAfterProcessing(): void
@@ -182,7 +186,7 @@ class WorkerLifecycleManagerTest extends TestCase
         RestartSignal::send($this->signalPath, RestartSignal::ACTION_RESTART);
 
         $this->manager->checkForChanges();
-        $this->assertFalse(is_file($this->signalPath));
+        $this->assertFalse(\is_file($this->signalPath));
     }
 
     // ── Accessors ───────────────────────────────────────
@@ -201,7 +205,7 @@ class WorkerLifecycleManagerTest extends TestCase
 
     public function testSetSignalPath(): void
     {
-        $newPath = sys_get_temp_dir() . '/razy_new_signal_' . uniqid();
+        $newPath = \sys_get_temp_dir() . '/razy_new_signal_' . \uniqid();
         $this->manager->setSignalPath($newPath);
         RestartSignal::send($newPath, RestartSignal::ACTION_TERMINATE);
 
@@ -209,7 +213,9 @@ class WorkerLifecycleManagerTest extends TestCase
         $result = $this->manager->checkForChanges();
         $this->assertSame('terminate', $result);
 
-        if (is_file($newPath)) unlink($newPath);
+        if (\is_file($newPath)) {
+            \unlink($newPath);
+        }
     }
 
     public function testSetDrainTimeout(): void
@@ -224,7 +230,7 @@ class WorkerLifecycleManagerTest extends TestCase
     {
         $this->manager->beginDrain('test reason');
         $this->assertNotEmpty($this->logs);
-        $this->assertStringContainsString('test reason', implode(' ', $this->logs));
+        $this->assertStringContainsString('test reason', \implode(' ', $this->logs));
     }
 
     // ── Draining state enforcement ──────────────────────
@@ -299,7 +305,7 @@ class WorkerLifecycleManagerTest extends TestCase
 
     private function simulateBoot(): void
     {
-        $ref = new \ReflectionProperty($this->manager, 'state');
+        $ref = new ReflectionProperty($this->manager, 'state');
         $ref->setValue($this->manager, WorkerState::Ready);
     }
 }

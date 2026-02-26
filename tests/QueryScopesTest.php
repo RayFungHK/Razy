@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use BadMethodCallException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
 use Razy\ORM\Model;
-use Razy\ORM\ModelCollection;
 use Razy\ORM\ModelQuery;
-use Razy\ORM\Relation\Relation;
 
 /**
  * Tests for P18: Query Scopes (Local & Global).
@@ -109,7 +108,7 @@ class QueryScopesTest extends TestCase
         $this->assertCount(2, $published);
 
         $titles = $published->pluck('title');
-        sort($titles);
+        \sort($titles);
         $this->assertSame(['Pub 1', 'Pub 2'], $titles);
     }
 
@@ -127,7 +126,7 @@ class QueryScopesTest extends TestCase
         $this->assertCount(2, $tech);
 
         $titles = $tech->pluck('title');
-        sort($titles);
+        \sort($titles);
         $this->assertSame(['Tech 1', 'Tech 2'], $titles);
     }
 
@@ -225,7 +224,7 @@ class QueryScopesTest extends TestCase
         $db = $this->createDb();
         $this->createSchema($db);
 
-        $this->expectException(\BadMethodCallException::class);
+        $this->expectException(BadMethodCallException::class);
 
         QS_Article::query($db)->nonExistentScope();
     }
@@ -325,11 +324,11 @@ class QueryScopesTest extends TestCase
         // Use raw query (no global scope) to check
         $rows = $db->prepare()->select('name,active')->from('qs_active_users')->lazyGroup();
 
-        $active = array_filter($rows, fn($r) => (int) $r['active'] === 1);
-        $inactive = array_filter($rows, fn($r) => (int) $r['active'] === 0);
+        $active = \array_filter($rows, fn ($r) => (int) $r['active'] === 1);
+        $inactive = \array_filter($rows, fn ($r) => (int) $r['active'] === 0);
 
-        $this->assertSame('Updated', array_values($active)[0]['name']);
-        $this->assertSame('Inactive', array_values($inactive)[0]['name']);
+        $this->assertSame('Updated', \array_values($active)[0]['name']);
+        $this->assertSame('Inactive', \array_values($inactive)[0]['name']);
     }
 
     public function testGlobalScopeAppliedToBulkDelete(): void
@@ -399,7 +398,7 @@ class QueryScopesTest extends TestCase
 
         $this->assertCount(2, $users);
         $names = $users->pluck('name');
-        sort($names);
+        \sort($names);
         $this->assertSame(['Both', 'VerifiedOnly'], $names);
     }
 
@@ -737,6 +736,7 @@ class QueryScopesTest extends TestCase
 class QS_Article extends Model
 {
     protected static string $table = 'qs_articles';
+
     protected static array $fillable = ['title', 'status', 'category'];
 
     /**
@@ -770,6 +770,7 @@ class QS_Article extends Model
 class QS_ActiveUser extends Model
 {
     protected static string $table = 'qs_active_users';
+
     protected static array $fillable = ['name', 'active'];
 
     protected static function boot(): void
@@ -791,6 +792,7 @@ class QS_ActiveUser extends Model
 class QS_Post extends Model
 {
     protected static string $table = 'qs_posts';
+
     protected static array $fillable = ['title', 'qs_activeuser_id'];
 }
 
@@ -800,6 +802,7 @@ class QS_Post extends Model
 class QS_MultiScopeUser extends Model
 {
     protected static string $table = 'qs_multi_scope_users';
+
     protected static array $fillable = ['name', 'active', 'verified'];
 
     protected static function boot(): void
@@ -820,6 +823,7 @@ class QS_MultiScopeUser extends Model
 class QS_ScopedArticle extends Model
 {
     protected static string $table = 'qs_scoped_articles';
+
     protected static array $fillable = ['title', 'status', 'category'];
 
     protected static function boot(): void
@@ -840,10 +844,11 @@ class QS_ScopedArticle extends Model
  */
 class QS_BootTracking extends Model
 {
-    protected static string $table = 'qs_boot_trackings';
-    protected static array $fillable = ['name'];
-
     public static int $bootCount = 0;
+
+    protected static string $table = 'qs_boot_trackings';
+
+    protected static array $fillable = ['name'];
 
     protected static function boot(): void
     {

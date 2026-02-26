@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Controller;
+use Razy\Exception\ModuleLoadException;
 use Razy\Module;
 use Razy\ModuleInfo;
 use Razy\ORM\Model;
-use Razy\Exception\ModuleLoadException;
 use ReflectionClass;
 
 /**
@@ -29,59 +30,14 @@ class ControllerLoadModelTest extends TestCase
     {
         parent::setUp();
 
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_ctrl_model_test_' . uniqid();
-        mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'model', 0777, true);
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_ctrl_model_test_' . \uniqid();
+        \mkdir($this->tempDir . DIRECTORY_SEPARATOR . 'model', 0o777, true);
     }
 
     protected function tearDown(): void
     {
         $this->removeDirectory($this->tempDir);
         parent::tearDown();
-    }
-
-    private function removeDirectory(string $dir): void
-    {
-        if (!is_dir($dir)) {
-            return;
-        }
-        foreach (scandir($dir) as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            is_dir($path) ? $this->removeDirectory($path) : @unlink($path);
-        }
-        @rmdir($dir);
-    }
-
-    /**
-     * Create a Controller with a mocked Module whose ModuleInfo::getPath()
-     * returns our temp directory.
-     */
-    private function createController(): Controller
-    {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getPath')->willReturn($this->tempDir);
-
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-
-        // Use Reflection to construct Controller with the mocked Module
-        $ref = new ReflectionClass(Controller::class);
-        $controller = $ref->newInstance($module);
-
-        return $controller;
-    }
-
-    /**
-     * Write a model PHP file into the temp model/ directory.
-     */
-    private function writeModelFile(string $name, string $content): void
-    {
-        file_put_contents(
-            $this->tempDir . DIRECTORY_SEPARATOR . 'model' . DIRECTORY_SEPARATOR . $name . '.php',
-            $content
-        );
     }
 
     // ───────────────────────────────────────────────────────────────
@@ -101,7 +57,7 @@ return new class extends Model {
         $fqcn = $controller->loadModel('Product');
 
         $this->assertIsString($fqcn);
-        $this->assertTrue(is_subclass_of($fqcn, Model::class), 'Returned class should extend Model');
+        $this->assertTrue(\is_subclass_of($fqcn, Model::class), 'Returned class should extend Model');
     }
 
     public function testLoadModelReturnsSameClassOnRepeatedCalls(): void
@@ -166,7 +122,7 @@ return new class extends Model {
     {
         $controller = $this->createController();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Model file not found');
 
         $controller->loadModel('NonExistent');
@@ -206,5 +162,50 @@ return new class extends Model {
         $this->expectExceptionMessage('must return an instance of Razy\ORM\Model');
 
         $controller->loadModel('WrongClass');
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        foreach (\scandir($dir) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            \is_dir($path) ? $this->removeDirectory($path) : @\unlink($path);
+        }
+        @\rmdir($dir);
+    }
+
+    /**
+     * Create a Controller with a mocked Module whose ModuleInfo::getPath()
+     * returns our temp directory.
+     */
+    private function createController(): Controller
+    {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getPath')->willReturn($this->tempDir);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+
+        // Use Reflection to construct Controller with the mocked Module
+        $ref = new ReflectionClass(Controller::class);
+        $controller = $ref->newInstance($module);
+
+        return $controller;
+    }
+
+    /**
+     * Write a model PHP file into the temp model/ directory.
+     */
+    private function writeModelFile(string $name, string $content): void
+    {
+        \file_put_contents(
+            $this->tempDir . DIRECTORY_SEPARATOR . 'model' . DIRECTORY_SEPARATOR . $name . '.php',
+            $content,
+        );
     }
 }

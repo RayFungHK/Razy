@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -49,9 +50,9 @@ interface RateLimitStoreInterface
      * timestamp. The store should retain this record at least until the
      * reset timestamp has passed.
      *
-     * @param string $key     The rate limit bucket key.
-     * @param int    $hits    The current number of hits.
-     * @param int    $resetAt Unix timestamp when the window resets.
+     * @param string $key The rate limit bucket key.
+     * @param int $hits The current number of hits.
+     * @param int $resetAt Unix timestamp when the window resets.
      */
     public function set(string $key, int $hits, int $resetAt): void;
 

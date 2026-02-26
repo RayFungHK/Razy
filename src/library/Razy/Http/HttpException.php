@@ -9,10 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Http;
+
+use RuntimeException;
 
 /**
  * Exception thrown when an HTTP request fails.
@@ -21,7 +24,7 @@ namespace Razy\Http;
  *
  * @package Razy\Http
  */
-class HttpException extends \RuntimeException
+class HttpException extends RuntimeException
 {
     /**
      * The HTTP response that triggered the exception.
@@ -38,7 +41,7 @@ class HttpException extends \RuntimeException
         $this->response = $response;
 
         parent::__construct(
-            sprintf('HTTP request returned status code %d', $response->status()),
+            \sprintf('HTTP request returned status code %d', $response->status()),
             $response->status(),
         );
     }

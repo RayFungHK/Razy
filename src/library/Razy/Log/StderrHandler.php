@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -28,13 +29,13 @@ use Razy\Contract\Log\LogLevel;
 class StderrHandler implements LogHandlerInterface
 {
     private const LEVEL_PRIORITY = [
-        LogLevel::DEBUG     => 0,
-        LogLevel::INFO      => 1,
-        LogLevel::NOTICE    => 2,
-        LogLevel::WARNING   => 3,
-        LogLevel::ERROR     => 4,
-        LogLevel::CRITICAL  => 5,
-        LogLevel::ALERT     => 6,
+        LogLevel::DEBUG => 0,
+        LogLevel::INFO => 1,
+        LogLevel::NOTICE => 2,
+        LogLevel::WARNING => 3,
+        LogLevel::ERROR => 4,
+        LogLevel::CRITICAL => 5,
+        LogLevel::ALERT => 6,
         LogLevel::EMERGENCY => 7,
     ];
 
@@ -43,7 +44,8 @@ class StderrHandler implements LogHandlerInterface
      */
     public function __construct(
         private string $minLevel = LogLevel::DEBUG,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}
@@ -54,11 +56,11 @@ class StderrHandler implements LogHandlerInterface
             return;
         }
 
-        $levelUpper = strtoupper($level);
+        $levelUpper = \strtoupper($level);
         $channelTag = $channel !== '' ? "[{$channel}] " : '';
         $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$message}" . PHP_EOL;
 
-        fwrite(STDERR, $line);
+        \fwrite(STDERR, $line);
     }
 
     /**

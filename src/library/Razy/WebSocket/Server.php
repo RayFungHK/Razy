@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * events for open, message, close, and error.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -36,6 +38,7 @@ use Throwable;
  * ```
  *
  * @class Server
+ *
  * @package Razy\WebSocket
  */
 class Server
@@ -67,9 +70,9 @@ class Server
     private ?Closure $onTick = null;
 
     /**
-     * @param string $host    Listen address (e.g. '0.0.0.0')
-     * @param int    $port    Listen port
-     * @param int    $timeout stream_select timeout in microseconds (default 200 ms)
+     * @param string $host Listen address (e.g. '0.0.0.0')
+     * @param int $port Listen port
+     * @param int $timeout stream_select timeout in microseconds (default 200 ms)
      */
     public function __construct(
         private string $host = '0.0.0.0',
@@ -140,9 +143,9 @@ class Server
     public function start(): void
     {
         $address = "tcp://{$this->host}:{$this->port}";
-        $context = stream_context_create();
+        $context = \stream_context_create();
 
-        $this->socket = @stream_socket_server(
+        $this->socket = @\stream_socket_server(
             $address,
             $errno,
             $errstr,
@@ -154,7 +157,7 @@ class Server
             throw new RuntimeException("Failed to bind WebSocket server on {$address}: [{$errno}] {$errstr}");
         }
 
-        stream_set_blocking($this->socket, false);
+        \stream_set_blocking($this->socket, false);
         $this->running = true;
 
         $this->eventLoop();
@@ -181,7 +184,7 @@ class Server
     /**
      * Broadcast a text message to all connected clients.
      *
-     * @param string          $text    Message payload
+     * @param string $text Message payload
      * @param Connection|null $exclude Optionally exclude one connection
      */
     public function broadcast(string $text, ?Connection $exclude = null): void
@@ -211,7 +214,7 @@ class Server
 
             $write = null;
             $except = null;
-            $changed = @stream_select($readStreams, $write, $except, 0, $this->timeout);
+            $changed = @\stream_select($readStreams, $write, $except, 0, $this->timeout);
 
             if ($changed === false) {
                 continue; // Interrupted by signal
@@ -240,12 +243,12 @@ class Server
      */
     private function acceptNewConnection(): void
     {
-        $clientStream = @stream_socket_accept($this->socket, 0);
+        $clientStream = @\stream_socket_accept($this->socket, 0);
         if (!$clientStream) {
             return;
         }
 
-        stream_set_blocking($clientStream, false);
+        \stream_set_blocking($clientStream, false);
 
         $conn = new Connection($clientStream, maskOutput: false);
         $this->connections[$conn->getId()] = $conn;
@@ -310,7 +313,7 @@ class Server
             }
 
             // Check for EOF (remote disconnect without close frame)
-            if (feof($stream)) {
+            if (\feof($stream)) {
                 $this->removeConnection($conn, 1006, 'Connection lost');
             }
         } catch (Throwable $e) {
@@ -355,8 +358,8 @@ class Server
         }
         $this->connections = [];
 
-        if (is_resource($this->socket)) {
-            fclose($this->socket);
+        if (\is_resource($this->socket)) {
+            \fclose($this->socket);
             $this->socket = null;
         }
     }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\YAML\YAMLParser internal API.
  *
@@ -13,7 +14,6 @@
 namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\YAML\YAMLParser;
 
@@ -25,11 +25,11 @@ class YAMLParserTest extends TestCase
     public function testAnchorAndAliasScalar(): void
     {
         $yaml = <<<YAML
-defaults:
-  &timeout timeout: 30
-settings:
-  request_timeout: *timeout
-YAML;
+            defaults:
+              &timeout timeout: 30
+            settings:
+              request_timeout: *timeout
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -41,13 +41,13 @@ YAML;
     public function testAnchorAndAliasNestedMap(): void
     {
         $yaml = <<<YAML
-defaults:
-  &db database:
-    host: localhost
-    port: 3306
-production:
-  database: *db
-YAML;
+            defaults:
+              &db database:
+                host: localhost
+                port: 3306
+            production:
+              database: *db
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -60,8 +60,8 @@ YAML;
     public function testUnknownAliasReturnsNull(): void
     {
         $yaml = <<<YAML
-key: *nonexistent
-YAML;
+            key: *nonexistent
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -74,27 +74,27 @@ YAML;
     public function testLiteralBlockPreservesNewlines(): void
     {
         $yaml = <<<YAML
-content: |
-  Line A
-  Line B
-  Line C
-YAML;
+            content: |
+              Line A
+              Line B
+              Line C
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
-        $normalized = str_replace("\r\n", "\n", $result['content']);
+        $normalized = \str_replace("\r\n", "\n", $result['content']);
         $this->assertSame("Line A\nLine B\nLine C", $normalized);
     }
 
     public function testFoldedBlockJoinsLines(): void
     {
         $yaml = <<<YAML
-description: >
-  This is a long
-  description that
-  will be folded.
-YAML;
+            description: >
+              This is a long
+              description that
+              will be folded.
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -106,25 +106,25 @@ YAML;
     {
         // |- should strip trailing newline (chomp indicator)
         $yaml = <<<YAML
-content: |-
-  Line A
-  Line B
-YAML;
+            content: |-
+              Line A
+              Line B
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
-        $normalized = str_replace("\r\n", "\n", $result['content']);
+        $normalized = \str_replace("\r\n", "\n", $result['content']);
         $this->assertSame("Line A\nLine B", $normalized);
     }
 
     public function testFoldedBlockStrip(): void
     {
         $yaml = <<<YAML
-content: >-
-  folded
-  text
-YAML;
+            content: >-
+              folded
+              text
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -135,18 +135,18 @@ YAML;
     public function testMultipleMultilineBlocks(): void
     {
         $yaml = <<<YAML
-first: |
-  Block one
-  content
-second: >
-  Folded
-  content
-YAML;
+            first: |
+              Block one
+              content
+            second: >
+              Folded
+              content
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
-        $normalized = str_replace("\r\n", "\n", $result['first']);
+        $normalized = \str_replace("\r\n", "\n", $result['first']);
         $this->assertStringContainsString("Block one\ncontent", $normalized);
         $this->assertStringContainsString('Folded content', $result['second']);
     }
@@ -158,8 +158,8 @@ YAML;
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
-        $normalized = str_replace("\r\n", "\n", $result['code']);
-        $this->assertStringContainsString("def hello():", $normalized);
+        $normalized = \str_replace("\r\n", "\n", $result['code']);
+        $this->assertStringContainsString('def hello():', $normalized);
         $this->assertStringContainsString("  print('hi')", $normalized);
     }
 
@@ -167,7 +167,7 @@ YAML;
 
     public function testFlowSequenceSimple(): void
     {
-        $yaml = "items: [1, 2, 3]";
+        $yaml = 'items: [1, 2, 3]';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -176,7 +176,7 @@ YAML;
 
     public function testFlowMappingSimple(): void
     {
-        $yaml = "point: {x: 10, y: 20}";
+        $yaml = 'point: {x: 10, y: 20}';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -186,7 +186,7 @@ YAML;
 
     public function testFlowNestedCollections(): void
     {
-        $yaml = "matrix: [[1, 2], [3, 4]]";
+        $yaml = 'matrix: [[1, 2], [3, 4]]';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -195,7 +195,7 @@ YAML;
 
     public function testFlowMixedNesting(): void
     {
-        $yaml = "data: {items: [a, b, c], count: 3}";
+        $yaml = 'data: {items: [a, b, c], count: 3}';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -205,7 +205,7 @@ YAML;
 
     public function testFlowEmptySequence(): void
     {
-        $yaml = "items: []";
+        $yaml = 'items: []';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -214,7 +214,7 @@ YAML;
 
     public function testFlowEmptyMapping(): void
     {
-        $yaml = "obj: {}";
+        $yaml = 'obj: {}';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -235,7 +235,7 @@ YAML;
 
     public function testParseScalarAtRoot(): void
     {
-        $yaml = "hello";
+        $yaml = 'hello';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 
@@ -245,10 +245,10 @@ YAML;
     public function testParseNullVariants(): void
     {
         $yaml = <<<YAML
-a: null
-b: ~
-c:
-YAML;
+            a: null
+            b: ~
+            c:
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -261,18 +261,18 @@ YAML;
     public function testParseBooleanVariants(): void
     {
         $yaml = <<<YAML
-a: true
-b: TRUE
-c: True
-d: yes
-e: YES
-f: on
-g: ON
-h: false
-i: FALSE
-j: no
-k: off
-YAML;
+            a: true
+            b: TRUE
+            c: True
+            d: yes
+            e: YES
+            f: on
+            g: ON
+            h: false
+            i: FALSE
+            j: no
+            k: off
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -331,10 +331,10 @@ YAML;
     public function testParseNegativeAndZeroNumbers(): void
     {
         $yaml = <<<YAML
-neg: -42
-zero: 0
-neg_float: -3.14
-YAML;
+            neg: -42
+            zero: 0
+            neg_float: -3.14
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -357,9 +357,9 @@ YAML;
     public function testOnlyComments(): void
     {
         $yaml = <<<YAML
-# This is a comment
-# Another comment
-YAML;
+            # This is a comment
+            # Another comment
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -370,12 +370,12 @@ YAML;
     public function testDeeplyNestedStructure(): void
     {
         $yaml = <<<YAML
-a:
-  b:
-    c:
-      d:
-        e: deep
-YAML;
+            a:
+              b:
+                c:
+                  d:
+                    e: deep
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -387,10 +387,10 @@ YAML;
     {
         // The parser handles inline key: value in list items
         $yaml = <<<YAML
-users:
-  - name: Alice, age: 30
-  - name: Bob, age: 25
-YAML;
+            users:
+              - name: Alice, age: 30
+              - name: Bob, age: 25
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -405,13 +405,13 @@ YAML;
     public function testNestedListsInMap(): void
     {
         $yaml = <<<YAML
-env:
-  dev:
-    - server1
-    - server2
-  prod:
-    - server3
-YAML;
+            env:
+              dev:
+                - server1
+                - server2
+              prod:
+                - server3
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -423,14 +423,14 @@ YAML;
     public function testListItemWithNestedStructure(): void
     {
         $yaml = <<<YAML
-items:
-  -
-    name: item1
-    value: 100
-  -
-    name: item2
-    value: 200
-YAML;
+            items:
+              -
+                name: item1
+                value: 100
+              -
+                name: item2
+                value: 200
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -443,10 +443,10 @@ YAML;
     public function testMultipleTopLevelKeys(): void
     {
         $yaml = <<<YAML
-first: 1
-second: 2
-third: 3
-YAML;
+            first: 1
+            second: 2
+            third: 3
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -459,12 +459,12 @@ YAML;
     public function testBlankLinesBetweenKeys(): void
     {
         $yaml = <<<YAML
-a: 1
+            a: 1
 
-b: 2
+            b: 2
 
-c: 3
-YAML;
+            c: 3
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -479,25 +479,25 @@ YAML;
     public function testComplexConfigStructure(): void
     {
         $yaml = <<<YAML
-app:
-  name: MyFramework
-  version: 2.1
-  debug: false
-  features:
-    - routing
-    - templating
-    - orm
-  database:
-    primary:
-      host: db.example.com
-      port: 5432
-      credentials:
-        user: admin
-        pass: secret
-  cache:
-    driver: redis
-    options: {host: localhost, port: 6379, db: 0}
-YAML;
+            app:
+              name: MyFramework
+              version: 2.1
+              debug: false
+              features:
+                - routing
+                - templating
+                - orm
+              database:
+                primary:
+                  host: db.example.com
+                  port: 5432
+                  credentials:
+                    user: admin
+                    pass: secret
+              cache:
+                driver: redis
+                options: {host: localhost, port: 6379, db: 0}
+            YAML;
 
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
@@ -514,8 +514,8 @@ YAML;
 
     public function testFreshInstanceResetsState(): void
     {
-        $yaml1 = "key1: value1";
-        $yaml2 = "key2: value2";
+        $yaml1 = 'key1: value1';
+        $yaml2 = 'key2: value2';
 
         $parser1 = new YAMLParser($yaml1);
         $result1 = $parser1->parse();

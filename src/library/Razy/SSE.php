@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * from a PHP backend to the browser via the EventSource API.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -44,17 +46,15 @@ class SSE
 
     /**
      * Initialize the SSE connection headers.
-     *
-     * @return void
      */
     public function start(): void
     {
         // Set SSE-specific HTTP headers if not already sent
-        if (!headers_sent()) {
-            header('Content-Type: text/event-stream');
-            header('Cache-Control: no-cache');
-            header('Connection: keep-alive');
-            header('X-Accel-Buffering: no');  // Disable Nginx proxy buffering
+        if (!\headers_sent()) {
+            \header('Content-Type: text/event-stream');
+            \header('Cache-Control: no-cache');
+            \header('Connection: keep-alive');
+            \header('X-Accel-Buffering: no');  // Disable Nginx proxy buffering
         }
 
         // Send the retry interval so the client knows when to reconnect
@@ -69,8 +69,6 @@ class SSE
      * @param string $data
      * @param string|null $event
      * @param string|null $id
-     *
-     * @return void
      */
     public function send(string $data, ?string $event = null, ?string $id = null): void
     {
@@ -89,7 +87,7 @@ class SSE
         }
 
         // SSE requires each data line to be prefixed with 'data: '
-        $lines = explode("\n", $data);
+        $lines = \explode("\n", $data);
         foreach ($lines as $line) {
             echo 'data: ' . $line . "\n";
         }
@@ -103,8 +101,6 @@ class SSE
      * Send a comment (heartbeat).
      *
      * @param string $comment
-     *
-     * @return void
      */
     public function comment(string $comment = ''): void
     {
@@ -114,7 +110,7 @@ class SSE
         }
 
         // SSE comments start with ':' and are ignored by EventSource but keep the connection alive
-        $lines = explode("\n", $comment);
+        $lines = \explode("\n", $comment);
         foreach ($lines as $line) {
             echo ': ' . $line . "\n";
         }
@@ -131,8 +127,6 @@ class SSE
      * @param string $method
      * @param string|null $body
      * @param int|null $timeout
-     *
-     * @return void
      */
     public function proxy(string $url, array $headers = [], string $method = 'GET', ?string $body = null, ?int $timeout = null): void
     {
@@ -142,53 +136,51 @@ class SSE
         }
 
         // Configure cURL to stream response chunks directly to the client
-        $ch = curl_init($url);
-        $method = strtoupper(trim($method));
+        $ch = \curl_init($url);
+        $method = \strtoupper(\trim($method));
 
         // Disable cURL internal buffering so chunks are forwarded immediately
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 
         if ($timeout !== null) {
-            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
         }
 
         if ($headers) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
 
         if ($method !== 'GET') {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         }
 
         if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+            \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
 
         // Write callback forwards each received chunk to the PHP output stream
-        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, string $chunk): int {
+        \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, string $chunk): int {
             if ($chunk !== '') {
                 echo $chunk;
                 $this->flush();
             }
 
             // Return number of bytes handled (cURL requires this)
-            return strlen($chunk);
+            return \strlen($chunk);
         });
 
-        $ok = curl_exec($ch);
+        $ok = \curl_exec($ch);
         if ($ok === false) {
-            $this->send('Proxy error: ' . curl_error($ch), 'error');
+            $this->send('Proxy error: ' . \curl_error($ch), 'error');
         }
 
-        curl_close($ch);
+        \curl_close($ch);
     }
 
     /**
      * Close the SSE stream.
-     *
-     * @return void
      */
     public function close(): void
     {
@@ -197,19 +189,17 @@ class SSE
 
     /**
      * Flush all output buffers to push data to the client immediately.
-     *
-     * @return void
      */
     private function flush(): void
     {
         // Drain all stacked output buffers to ensure data reaches the client
-        if (function_exists('ob_get_level')) {
-            while (ob_get_level() > 0) {
-                ob_end_flush();
+        if (\function_exists('ob_get_level')) {
+            while (\ob_get_level() > 0) {
+                \ob_end_flush();
             }
         }
 
         // Force the web server/PHP SAPI to send buffered output
-        flush();
+        \flush();
     }
 }

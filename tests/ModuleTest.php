@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Razy\Tests;
@@ -20,7 +21,6 @@ use Razy\Module\EventDispatcher;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
 use Razy\ThreadManager;
-use ReflectionClass;
 use ReflectionProperty;
 
 /**
@@ -33,6 +33,7 @@ use ReflectionProperty;
 class ModuleTest extends TestCase
 {
     private string $tempDir;
+
     private string $modulePath;
 
     protected function setUp(): void
@@ -40,20 +41,20 @@ class ModuleTest extends TestCase
         parent::setUp();
 
         // Build a temp directory tree for a minimal module
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_module_test_' . uniqid();
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_module_test_' . \uniqid();
         $this->modulePath = $this->tempDir . DIRECTORY_SEPARATOR . 'test_module';
         $versionDir = $this->modulePath . DIRECTORY_SEPARATOR . 'default';
         $controllerDir = $versionDir . DIRECTORY_SEPARATOR . 'controller';
 
-        mkdir($controllerDir, 0777, true);
+        \mkdir($controllerDir, 0o777, true);
 
         // Create minimal package.php
-        file_put_contents($versionDir . DIRECTORY_SEPARATOR . 'package.php', '<?php return [
+        \file_put_contents($versionDir . DIRECTORY_SEPARATOR . 'package.php', '<?php return [
             "alias" => "testmod",
         ];');
 
         // Create minimal controller file
-        file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'TestModule.php', '<?php
+        \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'TestModule.php', '<?php
 use Razy\Controller;
 return new class(null) extends Controller {
     public function __onInit($agent): bool { return true; }
@@ -70,153 +71,17 @@ return new class(null) extends Controller {
         parent::tearDown();
     }
 
-    private function removeDirectory(string $dir): void
+    public static function unloadableStatusProvider(): array
     {
-        if (!is_dir($dir)) return;
-        foreach (scandir($dir) as $item) {
-            if ($item === '.' || $item === '..') continue;
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            is_dir($path) ? $this->removeDirectory($path) : @unlink($path);
-        }
-        @rmdir($dir);
-    }
-
-    /**
-     * Build a minimal Module with a mocked Distributor.
-     */
-    private function createModule(?Distributor $distributor = null): Module
-    {
-        $dist = $distributor ?? $this->createMockDistributor();
-
-        return new Module($dist, $this->modulePath, [
-            'module_code' => 'test/TestModule',
-            'author' => 'Test Author',
-            'description' => 'Test module',
-        ]);
-    }
-
-    private function createMockDistributor(): Distributor
-    {
-        $mock = $this->createMock(Distributor::class);
-        $mock->method('isStrict')->willReturn(false);
-        $mock->method('getCode')->willReturn('test-dist');
-        $mock->method('getSiteURL')->willReturn('/site/');
-        $mock->method('getContainer')->willReturn(null);
-
-        // Mock sub-objects for delegate method access
-        $mockRouter = $this->createMock(RouteDispatcher::class);
-        $mockRouter->method('getRoutedInfo')->willReturn([]);
-        $mock->method('getRouter')->willReturn($mockRouter);
-
-        $mockRegistry = $this->createMock(ModuleRegistry::class);
-        $mock->method('getRegistry')->willReturn($mockRegistry);
-
-        $mockPrereqs = $this->createMock(PrerequisiteResolver::class);
-        $mock->method('getPrerequisites')->willReturn($mockPrereqs);
-
-        return $mock;
-    }
-
-    /**
-     * Inject a mock Controller into an existing Module via Reflection.
-     */
-    private function injectController(Module $module, ?Controller $controller): void
-    {
-        $ref = new ReflectionProperty(Module::class, 'controller');
-        $ref->setAccessible(true);
-        $ref->setValue($module, $controller);
-    }
-
-    /**
-     * Set module status via Reflection.
-     */
-    private function setStatus(Module $module, ModuleStatus $status): void
-    {
-        $ref = new ReflectionProperty(Module::class, 'status');
-        $ref->setAccessible(true);
-        $ref->setValue($module, $status);
-    }
-
-    /**
-     * Get private property via Reflection.
-     */
-    private function getPrivate(Module $module, string $property): mixed
-    {
-        $ref = new ReflectionProperty(Module::class, $property);
-        $ref->setAccessible(true);
-        return $ref->getValue($module);
-    }
-
-    /**
-     * Create a mock Controller that tracks method calls.
-     * Controller has a final __construct, so we create a real anonymous subclass.
-     */
-    private function createTestController(Module $module, array $overrides = []): Controller
-    {
-        $ctrl = new class($module) extends Controller {
-            public array $calls = [];
-            public array $returnValues = [];
-
-            public function setReturn(string $method, mixed $value): void
-            {
-                $this->returnValues[$method] = $value;
-            }
-
-            public function __onInit($agent): bool
-            {
-                $this->calls[] = ['__onInit', [$agent]];
-                return $this->returnValues['__onInit'] ?? true;
-            }
-
-            public function __onLoad($agent): bool
-            {
-                $this->calls[] = ['__onLoad', [$agent]];
-                return $this->returnValues['__onLoad'] ?? true;
-            }
-
-            public function __onReady(): void
-            {
-                $this->calls[] = ['__onReady', []];
-            }
-
-            public function __onRequire(): bool
-            {
-                $this->calls[] = ['__onRequire', []];
-                return $this->returnValues['__onRequire'] ?? true;
-            }
-
-            public function __onDispose(): void
-            {
-                $this->calls[] = ['__onDispose', []];
-            }
-
-            public function __onEntry(array $routedInfo): void
-            {
-                $this->calls[] = ['__onEntry', [$routedInfo]];
-            }
-
-            public function __onRouted(ModuleInfo $moduleInfo): void
-            {
-                $this->calls[] = ['__onRouted', [$moduleInfo]];
-            }
-
-            public function __onScriptReady(ModuleInfo $moduleInfo): void
-            {
-                $this->calls[] = ['__onScriptReady', [$moduleInfo]];
-            }
-
-            public function __onTouch(ModuleInfo $module, string $version, string $message = ''): bool
-            {
-                $this->calls[] = ['__onTouch', [$module, $version, $message]];
-                return $this->returnValues['__onTouch'] ?? true;
-            }
-        };
-
-        foreach ($overrides as $method => $value) {
-            $ctrl->setReturn($method, $value);
-        }
-
-        return $ctrl;
+        return [
+            'Pending' => [ModuleStatus::Pending],
+            'Initialing' => [ModuleStatus::Initialing],
+            'Processing' => [ModuleStatus::Processing],
+            'InQueue' => [ModuleStatus::InQueue],
+            'Loaded' => [ModuleStatus::Loaded],
+            'Unloaded' => [ModuleStatus::Unloaded],
+            'Disabled' => [ModuleStatus::Disabled],
+        ];
     }
 
     // ==================== CONSTRUCTION & INITIAL STATE ====================
@@ -356,19 +221,6 @@ return new class(null) extends Controller {
         $this->setStatus($module, $initial);
         $module->unload();
         $this->assertSame(ModuleStatus::Unloaded, $module->getStatus());
-    }
-
-    public static function unloadableStatusProvider(): array
-    {
-        return [
-            'Pending'     => [ModuleStatus::Pending],
-            'Initialing'  => [ModuleStatus::Initialing],
-            'Processing'  => [ModuleStatus::Processing],
-            'InQueue'     => [ModuleStatus::InQueue],
-            'Loaded'      => [ModuleStatus::Loaded],
-            'Unloaded'    => [ModuleStatus::Unloaded],
-            'Disabled'    => [ModuleStatus::Disabled],
-        ];
     }
 
     // ==================== LIFECYCLE: initialize() ====================
@@ -817,7 +669,7 @@ return new class(null) extends Controller {
         $module = $this->createModule();
         $module->bind('myMethod', 'path/to/closure.php');
         // Path separator is OS-dependent
-        $expected = str_replace('/', DIRECTORY_SEPARATOR, 'path/to/closure.php');
+        $expected = \str_replace('/', DIRECTORY_SEPARATOR, 'path/to/closure.php');
         $this->assertSame($expected, $module->getBinding('myMethod'));
     }
 
@@ -825,5 +677,159 @@ return new class(null) extends Controller {
     {
         $module = $this->createModule();
         $this->assertSame('', $module->getBinding('unbound'));
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        foreach (\scandir($dir) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            \is_dir($path) ? $this->removeDirectory($path) : @\unlink($path);
+        }
+        @\rmdir($dir);
+    }
+
+    /**
+     * Build a minimal Module with a mocked Distributor.
+     */
+    private function createModule(?Distributor $distributor = null): Module
+    {
+        $dist = $distributor ?? $this->createMockDistributor();
+
+        return new Module($dist, $this->modulePath, [
+            'module_code' => 'test/TestModule',
+            'author' => 'Test Author',
+            'description' => 'Test module',
+        ]);
+    }
+
+    private function createMockDistributor(): Distributor
+    {
+        $mock = $this->createMock(Distributor::class);
+        $mock->method('isStrict')->willReturn(false);
+        $mock->method('getCode')->willReturn('test-dist');
+        $mock->method('getSiteURL')->willReturn('/site/');
+        $mock->method('getContainer')->willReturn(null);
+
+        // Mock sub-objects for delegate method access
+        $mockRouter = $this->createMock(RouteDispatcher::class);
+        $mockRouter->method('getRoutedInfo')->willReturn([]);
+        $mock->method('getRouter')->willReturn($mockRouter);
+
+        $mockRegistry = $this->createMock(ModuleRegistry::class);
+        $mock->method('getRegistry')->willReturn($mockRegistry);
+
+        $mockPrereqs = $this->createMock(PrerequisiteResolver::class);
+        $mock->method('getPrerequisites')->willReturn($mockPrereqs);
+
+        return $mock;
+    }
+
+    /**
+     * Inject a mock Controller into an existing Module via Reflection.
+     */
+    private function injectController(Module $module, ?Controller $controller): void
+    {
+        $ref = new ReflectionProperty(Module::class, 'controller');
+        $ref->setAccessible(true);
+        $ref->setValue($module, $controller);
+    }
+
+    /**
+     * Set module status via Reflection.
+     */
+    private function setStatus(Module $module, ModuleStatus $status): void
+    {
+        $ref = new ReflectionProperty(Module::class, 'status');
+        $ref->setAccessible(true);
+        $ref->setValue($module, $status);
+    }
+
+    /**
+     * Get private property via Reflection.
+     */
+    private function getPrivate(Module $module, string $property): mixed
+    {
+        $ref = new ReflectionProperty(Module::class, $property);
+        $ref->setAccessible(true);
+        return $ref->getValue($module);
+    }
+
+    /**
+     * Create a mock Controller that tracks method calls.
+     * Controller has a final __construct, so we create a real anonymous subclass.
+     */
+    private function createTestController(Module $module, array $overrides = []): Controller
+    {
+        $ctrl = new class($module) extends Controller {
+            public array $calls = [];
+
+            public array $returnValues = [];
+
+            public function setReturn(string $method, mixed $value): void
+            {
+                $this->returnValues[$method] = $value;
+            }
+
+            public function __onInit($agent): bool
+            {
+                $this->calls[] = ['__onInit', [$agent]];
+                return $this->returnValues['__onInit'] ?? true;
+            }
+
+            public function __onLoad($agent): bool
+            {
+                $this->calls[] = ['__onLoad', [$agent]];
+                return $this->returnValues['__onLoad'] ?? true;
+            }
+
+            public function __onReady(): void
+            {
+                $this->calls[] = ['__onReady', []];
+            }
+
+            public function __onRequire(): bool
+            {
+                $this->calls[] = ['__onRequire', []];
+                return $this->returnValues['__onRequire'] ?? true;
+            }
+
+            public function __onDispose(): void
+            {
+                $this->calls[] = ['__onDispose', []];
+            }
+
+            public function __onEntry(array $routedInfo): void
+            {
+                $this->calls[] = ['__onEntry', [$routedInfo]];
+            }
+
+            public function __onRouted(ModuleInfo $moduleInfo): void
+            {
+                $this->calls[] = ['__onRouted', [$moduleInfo]];
+            }
+
+            public function __onScriptReady(ModuleInfo $moduleInfo): void
+            {
+                $this->calls[] = ['__onScriptReady', [$moduleInfo]];
+            }
+
+            public function __onTouch(ModuleInfo $module, string $version, string $message = ''): bool
+            {
+                $this->calls[] = ['__onTouch', [$module, $version, $message]];
+                return $this->returnValues['__onTouch'] ?? true;
+            }
+        };
+
+        foreach ($overrides as $method => $value) {
+            $ctrl->setReturn($method, $value);
+        }
+
+        return $ctrl;
     }
 }

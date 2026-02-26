@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,14 +12,17 @@
  * controller, with optional attached data for route-level context.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
+use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Util\PathUtil;
+
 /**
  * Route entry binding a closure path to a controller.
  *
@@ -30,6 +34,9 @@ use Razy\Util\PathUtil;
  */
 class Route
 {
+    /** @var string[] Valid HTTP methods that can be used as route constraints */
+    private const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', '*'];
+
     /** @var string HTTP method constraint ('*' = any method) */
     private string $method = '*';
 
@@ -42,28 +49,27 @@ class Route
     /** @var array<MiddlewareInterface|Closure> Route-level middleware */
     private array $middleware = [];
 
-    /** @var string[] Valid HTTP methods that can be used as route constraints */
-    private const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', '*'];
-
     /**
      * Route constructor.
      *
      * @param string $closurePath
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function __construct(private string $closurePath)
     {
         // Normalize the path separators and strip leading/trailing slashes
-        $this->closurePath = trim(PathUtil::tidy($this->closurePath, false, '/'), '/');
-        if (strlen($this->closurePath) === 0) {
-            throw new \InvalidArgumentException('The closure path cannot be empty.');
+        $this->closurePath = \trim(PathUtil::tidy($this->closurePath, false, '/'), '/');
+        if (\strlen($this->closurePath) === 0) {
+            throw new InvalidArgumentException('The closure path cannot be empty.');
         }
     }
 
     /**
-     * Insert data for passing data to controller that routed in
+     * Insert data for passing data to controller that routed in.
      *
      * @param $data
+     *
      * @return $this
      */
     public function contain($data = null): self
@@ -86,15 +92,17 @@ class Route
      * Set the HTTP method constraint for this route.
      *
      * @param string $method HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, or '*' for any)
+     *
      * @return $this Fluent interface
-     * @throws \InvalidArgumentException If method is not a valid HTTP method
+     *
+     * @throws InvalidArgumentException If method is not a valid HTTP method
      */
     public function method(string $method): self
     {
-        $method = strtoupper(trim($method));
-        if (!in_array($method, self::VALID_METHODS, true)) {
-            throw new \InvalidArgumentException(
-                "Invalid HTTP method '{$method}'. Valid methods: " . implode(', ', self::VALID_METHODS)
+        $method = \strtoupper(\trim($method));
+        if (!\in_array($method, self::VALID_METHODS, true)) {
+            throw new InvalidArgumentException(
+                "Invalid HTTP method '{$method}'. Valid methods: " . \implode(', ', self::VALID_METHODS),
             );
         }
         $this->method = $method;
@@ -118,6 +126,7 @@ class Route
      * in an onion-style pipeline. Accepts MiddlewareInterface objects or Closures.
      *
      * @param MiddlewareInterface|Closure ...$middleware One or more middleware
+     *
      * @return $this Fluent interface
      */
     public function middleware(MiddlewareInterface|Closure ...$middleware): self
@@ -145,25 +154,27 @@ class Route
      */
     public function hasMiddleware(): bool
     {
-        return count($this->middleware) > 0;
+        return \count($this->middleware) > 0;
     }
 
     /**
      * Assign a name to this route for named route lookups and URL generation.
      *
      * @param string $name The route name (e.g., 'users.show')
+     *
      * @return $this Fluent interface
-     * @throws \InvalidArgumentException If the name is empty or contains invalid characters
+     *
+     * @throws InvalidArgumentException If the name is empty or contains invalid characters
      */
     public function name(string $name): self
     {
-        $name = trim($name);
+        $name = \trim($name);
         if ($name === '') {
-            throw new \InvalidArgumentException('Route name cannot be empty.');
+            throw new InvalidArgumentException('Route name cannot be empty.');
         }
-        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_.\-]*$/', $name)) {
-            throw new \InvalidArgumentException(
-                "Invalid route name '{$name}'. Names must start with a letter or underscore and contain only alphanumeric characters, dots, hyphens, and underscores."
+        if (!\preg_match('/^[A-Za-z_][A-Za-z0-9_.\-]*$/', $name)) {
+            throw new InvalidArgumentException(
+                "Invalid route name '{$name}'. Names must start with a letter or underscore and contain only alphanumeric characters, dots, hyphens, and underscores.",
             );
         }
         $this->name = $name;

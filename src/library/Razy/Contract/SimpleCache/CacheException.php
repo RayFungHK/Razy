@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,15 +12,19 @@
  * Fulfills the PSR-16 specification without requiring psr/simple-cache.
  *
  * @package Razy
+ *
  * @license MIT
+ *
  * @see https://www.php-fig.org/psr/psr-16/
  */
 
 namespace Razy\Contract\SimpleCache;
 
+use Throwable;
+
 /**
  * Interface used for all types of exceptions thrown by the implementing library.
  */
-interface CacheException extends \Throwable
+interface CacheException extends Throwable
 {
 }

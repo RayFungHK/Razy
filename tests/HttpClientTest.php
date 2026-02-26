@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
-use Closure;
-use CurlHandle;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Http\HttpClient;
 use Razy\Http\HttpException;
 use Razy\Http\HttpResponse;
+use RuntimeException;
 
 /**
  * Tests for #10: HTTP Client Wrapper — Fluent API.
@@ -131,7 +130,7 @@ class HttpClientTest extends TestCase
     public function testResponseJson(): void
     {
         $data = ['name' => 'John', 'age' => 30];
-        $response = new HttpResponse(200, json_encode($data));
+        $response = new HttpResponse(200, \json_encode($data));
 
         $json = $response->json();
         $this->assertSame($data, $json);
@@ -140,7 +139,7 @@ class HttpClientTest extends TestCase
     public function testResponseJsonAssocFalse(): void
     {
         $data = ['name' => 'John'];
-        $response = new HttpResponse(200, json_encode($data));
+        $response = new HttpResponse(200, \json_encode($data));
 
         $json = $response->json(false);
         $this->assertIsObject($json);
@@ -164,7 +163,7 @@ class HttpClientTest extends TestCase
     public function testResponseJsonNested(): void
     {
         $data = ['data' => ['users' => [['name' => 'Alice'], ['name' => 'Bob']]]];
-        $response = new HttpResponse(200, json_encode($data));
+        $response = new HttpResponse(200, \json_encode($data));
 
         $json = $response->json();
         $this->assertSame('Alice', $json['data']['users'][0]['name']);
@@ -173,7 +172,7 @@ class HttpClientTest extends TestCase
     public function testResponseJsonGetDotNotation(): void
     {
         $data = ['data' => ['users' => [['name' => 'Alice']], 'count' => 1]];
-        $response = new HttpResponse(200, json_encode($data));
+        $response = new HttpResponse(200, \json_encode($data));
 
         $this->assertSame(1, $response->jsonGet('data.count'));
         $this->assertSame('Alice', $response->jsonGet('data.users.0.name'));
@@ -609,7 +608,7 @@ class HttpClientTest extends TestCase
         $client = new TestableHttpClient();
         $headers = $client->exposeBuildRequestHeaders();
 
-        $headerString = implode("\n", $headers);
+        $headerString = \implode("\n", $headers);
         $this->assertStringContainsString('Content-Type: application/json', $headerString);
         $this->assertStringContainsString('Accept: application/json', $headerString);
     }
@@ -620,7 +619,7 @@ class HttpClientTest extends TestCase
         $client->asForm();
         $headers = $client->exposeBuildRequestHeaders();
 
-        $headerString = implode("\n", $headers);
+        $headerString = \implode("\n", $headers);
         $this->assertStringContainsString('application/x-www-form-urlencoded', $headerString);
     }
 
@@ -630,7 +629,7 @@ class HttpClientTest extends TestCase
         $client->withHeader('x-custom', 'val');
         $headers = $client->exposeBuildRequestHeaders();
 
-        $headerString = implode("\n", $headers);
+        $headerString = \implode("\n", $headers);
         $this->assertStringContainsString('X-Custom: val', $headerString);
     }
 
@@ -639,7 +638,7 @@ class HttpClientTest extends TestCase
         $client = new TestableHttpClient();
         $headers = $client->exposeBuildRequestHeaders(['headers' => ['x-request' => 'per']]);
 
-        $headerString = implode("\n", $headers);
+        $headerString = \implode("\n", $headers);
         $this->assertStringContainsString('X-Request: per', $headerString);
     }
 
@@ -737,14 +736,14 @@ class HttpClientTest extends TestCase
     public function testResponseJsonGetDeepNesting(): void
     {
         $data = ['a' => ['b' => ['c' => ['d' => 42]]]];
-        $response = new HttpResponse(200, json_encode($data));
+        $response = new HttpResponse(200, \json_encode($data));
         $this->assertSame(42, $response->jsonGet('a.b.c.d'));
     }
 
     public function testHttpExceptionIsRuntimeException(): void
     {
         $exception = new HttpException(new HttpResponse(500, ''));
-        $this->assertInstanceOf(\RuntimeException::class, $exception);
+        $this->assertInstanceOf(RuntimeException::class, $exception);
     }
 
     public function testClientFullConfigChain(): void

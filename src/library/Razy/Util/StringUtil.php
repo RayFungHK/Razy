@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Provides static utility methods for string generation and formatting.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,19 +35,19 @@ class StringUtil
      */
     public static function guid(int $length = 4): string
     {
-        $length = max(1, $length);
+        $length = \max(1, $length);
         $pattern = '%04X';
         if ($length > 1) {
-            $pattern .= str_repeat('-%04X', $length - 1);
+            $pattern .= \str_repeat('-%04X', $length - 1);
         }
 
-        $args = array_fill(1, $length, '');
-        array_walk($args, function (&$item) {
-            $item = mt_rand(0, 65535);
+        $args = \array_fill(1, $length, '');
+        \array_walk($args, function (&$item) {
+            $item = \mt_rand(0, 65535);
         });
-        array_unshift($args, $pattern);
+        \array_unshift($args, $pattern);
 
-        return strtolower(call_user_func_array('sprintf', $args));
+        return \strtolower(\call_user_func_array('sprintf', $args));
     }
 
     /**
@@ -57,12 +59,12 @@ class StringUtil
      */
     public static function isJson(string $string): bool
     {
-        if (function_exists('json_validate')) {
-            return json_validate($string);
+        if (\function_exists('json_validate')) {
+            return \json_validate($string);
         }
 
-        json_decode($string);
-        return json_last_error() === JSON_ERROR_NONE;
+        \json_decode($string);
+        return \json_last_error() === JSON_ERROR_NONE;
     }
 
     /**
@@ -87,10 +89,10 @@ class StringUtil
             $unit = $unitScale[++$scale];
         }
 
-        $size = ($decPoint) ? number_format($size, $decPoint) : (int)$size;
+        $size = ($decPoint) ? \number_format($size, $decPoint) : (int) $size;
 
         if ($upperCase) {
-            $unit = strtoupper($unit);
+            $unit = \strtoupper($unit);
         }
 
         return $size . $separator . $unit;
@@ -103,9 +105,9 @@ class StringUtil
      */
     public static function sortPathLevel(array &$routes): void
     {
-        uksort($routes, function ($path_a, $path_b) {
-            $count_a = substr_count(PathUtil::tidy($path_a, true, '/'), '/');
-            $count_b = substr_count(PathUtil::tidy($path_b, true, '/'), '/');
+        \uksort($routes, function ($path_a, $path_b) {
+            $count_a = \substr_count(PathUtil::tidy($path_a, true, '/'), '/');
+            $count_b = \substr_count(PathUtil::tidy($path_b, true, '/'), '/');
             if ($count_a === $count_b) {
                 return 0;
             }

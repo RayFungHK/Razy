@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -17,7 +18,6 @@ namespace Razy\Routing;
 use Closure;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Route;
-use Razy\Util\PathUtil;
 
 /**
  * Groups related routes under a shared prefix, middleware set, and/or name prefix.
@@ -97,7 +97,7 @@ class RouteGroup
      */
     public function __construct(string $prefix = '')
     {
-        $this->prefix = trim($prefix, '/');
+        $this->prefix = \trim($prefix, '/');
     }
 
     /**
@@ -149,7 +149,7 @@ class RouteGroup
      */
     public function method(string $method): static
     {
-        $this->method = strtoupper(trim($method));
+        $this->method = \strtoupper(\trim($method));
 
         return $this;
     }
@@ -173,7 +173,7 @@ class RouteGroup
     /**
      * Add a standard route to the group.
      *
-     * @param string       $path    Route path (relative to group prefix)
+     * @param string $path Route path (relative to group prefix)
      * @param string|Route $handler Closure path or Route entity
      */
     public function addRoute(string $path, string|Route $handler): static
@@ -191,7 +191,7 @@ class RouteGroup
     /**
      * Add a lazy route to the group.
      *
-     * @param string       $path    Route path (relative to group prefix)
+     * @param string $path Route path (relative to group prefix)
      * @param string|Route $handler Closure path or Route entity
      */
     public function addLazyRoute(string $path, string|Route $handler): static
@@ -215,7 +215,7 @@ class RouteGroup
      * });
      * ```
      *
-     * @param string  $prefix   Sub-group prefix (relative to parent)
+     * @param string $prefix Sub-group prefix (relative to parent)
      * @param Closure $callback fn(RouteGroup $sub): void
      */
     public function group(string $prefix, Closure $callback): static
@@ -247,10 +247,10 @@ class RouteGroup
      * Route objects are cloned and decorated with accumulated group middleware,
      * name prefix, and method constraint.
      *
-     * @param string                              $parentPrefix     Accumulated URL prefix
-     * @param array<MiddlewareInterface|Closure>   $parentMiddleware Accumulated middleware
-     * @param string                              $parentNamePrefix Accumulated name prefix
-     * @param string                              $parentMethod     Inherited method constraint
+     * @param string $parentPrefix Accumulated URL prefix
+     * @param array<MiddlewareInterface|Closure> $parentMiddleware Accumulated middleware
+     * @param string $parentNamePrefix Accumulated name prefix
+     * @param string $parentMethod Inherited method constraint
      *
      * @return list<array{path: string, handler: string|Route, routeType: string}>
      */
@@ -261,7 +261,7 @@ class RouteGroup
         string $parentMethod = '*',
     ): array {
         $currentPrefix = $this->buildPrefix($parentPrefix);
-        $currentMiddleware = array_merge($parentMiddleware, $this->middleware);
+        $currentMiddleware = \array_merge($parentMiddleware, $this->middleware);
         $currentNamePrefix = $parentNamePrefix . $this->namePrefix;
         $currentMethod = $this->method !== '*' ? $this->method : $parentMethod;
 
@@ -271,7 +271,7 @@ class RouteGroup
             if ($entry['type'] === 'group') {
                 /** @var RouteGroup $subGroup */
                 $subGroup = $entry['group'];
-                $resolved = array_merge(
+                $resolved = \array_merge(
                     $resolved,
                     $subGroup->resolve($currentPrefix, $currentMiddleware, $currentNamePrefix, $currentMethod),
                 );
@@ -364,7 +364,7 @@ class RouteGroup
      */
     private function buildRoutePath(string $prefix, string $localPath): string
     {
-        $localPath = trim($localPath, '/');
+        $localPath = \trim($localPath, '/');
 
         if ($prefix !== '' && $localPath !== '') {
             return $prefix . '/' . $localPath;
@@ -386,10 +386,10 @@ class RouteGroup
      * For Route handlers: adds group middleware, prepends name prefix, and sets
      * method if the route doesn't have its own.
      *
-     * @param string|Route                        $handler    The original handler
-     * @param array<MiddlewareInterface|Closure>   $middleware Accumulated group middleware
-     * @param string                              $namePrefix Accumulated name prefix
-     * @param string                              $method     Inherited method constraint
+     * @param string|Route $handler The original handler
+     * @param array<MiddlewareInterface|Closure> $middleware Accumulated group middleware
+     * @param string $namePrefix Accumulated name prefix
+     * @param string $method Inherited method constraint
      *
      * @return string|Route
      */
@@ -401,7 +401,7 @@ class RouteGroup
     ): string|Route {
         $hasGroupAttrs = !empty($middleware) || $namePrefix !== '' || $method !== '*';
 
-        if (is_string($handler)) {
+        if (\is_string($handler)) {
             if (!$hasGroupAttrs) {
                 return $handler;
             }

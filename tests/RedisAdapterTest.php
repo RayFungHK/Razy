@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Comprehensive tests for #14: Redis Cache Driver.
  *
@@ -19,33 +20,37 @@ use PHPUnit\Framework\TestCase;
 use Razy\Cache\CacheInterface;
 use Razy\Cache\InvalidArgumentException;
 use Razy\Cache\RedisAdapter;
+use Redis;
+use RedisException;
 
 #[CoversClass(RedisAdapter::class)]
 class RedisAdapterTest extends TestCase
 {
-    private ?\Redis $redis = null;
+    private ?Redis $redis = null;
+
     private ?RedisAdapter $adapter = null;
+
     private string $prefix;
 
     protected function setUp(): void
     {
-        if (!extension_loaded('redis')) {
+        if (!\extension_loaded('redis')) {
             $this->markTestSkipped('Redis extension not available.');
         }
 
-        $host = getenv('REDIS_HOST') ?: '127.0.0.1';
-        $port = (int) (getenv('REDIS_PORT') ?: 6379);
+        $host = \getenv('REDIS_HOST') ?: '127.0.0.1';
+        $port = (int) (\getenv('REDIS_PORT') ?: 6379);
 
         try {
-            $this->redis = new \Redis();
+            $this->redis = new Redis();
             if (!@$this->redis->connect($host, $port, 1.0)) {
                 $this->markTestSkipped("Cannot connect to Redis at {$host}:{$port}.");
             }
-        } catch (\RedisException $e) {
+        } catch (RedisException $e) {
             $this->markTestSkipped('Redis connection failed: ' . $e->getMessage());
         }
 
-        $this->prefix  = 'razy_test_' . uniqid() . '_';
+        $this->prefix = 'razy_test_' . \uniqid() . '_';
         $this->adapter = new RedisAdapter($this->redis, $this->prefix);
     }
 
@@ -54,6 +59,19 @@ class RedisAdapterTest extends TestCase
         if ($this->redis !== null && $this->adapter !== null) {
             $this->adapter->clear();
         }
+    }
+
+    public static function reservedCharProvider(): array
+    {
+        return [
+            'curly open' => ['key{bad}'],
+            'curly close' => ['key}bad'],
+            'parenthesis' => ['key(bad)'],
+            'slash' => ['key/bad'],
+            'backslash' => ['key\\bad'],
+            'at sign' => ['key@bad'],
+            'colon' => ['key:bad'],
+        ];
     }
 
     // ═══════════════════════════════════════════════════════
@@ -329,19 +347,6 @@ class RedisAdapterTest extends TestCase
         $this->adapter->get('');
     }
 
-    public static function reservedCharProvider(): array
-    {
-        return [
-            'curly open'  => ['key{bad}'],
-            'curly close' => ['key}bad'],
-            'parenthesis' => ['key(bad)'],
-            'slash'       => ['key/bad'],
-            'backslash'   => ['key\\bad'],
-            'at sign'     => ['key@bad'],
-            'colon'       => ['key:bad'],
-        ];
-    }
-
     #[DataProvider('reservedCharProvider')]
     public function testReservedCharactersInKeyThrows(string $key): void
     {
@@ -380,7 +385,7 @@ class RedisAdapterTest extends TestCase
 
     public function testDifferentPrefixesAreIsolated(): void
     {
-        $adapter2 = new RedisAdapter($this->redis, 'razy_other_' . uniqid() . '_');
+        $adapter2 = new RedisAdapter($this->redis, 'razy_other_' . \uniqid() . '_');
 
         $this->adapter->set('shared', 'from-A');
         $adapter2->set('shared', 'from-B');
@@ -451,7 +456,7 @@ class RedisAdapterTest extends TestCase
 
         $this->adapter->setMultiple($data);
 
-        $result = $this->adapter->getMultiple(array_keys($data));
+        $result = $this->adapter->getMultiple(\array_keys($data));
         $this->assertSame($data, $result);
     }
 }

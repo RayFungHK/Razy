@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Closure;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use Razy\Database\Driver;
 use Razy\Database\Driver\MySQL;
 use Razy\Database\Driver\PostgreSQL;
 use Razy\Database\Driver\SQLite;
+use ReflectionClass;
+use ReflectionMethod;
 
 /**
  * Tests for individual Database Driver implementations.
@@ -25,7 +28,9 @@ use Razy\Database\Driver\SQLite;
 class DatabaseDriverTest extends TestCase
 {
     private MySQL $mysql;
+
     private SQLite $sqlite;
+
     private PostgreSQL $pgsql;
 
     protected function setUp(): void
@@ -298,24 +303,17 @@ class DatabaseDriverTest extends TestCase
         $this->assertSame('(a || b || c)', $this->pgsql->getConcatSyntax(['a', 'b', 'c']));
     }
 
-    // ── getUpsertSyntax ──────────────────────────────────────
-
-    private function valueGetter(): \Closure
-    {
-        return fn(string $column): string => ':' . $column;
-    }
-
     public function testMySQLUpsertSimpleInsert(): void
     {
         $sql = $this->mysql->getUpsertSyntax(
             'users',
             ['name', 'email'],
             [],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertSame(
             'INSERT INTO users (`name`, `email`) VALUES (:name, :email)',
-            $sql
+            $sql,
         );
     }
 
@@ -325,7 +323,7 @@ class DatabaseDriverTest extends TestCase
             'users',
             ['id', 'name', 'email'],
             ['name', 'email'],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $sql);
         $this->assertStringContainsString('`name` = :name', $sql);
@@ -338,11 +336,11 @@ class DatabaseDriverTest extends TestCase
             'users',
             ['name', 'email'],
             [],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertSame(
             'INSERT INTO users ("name", "email") VALUES (:name, :email)',
-            $sql
+            $sql,
         );
     }
 
@@ -352,7 +350,7 @@ class DatabaseDriverTest extends TestCase
             'users',
             ['id', 'name', 'email'],
             ['id'],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertStringContainsString('ON CONFLICT("id")', $sql);
         $this->assertStringContainsString('DO UPDATE SET', $sql);
@@ -367,7 +365,7 @@ class DatabaseDriverTest extends TestCase
             'users',
             ['id', 'name'],
             ['id', 'name'],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertStringContainsString('DO NOTHING', $sql);
     }
@@ -378,11 +376,11 @@ class DatabaseDriverTest extends TestCase
             'users',
             ['name', 'email'],
             [],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertSame(
             'INSERT INTO users ("name", "email") VALUES (:name, :email)',
-            $sql
+            $sql,
         );
     }
 
@@ -392,7 +390,7 @@ class DatabaseDriverTest extends TestCase
             'users',
             ['id', 'name', 'email'],
             ['id'],
-            $this->valueGetter()
+            $this->valueGetter(),
         );
         $this->assertStringContainsString('ON CONFLICT ("id")', $sql);
         $this->assertStringContainsString('DO UPDATE SET', $sql);
@@ -477,18 +475,18 @@ class DatabaseDriverTest extends TestCase
 
     public function testDriverIsAbstract(): void
     {
-        $reflection = new \ReflectionClass(Driver::class);
+        $reflection = new ReflectionClass(Driver::class);
         $this->assertTrue($reflection->isAbstract());
     }
 
     public function testDriverAbstractMethods(): void
     {
-        $reflection = new \ReflectionClass(Driver::class);
-        $abstractMethods = array_filter(
+        $reflection = new ReflectionClass(Driver::class);
+        $abstractMethods = \array_filter(
             $reflection->getMethods(),
-            fn(\ReflectionMethod $m) => $m->isAbstract()
+            fn (ReflectionMethod $m) => $m->isAbstract(),
         );
-        $names = array_map(fn(\ReflectionMethod $m) => $m->getName(), $abstractMethods);
+        $names = \array_map(fn (ReflectionMethod $m) => $m->getName(), $abstractMethods);
         $this->assertContains('getType', $names);
         $this->assertContains('connect', $names);
         $this->assertContains('getLimitSyntax', $names);
@@ -496,5 +494,12 @@ class DatabaseDriverTest extends TestCase
         $this->assertContains('getUpsertSyntax', $names);
         $this->assertContains('getConcatSyntax', $names);
         $this->assertContains('tableExists', $names);
+    }
+
+    // ── getUpsertSyntax ──────────────────────────────────────
+
+    private function valueGetter(): Closure
+    {
+        return fn (string $column): string => ':' . $column;
     }
 }

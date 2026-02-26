@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -28,11 +29,11 @@ interface LogHandlerInterface
     /**
      * Handle a log record.
      *
-     * @param string $level     PSR-3 log level
-     * @param string $message   Interpolated message
-     * @param array  $context   Original context array
+     * @param string $level PSR-3 log level
+     * @param string $message Interpolated message
+     * @param array $context Original context array
      * @param string $timestamp Formatted timestamp string
-     * @param string $channel   The channel name
+     * @param string $channel The channel name
      */
     public function handle(string $level, string $message, array $context, string $timestamp, string $channel): void;
 

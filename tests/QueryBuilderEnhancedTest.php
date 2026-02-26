@@ -8,7 +8,6 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
 use Razy\ORM\Model;
-use Razy\ORM\ModelCollection;
 use Razy\ORM\ModelQuery;
 
 /**
@@ -442,6 +441,8 @@ class QueryBuilderEnhancedTest extends TestCase
 class QE_Item extends Model
 {
     protected static string $table = 'qe_items';
+
     protected static array $fillable = ['name', 'price', 'category'];
+
     protected static array $casts = ['price' => 'int'];
 }

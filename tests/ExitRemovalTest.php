@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use Razy\Exception\HttpException;
-use Razy\Exception\RedirectException;
 use Razy\Exception\NotFoundException;
+use Razy\Exception\RedirectException;
+use RuntimeException;
 
 /**
  * Tests for Phase 1.2: exit() removal and HttpException-based flow control.
@@ -26,7 +28,7 @@ class ExitRemovalTest extends TestCase
     public function testHttpExceptionExtendsRuntimeException(): void
     {
         $e = new HttpException(500, 'Server Error');
-        $this->assertInstanceOf(\RuntimeException::class, $e);
+        $this->assertInstanceOf(RuntimeException::class, $e);
     }
 
     public function testHttpExceptionDefaultStatusCode(): void
@@ -134,7 +136,7 @@ class ExitRemovalTest extends TestCase
 
     public function testHttpExceptionPreviousChaining(): void
     {
-        $original = new \Exception('original error');
+        $original = new Exception('original error');
         $http = new HttpException(500, 'wrapped', $original);
 
         $this->assertSame($original, $http->getPrevious());

@@ -187,7 +187,7 @@ class AttributeSerializationTest extends TestCase
         $user = AS_User::create($db, ['first_name' => 'ray', 'last_name' => 'fung', 'email' => 'ray@test.com', 'password' => 'secret']);
 
         $json = $user->toJson();
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
 
         $this->assertArrayNotHasKey('password', $decoded);
         $this->assertArrayHasKey('first_name', $decoded);
@@ -252,7 +252,7 @@ class AttributeSerializationTest extends TestCase
         $arr = $item->toArray();
 
         // $visible = ['name', 'id'] → only these appear, regardless of $hidden
-        $this->assertSame(['name', 'id'], array_keys($arr));
+        $this->assertSame(['name', 'id'], \array_keys($arr));
     }
 
     public function testGetVisibleReturnsVisibleArray(): void
@@ -267,7 +267,7 @@ class AttributeSerializationTest extends TestCase
 
         $item = AS_VisibleOnly::create($db, ['name' => 'Public', 'internal_code' => 'X123', 'notes' => 'secret']);
 
-        $decoded = json_decode($item->toJson(), true);
+        $decoded = \json_decode($item->toJson(), true);
 
         $this->assertArrayHasKey('name', $decoded);
         $this->assertArrayNotHasKey('internal_code', $decoded);
@@ -287,7 +287,7 @@ class AttributeSerializationTest extends TestCase
         $json = $item->toJson();
         $this->assertJson($json);
 
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertSame('Hello', $decoded['name']);
         $this->assertSame('42', $decoded['value']);
     }
@@ -310,7 +310,7 @@ class AttributeSerializationTest extends TestCase
 
         $user = AS_User::create($db, ['first_name' => 'ray', 'last_name' => 'fung', 'email' => 'ray@test.com', 'password' => 'secret']);
 
-        $decoded = json_decode($user->toJson(), true);
+        $decoded = \json_decode($user->toJson(), true);
 
         // Accessor transforms first_name to ucfirst
         $this->assertSame('Ray', $decoded['first_name']);
@@ -324,7 +324,7 @@ class AttributeSerializationTest extends TestCase
 
         $user = AS_User::create($db, ['first_name' => 'ray', 'last_name' => 'fung', 'email' => 'ray@test.com', 'password' => 'secret']);
 
-        $decoded = json_decode($user->toJson(), true);
+        $decoded = \json_decode($user->toJson(), true);
         $this->assertArrayNotHasKey('password', $decoded);
     }
 
@@ -344,7 +344,7 @@ class AttributeSerializationTest extends TestCase
         $json = $collection->toJson();
 
         $this->assertJson($json);
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertCount(2, $decoded);
         $this->assertSame('A', $decoded[0]['name']);
         $this->assertSame('B', $decoded[1]['name']);
@@ -358,7 +358,7 @@ class AttributeSerializationTest extends TestCase
         AS_User::create($db, ['first_name' => 'ray', 'last_name' => 'fung', 'email' => 'ray@test.com', 'password' => 'secret']);
 
         $collection = AS_User::all($db);
-        $decoded = json_decode($collection->toJson(), true);
+        $decoded = \json_decode($collection->toJson(), true);
 
         $this->assertArrayNotHasKey('password', $decoded[0]);
     }
@@ -496,7 +496,7 @@ class AttributeSerializationTest extends TestCase
         $model->name = 'Fresh';
 
         $json = $model->toJson();
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertSame('Fresh', $decoded['name']);
     }
 
@@ -600,31 +600,33 @@ class AttributeSerializationTest extends TestCase
 class AS_User extends Model
 {
     protected static string $table = 'as_users';
+
     protected static array $fillable = ['first_name', 'last_name', 'email', 'password'];
+
     protected static array $hidden = ['password'];
 
     // Accessor: first_name → ucfirst
     public function getFirstNameAttribute(?string $value): string
     {
-        return ucfirst($value ?? '');
+        return \ucfirst($value ?? '');
     }
 
     // Accessor: last_name → strtoupper
     public function getLastNameAttribute(?string $value): string
     {
-        return strtoupper($value ?? '');
+        return \strtoupper($value ?? '');
     }
 
     // Computed accessor: full_name (virtual, no underlying column)
     public function getFullNameAttribute(): string
     {
-        return $this->first_name . ' ' . ucfirst($this->getRawAttribute('last_name') ?? '');
+        return $this->first_name . ' ' . \ucfirst($this->getRawAttribute('last_name') ?? '');
     }
 
     // Mutator: email → strtolower
     public function setEmailAttribute(string $value): void
     {
-        $this->attributes['email'] = strtolower($value);
+        $this->attributes['email'] = \strtolower($value);
     }
 
     // Mutator: password → hash
@@ -640,6 +642,7 @@ class AS_User extends Model
 class AS_Simple extends Model
 {
     protected static string $table = 'as_simples';
+
     protected static array $fillable = ['name', 'value'];
 }
 
@@ -650,7 +653,9 @@ class AS_Simple extends Model
 class AS_CastAccessor extends Model
 {
     protected static string $table = 'as_cast_accessors';
+
     protected static array $fillable = ['score', 'label'];
+
     protected static array $casts = ['score' => 'int'];
 
     // Accessor should win over cast for 'score'
@@ -662,7 +667,7 @@ class AS_CastAccessor extends Model
     // Accessor for 'label': uppercase
     public function getLabelAttribute(mixed $value): string
     {
-        return strtoupper($value ?? '');
+        return \strtoupper($value ?? '');
     }
 
     // Mutator for 'label': prepend 'L:'
@@ -678,7 +683,9 @@ class AS_CastAccessor extends Model
 class AS_MultiHidden extends Model
 {
     protected static string $table = 'as_multi_hiddens';
+
     protected static array $fillable = ['name', 'secret1', 'secret2'];
+
     protected static array $hidden = ['secret1', 'secret2'];
 }
 
@@ -688,7 +695,9 @@ class AS_MultiHidden extends Model
 class AS_VisibleOnly extends Model
 {
     protected static string $table = 'as_visible_onlys';
+
     protected static array $fillable = ['name', 'internal_code', 'notes'];
+
     protected static array $visible = ['name', 'id'];
 }
 
@@ -698,7 +707,10 @@ class AS_VisibleOnly extends Model
 class AS_VisibleAndHidden extends Model
 {
     protected static string $table = 'as_visible_and_hiddens';
+
     protected static array $fillable = ['name', 'code', 'secret'];
+
     protected static array $visible = ['name', 'id'];
+
     protected static array $hidden = ['secret'];
 }

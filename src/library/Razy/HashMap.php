@@ -13,6 +13,7 @@
  * custom string keys, object identity hashes, or auto-generated IDs.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -22,8 +23,8 @@ use ArrayAccess;
 use Countable;
 use Generator;
 use Iterator;
-
 use Razy\Util\StringUtil;
+
 /**
  * An ordered hash map that maps values to unique hash keys.
  *
@@ -69,8 +70,8 @@ class HashMap implements ArrayAccess, Iterator, Countable
      * without a custom hash, the spl_object_hash is used (prefix "o:").
      * For scalar values without a hash, a random GUID is generated (prefix "i:").
      *
-     * @param mixed  $object The value to store in the map
-     * @param string $hash   Optional custom key; auto-generated if empty
+     * @param mixed $object The value to store in the map
+     * @param string $hash Optional custom key; auto-generated if empty
      *
      * @return static
      */
@@ -80,9 +81,9 @@ class HashMap implements ArrayAccess, Iterator, Countable
             // Custom key provided — prefix with "c:" to denote a custom hash
             $hash = 'c:' . $hash;
         } else {
-            if (is_object($object)) {
+            if (\is_object($object)) {
                 // Use PHP's unique object identifier as the hash key
-                $hash = 'o:' . spl_object_hash($object);
+                $hash = 'o:' . \spl_object_hash($object);
             } else {
                 // Generate a random 6-char GUID for non-object values
                 $hash = 'i:' . StringUtil::guid(6);
@@ -93,7 +94,7 @@ class HashMap implements ArrayAccess, Iterator, Countable
         $this->hashOrder[] = $hash;
         $this->hashMap[$hash] = [
             'value' => $object,
-            'index' => count($this->hashOrder) - 1,
+            'index' => \count($this->hashOrder) - 1,
         ];
         return $this;
     }
@@ -108,7 +109,7 @@ class HashMap implements ArrayAccess, Iterator, Countable
      */
     public function getGenerator(): Generator
     {
-        for ($i = 0; $i < count($this->hashOrder); $i++) {
+        for ($i = 0; $i < \count($this->hashOrder); $i++) {
             // Yield the value at the current position; $i is preserved between yields
             yield $this->hashMap[$this->hashOrder[$i]]['value'] ?? null;
         }
@@ -121,14 +122,12 @@ class HashMap implements ArrayAccess, Iterator, Countable
      * For other values, the offset is used directly.
      *
      * @param mixed $offset A string key or object reference to remove
-     *
-     * @return void
      */
     public function remove(mixed $offset): void
     {
-        if (is_object($offset)) {
+        if (\is_object($offset)) {
             // Derive the internal hash from the object's identity
-            $hash = 'o:' . spl_object_hash($offset);
+            $hash = 'o:' . \spl_object_hash($offset);
             $this->offsetUnset($hash);
         } else {
             $this->offsetUnset($offset);
@@ -147,12 +146,11 @@ class HashMap implements ArrayAccess, Iterator, Countable
      */
     public function has(mixed $offset): bool
     {
-        if (is_object($offset)) {
-            $hash = 'o:' . spl_object_hash($offset);
+        if (\is_object($offset)) {
+            $hash = 'o:' . \spl_object_hash($offset);
             return isset($this->hashMap[$hash]);
-        } else {
-            return $this->offsetExists($offset);
         }
+        return $this->offsetExists($offset);
     }
 
     /**
@@ -174,8 +172,6 @@ class HashMap implements ArrayAccess, Iterator, Countable
      * Advance the iterator to the next position.
      *
      * Part of the Iterator interface.
-     *
-     * @return void
      */
     public function next(): void
     {
@@ -191,7 +187,7 @@ class HashMap implements ArrayAccess, Iterator, Countable
      */
     public function key(): int
     {
-       return $this->position;
+        return $this->position;
     }
 
     /**
@@ -211,8 +207,6 @@ class HashMap implements ArrayAccess, Iterator, Countable
      * Reset the iterator to the first position.
      *
      * Part of the Iterator interface.
-     *
-     * @return void
      */
     public function rewind(): void
     {
@@ -253,9 +247,7 @@ class HashMap implements ArrayAccess, Iterator, Countable
      * Part of the ArrayAccess interface.
      *
      * @param mixed $offset The hash key (or null for auto-generated)
-     * @param mixed $value  The value to store
-     *
-     * @return void
+     * @param mixed $value The value to store
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
@@ -269,15 +261,12 @@ class HashMap implements ArrayAccess, Iterator, Countable
      * Part of the ArrayAccess interface.
      *
      * @param mixed $offset The hash key to remove
-     *
-     * @return void
      */
     public function offsetUnset(mixed $offset): void
     {
         if (isset($this->hashMap[$offset])) {
             // Remove from both the ordered index and the key-value map
-            unset($this->hashOrder[$this->hashMap[$offset]['index']]);
-            unset($this->hashMap[$offset]);
+            unset($this->hashOrder[$this->hashMap[$offset]['index']], $this->hashMap[$offset]);
         }
     }
 
@@ -290,6 +279,6 @@ class HashMap implements ArrayAccess, Iterator, Countable
      */
     public function count(): int
     {
-        return count($this->hashMap);
+        return \count($this->hashMap);
     }
 }

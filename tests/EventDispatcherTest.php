@@ -12,6 +12,7 @@ use Razy\Controller;
 use Razy\Exception\ModuleException;
 use Razy\Module\ClosureLoader;
 use Razy\Module\EventDispatcher;
+use RuntimeException;
 
 /**
  * Tests for EventDispatcher — event listener registration, lookup, and firing.
@@ -43,7 +44,7 @@ class EventDispatcherTest extends TestCase
 
     public function testListenRegistersEventWithClosure(): void
     {
-        $this->dispatcher->listen('vendor/module:on_load', fn() => 'loaded');
+        $this->dispatcher->listen('vendor/module:on_load', fn () => 'loaded');
         $this->assertTrue($this->dispatcher->isEventListening('vendor/module', 'on_load'));
     }
 
@@ -88,7 +89,7 @@ class EventDispatcherTest extends TestCase
 
     public function testIsEventListeningReturnsTrueForRegistered(): void
     {
-        $this->dispatcher->listen('vendor/module:ready', fn() => true);
+        $this->dispatcher->listen('vendor/module:ready', fn () => true);
         $this->assertTrue($this->dispatcher->isEventListening('vendor/module', 'ready'));
     }
 
@@ -115,7 +116,7 @@ class EventDispatcherTest extends TestCase
         $receivedArgs = [];
         $this->dispatcher->listen('vendor/module:echo', function (...$args) use (&$receivedArgs) {
             $receivedArgs = $args;
-            return count($args);
+            return \count($args);
         });
 
         $controller = new Controller(null);
@@ -141,7 +142,7 @@ class EventDispatcherTest extends TestCase
 
     public function testFireEventClosureExceptionCallsOnError(): void
     {
-        $exception = new \RuntimeException('test error');
+        $exception = new RuntimeException('test error');
 
         $this->dispatcher->listen('vendor/module:fail', function () use ($exception) {
             throw $exception;
@@ -168,7 +169,7 @@ class EventDispatcherTest extends TestCase
     public function testResetClearsAllListeners(): void
     {
         $this->dispatcher->listen('vendor/mod1:event1', '/path1');
-        $this->dispatcher->listen('vendor/mod2:event2', fn() => null);
+        $this->dispatcher->listen('vendor/mod2:event2', fn () => null);
 
         $this->dispatcher->reset();
 
@@ -306,7 +307,7 @@ class EventDispatcherTest extends TestCase
 
         $controller = new Controller(null);
 
-        $closure = fn() => 'loaded_from_file';
+        $closure = fn () => 'loaded_from_file';
 
         $closureLoader = $this->createMock(ClosureLoader::class);
         $closureLoader->expects($this->once())
@@ -322,7 +323,7 @@ class EventDispatcherTest extends TestCase
     {
         $this->dispatcher->listen('vendor/module:error_handler', '/path');
 
-        $exception = new \RuntimeException('string path error');
+        $exception = new RuntimeException('string path error');
 
         $controller = $this->getMockBuilder(Controller::class)
             ->setConstructorArgs([null])

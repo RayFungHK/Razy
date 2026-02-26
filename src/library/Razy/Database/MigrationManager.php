@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Database migration manager for schema versioning.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -83,8 +85,8 @@ class MigrationManager
      */
     public function addPath(string $path): static
     {
-        $path = rtrim(str_replace('\\', '/', $path), '/');
-        if (!in_array($path, $this->migrationPaths, true)) {
+        $path = \rtrim(\str_replace('\\', '/', $path), '/');
+        if (!\in_array($path, $this->migrationPaths, true)) {
             $this->migrationPaths[] = $path;
         }
 
@@ -106,8 +108,6 @@ class MigrationManager
      *
      * Creates the table on first call. Uses driver-appropriate DDL
      * for MySQL, PostgreSQL, and SQLite.
-     *
-     * @return void
      */
     public function ensureTrackingTable(): void
     {
@@ -158,11 +158,11 @@ class MigrationManager
         $migrations = [];
 
         foreach ($this->migrationPaths as $path) {
-            if (!is_dir($path)) {
+            if (!\is_dir($path)) {
                 continue;
             }
 
-            $files = scandir($path);
+            $files = \scandir($path);
             if ($files === false) {
                 continue;
             }
@@ -172,15 +172,15 @@ class MigrationManager
                     continue;
                 }
 
-                if (preg_match(self::MIGRATION_FILENAME_PATTERN, $file)) {
-                    $name = pathinfo($file, PATHINFO_FILENAME);
+                if (\preg_match(self::MIGRATION_FILENAME_PATTERN, $file)) {
+                    $name = \pathinfo($file, PATHINFO_FILENAME);
                     $fullPath = $path . '/' . $file;
                     $migrations[$name] = $fullPath;
                 }
             }
         }
 
-        ksort($migrations);
+        \ksort($migrations);
 
         return $migrations;
     }
@@ -197,13 +197,13 @@ class MigrationManager
         $tableName = $this->qualifiedTableName();
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration FROM \"{$tableName}\" ORDER BY id ASC"
-            )
+                "SELECT migration FROM \"{$tableName}\" ORDER BY id ASC",
+            ),
         );
 
         $rows = $query->fetchAll();
 
-        return array_column($rows, 'migration');
+        return \array_column($rows, 'migration');
     }
 
     /**
@@ -216,7 +216,7 @@ class MigrationManager
         $all = $this->discover();
         $applied = $this->getApplied();
 
-        return array_diff_key($all, array_flip($applied));
+        return \array_diff_key($all, \array_flip($applied));
     }
 
     /**
@@ -282,11 +282,11 @@ class MigrationManager
         // Get the distinct batch numbers to rollback (most recent first)
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT DISTINCT batch FROM \"{$tableName}\" ORDER BY batch DESC"
-            )
+                "SELECT DISTINCT batch FROM \"{$tableName}\" ORDER BY batch DESC",
+            ),
         );
-        $batches = array_column($query->fetchAll(), 'batch');
-        $batchesToRollback = array_slice($batches, 0, $steps);
+        $batches = \array_column($query->fetchAll(), 'batch');
+        $batchesToRollback = \array_slice($batches, 0, $steps);
 
         if (empty($batchesToRollback)) {
             return [];
@@ -297,8 +297,8 @@ class MigrationManager
         foreach ($batchesToRollback as $batch) {
             $query = $this->database->execute(
                 $this->database->prepare(
-                    "SELECT migration FROM \"{$tableName}\" WHERE batch = {$batch} ORDER BY id DESC"
-                )
+                    "SELECT migration FROM \"{$tableName}\" WHERE batch = {$batch} ORDER BY id DESC",
+                ),
             );
             foreach ($query->fetchAll() as $row) {
                 $migrationsToRollback[] = $row['migration'];
@@ -343,8 +343,8 @@ class MigrationManager
         // Get all applied migrations in reverse order
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration FROM \"{$tableName}\" ORDER BY id DESC"
-            )
+                "SELECT migration FROM \"{$tableName}\" ORDER BY id DESC",
+            ),
         );
         $rows = $query->fetchAll();
 
@@ -353,7 +353,7 @@ class MigrationManager
         }
 
         // Collect migration names before executing DDL
-        $migrationsToReset = array_column($rows, 'migration');
+        $migrationsToReset = \array_column($rows, 'migration');
 
         // Clear statement pool to release SQLite cursor locks before DDL
         $this->database->clearStatementPool();
@@ -396,8 +396,8 @@ class MigrationManager
         // Get applied migration details
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration, batch, executed_at FROM \"{$tableName}\" ORDER BY id ASC"
-            )
+                "SELECT migration, batch, executed_at FROM \"{$tableName}\" ORDER BY id ASC",
+            ),
         );
         $appliedRows = $query->fetchAll();
         $appliedMap = [];
@@ -453,8 +453,8 @@ class MigrationManager
 
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT MAX(batch) as max_batch FROM \"{$tableName}\""
-            )
+                "SELECT MAX(batch) as max_batch FROM \"{$tableName}\"",
+            ),
         );
         $row = $query->fetch();
 
@@ -464,20 +464,18 @@ class MigrationManager
     /**
      * Record a migration as applied in the tracking table.
      *
-     * @param string $name  Migration name
-     * @param int    $batch Batch number
-     *
-     * @return void
+     * @param string $name Migration name
+     * @param int $batch Batch number
      */
     private function recordMigration(string $name, int $batch): void
     {
         $tableName = $this->qualifiedTableName();
-        $escapedName = addslashes($name);
+        $escapedName = \addslashes($name);
 
         $this->database->execute(
             $this->database->prepare(
-                "INSERT INTO \"{$tableName}\" (migration, batch) VALUES ('{$escapedName}', {$batch})"
-            )
+                "INSERT INTO \"{$tableName}\" (migration, batch) VALUES ('{$escapedName}', {$batch})",
+            ),
         );
     }
 
@@ -485,18 +483,16 @@ class MigrationManager
      * Remove a migration record from the tracking table.
      *
      * @param string $name Migration name
-     *
-     * @return void
      */
     private function removeMigrationRecord(string $name): void
     {
         $tableName = $this->qualifiedTableName();
-        $escapedName = addslashes($name);
+        $escapedName = \addslashes($name);
 
         $this->database->execute(
             $this->database->prepare(
-                "DELETE FROM \"{$tableName}\" WHERE migration = '{$escapedName}'"
-            )
+                "DELETE FROM \"{$tableName}\" WHERE migration = '{$escapedName}'",
+            ),
         );
     }
 
@@ -523,7 +519,7 @@ class MigrationManager
      */
     private function resolveMigration(string $path): Migration
     {
-        if (!file_exists($path)) {
+        if (!\file_exists($path)) {
             throw new DatabaseException("Migration file not found: {$path}");
         }
 
@@ -531,7 +527,7 @@ class MigrationManager
 
         if (!$result instanceof Migration) {
             throw new DatabaseException(
-                "Migration file must return a Migration instance: {$path}"
+                "Migration file must return a Migration instance: {$path}",
             );
         }
 

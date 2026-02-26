@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -26,19 +27,19 @@ namespace Razy\Queue;
 class Job
 {
     /**
-     * @param int|string          $id           Unique job identifier (DB primary key)
-     * @param string              $queue        Queue name this job belongs to
-     * @param string              $handler      Fully-qualified class name of the job handler
-     * @param array<string,mixed> $payload      Deserialized payload data
-     * @param int                 $attempts     Number of times this job has been attempted
-     * @param int                 $maxAttempts  Maximum allowed attempts before burying
-     * @param int                 $retryDelay   Seconds to wait before retrying on failure
-     * @param int                 $priority     Lower = higher priority (default 100)
-     * @param string|null         $availableAt  ISO datetime when the job becomes available
-     * @param string|null         $createdAt    ISO datetime when the job was created
-     * @param string|null         $reservedAt   ISO datetime when the job was reserved
-     * @param JobStatus           $status       Current job status
-     * @param string|null         $error        Last error message (if failed)
+     * @param int|string $id Unique job identifier (DB primary key)
+     * @param string $queue Queue name this job belongs to
+     * @param string $handler Fully-qualified class name of the job handler
+     * @param array<string,mixed> $payload Deserialized payload data
+     * @param int $attempts Number of times this job has been attempted
+     * @param int $maxAttempts Maximum allowed attempts before burying
+     * @param int $retryDelay Seconds to wait before retrying on failure
+     * @param int $priority Lower = higher priority (default 100)
+     * @param string|null $availableAt ISO datetime when the job becomes available
+     * @param string|null $createdAt ISO datetime when the job was created
+     * @param string|null $reservedAt ISO datetime when the job was reserved
+     * @param JobStatus $status Current job status
+     * @param string|null $error Last error message (if failed)
      */
     public function __construct(
         public readonly int|string $id,
@@ -54,7 +55,34 @@ class Job
         public ?string $reservedAt = null,
         public JobStatus $status = JobStatus::Pending,
         public ?string $error = null,
-    ) {}
+    ) {
+    }
+
+    /**
+     * Create a Job from a database row array.
+     *
+     * @param array<string, mixed> $row Database row
+     *
+     * @return static
+     */
+    public static function fromArray(array $row): static
+    {
+        return new static(
+            id: $row['id'],
+            queue: $row['queue'] ?? 'default',
+            handler: $row['handler'],
+            payload: \json_decode($row['payload'] ?? '{}', true, 512, JSON_THROW_ON_ERROR),
+            attempts: (int) ($row['attempts'] ?? 0),
+            maxAttempts: (int) ($row['max_attempts'] ?? 3),
+            retryDelay: (int) ($row['retry_delay'] ?? 0),
+            priority: (int) ($row['priority'] ?? 100),
+            availableAt: $row['available_at'] ?? null,
+            createdAt: $row['created_at'] ?? null,
+            reservedAt: $row['reserved_at'] ?? null,
+            status: JobStatus::from($row['status'] ?? 'pending'),
+            error: $row['error'] ?? null,
+        );
+    }
 
     /**
      * Increment the attempt counter.
@@ -78,7 +106,7 @@ class Job
     public function markReserved(): void
     {
         $this->status = JobStatus::Reserved;
-        $this->reservedAt = date('Y-m-d H:i:s');
+        $this->reservedAt = \date('Y-m-d H:i:s');
     }
 
     /**
@@ -118,7 +146,7 @@ class Job
             'id' => $this->id,
             'queue' => $this->queue,
             'handler' => $this->handler,
-            'payload' => json_encode($this->payload, JSON_THROW_ON_ERROR),
+            'payload' => \json_encode($this->payload, JSON_THROW_ON_ERROR),
             'attempts' => $this->attempts,
             'max_attempts' => $this->maxAttempts,
             'retry_delay' => $this->retryDelay,
@@ -129,31 +157,5 @@ class Job
             'status' => $this->status->value,
             'error' => $this->error,
         ];
-    }
-
-    /**
-     * Create a Job from a database row array.
-     *
-     * @param array<string, mixed> $row Database row
-     *
-     * @return static
-     */
-    public static function fromArray(array $row): static
-    {
-        return new static(
-            id: $row['id'],
-            queue: $row['queue'] ?? 'default',
-            handler: $row['handler'],
-            payload: json_decode($row['payload'] ?? '{}', true, 512, JSON_THROW_ON_ERROR),
-            attempts: (int) ($row['attempts'] ?? 0),
-            maxAttempts: (int) ($row['max_attempts'] ?? 3),
-            retryDelay: (int) ($row['retry_delay'] ?? 0),
-            priority: (int) ($row['priority'] ?? 100),
-            availableAt: $row['available_at'] ?? null,
-            createdAt: $row['created_at'] ?? null,
-            reservedAt: $row['reserved_at'] ?? null,
-            status: JobStatus::from($row['status'] ?? 'pending'),
-            error: $row['error'] ?? null,
-        );
     }
 }

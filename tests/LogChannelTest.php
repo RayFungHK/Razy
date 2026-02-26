@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Comprehensive tests for #17: Log Channels / Handlers.
  *
@@ -22,6 +23,8 @@ use Razy\Log\FileHandler;
 use Razy\Log\LogManager;
 use Razy\Log\NullHandler;
 use Razy\Log\StderrHandler;
+use RuntimeException;
+use Stringable;
 
 #[CoversClass(LogManager::class)]
 #[CoversClass(FileHandler::class)]
@@ -33,18 +36,48 @@ class LogChannelTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir() . '/razy_log_test_' . uniqid();
+        $this->tempDir = \sys_get_temp_dir() . '/razy_log_test_' . \uniqid();
     }
 
     protected function tearDown(): void
     {
-        if (is_dir($this->tempDir)) {
-            $files = glob($this->tempDir . '/*');
+        if (\is_dir($this->tempDir)) {
+            $files = \glob($this->tempDir . '/*');
             if ($files) {
-                array_map('unlink', $files);
+                \array_map('unlink', $files);
             }
-            rmdir($this->tempDir);
+            \rmdir($this->tempDir);
         }
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function levelFilterProvider(): iterable
+    {
+        yield 'DEBUG handles DEBUG' => [LogLevel::DEBUG, LogLevel::DEBUG, true];
+        yield 'DEBUG handles EMERGENCY' => [LogLevel::DEBUG, LogLevel::EMERGENCY, true];
+        yield 'ERROR handles ERROR' => [LogLevel::ERROR, LogLevel::ERROR, true];
+        yield 'ERROR handles CRITICAL' => [LogLevel::ERROR, LogLevel::CRITICAL, true];
+        yield 'ERROR skips WARNING' => [LogLevel::ERROR, LogLevel::WARNING, false];
+        yield 'ERROR skips DEBUG' => [LogLevel::ERROR, LogLevel::DEBUG, false];
+        yield 'EMERGENCY handles EMERGENCY' => [LogLevel::EMERGENCY, LogLevel::EMERGENCY, true];
+        yield 'EMERGENCY skips ALERT' => [LogLevel::EMERGENCY, LogLevel::ALERT, false];
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function psr3MethodProvider(): iterable
+    {
+        yield 'emergency' => ['emergency', LogLevel::EMERGENCY];
+        yield 'alert' => ['alert', LogLevel::ALERT];
+        yield 'critical' => ['critical', LogLevel::CRITICAL];
+        yield 'error' => ['error', LogLevel::ERROR];
+        yield 'warning' => ['warning', LogLevel::WARNING];
+        yield 'notice' => ['notice', LogLevel::NOTICE];
+        yield 'info' => ['info', LogLevel::INFO];
+        yield 'debug' => ['debug', LogLevel::DEBUG];
     }
 
     // ═══════════════════════════════════════════════════════
@@ -119,21 +152,6 @@ class LogChannelTest extends TestCase
         $this->assertSame($expected, $h->isHandling($testLevel));
     }
 
-    /**
-     * @return iterable<string, array{string, string, bool}>
-     */
-    public static function levelFilterProvider(): iterable
-    {
-        yield 'DEBUG handles DEBUG'       => [LogLevel::DEBUG, LogLevel::DEBUG, true];
-        yield 'DEBUG handles EMERGENCY'   => [LogLevel::DEBUG, LogLevel::EMERGENCY, true];
-        yield 'ERROR handles ERROR'       => [LogLevel::ERROR, LogLevel::ERROR, true];
-        yield 'ERROR handles CRITICAL'    => [LogLevel::ERROR, LogLevel::CRITICAL, true];
-        yield 'ERROR skips WARNING'       => [LogLevel::ERROR, LogLevel::WARNING, false];
-        yield 'ERROR skips DEBUG'         => [LogLevel::ERROR, LogLevel::DEBUG, false];
-        yield 'EMERGENCY handles EMERGENCY' => [LogLevel::EMERGENCY, LogLevel::EMERGENCY, true];
-        yield 'EMERGENCY skips ALERT'     => [LogLevel::EMERGENCY, LogLevel::ALERT, false];
-    }
-
     // ═══════════════════════════════════════════════════════
     //  4. FileHandler — Writing Logs
     // ═══════════════════════════════════════════════════════
@@ -143,10 +161,10 @@ class LogChannelTest extends TestCase
         $h = new FileHandler($this->tempDir);
         $h->handle(LogLevel::INFO, 'Hello world', [], '2025-06-01 12:00:00.000000', 'app');
 
-        $files = glob($this->tempDir . '/*.log');
+        $files = \glob($this->tempDir . '/*.log');
         $this->assertNotEmpty($files);
 
-        $content = file_get_contents($files[0]);
+        $content = \file_get_contents($files[0]);
         $this->assertStringContainsString('Hello world', $content);
         $this->assertStringContainsString('[INFO]', $content);
         $this->assertStringContainsString('[app]', $content);
@@ -158,8 +176,8 @@ class LogChannelTest extends TestCase
         $h->handle(LogLevel::INFO, 'Line one', [], '2025-06-01 12:00:00', 'app');
         $h->handle(LogLevel::WARNING, 'Line two', [], '2025-06-01 12:00:01', 'app');
 
-        $files = glob($this->tempDir . '/*.log');
-        $content = file_get_contents($files[0]);
+        $files = \glob($this->tempDir . '/*.log');
+        $content = \file_get_contents($files[0]);
         $this->assertStringContainsString('Line one', $content);
         $this->assertStringContainsString('Line two', $content);
     }
@@ -169,10 +187,10 @@ class LogChannelTest extends TestCase
         $h = new FileHandler($this->tempDir, LogLevel::ERROR);
         $h->handle(LogLevel::DEBUG, 'Should not appear', [], '2025-06-01 12:00:00', 'app');
 
-        $files = glob($this->tempDir . '/*.log');
+        $files = \glob($this->tempDir . '/*.log');
         // No file should be created (or if it exists, no content)
         if (!empty($files)) {
-            $this->assertStringNotContainsString('Should not appear', file_get_contents($files[0]));
+            $this->assertStringNotContainsString('Should not appear', \file_get_contents($files[0]));
         } else {
             $this->assertEmpty($files);
         }
@@ -183,19 +201,19 @@ class LogChannelTest extends TestCase
         $h = new FileHandler($this->tempDir);
         $h->handle(LogLevel::INFO, 'no channel', [], '2025-06-01 12:00:00', '');
 
-        $files = glob($this->tempDir . '/*.log');
-        $content = file_get_contents($files[0]);
+        $files = \glob($this->tempDir . '/*.log');
+        $content = \file_get_contents($files[0]);
         $this->assertStringNotContainsString('[] ', $content);
     }
 
     public function testFileHandlerExceptionContext(): void
     {
         $h = new FileHandler($this->tempDir);
-        $ex = new \RuntimeException('Oops', 42);
+        $ex = new RuntimeException('Oops', 42);
         $h->handle(LogLevel::ERROR, 'Error occurred', ['exception' => $ex], '2025-06-01 12:00:00', 'app');
 
-        $files = glob($this->tempDir . '/*.log');
-        $content = file_get_contents($files[0]);
+        $files = \glob($this->tempDir . '/*.log');
+        $content = \file_get_contents($files[0]);
         $this->assertStringContainsString('RuntimeException', $content);
         $this->assertStringContainsString('Oops', $content);
     }
@@ -205,7 +223,7 @@ class LogChannelTest extends TestCase
         $h = new FileHandler($this->tempDir);
         $h->handle(LogLevel::INFO, 'test', [], '2025-06-01 12:00:00', 'app');
 
-        $expectedName = date('Y-m-d') . '.log';
+        $expectedName = \date('Y-m-d') . '.log';
         $this->assertFileExists($this->tempDir . DIRECTORY_SEPARATOR . $expectedName);
     }
 
@@ -327,9 +345,9 @@ class LogChannelTest extends TestCase
 
         $m->info('Hello');
 
-        $files = glob($this->tempDir . '/*.log');
+        $files = \glob($this->tempDir . '/*.log');
         $this->assertNotEmpty($files);
-        $this->assertStringContainsString('Hello', file_get_contents($files[0]));
+        $this->assertStringContainsString('Hello', \file_get_contents($files[0]));
     }
 
     public function testLogToDefaultChannelWithBuffer(): void
@@ -428,21 +446,6 @@ class LogChannelTest extends TestCase
         $this->assertSame($expectedLevel, $buf[0]['level']);
     }
 
-    /**
-     * @return iterable<string, array{string, string}>
-     */
-    public static function psr3MethodProvider(): iterable
-    {
-        yield 'emergency' => ['emergency', LogLevel::EMERGENCY];
-        yield 'alert'     => ['alert', LogLevel::ALERT];
-        yield 'critical'  => ['critical', LogLevel::CRITICAL];
-        yield 'error'     => ['error', LogLevel::ERROR];
-        yield 'warning'   => ['warning', LogLevel::WARNING];
-        yield 'notice'    => ['notice', LogLevel::NOTICE];
-        yield 'info'      => ['info', LogLevel::INFO];
-        yield 'debug'     => ['debug', LogLevel::DEBUG];
-    }
-
     // ═══════════════════════════════════════════════════════
     //  11. LogManager — Interpolation
     // ═══════════════════════════════════════════════════════
@@ -501,8 +504,11 @@ class LogChannelTest extends TestCase
 
     public function testInterpolationWithStringableObject(): void
     {
-        $obj = new class implements \Stringable {
-            public function __toString(): string { return 'Stringified'; }
+        $obj = new class() implements Stringable {
+            public function __toString(): string
+            {
+                return 'Stringified';
+            }
         };
 
         $m = new LogManager('default', bufferEnabled: true);
@@ -609,7 +615,7 @@ class LogChannelTest extends TestCase
         $m->debug('should not be written');
         $m->info('also not written');
 
-        $files = glob($this->tempDir . '/*.log');
+        $files = \glob($this->tempDir . '/*.log');
         $this->assertEmpty($files);
     }
 
@@ -623,9 +629,9 @@ class LogChannelTest extends TestCase
         $m->error('E');
         $m->critical('C');
 
-        $files = glob($this->tempDir . '/*.log');
+        $files = \glob($this->tempDir . '/*.log');
         $this->assertNotEmpty($files);
-        $content = file_get_contents($files[0]);
+        $content = \file_get_contents($files[0]);
         $this->assertStringContainsString('[WARNING]', $content);
         $this->assertStringContainsString('[ERROR]', $content);
         $this->assertStringContainsString('[CRITICAL]', $content);
@@ -646,18 +652,18 @@ class LogChannelTest extends TestCase
 
         $m->info('Logged to both');
 
-        $f1 = glob($dir1 . '/*.log');
-        $f2 = glob($dir2 . '/*.log');
+        $f1 = \glob($dir1 . '/*.log');
+        $f2 = \glob($dir2 . '/*.log');
         $this->assertNotEmpty($f1);
         $this->assertNotEmpty($f2);
-        $this->assertStringContainsString('Logged to both', file_get_contents($f1[0]));
-        $this->assertStringContainsString('Logged to both', file_get_contents($f2[0]));
+        $this->assertStringContainsString('Logged to both', \file_get_contents($f1[0]));
+        $this->assertStringContainsString('Logged to both', \file_get_contents($f2[0]));
 
         // Clean up sub-directories too
-        array_map('unlink', glob($dir1 . '/*'));
-        array_map('unlink', glob($dir2 . '/*'));
-        rmdir($dir1);
-        rmdir($dir2);
+        \array_map('unlink', \glob($dir1 . '/*'));
+        \array_map('unlink', \glob($dir2 . '/*'));
+        \rmdir($dir1);
+        \rmdir($dir2);
     }
 
     public function testFileHandlerAndNullHandlerTogether(): void
@@ -668,9 +674,9 @@ class LogChannelTest extends TestCase
 
         $m->error('test');
 
-        $files = glob($this->tempDir . '/*.log');
+        $files = \glob($this->tempDir . '/*.log');
         $this->assertNotEmpty($files);
-        $this->assertStringContainsString('test', file_get_contents($files[0]));
+        $this->assertStringContainsString('test', \file_get_contents($files[0]));
     }
 
     // ═══════════════════════════════════════════════════════
@@ -688,18 +694,18 @@ class LogChannelTest extends TestCase
 
         $m->stack(['ch1', 'ch2'])->emergency('System down');
 
-        $f1 = glob($dir1 . '/*.log');
-        $f2 = glob($dir2 . '/*.log');
+        $f1 = \glob($dir1 . '/*.log');
+        $f2 = \glob($dir2 . '/*.log');
         $this->assertNotEmpty($f1);
         $this->assertNotEmpty($f2);
-        $this->assertStringContainsString('System down', file_get_contents($f1[0]));
-        $this->assertStringContainsString('System down', file_get_contents($f2[0]));
+        $this->assertStringContainsString('System down', \file_get_contents($f1[0]));
+        $this->assertStringContainsString('System down', \file_get_contents($f2[0]));
 
         // Clean up
-        array_map('unlink', glob($dir1 . '/*'));
-        array_map('unlink', glob($dir2 . '/*'));
-        rmdir($dir1);
-        rmdir($dir2);
+        \array_map('unlink', \glob($dir1 . '/*'));
+        \array_map('unlink', \glob($dir2 . '/*'));
+        \rmdir($dir1);
+        \rmdir($dir2);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -719,8 +725,11 @@ class LogChannelTest extends TestCase
 
     public function testLogMessageIsStringable(): void
     {
-        $obj = new class implements \Stringable {
-            public function __toString(): string { return 'stringable message'; }
+        $obj = new class() implements Stringable {
+            public function __toString(): string
+            {
+                return 'stringable message';
+            }
         };
 
         $m = new LogManager('app', bufferEnabled: true);

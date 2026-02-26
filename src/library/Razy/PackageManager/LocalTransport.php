@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * Useful for air-gapped environments, CI systems, or local mirrors.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -49,24 +51,24 @@ class LocalTransport implements PackageTransportInterface
      */
     public function fetchMetadata(string $packageName): ?array
     {
-        $packageName = strtolower($packageName);
+        $packageName = \strtolower($packageName);
         $metadataPath = $this->basePath . DIRECTORY_SEPARATOR
             . 'p2' . DIRECTORY_SEPARATOR
-            . str_replace('/', DIRECTORY_SEPARATOR, $packageName) . '.json';
+            . \str_replace('/', DIRECTORY_SEPARATOR, $packageName) . '.json';
 
-        if (!is_file($metadataPath)) {
+        if (!\is_file($metadataPath)) {
             return null;
         }
 
         try {
-            $content = file_get_contents($metadataPath);
+            $content = \file_get_contents($metadataPath);
             if (false === $content) {
                 return null;
             }
 
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            $data = \json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
-            return is_array($data) ? $data : null;
+            return \is_array($data) ? $data : null;
         } catch (Exception) {
             return null;
         }
@@ -80,14 +82,14 @@ class LocalTransport implements PackageTransportInterface
         // Resolve the source — may be an absolute path or relative to the repo root
         $sourcePath = $this->resolveSourcePath($url);
 
-        if (!is_file($sourcePath)) {
+        if (!\is_file($sourcePath)) {
             return false;
         }
 
-        $result = copy($sourcePath, $destinationPath);
+        $result = \copy($sourcePath, $destinationPath);
 
         if ($result && null !== $progressCallback) {
-            $size = filesize($destinationPath) ?: 0;
+            $size = \filesize($destinationPath) ?: 0;
             $progressCallback($size, $size);
         }
 
@@ -112,16 +114,16 @@ class LocalTransport implements PackageTransportInterface
     private function resolveSourcePath(string $url): string
     {
         // file:// URI — extract path
-        if (str_starts_with($url, 'file://')) {
-            return substr($url, 7);
+        if (\str_starts_with($url, 'file://')) {
+            return \substr($url, 7);
         }
 
         // Already an absolute path
-        if (is_file($url)) {
+        if (\is_file($url)) {
             return $url;
         }
 
         // Treat as relative to the repo root
-        return $this->basePath . DIRECTORY_SEPARATOR . ltrim($url, '/\\');
+        return $this->basePath . DIRECTORY_SEPARATOR . \ltrim($url, '/\\');
     }
 }

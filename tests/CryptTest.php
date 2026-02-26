@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Crypt.
  *
@@ -16,6 +17,30 @@ use Razy\Crypt;
 class CryptTest extends TestCase
 {
     private string $testKey = 'test-encryption-key-32-characters';
+
+    // ==================== DIFFERENT DATA TYPES ====================
+
+    public static function encryptDecryptProvider(): array
+    {
+        return [
+            'empty string' => [''],
+            'numeric' => ['123456789'],
+            'long text' => [\str_repeat('Lorem ipsum dolor sit amet. ', 100)],
+            'special chars' => ['!@#$%^&*()_+-=[]{}|;:\'",.<>?/~`'],
+            'unicode' => ['你好世�? ?? ??иве? ми?'],
+            'multiline' => ["Line 1\nLine 2\nLine 3\n"],
+            'single char' => ['a'],
+            'binary' => ["\x00\x01\x02\x03\x04\x05"],
+        ];
+    }
+
+    public static function keyLengthProvider(): array
+    {
+        return [
+            'short key' => ['short'],
+            'long key' => [\str_repeat('a', 256)],
+        ];
+    }
 
     // ==================== BASIC ENCRYPTION/DECRYPTION ====================
 
@@ -69,29 +94,13 @@ class CryptTest extends TestCase
     {
         $original = 'Hex encoded message';
         $encrypted = Crypt::encrypt($original, $this->testKey, true);
-        
+
         // Verify it's hex
         $this->assertMatchesRegularExpression('/^[a-f0-9]+$/', $encrypted);
-        
+
         // Decrypt
         $decrypted = Crypt::decrypt($encrypted, $this->testKey);
         $this->assertEquals($original, $decrypted);
-    }
-
-    // ==================== DIFFERENT DATA TYPES ====================
-
-    public static function encryptDecryptProvider(): array
-    {
-        return [
-            'empty string'    => [''],
-            'numeric'         => ['123456789'],
-            'long text'       => [str_repeat('Lorem ipsum dolor sit amet. ', 100)],
-            'special chars'   => ['!@#$%^&*()_+-=[]{}|;:\'",.<>?/~`'],
-            'unicode'         => ['你好世�? ?? ??иве? ми?'],
-            'multiline'       => ["Line 1\nLine 2\nLine 3\n"],
-            'single char'     => ['a'],
-            'binary'          => ["\x00\x01\x02\x03\x04\x05"],
-        ];
     }
 
     #[DataProvider('encryptDecryptProvider')]
@@ -129,14 +138,6 @@ class CryptTest extends TestCase
         $this->assertEquals('', $decrypted);
     }
 
-    public static function keyLengthProvider(): array
-    {
-        return [
-            'short key' => ['short'],
-            'long key'  => [str_repeat('a', 256)],
-        ];
-    }
-
     #[DataProvider('keyLengthProvider')]
     public function testKeyLengthVariation(string $key): void
     {
@@ -151,13 +152,13 @@ class CryptTest extends TestCase
     public function testEncryptionIsRandom(): void
     {
         $text = 'Same text';
-        
+
         $encrypted1 = Crypt::encrypt($text, $this->testKey);
         $encrypted2 = Crypt::encrypt($text, $this->testKey);
 
         // Due to random IV, encrypted values should be different
         $this->assertNotEquals($encrypted1, $encrypted2);
-        
+
         // But both should decrypt to same text
         $this->assertEquals($text, Crypt::decrypt($encrypted1, $this->testKey));
         $this->assertEquals($text, Crypt::decrypt($encrypted2, $this->testKey));
@@ -169,10 +170,10 @@ class CryptTest extends TestCase
     {
         $text = 'Original message';
         $encrypted = Crypt::encrypt($text, $this->testKey);
-        
+
         // Tamper with the last character
-        $tampered = substr($encrypted, 0, -1) . chr(ord(substr($encrypted, -1)) ^ 1);
-        
+        $tampered = \substr($encrypted, 0, -1) . \chr(\ord(\substr($encrypted, -1)) ^ 1);
+
         $decrypted = Crypt::decrypt($tampered, $this->testKey);
 
         // Tampered data should not decrypt properly
@@ -198,16 +199,16 @@ class CryptTest extends TestCase
     public function testBinaryAndHexProduceDifferentFormats(): void
     {
         $text = 'Test';
-        
+
         $binary = Crypt::encrypt($text, $this->testKey, false);
         $hex = Crypt::encrypt($text, $this->testKey, true);
 
         // Hex should be longer (each byte becomes 2 hex chars)
-        $this->assertGreaterThan(strlen($binary), strlen($hex));
-        
+        $this->assertGreaterThan(\strlen($binary), \strlen($hex));
+
         // Hex should only contain hex characters
         $this->assertMatchesRegularExpression('/^[a-f0-9]+$/', $hex);
-        
+
         // Binary may contain any bytes
         $this->assertNotEmpty($binary);
     }
@@ -215,7 +216,7 @@ class CryptTest extends TestCase
     public function testBothFormatsDecryptCorrectly(): void
     {
         $text = 'Test message';
-        
+
         $binary = Crypt::encrypt($text, $this->testKey, false);
         $hex = Crypt::encrypt($text, $this->testKey, true);
 
@@ -232,7 +233,7 @@ class CryptTest extends TestCase
 
         // Encrypted data should be longer due to IV and HMAC
         // AES-256-CBC IV = 16 bytes, HMAC = 32 bytes, plus padded ciphertext
-        $this->assertGreaterThan(48, strlen($encrypted));
+        $this->assertGreaterThan(48, \strlen($encrypted));
     }
 
     // ==================== CONSISTENCY TESTS ====================
@@ -240,7 +241,7 @@ class CryptTest extends TestCase
     public function testMultipleRoundTrips(): void
     {
         $original = 'Test message';
-        
+
         for ($i = 0; $i < 10; $i++) {
             $encrypted = Crypt::encrypt($original, $this->testKey);
             $decrypted = Crypt::decrypt($encrypted, $this->testKey);
@@ -263,29 +264,29 @@ class CryptTest extends TestCase
 
     public function testEncryptSensitiveData(): void
     {
-        $data = json_encode([
+        $data = \json_encode([
             'password' => 'secret123',
             'api_key' => 'ABC123XYZ',
-            'credit_card' => '1234-5678-9012-3456'
+            'credit_card' => '1234-5678-9012-3456',
         ]);
 
         $encrypted = Crypt::encrypt($data, $this->testKey, true);
         $decrypted = Crypt::decrypt($encrypted, $this->testKey);
 
         $this->assertEquals($data, $decrypted);
-        
-        $decoded = json_decode($decrypted, true);
+
+        $decoded = \json_decode($decrypted, true);
         $this->assertEquals('secret123', $decoded['password']);
     }
 
     public function testEncryptSessionToken(): void
     {
-        $token = bin2hex(random_bytes(32));
-        
+        $token = \bin2hex(\random_bytes(32));
+
         $encrypted = Crypt::encrypt($token, $this->testKey, true);
         $decrypted = Crypt::decrypt($encrypted, $this->testKey);
 
         $this->assertEquals($token, $decrypted);
-        $this->assertEquals(64, strlen($token)); // 32 bytes = 64 hex chars
+        $this->assertEquals(64, \strlen($token)); // 32 bytes = 64 hex chars
     }
 }

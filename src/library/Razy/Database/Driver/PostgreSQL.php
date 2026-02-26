@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -15,13 +16,14 @@ use PDOException;
 use Razy\Database\Driver;
 
 /**
- * PostgreSQL Database Driver
- * 
+ * PostgreSQL Database Driver.
+ *
  * Provides PostgreSQL-specific database operations and SQL syntax generation,
  * including || concatenation, LIMIT/OFFSET syntax, SERIAL/BIGSERIAL columns,
  * and ON CONFLICT ... DO UPDATE for upsert operations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class PostgreSQL extends Driver
@@ -33,7 +35,7 @@ class PostgreSQL extends Driver
     {
         return 'pgsql';
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -45,23 +47,23 @@ class PostgreSQL extends Driver
             $username = $config['username'] ?? '';
             $password = $config['password'] ?? '';
             $port = $config['port'] ?? 5432;
-            
+
             $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
-            
+
             $this->adapter = new PDO($dsn, $username, $password, $this->getConnectionOptions());
             $this->connected = true;
-            
+
             // Set client encoding
             $charset = $config['charset'] ?? 'UTF8';
             $this->adapter->exec("SET client_encoding TO '{$charset}'");
-            
+
             return true;
         } catch (PDOException) {
             $this->connected = false;
             return false;
         }
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -73,7 +75,7 @@ class PostgreSQL extends Driver
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         ];
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -81,22 +83,22 @@ class PostgreSQL extends Driver
     {
         $stmt = $this->adapter->prepare(
             "SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
                 AND table_name = ?
-            )"
+            )",
         );
         $stmt->execute([$tableName]);
-        return (bool)$stmt->fetchColumn();
+        return (bool) $stmt->fetchColumn();
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getCharset(): array
     {
-        if (!count($this->charset)) {
-            $stmt = $this->adapter->query("SELECT pg_encoding_to_char(encoding) as charset FROM pg_database WHERE datname = current_database()");
+        if (!\count($this->charset)) {
+            $stmt = $this->adapter->query('SELECT pg_encoding_to_char(encoding) as charset FROM pg_database WHERE datname = current_database()');
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($result) {
                 $this->charset[$result['charset']] = [
@@ -104,7 +106,7 @@ class PostgreSQL extends Driver
                     'collation' => [],
                 ];
             }
-            
+
             // Also include common encodings
             $commonEncodings = ['UTF8', 'LATIN1', 'SQL_ASCII'];
             foreach ($commonEncodings as $encoding) {
@@ -118,21 +120,21 @@ class PostgreSQL extends Driver
         }
         return $this->charset;
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getCollation(string $charset): array
     {
-        $charset = strtoupper(trim($charset));
+        $charset = \strtoupper(\trim($charset));
         $this->getCharset();
-        
+
         if (isset($this->charset[$charset])) {
             $collation = &$this->charset[$charset]['collation'];
-            if (!count($collation)) {
+            if (!\count($collation)) {
                 // collencoding = -1 matches collations valid for any encoding
                 $stmt = $this->adapter->query(
-                    "SELECT collname FROM pg_collation WHERE collencoding = -1 OR collencoding = pg_char_to_encoding('{$charset}')"
+                    "SELECT collname FROM pg_collation WHERE collencoding = -1 OR collencoding = pg_char_to_encoding('{$charset}')",
                 );
                 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $collation[$result['collname']] = $charset;
@@ -142,7 +144,7 @@ class PostgreSQL extends Driver
         }
         return [];
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -151,7 +153,7 @@ class PostgreSQL extends Driver
         // PostgreSQL accepts both offset format and named timezones
         $this->adapter->exec("SET TIME ZONE '{$timezone}'");
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -166,7 +168,7 @@ class PostgreSQL extends Driver
         }
         return '';
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -179,54 +181,54 @@ class PostgreSQL extends Driver
         }
         return 'BIGSERIAL PRIMARY KEY';
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getUpsertSyntax(string $tableName, array $columns, array $duplicateKeys, callable $valueGetter): string
     {
-        $quotedColumns = array_map(fn($c) => '"' . $c . '"', $columns);
-        $sql = 'INSERT INTO ' . $tableName . ' (' . implode(', ', $quotedColumns) . ') VALUES (';
+        $quotedColumns = \array_map(fn ($c) => '"' . $c . '"', $columns);
+        $sql = 'INSERT INTO ' . $tableName . ' (' . \implode(', ', $quotedColumns) . ') VALUES (';
         $values = [];
         foreach ($columns as $column) {
             $values[] = $valueGetter($column);
         }
-        $sql .= implode(', ', $values) . ')';
-        
-        if (count($duplicateKeys)) {
+        $sql .= \implode(', ', $values) . ')';
+
+        if (\count($duplicateKeys)) {
             // PostgreSQL uses ON CONFLICT ... DO UPDATE with the EXCLUDED pseudo-table
             // referencing the row that would have been inserted
-            $conflictColumns = array_map(fn($c) => '"' . $c . '"', $duplicateKeys);
+            $conflictColumns = \array_map(fn ($c) => '"' . $c . '"', $duplicateKeys);
             $updates = [];
             foreach ($duplicateKeys as $column) {
-                if (is_string($column)) {
+                if (\is_string($column)) {
                     $updates[] = '"' . $column . '" = EXCLUDED."' . $column . '"';
                 }
             }
-            if (count($updates)) {
+            if (\count($updates)) {
                 // Assume first column is the conflict target (usually primary key)
-                $sql .= ' ON CONFLICT (' . $conflictColumns[0] . ') DO UPDATE SET ' . implode(', ', $updates);
+                $sql .= ' ON CONFLICT (' . $conflictColumns[0] . ') DO UPDATE SET ' . \implode(', ', $updates);
             }
         }
-        
+
         return $sql;
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getConcatSyntax(array $parts): string
     {
         // PostgreSQL uses || for concatenation
-        return '(' . implode(' || ', $parts) . ')';
+        return '(' . \implode(' || ', $parts) . ')';
     }
-    
+
     /**
      * @inheritDoc
      */
     public function quoteIdentifier(string $identifier): string
     {
         // PostgreSQL uses standard SQL double-quotes; escape by doubling existing quotes
-        return '"' . str_replace('"', '""', $identifier) . '"';
+        return '"' . \str_replace('"', '""', $identifier) . '"';
     }
 }

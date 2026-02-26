@@ -9,17 +9,20 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Auth;
+
+use RuntimeException;
 
 /**
  * Exception thrown when an authorization check fails.
  *
  * @package Razy\Auth
  */
-class AccessDeniedException extends \RuntimeException
+class AccessDeniedException extends RuntimeException
 {
     /**
      * The HTTP status code for this exception.
@@ -27,8 +30,8 @@ class AccessDeniedException extends \RuntimeException
     private int $statusCode;
 
     /**
-     * @param string $message    The exception message
-     * @param int    $statusCode HTTP status code (default: 403 Forbidden)
+     * @param string $message The exception message
+     * @param int $statusCode HTTP status code (default: 403 Forbidden)
      */
     public function __construct(string $message = 'This action is unauthorized.', int $statusCode = 403)
     {

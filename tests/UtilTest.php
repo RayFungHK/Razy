@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Util\* utility classes.
  *
@@ -25,6 +26,95 @@ use Razy\Util\VersionUtil;
 #[CoversClass(VersionUtil::class)]
 class UtilTest extends TestCase
 {
+    public static function validJsonProvider(): array
+    {
+        return [
+            'object' => ['{"key": "value"}'],
+            'array' => ['[1, 2, 3]'],
+            'string' => ['"hello"'],
+            'number' => ['42'],
+            'true' => ['true'],
+            'false' => ['false'],
+            'null' => ['null'],
+            'nested' => ['{"a": {"b": [1, 2]}}'],
+            'empty object' => ['{}'],
+            'empty array' => ['[]'],
+        ];
+    }
+
+    public static function invalidJsonProvider(): array
+    {
+        return [
+            'plain text' => ['hello world'],
+            'single quotes' => ["{'key': 'value'}"],
+            'trailing comma' => ['{"a": 1,}'],
+            'invalid syntax' => ['{key: value}'],
+        ];
+    }
+
+    public static function validFqdnProvider(): array
+    {
+        return [
+            'simple domain' => ['example.com', false],
+            'subdomain' => ['sub.example.com', false],
+            'deep subdomain' => ['a.b.c.example.com', false],
+            'domain with port' => ['example.com:8080', true],
+            'ip address' => ['192.168.1.1', false],
+            'wildcard' => ['*.example.com', false],
+        ];
+    }
+
+    public static function invalidFqdnProvider(): array
+    {
+        return [
+            'empty string' => [''],
+            'just a dot' => ['.'],
+            // '.example.com' IS valid per NetworkUtil regex — not included here
+            'has space' => ['example .com'],
+        ];
+    }
+
+    public static function ipInRangeProvider(): array
+    {
+        return [
+            'in range /24' => ['192.168.1.100', '192.168.1.0/24', true],
+            'out of range /24' => ['192.168.2.1', '192.168.1.0/24', false],
+            'exact match /32' => ['10.0.0.1', '10.0.0.1/32', true],
+            'not exact /32' => ['10.0.0.2', '10.0.0.1/32', false],
+            'broadcast /16' => ['172.16.255.255', '172.16.0.0/16', true],
+            'without mask (default /32)' => ['1.2.3.4', '1.2.3.4', true],
+            'invalid ip' => ['not-an-ip', '192.168.1.0/24', false],
+            'invalid cidr' => ['192.168.1.1', 'not-a-cidr', false],
+        ];
+    }
+
+    public static function comparisonProvider(): array
+    {
+        return [
+            'equal strings' => ['hello', 'hello', '=', false, true],
+            'not equal strings' => ['hello', 'world', '=', false, false],
+            'not-equal operator true' => ['a', 'b', '!=', false, true],
+            'not-equal operator false' => ['a', 'a', '!=', false, false],
+            'greater than true' => [10, 5, '>', false, true],
+            'greater than false' => [3, 5, '>', false, false],
+            'greater or equal true' => [5, 5, '>=', false, true],
+            'less than true' => [3, 5, '<', false, true],
+            'less than false' => [10, 5, '<', false, false],
+            'less or equal true' => [5, 5, '<=', false, true],
+            'includes in array' => ['b', ['a', 'b', 'c'], '|=', false, true],
+            'includes in array strict' => ['b', ['a', 'b', 'c'], '|=', true, true],
+            'not in array' => ['z', ['a', 'b'], '|=', true, false],
+            'includes non-scalar' => [['a'], ['a'], '|=', false, false],
+            'starts with' => ['hello world', 'hello', '^=', false, true],
+            'starts with no match' => ['world hello', 'xyz', '^=', false, false],
+            'ends with' => ['hello world', 'world', '$=', false, true],
+            'ends with no match' => ['hello world', 'xyz', '$=', false, false],
+            'contains' => ['hello world', 'lo wo', '*=', false, true],
+            'contains no match' => ['hello', 'xyz', '*=', false, false],
+            'strict equal int vs string' => [1, '1', '=', true, false],
+            'non-strict equal int vs string' => [1, '1', '=', false, true],
+        ];
+    }
     // ══════════════════════════════════════════════════════
     // PathUtil
     // ══════════════════════════════════════════════════════
@@ -169,7 +259,7 @@ class UtilTest extends TestCase
             $guids[] = StringUtil::guid();
         }
         // At least 95% should be unique (probabilistic but very likely)
-        $this->assertGreaterThan(90, count(array_unique($guids)));
+        $this->assertGreaterThan(90, \count(\array_unique($guids)));
     }
 
     #[DataProvider('validJsonProvider')]
@@ -178,36 +268,10 @@ class UtilTest extends TestCase
         $this->assertTrue(StringUtil::isJson($json));
     }
 
-    public static function validJsonProvider(): array
-    {
-        return [
-            'object' => ['{"key": "value"}'],
-            'array' => ['[1, 2, 3]'],
-            'string' => ['"hello"'],
-            'number' => ['42'],
-            'true' => ['true'],
-            'false' => ['false'],
-            'null' => ['null'],
-            'nested' => ['{"a": {"b": [1, 2]}}'],
-            'empty object' => ['{}'],
-            'empty array' => ['[]'],
-        ];
-    }
-
     #[DataProvider('invalidJsonProvider')]
     public function testIsJsonInvalidStrings(string $json): void
     {
         $this->assertFalse(StringUtil::isJson($json));
-    }
-
-    public static function invalidJsonProvider(): array
-    {
-        return [
-            'plain text' => ['hello world'],
-            'single quotes' => ["{'key': 'value'}"],
-            'trailing comma' => ['{"a": 1,}'],
-            'invalid syntax' => ['{key: value}'],
-        ];
     }
 
     public function testGetFilesizeStringBytes(): void
@@ -262,7 +326,7 @@ class UtilTest extends TestCase
         ];
 
         StringUtil::sortPathLevel($routes);
-        $keys = array_keys($routes);
+        $keys = \array_keys($routes);
 
         // Deepest path should come first
         $this->assertSame('/api/v1/users', $keys[0]);
@@ -278,32 +342,10 @@ class UtilTest extends TestCase
         $this->assertTrue(NetworkUtil::isFqdn($domain, $withPort));
     }
 
-    public static function validFqdnProvider(): array
-    {
-        return [
-            'simple domain' => ['example.com', false],
-            'subdomain' => ['sub.example.com', false],
-            'deep subdomain' => ['a.b.c.example.com', false],
-            'domain with port' => ['example.com:8080', true],
-            'ip address' => ['192.168.1.1', false],
-            'wildcard' => ['*.example.com', false],
-        ];
-    }
-
     #[DataProvider('invalidFqdnProvider')]
     public function testIsFqdnInvalidDomains(string $domain): void
     {
         $this->assertFalse(NetworkUtil::isFqdn($domain));
-    }
-
-    public static function invalidFqdnProvider(): array
-    {
-        return [
-            'empty string' => [''],
-            'just a dot' => ['.'],
-            // '.example.com' IS valid per NetworkUtil regex — not included here
-            'has space' => ['example .com'],
-        ];
     }
 
     public function testFormatFqdnTrimsDotsAndWhitespace(): void
@@ -321,20 +363,6 @@ class UtilTest extends TestCase
     public function testIpInRange(string $ip, string $cidr, bool $expected): void
     {
         $this->assertSame($expected, NetworkUtil::ipInRange($ip, $cidr));
-    }
-
-    public static function ipInRangeProvider(): array
-    {
-        return [
-            'in range /24' => ['192.168.1.100', '192.168.1.0/24', true],
-            'out of range /24' => ['192.168.2.1', '192.168.1.0/24', false],
-            'exact match /32' => ['10.0.0.1', '10.0.0.1/32', true],
-            'not exact /32' => ['10.0.0.2', '10.0.0.1/32', false],
-            'broadcast /16' => ['172.16.255.255', '172.16.0.0/16', true],
-            'without mask (default /32)' => ['1.2.3.4', '1.2.3.4', true],
-            'invalid ip' => ['not-an-ip', '192.168.1.0/24', false],
-            'invalid cidr' => ['192.168.1.1', 'not-a-cidr', false],
-        ];
     }
 
     // ══════════════════════════════════════════════════════
@@ -387,7 +415,7 @@ class UtilTest extends TestCase
     {
         $diff = DateUtil::getDayDiff('2024-01-01', '2024-01-10');
         // getDayDiff returns a signed value; ensure absolute magnitude is correct
-        $this->assertSame(9, abs($diff));
+        $this->assertSame(9, \abs($diff));
     }
 
     public function testGetDayDiffSameDay(): void
@@ -513,7 +541,7 @@ class UtilTest extends TestCase
             'email' => ['a@t.com', 'b@t.com'],
         ];
 
-        $result = ArrayUtil::urefactor($source, fn($k, $v) => true, 'name', 'age');
+        $result = ArrayUtil::urefactor($source, fn ($k, $v) => true, 'name', 'age');
 
         $this->assertArrayHasKey('name', $result[0]);
         $this->assertArrayHasKey('age', $result[0]);
@@ -524,34 +552,6 @@ class UtilTest extends TestCase
     public function testComparison(mixed $a, mixed $b, string $op, bool $strict, bool $expected): void
     {
         $this->assertSame($expected, ArrayUtil::comparison($a, $b, $op, $strict));
-    }
-
-    public static function comparisonProvider(): array
-    {
-        return [
-            'equal strings' => ['hello', 'hello', '=', false, true],
-            'not equal strings' => ['hello', 'world', '=', false, false],
-            'not-equal operator true' => ['a', 'b', '!=', false, true],
-            'not-equal operator false' => ['a', 'a', '!=', false, false],
-            'greater than true' => [10, 5, '>', false, true],
-            'greater than false' => [3, 5, '>', false, false],
-            'greater or equal true' => [5, 5, '>=', false, true],
-            'less than true' => [3, 5, '<', false, true],
-            'less than false' => [10, 5, '<', false, false],
-            'less or equal true' => [5, 5, '<=', false, true],
-            'includes in array' => ['b', ['a', 'b', 'c'], '|=', false, true],
-            'includes in array strict' => ['b', ['a', 'b', 'c'], '|=', true, true],
-            'not in array' => ['z', ['a', 'b'], '|=', true, false],
-            'includes non-scalar' => [['a'], ['a'], '|=', false, false],
-            'starts with' => ['hello world', 'hello', '^=', false, true],
-            'starts with no match' => ['world hello', 'xyz', '^=', false, false],
-            'ends with' => ['hello world', 'world', '$=', false, true],
-            'ends with no match' => ['hello world', 'xyz', '$=', false, false],
-            'contains' => ['hello world', 'lo wo', '*=', false, true],
-            'contains no match' => ['hello', 'xyz', '*=', false, false],
-            'strict equal int vs string' => [1, '1', '=', true, false],
-            'non-strict equal int vs string' => [1, '1', '=', false, true],
-        ];
     }
 
     public function testComparisonNullValues(): void
@@ -642,7 +642,7 @@ class UtilTest extends TestCase
     {
         $guid = StringUtil::guid(8);
         // 8 clips: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX
-        $parts = explode('-', $guid);
+        $parts = \explode('-', $guid);
         $this->assertCount(8, $parts);
     }
 
@@ -673,14 +673,14 @@ class UtilTest extends TestCase
             '/a/b' => 'mid',
         ];
         StringUtil::sortPathLevel($routes);
-        $keys = array_keys($routes);
+        $keys = \array_keys($routes);
         $this->assertSame('/a/b/c/d', $keys[0]);
-        $this->assertSame('/', $keys[count($keys) - 1]);
+        $this->assertSame('/', $keys[\count($keys) - 1]);
     }
 
     public function testGetFilesizeStringTerabytes(): void
     {
-        $result = StringUtil::getFilesizeString(pow(1024, 4));
+        $result = StringUtil::getFilesizeString(\pow(1024, 4));
         $this->assertStringContainsString('tb', $result);
     }
 
@@ -760,7 +760,7 @@ class UtilTest extends TestCase
             $_SERVER['HTTP_X_FORWARDED'],
             $_SERVER['HTTP_FORWARDED_FOR'],
             $_SERVER['HTTP_FORWARDED'],
-            $_SERVER['REMOTE_ADDR']
+            $_SERVER['REMOTE_ADDR'],
         );
         $this->assertSame('UNKNOWN', NetworkUtil::getIP());
         $_SERVER = $original;
@@ -774,7 +774,7 @@ class UtilTest extends TestCase
             $_SERVER['HTTP_X_FORWARDED_FOR'],
             $_SERVER['HTTP_X_FORWARDED'],
             $_SERVER['HTTP_FORWARDED_FOR'],
-            $_SERVER['HTTP_FORWARDED']
+            $_SERVER['HTTP_FORWARDED'],
         );
         $_SERVER['REMOTE_ADDR'] = '10.0.0.1';
         $this->assertSame('10.0.0.1', NetworkUtil::getIP());

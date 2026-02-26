@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -20,7 +21,7 @@ use Razy\Error\ErrorRenderer;
 use Throwable;
 
 /**
- * Class Error
+ * Class Error.
  *
  * Custom exception class for the Razy framework. Extends PHP's built-in Exception
  * to provide enhanced error display with debug backtraces, custom exception pages
@@ -30,6 +31,7 @@ use Throwable;
  * respectively. The proxy methods on this class are retained for backward compatibility.
  *
  * @class Error
+ *
  * @package Razy
  */
 class Error extends Exception
@@ -44,12 +46,12 @@ class Error extends Exception
      * @param int $statusCode
      * @param string $heading
      * @param string $debugMessage
-     * @param null|Throwable $exception
+     * @param Throwable|null $exception
      */
     public function __construct(string $message, int $statusCode = 400, private readonly string $heading = self::DEFAULT_HEADING, private readonly string $debugMessage = '', Throwable $exception = null)
     {
-        parent::__construct(nl2br($message), $statusCode, $exception);
-        if (CLI_MODE && !defined('PHPUNIT_RUNNING')) {
+        parent::__construct(\nl2br($message), $statusCode, $exception);
+        if (CLI_MODE && !\defined('PHPUNIT_RUNNING')) {
             Terminal::WriteLine('{@c:red}' . $message, true);
         }
     }
@@ -94,8 +96,6 @@ class Error extends Exception
 
     /**
      * Display 404 Not Found error page.
-     *
-     * @return void
      */
     public static function show404(): void
     {
@@ -106,7 +106,6 @@ class Error extends Exception
      * Write a message to the debug console log.
      *
      * @param string $message The debug message to record
-     * @return void
      */
     public static function debugConsoleWrite(string $message): void
     {

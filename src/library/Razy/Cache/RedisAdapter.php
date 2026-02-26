@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -49,7 +50,7 @@ class RedisAdapter implements CacheInterface
     /**
      * Create a new RedisAdapter.
      *
-     * @param Redis  $redis  Connected Redis instance
+     * @param Redis $redis Connected Redis instance
      * @param string $prefix Key prefix (default: 'razy_')
      *
      * @throws InvalidArgumentException If Redis is not connected
@@ -155,7 +156,7 @@ class RedisAdapter implements CacheInterface
             return [];
         }
 
-        $prefixedKeys = array_map(fn(string $k) => $this->prefix . $k, $keyList);
+        $prefixedKeys = \array_map(fn (string $k) => $this->prefix . $k, $keyList);
         $values = $this->redis->mget($prefixedKeys);
 
         $result = [];
@@ -225,7 +226,7 @@ class RedisAdapter implements CacheInterface
     /**
      * Convert TTL to integer seconds.
      *
-     * @param null|int|DateInterval $ttl
+     * @param int|DateInterval|null $ttl
      *
      * @return int|null Seconds, or null for no expiry
      */
@@ -258,9 +259,9 @@ class RedisAdapter implements CacheInterface
             throw new InvalidArgumentException('Cache key must not be empty.');
         }
 
-        if (preg_match('/[{}()\/\\\\@:]/', $key)) {
+        if (\preg_match('/[{}()\/\\\\@:]/', $key)) {
             throw new InvalidArgumentException(
-                "Cache key '{$key}' contains reserved characters: {}()/\\@:"
+                "Cache key '{$key}' contains reserved characters: {}()/\\@:",
             );
         }
     }
@@ -274,7 +275,7 @@ class RedisAdapter implements CacheInterface
      */
     private function serializeValue(mixed $value): string
     {
-        return serialize($value);
+        return \serialize($value);
     }
 
     /**
@@ -286,6 +287,6 @@ class RedisAdapter implements CacheInterface
      */
     private function unserializeValue(string $value): mixed
     {
-        return unserialize($value);
+        return \unserialize($value);
     }
 }

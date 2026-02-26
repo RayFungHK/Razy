@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,14 +10,15 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
-
 use Razy\Util\StringUtil;
+
 /**
  * XHR response builder and sender for the Razy framework.
  *
@@ -72,25 +74,25 @@ class XHR
      *
      * @return $this
      */
-    public function allowOrigin(string $origin): XHR
+    public function allowOrigin(string $origin): self
     {
-        $origin = trim($origin);
+        $origin = \trim($origin);
         if ('*' == $origin) {
             // Wildcard: allow all origins
             $this->allowOrigin = $origin;
         } else {
             // Validate each comma-separated origin against URL pattern
-            $clips = explode(',', $origin);
+            $clips = \explode(',', $origin);
             foreach ($clips as $index => $clip) {
                 // Remove origins that don't match a valid protocol://domain[:port] pattern
-                if (!preg_match('/(?<protocol>\w*)\:\/\/(?:(?<thld>[\w\-]*)(?:\.(?<sld>[\w\-]*))*\.(?<tld>\w*)(?:\:(?<port>\d*))?)/', $clip)) {
+                if (!\preg_match('/(?<protocol>\w*)\:\/\/(?:(?<thld>[\w\-]*)(?:\.(?<sld>[\w\-]*))*\.(?<tld>\w*)(?:\:(?<port>\d*))?)/', $clip)) {
                     unset($clips[$index]);
                 }
             }
             if (empty($clips)) {
                 $this->allowOrigin = SITE_URL_ROOT;
             } else {
-                $this->allowOrigin = implode(',', $clips);
+                $this->allowOrigin = \implode(',', $clips);
             }
         }
 
@@ -104,7 +106,7 @@ class XHR
      *
      * @return $this
      */
-    public function corp(string $type = ''): XHR
+    public function corp(string $type = ''): self
     {
         $this->corp = $type;
 
@@ -118,7 +120,7 @@ class XHR
      *
      * @return $this
      */
-    public function data($dataset): XHR
+    public function data($dataset): self
     {
         $this->content = $this->parse($dataset);
 
@@ -126,45 +128,11 @@ class XHR
     }
 
     /**
-     * Parse the dataset into an accepted data format.
-     *
-     * @param $dataset
-     *
-     * @return mixed
-     */
-    private function parse($dataset): mixed
-    {
-        if ($dataset === null) {
-            return null;
-        }
-
-        // Scalar values (string, int, float, bool) are returned as-is
-        if (is_scalar($dataset)) {
-            return $dataset;
-        }
-
-        // Recursively parse iterable datasets (arrays, collections)
-        if (is_iterable($dataset)) {
-            foreach ($dataset as &$data) {
-                $data = $this->parse($data);
-            }
-
-            return $dataset;
-        }
-
-        // Objects with __toString can be coerced to string
-        if (method_exists($dataset, '__toString')) {
-            return strval($dataset);
-        }
-
-        return null;
-    }
-
-    /**
      * Send the response to client side.
      *
      * @param bool $success
      * @param string $message
+     *
      * @return mixed
      */
     public function send(bool $success = true, string $message = ''): mixed
@@ -173,11 +141,11 @@ class XHR
         $response = [
             'result' => $success,
             'hash' => $this->hash,
-            'timestamp' => time(),
+            'timestamp' => \time(),
             'response' => $this->content,
         ];
 
-        $message = trim($message);
+        $message = \trim($message);
         if ($message) {
             $response['message'] = $message;
         }
@@ -187,53 +155,26 @@ class XHR
         }
         if ($this->returnAsArray) {
             return $response;
-        } else {
-            $this->output($response);
-            return true;
         }
-    }
-
-    /**
-     * Output the JSON response with appropriate headers and terminate.
-     *
-     * Sets Content-Type, CORS, and CORP headers, sends the JSON-encoded
-     * response, invokes the completion callback if set, then exits.
-     *
-     * @param array $data The response data to encode and output
-     *
-     * @return void
-     */
-    private function output(array $data): void
-    {
-        http_response_code(200);
-        header('Content-Type: application/json');
-        header('Access-Control-Allow-Origin: ' . $this->allowOrigin);
-        header('Cross-Origin-Resource-Policy: ' . $this->corp);
-        ob_clean();
-        echo json_encode($data);
-
-        if ($this->closure) {
-            call_user_func($this->closure);
-        }
-
-        throw new Exception\HttpException(200, 'XHR response sent');
+        $this->output($response);
+        return true;
     }
 
     /**
      * Set the parameters and its value.
      *
      * @param string $name
-     * @param        $dataset
+     * @param $dataset
      *
      * @return $this
-     * @throws \Razy\Error
      *
+     * @throws Error
      */
-    public function set(string $name, $dataset): XHR
+    public function set(string $name, $dataset): self
     {
-        $name = trim($name);
+        $name = \trim($name);
         if (!$name) {
-            throw new \Razy\Error('The name of the parameter cannot be empty.');
+            throw new Error('The name of the parameter cannot be empty.');
         }
         $this->parameters[$name] = $this->parse($dataset);
 
@@ -254,5 +195,64 @@ class XHR
         $this->closure = $closure(...);
 
         return $this;
+    }
+
+    /**
+     * Parse the dataset into an accepted data format.
+     *
+     * @param $dataset
+     *
+     * @return mixed
+     */
+    private function parse($dataset): mixed
+    {
+        if ($dataset === null) {
+            return null;
+        }
+
+        // Scalar values (string, int, float, bool) are returned as-is
+        if (\is_scalar($dataset)) {
+            return $dataset;
+        }
+
+        // Recursively parse iterable datasets (arrays, collections)
+        if (\is_iterable($dataset)) {
+            foreach ($dataset as &$data) {
+                $data = $this->parse($data);
+            }
+
+            return $dataset;
+        }
+
+        // Objects with __toString can be coerced to string
+        if (\method_exists($dataset, '__toString')) {
+            return (string) $dataset;
+        }
+
+        return null;
+    }
+
+    /**
+     * Output the JSON response with appropriate headers and terminate.
+     *
+     * Sets Content-Type, CORS, and CORP headers, sends the JSON-encoded
+     * response, invokes the completion callback if set, then exits.
+     *
+     * @param array $data The response data to encode and output
+     */
+    private function output(array $data): void
+    {
+        \http_response_code(200);
+        \header('Content-Type: application/json');
+        \header('Access-Control-Allow-Origin: ' . $this->allowOrigin);
+        \header('Cross-Origin-Resource-Policy: ' . $this->corp);
+        \ob_clean();
+        echo \json_encode($data);
+
+        if ($this->closure) {
+            \call_user_func($this->closure);
+        }
+
+        throw new Exception\HttpException(200, 'XHR response sent');
     }
 }

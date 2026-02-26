@@ -11,7 +11,8 @@ class MinLength extends ValidationRule
 {
     public function __construct(
         private readonly int $min,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {
@@ -21,7 +22,7 @@ class MinLength extends ValidationRule
             return $value;
         }
 
-        if (mb_strlen((string) $value) < $this->min) {
+        if (\mb_strlen((string) $value) < $this->min) {
             $this->fail();
 
             return $value;

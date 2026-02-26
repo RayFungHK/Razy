@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,11 +10,13 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Cache;
 
+use APCUIterator;
 use DateInterval;
 use DateTime;
 
@@ -42,7 +45,7 @@ class ApcuAdapter implements CacheInterface
      */
     public function __construct(string $prefix = 'razy_')
     {
-        if (!extension_loaded('apcu') || !apcu_enabled()) {
+        if (!\extension_loaded('apcu') || !\apcu_enabled()) {
             throw new InvalidArgumentException('APCu extension is not available or not enabled.');
         }
 
@@ -56,7 +59,7 @@ class ApcuAdapter implements CacheInterface
     {
         $this->validateKey($key);
 
-        $value = apcu_fetch($this->prefix . $key, $success);
+        $value = \apcu_fetch($this->prefix . $key, $success);
 
         return $success ? $value : $default;
     }
@@ -75,7 +78,7 @@ class ApcuAdapter implements CacheInterface
             return $this->delete($key);
         }
 
-        return apcu_store($this->prefix . $key, $value, $seconds ?? 0);
+        return \apcu_store($this->prefix . $key, $value, $seconds ?? 0);
     }
 
     /**
@@ -85,7 +88,7 @@ class ApcuAdapter implements CacheInterface
     {
         $this->validateKey($key);
 
-        apcu_delete($this->prefix . $key);
+        \apcu_delete($this->prefix . $key);
 
         return true;
     }
@@ -96,9 +99,9 @@ class ApcuAdapter implements CacheInterface
     public function clear(): bool
     {
         // Only clear keys with our prefix
-        $iterator = new \APCUIterator('/^' . preg_quote($this->prefix, '/') . '/');
+        $iterator = new APCUIterator('/^' . \preg_quote($this->prefix, '/') . '/');
         foreach ($iterator as $entry) {
-            apcu_delete($entry['key']);
+            \apcu_delete($entry['key']);
         }
 
         return true;
@@ -154,13 +157,13 @@ class ApcuAdapter implements CacheInterface
     {
         $this->validateKey($key);
 
-        return apcu_exists($this->prefix . $key);
+        return \apcu_exists($this->prefix . $key);
     }
 
     /**
      * Convert TTL to integer seconds.
      *
-     * @param null|int|DateInterval $ttl The TTL value
+     * @param int|DateInterval|null $ttl The TTL value
      *
      * @return int|null Seconds, or null for no expiry
      */
@@ -192,7 +195,7 @@ class ApcuAdapter implements CacheInterface
             throw new InvalidArgumentException('Cache key must not be empty.');
         }
 
-        if (preg_match('/[{}()\/\\\\@:]/', $key)) {
+        if (\preg_match('/[{}()\/\\\\@:]/', $key)) {
             throw new InvalidArgumentException("Cache key '{$key}' contains reserved characters: {}()/\\@:");
         }
     }

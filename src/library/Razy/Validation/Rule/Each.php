@@ -29,7 +29,8 @@ class Each extends ValidationRule
      */
     public function __construct(
         private readonly array $rules,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {
@@ -41,7 +42,7 @@ class Each extends ValidationRule
             return $value;
         }
 
-        if (!is_array($value)) {
+        if (!\is_array($value)) {
             $this->fail();
 
             return $value;

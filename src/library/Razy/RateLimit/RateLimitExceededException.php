@@ -9,10 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\RateLimit;
+
+use RuntimeException;
 
 /**
  * Exception thrown when a rate limit is exceeded.
@@ -33,12 +36,12 @@ namespace Razy\RateLimit;
  *
  * @package Razy\RateLimit
  */
-class RateLimitExceededException extends \RuntimeException
+class RateLimitExceededException extends RuntimeException
 {
     /**
-     * @param string $key         The rate limit bucket key that was exceeded.
-     * @param int    $maxAttempts The maximum attempts allowed within the window.
-     * @param int    $retryAfter  Seconds remaining until the window resets.
+     * @param string $key The rate limit bucket key that was exceeded.
+     * @param int $maxAttempts The maximum attempts allowed within the window.
+     * @param int $retryAfter Seconds remaining until the window resets.
      */
     public function __construct(
         private readonly string $key,
@@ -46,7 +49,7 @@ class RateLimitExceededException extends \RuntimeException
         private readonly int $retryAfter,
     ) {
         parent::__construct(
-            sprintf(
+            \sprintf(
                 'Rate limit exceeded for key "%s": %d attempts allowed, retry after %d seconds.',
                 $key,
                 $maxAttempts,

@@ -18,7 +18,7 @@ class Email extends ValidationRule
             return $value;
         }
 
-        if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
+        if (\filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
             $this->fail();
 
             return $value;

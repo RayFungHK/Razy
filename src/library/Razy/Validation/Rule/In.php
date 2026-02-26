@@ -22,7 +22,7 @@ class In extends ValidationRule
     public function __construct(array $allowed, bool $strict = false)
     {
         $this->allowed = $allowed;
-        $this->strict  = $strict;
+        $this->strict = $strict;
     }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
@@ -33,7 +33,7 @@ class In extends ValidationRule
             return $value;
         }
 
-        if (!in_array($value, $this->allowed, $this->strict)) {
+        if (!\in_array($value, $this->allowed, $this->strict)) {
             $this->fail();
 
             return $value;
@@ -46,7 +46,7 @@ class In extends ValidationRule
 
     protected function defaultMessage(): string
     {
-        $list = implode(', ', array_map('strval', $this->allowed));
+        $list = \implode(', ', \array_map('strval', $this->allowed));
 
         return "The :field field must be one of: {$list}.";
     }

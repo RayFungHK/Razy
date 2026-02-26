@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Database\Statement.
  *
@@ -7,6 +8,7 @@
 
 namespace Razy\Tests;
 
+use Exception;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -22,14 +24,49 @@ class StatementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create a Database instance for testing Statement methods
         // Database::__construct() takes a string name, not an array config
         try {
             $this->db = new Database('test_db');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->markTestSkipped('Database instance not available: ' . $e->getMessage());
         }
+    }
+
+    // ==================== COLUMN STANDARDIZATION ====================
+
+    public static function standardizeColumnProvider(): array
+    {
+        return [
+            'simple' => ['username', '`username`'],
+            'with table' => ['users.username', 'users.`username`'],
+            'already quoted' => ['`username`', ''],
+            'empty' => ['', ''],
+            'with spaces' => ['  username  ', '`username`'],
+            'three levels' => ['database.table.column', ''],
+            'special chars' => ['`user``name`', ''],
+            'numeric start' => ['123column', ''],
+            'dashes' => ['user-name', ''],
+            'null/empty' => ['', ''],
+            'only spaces' => ['     ', ''],
+            'quoted table' => ['`users`.id', ''],
+            'case lowercase' => ['username', '`username`'],
+            'case camelCase' => ['userName', '`userName`'],
+            'underscore mid' => ['user_name', '`user_name`'],
+            'underscore start' => ['_private', ''],
+            'table.id' => ['users.id', 'users.`id`'],
+            'table.title' => ['posts.title', 'posts.`title`'],
+            'db.table.col' => ['db.users.email', ''],
+        ];
+    }
+
+    public static function invalidSearchParamProvider(): array
+    {
+        return [
+            'empty string' => [''],
+            'whitespace' => ['   '],
+        ];
     }
 
     // ==================== BASIC CONSTRUCTION ====================
@@ -42,36 +79,9 @@ class StatementTest extends TestCase
 
     public function testConstructorWithSQL(): void
     {
-        $sql = "SELECT * FROM users WHERE id = :id";
+        $sql = 'SELECT * FROM users WHERE id = :id';
         $stmt = new Statement($this->db, $sql);
         $this->assertInstanceOf(Statement::class, $stmt);
-    }
-
-    // ==================== COLUMN STANDARDIZATION ====================
-
-    public static function standardizeColumnProvider(): array
-    {
-        return [
-            'simple'              => ['username', '`username`'],
-            'with table'          => ['users.username', 'users.`username`'],
-            'already quoted'      => ['`username`', ''],
-            'empty'               => ['', ''],
-            'with spaces'         => ['  username  ', '`username`'],
-            'three levels'        => ['database.table.column', ''],
-            'special chars'       => ['`user``name`', ''],
-            'numeric start'       => ['123column', ''],
-            'dashes'              => ['user-name', ''],
-            'null/empty'          => ['', ''],
-            'only spaces'         => ['     ', ''],
-            'quoted table'        => ['`users`.id', ''],
-            'case lowercase'      => ['username', '`username`'],
-            'case camelCase'      => ['userName', '`userName`'],
-            'underscore mid'      => ['user_name', '`user_name`'],
-            'underscore start'    => ['_private', ''],
-            'table.id'            => ['users.id', 'users.`id`'],
-            'table.title'         => ['posts.title', 'posts.`title`'],
-            'db.table.col'        => ['db.users.email', ''],
-        ];
     }
 
     #[DataProvider('standardizeColumnProvider')]
@@ -103,14 +113,6 @@ class StatementTest extends TestCase
         $this->assertStringContainsString('users.`email`*=:keyword', $syntax);
     }
 
-    public static function invalidSearchParamProvider(): array
-    {
-        return [
-            'empty string' => [''],
-            'whitespace'   => ['   '],
-        ];
-    }
-
     #[DataProvider('invalidSearchParamProvider')]
     public function testGetSearchTextSyntaxInvalidParameter(string $param): void
     {
@@ -128,7 +130,7 @@ class StatementTest extends TestCase
             'user_id',
             'userName',
             'user123',
-            'a1b2c3'
+            'a1b2c3',
         ];
 
         foreach ($validColumns as $column) {
@@ -144,7 +146,7 @@ class StatementTest extends TestCase
     {
         $stmt = new Statement($this->db);
         $result = $stmt->assign(['id' => 123]);
-        
+
         $this->assertInstanceOf(Statement::class, $result);
     }
 
@@ -153,9 +155,9 @@ class StatementTest extends TestCase
         $stmt = new Statement($this->db);
         $result = $stmt->assign([
             'id' => 1,
-            'name' => 'John'
+            'name' => 'John',
         ]);
-        
+
         $this->assertInstanceOf(Statement::class, $result);
     }
 
@@ -207,11 +209,11 @@ class StatementTest extends TestCase
             'users.username',
             'users.email',
             'profiles.bio',
-            'profiles.location'
+            'profiles.location',
         ];
-        
+
         $syntax = Statement::getSearchTextSyntax('searchterm', $columns);
-        
+
         $this->assertStringContainsString('users.`username`*=:searchterm', $syntax);
         $this->assertStringContainsString('users.`email`*=:searchterm', $syntax);
         $this->assertStringContainsString('profiles.`bio`*=:searchterm', $syntax);
@@ -224,7 +226,7 @@ class StatementTest extends TestCase
         $column = 'username';
         $result1 = Statement::standardizeColumn($column);
         $result2 = Statement::standardizeColumn($column);
-        
+
         $this->assertEquals($result1, $result2);
     }
 }

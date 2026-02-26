@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -60,16 +62,28 @@ class Office365SSO extends OAuth2
         string $clientId,
         string $clientSecret,
         string $redirectUri,
-        string $tenantId = 'common'
+        string $tenantId = 'common',
     ) {
         parent::__construct($clientId, $clientSecret, $redirectUri);
 
-        $this->tenantId = trim($tenantId);
+        $this->tenantId = \trim($tenantId);
 
         // Set Microsoft Entra ID endpoints
         $this->setAuthorizeUrl("https://login.microsoftonline.com/{$this->tenantId}/oauth2/v2.0/authorize");
         $this->setTokenUrl("https://login.microsoftonline.com/{$this->tenantId}/oauth2/v2.0/token");
         $this->setScope($this->graphScope);
+    }
+
+    /**
+     * Check if session is expired.
+     *
+     * @param array $session Session data from createSession()
+     *
+     * @return bool
+     */
+    public static function isSessionExpired(array $session): bool
+    {
+        return \time() >= ($session['expires_at'] ?? 0);
     }
 
     /**
@@ -81,7 +95,7 @@ class Office365SSO extends OAuth2
      */
     public function setGraphScope(string $scope): self
     {
-        $this->graphScope = trim($scope);
+        $this->graphScope = \trim($scope);
         $this->setScope($this->graphScope);
         return $this;
     }
@@ -95,7 +109,7 @@ class Office365SSO extends OAuth2
      */
     public function setPrompt(string $prompt): self
     {
-        $this->prompt = trim($prompt);
+        $this->prompt = \trim($prompt);
         if ($this->prompt !== 'none') {
             $this->addParam('prompt', $this->prompt);
         }
@@ -111,7 +125,7 @@ class Office365SSO extends OAuth2
      */
     public function setLoginHint(string $email): self
     {
-        $this->loginHint = trim($email);
+        $this->loginHint = \trim($email);
         if ($this->loginHint) {
             $this->addParam('login_hint', $this->loginHint);
         }
@@ -127,7 +141,7 @@ class Office365SSO extends OAuth2
      */
     public function setDomainHint(string $domain): self
     {
-        $this->domainHint = trim($domain);
+        $this->domainHint = \trim($domain);
         if ($this->domainHint) {
             $this->addParam('domain_hint', $this->domainHint);
         }
@@ -140,6 +154,7 @@ class Office365SSO extends OAuth2
      * @param string $accessToken Access token from OAuth flow
      *
      * @return array User information
+     *
      * @throws OAuthException
      */
     public function getUserInfo(string $accessToken): array
@@ -216,17 +231,17 @@ class Office365SSO extends OAuth2
             // Request the photo binary data at the specified resolution via Graph API
             $url = "https://graph.microsoft.com/v1.0/me/photos/{$size}/\$value";
 
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            $ch = \curl_init($url);
+            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Authorization: Bearer ' . $accessToken,
             ]);
             // Enable binary transfer for raw image data
-            curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
+            \curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
+            $response = \curl_exec($ch);
+            $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            \curl_close($ch);
 
             // Return photo data only on success; null if user has no photo
             if ($httpCode === 200) {
@@ -282,7 +297,7 @@ class Office365SSO extends OAuth2
 
         // Validate the 'iss' (issuer) claim originates from Microsoft's identity platform
         $issuer = $claims['iss'] ?? null;
-        if (!str_contains($issuer, 'microsoftonline.com') && !str_contains($issuer, 'login.microsoftonline.com')) {
+        if (!\str_contains($issuer, 'microsoftonline.com') && !\str_contains($issuer, 'login.microsoftonline.com')) {
             return false;
         }
 
@@ -300,7 +315,7 @@ class Office365SSO extends OAuth2
     public function createSession(array $tokenData, array $userInfo): array
     {
         // Calculate absolute expiry time from relative expires_in (default ~1 hour)
-        $expiresAt = time() + ($tokenData['expires_in'] ?? 3599);
+        $expiresAt = \time() + ($tokenData['expires_in'] ?? 3599);
 
         // Extract claims from ID token for additional identity info (tenant, object ID)
         $idTokenClaims = $this->parseIdToken($tokenData);
@@ -317,20 +332,8 @@ class Office365SSO extends OAuth2
             'id_token' => $tokenData['id_token'] ?? null,
             'expires_at' => $expiresAt,
             'tenant_id' => $idTokenClaims['tid'] ?? $this->tenantId,
-            'created_at' => time(),
+            'created_at' => \time(),
         ];
-    }
-
-    /**
-     * Check if session is expired.
-     *
-     * @param array $session Session data from createSession()
-     *
-     * @return bool
-     */
-    public static function isSessionExpired(array $session): bool
-    {
-        return time() >= ($session['expires_at'] ?? 0);
     }
 
     /**
@@ -359,7 +362,7 @@ class Office365SSO extends OAuth2
         }
 
         if (!empty($params)) {
-            $url .= '?' . http_build_query($params);
+            $url .= '?' . \http_build_query($params);
         }
 
         return $url;
@@ -373,25 +376,26 @@ class Office365SSO extends OAuth2
      * @param string $accessToken Access token
      *
      * @return array Response data
+     *
      * @throws OAuthException
      */
     public function httpPost(string $url, array $data, string $accessToken): array
     {
         // Send authenticated JSON POST to Microsoft Graph API
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        $ch = \curl_init($url);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_POST, true);
+        \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
+        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $accessToken,
             'Content-Type: application/json',
             'Accept: application/json',
         ]);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
+        $response = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = \curl_error($ch);
+        \curl_close($ch);
 
         // Check for transport-level errors
         if ($error) {
@@ -404,9 +408,9 @@ class Office365SSO extends OAuth2
         }
 
         // Decode and validate the JSON response body
-        $decoded = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new OAuthException('Failed to decode JSON response: ' . json_last_error_msg());
+        $decoded = \json_decode($response, true);
+        if (\json_last_error() !== JSON_ERROR_NONE) {
+            throw new OAuthException('Failed to decode JSON response: ' . \json_last_error_msg());
         }
 
         return $decoded ?? [];

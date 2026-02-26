@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,7 +12,9 @@
  * Fulfills the PSR-11 specification without requiring psr/container.
  *
  * @package Razy
+ *
  * @license MIT
+ *
  * @see https://www.php-fig.org/psr/psr-11/
  */
 

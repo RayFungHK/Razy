@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -7,6 +8,7 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 

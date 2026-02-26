@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -51,15 +52,16 @@ class CallbackGuard implements GuardInterface
     private bool $resolved = false;
 
     /**
-     * @param Closure|null $userResolver        Closure that returns AuthenticatableInterface|null.
-     *                                           Called once (lazy) to resolve the current user.
-     * @param Closure|null $credentialValidator  Closure(array $credentials): bool.
-     *                                           Validates credentials without setting state.
+     * @param Closure|null $userResolver Closure that returns AuthenticatableInterface|null.
+     *                                   Called once (lazy) to resolve the current user.
+     * @param Closure|null $credentialValidator Closure(array $credentials): bool.
+     *                                          Validates credentials without setting state.
      */
     public function __construct(
         private readonly ?Closure $userResolver = null,
         private readonly ?Closure $credentialValidator = null,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,10 +12,13 @@
  * WebSocket communication with command, headers, and body.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
+
+use InvalidArgumentException;
 
 /**
  * Simplified STOMP-like message builder and parser.
@@ -34,62 +38,67 @@ class SimplifiedMessage
     private array $header = [];
 
     /**
-     * SimplifiedMessage Constructor
+     * SimplifiedMessage Constructor.
      *
      * @param string $command
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function __construct(private string $command)
     {
         // Normalize command to uppercase and validate alphanumeric word format
-        $this->command = trim(strtoupper($this->command));
-        if (!preg_match('/[a-z]\w*/i', $this->command)) {
-            throw new \InvalidArgumentException('Invalid command format.');
+        $this->command = \trim(\strtoupper($this->command));
+        if (!\preg_match('/[a-z]\w*/i', $this->command)) {
+            throw new InvalidArgumentException('Invalid command format.');
         }
     }
 
     /**
-     * Replace specified escape character into slash or colon
+     * Replace specified escape character into slash or colon.
      *
      * @param string $text
+     *
      * @return string
      */
     public static function decode(string $text): string
     {
         // Reverse the encoding: \c → colon, \\ → backslash
-        return str_replace('\\\\', '\\', str_replace('\\c', ':', $text));
+        return \str_replace('\\\\', '\\', \str_replace('\\c', ':', $text));
     }
 
     /**
-     * Replace slash and colon into an escape character
+     * Replace slash and colon into an escape character.
      *
      * @param string $text
+     *
      * @return string
      */
     public static function encode(string $text): string
     {
         // Escape colons and backslashes to avoid conflicts with the message format
-        return str_replace('\\', '\\\\', str_replace(':', '\\c', $text));
+        return \str_replace('\\', '\\\\', \str_replace(':', '\\c', $text));
     }
 
     /**
-     * Convert STOMP message into a SimplifiedMessage entity
+     * Convert STOMP message into a SimplifiedMessage entity.
      *
      * @param string $message
+     *
      * @return static
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public static function fetch(string $message): self
     {
         // Match the STOMP-like frame: COMMAND\r\n[headers]\r\nbody\0\r\n
         // Group 1: command name, Group 2: header lines, Group 3: body content
-        if (preg_match('/^([A-Z][A-Z0-9_]*)\r\n(\w+:.*\r\n)*\r\n(.*)\0\r\n$/sm', $message, $matches)) {
+        if (\preg_match('/^([A-Z][A-Z0-9_]*)\r\n(\w+:.*\r\n)*\r\n(.*)\0\r\n$/sm', $message, $matches)) {
             $simplifiedMessage = new self($matches[1]);
             if ($matches[2]) {
                 // Parse individual header lines formatted as 'key:value\r\n'
-                preg_match_all('/(\w+):(.*)\r\n/', $matches[2], $headers, PREG_SET_ORDER);
+                \preg_match_all('/(\w+):(.*)\r\n/', $matches[2], $headers, PREG_SET_ORDER);
                 foreach ($headers as $header) {
-                    list(, $key, $value) = $header;
+                    [, $key, $value] = $header;
                     $simplifiedMessage->setHeader($key, $value);
                 }
             }
@@ -103,7 +112,7 @@ class SimplifiedMessage
     }
 
     /**
-     * Get the body message
+     * Get the body message.
      *
      * @return string
      */
@@ -113,9 +122,10 @@ class SimplifiedMessage
     }
 
     /**
-     * Set the body message
+     * Set the body message.
      *
      * @param string $value
+     *
      * @return $this
      */
     public function setBody(string $value): self
@@ -126,7 +136,7 @@ class SimplifiedMessage
     }
 
     /**
-     * Get the command
+     * Get the command.
      *
      * @return string
      */
@@ -136,9 +146,10 @@ class SimplifiedMessage
     }
 
     /**
-     * Get the header's value by given key
+     * Get the header's value by given key.
      *
      * @param string $key
+     *
      * @return string|null
      */
     public function getHeader(string $key): ?string
@@ -147,18 +158,20 @@ class SimplifiedMessage
     }
 
     /**
-     * Set the header's value
+     * Set the header's value.
      *
      * @param string $key
      * @param string $value
+     *
      * @return SimplifiedMessage
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function setHeader(string $key, string $value): self
     {
-        $key = trim($key);
-        if (!preg_match('/\w+/i', $key)) {
-            throw new \InvalidArgumentException('Invalid header key format.');
+        $key = \trim($key);
+        if (!\preg_match('/\w+/i', $key)) {
+            throw new InvalidArgumentException('Invalid header key format.');
         }
         $this->header[$key] = $value;
 
@@ -166,7 +179,7 @@ class SimplifiedMessage
     }
 
     /**
-     * Get the STOMP message
+     * Get the STOMP message.
      *
      * @return string
      */
@@ -174,7 +187,7 @@ class SimplifiedMessage
     {
         // Build the STOMP-like frame: COMMAND + headers + blank line + body + NULL terminator
         $message = $this->command . "\r\n";
-        if (count($this->header) > 0) {
+        if (\count($this->header) > 0) {
             foreach ($this->header as $key => $value) {
                 $message .= $key . ':' . $value . "\r\n";
             }

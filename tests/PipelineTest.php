@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Pipeline, Razy\Pipeline\Action, and Razy\Pipeline\Relay.
  *
@@ -17,6 +18,8 @@ use Razy\Pipeline;
 use Razy\Pipeline\Action;
 use Razy\Pipeline\Relay;
 use Razy\PluginManager;
+use RuntimeException;
+use stdClass;
 
 // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 // Test Fixtures ??Concrete Action subclasses for testing
@@ -89,7 +92,7 @@ class SelectiveAction extends Action
         if (empty($this->acceptedTypes)) {
             return true;
         }
-        return in_array($actionType, $this->acceptedTypes, true);
+        return \in_array($actionType, $this->acceptedTypes, true);
     }
 }
 
@@ -123,7 +126,7 @@ class ExceptionThrowingAction extends Action
 {
     public function customMethod(string $value): void
     {
-        throw new \RuntimeException("Intentional error from action");
+        throw new RuntimeException('Intentional error from action');
     }
 }
 
@@ -502,7 +505,7 @@ class PipelineTest extends TestCase
     #[Test]
     public function isActionReturnsFalseForNonActionObjects(): void
     {
-        $this->assertFalse(Pipeline::isAction(new \stdClass()));
+        $this->assertFalse(Pipeline::isAction(new stdClass()));
         $this->assertFalse(Pipeline::isAction('string'));
         $this->assertFalse(Pipeline::isAction(42));
         $this->assertFalse(Pipeline::isAction(null));
@@ -577,7 +580,7 @@ class PipelineTest extends TestCase
         $pipeline->setStorage('bool', false);
         $pipeline->setStorage('array', [1, 2, 3]);
         $pipeline->setStorage('null', null);
-        $obj = new \stdClass();
+        $obj = new stdClass();
         $pipeline->setStorage('object', $obj);
 
         $this->assertSame(42, $pipeline->getStorage('int'));
@@ -1345,18 +1348,18 @@ class PipelineTest extends TestCase
      */
     private function createPluginDir(string $pluginName, string $actionClass): string
     {
-        $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . uniqid();
-        mkdir($dir, 0777, true);
+        $dir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . \uniqid();
+        \mkdir($dir, 0o777, true);
 
         $file = $dir . DIRECTORY_SEPARATOR . $pluginName . '.php';
         $content = <<<PHP
-<?php
-use {$actionClass};
-return function(...\$args) {
-    return new \\{$actionClass}(...\$args);
-};
-PHP;
-        file_put_contents($file, $content);
+            <?php
+            use {$actionClass};
+            return function(...\$args) {
+                return new \\{$actionClass}(...\$args);
+            };
+            PHP;
+        \file_put_contents($file, $content);
         return $dir;
     }
 
@@ -1365,18 +1368,18 @@ PHP;
      */
     private function createSelectivePluginDir(string $pluginName, string ...$acceptedTypes): string
     {
-        $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . uniqid();
-        mkdir($dir, 0777, true);
+        $dir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . \uniqid();
+        \mkdir($dir, 0o777, true);
 
-        $typesStr = implode("', '", $acceptedTypes);
+        $typesStr = \implode("', '", $acceptedTypes);
         $file = $dir . DIRECTORY_SEPARATOR . $pluginName . '.php';
         $content = <<<PHP
-<?php
-return function() {
-    return new \\Razy\\Tests\\SelectiveAction('{$typesStr}');
-};
-PHP;
-        file_put_contents($file, $content);
+            <?php
+            return function() {
+                return new \\Razy\\Tests\\SelectiveAction('{$typesStr}');
+            };
+            PHP;
+        \file_put_contents($file, $content);
         return $dir;
     }
 
@@ -1385,17 +1388,17 @@ PHP;
      */
     private function createPluginDirWithArgs(string $pluginName): string
     {
-        $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . uniqid();
-        mkdir($dir, 0777, true);
+        $dir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . \uniqid();
+        \mkdir($dir, 0o777, true);
 
         $file = $dir . DIRECTORY_SEPARATOR . $pluginName . '.php';
         $content = <<<'PHP'
-<?php
-return function(...$args) {
-    return new \Razy\Tests\PassAction();
-};
-PHP;
-        file_put_contents($file, $content);
+            <?php
+            return function(...$args) {
+                return new \Razy\Tests\PassAction();
+            };
+            PHP;
+        \file_put_contents($file, $content);
         return $dir;
     }
 
@@ -1404,17 +1407,17 @@ PHP;
      */
     private function createBrokenPluginDir(string $pluginName): string
     {
-        $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . uniqid();
-        mkdir($dir, 0777, true);
+        $dir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_pipeline_test_' . \uniqid();
+        \mkdir($dir, 0o777, true);
 
         $file = $dir . DIRECTORY_SEPARATOR . $pluginName . '.php';
         $content = <<<'PHP'
-<?php
-return function() {
-    throw new \RuntimeException('Plugin construction failed');
-};
-PHP;
-        file_put_contents($file, $content);
+            <?php
+            return function() {
+                throw new \RuntimeException('Plugin construction failed');
+            };
+            PHP;
+        \file_put_contents($file, $content);
         return $dir;
     }
 
@@ -1423,12 +1426,12 @@ PHP;
      */
     private function cleanupPluginDir(string $dir): void
     {
-        $files = glob($dir . DIRECTORY_SEPARATOR . '*');
+        $files = \glob($dir . DIRECTORY_SEPARATOR . '*');
         if ($files) {
             foreach ($files as $file) {
-                @unlink($file);
+                @\unlink($file);
             }
         }
-        @rmdir($dir);
+        @\rmdir($dir);
     }
 }

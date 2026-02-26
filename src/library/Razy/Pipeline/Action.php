@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -13,13 +14,15 @@
  * communication via shared storage and broadcasting.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Pipeline;
 
-use Razy\Pipeline;
 use Razy\HashMap;
+use Razy\Pipeline;
+
 /**
  * Abstract base class for a unit of work in the Pipeline.
  *
@@ -67,6 +70,7 @@ use Razy\HashMap;
  *   getChildren()          Public accessor for child actions
  *
  * @class Action
+ *
  * @package Razy\Pipeline
  */
 abstract class Action
@@ -94,6 +98,7 @@ abstract class Action
      *
      * @param string $actionType The action type name
      * @param string $identifier The optional sub-type identifier
+     *
      * @return $this
      */
     final public function init(string $actionType = '', string $identifier = ''): static
@@ -140,13 +145,15 @@ abstract class Action
      *
      * @param string $method The action type to create (e.g., "Validate", "NoEmpty")
      * @param mixed ...$arguments Arguments for the action constructor
+     *
      * @return Action|null The created child action for further chaining
+     *
      * @throws Error If action creation fails
      */
-    final public function then(string $method, ...$arguments): ?Action
+    final public function then(string $method, ...$arguments): ?self
     {
         // Recursive mode: delegate to parent so all children are siblings
-        if ($this->owner instanceof Action && $this->owner->isRecursive()) {
+        if ($this->owner instanceof self && $this->owner->isRecursive()) {
             return $this->owner->then($method, ...$arguments);
         }
 
@@ -169,6 +176,7 @@ abstract class Action
      *
      * @param bool $condition Whether to execute the callback
      * @param callable $callback Receives this Action as its argument
+     *
      * @return $this Chainable (always returns self regardless of condition)
      */
     final public function when(bool $condition, callable $callback): static
@@ -190,6 +198,7 @@ abstract class Action
      * ```
      *
      * @param callable $callback Receives this Action as its argument
+     *
      * @return $this Chainable
      */
     final public function tap(callable $callback): static
@@ -208,16 +217,17 @@ abstract class Action
      * Automatically detaches from any previous parent first.
      *
      * @param Action|Pipeline $parent The parent entity to attach to
+     *
      * @return $this Chainable
      */
-    final public function attachTo(Action|Pipeline $parent): static
+    final public function attachTo(self|Pipeline $parent): static
     {
         if ($parent instanceof Pipeline) {
             $this->detach();
             $this->owner = $parent;
         } else {
             if ($this->accept($parent->getActionType())) {
-                if ($this->owner instanceof Action) {
+                if ($this->owner instanceof self) {
                     $this->owner->remove($this);
                 }
                 $parent->adopt($this);
@@ -234,9 +244,10 @@ abstract class Action
      * Establishes bidirectional parent-child relationship.
      *
      * @param Action $child The child action to adopt
+     *
      * @return $this Chainable
      */
-    final public function adopt(Action $child): static
+    final public function adopt(self $child): static
     {
         if (!$this->children->has($child)) {
             if ($child->accept($this->actionType)) {
@@ -253,9 +264,10 @@ abstract class Action
      * Remove a specific child Action from this action's children.
      *
      * @param Action $child The child action to remove
+     *
      * @return $this Chainable
      */
-    final public function remove(Action $child): static
+    final public function remove(self $child): static
     {
         if ($this->children->has($child)) {
             $this->children->remove($child);
@@ -273,7 +285,7 @@ abstract class Action
      */
     final public function detach(): static
     {
-        if ($this->owner instanceof Action) {
+        if ($this->owner instanceof self) {
             $previous = $this->owner;
             $this->owner = null;
             $previous->remove($this);
@@ -304,7 +316,7 @@ abstract class Action
      *
      * @return Action|Pipeline|null
      */
-    final public function getOwner(): Action|Pipeline|null
+    final public function getOwner(): self|Pipeline|null
     {
         return $this->owner;
     }
@@ -322,9 +334,10 @@ abstract class Action
      * ```
      *
      * @param string $actionType Action type pattern to match (empty = direct parent Action)
+     *
      * @return Action|null The matching parent Action, or null if not found
      */
-    final public function findOwner(string $actionType = ''): ?Action
+    final public function findOwner(string $actionType = ''): ?self
     {
         // Return null if no parent or parent is a Pipeline (not an Action)
         if (!$this->owner || $this->owner instanceof Pipeline) {
@@ -332,10 +345,10 @@ abstract class Action
         }
 
         // Match against the direct parent
-        if (preg_match('/^(\w[\w-]+)?(?::(\w+))?$/', $actionType, $matches)) {
-            if (!$actionType ||
-                ((!isset($matches[1]) || $this->owner->getActionType() === $matches[1]) &&
-                 (!isset($matches[2]) || $this->owner->getIdentifier() === $matches[2]))) {
+        if (\preg_match('/^(\w[\w-]+)?(?::(\w+))?$/', $actionType, $matches)) {
+            if (!$actionType
+                || ((!isset($matches[1]) || $this->owner->getActionType() === $matches[1])
+                 && (!isset($matches[2]) || $this->owner->getIdentifier() === $matches[2]))) {
                 return $this->owner;
             }
         }
@@ -357,7 +370,7 @@ abstract class Action
             if ($parent instanceof Pipeline) {
                 return $parent;
             }
-            if (!$parent instanceof Action) {
+            if (!$parent instanceof self) {
                 return null;
             }
             $current = $parent;
@@ -378,9 +391,10 @@ abstract class Action
      * Check if a given Action is in this action's children list.
      *
      * @param Action $action The action to check
+     *
      * @return bool
      */
-    final public function hasChild(Action $action): bool
+    final public function hasChild(self $action): bool
     {
         return $this->children->has($action);
     }
@@ -403,15 +417,16 @@ abstract class Action
      * For null: returns true if attached to anything.
      *
      * @param Action|Pipeline|null $entity The entity to check against
+     *
      * @return bool
      */
-    final public function isAttached(Action|Pipeline|null $entity = null): bool
+    final public function isAttached(self|Pipeline|null $entity = null): bool
     {
         if ($entity instanceof Pipeline) {
             return $this->getManager() === $entity;
         }
 
-        if ($entity instanceof Action) {
+        if ($entity instanceof self) {
             $current = $this;
             while ($parent = $current->findOwner()) {
                 if ($parent === $entity) {
@@ -434,6 +449,7 @@ abstract class Action
      * can be attached to. Returns true by default (accepts all).
      *
      * @param string $actionType The parent's action type name
+     *
      * @return bool True to accept the connection
      */
     public function accept(string $actionType = ''): bool
@@ -448,6 +464,7 @@ abstract class Action
      * The default implementation marks the action as executed and returns true.
      *
      * @param mixed ...$args Execution arguments
+     *
      * @return bool True if execution succeeded
      */
     public function execute(...$args): bool
@@ -472,11 +489,12 @@ abstract class Action
      * Reject this Action. Propagates rejection up to the parent Action.
      *
      * @param mixed $message The rejection reason or error code
+     *
      * @return Action|null The parent action that handled the rejection
      */
-    public function reject(mixed $message): ?Action
+    public function reject(mixed $message): ?self
     {
-        if ($this->owner instanceof Action) {
+        if ($this->owner instanceof self) {
             return $this->owner->reject($message);
         }
         return null;
@@ -491,6 +509,7 @@ abstract class Action
      * enabling recursive propagation through the tree.
      *
      * @param mixed ...$args Arguments to broadcast
+     *
      * @return $this Chainable
      */
     public function broadcast(...$args): static
@@ -499,6 +518,25 @@ abstract class Action
             $child->broadcast(...$args);
         }
         return $this;
+    }
+
+    // ─── Introspection ─────────────────────────────────────────────────
+
+    /**
+     * Get the structural map of this action's children (recursive).
+     *
+     * @return array<array{name: string, map: array}>
+     */
+    final public function getMap(): array
+    {
+        $map = [];
+        foreach ($this->children as $child) {
+            $map[] = [
+                'name' => $child->getActionType(),
+                'map' => $child->getMap(),
+            ];
+        }
+        return $map;
     }
 
     // ─── Recursive Mode ────────────────────────────────────────────────
@@ -510,6 +548,7 @@ abstract class Action
      * making all descendants become direct children (flat list).
      *
      * @param bool $recursive Whether to enable recursive mode
+     *
      * @return $this Chainable
      */
     protected function setRecursive(bool $recursive): static
@@ -526,24 +565,5 @@ abstract class Action
     protected function isRecursive(): bool
     {
         return $this->recursive;
-    }
-
-    // ─── Introspection ─────────────────────────────────────────────────
-
-    /**
-     * Get the structural map of this action's children (recursive).
-     *
-     * @return array<array{name: string, map: array}>
-     */
-    final public function getMap(): array
-    {
-        $map = [];
-        foreach ($this->children as $child) {
-            $map[] = [
-                'name' => $child->getActionType(),
-                'map'  => $child->getMap(),
-            ];
-        }
-        return $map;
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,12 +13,12 @@
  * and graceful close.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\WebSocket;
 
-use Closure;
 use RuntimeException;
 
 /**
@@ -30,6 +31,7 @@ use RuntimeException;
  * and the client side (after the opening handshake).
  *
  * @class Connection
+ *
  * @package Razy\WebSocket
  */
 class Connection
@@ -59,15 +61,15 @@ class Connection
     private string $id;
 
     /**
-     * @param resource $stream     The underlying socket stream
-     * @param bool     $maskOutput Whether outgoing frames should be masked
-     *                             (true for client connections per RFC 6455 §5.3)
+     * @param resource $stream The underlying socket stream
+     * @param bool $maskOutput Whether outgoing frames should be masked
+     *                         (true for client connections per RFC 6455 §5.3)
      */
     public function __construct(
         private mixed $stream,
         private bool  $maskOutput = false,
     ) {
-        $this->id = spl_object_hash($this);
+        $this->id = \spl_object_hash($this);
     }
 
     // ── Identity ─────────────────────────────────────────────────
@@ -103,7 +105,7 @@ class Connection
      */
     public function isOpen(): bool
     {
-        return is_resource($this->stream) && !feof($this->stream) && !$this->closeSent;
+        return \is_resource($this->stream) && !\feof($this->stream) && !$this->closeSent;
     }
 
     // ── User data ────────────────────────────────────────────────
@@ -135,7 +137,7 @@ class Connection
 
     public function getHeader(string $name): ?string
     {
-        return $this->headers[strtolower($name)] ?? null;
+        return $this->headers[\strtolower($name)] ?? null;
     }
 
     // ── Server-side handshake ────────────────────────────────────
@@ -160,28 +162,28 @@ class Connection
         $this->readIntoBuffer();
 
         // We need at least the double CRLF that terminates HTTP headers
-        $headerEnd = strpos($this->buffer, "\r\n\r\n");
+        $headerEnd = \strpos($this->buffer, "\r\n\r\n");
         if ($headerEnd === false) {
             return false;
         }
 
-        $headerBlock = substr($this->buffer, 0, $headerEnd);
-        $this->buffer = substr($this->buffer, $headerEnd + 4);
+        $headerBlock = \substr($this->buffer, 0, $headerEnd);
+        $this->buffer = \substr($this->buffer, $headerEnd + 4);
 
-        $lines = explode("\r\n", $headerBlock);
-        $requestLine = array_shift($lines);
+        $lines = \explode("\r\n", $headerBlock);
+        $requestLine = \array_shift($lines);
 
         // Parse "GET /path HTTP/1.1"
-        if (!preg_match('#^GET\s+(\S+)\s+HTTP/1\.1$#i', $requestLine, $m)) {
+        if (!\preg_match('#^GET\s+(\S+)\s+HTTP/1\.1$#i', $requestLine, $m)) {
             throw new RuntimeException('Invalid WebSocket HTTP request line: ' . $requestLine);
         }
         $this->requestUri = $m[1];
 
         // Parse headers
         foreach ($lines as $line) {
-            if (str_contains($line, ':')) {
-                [$name, $value] = explode(':', $line, 2);
-                $this->headers[strtolower(trim($name))] = trim($value);
+            if (\str_contains($line, ':')) {
+                [$name, $value] = \explode(':', $line, 2);
+                $this->headers[\strtolower(\trim($name))] = \trim($value);
             }
         }
 
@@ -191,14 +193,14 @@ class Connection
             throw new RuntimeException('Missing Sec-WebSocket-Key header');
         }
 
-        $upgrade = strtolower($this->headers['upgrade'] ?? '');
+        $upgrade = \strtolower($this->headers['upgrade'] ?? '');
         if ($upgrade !== 'websocket') {
             throw new RuntimeException('Invalid Upgrade header: ' . $upgrade);
         }
 
         // Build accept key per RFC 6455 §4.2.2
-        $acceptKey = base64_encode(
-            sha1($key . '258EAFA5-E914-47DA-95CA-5AB5DC175AB2', true)
+        $acceptKey = \base64_encode(
+            \sha1($key . '258EAFA5-E914-47DA-95CA-5AB5DC175AB2', true),
         );
 
         $response = "HTTP/1.1 101 Switching Protocols\r\n"
@@ -207,7 +209,7 @@ class Connection
             . "Sec-WebSocket-Accept: {$acceptKey}\r\n"
             . "\r\n";
 
-        fwrite($this->stream, $response);
+        \fwrite($this->stream, $response);
         $this->handshakeCompleted = true;
 
         return true;
@@ -233,25 +235,25 @@ class Connection
 
         $this->readIntoBuffer();
 
-        $headerEnd = strpos($this->buffer, "\r\n\r\n");
+        $headerEnd = \strpos($this->buffer, "\r\n\r\n");
         if ($headerEnd === false) {
             return false;
         }
 
-        $headerBlock = substr($this->buffer, 0, $headerEnd);
-        $this->buffer = substr($this->buffer, $headerEnd + 4);
+        $headerBlock = \substr($this->buffer, 0, $headerEnd);
+        $this->buffer = \substr($this->buffer, $headerEnd + 4);
 
-        $lines = explode("\r\n", $headerBlock);
-        $statusLine = array_shift($lines);
+        $lines = \explode("\r\n", $headerBlock);
+        $statusLine = \array_shift($lines);
 
-        if (!preg_match('#^HTTP/1\.1\s+101\s+#i', $statusLine)) {
+        if (!\preg_match('#^HTTP/1\.1\s+101\s+#i', $statusLine)) {
             throw new RuntimeException('Server did not return 101: ' . $statusLine);
         }
 
         foreach ($lines as $line) {
-            if (str_contains($line, ':')) {
-                [$name, $value] = explode(':', $line, 2);
-                $this->headers[strtolower(trim($name))] = trim($value);
+            if (\str_contains($line, ':')) {
+                [$name, $value] = \explode(':', $line, 2);
+                $this->headers[\strtolower(\trim($name))] = \trim($value);
             }
         }
 
@@ -302,7 +304,7 @@ class Connection
     /**
      * Send a close frame and mark the connection as closing.
      *
-     * @param int    $code   Status code (default: 1000 normal)
+     * @param int $code Status code (default: 1000 normal)
      * @param string $reason Human-readable reason
      */
     public function sendClose(int $code = 1000, string $reason = ''): void
@@ -320,11 +322,11 @@ class Connection
      */
     public function sendFrame(Frame $frame): void
     {
-        if (!is_resource($this->stream)) {
+        if (!\is_resource($this->stream)) {
             throw new RuntimeException('Cannot write to closed stream');
         }
         $data = $frame->encode($this->maskOutput);
-        $written = @fwrite($this->stream, $data);
+        $written = @\fwrite($this->stream, $data);
         if ($written === false) {
             throw new RuntimeException('fwrite failed');
         }
@@ -353,7 +355,7 @@ class Connection
         }
 
         [$frame, $consumed] = $result;
-        $this->buffer = substr($this->buffer, $consumed);
+        $this->buffer = \substr($this->buffer, $consumed);
 
         // Transparently handle ping → pong
         if ($frame->isPing()) {
@@ -368,7 +370,7 @@ class Connection
                 // Echo the close frame back
                 $this->sendClose(
                     $frame->getCloseCode() ?? 1000,
-                    $frame->getCloseReason()
+                    $frame->getCloseReason(),
                 );
             }
         }
@@ -396,8 +398,8 @@ class Connection
      */
     public function disconnect(): void
     {
-        if (is_resource($this->stream)) {
-            @fclose($this->stream);
+        if (\is_resource($this->stream)) {
+            @\fclose($this->stream);
         }
     }
 
@@ -416,11 +418,11 @@ class Connection
      */
     private function readIntoBuffer(): void
     {
-        if (!is_resource($this->stream) || feof($this->stream)) {
+        if (!\is_resource($this->stream) || \feof($this->stream)) {
             return;
         }
 
-        $data = @fread($this->stream, 65536);
+        $data = @\fread($this->stream, 65536);
         if ($data !== false && $data !== '') {
             $this->buffer .= $data;
         }

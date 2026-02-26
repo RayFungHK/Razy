@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -14,8 +15,9 @@ use Razy\Error;
 use Razy\Exception\NotFoundException;
 use Razy\Template;
 use Razy\Terminal;
-use Throwable;
 use Razy\Util\PathUtil;
+use Throwable;
+
 /**
  * Handles rendering of exception pages and error output.
  *
@@ -24,6 +26,7 @@ use Razy\Util\PathUtil;
  * in web mode and plain text output in CLI mode.
  *
  * @package Razy\Error
+ *
  * @license MIT
  */
 class ErrorRenderer
@@ -35,8 +38,8 @@ class ErrorRenderer
      */
     public static function show404(): void
     {
-        ob_clean();
-        header('HTTP/1.0 404 Not Found');
+        \ob_clean();
+        \header('HTTP/1.0 404 Not Found');
 
         if (WEB_MODE) {
             echo '<h1>404 Not Found</h1>';
@@ -65,7 +68,7 @@ class ErrorRenderer
         if (WEB_MODE) {
             // Resolve the exception template: use status-code-specific file if available, fallback to generic
             $tplFolder = PathUtil::append(PHAR_PATH, 'asset', 'exception');
-            if (is_file(PathUtil::append($tplFolder, $exception->getCode() . '.html'))) {
+            if (\is_file(PathUtil::append($tplFolder, $exception->getCode() . '.html'))) {
                 $tplFile = PathUtil::append($tplFolder, $exception->getCode() . '.html');
             } else {
                 $tplFile = PathUtil::append($tplFolder, 'any.html');
@@ -91,33 +94,33 @@ class ErrorRenderer
                     ]);
                 }
                 $debugConsole = ErrorConfig::getDebugConsole();
-                if (count($debugConsole)) {
+                if (\count($debugConsole)) {
                     $debugBlock->newBlock('console')->assign([
-                        'console' => implode("\n", $debugConsole),
+                        'console' => \implode("\n", $debugConsole),
                     ]);
                 }
 
                 // Parse the stack trace string into individual frames for template rendering
-                $stacktrace = explode("\n", $exception->getTraceAsString());
-                array_pop($stacktrace);
+                $stacktrace = \explode("\n", $exception->getTraceAsString());
+                \array_pop($stacktrace);
 
                 $index = 0;
                 foreach ($stacktrace as $trace) {
                     // Extract trace detail after the "#N " prefix
-                    preg_match('/^#\d+ (.+)$/', $trace, $matches);
+                    \preg_match('/^#\d+ (.+)$/', $trace, $matches);
                     $debugBlock->newBlock('backtrace')->assign([
                         'index' => $index++,
-                        'stack' => htmlspecialchars($matches[1]),
+                        'stack' => \htmlspecialchars($matches[1]),
                     ]);
                 }
             }
 
             // Capture any buffered output before replacing with the error page
-            ErrorConfig::setCached(ob_get_contents());
-            ob_clean();
+            ErrorConfig::setCached(\ob_get_contents());
+            \ob_clean();
             echo $source->output();
             // Set the HTTP status code; default to 400 if code is non-numeric
-            http_response_code(is_numeric($exception->getCode()) ? $exception->getCode() : 400);
+            \http_response_code(\is_numeric($exception->getCode()) ? $exception->getCode() : 400);
         } else {
             echo $exception;
         }

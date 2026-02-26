@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,19 +10,21 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
+
 use Exception;
 use InvalidArgumentException;
+use Razy\Contract\TemplateInterface;
 use Razy\Exception\TemplateException;
 use Razy\Template\Block;
+use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
-use Razy\Template\Plugin\TFunction;
 use Razy\Template\Source;
-use Razy\Contract\TemplateInterface;
 use ReflectionClass;
 use ReflectionException;
 use Throwable;
@@ -66,23 +69,25 @@ class Template implements TemplateInterface
     }
 
     /**
-     * Parse the content without modifier and function tag
+     * Parse the content without modifier and function tag.
      *
      * @param string $content
      * @param array $parameters
+     *
      * @return mixed
+     *
      * @throws Throwable
      */
-    static public function ParseContent(string $content, array $parameters = []): mixed
+    public static function ParseContent(string $content, array $parameters = []): mixed
     {
         // Match template variable tags like {$var} or {$var|fallback} with optional pipe-separated fallbacks
-        return preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) use ($parameters) {
+        return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) use ($parameters) {
             // Split the matched expression by pipe '|' to get fallback alternatives
-            $clips = preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+            $clips = \preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
             // Try each fallback value until a renderable one is found
             foreach ($clips as $clip) {
                 $value = self::ParseValue($clip, $parameters) ?? '';
-                if (is_scalar($value) || method_exists($value, '__toString')) {
+                if (\is_scalar($value) || \method_exists($value, '__toString')) {
                     return $value;
                 }
             }
@@ -93,57 +98,27 @@ class Template implements TemplateInterface
     }
 
     /**
-     * Parse the text or parameter pattern into a value.
-     *
-     * @return mixed The value of the parameter
-     * @throws Throwable
-     */
-    static private function ParseValue(string $content, array $parameters = []): mixed
-    {
-        $content = trim($content);
-        if (0 == strlen($content)) {
-            return null;
-        }
-
-        // Match literal values: booleans, numbers, or quoted strings
-        if (preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
-            if ($matches[1]) {
-                return $matches[1] === 'true';
-            }
-            return $matches[4] ?? $matches[2] ?? null;
-        }
-
-        // Match parameter variable references like $varName.path.to.value
-        if ('$' == $content[0] && preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
-            if (isset($parameters[$matches[1]])) {
-                return self::GetValueByPath($parameters[$matches[1]], $matches[2] ?? '');
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Get the value by parameter path syntax
+     * Get the value by parameter path syntax.
      *
      * @param mixed $value
      * @param string $path
+     *
      * @return mixed
      */
-    static public function GetValueByPath(mixed $value, string $path = ''): mixed
+    public static function GetValueByPath(mixed $value, string $path = ''): mixed
     {
         if (null !== $value) {
-            if (strlen($path) > 0) {
+            if (\strlen($path) > 0) {
                 // Extract path segments separated by dots, supporting quoted keys
-                preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
+                \preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
 
                 // Traverse the value by each path segment (array key or object property)
                 foreach ($matches as $clip) {
-                    $key = (strlen($clip[3] ?? '') > 0) ? $clip[3] : ($clip[1] ?? '');
-                    if (is_iterable($value)) {
+                    $key = (\strlen($clip[3] ?? '') > 0) ? $clip[3] : ($clip[1] ?? '');
+                    if (\is_iterable($value)) {
                         $value = $value[$key] ?? null;
-                    } elseif (is_object($value)) {
-                        if (property_exists($value, $key)) {
+                    } elseif (\is_object($value)) {
+                        if (\property_exists($value, $key)) {
                             $value = $value->{$key};
                         } else {
                             $value = null;
@@ -167,12 +142,14 @@ class Template implements TemplateInterface
      *
      * @param string $path
      * @param ModuleInfo|null $module
+     *
      * @return Source
+     *
      * @throws Throwable
      */
     public static function loadFile(string $path, ?ModuleInfo $module = null): Source
     {
-        return (new Template())->load($path, $module);
+        return (new self())->load($path, $module);
     }
 
     /**
@@ -186,35 +163,37 @@ class Template implements TemplateInterface
      * comment tags consistently with the template engine's parsing logic.
      *
      * @param string $path Template file path
+     *
      * @return array List of comments with 'content' and 'line' keys
+     *
      * @throws Throwable
      */
     public static function readComment(string $path): array
     {
-        if (!is_file($path)) {
+        if (!\is_file($path)) {
             return [];
         }
 
         try {
-            $content = file_get_contents($path);
+            $content = \file_get_contents($path);
             $comments = [];
-            
+
             // Use regex pattern similar to Entity::parseFunctionTag() to find all comment tags
             // Pattern: {# ... } (comment starts with { # and ends with })
-            if (preg_match_all('/\{#[^}]*?\}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+            if (\preg_match_all('/\{#[^}]*?\}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
                 foreach ($matches[0] as $match) {
                     $commentText = $match[0];
                     $offset = $match[1];
-                    
+
                     // Count newlines before this match to determine line number
-                    $lineNumber = substr_count($content, "\n", 0, $offset) + 1;
-                    
+                    $lineNumber = \substr_count($content, "\n", 0, $offset) + 1;
+
                     // Extract and clean comment content
                     // Remove opening {# and closing }
-                    $cleanContent = preg_replace('/^\{\s*#\s*/', '', $commentText);
-                    $cleanContent = preg_replace('/\s*\}$/', '', $cleanContent);
-                    $cleanContent = trim($cleanContent);
-                    
+                    $cleanContent = \preg_replace('/^\{\s*#\s*/', '', $commentText);
+                    $cleanContent = \preg_replace('/\s*\}$/', '', $cleanContent);
+                    $cleanContent = \trim($cleanContent);
+
                     if ($cleanContent) {
                         $comments[] = [
                             'content' => $cleanContent,
@@ -231,12 +210,45 @@ class Template implements TemplateInterface
     }
 
     /**
+     * Parse the text or parameter pattern into a value.
+     *
+     * @return mixed The value of the parameter
+     *
+     * @throws Throwable
+     */
+    private static function ParseValue(string $content, array $parameters = []): mixed
+    {
+        $content = \trim($content);
+        if (0 == \strlen($content)) {
+            return null;
+        }
+
+        // Match literal values: booleans, numbers, or quoted strings
+        if (\preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
+            if ($matches[1]) {
+                return $matches[1] === 'true';
+            }
+            return $matches[4] ?? $matches[2] ?? null;
+        }
+
+        // Match parameter variable references like $varName.path.to.value
+        if ('$' == $content[0] && \preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
+            if (isset($parameters[$matches[1]])) {
+                return self::GetValueByPath($parameters[$matches[1]], $matches[2] ?? '');
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Load the template file and return as Source object.
      *
      * @param string $path The file path
      * @param ModuleInfo|null $module
      *
      * @return Source The Source object
+     *
      * @throws Throwable
      */
     public function load(string $path, ?ModuleInfo $module = null): Source
@@ -252,18 +264,19 @@ class Template implements TemplateInterface
      *
      * @param Source $source
      * @param string $name
+     *
      * @return $this
      */
-    public function addQueue(Source $source, string $name): Template
+    public function addQueue(Source $source, string $name): self
     {
         $exists = $this->sources[$source->getID()] ?? null;
         if (!$exists || $exists !== $source) {
             // If the Source entity is not under the Template engine, skip adding queue list.
             return $this;
         }
-        $name = trim($name);
+        $name = \trim($name);
         if (!$name) {
-            $name = sprintf('%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff));
+            $name = \sprintf('%04x%04x', \mt_rand(0, 0xffff), \mt_rand(0, 0xffff));
         }
         $this->queue[$name] = $source;
 
@@ -271,9 +284,10 @@ class Template implements TemplateInterface
     }
 
     /**
-     * Get the template content by given name
+     * Get the template content by given name.
      *
      * @param string $name
+     *
      * @return Block|null
      */
     public function getTemplate(string $name): ?Block
@@ -300,9 +314,10 @@ class Template implements TemplateInterface
      * Insert other Source entity into template engine.
      *
      * @param Source $source
+     *
      * @return $this
      */
-    public function insert(Source $source): Template
+    public function insert(Source $source): self
     {
         $this->sources[$source->getID()] = $source;
         $source->link($this);
@@ -317,12 +332,13 @@ class Template implements TemplateInterface
      * @param string $name The plugin name
      *
      * @return TModifier|TFunction|TFunctionCustom|null The plugin entity
+     *
      * @throws Error
      * @throws ReflectionException
      */
     public function loadPlugin(string $type, string $name): TModifier|TFunction|TFunctionCustom|null
     {
-        $name = strtolower($name);
+        $name = \strtolower($name);
         $identify = $type . '.' . $name;
 
         if (!isset($this->plugins[$identify])) {
@@ -339,8 +355,7 @@ class Template implements TemplateInterface
                         }
                         return ($this->plugins[$identify] = $entity);
                     }
-                }
-                catch (Exception) {
+                } catch (Exception) {
                     return null;
                 }
             }
@@ -350,23 +365,26 @@ class Template implements TemplateInterface
     }
 
     /**
-     * Load the template file as a global template block
+     * Load the template file as a global template block.
      *
      * @param $name
      * @param string|null $path
+     *
      * @return $this
+     *
      * @throws Throwable
      */
-    public function loadTemplate($name, ?string $path = null): Template
+    public function loadTemplate($name, ?string $path = null): self
     {
-        if (is_array($name)) {
+        if (\is_array($name)) {
             foreach ($name as $filepath => $tplName) {
                 $this->loadTemplate($tplName, $filepath);
             }
             return $this;
-        } elseif (is_string($name)) {
-            $name = trim($name);
-            if (!preg_match('/^\w+$/', $name)) {
+        }
+        if (\is_string($name)) {
+            $name = \trim($name);
+            if (!\preg_match('/^\w+$/', $name)) {
                 throw new TemplateException('Invalid template name format.');
             }
 
@@ -381,6 +399,7 @@ class Template implements TemplateInterface
      * Return the entity content in queue list by given section name.
      *
      * @param array $sections An array contains section name
+     *
      * @throws Throwable
      */
     public function outputQueued(array $sections): string

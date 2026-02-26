@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Extracted from Statement::getSyntax() UPDATE branch + getUpdateSyntax() (Phase 2.3).
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -43,7 +45,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
         if ($tableName && !empty($updateExpressions)) {
             // Get driver for identifier quoting
             $driver = $statement->getDatabase()->getDriver();
-            $quote = $driver ? fn($c) => $driver->quoteIdentifier($c) : fn($c) => '`' . $c . '`';
+            $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
 
             // Build SET clause with each column's update expression
             $updateSyntax = [];
@@ -51,7 +53,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                 $updateSyntax[] = $quote($column) . ' = ' . $this->buildUpdateExpression($syntax, $column, $statement);
             }
 
-            $sql = 'UPDATE ' . $tableName . ' SET ' . implode(', ', $updateSyntax);
+            $sql = 'UPDATE ' . $tableName . ' SET ' . \implode(', ', $updateSyntax);
 
             // Append WHERE clause if defined
             $where = $statement->getWhereSyntax();
@@ -90,36 +92,36 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                 return $driver->getConcatSyntax($parts);
             }
             // Legacy MySQL fallback using CONCAT()
-            return 'CONCAT(' . implode(', ', $parts) . ')';
+            return 'CONCAT(' . \implode(', ', $parts) . ')';
         };
 
         // Recursive parser that processes operand tokens and builds SQL expressions
         $parser = function (array &$extracted) use (&$parser, $column, $concat, $statement) {
             $parsed = [];
             $operand = '';
-            while ($clip = array_shift($extracted)) {
-                if (is_array($clip)) {
+            while ($clip = \array_shift($extracted)) {
+                if (\is_array($clip)) {
                     // Nested sub-expression: recurse and handle concatenation operator
                     if ('&' === $operand) {
-                        $parts = array_merge($parsed, [$parser($clip)]);
+                        $parts = \array_merge($parsed, [$parser($clip)]);
                         $parsed = [$concat($parts)];
                     } else {
                         $parsed[] = '(' . $parser($clip) . ')';
                     }
                 } else {
-                    if (!preg_match('/^[+\-*\/&]$/', $clip)) {
+                    if (!\preg_match('/^[+\-*\/&]$/', $clip)) {
                         $matches = null;
-                        if ('?' === $clip || preg_match('/^:(\w+)$/', $clip, $matches)) {
+                        if ('?' === $clip || \preg_match('/^:(\w+)$/', $clip, $matches)) {
                             $clip = $statement->getValueAsStatement(('?' === $clip) ? $column : $matches[1]);
                         } else {
                             // Replace inline :parameter references within complex expressions
-                            $clip = preg_replace_callback('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|:(\w+)/', function ($matches) use ($statement) {
+                            $clip = \preg_replace_callback('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|:(\w+)/', function ($matches) use ($statement) {
                                 return $statement->getValueAsStatement($matches[3]);
                             }, $clip);
                         }
 
                         if ('&' === $operand) {
-                            $parts = array_merge($parsed, [$clip]);
+                            $parts = \array_merge($parsed, [$clip]);
                             $parsed = [$concat($parts)];
                         } else {
                             $parsed[] = $clip;
@@ -129,9 +131,9 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                     }
                 }
 
-                $operand = array_shift($extracted);
+                $operand = \array_shift($extracted);
                 if ($operand) {
-                    if (!is_string($operand) || !preg_match('/^[+\-*\/&]$/', $operand)) {
+                    if (!\is_string($operand) || !\preg_match('/^[+\-*\/&]$/', $operand)) {
                         throw new QueryException('Cannot generate the update statement because the Update Simple Syntax is not correct.');
                     }
 
@@ -141,7 +143,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                 }
             }
 
-            return implode(' ', $parsed);
+            return \implode(' ', $parsed);
         };
 
         $extracted = $updateSyntax;

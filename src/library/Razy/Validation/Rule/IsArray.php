@@ -23,7 +23,7 @@ class IsArray extends ValidationRule
             return $value;
         }
 
-        if (!is_array($value)) {
+        if (!\is_array($value)) {
             $this->fail();
 
             return $value;

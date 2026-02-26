@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -14,6 +15,7 @@ use Closure;
 use Razy\Container;
 use Razy\Distributor;
 use Razy\Module;
+use Throwable;
 
 /**
  * Orchestrates worker lifecycle management for persistent worker mode.
@@ -100,12 +102,12 @@ class WorkerLifecycleManager
     public function __construct(
         string $signalPath = '',
         int $drainTimeoutSeconds = 10,
-        int $checkInterval = 100
+        int $checkInterval = 100,
     ) {
         $this->detector = new ModuleChangeDetector();
         $this->signalPath = $signalPath;
         $this->drainTimeoutSeconds = $drainTimeoutSeconds;
-        $this->checkInterval = max(0, $checkInterval);
+        $this->checkInterval = \max(0, $checkInterval);
     }
 
     // ── Boot ─────────────────────────────────────────────
@@ -121,19 +123,7 @@ class WorkerLifecycleManager
         $this->current = $distributor;
         $this->snapshotModules($distributor);
         $this->state = WorkerState::Ready;
-        $this->log('Worker booted, state=Ready, modules=' . count($this->detector->getRegisteredModules()));
-    }
-
-    /**
-     * Snapshot all loaded modules from a Distributor for change detection.
-     */
-    private function snapshotModules(Distributor $distributor): void
-    {
-        foreach ($distributor->getRegistry()->getQueue() as $module) {
-            /** @var Module $module */
-            $info = $module->getModuleInfo();
-            $this->detector->snapshot($info->getCode(), $info->getPath());
-        }
+        $this->log('Worker booted, state=Ready, modules=' . \count($this->detector->getRegisteredModules()));
     }
 
     // ── Per-Request Check ────────────────────────────────
@@ -180,7 +170,7 @@ class WorkerLifecycleManager
             if ($container instanceof Container && $container->exceedsRebindThreshold()) {
                 return $this->beginDrain(
                     'Rebind threshold exceeded (' . $container->getTotalRebindCount()
-                    . '), restart to clean class table'
+                    . '), restart to clean class table',
                 );
             }
         }
@@ -200,7 +190,7 @@ class WorkerLifecycleManager
 
         if ($overallChange === ChangeType::ClassFile) {
             return $this->beginDrain('Named class file changes detected in: '
-                . implode(', ', $this->detector->getRestartRequiredModules()));
+                . \implode(', ', $this->detector->getRestartRequiredModules()));
         }
 
         // Rebindable changes — attempt in-process rebind (Strategy C+)
@@ -220,12 +210,13 @@ class WorkerLifecycleManager
      * to trigger process restart.
      *
      * @param string $reason Why the drain was triggered
+     *
      * @return string Action ('restart' if no in-flight, 'draining' if waiting)
      */
     public function beginDrain(string $reason = ''): string
     {
         $this->state = WorkerState::Draining;
-        $this->drainStartedAt = time();
+        $this->drainStartedAt = \time();
         $this->log("Drain started: {$reason}");
 
         if ($this->inflightCount <= 0) {
@@ -238,6 +229,129 @@ class WorkerLifecycleManager
         return 'draining';
     }
 
+    // ── Request Tracking ─────────────────────────────────
+
+    /**
+     * Mark that a request has started processing.
+     * Must be paired with requestFinished().
+     */
+    public function requestStarted(): void
+    {
+        $this->inflightCount++;
+    }
+
+    /**
+     * Mark that a request has finished processing.
+     * When draining and all requests finish, transitions to Terminated.
+     */
+    public function requestFinished(): void
+    {
+        $this->inflightCount = \max(0, $this->inflightCount - 1);
+
+        if ($this->state === WorkerState::Draining && $this->inflightCount <= 0) {
+            $this->log('All in-flight requests completed, transitioning to Terminated');
+            $this->state = WorkerState::Terminated;
+        }
+    }
+
+    // ── Accessors ────────────────────────────────────────
+
+    /**
+     * Get the current worker state.
+     */
+    public function getState(): WorkerState
+    {
+        return $this->state;
+    }
+
+    /**
+     * Get the number of in-flight requests.
+     */
+    public function getInflightCount(): int
+    {
+        return $this->inflightCount;
+    }
+
+    /**
+     * Whether the worker should exit the process loop.
+     */
+    public function shouldTerminate(): bool
+    {
+        return $this->state->shouldExit();
+    }
+
+    /**
+     * Whether the worker can accept new requests.
+     */
+    public function canAcceptRequests(): bool
+    {
+        return $this->state->canAcceptRequests();
+    }
+
+    /**
+     * Get the active Distributor.
+     */
+    public function getDistributor(): ?Distributor
+    {
+        return $this->current;
+    }
+
+    /**
+     * Get the ModuleChangeDetector instance.
+     */
+    public function getDetector(): ModuleChangeDetector
+    {
+        return $this->detector;
+    }
+
+    // ── Configuration ────────────────────────────────────
+
+    /**
+     * Set a logger callback for lifecycle events.
+     *
+     * @param Closure(string): void $logger
+     */
+    public function setLogger(Closure $logger): void
+    {
+        $this->logger = $logger;
+    }
+
+    /**
+     * Set the signal file path.
+     */
+    public function setSignalPath(string $path): void
+    {
+        $this->signalPath = $path;
+    }
+
+    /**
+     * Set the drain timeout.
+     */
+    public function setDrainTimeout(int $seconds): void
+    {
+        $this->drainTimeoutSeconds = \max(1, $seconds);
+    }
+
+    /**
+     * Set the check interval (number of requests between change checks).
+     */
+    public function setCheckInterval(int $interval): void
+    {
+        $this->checkInterval = \max(0, $interval);
+    }
+
+    /**
+     * Snapshot all loaded modules from a Distributor for change detection.
+     */
+    private function snapshotModules(Distributor $distributor): void
+    {
+        foreach ($distributor->getRegistry()->getQueue() as $module) {
+            /** @var Module $module */
+            $info = $module->getModuleInfo();
+            $this->detector->snapshot($info->getCode(), $info->getPath());
+        }
+    }
+
     /**
      * Check if the drain timeout has been exceeded.
      */
@@ -247,7 +361,7 @@ class WorkerLifecycleManager
             return false;
         }
 
-        return (time() - $this->drainStartedAt) > $this->drainTimeoutSeconds;
+        return (\time() - $this->drainStartedAt) > $this->drainTimeoutSeconds;
     }
 
     // ── Strategy B/C: Hot Swap ───────────────────────────
@@ -271,7 +385,7 @@ class WorkerLifecycleManager
 
         $this->state = WorkerState::Swapping;
 
-        if (count($changedModules) === 1) {
+        if (\count($changedModules) === 1) {
             $result = $this->hotSwapSingleModule($changedModules[0]);
         } else {
             $result = $this->hotSwapMultipleModules($changedModules);
@@ -284,7 +398,7 @@ class WorkerLifecycleManager
 
         // Swap failed — fall back to restart
         $this->log('Hot-swap failed, falling back to restart');
-        return $this->beginDrain('Hot-swap failed for: ' . implode(', ', $changedModules));
+        return $this->beginDrain('Hot-swap failed for: ' . \implode(', ', $changedModules));
     }
 
     // ── Strategy C+: Rebind ───────────────────────────────
@@ -305,7 +419,7 @@ class WorkerLifecycleManager
     {
         $rebindable = $this->detector->getRebindableModules();
         $configOnly = $this->detector->getHotSwappableModules();
-        $allChanged = array_unique(array_merge($rebindable, $configOnly));
+        $allChanged = \array_unique(\array_merge($rebindable, $configOnly));
 
         if (empty($allChanged)) {
             return 'continue';
@@ -339,7 +453,7 @@ class WorkerLifecycleManager
                 // Refresh snapshot after successful rebind
                 $this->detector->refreshSnapshot($moduleCode);
                 $this->log("Strategy C+: Module '{$moduleCode}' rebound successfully");
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $this->log("Strategy C+: Failed to rebind '{$moduleCode}': " . $e->getMessage());
                 $allSucceeded = false;
                 break;
@@ -352,7 +466,7 @@ class WorkerLifecycleManager
         }
 
         // Rebind failed — fall back to restart
-        return $this->beginDrain('Rebind failed for modules: ' . implode(', ', $allChanged));
+        return $this->beginDrain('Rebind failed for modules: ' . \implode(', ', $allChanged));
     }
 
     /**
@@ -363,6 +477,7 @@ class WorkerLifecycleManager
      * since no class files changed.
      *
      * @param string $moduleCode The module to swap
+     *
      * @return bool True if swap succeeded
      */
     private function hotSwapSingleModule(string $moduleCode): bool
@@ -387,7 +502,7 @@ class WorkerLifecycleManager
 
             $this->log("Strategy C: Module '{$moduleCode}' swapped successfully");
             return true;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->log("Strategy C: Failed to swap '{$moduleCode}': " . $e->getMessage());
             return false;
         }
@@ -401,11 +516,12 @@ class WorkerLifecycleManager
      * the new Distributor once it's ready.
      *
      * @param string[] $moduleCodes Modules that changed
+     *
      * @return bool True if swap succeeded
      */
     private function hotSwapMultipleModules(array $moduleCodes): bool
     {
-        $this->log('Strategy B: Rebuilding Distributor for modules: ' . implode(', ', $moduleCodes));
+        $this->log('Strategy B: Rebuilding Distributor for modules: ' . \implode(', ', $moduleCodes));
 
         try {
             // In dual-version swap, the new Distributor is booted in the
@@ -420,7 +536,7 @@ class WorkerLifecycleManager
 
             $this->log('Strategy B: All changed modules refreshed');
             return true;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->log('Strategy B: Failed: ' . $e->getMessage());
             return false;
         }
@@ -505,7 +621,7 @@ class WorkerLifecycleManager
 
         // All specified modules are config-only
         $this->state = WorkerState::Swapping;
-        $result = count($modules) === 1
+        $result = \count($modules) === 1
             ? $this->hotSwapSingleModule($modules[0])
             : $this->hotSwapMultipleModules($modules);
 
@@ -525,117 +641,6 @@ class WorkerLifecycleManager
         $this->log("Force terminate: {$reason}");
         $this->state = WorkerState::Terminated;
         return 'terminate';
-    }
-
-    // ── Request Tracking ─────────────────────────────────
-
-    /**
-     * Mark that a request has started processing.
-     * Must be paired with requestFinished().
-     */
-    public function requestStarted(): void
-    {
-        $this->inflightCount++;
-    }
-
-    /**
-     * Mark that a request has finished processing.
-     * When draining and all requests finish, transitions to Terminated.
-     */
-    public function requestFinished(): void
-    {
-        $this->inflightCount = max(0, $this->inflightCount - 1);
-
-        if ($this->state === WorkerState::Draining && $this->inflightCount <= 0) {
-            $this->log('All in-flight requests completed, transitioning to Terminated');
-            $this->state = WorkerState::Terminated;
-        }
-    }
-
-    // ── Accessors ────────────────────────────────────────
-
-    /**
-     * Get the current worker state.
-     */
-    public function getState(): WorkerState
-    {
-        return $this->state;
-    }
-
-    /**
-     * Get the number of in-flight requests.
-     */
-    public function getInflightCount(): int
-    {
-        return $this->inflightCount;
-    }
-
-    /**
-     * Whether the worker should exit the process loop.
-     */
-    public function shouldTerminate(): bool
-    {
-        return $this->state->shouldExit();
-    }
-
-    /**
-     * Whether the worker can accept new requests.
-     */
-    public function canAcceptRequests(): bool
-    {
-        return $this->state->canAcceptRequests();
-    }
-
-    /**
-     * Get the active Distributor.
-     */
-    public function getDistributor(): ?Distributor
-    {
-        return $this->current;
-    }
-
-    /**
-     * Get the ModuleChangeDetector instance.
-     */
-    public function getDetector(): ModuleChangeDetector
-    {
-        return $this->detector;
-    }
-
-    // ── Configuration ────────────────────────────────────
-
-    /**
-     * Set a logger callback for lifecycle events.
-     *
-     * @param Closure(string): void $logger
-     */
-    public function setLogger(Closure $logger): void
-    {
-        $this->logger = $logger;
-    }
-
-    /**
-     * Set the signal file path.
-     */
-    public function setSignalPath(string $path): void
-    {
-        $this->signalPath = $path;
-    }
-
-    /**
-     * Set the drain timeout.
-     */
-    public function setDrainTimeout(int $seconds): void
-    {
-        $this->drainTimeoutSeconds = max(1, $seconds);
-    }
-
-    /**
-     * Set the check interval (number of requests between change checks).
-     */
-    public function setCheckInterval(int $interval): void
-    {
-        $this->checkInterval = max(0, $interval);
     }
 
     // ── Internal ─────────────────────────────────────────

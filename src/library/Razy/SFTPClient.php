@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -15,6 +16,7 @@
  * Requires PHP ext-ssh2 for full functionality.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -59,22 +61,22 @@ class SFTPClient
      * established but not authenticated until one of the login methods
      * is called.
      *
-     * @param string $host    SSH server hostname or IP address
-     * @param int    $port    SSH port (default: 22)
-     * @param int    $timeout Connection timeout in seconds (default: 30)
+     * @param string $host SSH server hostname or IP address
+     * @param int $port SSH port (default: 22)
+     * @param int $timeout Connection timeout in seconds (default: 30)
      *
      * @throws Error If the ssh2 extension is not loaded or connection fails
      */
     public function __construct(
         private readonly string $host,
         private readonly int $port = 22,
-        private readonly int $timeout = 30
+        private readonly int $timeout = 30,
     ) {
-        if (!extension_loaded('ssh2')) {
+        if (!\extension_loaded('ssh2')) {
             throw new SSHException('The SSH2 extension (ext-ssh2) is required for SFTPClient.');
         }
 
-        $this->session = @ssh2_connect($host, $port);
+        $this->session = @\ssh2_connect($host, $port);
 
         if (!$this->session) {
             throw new SSHException("Failed to connect to SSH server: {$host}:{$port}");
@@ -107,7 +109,7 @@ class SFTPClient
     {
         $this->requireSession();
 
-        if (!@ssh2_auth_password($this->session, $username, $password)) {
+        if (!@\ssh2_auth_password($this->session, $username, $password)) {
             throw new SSHException("SSH password authentication failed for user: {$username}");
         }
 
@@ -121,10 +123,10 @@ class SFTPClient
     /**
      * Authenticate with public key.
      *
-     * @param string      $username      SSH username
-     * @param string      $publicKeyFile Path to the public key file
-     * @param string      $privateKeyFile Path to the private key file
-     * @param string|null $passphrase    Passphrase for the private key (if encrypted)
+     * @param string $username SSH username
+     * @param string $publicKeyFile Path to the public key file
+     * @param string $privateKeyFile Path to the private key file
+     * @param string|null $passphrase Passphrase for the private key (if encrypted)
      *
      * @return $this
      *
@@ -134,24 +136,24 @@ class SFTPClient
         string $username,
         string $publicKeyFile,
         string $privateKeyFile,
-        ?string $passphrase = null
+        ?string $passphrase = null,
     ): static {
         $this->requireSession();
 
-        if (!is_file($publicKeyFile)) {
+        if (!\is_file($publicKeyFile)) {
             throw new SSHException("Public key file not found: {$publicKeyFile}");
         }
 
-        if (!is_file($privateKeyFile)) {
+        if (!\is_file($privateKeyFile)) {
             throw new SSHException("Private key file not found: {$privateKeyFile}");
         }
 
-        $result = @ssh2_auth_pubkey_file(
+        $result = @\ssh2_auth_pubkey_file(
             $this->session,
             $username,
             $publicKeyFile,
             $privateKeyFile,
-            $passphrase ?? ''
+            $passphrase ?? '',
         );
 
         if (!$result) {
@@ -178,11 +180,11 @@ class SFTPClient
     {
         $this->requireSession();
 
-        if (!function_exists('ssh2_auth_agent')) {
+        if (!\function_exists('ssh2_auth_agent')) {
             throw new SSHException('SSH agent authentication requires ssh2_auth_agent() (available in libssh2 >= 1.2.3).');
         }
 
-        if (!@ssh2_auth_agent($this->session, $username)) {
+        if (!@\ssh2_auth_agent($this->session, $username)) {
             throw new SSHException("SSH agent authentication failed for user: {$username}");
         }
 
@@ -198,41 +200,41 @@ class SFTPClient
     /**
      * Upload a local file to the remote server.
      *
-     * @param string $localPath  Path to the local file
+     * @param string $localPath Path to the local file
      * @param string $remotePath Remote destination path
-     * @param int    $permissions File permissions (default: 0644)
+     * @param int $permissions File permissions (default: 0644)
      *
      * @return $this
      *
      * @throws Error If the local file doesn't exist or upload fails
      */
-    public function upload(string $localPath, string $remotePath, int $permissions = 0644): static
+    public function upload(string $localPath, string $remotePath, int $permissions = 0o644): static
     {
         $this->requireSftp();
 
-        if (!is_file($localPath)) {
+        if (!\is_file($localPath)) {
             throw new SSHException("Local file not found: {$localPath}");
         }
 
-        $content = file_get_contents($localPath);
+        $content = \file_get_contents($localPath);
         if ($content === false) {
             throw new SSHException("Failed to read local file: {$localPath}");
         }
 
-        $stream = @fopen("ssh2.sftp://{$this->sftp}{$remotePath}", 'w');
+        $stream = @\fopen("ssh2.sftp://{$this->sftp}{$remotePath}", 'w');
         if (!$stream) {
             throw new SSHException("Failed to open remote file for writing: {$remotePath}");
         }
 
-        $written = fwrite($stream, $content);
-        fclose($stream);
+        $written = \fwrite($stream, $content);
+        \fclose($stream);
 
         if ($written === false) {
             throw new SSHException("Failed to write to remote file: {$remotePath}");
         }
 
         // Set permissions
-        @ssh2_sftp_chmod($this->sftp, $remotePath, $permissions);
+        @\ssh2_sftp_chmod($this->sftp, $remotePath, $permissions);
 
         $this->log("Uploaded: {$localPath} ??{$remotePath} ({$written} bytes)");
 
@@ -243,7 +245,7 @@ class SFTPClient
      * Download a remote file to the local filesystem.
      *
      * @param string $remotePath Remote file path
-     * @param string $localPath  Local destination path
+     * @param string $localPath Local destination path
      *
      * @return $this
      *
@@ -254,14 +256,14 @@ class SFTPClient
         $this->requireSftp();
 
         // Ensure the local directory exists
-        $localDir = dirname($localPath);
-        if (!is_dir($localDir)) {
-            mkdir($localDir, 0755, true);
+        $localDir = \dirname($localPath);
+        if (!\is_dir($localDir)) {
+            \mkdir($localDir, 0o755, true);
         }
 
         $content = $this->downloadString($remotePath);
 
-        if (file_put_contents($localPath, $content) === false) {
+        if (\file_put_contents($localPath, $content) === false) {
             throw new SSHException("Failed to write local file: {$localPath}");
         }
 
@@ -273,31 +275,31 @@ class SFTPClient
     /**
      * Upload a string as a remote file.
      *
-     * @param string $content     String content to upload
-     * @param string $remotePath  Remote destination path
-     * @param int    $permissions File permissions (default: 0644)
+     * @param string $content String content to upload
+     * @param string $remotePath Remote destination path
+     * @param int $permissions File permissions (default: 0644)
      *
      * @return $this
      *
      * @throws Error If upload fails
      */
-    public function uploadString(string $content, string $remotePath, int $permissions = 0644): static
+    public function uploadString(string $content, string $remotePath, int $permissions = 0o644): static
     {
         $this->requireSftp();
 
-        $stream = @fopen("ssh2.sftp://{$this->sftp}{$remotePath}", 'w');
+        $stream = @\fopen("ssh2.sftp://{$this->sftp}{$remotePath}", 'w');
         if (!$stream) {
             throw new SSHException("Failed to open remote file for writing: {$remotePath}");
         }
 
-        $written = fwrite($stream, $content);
-        fclose($stream);
+        $written = \fwrite($stream, $content);
+        \fclose($stream);
 
         if ($written === false) {
             throw new SSHException("Failed to write to remote file: {$remotePath}");
         }
 
-        @ssh2_sftp_chmod($this->sftp, $remotePath, $permissions);
+        @\ssh2_sftp_chmod($this->sftp, $remotePath, $permissions);
 
         $this->log("Uploaded string to: {$remotePath} ({$written} bytes)");
 
@@ -317,19 +319,19 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        $stream = @fopen("ssh2.sftp://{$this->sftp}{$remotePath}", 'r');
+        $stream = @\fopen("ssh2.sftp://{$this->sftp}{$remotePath}", 'r');
         if (!$stream) {
             throw new SSHException("Failed to open remote file for reading: {$remotePath}");
         }
 
-        $content = stream_get_contents($stream);
-        fclose($stream);
+        $content = \stream_get_contents($stream);
+        \fclose($stream);
 
         if ($content === false) {
             throw new SSHException("Failed to read remote file: {$remotePath}");
         }
 
-        $this->log("Downloaded string from: {$remotePath} (" . strlen($content) . ' bytes)');
+        $this->log("Downloaded string from: {$remotePath} (" . \strlen($content) . ' bytes)');
 
         return $content;
     }
@@ -347,7 +349,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        if (!@ssh2_sftp_unlink($this->sftp, $remotePath)) {
+        if (!@\ssh2_sftp_unlink($this->sftp, $remotePath)) {
             throw new SSHException("Failed to delete file: {$remotePath}");
         }
 
@@ -370,7 +372,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        if (!@ssh2_sftp_rename($this->sftp, $oldPath, $newPath)) {
+        if (!@\ssh2_sftp_rename($this->sftp, $oldPath, $newPath)) {
             throw new SSHException("Failed to rename: {$oldPath} ??{$newPath}");
         }
 
@@ -383,7 +385,7 @@ class SFTPClient
      * Set permissions on a remote file (chmod).
      *
      * @param string $remotePath Remote file path
-     * @param int    $mode       Octal permission mode (e.g. 0644, 0755)
+     * @param int $mode Octal permission mode (e.g. 0644, 0755)
      *
      * @return $this
      *
@@ -393,11 +395,11 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        if (!@ssh2_sftp_chmod($this->sftp, $remotePath, $mode)) {
-            throw new SSHException("Failed to chmod {$remotePath} to " . decoct($mode));
+        if (!@\ssh2_sftp_chmod($this->sftp, $remotePath, $mode)) {
+            throw new SSHException("Failed to chmod {$remotePath} to " . \decoct($mode));
         }
 
-        $this->log("Chmod: {$remotePath} ??" . decoct($mode));
+        $this->log("Chmod: {$remotePath} ??" . \decoct($mode));
 
         return $this;
     }
@@ -405,7 +407,7 @@ class SFTPClient
     /**
      * Create a symbolic link.
      *
-     * @param string $target   Path the symlink points to
+     * @param string $target Path the symlink points to
      * @param string $linkPath Path of the symlink to create
      *
      * @return $this
@@ -416,7 +418,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        if (!@ssh2_sftp_symlink($this->sftp, $target, $linkPath)) {
+        if (!@\ssh2_sftp_symlink($this->sftp, $target, $linkPath)) {
             throw new SSHException("Failed to create symlink: {$linkPath} ??{$target}");
         }
 
@@ -438,7 +440,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        $target = @ssh2_sftp_readlink($this->sftp, $linkPath);
+        $target = @\ssh2_sftp_readlink($this->sftp, $linkPath);
         if ($target === false) {
             throw new SSHException("Failed to read symlink: {$linkPath}");
         }
@@ -459,7 +461,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        $resolved = @ssh2_sftp_realpath($this->sftp, $remotePath);
+        $resolved = @\ssh2_sftp_realpath($this->sftp, $remotePath);
         if ($resolved === false) {
             throw new SSHException("Failed to resolve path: {$remotePath}");
         }
@@ -472,19 +474,19 @@ class SFTPClient
     /**
      * Create a directory on the remote server.
      *
-     * @param string $directory   Remote directory path to create
-     * @param int    $permissions Directory permissions (default: 0755)
-     * @param bool   $recursive   Create parent directories as needed (default: false)
+     * @param string $directory Remote directory path to create
+     * @param int $permissions Directory permissions (default: 0755)
+     * @param bool $recursive Create parent directories as needed (default: false)
      *
      * @return $this
      *
      * @throws Error If directory creation fails
      */
-    public function mkdir(string $directory, int $permissions = 0755, bool $recursive = false): static
+    public function mkdir(string $directory, int $permissions = 0o755, bool $recursive = false): static
     {
         $this->requireSftp();
 
-        if (!@ssh2_sftp_mkdir($this->sftp, $directory, $permissions, $recursive)) {
+        if (!@\ssh2_sftp_mkdir($this->sftp, $directory, $permissions, $recursive)) {
             throw new SSHException("Failed to create directory: {$directory}");
         }
 
@@ -506,7 +508,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        if (!@ssh2_sftp_rmdir($this->sftp, $directory)) {
+        if (!@\ssh2_sftp_rmdir($this->sftp, $directory)) {
             throw new SSHException("Failed to remove directory: {$directory}");
         }
 
@@ -529,19 +531,19 @@ class SFTPClient
         $items = $this->listFiles($directory);
 
         foreach ($items as $item) {
-            $fullPath = rtrim($directory, '/') . '/' . $item;
+            $fullPath = \rtrim($directory, '/') . '/' . $item;
             $stat = $this->stat($fullPath);
 
-            if ($stat && ($stat['mode'] & 0040000)) {
+            if ($stat && ($stat['mode'] & 0o040000)) {
                 // Directory
                 $this->rmdirRecursive($fullPath);
             } else {
                 // File
-                @ssh2_sftp_unlink($this->sftp, $fullPath);
+                @\ssh2_sftp_unlink($this->sftp, $fullPath);
             }
         }
 
-        @ssh2_sftp_rmdir($this->sftp, $directory);
+        @\ssh2_sftp_rmdir($this->sftp, $directory);
         $this->log("Recursively removed: {$directory}");
 
         return $this;
@@ -558,21 +560,21 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        $handle = @opendir("ssh2.sftp://{$this->sftp}{$directory}");
+        $handle = @\opendir("ssh2.sftp://{$this->sftp}{$directory}");
         if (!$handle) {
             return [];
         }
 
         $files = [];
-        while (($entry = readdir($handle)) !== false) {
+        while (($entry = \readdir($handle)) !== false) {
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
             $files[] = $entry;
         }
 
-        closedir($handle);
-        sort($files);
+        \closedir($handle);
+        \sort($files);
 
         return $files;
     }
@@ -583,13 +585,13 @@ class SFTPClient
      * @param string $remotePath Remote file path
      *
      * @return array<string, int>|false File stat array or false on failure.
-     *                                   Keys: size, uid, gid, mode, atime, mtime
+     *                                  Keys: size, uid, gid, mode, atime, mtime
      */
     public function stat(string $remotePath): array|false
     {
         $this->requireSftp();
 
-        return @ssh2_sftp_stat($this->sftp, $remotePath);
+        return @\ssh2_sftp_stat($this->sftp, $remotePath);
     }
 
     /**
@@ -603,7 +605,7 @@ class SFTPClient
     {
         $this->requireSftp();
 
-        return @ssh2_sftp_lstat($this->sftp, $remotePath);
+        return @\ssh2_sftp_lstat($this->sftp, $remotePath);
     }
 
     /**
@@ -629,7 +631,7 @@ class SFTPClient
     {
         $stat = $this->stat($remotePath);
 
-        return $stat !== false && ($stat['mode'] & 0040000) !== 0;
+        return $stat !== false && ($stat['mode'] & 0o040000) !== 0;
     }
 
     /**
@@ -643,7 +645,7 @@ class SFTPClient
     {
         $stat = $this->stat($remotePath);
 
-        return $stat !== false && ($stat['mode'] & 0100000) !== 0;
+        return $stat !== false && ($stat['mode'] & 0o100000) !== 0;
     }
 
     /**
@@ -657,7 +659,7 @@ class SFTPClient
     {
         $lstat = $this->lstat($remotePath);
 
-        return $lstat !== false && ($lstat['mode'] & 0120000) !== 0;
+        return $lstat !== false && ($lstat['mode'] & 0o120000) !== 0;
     }
 
     /**
@@ -703,14 +705,14 @@ class SFTPClient
     {
         $this->requireSession();
 
-        $stream = @ssh2_exec($this->session, $command);
+        $stream = @\ssh2_exec($this->session, $command);
         if (!$stream) {
             throw new SSHException("Failed to execute SSH command: {$command}");
         }
 
-        stream_set_blocking($stream, true);
-        $output = stream_get_contents($stream);
-        fclose($stream);
+        \stream_set_blocking($stream, true);
+        $output = \stream_get_contents($stream);
+        \fclose($stream);
 
         $this->log("Exec: {$command}");
 
@@ -728,8 +730,8 @@ class SFTPClient
     {
         if ($this->session) {
             // ssh2_disconnect() is available in newer ext-ssh2 versions
-            if (function_exists('ssh2_disconnect')) {
-                @ssh2_disconnect($this->session);
+            if (\function_exists('ssh2_disconnect')) {
+                @\ssh2_disconnect($this->session);
             }
             $this->session = null;
             $this->sftp = null;
@@ -761,7 +763,7 @@ class SFTPClient
     {
         $this->requireSession();
 
-        return ssh2_fingerprint($this->session, $flags);
+        return \ssh2_fingerprint($this->session, $flags);
     }
 
     /**
@@ -775,9 +777,9 @@ class SFTPClient
     {
         $this->requireSession();
 
-        $methods = @ssh2_auth_none($this->session, $username);
+        $methods = @\ssh2_auth_none($this->session, $username);
 
-        if (is_array($methods)) {
+        if (\is_array($methods)) {
             return $methods;
         }
 
@@ -818,7 +820,7 @@ class SFTPClient
      */
     private function initSftp(): void
     {
-        $this->sftp = @ssh2_sftp($this->session);
+        $this->sftp = @\ssh2_sftp($this->session);
 
         if (!$this->sftp) {
             throw new SSHException('Failed to initialize SFTP subsystem.');
@@ -858,6 +860,6 @@ class SFTPClient
      */
     private function log(string $message): void
     {
-        $this->logs[] = '[' . date('Y-m-d H:i:s') . '] ' . $message;
+        $this->logs[] = '[' . \date('Y-m-d H:i:s') . '] ' . $message;
     }
 }

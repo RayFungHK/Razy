@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use PDO;
+use PDOStatement;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database\StatementPool;
-use PDO;
-use PDOStatement;
+use ValueError;
 
 /**
  * Tests for P2: StatementPool — prepared statement caching with LRU eviction.
@@ -182,7 +183,7 @@ class StatementPoolTest extends TestCase
 
         // In PHP 8.3+, PDO::prepare() throws ValueError for empty SQL
         // Test that pool handles non-poolable edge cases gracefully
-        $this->expectException(\ValueError::class);
+        $this->expectException(ValueError::class);
         $pool->getOrPrepare('');
     }
 }

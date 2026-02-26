@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -59,7 +60,7 @@ abstract class ValidationRule implements ValidationRuleInterface
     {
         $msg = $this->customMessage ?? $this->defaultMessage();
 
-        return str_replace(':field', $field, $msg);
+        return \str_replace(':field', $field, $msg);
     }
 
     /**

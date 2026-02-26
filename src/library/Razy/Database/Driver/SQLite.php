@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -15,20 +16,21 @@ use PDOException;
 use Razy\Database\Driver;
 
 /**
- * SQLite Database Driver
- * 
+ * SQLite Database Driver.
+ *
  * Provides SQLite-specific database operations and SQL syntax generation,
  * including || concatenation, LIMIT/OFFSET syntax, INTEGER PRIMARY KEY
  * AUTOINCREMENT columns, and ON CONFLICT upsert support (SQLite 3.24+).
  *
  * @package Razy
+ *
  * @license MIT
  */
 class SQLite extends Driver
 {
     /** @var string Path to the SQLite database file, or ':memory:' for in-memory databases */
     private string $databasePath = '';
-    
+
     /**
      * @inheritDoc
      */
@@ -36,7 +38,7 @@ class SQLite extends Driver
     {
         return 'sqlite';
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -45,22 +47,22 @@ class SQLite extends Driver
         try {
             // SQLite uses a file path instead of host/database
             $this->databasePath = $config['database'] ?? $config['path'] ?? ':memory:';
-            
+
             $dsn = "sqlite:{$this->databasePath}";
-            
+
             $this->adapter = new PDO($dsn, null, null, $this->getConnectionOptions());
             $this->connected = true;
-            
+
             // Enable foreign keys (disabled by default in SQLite)
             $this->adapter->exec('PRAGMA foreign_keys = ON');
-            
+
             return true;
         } catch (PDOException) {
             $this->connected = false;
             return false;
         }
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -71,7 +73,7 @@ class SQLite extends Driver
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ];
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -79,19 +81,19 @@ class SQLite extends Driver
     {
         // sqlite_master is the system catalog table storing schema for all database objects
         $stmt = $this->adapter->prepare(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
         );
         $stmt->execute([$tableName]);
-        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        return (bool) $stmt->fetch(PDO::FETCH_ASSOC);
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getCharset(): array
     {
         // SQLite always uses UTF-8 internally
-        if (!count($this->charset)) {
+        if (!\count($this->charset)) {
             $this->charset = [
                 'UTF-8' => [
                     'default' => 'UTF-8',
@@ -101,7 +103,7 @@ class SQLite extends Driver
         }
         return $this->charset;
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -110,7 +112,7 @@ class SQLite extends Driver
         // SQLite has limited collation support: BINARY, NOCASE, RTRIM
         return ['BINARY', 'NOCASE', 'RTRIM'];
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -120,7 +122,7 @@ class SQLite extends Driver
         // Datetime functions use UTC by default
         // Store timezone offset for application-level handling
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -134,7 +136,7 @@ class SQLite extends Driver
         }
         return '';
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -144,72 +146,72 @@ class SQLite extends Driver
         // AUTOINCREMENT keyword is optional and prevents ID reuse
         return 'INTEGER PRIMARY KEY AUTOINCREMENT';
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getUpsertSyntax(string $tableName, array $columns, array $duplicateKeys, callable $valueGetter): string
     {
-        $quotedColumns = array_map(fn($c) => '"' . $c . '"', $columns);
-        
-        if (count($duplicateKeys)) {
+        $quotedColumns = \array_map(fn ($c) => '"' . $c . '"', $columns);
+
+        if (\count($duplicateKeys)) {
             // SQLite 3.24+ supports ON CONFLICT ... DO UPDATE (UPSERT)
-            $sql = 'INSERT INTO ' . $tableName . ' (' . implode(', ', $quotedColumns) . ') VALUES (';
+            $sql = 'INSERT INTO ' . $tableName . ' (' . \implode(', ', $quotedColumns) . ') VALUES (';
             $values = [];
             foreach ($columns as $column) {
                 $values[] = $valueGetter($column);
             }
-            $sql .= implode(', ', $values) . ')';
-            
-            $conflictColumns = array_map(fn($c) => '"' . $c . '"', $duplicateKeys);
+            $sql .= \implode(', ', $values) . ')';
+
+            $conflictColumns = \array_map(fn ($c) => '"' . $c . '"', $duplicateKeys);
             // Build SET clause for non-conflict columns; 'excluded' pseudo-table references the proposed row
             $updates = [];
             foreach ($columns as $column) {
-                if (!in_array($column, $duplicateKeys)) {
+                if (!\in_array($column, $duplicateKeys)) {
                     $updates[] = '"' . $column . '" = excluded."' . $column . '"';
                 }
             }
-            
-            if (count($updates)) {
-                $sql .= ' ON CONFLICT(' . implode(', ', $conflictColumns) . ') DO UPDATE SET ' . implode(', ', $updates);
+
+            if (\count($updates)) {
+                $sql .= ' ON CONFLICT(' . \implode(', ', $conflictColumns) . ') DO UPDATE SET ' . \implode(', ', $updates);
             } else {
-                $sql .= ' ON CONFLICT(' . implode(', ', $conflictColumns) . ') DO NOTHING';
+                $sql .= ' ON CONFLICT(' . \implode(', ', $conflictColumns) . ') DO NOTHING';
             }
-            
+
             return $sql;
         }
-        
+
         // Simple insert without upsert
-        $sql = 'INSERT INTO ' . $tableName . ' (' . implode(', ', $quotedColumns) . ') VALUES (';
+        $sql = 'INSERT INTO ' . $tableName . ' (' . \implode(', ', $quotedColumns) . ') VALUES (';
         $values = [];
         foreach ($columns as $column) {
             $values[] = $valueGetter($column);
         }
-        $sql .= implode(', ', $values) . ')';
-        
+        $sql .= \implode(', ', $values) . ')';
+
         return $sql;
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getConcatSyntax(array $parts): string
     {
         // SQLite uses || for concatenation
-        return '(' . implode(' || ', $parts) . ')';
+        return '(' . \implode(' || ', $parts) . ')';
     }
-    
+
     /**
      * @inheritDoc
      */
     public function quoteIdentifier(string $identifier): string
     {
         // SQLite uses standard SQL double-quotes for identifiers; escape by doubling
-        return '"' . str_replace('"', '""', $identifier) . '"';
+        return '"' . \str_replace('"', '""', $identifier) . '"';
     }
-    
+
     /**
-     * Get the database file path
+     * Get the database file path.
      *
      * @return string
      */

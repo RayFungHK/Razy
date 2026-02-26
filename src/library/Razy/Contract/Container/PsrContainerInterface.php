@@ -14,7 +14,9 @@ declare(strict_types=1);
  * Fulfills the PSR-11 specification without requiring psr/container.
  *
  * @package Razy
+ *
  * @license MIT
+ *
  * @see https://www.php-fig.org/psr/psr-11/
  */
 
@@ -30,7 +32,7 @@ interface PsrContainerInterface
      *
      * @param string $id Identifier of the entry to look for.
      *
-     * @throws NotFoundExceptionInterface  No entry was found for this identifier.
+     * @throws NotFoundExceptionInterface No entry was found for this identifier.
      * @throws ContainerExceptionInterface Error while retrieving the entry.
      *
      * @return mixed Entry.

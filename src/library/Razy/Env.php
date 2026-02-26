@@ -17,6 +17,7 @@
  *  - Casting helpers: `true`/`false`/`null`/`(empty)` literals
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -44,21 +45,19 @@ class Env
     /**
      * Load an `.env` file and populate the environment.
      *
-     * @param string $path      Full path to the `.env` file.
-     * @param bool   $overwrite Whether to overwrite existing env vars. Default false.
+     * @param string $path Full path to the `.env` file.
+     * @param bool $overwrite Whether to overwrite existing env vars. Default false.
      *
-     * @return void
-     *
-     * @throws RuntimeException         If the file cannot be read.
+     * @throws RuntimeException If the file cannot be read.
      * @throws InvalidArgumentException If a line has invalid syntax.
      */
     public static function load(string $path, bool $overwrite = false): void
     {
-        if (!is_file($path) || !is_readable($path)) {
+        if (!\is_file($path) || !\is_readable($path)) {
             throw new RuntimeException("Environment file not found or not readable: {$path}");
         }
 
-        $content = file_get_contents($path);
+        $content = \file_get_contents($path);
         if ($content === false) {
             throw new RuntimeException("Failed to read environment file: {$path}");
         }
@@ -75,14 +74,14 @@ class Env
     /**
      * Load an `.env` file if it exists. Does nothing when the file is absent.
      *
-     * @param string $path      Full path to the `.env` file.
-     * @param bool   $overwrite Whether to overwrite existing env vars.
+     * @param string $path Full path to the `.env` file.
+     * @param bool $overwrite Whether to overwrite existing env vars.
      *
      * @return bool True if the file was loaded, false if it was missing.
      */
     public static function loadIfExists(string $path, bool $overwrite = false): bool
     {
-        if (!is_file($path)) {
+        if (!\is_file($path)) {
             return false;
         }
 
@@ -103,35 +102,35 @@ class Env
     public static function parse(string $content): array
     {
         $result = [];
-        $lines  = explode("\n", str_replace(["\r\n", "\r"], "\n", $content));
-        $lineCount = count($lines);
+        $lines = \explode("\n", \str_replace(["\r\n", "\r"], "\n", $content));
+        $lineCount = \count($lines);
 
         for ($i = 0; $i < $lineCount; $i++) {
             $line = $lines[$i];
 
             // Skip empty lines and comments
-            $trimmed = trim($line);
-            if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+            $trimmed = \trim($line);
+            if ($trimmed === '' || \str_starts_with($trimmed, '#')) {
                 continue;
             }
 
             // Strip optional `export ` prefix
-            if (str_starts_with($trimmed, 'export ')) {
-                $trimmed = substr($trimmed, 7);
+            if (\str_starts_with($trimmed, 'export ')) {
+                $trimmed = \substr($trimmed, 7);
             }
 
             // Split on first `=`
-            $eqPos = strpos($trimmed, '=');
+            $eqPos = \strpos($trimmed, '=');
             if ($eqPos === false) {
                 throw new InvalidArgumentException("Invalid .env syntax (missing '=' on line " . ($i + 1) . "): {$trimmed}");
             }
 
-            $name  = trim(substr($trimmed, 0, $eqPos));
-            $value = substr($trimmed, $eqPos + 1);
+            $name = \trim(\substr($trimmed, 0, $eqPos));
+            $value = \substr($trimmed, $eqPos + 1);
 
             // Validate the variable name
-            if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name)) {
-                throw new InvalidArgumentException("Invalid environment variable name on line " . ($i + 1) . ": {$name}");
+            if (!\preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name)) {
+                throw new InvalidArgumentException('Invalid environment variable name on line ' . ($i + 1) . ": {$name}");
             }
 
             // Parse the value
@@ -149,9 +148,9 @@ class Env
      * Casts `"true"`, `"false"`, `"null"`, and `"(empty)"` string literals
      * to their PHP equivalents when `$cast` is true.
      *
-     * @param string $key     Variable name.
-     * @param mixed  $default Default value if not set.
-     * @param bool   $cast    Whether to cast special string values.
+     * @param string $key Variable name.
+     * @param mixed $default Default value if not set.
+     * @param bool $cast Whether to cast special string values.
      *
      * @return mixed
      */
@@ -164,7 +163,7 @@ class Env
                 ?? null;
 
         if ($value === null) {
-            $envVal = getenv($key);
+            $envVal = \getenv($key);
             $value = $envVal !== false ? $envVal : null;
         }
 
@@ -191,16 +190,14 @@ class Env
         return isset(self::$loaded[$key])
             || isset($_ENV[$key])
             || isset($_SERVER[$key])
-            || getenv($key) !== false;
+            || \getenv($key) !== false;
     }
 
     /**
      * Manually set an environment variable.
      *
-     * @param string $name  Variable name.
+     * @param string $name Variable name.
      * @param string $value Variable value.
-     *
-     * @return void
      */
     public static function set(string $name, string $value): void
     {
@@ -230,8 +227,8 @@ class Env
     /**
      * Get the required environment variable or throw.
      *
-     * @param string $key  Variable name.
-     * @param bool   $cast Whether to cast special string values.
+     * @param string $key Variable name.
+     * @param bool $cast Whether to cast special string values.
      *
      * @return mixed
      *
@@ -251,12 +248,10 @@ class Env
      *
      * Clears the loaded variables cache and the initialized flag.
      * Does NOT unset variables from `$_ENV`, `$_SERVER`, or `putenv()`.
-     *
-     * @return void
      */
     public static function reset(): void
     {
-        self::$loaded      = [];
+        self::$loaded = [];
         self::$initialized = false;
     }
 
@@ -272,16 +267,16 @@ class Env
      *  - Single-quoted values (literal, no escape processing)
      *  - Double-quoted values (escape sequences, variable interpolation, multiline)
      *
-     * @param string              $raw     Raw value text after `=`.
-     * @param array<int, string>  $lines   All lines in the file (for multiline).
-     * @param int                &$lineIdx Current line index (may advance for multiline).
+     * @param string $raw Raw value text after `=`.
+     * @param array<int, string> $lines All lines in the file (for multiline).
+     * @param int &$lineIdx Current line index (may advance for multiline).
      * @param array<string, string> $context Already-parsed variables for interpolation.
      *
      * @return string Resolved value.
      */
     private static function parseValue(string $raw, array $lines, int &$lineIdx, array $context): string
     {
-        $raw = ltrim($raw);
+        $raw = \ltrim($raw);
 
         // Empty value
         if ($raw === '') {
@@ -289,29 +284,29 @@ class Env
         }
 
         // Single-quoted: literal, no interpolation, no escapes
-        if (str_starts_with($raw, "'")) {
-            $end = strrpos($raw, "'", 1);
+        if (\str_starts_with($raw, "'")) {
+            $end = \strrpos($raw, "'", 1);
             if ($end === false) {
                 throw new InvalidArgumentException(
-                    "Unterminated single-quoted value on line " . ($lineIdx + 1)
+                    'Unterminated single-quoted value on line ' . ($lineIdx + 1),
                 );
             }
 
-            return substr($raw, 1, $end - 1);
+            return \substr($raw, 1, $end - 1);
         }
 
         // Double-quoted: escapes + interpolation + multiline
-        if (str_starts_with($raw, '"')) {
+        if (\str_starts_with($raw, '"')) {
             return self::parseDoubleQuoted($raw, $lines, $lineIdx, $context);
         }
 
         // Unquoted: strip inline comment, trim
-        $commentPos = strpos($raw, ' #');
+        $commentPos = \strpos($raw, ' #');
         if ($commentPos !== false) {
-            $raw = substr($raw, 0, $commentPos);
+            $raw = \substr($raw, 0, $commentPos);
         }
 
-        $value = rtrim($raw);
+        $value = \rtrim($raw);
 
         // Interpolate $VAR / ${VAR} in unquoted values too
         return self::interpolate($value, $context);
@@ -320,9 +315,9 @@ class Env
     /**
      * Parse a double-quoted value, handling escapes, interpolation, and multiline.
      *
-     * @param string              $raw      Raw value text starting with `"`.
-     * @param array<int, string>  $lines    All file lines.
-     * @param int                &$lineIdx  Current line index.
+     * @param string $raw Raw value text starting with `"`.
+     * @param array<int, string> $lines All file lines.
+     * @param int &$lineIdx Current line index.
      * @param array<string, string> $context Already-parsed variables.
      *
      * @return string Resolved value.
@@ -330,7 +325,7 @@ class Env
     private static function parseDoubleQuoted(string $raw, array $lines, int &$lineIdx, array $context): string
     {
         // Remove the opening quote
-        $buffer = substr($raw, 1);
+        $buffer = \substr($raw, 1);
 
         // Try to find closing quote on this line
         $closingPos = self::findClosingQuote($buffer);
@@ -338,9 +333,9 @@ class Env
         // Multiline handling
         while ($closingPos === false) {
             $lineIdx++;
-            if ($lineIdx >= count($lines)) {
+            if ($lineIdx >= \count($lines)) {
                 throw new InvalidArgumentException(
-                    'Unterminated double-quoted value (reached end of file)'
+                    'Unterminated double-quoted value (reached end of file)',
                 );
             }
             $buffer .= "\n" . $lines[$lineIdx];
@@ -348,7 +343,7 @@ class Env
         }
 
         // Extract the content between quotes
-        $content = substr($buffer, 0, $closingPos);
+        $content = \substr($buffer, 0, $closingPos);
 
         // Process escape sequences
         $content = self::processEscapes($content);
@@ -366,7 +361,7 @@ class Env
      */
     private static function findClosingQuote(string $str): int|false
     {
-        $len = strlen($str);
+        $len = \strlen($str);
         for ($i = 0; $i < $len; $i++) {
             if ($str[$i] === '\\') {
                 $i++; // Skip the escaped character
@@ -391,13 +386,13 @@ class Env
      */
     private static function processEscapes(string $value): string
     {
-        return strtr($value, [
+        return \strtr($value, [
             '\\\\' => '\\',
-            '\\"'  => '"',
-            '\\n'  => "\n",
-            '\\r'  => "\r",
-            '\\t'  => "\t",
-            '\\$'  => '$',
+            '\\"' => '"',
+            '\\n' => "\n",
+            '\\r' => "\r",
+            '\\t' => "\t",
+            '\\$' => '$',
         ]);
     }
 
@@ -407,7 +402,7 @@ class Env
      * Replaces `${VAR_NAME}` and `$VAR_NAME` with the value from the context
      * (already-parsed variables), the loaded cache, or the system environment.
      *
-     * @param string              $value   The string to interpolate.
+     * @param string $value The string to interpolate.
      * @param array<string, string> $context Already-parsed variables.
      *
      * @return string Interpolated string.
@@ -415,12 +410,12 @@ class Env
     private static function interpolate(string $value, array $context): string
     {
         // Replace ${VAR} syntax
-        $value = preg_replace_callback('/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/', function ($m) use ($context) {
+        $value = \preg_replace_callback('/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/', function ($m) use ($context) {
             return self::resolveVariable($m[1], $context);
         }, $value);
 
         // Replace $VAR syntax (word boundary after variable name)
-        $value = preg_replace_callback('/\$([A-Za-z_][A-Za-z0-9_]*)/', function ($m) use ($context) {
+        $value = \preg_replace_callback('/\$([A-Za-z_][A-Za-z0-9_]*)/', function ($m) use ($context) {
             return self::resolveVariable($m[1], $context);
         }, $value);
 
@@ -432,7 +427,7 @@ class Env
      *
      * Search order: context → loaded → $_ENV → $_SERVER → getenv().
      *
-     * @param string              $name    Variable name.
+     * @param string $name Variable name.
      * @param array<string, string> $context Already-parsed variables.
      *
      * @return string Resolved value, or empty string if not found.
@@ -455,7 +450,7 @@ class Env
             return (string) $_SERVER[$name];
         }
 
-        $env = getenv($name);
+        $env = \getenv($name);
         if ($env !== false) {
             return $env;
         }
@@ -466,11 +461,9 @@ class Env
     /**
      * Set a variable in all three stores (loaded, $_ENV, $_SERVER via putenv).
      *
-     * @param string $name      Variable name.
-     * @param string $value     Variable value.
-     * @param bool   $overwrite Whether to overwrite existing variables.
-     *
-     * @return void
+     * @param string $name Variable name.
+     * @param string $value Variable value.
+     * @param bool $overwrite Whether to overwrite existing variables.
      */
     private static function setVariable(string $name, string $value, bool $overwrite): void
     {
@@ -479,8 +472,8 @@ class Env
         }
 
         self::$loaded[$name] = $value;
-        $_ENV[$name]         = $value;
-        putenv("{$name}={$value}");
+        $_ENV[$name] = $value;
+        \putenv("{$name}={$value}");
     }
 
     /**
@@ -492,12 +485,12 @@ class Env
      */
     private static function castValue(string $value): mixed
     {
-        return match (strtolower($value)) {
-            'true', '(true)'   => true,
+        return match (\strtolower($value)) {
+            'true', '(true)' => true,
             'false', '(false)' => false,
-            'null', '(null)'   => null,
+            'null', '(null)' => null,
             'empty', '(empty)' => '',
-            default            => $value,
+            default => $value,
         };
     }
 }

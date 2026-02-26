@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,9 +13,6 @@ namespace Razy;
 
 use Razy\Exception\ConfigurationException;
 
-use function is_array;
-use const PHP_EOL;
-
 /**
  * Configuration extends Collection to load, modify, and persist key-value settings
  * from PHP, JSON, INI, or YAML configuration files.
@@ -22,7 +20,9 @@ use const PHP_EOL;
  * Changes are tracked automatically and only written to disk when save() is called.
  *
  * @class Configuration
+ *
  * @package Razy
+ *
  * @license MIT
  */
 class Configuration extends Collection
@@ -45,24 +45,24 @@ class Configuration extends Collection
      */
     public function __construct(private readonly string $path)
     {
-        $pathInfo = pathinfo($this->path);
-        $this->filename = trim($pathInfo['filename']);
-        $this->extension = strtolower($pathInfo['extension'] ?? '');
+        $pathInfo = \pathinfo($this->path);
+        $this->filename = \trim($pathInfo['filename']);
+        $this->extension = \strtolower($pathInfo['extension'] ?? '');
 
         if (!$this->filename) {
             throw new ConfigurationException('Config file name cannot be empty.');
         }
 
-        if (is_file($this->path)) {
+        if (\is_file($this->path)) {
             // Reject directories masquerading as file paths
-            if (is_dir($this->path)) {
+            if (\is_dir($this->path)) {
                 throw new ConfigurationException('The config file' . $this->path . ' is not a valid config file.');
             }
 
             // Try to load from cache for JSON, INI, and YAML files (PHP files benefit from OPcache)
-            $realPath = realpath($this->path);
-            if ($realPath !== false && in_array($this->extension, ['json', 'ini', 'yaml', 'yml'], true)) {
-                $cacheKey = 'config.' . md5($realPath);
+            $realPath = \realpath($this->path);
+            if ($realPath !== false && \in_array($this->extension, ['json', 'ini', 'yaml', 'yml'], true)) {
+                $cacheKey = 'config.' . \md5($realPath);
                 $cached = Cache::getValidated($cacheKey, $realPath);
                 if ($cached !== null) {
                     parent::__construct($cached);
@@ -74,10 +74,10 @@ class Configuration extends Collection
             if ('php' === $this->extension) {
                 parent::__construct(require $this->path);
             } elseif ('json' === $this->extension) {
-                $data = json_decode(file_get_contents($this->path), true);
+                $data = \json_decode(\file_get_contents($this->path), true);
                 parent::__construct($data);
             } elseif ('ini' === $this->extension) {
-                $data = parse_ini_file($this->path, true);
+                $data = \parse_ini_file($this->path, true);
                 parent::__construct($data);
             } elseif ('yaml' === $this->extension || 'yml' === $this->extension) {
                 $data = YAML::parseFile($this->path);
@@ -97,7 +97,7 @@ class Configuration extends Collection
      * Marks the configuration as changed if the value is new or differs
      * from the current value, enabling save() to know whether a write is needed.
      *
-     * @param mixed $key   The configuration key
+     * @param mixed $key The configuration key
      * @param mixed $value The value to set
      */
     public function offsetSet($key, mixed $value): void
@@ -116,9 +116,10 @@ class Configuration extends Collection
      * No-op if no values have been modified since the last load or save.
      *
      * @return self Fluent interface
+     *
      * @throws ConfigurationException If the file cannot be written
      */
-    public function save(): Configuration
+    public function save(): self
     {
         if (!$this->changed) {
             return $this;
@@ -148,7 +149,7 @@ class Configuration extends Collection
             return;
         }
 
-        $this->writeFile('<?php' . PHP_EOL . 'return ' . var_export($this->getArrayCopy(), true) . ';' . PHP_EOL . '?>');
+        $this->writeFile('<?php' . \PHP_EOL . 'return ' . \var_export($this->getArrayCopy(), true) . ';' . \PHP_EOL . '?>');
     }
 
     /**
@@ -161,18 +162,18 @@ class Configuration extends Collection
     private function writeFile(string $content): void
     {
         // Resolve the directory portion of the file path
-        $pathInfo = pathinfo($this->path);
+        $pathInfo = \pathinfo($this->path);
 
         // Ensure the parent directory exists
-        if (!is_dir($pathInfo['dirname'])) {
+        if (!\is_dir($pathInfo['dirname'])) {
             // Recursively create the directory structure
-            if (!mkdir($pathInfo['dirname'], 0755, true) && !is_dir($pathInfo['dirname'])) {
+            if (!\mkdir($pathInfo['dirname'], 0o755, true) && !\is_dir($pathInfo['dirname'])) {
                 // Path could not be created (e.g., permission issue or a file blocking the path)
                 throw new ConfigurationException($pathInfo['dirname'] . ' could not be created or is not a directory.');
             }
         }
 
-        file_put_contents($this->path, $content);
+        \file_put_contents($this->path, $content);
     }
 
     /**
@@ -190,19 +191,19 @@ class Configuration extends Collection
 
         $content = [];
         foreach ($this->getArrayCopy() as $key => $val) {
-            if (is_array($val)) {
+            if (\is_array($val)) {
                 // Array values become INI sections: [section_name]
                 $content[] = '[' . $key . ']';
                 foreach ($val as $sKey => $sVal) {
                     // Numeric values are unquoted; strings are double-quoted
-                    $content[] = $sKey . ' = ' . (is_numeric($sVal) ? $sVal : '"' . $sVal . '"');
+                    $content[] = $sKey . ' = ' . (\is_numeric($sVal) ? $sVal : '"' . $sVal . '"');
                 }
             } else {
                 // Top-level scalar values
-                $content[] = $key . ' = ' . (is_numeric($val) ? $val : '"' . $val . '"');
+                $content[] = $key . ' = ' . (\is_numeric($val) ? $val : '"' . $val . '"');
             }
         }
-        $this->writeFile(implode(PHP_EOL, $content));
+        $this->writeFile(\implode(\PHP_EOL, $content));
     }
 
     /**
@@ -216,7 +217,7 @@ class Configuration extends Collection
             return;
         }
 
-        $this->writeFile(json_encode($this->getArrayCopy()));
+        $this->writeFile(\json_encode($this->getArrayCopy()));
     }
 
     /**

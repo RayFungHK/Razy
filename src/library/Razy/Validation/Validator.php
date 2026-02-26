@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -69,6 +70,17 @@ class Validator
     }
 
     /**
+     * One-shot static factory — create, configure, and validate in one call.
+     *
+     * @param array<string, mixed> $data Input data
+     * @param array<string, list<ValidationRuleInterface>> $rules Field → rule instances
+     */
+    public static function make(array $data, array $rules): ValidationResult
+    {
+        return (new static($data))->fields($rules)->validate();
+    }
+
+    /**
      * Set input data.
      *
      * @return $this
@@ -124,7 +136,7 @@ class Validator
      */
     public function defaults(array $defaults): static
     {
-        $this->defaults = array_merge($this->defaults, $defaults);
+        $this->defaults = \array_merge($this->defaults, $defaults);
 
         return $this;
     }
@@ -181,18 +193,18 @@ class Validator
      */
     public function validate(): ValidationResult
     {
-        $data = array_merge($this->defaults, $this->data);
+        $data = \array_merge($this->defaults, $this->data);
 
         // Before-hooks: transform data
         foreach ($this->beforeHooks as $hook) {
             $data = $hook($data);
         }
 
-        $errors    = [];
+        $errors = [];
         $validated = [];
 
         foreach ($this->fields as $name => $fieldValidator) {
-            $value  = $data[$name] ?? null;
+            $value = $data[$name] ?? null;
             $result = $fieldValidator->validate($value, $data);
 
             if (!empty($result['errors'])) {
@@ -218,16 +230,5 @@ class Validator
         }
 
         return $result;
-    }
-
-    /**
-     * One-shot static factory — create, configure, and validate in one call.
-     *
-     * @param array<string, mixed>                          $data  Input data
-     * @param array<string, list<ValidationRuleInterface>>  $rules Field → rule instances
-     */
-    public static function make(array $data, array $rules): ValidationResult
-    {
-        return (new static($data))->fields($rules)->validate();
     }
 }

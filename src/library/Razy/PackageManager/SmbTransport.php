@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -15,6 +16,7 @@
  * or falls back to UNC path access on Windows.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -39,10 +41,10 @@ use Razy\Contract\PackageTransportInterface;
 class SmbTransport implements PackageTransportInterface
 {
     /**
-     * @param string      $sharePath Root UNC path or smb:// URL (e.g. '\\\\server\\share' or 'smb://server/share')
-     * @param string|null $username  SMB username (null for guest/anonymous)
-     * @param string|null $password  SMB password
-     * @param string|null $domain    Windows domain / workgroup
+     * @param string $sharePath Root UNC path or smb:// URL (e.g. '\\\\server\\share' or 'smb://server/share')
+     * @param string|null $username SMB username (null for guest/anonymous)
+     * @param string|null $password SMB password
+     * @param string|null $domain Windows domain / workgroup
      */
     public function __construct(
         private readonly string $sharePath,
@@ -57,8 +59,8 @@ class SmbTransport implements PackageTransportInterface
      */
     public function fetchMetadata(string $packageName): ?array
     {
-        $packageName = strtolower($packageName);
-        $metadataPath = $this->buildPath('p2', str_replace('/', DIRECTORY_SEPARATOR, $packageName) . '.json');
+        $packageName = \strtolower($packageName);
+        $metadataPath = $this->buildPath('p2', \str_replace('/', DIRECTORY_SEPARATOR, $packageName) . '.json');
 
         try {
             $content = $this->readFile($metadataPath);
@@ -66,9 +68,9 @@ class SmbTransport implements PackageTransportInterface
                 return null;
             }
 
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            $data = \json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
-            return is_array($data) ? $data : null;
+            return \is_array($data) ? $data : null;
         } catch (Exception) {
             return null;
         }
@@ -87,12 +89,12 @@ class SmbTransport implements PackageTransportInterface
 
         try {
             $context = $this->createStreamContext();
-            $content = @file_get_contents($sourcePath, false, $context);
+            $content = @\file_get_contents($sourcePath, false, $context);
             if (false === $content) {
                 return false;
             }
 
-            $written = file_put_contents($destinationPath, $content);
+            $written = \file_put_contents($destinationPath, $content);
             if (false === $written) {
                 return false;
             }
@@ -125,9 +127,9 @@ class SmbTransport implements PackageTransportInterface
      */
     private function buildPath(string ...$segments): string
     {
-        $root = rtrim($this->sharePath, '/\\');
+        $root = \rtrim($this->sharePath, '/\\');
 
-        return $root . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments);
+        return $root . DIRECTORY_SEPARATOR . \implode(DIRECTORY_SEPARATOR, $segments);
     }
 
     /**
@@ -140,7 +142,7 @@ class SmbTransport implements PackageTransportInterface
     private function readFile(string $path): ?string
     {
         $context = $this->createStreamContext();
-        $content = @file_get_contents($path, false, $context);
+        $content = @\file_get_contents($path, false, $context);
 
         return false === $content ? null : $content;
     }
@@ -155,13 +157,13 @@ class SmbTransport implements PackageTransportInterface
     private function resolveSourcePath(string $url): string
     {
         // If the URL starts with the share root already, use as-is
-        if (str_starts_with($url, $this->sharePath)) {
+        if (\str_starts_with($url, $this->sharePath)) {
             return $url;
         }
 
         // If it's a relative path, prepend the share root
-        if (!str_starts_with($url, '\\\\') && !str_starts_with($url, 'smb://')) {
-            return $this->buildPath(ltrim($url, '/\\'));
+        if (!\str_starts_with($url, '\\\\') && !\str_starts_with($url, 'smb://')) {
+            return $this->buildPath(\ltrim($url, '/\\'));
         }
 
         return $url;
@@ -187,6 +189,6 @@ class SmbTransport implements PackageTransportInterface
             }
         }
 
-        return empty($options) ? null : stream_context_create($options);
+        return empty($options) ? null : \stream_context_create($options);
     }
 }

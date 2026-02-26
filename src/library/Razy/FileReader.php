@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -18,13 +19,14 @@ use Razy\Exception\FileException;
 use SplFileObject;
 
 /**
- * Class FileReader
+ * Class FileReader.
  *
  * Provides sequential line-by-line reading across multiple files using SplFileObject.
  * Files can be appended or prepended to the reading queue, and lines are fetched
  * in order, automatically advancing to the next file when one is exhausted.
  *
  * @class FileReader
+ *
  * @package Razy
  */
 class FileReader
@@ -41,7 +43,7 @@ class FileReader
      */
     public function __construct(string $filepath)
     {
-        if (!is_file($filepath)) {
+        if (!\is_file($filepath)) {
             throw new FileException('The file ' . $filepath . ' does not exists.');
         }
 
@@ -54,11 +56,12 @@ class FileReader
      * @param string $filepath
      *
      * @return FileReader
+     *
      * @throws FileException
      */
-    public function append(string $filepath): FileReader
+    public function append(string $filepath): self
     {
-        if (!is_file($filepath)) {
+        if (!\is_file($filepath)) {
             throw new FileException('The file ' . $filepath . ' does not exists.');
         }
 
@@ -70,13 +73,13 @@ class FileReader
     /**
      * Fetch the next line of the files in queue.
      *
-     * @return null|string
+     * @return string|null
      */
     public function fetch(): ?string
     {
         // Skip exhausted file objects and advance to the next file in the queue
         while (!$this->generator[0]->valid()) {
-            array_shift($this->generator);
+            \array_shift($this->generator);
             if (empty($this->generator)) {
                 return null;
             }
@@ -92,15 +95,16 @@ class FileReader
      * @param string $filepath
      *
      * @return FileReader
+     *
      * @throws FileException
      */
-    public function prepend(string $filepath): FileReader
+    public function prepend(string $filepath): self
     {
-        if (!is_file($filepath)) {
+        if (!\is_file($filepath)) {
             throw new FileException('The file ' . $filepath . ' does not exists.');
         }
 
-        array_unshift($this->generator, new SplFileObject($filepath));
+        \array_unshift($this->generator, new SplFileObject($filepath));
 
         return $this;
     }

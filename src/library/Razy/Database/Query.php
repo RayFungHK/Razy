@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,24 +9,24 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
-
 
 namespace Razy\Database;
 
 use PDO;
 use PDOStatement;
-use Razy\Database\FetchMode;
 
 /**
- * Class Query
+ * Class Query.
  *
  * Wraps a PDOStatement result from an executed SQL query. Provides methods
  * for fetching individual rows, fetching all results, retrieving affected
  * row counts, and accessing the originating Statement.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class Query
@@ -33,12 +34,11 @@ class Query
     /**
      * Query constructor.
      *
-     * @param Statement    $statement The originating Statement that produced this query
+     * @param Statement $statement The originating Statement that produced this query
      * @param PDOStatement $pdoStatement The executed PDO statement with results
      */
     public function __construct(private Statement $statement, private PDOStatement $pdoStatement)
     {
-
     }
 
     /**
@@ -62,7 +62,7 @@ class Query
      */
     public function fetch(array $mapping = []): mixed
     {
-        if (count($mapping) > 0) {
+        if (\count($mapping) > 0) {
             // Bind specific columns by name and fetch using FETCH_BOUND
             foreach ($mapping as $name => $column) {
                 $mapping[$name] = null;
@@ -87,7 +87,7 @@ class Query
     public function fetchAll(FetchMode|string $type = FetchMode::Standard): array
     {
         // Support legacy string arguments for backward compatibility
-        if (is_string($type)) {
+        if (\is_string($type)) {
             $type = FetchMode::tryFrom($type) ?? FetchMode::Standard;
         }
 

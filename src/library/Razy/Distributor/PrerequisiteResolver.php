@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,17 +9,20 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Distributor;
 
 use Closure;
+use Exception;
 use Razy\PackageManager;
-use Razy\Util\VersionUtil;
 use Razy\Util\PathUtil;
+use Razy\Util\VersionUtil;
+
 /**
- * Class PrerequisiteResolver
+ * Class PrerequisiteResolver.
  *
  * Manages package prerequisites registered by modules during initialization.
  * Handles version constraint tracking, conflict detection, and package composition.
@@ -26,6 +30,7 @@ use Razy\Util\PathUtil;
  * Extracted from the Distributor god class to follow Single Responsibility Principle.
  *
  * @class PrerequisiteResolver
+ *
  * @package Razy\Distributor
  */
 class PrerequisiteResolver
@@ -50,7 +55,7 @@ class PrerequisiteResolver
      */
     public function __construct(
         private readonly string $distCode,
-        private readonly object $distributor
+        private readonly object $distributor,
     ) {
     }
 
@@ -64,14 +69,14 @@ class PrerequisiteResolver
         if (null === $this->installedPackages) {
             $this->installedPackages = [];
             $lockFile = PathUtil::append(SYSTEM_ROOT, 'autoload', 'lock.json');
-            if (is_file($lockFile)) {
+            if (\is_file($lockFile)) {
                 try {
-                    $content = file_get_contents($lockFile);
-                    $data = json_decode($content, true);
-                    if (is_array($data) && isset($data[$this->distCode])) {
+                    $content = \file_get_contents($lockFile);
+                    $data = \json_decode($content, true);
+                    if (\is_array($data) && isset($data[$this->distCode])) {
                         $this->installedPackages = $data[$this->distCode];
                     }
-                } catch (\Exception) {
+                } catch (Exception) {
                     $this->installedPackages = [];
                 }
             }
@@ -98,7 +103,7 @@ class PrerequisiteResolver
 
         // Handle stability flag
         $versionConstraint = $constraint;
-        if (preg_match('/^(.+)@(dev|alpha|beta|RC|stable)$/i', $constraint, $matches)) {
+        if (\preg_match('/^(.+)@(dev|alpha|beta|RC|stable)$/i', $constraint, $matches)) {
             $versionConstraint = $matches[1];
         }
 
@@ -131,8 +136,8 @@ class PrerequisiteResolver
      */
     public function prerequisite(string $package, string $version, string $moduleCode = ''): static
     {
-        $package = trim($package);
-        $version = trim($version);
+        $package = \trim($package);
+        $version = \trim($version);
 
         // Track which module registered this constraint
         if (!isset($this->prerequisiteModules[$package])) {
@@ -187,6 +192,7 @@ class PrerequisiteResolver
      * @param Closure $closure Callback for reporting progress/conflicts
      *
      * @return bool True if all packages validated successfully
+     *
      * @throws Error
      */
     public function compose(Closure $closure): bool

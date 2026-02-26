@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Razy\Tests;
@@ -17,6 +18,8 @@ use Razy\Database\Statement;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
 use Razy\Template\Source;
+use RuntimeException;
+use stdClass;
 
 /**
  * User-scenario tests simulating how module developers would use
@@ -30,6 +33,28 @@ use Razy\Template\Source;
 #[CoversClass(ContainerInterface::class)]
 class InterfaceUserScenarioTest extends TestCase
 {
+    public static function tablePrefixProvider(): array
+    {
+        return [
+            'standard prefix' => ['app_', 'users', 'app_users'],
+            'empty prefix' => ['', 'users', 'users'],
+            'tenant prefix' => ['tenant42_', 'orders', 'tenant42_orders'],
+            'underscore only' => ['_', 'config', '_config'],
+        ];
+    }
+
+    public static function moduleStatusCheckProvider(): array
+    {
+        return [
+            'Loaded – proceed' => [ModuleStatus::Loaded, true],
+            'InQueue – wait' => [ModuleStatus::InQueue, false],
+            'Processing – wait' => [ModuleStatus::Processing, false],
+            'Pending – wait' => [ModuleStatus::Pending, false],
+            'Unloaded – skip' => [ModuleStatus::Unloaded, false],
+            'Disabled – skip' => [ModuleStatus::Disabled, false],
+            'Failed – skip' => [ModuleStatus::Failed, false],
+        ];
+    }
     // ═══════════════════════════════════════════════════════════
     // Scenario 1: Service Registry / DI Container Usage
     // ═══════════════════════════════════════════════════════════
@@ -40,13 +65,15 @@ class InterfaceUserScenarioTest extends TestCase
     public function testServiceRegistrationAndResolution(): void
     {
         $container = $this->createMock(ContainerInterface::class);
-        $service = new \stdClass();
+        $service = new stdClass();
         $service->name = 'UserService';
 
-        $container->method('has')->willReturnCallback(fn(string $id) => $id === 'userService');
+        $container->method('has')->willReturnCallback(fn (string $id) => $id === 'userService');
         $container->method('get')->willReturnCallback(function (string $id) use ($service) {
-            if ($id === 'userService') return $service;
-            throw new \RuntimeException("Service not found: $id");
+            if ($id === 'userService') {
+                return $service;
+            }
+            throw new RuntimeException("Service not found: $id");
         });
 
         // Developer checks and resolves
@@ -64,14 +91,14 @@ class InterfaceUserScenarioTest extends TestCase
         $callCount = 0;
         $factory = function () use (&$callCount) {
             $callCount++;
-            $obj = new \stdClass();
+            $obj = new stdClass();
             $obj->id = $callCount;
             return $obj;
         };
 
         $container = $this->createMock(ContainerInterface::class);
         $container->expects($this->once())->method('bind')->with('widget', $this->isInstanceOf(Closure::class));
-        $container->method('make')->willReturnCallback(fn() => $factory());
+        $container->method('make')->willReturnCallback(fn () => $factory());
 
         $container->bind('widget', $factory);
         $a = $container->make('widget');
@@ -87,14 +114,14 @@ class InterfaceUserScenarioTest extends TestCase
      */
     public function testSingletonReturnsSharedInstance(): void
     {
-        $shared = new \stdClass();
+        $shared = new stdClass();
         $shared->connections = 0;
 
         $container = $this->createMock(ContainerInterface::class);
         $container->expects($this->once())->method('singleton')->with('cache', $this->isInstanceOf(Closure::class));
         $container->method('get')->with('cache')->willReturn($shared);
 
-        $container->singleton('cache', fn() => $shared);
+        $container->singleton('cache', fn () => $shared);
 
         $first = $container->get('cache');
         $second = $container->get('cache');
@@ -106,7 +133,7 @@ class InterfaceUserScenarioTest extends TestCase
      */
     public function testInstanceRegistration(): void
     {
-        $config = new \stdClass();
+        $config = new stdClass();
         $config->debug = true;
         $config->env = 'testing';
 
@@ -127,7 +154,7 @@ class InterfaceUserScenarioTest extends TestCase
     {
         $container = $this->createMock(ContainerInterface::class);
         $container->method('make')->willReturnCallback(function (string $abstract, array $params) {
-            $obj = new \stdClass();
+            $obj = new stdClass();
             $obj->class = $abstract;
             $obj->params = $params;
             return $obj;
@@ -176,7 +203,7 @@ class InterfaceUserScenarioTest extends TestCase
         $existing = ['users', 'posts'];
 
         $db = $this->createMock(DatabaseInterface::class);
-        $db->method('isTableExists')->willReturnCallback(fn(string $t) => in_array($t, $existing));
+        $db->method('isTableExists')->willReturnCallback(fn (string $t) => \in_array($t, $existing));
 
         $missing = [];
         foreach ($tables as $table) {
@@ -244,16 +271,6 @@ class InterfaceUserScenarioTest extends TestCase
 
         $fullName = $db->getPrefix() . $tableName;
         $this->assertSame($expectedFullName, $fullName);
-    }
-
-    public static function tablePrefixProvider(): array
-    {
-        return [
-            'standard prefix' => ['app_', 'users', 'app_users'],
-            'empty prefix' => ['', 'users', 'users'],
-            'tenant prefix' => ['tenant42_', 'orders', 'tenant42_orders'],
-            'underscore only' => ['_', 'config', '_config'],
-        ];
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -404,19 +421,6 @@ class InterfaceUserScenarioTest extends TestCase
         $this->assertSame($shouldProceed, $canCall);
     }
 
-    public static function moduleStatusCheckProvider(): array
-    {
-        return [
-            'Loaded – proceed'    => [ModuleStatus::Loaded, true],
-            'InQueue – wait'      => [ModuleStatus::InQueue, false],
-            'Processing – wait'   => [ModuleStatus::Processing, false],
-            'Pending – wait'      => [ModuleStatus::Pending, false],
-            'Unloaded – skip'     => [ModuleStatus::Unloaded, false],
-            'Disabled – skip'     => [ModuleStatus::Disabled, false],
-            'Failed – skip'       => [ModuleStatus::Failed, false],
-        ];
-    }
-
     /**
      * Developer queries module info for routing decisions.
      */
@@ -453,7 +457,7 @@ class InterfaceUserScenarioTest extends TestCase
         // Simulating __onInit registering handlers
         $dispatcher->listen('onUserCreated', 'handlers/user_created.php');
         $dispatcher->listen('onUserDeleted', 'handlers/user_deleted.php');
-        $dispatcher->listen('onOrderPlaced', fn() => null);
+        $dispatcher->listen('onOrderPlaced', fn () => null);
         $dispatcher->listen('onPaymentReceived', 'handlers/payment.php');
     }
 
@@ -471,12 +475,12 @@ class InterfaceUserScenarioTest extends TestCase
         ]);
 
         $listeners = ['notificationModule', 'analyticsModule', 'inactiveModule'];
-        $activeListeners = array_filter(
+        $activeListeners = \array_filter(
             $listeners,
-            fn(string $mod) => $dispatcher->isEventListening($mod, 'onOrderPlaced')
+            fn (string $mod) => $dispatcher->isEventListening($mod, 'onOrderPlaced'),
         );
 
-        $this->assertSame(['notificationModule', 'analyticsModule'], array_values($activeListeners));
+        $this->assertSame(['notificationModule', 'analyticsModule'], \array_values($activeListeners));
     }
 
     /**
@@ -512,7 +516,7 @@ class InterfaceUserScenarioTest extends TestCase
         foreach ($modules as $module) {
             $this->assertFalse(
                 $dispatcher->isEventListening($module, 'onLegacyEvent'),
-                "Module '$module' should not listen to deprecated event"
+                "Module '$module' should not listen to deprecated event",
             );
         }
     }
@@ -537,7 +541,7 @@ class InterfaceUserScenarioTest extends TestCase
         ];
         $callIndex = 0;
         $module->method('getStatus')->willReturnCallback(function () use (&$callIndex, $statusSequence) {
-            return $statusSequence[min($callIndex++, count($statusSequence) - 1)];
+            return $statusSequence[\min($callIndex++, \count($statusSequence) - 1)];
         });
 
         // Verify status progression
@@ -589,7 +593,7 @@ class InterfaceUserScenarioTest extends TestCase
         $tpl->method('assign')->willReturnSelf();
 
         $container = $this->createMock(ContainerInterface::class);
-        $container->method('has')->willReturnCallback(fn(string $id) => in_array($id, ['db', 'template']));
+        $container->method('has')->willReturnCallback(fn (string $id) => \in_array($id, ['db', 'template']));
         $container->method('get')->willReturnMap([
             ['db', $db],
             ['template', $tpl],
@@ -684,7 +688,6 @@ class InterfaceUserScenarioTest extends TestCase
                 if ($cmd === 'isAuthenticated') {
                     return ($args[0] ?? '') === 'valid_token';
                 }
-                return null;
             });
 
         // Test auth flow
@@ -705,14 +708,14 @@ class InterfaceUserScenarioTest extends TestCase
     {
         $container = $this->createMock(ContainerInterface::class);
         $container->method('has')->willReturn(false);
-        $container->method('get')->willThrowException(new \RuntimeException('Service not found'));
+        $container->method('get')->willThrowException(new RuntimeException('Service not found'));
 
         $this->assertFalse($container->has('missingService'));
 
         $fallbackUsed = false;
         try {
             $container->get('missingService');
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             $fallbackUsed = true;
             $this->assertSame('Service not found', $e->getMessage());
         }
@@ -725,8 +728,8 @@ class InterfaceUserScenarioTest extends TestCase
     public function testGuardedServiceResolution(): void
     {
         $container = $this->createMock(ContainerInterface::class);
-        $container->method('has')->willReturnCallback(fn(string $id) => $id === 'mailer');
-        $container->method('get')->with('mailer')->willReturn(new \stdClass());
+        $container->method('has')->willReturnCallback(fn (string $id) => $id === 'mailer');
+        $container->method('get')->with('mailer')->willReturn(new stdClass());
 
         // Guard pattern
         $service = $container->has('mailer') ? $container->get('mailer') : null;
@@ -759,7 +762,7 @@ class InterfaceUserScenarioTest extends TestCase
     {
         $container = $this->createMock(ContainerInterface::class);
         $container->method('make')->willReturnMap([
-            ['Logger', [], new \stdClass()],
+            ['Logger', [], new stdClass()],
             ['Profiler', [], null],
         ]);
 
@@ -791,7 +794,7 @@ class InterfaceUserScenarioTest extends TestCase
         $emailModule = $this->createMock(ModuleInterface::class);
         $emailModule->method('getStatus')->willReturn(ModuleStatus::Loaded);
         $emailModule->method('execute')
-            ->with($callerInfo, 'sendWelcome', $this->callback(fn($args) => $args[0] === 'Alice'))
+            ->with($callerInfo, 'sendWelcome', $this->callback(fn ($args) => $args[0] === 'Alice'))
             ->willReturn(true);
 
         // Orchestration flow: fetch user → send email
@@ -861,11 +864,11 @@ class InterfaceUserScenarioTest extends TestCase
         $this->assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
 
         // Test as function parameters
-        $acceptsContainer = fn(ContainerInterface $c) => true;
-        $acceptsDb = fn(DatabaseInterface $d) => true;
-        $acceptsTpl = fn(TemplateInterface $t) => true;
-        $acceptsModule = fn(ModuleInterface $m) => true;
-        $acceptsDispatcher = fn(EventDispatcherInterface $e) => true;
+        $acceptsContainer = fn (ContainerInterface $c) => true;
+        $acceptsDb = fn (DatabaseInterface $d) => true;
+        $acceptsTpl = fn (TemplateInterface $t) => true;
+        $acceptsModule = fn (ModuleInterface $m) => true;
+        $acceptsDispatcher = fn (EventDispatcherInterface $e) => true;
 
         $this->assertTrue($acceptsContainer($container));
         $this->assertTrue($acceptsDb($db));

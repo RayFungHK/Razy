@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * bridge commands, event listeners, and inter-module communication.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -23,16 +25,16 @@ use Razy\Contract\DistributorInterface;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Contract\ModuleInterface;
 use Razy\Distributor\RouteDispatcher;
+use Razy\Exception\ModuleConfigException;
+use Razy\Exception\ModuleLoadException;
 use Razy\Module\ClosureLoader;
 use Razy\Module\CommandRegistry;
 use Razy\Module\EventDispatcher;
-use Razy\Exception\ModuleConfigException;
-use Razy\Exception\ModuleLoadException;
 use Razy\Module\ModuleStatus;
+use Razy\Util\PathUtil;
 use ReflectionClass;
 use Throwable;
 
-use Razy\Util\PathUtil;
 /**
  * Represents a single loaded module within a Distributor context.
  *
@@ -95,7 +97,7 @@ class Module implements ModuleInterface
         $this->moduleInfo = new ModuleInfo($path, $moduleConfig, $version, $sharedModule, null, $standalone);
 
         // Register this module's API name with the distributor if one is defined
-        if (strlen($this->moduleInfo->getAPIName()) > 0) {
+        if (\strlen($this->moduleInfo->getAPIName()) > 0) {
             $this->distributor->getRegistry()->registerAPI($this);
         }
 
@@ -124,12 +126,13 @@ class Module implements ModuleInterface
      * initialize (__onInit event), the module will not add into the loaded module list.
      *
      * @return bool
+     *
      * @throws Throwable
      */
     public function initialize(): bool
     {
         // In worker mode (Caddy/FrankenPHP), reset module state between requests
-        if (defined('WORKER_MODE') && WORKER_MODE && $this->initialized && $this->controller) {
+        if (\defined('WORKER_MODE') && WORKER_MODE && $this->initialized && $this->controller) {
             $this->resetForWorker();
             // Re-run initialization with a fresh agent
             $this->status = ModuleStatus::Initialing;
@@ -146,7 +149,7 @@ class Module implements ModuleInterface
                 throw new ModuleLoadException(
                     "Module '{$moduleCode}' failed to load: prerequisite version conflict.\n" .
                     "Package '{$package}' requires '{$pVersion}', but installed version is incompatible.\n" .
-                    "Run 'php Razy.phar compose {$this->distributor->getCode()}' to resolve dependencies."
+                    "Run 'php Razy.phar compose {$this->distributor->getCode()}' to resolve dependencies.",
                 );
             }
         }
@@ -156,7 +159,7 @@ class Module implements ModuleInterface
             // Build the expected controller file path from module metadata
             $controllerPath = PathUtil::append($this->moduleInfo->getPath(), 'controller', $this->moduleInfo->getClassName() . '.php');
 
-            if (is_file($controllerPath)) {
+            if (\is_file($controllerPath)) {
                 // Include the controller file, which should return an anonymous class
                 $controller = include $controllerPath;
 
@@ -169,8 +172,8 @@ class Module implements ModuleInterface
                     // Validate the controller extends the abstract Controller class
                     if (!$this->controller instanceof Controller) {
                         throw new ModuleLoadException(
-                            "Controller for module '{$this->moduleInfo->getCode()}' must extend Razy\\Controller, got '" . get_class($this->controller) . "'.\n" .
-                            "File: {$controllerPath}"
+                            "Controller for module '{$this->moduleInfo->getCode()}' must extend Razy\\Controller, got '" . \get_class($this->controller) . "'.\n" .
+                            "File: {$controllerPath}",
                         );
                     }
 
@@ -184,7 +187,7 @@ class Module implements ModuleInterface
 
                 throw new ModuleLoadException(
                     "Controller at '{$controllerPath}' for module '{$this->moduleInfo->getCode()}' must return an anonymous class extending Controller.\n" .
-                    "Got: " . get_class($controller)
+                    'Got: ' . \get_class($controller),
                 );
             }
 
@@ -193,7 +196,7 @@ class Module implements ModuleInterface
                 "Main controller file not found for module '{$this->moduleInfo->getCode()}'.\n" .
                 "Expected file: {$controllerPath}\n" .
                 "The controller filename must match the module class name: {$this->moduleInfo->getClassName()}.php\n" .
-                "Ensure the file exists and follows the naming convention."
+                'Ensure the file exists and follows the naming convention.',
             );
         }
 
@@ -208,7 +211,7 @@ class Module implements ModuleInterface
      *
      * @return $this
      */
-    public function await(string $moduleCode, callable $caller): Module
+    public function await(string $moduleCode, callable $caller): self
     {
         $caller = $caller(...)->bindTo($this->controller);
         $this->distributor->getRegistry()->addAwait($moduleCode, $caller);
@@ -224,6 +227,7 @@ class Module implements ModuleInterface
      * @param array $args The arguments will pass to API command
      *
      * @return mixed
+     *
      * @throws Throwable
      */
     public function execute(ModuleInfo $module, string $command, array $args): mixed
@@ -260,7 +264,7 @@ class Module implements ModuleInterface
     }
 
     /**
-     * Send a handshake to specified module to acknowledge it can access API
+     * Send a handshake to specified module to acknowledge it can access API.
      *
      * @param string $moduleCode
      * @param string $message
@@ -273,46 +277,17 @@ class Module implements ModuleInterface
     }
 
     /**
-     * Update module status to processing that it is already in require list
+     * Update module status to processing that it is already in require list.
      *
      * @return $this
      */
-    public function standby(): Module
+    public function standby(): self
     {
         if (ModuleStatus::Pending === $this->status) {
             $this->status = ModuleStatus::Processing;
         }
 
         return $this;
-    }
-
-    /**
-     * Reset module state for Caddy/FrankenPHP worker mode
-     * Called between requests to clear request-specific state
-     *
-     * @return void
-     */
-    private function resetForWorker(): void
-    {
-        // Reset routing state
-        $this->routable = true;
-
-        // Clear closures, bindings, and events (they will be re-registered in __onInit)
-        $this->closureLoader->reset();
-        $this->eventDispatcher->reset();
-
-        // Remove this module's listener registrations from centralized index
-        $this->distributor->getRegistry()->unregisterModuleListeners($this);
-
-        // Reset agent and thread manager via factory methods
-        $this->agent = $this->createAgent();
-        $this->threadManager = $this->createThreadManager();
-
-        // Clear scoped singleton instances in the module container
-        $this->container?->forgetScopedInstances();
-
-        // Controller persists but its state should be reset
-        // The controller's __onInit will handle its own reset
     }
 
     /**
@@ -343,10 +318,10 @@ class Module implements ModuleInterface
             $controllerPath = PathUtil::append(
                 $this->moduleInfo->getPath(),
                 'controller',
-                $this->moduleInfo->getClassName() . '.php'
+                $this->moduleInfo->getClassName() . '.php',
             );
 
-            if (!is_file($controllerPath)) {
+            if (!\is_file($controllerPath)) {
                 return false;
             }
 
@@ -386,9 +361,554 @@ class Module implements ModuleInterface
                 : ModuleStatus::InQueue;
 
             return $this->status !== ModuleStatus::Failed;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
+    }
+
+    /**
+     * Get the module thread manager.
+     *
+     * @return ThreadManager
+     */
+    public function getThreadManager(): ThreadManager
+    {
+        return $this->threadManager;
+    }
+
+    /**
+     * Unload the module.
+     *
+     * @return $this
+     */
+    public function unload(): self
+    {
+        if (ModuleStatus::Failed !== $this->status) {
+            $this->status = ModuleStatus::Unloaded;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Trigger __onReady event when all modules have loaded.
+     */
+    public function notify(): void
+    {
+        $this->controller->__onReady();
+    }
+
+    /**
+     * Get the module status.
+     *
+     * @return ModuleStatus
+     */
+    public function getStatus(): ModuleStatus
+    {
+        return $this->status;
+    }
+
+    /**
+     * Get the ModuleInfo, includes all standalone module's settings and function.
+     *
+     * @return ModuleInfo
+     */
+    public function getModuleInfo(): ModuleInfo
+    {
+        return $this->moduleInfo;
+    }
+
+    /**
+     * Get the module's data folder of the application.
+     *
+     * @param string $module
+     * @param bool $isURL
+     *
+     * @return string
+     */
+    public function getDataPath(string $module = '', bool $isURL = false): string
+    {
+        return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode(), $isURL);
+    }
+
+    /**
+     * Check if the module is able to route.
+     *
+     * @return bool
+     */
+    public function isRoutable(): bool
+    {
+        return $this->routable;
+    }
+
+    /**
+     * Get the routed information.
+     *
+     * @return array
+     */
+    public function getRoutedInfo(): array
+    {
+        return $this->distributor->getRouter()->getRoutedInfo();
+    }
+
+    /**
+     * Register the API command.
+     *
+     * @param string $command The API command will register
+     *
+     * @return $this
+     *
+     * @throws Throwable
+     */
+    public function addAPICommand(string $command, string $path): static
+    {
+        $this->commands->addAPICommand($command, $path, $this->closureLoader);
+
+        return $this;
+    }
+
+    /**
+     * Get all registered API commands.
+     *
+     * @return array<string, string> Array of command => closure path
+     */
+    public function getAPICommands(): array
+    {
+        return $this->commands->getAPICommands();
+    }
+
+    /**
+     * Register a bridge command for cross-distributor communication.
+     * Bridge commands are separate from API commands - they are exposed to other distributors.
+     *
+     * @param string $command The bridge command name
+     * @param string $path The path to the closure file
+     *
+     * @return $this
+     *
+     * @throws Error
+     */
+    public function addBridgeCommand(string $command, string $path): static
+    {
+        $this->commands->addBridgeCommand($command, $path);
+
+        return $this;
+    }
+
+    /**
+     * Get all registered bridge commands.
+     *
+     * @return array<string, string> Array of command => closure path
+     */
+    public function getBridgeCommands(): array
+    {
+        return $this->commands->getBridgeCommands();
+    }
+
+    /**
+     * Execute a bridge command for cross-distributor calls.
+     * Unlike API commands, bridge commands are designed for external distributor access.
+     *
+     * @param string $sourceDistributor The identifier of the calling distributor
+     * @param string $command The bridge command
+     * @param array $args The arguments to pass
+     *
+     * @return mixed
+     *
+     * @throws Throwable
+     */
+    public function executeBridgeCommand(string $sourceDistributor, string $command, array $args): mixed
+    {
+        return $this->commands->executeBridgeCommand($sourceDistributor, $command, $args, $this->controller, $this->closureLoader);
+    }
+
+    /**
+     * Register a listener for an event from another module.
+     *
+     * The listener is always registered, but returns whether the target module
+     * is currently loaded. This helps developers know if their listener will fire:
+     * - true: Target module is loaded, listener will fire when event is triggered
+     * - false: Target module not loaded yet (may load later, or may never load)
+     *
+     * @param string $event Event name in format 'vendor/module:event_name'
+     * @param string|Closure $path Closure or path to closure file
+     *
+     * @return bool True if target module is loaded, false otherwise
+     *
+     * @throws Error If event is already registered
+     */
+    public function listen(string $event, string|Closure $path): bool
+    {
+        $this->eventDispatcher->listen($event, $path);
+
+        // Register in centralized listener index for O(1) event resolution
+        [$moduleCode, $eventName] = \explode(':', $event);
+        $this->distributor->getRegistry()->registerListener($moduleCode, $eventName, $this);
+
+        return $this->distributor->getRegistry()->getLoadedModule($moduleCode) !== null;
+    }
+
+    /**
+     * Create an EventEmitter instance to fire an event.
+     *
+     * Creates an EventEmitter that can be used to trigger listeners.
+     * Call resolve() on the returned emitter to dispatch the event.
+     *
+     * Flow: createEmitter() -> EventEmitter::resolve() -> Module::fireEvent() -> Listeners
+     *
+     * @param string $event The event name to fire
+     * @param callable|null $callback Optional callback executed when resolving
+     *
+     * @return EventEmitter The emitter instance - call resolve() to dispatch
+     *
+     * @see Controller::trigger() Preferred method from controllers
+     */
+    public function createEmitter(string $event, ?callable $callback = null): EventEmitter
+    {
+        return $this->distributor->getRegistry()->createEmitter($this, $event, !$callback ? null : $callback(...));
+    }
+
+    /**
+     * Check the event is dispatched.
+     *
+     * @param string $moduleCode
+     * @param string $event The event name
+     *
+     * @return bool
+     */
+    public function isEventListening(string $moduleCode, string $event): bool
+    {
+        return $this->eventDispatcher->isEventListening($moduleCode, $event);
+    }
+
+    /**
+     * Trigger the event.
+     *
+     * @param string $event The event name
+     * @param array $args The arguments will pass to the listener
+     *
+     * @return mixed|null
+     *
+     * @throws Throwable
+     */
+    public function fireEvent(string $moduleCode, string $event, array $args): mixed
+    {
+        return $this->eventDispatcher->fireEvent($moduleCode, $event, $args, $this->controller, $this->closureLoader);
+    }
+
+    /**
+     * Prepare stage, module will trigger __onLoad event to determine the module is allowed to load or not.
+     *
+     * @return bool
+     */
+    public function prepare(): bool
+    {
+        if ($this->controller->__onLoad($this->agent)) {
+            $this->status = ModuleStatus::Loaded;
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Add standard route into the route list, regular expression string supported.
+     *
+     * Supports HTTP method prefix syntax: 'GET /users', 'POST /api/data', 'GET|POST /form'.
+     * Routes without a method prefix match any HTTP method.
+     *
+     * @param string $route The path of the route (optionally prefixed with HTTP method)
+     * @param string|Route $path The Route entity or the path of the closure file by the method name
+     *
+     * @return $this
+     */
+    public function addRoute(string $route, mixed $path): static
+    {
+        // Parse HTTP method prefix (e.g., 'GET /users' → method='GET', route='/users')
+        [$method, $route] = RouteDispatcher::parseMethodPrefix($route);
+
+        // Standardize the route string
+        $route = \rtrim(PathUtil::tidy($route, false, '/'), '/');
+
+        if (!$route) {
+            $route = '/';
+        }
+
+        // R1 Fix: Auto-prepend leading slash if missing
+        if ($route !== '/' && $route[0] !== '/') {
+            $route = '/' . $route;
+        }
+
+        $this->distributor->getRouter()->setRoute($this, $route, $path, $method);
+
+        return $this;
+    }
+
+    /**
+     * Add shadow route.
+     *
+     * @param string $route
+     * @param string $moduleCode
+     * @param string $path
+     *
+     * @return $this
+     */
+    public function addShadowRoute(string $route, string $moduleCode, string $path): self
+    {
+        $targetModule = $this->distributor->getRegistry()->getLoadedModule($moduleCode);
+        $this->distributor->getRouter()->setShadowRoute($this, $route, $targetModule, $path);
+
+        return $this;
+    }
+
+    /**
+     * Add CLI script path into the script list.
+     *
+     * @param string $route The path of the route
+     * @param string $path The path of the closure file
+     *
+     * @return $this
+     */
+    public function addScript(string $route, string $path): self
+    {
+        $this->distributor->getRouter()->setScript($this, $route, $path);
+
+        return $this;
+    }
+
+    /**
+     * Trigger __onRouted event when the application has routed into a module.
+     */
+    public function announce(ModuleInfo $moduleInfo): void
+    {
+        if (ModuleStatus::Loaded === $this->status) {
+            if (CLI_MODE) {
+                $this->controller->__onScriptReady($moduleInfo);
+            } else {
+                $this->controller->__onRouted($moduleInfo);
+            }
+        }
+    }
+
+    /**
+     * Trigger __onRequire event before ready stage.
+     *
+     * @return bool
+     */
+    public function validate(): bool
+    {
+        // Check each required module is loaded and can satisfy its own requirements
+        $requires = $this->moduleInfo->getRequire();
+        foreach ($requires as $moduleCode => $package) {
+            $module = $this->distributor->getRegistry()->getLoadedModule($moduleCode);
+            // Fail if the required module isn't loaded, isn't fully loaded, or fails its own require()
+            if (!$module || $module->getStatus() !== ModuleStatus::Loaded || !$module->require()) {
+                $this->status = ModuleStatus::Loaded;
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Start require the loaded module.
+     *
+     * @return bool
+     */
+    public function require(): bool
+    {
+        return $this->controller->__onRequire();
+    }
+
+    /**
+     * Get the global template entity.
+     *
+     * @return Template
+     */
+    public function getGlobalTemplateEntity(): Template
+    {
+        return $this->distributor->getGlobalTemplateEntity();
+    }
+
+    /**
+     * Get the module-level DI container. Falls back to the Distributor chain
+     * (Application container) if no module container was created.
+     *
+     * @return ContainerInterface|null The Container instance, or null if unavailable
+     */
+    public function getContainer(): ?ContainerInterface
+    {
+        return $this->container ?? $this->distributor->getContainer();
+    }
+
+    /**
+     * Get the distributor site root URL.
+     *
+     * @return string
+     */
+    public function getSiteURL(): string
+    {
+        return $this->distributor->getSiteURL();
+    }
+
+    /**
+     * Get the module relative URL path.
+     *
+     * @return string
+     */
+    public function getModuleURL(): string
+    {
+        return PathUtil::tidy(PathUtil::append($this->distributor->getSiteURL(), $this->moduleInfo->getAlias()), true, '/');
+    }
+
+    /**
+     * @param array $routedInfo
+     *
+     * @return $this
+     */
+    public function entry(array $routedInfo): static
+    {
+        $this->controller->__onEntry($routedInfo);
+        return $this;
+    }
+
+    /**
+     * Add lazy route into the route list.
+     *
+     * Supports HTTP method prefix syntax: 'GET /users', 'POST /api/data'.
+     * Routes without a method prefix match any HTTP method.
+     *
+     * @param string $route The path of the route (optionally prefixed with HTTP method)
+     * @param string $path The path of the closure file
+     *
+     * @return $this
+     */
+    public function addLazyRoute(string $route, string $path): static
+    {
+        // Parse HTTP method prefix (e.g., 'POST /submit' → method='POST', route='/submit')
+        [$method, $route] = RouteDispatcher::parseMethodPrefix($route);
+
+        $this->distributor->getRouter()->setLazyRoute($this, $route, $path, $method);
+
+        return $this;
+    }
+
+    /**
+     * Register module-level middleware for all routes of this module.
+     *
+     * @param MiddlewareInterface|Closure ...$middleware
+     *
+     * @return $this
+     */
+    public function addModuleMiddleware(MiddlewareInterface|Closure ...$middleware): static
+    {
+        $this->distributor->getRouter()->addModuleMiddleware(
+            $this->moduleInfo->getCode(),
+            ...$middleware,
+        );
+        return $this;
+    }
+
+    /**
+     * Bind the specified closure file to a method.
+     *
+     * @param string $method
+     * @param string $path
+     *
+     * @return $this
+     */
+    public function bind(string $method, string $path): self
+    {
+        $this->closureLoader->bind($method, $path);
+
+        return $this;
+    }
+
+    /**
+     * Get the module bound closure.
+     *
+     * @param string $method
+     *
+     * @return string
+     */
+    public function getBinding(string $method): string
+    {
+        return $this->closureLoader->getBinding($method);
+    }
+
+    /**
+     * Load the closure under the module controller folder.
+     *
+     * @param string $path
+     *
+     * @return Closure|null
+     *
+     * @throws Error
+     */
+    public function getClosure(string $path): ?Closure
+    {
+        return $this->closureLoader->getClosure($path, $this->controller);
+    }
+
+    /**
+     * Get the module's API Emitter.
+     *
+     * @param string $moduleCode
+     *
+     * @return Emitter
+     */
+    public function getEmitter(string $moduleCode): Emitter
+    {
+        return $this->distributor->getRegistry()->createAPI($this)->request($moduleCode);
+    }
+
+    /**
+     * Load the module configuration file.
+     *
+     * @throws Error
+     */
+    public function loadConfig(): Configuration
+    {
+        $path = PathUtil::append(SYSTEM_ROOT, 'config', $this->distributor->getCode(), $this->moduleInfo->getClassName() . '.php');
+        return new Configuration($path);
+    }
+
+    /**
+     * Trigger onDispose event.
+     *
+     * @return $this
+     */
+    public function dispose(): static
+    {
+        $this->controller->__onDispose();
+        return $this;
+    }
+
+    /**
+     * Reset module state for Caddy/FrankenPHP worker mode
+     * Called between requests to clear request-specific state.
+     */
+    private function resetForWorker(): void
+    {
+        // Reset routing state
+        $this->routable = true;
+
+        // Clear closures, bindings, and events (they will be re-registered in __onInit)
+        $this->closureLoader->reset();
+        $this->eventDispatcher->reset();
+
+        // Remove this module's listener registrations from centralized index
+        $this->distributor->getRegistry()->unregisterModuleListeners($this);
+
+        // Reset agent and thread manager via factory methods
+        $this->agent = $this->createAgent();
+        $this->threadManager = $this->createThreadManager();
+
+        // Clear scoped singleton instances in the module container
+        $this->container?->forgetScopedInstances();
+
+        // Controller persists but its state should be reset
+        // The controller's __onInit will handle its own reset
     }
 
     /**
@@ -452,7 +972,7 @@ class Module implements ModuleInterface
         // These come from the 'services' key in the module's package.php
         if ($this->container !== null) {
             // Bind this module's ModuleInfo so child-container resolves get the local instance
-            $this->container->bind(ModuleInfo::class, fn() => $this->moduleInfo);
+            $this->container->bind(ModuleInfo::class, fn () => $this->moduleInfo);
 
             foreach ($this->moduleInfo->getServices() as $abstract => $concrete) {
                 $this->container->bind($abstract, $concrete);
@@ -488,513 +1008,5 @@ class Module implements ModuleInterface
             return $container->make(ThreadManager::class);
         }
         return new ThreadManager();
-    }
-
-    /**
-     * Get the module thread manager.
-     *
-     * @return ThreadManager
-     */
-    public function getThreadManager(): ThreadManager
-    {
-        return $this->threadManager;
-    }
-
-    /**
-     * Unload the module.
-     *
-     * @return $this
-     */
-    public function unload(): Module
-    {
-        if (ModuleStatus::Failed !== $this->status) {
-            $this->status = ModuleStatus::Unloaded;
-        }
-
-        return $this;
-    }
-
-    /**
-     * Trigger __onReady event when all modules have loaded.
-     */
-    public function notify(): void
-    {
-        $this->controller->__onReady();
-    }
-
-    /**
-     * Get the module status.
-     *
-     * @return ModuleStatus
-     */
-    public function getStatus(): ModuleStatus
-    {
-        return $this->status;
-    }
-
-    /**
-     * Get the ModuleInfo, includes all standalone module's settings and function
-     *
-     * @return ModuleInfo
-     */
-    public function getModuleInfo(): ModuleInfo
-    {
-        return $this->moduleInfo;
-    }
-
-    /**
-     * Get the module's data folder of the application.
-     *
-     * @param string $module
-     * @param bool $isURL
-     * @return string
-     */
-    public function getDataPath(string $module = '', bool $isURL = false): string
-    {
-        return $this->distributor->getDataPath($module ?? $this->moduleInfo->getCode(), $isURL);
-    }
-
-    /**
-     * Check if the module is able to route
-     *
-     * @return bool
-     */
-    public function isRoutable(): bool
-    {
-        return $this->routable;
-    }
-
-    /**
-     * Get the routed information.
-     *
-     * @return array
-     */
-    public function getRoutedInfo(): array
-    {
-        return $this->distributor->getRouter()->getRoutedInfo();
-    }
-
-    /**
-     * Register the API command.
-     *
-     * @param string $command The API command will register
-     *
-     * @return $this
-     * @throws Throwable
-     *
-     */
-    public function addAPICommand(string $command, string $path): static
-    {
-        $this->commands->addAPICommand($command, $path, $this->closureLoader);
-
-        return $this;
-    }
-
-    /**
-     * Get all registered API commands.
-     *
-     * @return array<string, string> Array of command => closure path
-     */
-    public function getAPICommands(): array
-    {
-        return $this->commands->getAPICommands();
-    }
-
-    /**
-     * Register a bridge command for cross-distributor communication.
-     * Bridge commands are separate from API commands - they are exposed to other distributors.
-     *
-     * @param string $command The bridge command name
-     * @param string $path The path to the closure file
-     *
-     * @return $this
-     * @throws Error
-     */
-    public function addBridgeCommand(string $command, string $path): static
-    {
-        $this->commands->addBridgeCommand($command, $path);
-
-        return $this;
-    }
-
-    /**
-     * Get all registered bridge commands.
-     *
-     * @return array<string, string> Array of command => closure path
-     */
-    public function getBridgeCommands(): array
-    {
-        return $this->commands->getBridgeCommands();
-    }
-
-    /**
-     * Execute a bridge command for cross-distributor calls.
-     * Unlike API commands, bridge commands are designed for external distributor access.
-     *
-     * @param string $sourceDistributor The identifier of the calling distributor
-     * @param string $command The bridge command
-     * @param array $args The arguments to pass
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public function executeBridgeCommand(string $sourceDistributor, string $command, array $args): mixed
-    {
-        return $this->commands->executeBridgeCommand($sourceDistributor, $command, $args, $this->controller, $this->closureLoader);
-    }
-
-    /**
-     * Register a listener for an event from another module.
-     *
-     * The listener is always registered, but returns whether the target module
-     * is currently loaded. This helps developers know if their listener will fire:
-     * - true: Target module is loaded, listener will fire when event is triggered
-     * - false: Target module not loaded yet (may load later, or may never load)
-     *
-     * @param string $event Event name in format 'vendor/module:event_name'
-     * @param string|Closure $path Closure or path to closure file
-     * @return bool True if target module is loaded, false otherwise
-     * @throws Error If event is already registered
-     */
-    public function listen(string $event, string|Closure $path): bool
-    {
-        $this->eventDispatcher->listen($event, $path);
-
-        // Register in centralized listener index for O(1) event resolution
-        [$moduleCode, $eventName] = explode(':', $event);
-        $this->distributor->getRegistry()->registerListener($moduleCode, $eventName, $this);
-
-        return $this->distributor->getRegistry()->getLoadedModule($moduleCode) !== null;
-    }
-
-    /**
-     * Create an EventEmitter instance to fire an event.
-     *
-     * Creates an EventEmitter that can be used to trigger listeners.
-     * Call resolve() on the returned emitter to dispatch the event.
-     *
-     * Flow: createEmitter() -> EventEmitter::resolve() -> Module::fireEvent() -> Listeners
-     *
-     * @param string $event The event name to fire
-     * @param callable|null $callback Optional callback executed when resolving
-     *
-     * @return EventEmitter The emitter instance - call resolve() to dispatch
-     *
-     * @see Controller::trigger() Preferred method from controllers
-     */
-    public function createEmitter(string $event, ?callable $callback = null): EventEmitter
-    {
-        return $this->distributor->getRegistry()->createEmitter($this, $event, !$callback ? null : $callback(...));
-    }
-
-    /**
-     * Check the event is dispatched.
-     *
-     * @param string $moduleCode
-     * @param string $event The event name
-     *
-     * @return bool
-     */
-    public function isEventListening(string $moduleCode, string $event): bool
-    {
-        return $this->eventDispatcher->isEventListening($moduleCode, $event);
-    }
-
-    /**
-     * Trigger the event.
-     *
-     * @param string $event The event name
-     * @param array $args The arguments will pass to the listener
-     *
-     * @return null|mixed
-     * @throws Throwable
-     */
-    public function fireEvent(string $moduleCode, string $event, array $args): mixed
-    {
-        return $this->eventDispatcher->fireEvent($moduleCode, $event, $args, $this->controller, $this->closureLoader);
-    }
-
-    /**
-     * Prepare stage, module will trigger __onLoad event to determine the module is allowed to load or not.
-     *
-     * @return bool
-     */
-    public function prepare(): bool
-    {
-        if ($this->controller->__onLoad($this->agent)) {
-            $this->status = ModuleStatus::Loaded;
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Add standard route into the route list, regular expression string supported.
-     *
-     * Supports HTTP method prefix syntax: 'GET /users', 'POST /api/data', 'GET|POST /form'.
-     * Routes without a method prefix match any HTTP method.
-     *
-     * @param string $route The path of the route (optionally prefixed with HTTP method)
-     * @param string|Route $path The Route entity or the path of the closure file by the method name
-     *
-     * @return $this
-     */
-    public function addRoute(string $route, mixed $path): static
-    {
-        // Parse HTTP method prefix (e.g., 'GET /users' → method='GET', route='/users')
-        [$method, $route] = RouteDispatcher::parseMethodPrefix($route);
-
-        // Standardize the route string
-        $route = rtrim(PathUtil::tidy($route, false, '/'), '/');
-
-        if (!$route) {
-            $route = '/';
-        }
-
-        // R1 Fix: Auto-prepend leading slash if missing
-        if ($route !== '/' && $route[0] !== '/') {
-            $route = '/' . $route;
-        }
-
-        $this->distributor->getRouter()->setRoute($this, $route, $path, $method);
-
-        return $this;
-    }
-
-    /**
-     * Add shadow route.
-     *
-     * @param string $route
-     * @param string $moduleCode
-     * @param string $path
-     * @return $this
-     */
-    public function addShadowRoute(string $route, string $moduleCode, string $path): self
-    {
-        $targetModule = $this->distributor->getRegistry()->getLoadedModule($moduleCode);
-        $this->distributor->getRouter()->setShadowRoute($this, $route, $targetModule, $path);
-
-        return $this;
-    }
-
-    /**
-     * Add CLI script path into the script list.
-     *
-     * @param string $route The path of the route
-     * @param string $path The path of the closure file
-     *
-     * @return $this
-     */
-    public function addScript(string $route, string $path): self
-    {
-        $this->distributor->getRouter()->setScript($this, $route, $path);
-
-        return $this;
-    }
-
-    /**
-     * Trigger __onRouted event when the application has routed into a module
-     */
-    public function announce(ModuleInfo $moduleInfo): void
-    {
-        if (ModuleStatus::Loaded === $this->status) {
-            if (CLI_MODE) {
-                $this->controller->__onScriptReady($moduleInfo);
-            } else {
-                $this->controller->__onRouted($moduleInfo);
-            }
-        }
-    }
-
-    /**
-     * Trigger __onRequire event before ready stage
-     *
-     * @return bool
-     */
-    public function validate(): bool
-    {
-        // Check each required module is loaded and can satisfy its own requirements
-        $requires = $this->moduleInfo->getRequire();
-        foreach ($requires as $moduleCode => $package) {
-            $module = $this->distributor->getRegistry()->getLoadedModule($moduleCode);
-            // Fail if the required module isn't loaded, isn't fully loaded, or fails its own require()
-            if (!$module || $module->getStatus() !== ModuleStatus::Loaded || !$module->require()) {
-                $this->status = ModuleStatus::Loaded;
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Start require the loaded module
-     *
-     * @return bool
-     */
-    public function require(): bool
-    {
-        return $this->controller->__onRequire();
-    }
-
-    /**
-     * Get the global template entity
-     *
-     * @return Template
-     */
-    public function getGlobalTemplateEntity(): Template
-    {
-        return $this->distributor->getGlobalTemplateEntity();
-    }
-
-    /**
-     * Get the module-level DI container. Falls back to the Distributor chain
-     * (Application container) if no module container was created.
-     *
-     * @return ContainerInterface|null The Container instance, or null if unavailable
-     */
-    public function getContainer(): ?ContainerInterface
-    {
-        return $this->container ?? $this->distributor->getContainer();
-    }
-
-    /**
-     * Get the distributor site root URL
-     *
-     * @return string
-     */
-    public function getSiteURL(): string
-    {
-        return $this->distributor->getSiteURL();
-    }
-
-    /**
-     * Get the module relative URL path.
-     *
-     * @return string
-     */
-    public function getModuleURL(): string
-    {
-        return PathUtil::tidy(PathUtil::append($this->distributor->getSiteURL(), $this->moduleInfo->getAlias()), true, '/');
-    }
-
-    /**
-     * @param array $routedInfo
-     * @return $this
-     */
-    public function entry(array $routedInfo): static
-    {
-        $this->controller->__onEntry($routedInfo);
-        return $this;
-    }
-
-    /**
-     * Add lazy route into the route list.
-     *
-     * Supports HTTP method prefix syntax: 'GET /users', 'POST /api/data'.
-     * Routes without a method prefix match any HTTP method.
-     *
-     * @param string $route The path of the route (optionally prefixed with HTTP method)
-     * @param string $path The path of the closure file
-     *
-     * @return $this
-     */
-    public function addLazyRoute(string $route, string $path): static
-    {
-        // Parse HTTP method prefix (e.g., 'POST /submit' → method='POST', route='/submit')
-        [$method, $route] = RouteDispatcher::parseMethodPrefix($route);
-
-        $this->distributor->getRouter()->setLazyRoute($this, $route, $path, $method);
-
-        return $this;
-    }
-
-    /**
-     * Register module-level middleware for all routes of this module.
-     *
-     * @param MiddlewareInterface|Closure ...$middleware
-     * @return $this
-     */
-    public function addModuleMiddleware(MiddlewareInterface|Closure ...$middleware): static
-    {
-        $this->distributor->getRouter()->addModuleMiddleware(
-            $this->moduleInfo->getCode(),
-            ...$middleware
-        );
-        return $this;
-    }
-
-    /**
-     * Bind the specified closure file to a method.
-     *
-     * @param string $method
-     * @param string $path
-     *
-     * @return $this
-     */
-    public function bind(string $method, string $path): Module
-    {
-        $this->closureLoader->bind($method, $path);
-
-        return $this;
-    }
-
-    /**
-     * Get the module bound closure.
-     *
-     * @param string $method
-     *
-     * @return string
-     */
-    public function getBinding(string $method): string
-    {
-        return $this->closureLoader->getBinding($method);
-    }
-
-    /**
-     * Load the closure under the module controller folder.
-     *
-     * @param string $path
-     *
-     * @return null|Closure
-     * @throws Error
-     */
-    public function getClosure(string $path): ?Closure
-    {
-        return $this->closureLoader->getClosure($path, $this->controller);
-    }
-
-    /**
-     * Get the module's API Emitter.
-     *
-     * @param string $moduleCode
-     *
-     * @return Emitter
-     */
-    public function getEmitter(string $moduleCode): Emitter
-    {
-        return $this->distributor->getRegistry()->createAPI($this)->request($moduleCode);
-    }
-
-    /**
-     * Load the module configuration file.
-     *
-     * @throws Error
-     */
-    public function loadConfig(): Configuration
-    {
-        $path = PathUtil::append(SYSTEM_ROOT, 'config', $this->distributor->getCode(), $this->moduleInfo->getClassName() . '.php');
-        return new Configuration($path);
-    }
-
-    /**
-     * Trigger onDispose event.
-     *
-     * @return $this
-     */
-    public function dispose(): static
-    {
-        $this->controller->__onDispose();
-        return $this;
     }
 }

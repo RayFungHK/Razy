@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -14,16 +15,17 @@
  * enabling a one-call `resetAll()` for worker mode cleanup.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
-use Throwable;
-
 use Razy\Exception\ConfigurationException;
 use Razy\Util\PathUtil;
+use Throwable;
+
 class PluginManager
 {
     /**
@@ -75,14 +77,14 @@ class PluginManager
     /**
      * Register a plugin folder for a specific owner class.
      *
-     * @param string $owner  The fully-qualified class name (e.g. 'Razy\Template')
+     * @param string $owner The fully-qualified class name (e.g. 'Razy\Template')
      * @param string $folder Absolute path to the plugin directory
-     * @param mixed  $args   Optional arguments passed to the plugin closure on load
+     * @param mixed $args Optional arguments passed to the plugin closure on load
      */
     public function addFolder(string $owner, string $folder, mixed $args = null): void
     {
-        $folder = PathUtil::tidy(trim($folder));
-        if ($folder && is_dir($folder)) {
+        $folder = PathUtil::tidy(\trim($folder));
+        if ($folder && \is_dir($folder)) {
             $this->registries[$owner]['folders'][$folder] = $args;
         }
     }
@@ -90,10 +92,11 @@ class PluginManager
     /**
      * Load and return a plugin closure (with caching) for a specific owner.
      *
-     * @param string $owner      The fully-qualified class name
+     * @param string $owner The fully-qualified class name
      * @param string $pluginName The plugin identifier (e.g. 'modifier.upper')
      *
      * @return array{entity: Closure, args: mixed}|null
+     *
      * @throws ConfigurationException
      */
     public function getPlugin(string $owner, string $pluginName): ?array
@@ -107,7 +110,7 @@ class PluginManager
         $folders = $this->registries[$owner]['folders'] ?? [];
         foreach ($folders as $folder => $args) {
             $pluginFile = PathUtil::append($folder, $pluginName . '.php');
-            if (is_file($pluginFile)) {
+            if (\is_file($pluginFile)) {
                 try {
                     $plugin = require $pluginFile;
                     if ($plugin instanceof Closure) {
@@ -149,6 +152,7 @@ class PluginManager
      * Get all registered folders for a specific owner (for diagnostics/testing).
      *
      * @param string $owner The fully-qualified class name
+     *
      * @return array<string, mixed> Folder path => args map
      */
     public function getFolders(string $owner): array
@@ -160,6 +164,7 @@ class PluginManager
      * Get the cached plugins for a specific owner (for diagnostics/testing).
      *
      * @param string $owner The fully-qualified class name
+     *
      * @return array<string, array{entity: Closure, args: mixed}>
      */
     public function getCachedPlugins(string $owner): array
@@ -174,6 +179,6 @@ class PluginManager
      */
     public function getRegisteredOwners(): array
     {
-        return array_keys($this->registries);
+        return \array_keys($this->registries);
     }
 }

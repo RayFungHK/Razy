@@ -15,7 +15,8 @@ class Confirmed extends ValidationRule
 {
     public function __construct(
         private readonly ?string $confirmationField = null,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {

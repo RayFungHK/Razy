@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -52,12 +53,6 @@ use Razy\Contract\MiddlewareInterface;
 class CsrfMiddleware implements MiddlewareInterface
 {
     /**
-     * HTTP methods that are considered "safe" and do not require CSRF validation.
-     * RFC 7231 § 4.2.1: Safe methods are those that are essentially read-only.
-     */
-    private const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
-
-    /**
      * Default form field name for the CSRF token.
      */
     public const TOKEN_FIELD = '_token';
@@ -68,17 +63,23 @@ class CsrfMiddleware implements MiddlewareInterface
     public const TOKEN_HEADER = 'X-CSRF-TOKEN';
 
     /**
-     * @param CsrfTokenManager $tokenManager   The token manager for generation/validation.
-     * @param Closure|null      $onMismatch     Optional handler when CSRF validation fails.
-     *                                          Receives `(array $context)`, returns mixed.
-     *                                          If null, sets HTTP 419 and returns null.
-     * @param array<string>     $excludedRoutes Routes to exclude from CSRF validation.
-     *                                          Matched against `$context['route']`.
-     * @param bool              $rotateOnSuccess Whether to regenerate the token after
-     *                                          successful validation (per-request rotation).
-     * @param Closure|null      $tokenExtractor Optional custom token extractor.
-     *                                          Receives `(array $context)`, returns `?string`.
-     *                                          Overrides default form field + header extraction.
+     * HTTP methods that are considered "safe" and do not require CSRF validation.
+     * RFC 7231 § 4.2.1: Safe methods are those that are essentially read-only.
+     */
+    private const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+
+    /**
+     * @param CsrfTokenManager $tokenManager The token manager for generation/validation.
+     * @param Closure|null $onMismatch Optional handler when CSRF validation fails.
+     *                                 Receives `(array $context)`, returns mixed.
+     *                                 If null, sets HTTP 419 and returns null.
+     * @param array<string> $excludedRoutes Routes to exclude from CSRF validation.
+     *                                      Matched against `$context['route']`.
+     * @param bool $rotateOnSuccess Whether to regenerate the token after
+     *                              successful validation (per-request rotation).
+     * @param Closure|null $tokenExtractor Optional custom token extractor.
+     *                                     Receives `(array $context)`, returns `?string`.
+     *                                     Overrides default form field + header extraction.
      */
     public function __construct(
         private readonly CsrfTokenManager $tokenManager,
@@ -86,7 +87,8 @@ class CsrfMiddleware implements MiddlewareInterface
         private readonly array $excludedRoutes = [],
         private readonly bool $rotateOnSuccess = false,
         private readonly ?Closure $tokenExtractor = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Handle the request through the CSRF protection layer.
@@ -98,10 +100,10 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     public function handle(array $context, Closure $next): mixed
     {
-        $method = strtoupper($context['method'] ?? 'GET');
+        $method = \strtoupper($context['method'] ?? 'GET');
 
         // Safe methods — no CSRF check needed
-        if (in_array($method, self::SAFE_METHODS, true)) {
+        if (\in_array($method, self::SAFE_METHODS, true)) {
             return $next($context);
         }
 
@@ -151,7 +153,7 @@ class CsrfMiddleware implements MiddlewareInterface
 
         $route = $context['route'] ?? '';
 
-        return in_array($route, $this->excludedRoutes, true);
+        return \in_array($route, $this->excludedRoutes, true);
     }
 
     /**
@@ -173,22 +175,22 @@ class CsrfMiddleware implements MiddlewareInterface
         if ($this->tokenExtractor !== null) {
             $token = ($this->tokenExtractor)($context);
 
-            return is_string($token) && $token !== '' ? $token : null;
+            return \is_string($token) && $token !== '' ? $token : null;
         }
 
         // 1. Form field (POST body)
-        if (isset($_POST[self::TOKEN_FIELD]) && is_string($_POST[self::TOKEN_FIELD]) && $_POST[self::TOKEN_FIELD] !== '') {
+        if (isset($_POST[self::TOKEN_FIELD]) && \is_string($_POST[self::TOKEN_FIELD]) && $_POST[self::TOKEN_FIELD] !== '') {
             return $_POST[self::TOKEN_FIELD];
         }
 
         // 2. HTTP header (AJAX/XHR)
-        $headerKey = 'HTTP_' . str_replace('-', '_', strtoupper(self::TOKEN_HEADER));
-        if (isset($_SERVER[$headerKey]) && is_string($_SERVER[$headerKey]) && $_SERVER[$headerKey] !== '') {
+        $headerKey = 'HTTP_' . \str_replace('-', '_', \strtoupper(self::TOKEN_HEADER));
+        if (isset($_SERVER[$headerKey]) && \is_string($_SERVER[$headerKey]) && $_SERVER[$headerKey] !== '') {
             return $_SERVER[$headerKey];
         }
 
         // 3. Context injection (testing / middleware chaining)
-        if (isset($context[self::TOKEN_FIELD]) && is_string($context[self::TOKEN_FIELD]) && $context[self::TOKEN_FIELD] !== '') {
+        if (isset($context[self::TOKEN_FIELD]) && \is_string($context[self::TOKEN_FIELD]) && $context[self::TOKEN_FIELD] !== '') {
             return $context[self::TOKEN_FIELD];
         }
 
@@ -211,7 +213,7 @@ class CsrfMiddleware implements MiddlewareInterface
             return ($this->onMismatch)($context);
         }
 
-        http_response_code(419);
+        \http_response_code(419);
 
         return null;
     }

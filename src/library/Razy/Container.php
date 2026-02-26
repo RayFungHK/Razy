@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -40,7 +41,9 @@ use Throwable;
  * dependencies.
  *
  * @class Container
+ *
  * @package Razy
+ *
  * @license MIT
  */
 class Container implements ContainerInterface
@@ -169,11 +172,9 @@ class Container implements ContainerInterface
      * constructor parameter type-hinted as $abstract, it will resolve
      * $concrete instead of the global binding.
      *
-     * @param string         $consumer The consuming class
-     * @param string         $abstract The abstract dependency type
+     * @param string $consumer The consuming class
+     * @param string $abstract The abstract dependency type
      * @param string|Closure $concrete The implementation to provide
-     *
-     * @return void
      */
     public function addContextualBinding(string $consumer, string $abstract, string|Closure $concrete): void
     {
@@ -322,6 +323,7 @@ class Container implements ContainerInterface
      *
      * @param string $abstract Service identifier
      * @param string|Closure $concrete New class name or factory closure
+     *
      * @return object|null The previous cached instance, or null
      */
     public function rebind(string $abstract, string|Closure $concrete): ?object
@@ -362,6 +364,7 @@ class Container implements ContainerInterface
      * Get the number of times a specific abstract has been rebound.
      *
      * @param string $abstract Service identifier
+     *
      * @return int
      */
     public function getRebindCount(string $abstract): int
@@ -376,7 +379,7 @@ class Container implements ContainerInterface
      */
     public function getTotalRebindCount(): int
     {
-        return array_sum($this->rebindCounts);
+        return \array_sum($this->rebindCounts);
     }
 
     /**
@@ -400,7 +403,7 @@ class Container implements ContainerInterface
      */
     public function setMaxRebindsBeforeRestart(int $max): void
     {
-        $this->maxRebindsBeforeRestart = max(1, $max);
+        $this->maxRebindsBeforeRestart = \max(1, $max);
     }
 
     // ── Binding Queries ───────────────────────────────────
@@ -411,6 +414,7 @@ class Container implements ContainerInterface
      * and without attempting auto-wire).
      *
      * @param string $abstract Service identifier
+     *
      * @return bool
      */
     public function bound(string $abstract): bool
@@ -427,11 +431,12 @@ class Container implements ContainerInterface
      * concrete instance.
      *
      * @param string $abstract Service identifier
+     *
      * @return Closure(): mixed
      */
     public function factory(string $abstract): Closure
     {
-        return fn() => $this->make($abstract);
+        return fn () => $this->make($abstract);
     }
 
     /**
@@ -469,8 +474,8 @@ class Container implements ContainerInterface
      */
     public function tag(array $abstracts, string $tag): void
     {
-        $this->tags[$tag] = array_unique(
-            array_merge($this->tags[$tag] ?? [], $abstracts)
+        $this->tags[$tag] = \array_unique(
+            \array_merge($this->tags[$tag] ?? [], $abstracts),
         );
     }
 
@@ -478,6 +483,7 @@ class Container implements ContainerInterface
      * Resolve all services registered under the given tag.
      *
      * @param string $tag The tag name
+     *
      * @return array<object> Resolved instances (empty array if tag is unknown)
      */
     public function tagged(string $tag): array
@@ -486,7 +492,7 @@ class Container implements ContainerInterface
             return [];
         }
 
-        return array_map(fn(string $abstract) => $this->make($abstract), $this->tags[$tag]);
+        return \array_map(fn (string $abstract) => $this->make($abstract), $this->tags[$tag]);
     }
 
     // ── Resolving Hooks ────────────────────────────────────
@@ -560,6 +566,7 @@ class Container implements ContainerInterface
      *
      * @param string $abstract Service identifier or class name
      * @param array $params Named parameters to pass to the constructor
+     *
      * @return mixed The resolved instance
      *
      * @throws ContainerException If the type cannot be resolved or a circular dependency is detected
@@ -629,6 +636,7 @@ class Container implements ContainerInterface
      *
      * @param callable|array{object|string, string} $callback The callable to invoke
      * @param array $params Named parameters to override auto-wired dependencies
+     *
      * @return mixed The return value of the callable
      *
      * @throws ContainerException If a parameter cannot be resolved
@@ -642,7 +650,7 @@ class Container implements ContainerInterface
             $name = $parameter->getName();
 
             // 1. Explicit parameter override
-            if (array_key_exists($name, $params)) {
+            if (\array_key_exists($name, $params)) {
                 $dependencies[] = $params[$name];
                 continue;
             }
@@ -673,17 +681,18 @@ class Container implements ContainerInterface
 
             throw new ContainerException(
                 "Cannot resolve parameter '\${$name}' when calling " . $this->describeCallable($callback) . '. '
-                . 'No binding, default value, or nullable type-hint available.'
+                . 'No binding, default value, or nullable type-hint available.',
             );
         }
 
-        return call_user_func_array($callback, $dependencies);
+        return \call_user_func_array($callback, $dependencies);
     }
 
     /**
      * Retrieve an entry by its identifier. Alias for make() with no parameters.
      *
      * @param string $id Service identifier
+     *
      * @return mixed The resolved entry
      *
      * @throws ContainerNotFoundException If no binding or class exists for the given identifier
@@ -702,6 +711,7 @@ class Container implements ContainerInterface
      * Also checks parent container if set.
      *
      * @param string $id Service identifier
+     *
      * @return bool
      */
     public function has(string $id): bool
@@ -748,7 +758,7 @@ class Container implements ContainerInterface
         unset(
             $this->bindings[$abstract],
             $this->instances[$abstract],
-            $this->scopedBindings[$abstract]
+            $this->scopedBindings[$abstract],
         );
     }
 
@@ -759,13 +769,14 @@ class Container implements ContainerInterface
      */
     public function getBindings(): array
     {
-        return array_keys($this->bindings);
+        return \array_keys($this->bindings);
     }
 
     /**
      * Resolve an alias to its canonical abstract name.
      *
      * @param string $id The alias or abstract name
+     *
      * @return string The canonical abstract name
      */
     private function getAlias(string $id): string
@@ -785,6 +796,7 @@ class Container implements ContainerInterface
      *
      * @param string $abstract Service identifier or class name
      * @param array $params Named parameters
+     *
      * @return object The built instance
      *
      * @throws ContainerException If the class is not instantiable
@@ -823,13 +835,14 @@ class Container implements ContainerInterface
      *
      * @param string $class Fully-qualified class name
      * @param array $params Named parameters
+     *
      * @return object The constructed instance
      *
      * @throws ContainerException|ContainerNotFoundException If the class does not exist, is not instantiable, or a parameter cannot be resolved
      */
     private function autoResolve(string $class, array $params): object
     {
-        if (!class_exists($class)) {
+        if (!\class_exists($class)) {
             throw new ContainerNotFoundException("Class '{$class}' does not exist and cannot be auto-resolved.");
         }
 
@@ -849,7 +862,7 @@ class Container implements ContainerInterface
             $name = $parameter->getName();
 
             // 1. Explicit parameter override
-            if (array_key_exists($name, $params)) {
+            if (\array_key_exists($name, $params)) {
                 $dependencies[] = $params[$name];
                 continue;
             }
@@ -874,7 +887,7 @@ class Container implements ContainerInterface
                     continue;
                 } catch (ContainerException $e) {
                     // Always propagate circular dependency errors
-                    if (str_contains($e->getMessage(), 'Circular dependency')) {
+                    if (\str_contains($e->getMessage(), 'Circular dependency')) {
                         throw $e;
                     }
                     // Other resolution failures fall through to default/null checks
@@ -897,7 +910,7 @@ class Container implements ContainerInterface
 
             throw new ContainerException(
                 "Cannot resolve parameter '\${$name}' for class '{$class}'. "
-                . 'No binding, default value, or nullable type-hint available.'
+                . 'No binding, default value, or nullable type-hint available.',
             );
         }
 
@@ -908,6 +921,7 @@ class Container implements ContainerInterface
      * Get a ReflectionFunctionAbstract for any callable.
      *
      * @param callable|array $callback The callable to reflect
+     *
      * @return ReflectionFunction|ReflectionMethod
      *
      * @throws ContainerException If the callable cannot be reflected
@@ -918,20 +932,20 @@ class Container implements ContainerInterface
             return new ReflectionFunction($callback);
         }
 
-        if (is_array($callback)) {
+        if (\is_array($callback)) {
             return new ReflectionMethod($callback[0], $callback[1]);
         }
 
-        if (is_string($callback)) {
-            if (str_contains($callback, '::')) {
-                [$class, $method] = explode('::', $callback, 2);
+        if (\is_string($callback)) {
+            if (\str_contains($callback, '::')) {
+                [$class, $method] = \explode('::', $callback, 2);
                 return new ReflectionMethod($class, $method);
             }
             return new ReflectionFunction($callback);
         }
 
         // Invokable object
-        if (is_object($callback)) {
+        if (\is_object($callback)) {
             return new ReflectionMethod($callback, '__invoke');
         }
 
@@ -942,6 +956,7 @@ class Container implements ContainerInterface
      * Produce a human-readable description of a callable for error messages.
      *
      * @param callable|array $callback The callable
+     *
      * @return string
      */
     private function describeCallable(callable|array $callback): string
@@ -950,16 +965,16 @@ class Container implements ContainerInterface
             return 'Closure';
         }
 
-        if (is_array($callback)) {
-            $class = is_object($callback[0]) ? $callback[0]::class : $callback[0];
+        if (\is_array($callback)) {
+            $class = \is_object($callback[0]) ? $callback[0]::class : $callback[0];
             return $class . '::' . $callback[1] . '()';
         }
 
-        if (is_string($callback)) {
+        if (\is_string($callback)) {
             return $callback . '()';
         }
 
-        if (is_object($callback)) {
+        if (\is_object($callback)) {
             return $callback::class . '::__invoke()';
         }
 

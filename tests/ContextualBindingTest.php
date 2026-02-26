@@ -55,7 +55,10 @@ class CtxCloudFilesystem implements CtxFilesystemInterface
 
 class CtxFileLogger implements CtxLoggerInterface
 {
-    public function __construct(private readonly string $path = '/var/log/app.log') {}
+    public function __construct(private readonly string $path = '/var/log/app.log')
+    {
+    }
+
     public function channel(): string
     {
         return 'file:' . $this->path;
@@ -90,27 +93,37 @@ class CtxFileCache implements CtxCacheInterface
 
 class CtxPhotoController
 {
-    public function __construct(public readonly CtxFilesystemInterface $filesystem) {}
+    public function __construct(public readonly CtxFilesystemInterface $filesystem)
+    {
+    }
 }
 
 class CtxVideoController
 {
-    public function __construct(public readonly CtxFilesystemInterface $filesystem) {}
+    public function __construct(public readonly CtxFilesystemInterface $filesystem)
+    {
+    }
 }
 
 class CtxDocumentController
 {
-    public function __construct(public readonly CtxFilesystemInterface $filesystem) {}
+    public function __construct(public readonly CtxFilesystemInterface $filesystem)
+    {
+    }
 }
 
 class CtxUserService
 {
-    public function __construct(public readonly CtxLoggerInterface $logger) {}
+    public function __construct(public readonly CtxLoggerInterface $logger)
+    {
+    }
 }
 
 class CtxReportService
 {
-    public function __construct(public readonly CtxLoggerInterface $logger) {}
+    public function __construct(public readonly CtxLoggerInterface $logger)
+    {
+    }
 }
 
 class CtxMultiDependencyService
@@ -119,7 +132,8 @@ class CtxMultiDependencyService
         public readonly CtxFilesystemInterface $filesystem,
         public readonly CtxLoggerInterface $logger,
         public readonly CtxCacheInterface $cache,
-    ) {}
+    ) {
+    }
 }
 
 class CtxMixedParamsService
@@ -127,12 +141,15 @@ class CtxMixedParamsService
     public function __construct(
         public readonly CtxFilesystemInterface $filesystem,
         public readonly string $name = 'default',
-    ) {}
+    ) {
+    }
 }
 
 class CtxNoContextService
 {
-    public function __construct(public readonly CtxFilesystemInterface $filesystem) {}
+    public function __construct(public readonly CtxFilesystemInterface $filesystem)
+    {
+    }
 }
 
 /**
@@ -171,7 +188,7 @@ class ContextualBindingTest extends TestCase
 
         $binding = $this->container->getContextualBinding(
             CtxPhotoController::class,
-            CtxFilesystemInterface::class
+            CtxFilesystemInterface::class,
         );
 
         $this->assertSame(CtxLocalFilesystem::class, $binding);
@@ -179,7 +196,7 @@ class ContextualBindingTest extends TestCase
 
     public function testWhenNeedsGiveWithClosure(): void
     {
-        $closure = fn(Container $c) => new CtxFileLogger('/custom/path.log');
+        $closure = fn (Container $c) => new CtxFileLogger('/custom/path.log');
 
         $this->container->when(CtxUserService::class)
             ->needs(CtxLoggerInterface::class)
@@ -187,7 +204,7 @@ class ContextualBindingTest extends TestCase
 
         $binding = $this->container->getContextualBinding(
             CtxUserService::class,
-            CtxLoggerInterface::class
+            CtxLoggerInterface::class,
         );
 
         $this->assertSame($closure, $binding);
@@ -202,12 +219,12 @@ class ContextualBindingTest extends TestCase
         $this->container->addContextualBinding(
             CtxPhotoController::class,
             CtxFilesystemInterface::class,
-            CtxLocalFilesystem::class
+            CtxLocalFilesystem::class,
         );
 
         $result = $this->container->getContextualBinding(
             CtxPhotoController::class,
-            CtxFilesystemInterface::class
+            CtxFilesystemInterface::class,
         );
 
         $this->assertSame(CtxLocalFilesystem::class, $result);
@@ -215,17 +232,17 @@ class ContextualBindingTest extends TestCase
 
     public function testAddContextualBindingClosure(): void
     {
-        $closure = fn() => new CtxS3Filesystem();
+        $closure = fn () => new CtxS3Filesystem();
 
         $this->container->addContextualBinding(
             CtxVideoController::class,
             CtxFilesystemInterface::class,
-            $closure
+            $closure,
         );
 
         $result = $this->container->getContextualBinding(
             CtxVideoController::class,
-            CtxFilesystemInterface::class
+            CtxFilesystemInterface::class,
         );
 
         $this->assertSame($closure, $result);
@@ -236,8 +253,8 @@ class ContextualBindingTest extends TestCase
         $this->assertNull(
             $this->container->getContextualBinding(
                 CtxPhotoController::class,
-                CtxFilesystemInterface::class
-            )
+                CtxFilesystemInterface::class,
+            ),
         );
     }
 
@@ -268,7 +285,7 @@ class ContextualBindingTest extends TestCase
     {
         $this->container->when(CtxUserService::class)
             ->needs(CtxLoggerInterface::class)
-            ->give(fn(Container $c) => new CtxFileLogger('/custom/user.log'));
+            ->give(fn (Container $c) => new CtxFileLogger('/custom/user.log'));
 
         $service = $this->container->make(CtxUserService::class);
 
@@ -481,13 +498,13 @@ class ContextualBindingTest extends TestCase
         $this->container->addContextualBinding(
             CtxPhotoController::class,
             CtxFilesystemInterface::class,
-            CtxLocalFilesystem::class
+            CtxLocalFilesystem::class,
         );
 
         $this->container->addContextualBinding(
             CtxPhotoController::class,
             CtxFilesystemInterface::class,
-            CtxCloudFilesystem::class
+            CtxCloudFilesystem::class,
         );
 
         $photo = $this->container->make(CtxPhotoController::class);
@@ -509,8 +526,8 @@ class ContextualBindingTest extends TestCase
         $this->assertNull(
             $this->container->getContextualBinding(
                 CtxPhotoController::class,
-                CtxFilesystemInterface::class
-            )
+                CtxFilesystemInterface::class,
+            ),
         );
     }
 
@@ -528,8 +545,8 @@ class ContextualBindingTest extends TestCase
             CtxLocalFilesystem::class,
             $this->container->getContextualBinding(
                 CtxPhotoController::class,
-                CtxFilesystemInterface::class
-            )
+                CtxFilesystemInterface::class,
+            ),
         );
     }
 
@@ -640,8 +657,8 @@ class ContextualBindingTest extends TestCase
             CtxLocalFilesystem::class,
             $this->container->getContextualBinding(
                 CtxPhotoController::class,
-                CtxFilesystemInterface::class
-            )
+                CtxFilesystemInterface::class,
+            ),
         );
     }
 
@@ -660,16 +677,16 @@ class ContextualBindingTest extends TestCase
             CtxLocalFilesystem::class,
             $this->container->getContextualBinding(
                 CtxMultiDependencyService::class,
-                CtxFilesystemInterface::class
-            )
+                CtxFilesystemInterface::class,
+            ),
         );
 
         $this->assertSame(
             CtxFileLogger::class,
             $this->container->getContextualBinding(
                 CtxMultiDependencyService::class,
-                CtxLoggerInterface::class
-            )
+                CtxLoggerInterface::class,
+            ),
         );
     }
 
@@ -720,8 +737,8 @@ class ContextualBindingTest extends TestCase
         $this->assertNull(
             $this->container->getContextualBinding(
                 CtxPhotoController::class,
-                CtxFilesystemInterface::class
-            )
+                CtxFilesystemInterface::class,
+            ),
         );
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for Container rebind support (Strategy C+).
  * This file is part of Razy v0.5.
@@ -6,10 +7,10 @@
 
 namespace Razy\Tests;
 
-use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Container;
+use stdClass;
 
 #[CoversClass(Container::class)]
 class ContainerRebindTest extends TestCase
@@ -25,11 +26,11 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindReplacesExistingBinding(): void
     {
-        $this->container->bind('service.greeting', fn() => (object)['msg' => 'hello']);
+        $this->container->bind('service.greeting', fn () => (object) ['msg' => 'hello']);
         $v1 = $this->container->make('service.greeting');
         $this->assertSame('hello', $v1->msg);
 
-        $old = $this->container->rebind('service.greeting', fn() => (object)['msg' => 'goodbye']);
+        $old = $this->container->rebind('service.greeting', fn () => (object) ['msg' => 'goodbye']);
 
         $v2 = $this->container->make('service.greeting');
         $this->assertSame('goodbye', $v2->msg);
@@ -37,10 +38,10 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindReturnsOldInstance(): void
     {
-        $this->container->bind('service.counter', fn() => (object)['val' => 42]);
+        $this->container->bind('service.counter', fn () => (object) ['val' => 42]);
         $this->container->make('service.counter'); // resolve to cache
 
-        $old = $this->container->rebind('service.counter', fn() => (object)['val' => 99]);
+        $old = $this->container->rebind('service.counter', fn () => (object) ['val' => 99]);
 
         // New should resolve to 99
         $v2 = $this->container->make('service.counter');
@@ -49,7 +50,7 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindNonExistentCreatesBinding(): void
     {
-        $old = $this->container->rebind('new.service', fn() => (object)['val' => 'fresh']);
+        $old = $this->container->rebind('new.service', fn () => (object) ['val' => 'fresh']);
 
         $this->assertNull($old);
         $v = $this->container->make('new.service');
@@ -58,19 +59,19 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindWithClassString(): void
     {
-        $this->container->bind('counter', fn() => new \stdClass());
+        $this->container->bind('counter', fn () => new stdClass());
         $this->container->make('counter');
 
-        $old = $this->container->rebind('counter', fn() => new \stdClass());
+        $old = $this->container->rebind('counter', fn () => new stdClass());
 
-        $this->assertInstanceOf(\stdClass::class, $this->container->make('counter'));
+        $this->assertInstanceOf(stdClass::class, $this->container->make('counter'));
     }
 
     // ── onRebind() callbacks ────────────────────────────
 
     public function testOnRebindCallbackFiredOnRebind(): void
     {
-        $this->container->bind('service.foo', fn() => (object)['v' => 1]);
+        $this->container->bind('service.foo', fn () => (object) ['v' => 1]);
         $this->container->make('service.foo');
 
         $callbackFired = false;
@@ -83,7 +84,7 @@ class ContainerRebindTest extends TestCase
             $receivedOld = $old;
         });
 
-        $this->container->rebind('service.foo', fn() => (object)['v' => 2]);
+        $this->container->rebind('service.foo', fn () => (object) ['v' => 2]);
 
         $this->assertTrue($callbackFired);
         $this->assertSame('service.foo', $receivedAbstract);
@@ -96,20 +97,24 @@ class ContainerRebindTest extends TestCase
             $callbackFired = true;
         });
 
-        $this->container->bind('service.bar', fn() => (object)['val' => 'x']);
+        $this->container->bind('service.bar', fn () => (object) ['val' => 'x']);
 
         $this->assertFalse($callbackFired);
     }
 
     public function testMultipleOnRebindCallbacksAllFired(): void
     {
-        $this->container->bind('svc', fn() => (object)['v' => 1]);
+        $this->container->bind('svc', fn () => (object) ['v' => 1]);
 
         $fired = [];
-        $this->container->onRebind('svc', function () use (&$fired) { $fired[] = 'cb1'; });
-        $this->container->onRebind('svc', function () use (&$fired) { $fired[] = 'cb2'; });
+        $this->container->onRebind('svc', function () use (&$fired) {
+            $fired[] = 'cb1';
+        });
+        $this->container->onRebind('svc', function () use (&$fired) {
+            $fired[] = 'cb2';
+        });
 
-        $this->container->rebind('svc', fn() => (object)['v' => 2]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 2]);
 
         $this->assertSame(['cb1', 'cb2'], $fired);
     }
@@ -123,30 +128,30 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindIncrementsCount(): void
     {
-        $this->container->bind('svc', fn() => (object)['v' => 1]);
-        $this->container->rebind('svc', fn() => (object)['v' => 2]);
+        $this->container->bind('svc', fn () => (object) ['v' => 1]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 2]);
 
         $this->assertSame(1, $this->container->getRebindCount('svc'));
     }
 
     public function testMultipleRebindsIncrementCount(): void
     {
-        $this->container->bind('svc', fn() => (object)['v' => 1]);
-        $this->container->rebind('svc', fn() => (object)['v' => 2]);
-        $this->container->rebind('svc', fn() => (object)['v' => 3]);
-        $this->container->rebind('svc', fn() => (object)['v' => 4]);
+        $this->container->bind('svc', fn () => (object) ['v' => 1]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 2]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 3]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 4]);
 
         $this->assertSame(3, $this->container->getRebindCount('svc'));
     }
 
     public function testGetTotalRebindCountAcrossMultipleServices(): void
     {
-        $this->container->bind('a', fn() => new \stdClass());
-        $this->container->bind('b', fn() => new \stdClass());
+        $this->container->bind('a', fn () => new stdClass());
+        $this->container->bind('b', fn () => new stdClass());
 
-        $this->container->rebind('a', fn() => new \stdClass());
-        $this->container->rebind('b', fn() => new \stdClass());
-        $this->container->rebind('a', fn() => new \stdClass());
+        $this->container->rebind('a', fn () => new stdClass());
+        $this->container->rebind('b', fn () => new stdClass());
+        $this->container->rebind('a', fn () => new stdClass());
 
         $this->assertSame(3, $this->container->getTotalRebindCount());
     }
@@ -161,29 +166,29 @@ class ContainerRebindTest extends TestCase
     public function testExceedsRebindThresholdAfterManyRebinds(): void
     {
         $this->container->setMaxRebindsBeforeRestart(3);
-        $this->container->bind('svc', fn() => new \stdClass());
+        $this->container->bind('svc', fn () => new stdClass());
 
-        $this->container->rebind('svc', fn() => new \stdClass());
+        $this->container->rebind('svc', fn () => new stdClass());
         $this->assertFalse($this->container->exceedsRebindThreshold());
 
-        $this->container->rebind('svc', fn() => new \stdClass());
+        $this->container->rebind('svc', fn () => new stdClass());
         $this->assertFalse($this->container->exceedsRebindThreshold());
 
-        $this->container->rebind('svc', fn() => new \stdClass());
+        $this->container->rebind('svc', fn () => new stdClass());
         $this->assertTrue($this->container->exceedsRebindThreshold());
     }
 
     public function testSetMaxRebindsBeforeRestart(): void
     {
         $this->container->setMaxRebindsBeforeRestart(5);
-        $this->container->bind('x', fn() => new \stdClass());
+        $this->container->bind('x', fn () => new stdClass());
 
         for ($i = 1; $i <= 4; $i++) {
-            $this->container->rebind('x', fn() => new \stdClass());
+            $this->container->rebind('x', fn () => new stdClass());
         }
         $this->assertFalse($this->container->exceedsRebindThreshold());
 
-        $this->container->rebind('x', fn() => new \stdClass());
+        $this->container->rebind('x', fn () => new stdClass());
         $this->assertTrue($this->container->exceedsRebindThreshold());
     }
 
@@ -191,8 +196,8 @@ class ContainerRebindTest extends TestCase
 
     public function testResetClearsRebindCallbacksButPreservesCounts(): void
     {
-        $this->container->bind('svc', fn() => (object)['v' => 1]);
-        $this->container->rebind('svc', fn() => (object)['v' => 2]);
+        $this->container->bind('svc', fn () => (object) ['v' => 1]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 2]);
 
         $callbackFired = false;
         $this->container->onRebind('svc', function () use (&$callbackFired) {
@@ -205,8 +210,8 @@ class ContainerRebindTest extends TestCase
         $this->assertSame(1, $this->container->getRebindCount('svc'));
 
         // Callback should be cleared — rebind after reset won't fire old callback
-        $this->container->bind('svc', fn() => (object)['v' => 3]);
-        $this->container->rebind('svc', fn() => (object)['v' => 4]);
+        $this->container->bind('svc', fn () => (object) ['v' => 3]);
+        $this->container->rebind('svc', fn () => (object) ['v' => 4]);
         $this->assertFalse($callbackFired);
     }
 
@@ -214,11 +219,11 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindResolvesNewInstance(): void
     {
-        $this->container->bind('obj', fn() => (object)['version' => 1]);
+        $this->container->bind('obj', fn () => (object) ['version' => 1]);
         $v1 = $this->container->make('obj');
         $this->assertSame(1, $v1->version);
 
-        $this->container->rebind('obj', fn() => (object)['version' => 2]);
+        $this->container->rebind('obj', fn () => (object) ['version' => 2]);
         $v2 = $this->container->make('obj');
         $this->assertSame(2, $v2->version);
 
@@ -228,13 +233,13 @@ class ContainerRebindTest extends TestCase
 
     public function testRebindWithAliasResolvesCorrectly(): void
     {
-        $this->container->bind('full.service.name', fn() => (object)['val' => 'original']);
+        $this->container->bind('full.service.name', fn () => (object) ['val' => 'original']);
         $this->container->alias('short', 'full.service.name');
 
         $v1 = $this->container->make('short');
         $this->assertSame('original', $v1->val);
 
-        $this->container->rebind('full.service.name', fn() => (object)['val' => 'updated']);
+        $this->container->rebind('full.service.name', fn () => (object) ['val' => 'updated']);
         $v2 = $this->container->make('full.service.name');
         $this->assertSame('updated', $v2->val);
     }

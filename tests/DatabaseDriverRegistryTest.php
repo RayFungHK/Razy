@@ -12,6 +12,7 @@ use Razy\Database\Driver\MySQL;
 use Razy\Database\Driver\PostgreSQL;
 use Razy\Database\Driver\SQLite;
 use Razy\Exception\ConnectionException;
+use stdClass;
 
 /**
  * Tests for Database driver registry (Phase 4.5) and legacy fallback removal (Phase 4.2).
@@ -116,7 +117,7 @@ class DatabaseDriverRegistryTest extends TestCase
     {
         $this->expectException(ConnectionException::class);
         $this->expectExceptionMessage('must extend');
-        Database::registerDriver('bad', \stdClass::class);
+        Database::registerDriver('bad', stdClass::class);
     }
 
     // ?�?�?� Legacy fallback removal (Phase 4.2) ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
@@ -159,7 +160,7 @@ class DatabaseDriverRegistryTest extends TestCase
         $db = new Database();
         $name = $db->getName();
         $this->assertStringStartsWith('Database_', $name);
-        $this->assertSame(17, strlen($name)); // Database_ + 8 hex chars
+        $this->assertSame(17, \strlen($name)); // Database_ + 8 hex chars
     }
 
     public function testConstructorTrimsName(): void
@@ -189,6 +190,6 @@ class DatabaseDriverRegistryTest extends TestCase
 
         // After reset, same name should create a new instance
         $db2 = Database::getInstance('reset_test');
-        $this->assertNotSame(spl_object_id($db1), spl_object_id($db2));
+        $this->assertNotSame(\spl_object_id($db1), \spl_object_id($db2));
     }
 }

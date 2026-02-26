@@ -17,16 +17,11 @@ class ParameterBagStub
 {
     use ParameterBagTrait;
 
-    /** @var array<string, mixed> */
-    private array $parameters = [];
-
     /** @var list<string> Records calls to onParameterAssigned */
     public array $assignedLog = [];
 
-    protected function onParameterAssigned(string $parameter): void
-    {
-        $this->assignedLog[] = $parameter;
-    }
+    /** @var array<string, mixed> */
+    private array $parameters = [];
 
     /** Test helper: peek at internal parameters */
     public function getParameter(string $name): mixed
@@ -38,6 +33,11 @@ class ParameterBagStub
     public function getAllParameters(): array
     {
         return $this->parameters;
+    }
+
+    protected function onParameterAssigned(string $parameter): void
+    {
+        $this->assignedLog[] = $parameter;
     }
 }
 
@@ -104,7 +104,7 @@ class ParameterBagTraitTest extends TestCase
     {
         $bag = new ParameterBagStub();
         $bag->assign('counter', 10);
-        $bag->assign('counter', fn($current) => $current + 5);
+        $bag->assign('counter', fn ($current) => $current + 5);
 
         $this->assertSame(15, $bag->getParameter('counter'));
     }
@@ -112,7 +112,7 @@ class ParameterBagTraitTest extends TestCase
     public function testAssignClosureReceivesNullWhenNoCurrentValue(): void
     {
         $bag = new ParameterBagStub();
-        $bag->assign('new_key', fn($current) => $current === null ? 'default' : $current);
+        $bag->assign('new_key', fn ($current) => $current === null ? 'default' : $current);
 
         $this->assertSame('default', $bag->getParameter('new_key'));
     }
@@ -120,7 +120,7 @@ class ParameterBagTraitTest extends TestCase
     public function testAssignClosureCanReturnAnything(): void
     {
         $bag = new ParameterBagStub();
-        $bag->assign('val', fn() => ['array', 'value']);
+        $bag->assign('val', fn () => ['array', 'value']);
 
         $this->assertSame(['array', 'value'], $bag->getParameter('val'));
     }
@@ -221,7 +221,7 @@ class ParameterBagTraitTest extends TestCase
         $result = $bag->assign('a', 1)
             ->assign(['b' => 2, 'c' => 3])
             ->bind('d', $value)
-            ->assign('e', fn() => 5);
+            ->assign('e', fn () => 5);
 
         $this->assertSame(1, $bag->getParameter('a'));
         $this->assertSame(2, $bag->getParameter('b'));

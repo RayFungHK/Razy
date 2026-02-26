@@ -9,10 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Csrf;
+
+use RuntimeException;
 
 /**
  * Exception thrown when a CSRF token validation fails.
@@ -31,7 +34,7 @@ namespace Razy\Csrf;
  *
  * @package Razy\Csrf
  */
-class TokenMismatchException extends \RuntimeException
+class TokenMismatchException extends RuntimeException
 {
     /**
      * @param string $message Custom message (default: 'CSRF token mismatch.').

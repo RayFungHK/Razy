@@ -10,6 +10,7 @@
  * SessionDriverInterface. Includes integration tests with the Session class.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -35,32 +36,34 @@ class SessionDriverTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_session_test_' . bin2hex(random_bytes(4));
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_session_test_' . \bin2hex(\random_bytes(4));
     }
 
     protected function tearDown(): void
     {
         // Clean up temp directory
-        if (is_dir($this->tempDir)) {
+        if (\is_dir($this->tempDir)) {
             $this->removeDirectory($this->tempDir);
         }
     }
 
-    private function removeDirectory(string $dir): void
+    // ══════════════════════════════════════════════════════════════
+    //  DataProvider — Both Drivers Share Expected Behavior
+    // ══════════════════════════════════════════════════════════════
+
+    public static function sessionDataProvider(): array
     {
-        $files = scandir($dir);
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-            $path = $dir . DIRECTORY_SEPARATOR . $file;
-            if (is_dir($path)) {
-                $this->removeDirectory($path);
-            } else {
-                unlink($path);
-            }
-        }
-        rmdir($dir);
+        return [
+            'simple key-value' => [['key' => 'value']],
+            'integers' => [['count' => 42, 'zero' => 0, 'negative' => -1]],
+            'floats' => [['pi' => 3.14159, 'neg' => -0.5]],
+            'booleans' => [['yes' => true, 'no' => false]],
+            'null values' => [['nothing' => null]],
+            'nested arrays' => [['user' => ['name' => 'Test', 'prefs' => ['lang' => 'en']]]],
+            'empty array' => [[]],
+            'unicode' => [['name' => '日本語テスト', 'emoji' => '🎉']],
+            'special chars' => [['html' => '<script>alert("xss")</script>', 'quotes' => "it's \"tricky\""]],
+        ];
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -79,18 +82,18 @@ class SessionDriverTest extends TestCase
 
     public function testOpenCreatesDirectory(): void
     {
-        $this->assertFalse(is_dir($this->tempDir));
+        $this->assertDirectoryDoesNotExist($this->tempDir);
 
         $driver = new FileDriver($this->tempDir);
         $result = $driver->open();
 
         $this->assertTrue($result);
-        $this->assertTrue(is_dir($this->tempDir));
+        $this->assertDirectoryExists($this->tempDir);
     }
 
     public function testOpenReturnsTrueWhenDirectoryExists(): void
     {
-        mkdir($this->tempDir, 0700, true);
+        \mkdir($this->tempDir, 0o700, true);
 
         $driver = new FileDriver($this->tempDir);
         $result = $driver->open();
@@ -253,7 +256,7 @@ class SessionDriverTest extends TestCase
 
         // Make the 'old' session file look expired (mtime = 2 hours ago)
         $oldFile = $this->tempDir . DIRECTORY_SEPARATOR . 'sess_old';
-        touch($oldFile, time() - 7200);
+        \touch($oldFile, \time() - 7200);
 
         $deleted = $driver->gc(3600); // max lifetime = 1 hour
 
@@ -282,7 +285,7 @@ class SessionDriverTest extends TestCase
 
         for ($i = 0; $i < 5; $i++) {
             $driver->write("expired_{$i}", ['i' => $i]);
-            touch($this->tempDir . DIRECTORY_SEPARATOR . "sess_expired_{$i}", time() - 7200);
+            \touch($this->tempDir . DIRECTORY_SEPARATOR . "sess_expired_{$i}", \time() - 7200);
         }
 
         $driver->write('fresh', ['alive' => true]);
@@ -299,8 +302,8 @@ class SessionDriverTest extends TestCase
         $driver->open();
 
         // Create a non-session file
-        file_put_contents($this->tempDir . DIRECTORY_SEPARATOR . 'other_file.txt', 'data');
-        touch($this->tempDir . DIRECTORY_SEPARATOR . 'other_file.txt', time() - 7200);
+        \file_put_contents($this->tempDir . DIRECTORY_SEPARATOR . 'other_file.txt', 'data');
+        \touch($this->tempDir . DIRECTORY_SEPARATOR . 'other_file.txt', \time() - 7200);
 
         $deleted = $driver->gc(3600);
 
@@ -369,7 +372,7 @@ class SessionDriverTest extends TestCase
         $driver->open();
 
         // Write garbage data directly to a session file
-        file_put_contents(
+        \file_put_contents(
             $this->tempDir . DIRECTORY_SEPARATOR . 'sess_corrupt',
             'not_valid_serialized_data{{{',
         );
@@ -382,7 +385,7 @@ class SessionDriverTest extends TestCase
         $driver = new FileDriver($this->tempDir);
         $driver->open();
 
-        file_put_contents($this->tempDir . DIRECTORY_SEPARATOR . 'sess_empty', '');
+        \file_put_contents($this->tempDir . DIRECTORY_SEPARATOR . 'sess_empty', '');
 
         $this->assertSame([], $driver->read('empty'));
     }
@@ -434,23 +437,6 @@ class SessionDriverTest extends TestCase
         // Verify data is gone when re-reading
         $driver2 = new FileDriver($this->tempDir);
         $this->assertSame([], $driver2->read($sessionId));
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  DatabaseDriver — Interface Contract
-    // ══════════════════════════════════════════════════════════════
-
-    private function createPdoAndTable(string $table = 'sessions'): PDO
-    {
-        $pdo = new PDO('sqlite::memory:');
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->exec("CREATE TABLE {$table} (
-            id VARCHAR(128) NOT NULL PRIMARY KEY,
-            data TEXT NOT NULL DEFAULT '',
-            last_activity INTEGER NOT NULL DEFAULT 0
-        )");
-
-        return $pdo;
     }
 
     public function testDatabaseDriverImplementsInterface(): void
@@ -541,7 +527,7 @@ class SessionDriverTest extends TestCase
         $row = $pdo->query("SELECT last_activity FROM sessions WHERE id = 'timed'")->fetch(PDO::FETCH_ASSOC);
         $this->assertNotNull($row);
         $this->assertGreaterThan(0, $row['last_activity']);
-        $this->assertLessThanOrEqual(time(), $row['last_activity']);
+        $this->assertLessThanOrEqual(\time(), $row['last_activity']);
     }
 
     public function testDbWriteEmptyArray(): void
@@ -630,9 +616,9 @@ class SessionDriverTest extends TestCase
         $driver = new DatabaseDriver($pdo);
 
         // Insert an "old" session with last_activity 2 hours ago
-        $oldTime = time() - 7200;
-        $pdo->prepare("INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)")
-            ->execute(['id' => 'old', 'data' => serialize(['expired' => true]), 'time' => $oldTime]);
+        $oldTime = \time() - 7200;
+        $pdo->prepare('INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)')
+            ->execute(['id' => 'old', 'data' => \serialize(['expired' => true]), 'time' => $oldTime]);
 
         // Insert a "fresh" session
         $driver->write('fresh', ['active' => true]);
@@ -662,10 +648,10 @@ class SessionDriverTest extends TestCase
         $pdo = $this->createPdoAndTable();
         $driver = new DatabaseDriver($pdo);
 
-        $oldTime = time() - 7200;
+        $oldTime = \time() - 7200;
         for ($i = 0; $i < 4; $i++) {
-            $pdo->prepare("INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)")
-                ->execute(['id' => "expired_{$i}", 'data' => serialize([]), 'time' => $oldTime]);
+            $pdo->prepare('INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)')
+                ->execute(['id' => "expired_{$i}", 'data' => \serialize([]), 'time' => $oldTime]);
         }
 
         $driver->write('alive', ['ok' => true]);
@@ -825,8 +811,8 @@ class SessionDriverTest extends TestCase
         $driver = new DatabaseDriver($pdo);
 
         // Manually insert corrupt data
-        $pdo->prepare("INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)")
-            ->execute(['id' => 'corrupt', 'data' => 'not_serialized{', 'time' => time()]);
+        $pdo->prepare('INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)')
+            ->execute(['id' => 'corrupt', 'data' => 'not_serialized{', 'time' => \time()]);
 
         $this->assertSame([], $driver->read('corrupt'));
     }
@@ -836,29 +822,10 @@ class SessionDriverTest extends TestCase
         $pdo = $this->createPdoAndTable();
         $driver = new DatabaseDriver($pdo);
 
-        $pdo->prepare("INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)")
-            ->execute(['id' => 'emptystr', 'data' => '', 'time' => time()]);
+        $pdo->prepare('INSERT INTO sessions (id, data, last_activity) VALUES (:id, :data, :time)')
+            ->execute(['id' => 'emptystr', 'data' => '', 'time' => \time()]);
 
         $this->assertSame([], $driver->read('emptystr'));
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  DataProvider — Both Drivers Share Expected Behavior
-    // ══════════════════════════════════════════════════════════════
-
-    public static function sessionDataProvider(): array
-    {
-        return [
-            'simple key-value' => [['key' => 'value']],
-            'integers' => [['count' => 42, 'zero' => 0, 'negative' => -1]],
-            'floats' => [['pi' => 3.14159, 'neg' => -0.5]],
-            'booleans' => [['yes' => true, 'no' => false]],
-            'null values' => [['nothing' => null]],
-            'nested arrays' => [['user' => ['name' => 'Test', 'prefs' => ['lang' => 'en']]]],
-            'empty array' => [[]],
-            'unicode' => [['name' => '日本語テスト', 'emoji' => '🎉']],
-            'special chars' => [['html' => '<script>alert("xss")</script>', 'quotes' => "it's \"tricky\""]],
-        ];
     }
 
     #[DataProvider('sessionDataProvider')]
@@ -892,7 +859,7 @@ class SessionDriverTest extends TestCase
 
         $largeData = [];
         for ($i = 0; $i < 1000; $i++) {
-            $largeData["key_{$i}"] = str_repeat("value_{$i}_", 10);
+            $largeData["key_{$i}"] = \str_repeat("value_{$i}_", 10);
         }
 
         $driver->write('large', $largeData);
@@ -906,10 +873,44 @@ class SessionDriverTest extends TestCase
 
         $largeData = [];
         for ($i = 0; $i < 1000; $i++) {
-            $largeData["key_{$i}"] = str_repeat("value_{$i}_", 10);
+            $largeData["key_{$i}"] = \str_repeat("value_{$i}_", 10);
         }
 
         $driver->write('large', $largeData);
         $this->assertSame($largeData, $driver->read('large'));
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        $files = \scandir($dir);
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $file;
+            if (\is_dir($path)) {
+                $this->removeDirectory($path);
+            } else {
+                \unlink($path);
+            }
+        }
+        \rmdir($dir);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  DatabaseDriver — Interface Contract
+    // ══════════════════════════════════════════════════════════════
+
+    private function createPdoAndTable(string $table = 'sessions'): PDO
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec("CREATE TABLE {$table} (
+            id VARCHAR(128) NOT NULL PRIMARY KEY,
+            data TEXT NOT NULL DEFAULT '',
+            last_activity INTEGER NOT NULL DEFAULT 0
+        )");
+
+        return $pdo;
     }
 }

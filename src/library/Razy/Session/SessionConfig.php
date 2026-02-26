@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -25,16 +26,16 @@ namespace Razy\Session;
 class SessionConfig
 {
     /**
-     * @param string      $name     Session cookie name
-     * @param int         $lifetime Cookie lifetime in seconds (0 = browser session)
-     * @param string      $path     Cookie path
-     * @param string      $domain   Cookie domain
-     * @param bool        $secure   HTTPS-only flag
-     * @param bool        $httpOnly HTTP-only flag (no JS access)
-     * @param string      $sameSite SameSite policy: None|Lax|Strict
-     * @param int         $gcMaxLifetime  Max session lifetime for GC (seconds)
-     * @param int         $gcProbability  GC probability numerator
-     * @param int         $gcDivisor      GC probability divisor
+     * @param string $name Session cookie name
+     * @param int $lifetime Cookie lifetime in seconds (0 = browser session)
+     * @param string $path Cookie path
+     * @param string $domain Cookie domain
+     * @param bool $secure HTTPS-only flag
+     * @param bool $httpOnly HTTP-only flag (no JS access)
+     * @param string $sameSite SameSite policy: None|Lax|Strict
+     * @param int $gcMaxLifetime Max session lifetime for GC (seconds)
+     * @param int $gcProbability GC probability numerator
+     * @param int $gcDivisor GC probability divisor
      */
     public function __construct(
         public readonly string $name = 'RAZY_SESSION',
@@ -47,7 +48,8 @@ class SessionConfig
         public readonly int $gcMaxLifetime = 1440,
         public readonly int $gcProbability = 1,
         public readonly int $gcDivisor = 100,
-    ) {}
+    ) {
+    }
 
     /**
      * Create a new config with one or more values overridden.

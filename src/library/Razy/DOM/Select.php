@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,10 +13,13 @@
  * children, supporting bulk option creation and selected value management.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\DOM;
+
+use InvalidArgumentException;
 use Razy\DOM;
 
 /**
@@ -45,19 +49,20 @@ class Select extends DOM
      * @param callable|null $convertor
      *
      * @return $this
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function applyOptions(array $dataset, ?callable $convertor = null): self
     {
         foreach ($dataset as $key => $value) {
             $option = $this->addOption();
             if ($convertor) {
-                call_user_func($convertor(...), $option, $key, $value);
+                \call_user_func($convertor(...), $option, $key, $value);
             } else {
-                if (is_string($value)) {
+                if (\is_string($value)) {
                     $option->setText($value)->setAttribute('value', $key);
                 } else {
-                    throw new \InvalidArgumentException('The option value must be a string');
+                    throw new InvalidArgumentException('The option value must be a string');
                 }
             }
         }
@@ -72,6 +77,7 @@ class Select extends DOM
      * @param string $value
      *
      * @return DOM
+     *
      * @throws Error
      */
     public function addOption(string $label = '', string $value = ''): DOM
@@ -103,14 +109,15 @@ class Select extends DOM
     }
 
     /**
-     * Enable or disable multiple attribute
+     * Enable or disable multiple attribute.
      *
      * @param bool $enable
      *
      * @return $this
+     *
      * @throws Error
      */
-    public function isMultiple(bool $enable): Select
+    public function isMultiple(bool $enable): self
     {
         if ($enable) {
             $this->setAttribute('multiple', 'multiple');
@@ -127,6 +134,7 @@ class Select extends DOM
      * @param mixed $value The value of the control
      *
      * @return self Chainable
+     *
      * @throws Error
      */
     public function setValue(string $value): DOM

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,13 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Module;
 
 /**
- * Enum ModuleStatus
+ * Enum ModuleStatus.
  *
  * Represents the lifecycle status of a Module within the Distributor context.
  * Replaces the legacy Module::STATUS_* integer constants with a type-safe enum.

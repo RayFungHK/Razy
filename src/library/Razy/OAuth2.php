@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,11 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
+use InvalidArgumentException;
 use Razy\Exception\OAuthException;
 
 /**
@@ -62,9 +65,68 @@ class OAuth2
      */
     public function __construct(string $clientId, string $clientSecret, string $redirectUri)
     {
-        $this->clientId = trim($clientId);
-        $this->clientSecret = trim($clientSecret);
-        $this->redirectUri = trim($redirectUri);
+        $this->clientId = \trim($clientId);
+        $this->clientSecret = \trim($clientSecret);
+        $this->redirectUri = \trim($redirectUri);
+    }
+
+    /**
+     * Validate state token (CSRF protection).
+     *
+     * @param string $receivedState State from callback
+     * @param string $expectedState State from session
+     *
+     * @return bool
+     */
+    public static function validateState(string $receivedState, string $expectedState): bool
+    {
+        // Use timing-safe comparison to prevent side-channel attacks
+        return \hash_equals($expectedState, $receivedState);
+    }
+
+    /**
+     * Parse JWT token without verification (for claims extraction).
+     * Note: This does NOT validate the signature. Use verifyJWT() for security.
+     *
+     * @param string $jwt JWT token
+     *
+     * @return array Decoded payload
+     *
+     * @throws OAuthException
+     */
+    public static function parseJWT(string $jwt): array
+    {
+        // JWT format: header.payload.signature (three base64url-encoded segments)
+        $parts = \explode('.', $jwt);
+        if (\count($parts) !== 3) {
+            throw new OAuthException('Invalid JWT format');
+        }
+
+        // Decode the payload (second segment), converting base64url to standard base64
+        $payload = \base64_decode(\strtr($parts[1], '-_', '+/'));
+        $data = \json_decode($payload, true);
+
+        if (\json_last_error() !== JSON_ERROR_NONE) {
+            throw new OAuthException('Failed to decode JWT payload: ' . \json_last_error_msg());
+        }
+
+        return $data;
+    }
+
+    /**
+     * Verify JWT expiration.
+     *
+     * @param array $claims JWT claims
+     *
+     * @return bool
+     */
+    public static function isJWTExpired(array $claims): bool
+    {
+        if (!isset($claims['exp'])) {
+            return true;
+        }
+
+        return \time() >= $claims['exp'];
     }
 
     /**
@@ -74,9 +136,9 @@ class OAuth2
      *
      * @return $this
      */
-    public function setAuthorizeUrl(string $url): OAuth2
+    public function setAuthorizeUrl(string $url): self
     {
-        $this->authorizeUrl = trim($url);
+        $this->authorizeUrl = \trim($url);
         return $this;
     }
 
@@ -87,9 +149,9 @@ class OAuth2
      *
      * @return $this
      */
-    public function setTokenUrl(string $url): OAuth2
+    public function setTokenUrl(string $url): self
     {
-        $this->tokenUrl = trim($url);
+        $this->tokenUrl = \trim($url);
         return $this;
     }
 
@@ -100,9 +162,9 @@ class OAuth2
      *
      * @return $this
      */
-    public function setScope(string $scope): OAuth2
+    public function setScope(string $scope): self
     {
-        $this->scope = trim($scope);
+        $this->scope = \trim($scope);
         return $this;
     }
 
@@ -113,9 +175,9 @@ class OAuth2
      *
      * @return $this
      */
-    public function setState(?string $state = null): OAuth2
+    public function setState(?string $state = null): self
     {
-        $this->state = $state ?? bin2hex(random_bytes(16));
+        $this->state = $state ?? \bin2hex(\random_bytes(16));
         return $this;
     }
 
@@ -137,7 +199,7 @@ class OAuth2
      *
      * @return $this
      */
-    public function addParam(string $key, string $value): OAuth2
+    public function addParam(string $key, string $value): self
     {
         $this->additionalParams[$key] = $value;
         return $this;
@@ -147,12 +209,13 @@ class OAuth2
      * Generate authorization URL.
      *
      * @return string Authorization URL to redirect user
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function getAuthorizationUrl(): string
     {
         if (empty($this->authorizeUrl)) {
-            throw new \InvalidArgumentException('Authorization URL not set. Call setAuthorizeUrl() first.');
+            throw new InvalidArgumentException('Authorization URL not set. Call setAuthorizeUrl() first.');
         }
 
         // Auto-generate a CSRF state token if not explicitly set
@@ -161,7 +224,7 @@ class OAuth2
         }
 
         // Merge base OAuth parameters with any provider-specific additional params
-        $params = array_merge([
+        $params = \array_merge([
             'client_id' => $this->clientId,
             'response_type' => 'code',
             'redirect_uri' => $this->redirectUri,
@@ -169,7 +232,7 @@ class OAuth2
             'state' => $this->state,
         ], $this->additionalParams);
 
-        return $this->authorizeUrl . '?' . http_build_query($params);
+        return $this->authorizeUrl . '?' . \http_build_query($params);
     }
 
     /**
@@ -178,12 +241,13 @@ class OAuth2
      * @param string $code Authorization code from callback
      *
      * @return array Token data (access_token, refresh_token, expires_in, etc.)
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function getAccessToken(string $code): array
     {
         if (empty($this->tokenUrl)) {
-            throw new \InvalidArgumentException('Token URL not set. Call setTokenUrl() first.');
+            throw new InvalidArgumentException('Token URL not set. Call setTokenUrl() first.');
         }
 
         $params = [
@@ -206,12 +270,13 @@ class OAuth2
      * @param string $refreshToken Refresh token
      *
      * @return array Token data
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function refreshAccessToken(string $refreshToken): array
     {
         if (empty($this->tokenUrl)) {
-            throw new \InvalidArgumentException('Token URL not set. Call setTokenUrl() first.');
+            throw new InvalidArgumentException('Token URL not set. Call setTokenUrl() first.');
         }
 
         $params = [
@@ -228,42 +293,29 @@ class OAuth2
     }
 
     /**
-     * Validate state token (CSRF protection).
-     *
-     * @param string $receivedState State from callback
-     * @param string $expectedState State from session
-     *
-     * @return bool
-     */
-    public static function validateState(string $receivedState, string $expectedState): bool
-    {
-        // Use timing-safe comparison to prevent side-channel attacks
-        return hash_equals($expectedState, $receivedState);
-    }
-
-    /**
      * Make authenticated HTTP GET request.
      *
      * @param string $url API endpoint URL
      * @param string $accessToken Access token
      *
      * @return array Response data
+     *
      * @throws OAuthException
      */
     public function httpGet(string $url, string $accessToken): array
     {
         // Initialize cURL with Bearer token authentication
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        $ch = \curl_init($url);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $accessToken,
             'Accept: application/json',
         ]);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
+        $response = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = \curl_error($ch);
+        \curl_close($ch);
 
         // Check for transport-level errors (DNS, timeout, connection refused, etc.)
         if ($error) {
@@ -276,54 +328,9 @@ class OAuth2
         }
 
         // Decode and validate the JSON response body
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new OAuthException('Failed to decode JSON response: ' . json_last_error_msg());
-        }
-
-        return $data;
-    }
-
-    /**
-     * Make HTTP POST request.
-     *
-     * @param string $url Endpoint URL
-     * @param array $params POST parameters
-     *
-     * @return array Response data
-     * @throws OAuthException
-     */
-    private function httpPost(string $url, array $params): array
-    {
-        // Initialize cURL for POST with form-encoded parameters (standard OAuth2 token exchange)
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/x-www-form-urlencoded',
-            'Accept: application/json',
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        // Check for transport-level errors
-        if ($error) {
-            throw new OAuthException('HTTP POST request failed: ' . $error);
-        }
-
-        // Check for HTTP error status codes (4xx/5xx)
-        if ($httpCode >= 400) {
-            throw new OAuthException('HTTP POST request failed with code ' . $httpCode . ': ' . $response);
-        }
-
-        // Decode and validate the JSON response body
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new OAuthException('Failed to decode JSON response: ' . json_last_error_msg());
+        $data = \json_decode($response, true);
+        if (\json_last_error() !== JSON_ERROR_NONE) {
+            throw new OAuthException('Failed to decode JSON response: ' . \json_last_error_msg());
         }
 
         return $data;
@@ -340,46 +347,48 @@ class OAuth2
     }
 
     /**
-     * Parse JWT token without verification (for claims extraction).
-     * Note: This does NOT validate the signature. Use verifyJWT() for security.
+     * Make HTTP POST request.
      *
-     * @param string $jwt JWT token
+     * @param string $url Endpoint URL
+     * @param array $params POST parameters
      *
-     * @return array Decoded payload
+     * @return array Response data
+     *
      * @throws OAuthException
      */
-    public static function parseJWT(string $jwt): array
+    private function httpPost(string $url, array $params): array
     {
-        // JWT format: header.payload.signature (three base64url-encoded segments)
-        $parts = explode('.', $jwt);
-        if (count($parts) !== 3) {
-            throw new OAuthException('Invalid JWT format');
+        // Initialize cURL for POST with form-encoded parameters (standard OAuth2 token exchange)
+        $ch = \curl_init($url);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_POST, true);
+        \curl_setopt($ch, CURLOPT_POSTFIELDS, \http_build_query($params));
+        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/x-www-form-urlencoded',
+            'Accept: application/json',
+        ]);
+
+        $response = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = \curl_error($ch);
+        \curl_close($ch);
+
+        // Check for transport-level errors
+        if ($error) {
+            throw new OAuthException('HTTP POST request failed: ' . $error);
         }
 
-        // Decode the payload (second segment), converting base64url to standard base64
-        $payload = base64_decode(strtr($parts[1], '-_', '+/'));
-        $data = json_decode($payload, true);
+        // Check for HTTP error status codes (4xx/5xx)
+        if ($httpCode >= 400) {
+            throw new OAuthException('HTTP POST request failed with code ' . $httpCode . ': ' . $response);
+        }
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new OAuthException('Failed to decode JWT payload: ' . json_last_error_msg());
+        // Decode and validate the JSON response body
+        $data = \json_decode($response, true);
+        if (\json_last_error() !== JSON_ERROR_NONE) {
+            throw new OAuthException('Failed to decode JSON response: ' . \json_last_error_msg());
         }
 
         return $data;
-    }
-
-    /**
-     * Verify JWT expiration.
-     *
-     * @param array $claims JWT claims
-     *
-     * @return bool
-     */
-    public static function isJWTExpired(array $claims): bool
-    {
-        if (!isset($claims['exp'])) {
-            return true;
-        }
-
-        return time() >= $claims['exp'];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use LogicException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
@@ -399,7 +400,7 @@ class PaginatorTest extends TestCase
         $paginator = Pg_Article::query($db)->paginate(1, 2);
         $json = $paginator->toJson();
 
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertIsArray($decoded);
         $this->assertSame(3, $decoded['total']);
         $this->assertCount(2, $decoded['data']);
@@ -415,8 +416,8 @@ class PaginatorTest extends TestCase
     public function testJsonSerializeViaJsonEncode(): void
     {
         $paginator = new Paginator(new ModelCollection([]), 10, 1, 5);
-        $json = json_encode($paginator);
-        $decoded = json_decode($json, true);
+        $json = \json_encode($paginator);
+        $decoded = \json_decode($json, true);
         $this->assertSame(10, $decoded['total']);
         $this->assertSame(1, $decoded['page']);
     }
@@ -483,14 +484,14 @@ class PaginatorTest extends TestCase
     public function testArrayAccessSetThrowsException(): void
     {
         $paginator = new Paginator(new ModelCollection([]), 10, 1, 5);
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
         $paginator['data'] = 'anything';
     }
 
     public function testArrayAccessUnsetThrowsException(): void
     {
         $paginator = new Paginator(new ModelCollection([]), 10, 1, 5);
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
         unset($paginator['data']);
     }
 
@@ -878,5 +879,6 @@ class PaginatorTest extends TestCase
 class Pg_Article extends Model
 {
     protected static string $table = 'pg_articles';
+
     protected static array $fillable = ['title', 'status'];
 }

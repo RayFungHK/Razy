@@ -12,6 +12,7 @@
  * - Edge cases (empty tokens, tampered tokens, concurrent sessions)
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -19,18 +20,17 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\Contract\MiddlewareInterface;
-use Razy\Contract\SessionInterface;
 use Razy\Csrf\CsrfMiddleware;
 use Razy\Csrf\CsrfTokenManager;
 use Razy\Csrf\TokenMismatchException;
 use Razy\Session\Driver\ArrayDriver;
 use Razy\Session\Session;
 use Razy\Session\SessionConfig;
+use RuntimeException;
 
 #[CoversClass(CsrfTokenManager::class)]
 #[CoversClass(CsrfMiddleware::class)]
@@ -38,6 +38,7 @@ use Razy\Session\SessionConfig;
 class CsrfTest extends TestCase
 {
     private Session $session;
+
     private CsrfTokenManager $tokenManager;
 
     protected function setUp(): void
@@ -51,6 +52,36 @@ class CsrfTest extends TestCase
     {
         // Clean up any $_POST / $_SERVER modifications
         unset($_POST['_token'], $_SERVER['HTTP_X_CSRF_TOKEN']);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  CsrfMiddleware — Safe Methods (Pass Through)
+    // ══════════════════════════════════════════════════════════════
+
+    public static function safeMethodProvider(): array
+    {
+        return [
+            'GET' => ['GET'],
+            'HEAD' => ['HEAD'],
+            'OPTIONS' => ['OPTIONS'],
+            'get (lowercase)' => ['get'],
+            'Get (mixed case)' => ['Get'],
+        ];
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  CsrfMiddleware — State-Changing Methods (Require Token)
+    // ══════════════════════════════════════════════════════════════
+
+    public static function unsafeMethodProvider(): array
+    {
+        return [
+            'POST' => ['POST'],
+            'PUT' => ['PUT'],
+            'PATCH' => ['PATCH'],
+            'DELETE' => ['DELETE'],
+            'post (lowercase)' => ['post'],
+        ];
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -69,7 +100,7 @@ class CsrfTest extends TestCase
     {
         $token = $this->tokenManager->token();
 
-        $this->assertSame(64, strlen($token));
+        $this->assertSame(64, \strlen($token));
     }
 
     public function testTokenIsHexadecimal(): void
@@ -153,7 +184,7 @@ class CsrfTest extends TestCase
         $token = $this->tokenManager->token();
 
         // Submit only the first half
-        $this->assertFalse($this->tokenManager->validate(substr($token, 0, 32)));
+        $this->assertFalse($this->tokenManager->validate(\substr($token, 0, 32)));
     }
 
     public function testValidateReturnsFalseForTokenWithExtraChars(): void
@@ -168,7 +199,7 @@ class CsrfTest extends TestCase
         $token = $this->tokenManager->token();
 
         // Hex tokens are lowercase, uppercase should fail
-        $this->assertFalse($this->tokenManager->validate(strtoupper($token)));
+        $this->assertFalse($this->tokenManager->validate(\strtoupper($token)));
     }
 
     public function testValidateUsesTimingSafeComparison(): void
@@ -179,7 +210,7 @@ class CsrfTest extends TestCase
         $token = $this->tokenManager->token();
 
         // Flip one character
-        $tampered = substr($token, 0, -1) . ($token[-1] === 'a' ? 'b' : 'a');
+        $tampered = \substr($token, 0, -1) . ($token[-1] === 'a' ? 'b' : 'a');
 
         $this->assertTrue($this->tokenManager->validate($token));
         $this->assertFalse($this->tokenManager->validate($tampered));
@@ -195,7 +226,7 @@ class CsrfTest extends TestCase
         $regenerated = $this->tokenManager->regenerate();
 
         $this->assertNotSame($original, $regenerated);
-        $this->assertSame(64, strlen($regenerated));
+        $this->assertSame(64, \strlen($regenerated));
     }
 
     public function testRegenerateInvalidatesOldToken(): void
@@ -230,7 +261,7 @@ class CsrfTest extends TestCase
         }
 
         // All tokens should be unique
-        $this->assertCount(5, array_unique($tokens));
+        $this->assertCount(5, \array_unique($tokens));
 
         // Only the last token should be valid
         foreach ($tokens as $i => $token) {
@@ -322,7 +353,7 @@ class CsrfTest extends TestCase
     {
         $e = new TokenMismatchException();
 
-        $this->assertInstanceOf(\RuntimeException::class, $e);
+        $this->assertInstanceOf(RuntimeException::class, $e);
     }
 
     public function testExceptionCanBeCaught(): void
@@ -357,21 +388,6 @@ class CsrfTest extends TestCase
         $this->assertSame($this->tokenManager, $mw->getTokenManager());
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  CsrfMiddleware — Safe Methods (Pass Through)
-    // ══════════════════════════════════════════════════════════════
-
-    public static function safeMethodProvider(): array
-    {
-        return [
-            'GET' => ['GET'],
-            'HEAD' => ['HEAD'],
-            'OPTIONS' => ['OPTIONS'],
-            'get (lowercase)' => ['get'],
-            'Get (mixed case)' => ['Get'],
-        ];
-    }
-
     #[DataProvider('safeMethodProvider')]
     public function testSafeMethodsPassThrough(string $method): void
     {
@@ -379,7 +395,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => $method, 'route' => '/form'],
-            fn(array $ctx) => 'handler_result',
+            fn (array $ctx) => 'handler_result',
         );
 
         $this->assertSame('handler_result', $result);
@@ -392,25 +408,10 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'GET'],
-            fn(array $ctx) => 'passed',
+            fn (array $ctx) => 'passed',
         );
 
         $this->assertSame('passed', $result);
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  CsrfMiddleware — State-Changing Methods (Require Token)
-    // ══════════════════════════════════════════════════════════════
-
-    public static function unsafeMethodProvider(): array
-    {
-        return [
-            'POST' => ['POST'],
-            'PUT' => ['PUT'],
-            'PATCH' => ['PATCH'],
-            'DELETE' => ['DELETE'],
-            'post (lowercase)' => ['post'],
-        ];
     }
 
     #[DataProvider('unsafeMethodProvider')]
@@ -440,7 +441,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => $method, 'route' => '/submit', '_token' => $token],
-            fn(array $ctx) => 'handler_result',
+            fn (array $ctx) => 'handler_result',
         );
 
         $this->assertSame('handler_result', $result);
@@ -477,7 +478,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', 'route' => '/form'],
-            fn(array $ctx) => 'form_processed',
+            fn (array $ctx) => 'form_processed',
         );
 
         $this->assertSame('form_processed', $result);
@@ -492,7 +493,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', 'route' => '/api/action'],
-            fn(array $ctx) => 'api_result',
+            fn (array $ctx) => 'api_result',
         );
 
         $this->assertSame('api_result', $result);
@@ -505,7 +506,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', '_token' => $token],
-            fn(array $ctx) => 'context_result',
+            fn (array $ctx) => 'context_result',
         );
 
         $this->assertSame('context_result', $result);
@@ -521,7 +522,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST'],
-            fn(array $ctx) => 'post_wins',
+            fn (array $ctx) => 'post_wins',
         );
 
         $this->assertSame('post_wins', $result);
@@ -531,7 +532,7 @@ class CsrfTest extends TestCase
     {
         $token = $this->tokenManager->token();
 
-        $extractor = fn(array $ctx) => $ctx['custom_csrf'] ?? null;
+        $extractor = fn (array $ctx) => $ctx['custom_csrf'] ?? null;
 
         $mw = new CsrfMiddleware(
             $this->tokenManager,
@@ -540,7 +541,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', 'custom_csrf' => $token],
-            fn(array $ctx) => 'custom_extracted',
+            fn (array $ctx) => 'custom_extracted',
         );
 
         $this->assertSame('custom_extracted', $result);
@@ -552,7 +553,7 @@ class CsrfTest extends TestCase
         $_POST['_token'] = $token;
 
         // Custom extractor returns null — should fail even though $_POST has the token
-        $extractor = fn(array $ctx) => null;
+        $extractor = fn (array $ctx) => null;
 
         $mw = new CsrfMiddleware(
             $this->tokenManager,
@@ -585,7 +586,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', 'route' => '/api/webhook'],
-            fn(array $ctx) => 'webhook_ok',
+            fn (array $ctx) => 'webhook_ok',
         );
 
         $this->assertSame('webhook_ok', $result);
@@ -646,7 +647,7 @@ class CsrfTest extends TestCase
         foreach (['/hook1', '/hook2', '/hook3'] as $route) {
             $result = $mw->handle(
                 ['method' => 'POST', 'route' => $route],
-                fn(array $ctx) => 'bypassed',
+                fn (array $ctx) => 'bypassed',
             );
             $this->assertSame('bypassed', $result, "Route $route should be excluded");
         }
@@ -672,7 +673,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', 'route' => '/submit', '_token' => 'bad'],
-            fn(array $ctx) => 'should_not_reach',
+            fn (array $ctx) => 'should_not_reach',
         );
 
         $this->assertIsArray($result);
@@ -687,11 +688,11 @@ class CsrfTest extends TestCase
 
         $mw = new CsrfMiddleware(
             $this->tokenManager,
-            onMismatch: fn(array $ctx) => $ctx,
+            onMismatch: fn (array $ctx) => $ctx,
         );
 
         $context = ['method' => 'DELETE', 'route' => '/item/5', 'extra' => 'data'];
-        $result = $mw->handle($context, fn($ctx) => 'x');
+        $result = $mw->handle($context, fn ($ctx) => 'x');
 
         $this->assertSame($context, $result);
     }
@@ -711,7 +712,7 @@ class CsrfTest extends TestCase
 
         $mw->handle(
             ['method' => 'POST', '_token' => $originalToken],
-            fn(array $ctx) => 'ok',
+            fn (array $ctx) => 'ok',
         );
 
         // Original token should no longer be valid
@@ -731,7 +732,7 @@ class CsrfTest extends TestCase
 
         $mw->handle(
             ['method' => 'POST', '_token' => $originalToken],
-            fn(array $ctx) => 'ok',
+            fn (array $ctx) => 'ok',
         );
 
         // Token should still be valid (no rotation)
@@ -749,7 +750,7 @@ class CsrfTest extends TestCase
 
         $mw->handle(
             ['method' => 'POST', '_token' => 'wrong'],
-            fn(array $ctx) => 'x',
+            fn (array $ctx) => 'x',
         );
 
         // Original token should still be valid (rotation only on success)
@@ -799,7 +800,7 @@ class CsrfTest extends TestCase
         foreach ($values as $type => $expected) {
             $result = $mw->handle(
                 ['method' => 'POST', '_token' => $token],
-                fn(array $ctx) => $expected,
+                fn (array $ctx) => $expected,
             );
             $this->assertSame($expected, $result, "Return type '$type' not preserved");
         }
@@ -816,7 +817,7 @@ class CsrfTest extends TestCase
         // No 'method' key — should default to GET and pass through
         $result = $mw->handle(
             ['route' => '/page'],
-            fn(array $ctx) => 'default_get',
+            fn (array $ctx) => 'default_get',
         );
 
         $this->assertSame('default_get', $result);
@@ -855,7 +856,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', 'route' => '/contact', '_token' => $token],
-            fn(array $ctx) => 'form_submitted',
+            fn (array $ctx) => 'form_submitted',
         );
 
         $this->assertSame('form_submitted', $result);
@@ -870,7 +871,7 @@ class CsrfTest extends TestCase
         for ($i = 0; $i < 5; $i++) {
             $result = $mw->handle(
                 ['method' => 'POST', '_token' => $token],
-                fn(array $ctx) => 'ok',
+                fn (array $ctx) => 'ok',
             );
             $this->assertSame('ok', $result);
         }
@@ -884,7 +885,7 @@ class CsrfTest extends TestCase
         $token1 = $this->tokenManager->token();
         $mw->handle(
             ['method' => 'POST', '_token' => $token1],
-            fn(array $ctx) => 'ok',
+            fn (array $ctx) => 'ok',
         );
 
         // Second request — must use new token
@@ -893,7 +894,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', '_token' => $token2],
-            fn(array $ctx) => 'ok2',
+            fn (array $ctx) => 'ok2',
         );
         $this->assertSame('ok2', $result);
 
@@ -955,7 +956,7 @@ class CsrfTest extends TestCase
 
         $result = $csrfMw->handle(
             ['method' => 'POST', '_token' => $token],
-            fn(array $ctx) => 'pipeline_ok',
+            fn (array $ctx) => 'pipeline_ok',
         );
 
         $this->assertSame('pipeline_ok', $result);
@@ -994,7 +995,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'POST', '_token' => $token],
-            fn(array $ctx) => 'ok',
+            fn (array $ctx) => 'ok',
         );
 
         $this->assertSame('ok', $result);
@@ -1015,7 +1016,7 @@ class CsrfTest extends TestCase
         $mw = new CsrfMiddleware($this->tokenManager);
 
         // Empty context — method defaults to GET, should pass
-        $result = $mw->handle([], fn(array $ctx) => 'default');
+        $result = $mw->handle([], fn (array $ctx) => 'default');
 
         $this->assertSame('default', $result);
     }
@@ -1053,10 +1054,10 @@ class CsrfTest extends TestCase
             $mw->handle(
                 ['method' => 'POST', '_token' => $token],
                 function (array $ctx) {
-                    throw new \RuntimeException('handler error');
+                    throw new RuntimeException('handler error');
                 },
             );
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             // Expected
         }
 
@@ -1073,7 +1074,7 @@ class CsrfTest extends TestCase
 
         $result = $mw->handle(
             ['method' => 'GET', 'route' => '/api/webhook'],
-            fn(array $ctx) => 'safe_excluded',
+            fn (array $ctx) => 'safe_excluded',
         );
 
         $this->assertSame('safe_excluded', $result);
@@ -1163,7 +1164,7 @@ class CsrfTest extends TestCase
 
         $mw = new CsrfMiddleware(
             $this->tokenManager,
-            tokenExtractor: fn(array $ctx) => '',
+            tokenExtractor: fn (array $ctx) => '',
         );
 
         $handlerCalled = false;
@@ -1185,7 +1186,7 @@ class CsrfTest extends TestCase
 
         $mw = new CsrfMiddleware(
             $this->tokenManager,
-            tokenExtractor: fn(array $ctx) => 42,
+            tokenExtractor: fn (array $ctx) => 42,
         );
 
         $handlerCalled = false;

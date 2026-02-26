@@ -13,6 +13,7 @@ use Razy\Session\Driver\NullDriver;
 use Razy\Session\Session;
 use Razy\Session\SessionConfig;
 use Razy\Session\SessionMiddleware;
+use RuntimeException;
 
 /**
  * Tests for P9: Session Abstraction Layer.
@@ -27,23 +28,6 @@ use Razy\Session\SessionMiddleware;
 #[CoversClass(NullDriver::class)]
 class SessionTest extends TestCase
 {
-    private function makeSession(?SessionConfig $config = null): Session
-    {
-        // Use gcProbability=0 by default to avoid random GC in tests
-        return new Session(
-            new ArrayDriver(),
-            $config ?? new SessionConfig(gcProbability: 0),
-        );
-    }
-
-    private function getDriver(Session $session): ArrayDriver
-    {
-        $driver = $session->getDriver();
-        assert($driver instanceof ArrayDriver);
-
-        return $driver;
-    }
-
     // ═══════════════════════════════════════════════════════════════
     // Section 1: SessionConfig
     // ═══════════════════════════════════════════════════════════════
@@ -284,7 +268,7 @@ class SessionTest extends TestCase
             $ids[] = $session->getId();
         }
         // All IDs should be unique
-        $this->assertSame(100, count(array_unique($ids)));
+        $this->assertCount(100, \array_unique($ids));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -567,7 +551,7 @@ class SessionTest extends TestCase
         $driver->write('old', ['b' => 2]);
 
         // Backdate the 'old' session by 2 hours
-        $driver->setSessionTime('old', time() - 7200);
+        $driver->setSessionTime('old', \time() - 7200);
 
         // GC with 1-hour max lifetime
         $deleted = $driver->gc(3600);
@@ -581,7 +565,7 @@ class SessionTest extends TestCase
     {
         $driver = new ArrayDriver();
         $driver->write('x', ['d' => 1]);
-        $driver->setSessionTime('x', time() - 9999);
+        $driver->setSessionTime('x', \time() - 9999);
         $driver->gc(100);
         $this->assertSame(1, $driver->getLastGcCount());
     }
@@ -682,9 +666,9 @@ class SessionTest extends TestCase
 
         try {
             $middleware->handle([], function () {
-                throw new \RuntimeException('Handler error');
+                throw new RuntimeException('Handler error');
             });
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             // Expected
         }
 
@@ -700,7 +684,6 @@ class SessionTest extends TestCase
 
         $middleware->handle(['route' => '/test'], function (array $ctx) use (&$receivedContext) {
             $receivedContext = $ctx;
-            return null;
         });
 
         $this->assertSame(['route' => '/test'], $receivedContext);
@@ -778,8 +761,6 @@ class SessionTest extends TestCase
             $s1->set('role', 'admin');
             $s1->flash('welcome', 'Welcome back, Admin!');
             $sessionId = $s1->getId();
-
-            return null;
         });
 
         // Request 2: Dashboard — session persists, flash available
@@ -790,8 +771,6 @@ class SessionTest extends TestCase
             $this->assertSame(42, $s2->get('user_id'));
             $this->assertSame('admin', $s2->get('role'));
             $this->assertSame('Welcome back, Admin!', $s2->getFlash('welcome'));
-
-            return null;
         });
 
         // Request 3: Another page — flash is gone
@@ -801,8 +780,6 @@ class SessionTest extends TestCase
         $mw3->handle([], function () use ($s3) {
             $this->assertSame(42, $s3->get('user_id'));
             $this->assertFalse($s3->hasFlash('welcome'));
-
-            return null;
         });
     }
 
@@ -1021,7 +998,7 @@ class SessionTest extends TestCase
 
         // Insert an old session
         $driver->write('old', ['x' => 1]);
-        $driver->setSessionTime('old', time() - 200);
+        $driver->setSessionTime('old', \time() - 200);
 
         // Starting a new session triggers GC
         $session = new Session($driver, $config);
@@ -1047,5 +1024,22 @@ class SessionTest extends TestCase
 
         $this->assertTrue($outerCalled);
         $this->assertSame('done', $result);
+    }
+
+    private function makeSession(?SessionConfig $config = null): Session
+    {
+        // Use gcProbability=0 by default to avoid random GC in tests
+        return new Session(
+            new ArrayDriver(),
+            $config ?? new SessionConfig(gcProbability: 0),
+        );
+    }
+
+    private function getDriver(Session $session): ArrayDriver
+    {
+        $driver = $session->getDriver();
+        \assert($driver instanceof ArrayDriver);
+
+        return $driver;
     }
 }

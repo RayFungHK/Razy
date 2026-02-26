@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * to each Action, silently ignoring individual failures.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -45,13 +47,14 @@ class Relay
      *
      * @param string $method The method name to invoke on each Action
      * @param array $arguments The arguments to pass to the method
+     *
      * @return $this Chainable
      */
     public function __call(string $method, array $arguments): static
     {
         foreach ($this->pipeline->getActions() as $action) {
             try {
-                call_user_func_array([$action, $method], $arguments);
+                \call_user_func_array([$action, $method], $arguments);
             } catch (Exception) {
             }
         }

@@ -9,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Log;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use Razy\Contract\Log\InvalidArgumentException;
 use Razy\Contract\Log\LoggerInterface;
 use Razy\Contract\Log\LoggerTrait;
@@ -62,13 +64,13 @@ class LogManager implements LoggerInterface
     use LoggerTrait;
 
     private const LEVEL_PRIORITY = [
-        LogLevel::DEBUG     => 0,
-        LogLevel::INFO      => 1,
-        LogLevel::NOTICE    => 2,
-        LogLevel::WARNING   => 3,
-        LogLevel::ERROR     => 4,
-        LogLevel::CRITICAL  => 5,
-        LogLevel::ALERT     => 6,
+        LogLevel::DEBUG => 0,
+        LogLevel::INFO => 1,
+        LogLevel::NOTICE => 2,
+        LogLevel::WARNING => 3,
+        LogLevel::ERROR => 4,
+        LogLevel::CRITICAL => 5,
+        LogLevel::ALERT => 6,
         LogLevel::EMERGENCY => 7,
     ];
 
@@ -106,7 +108,7 @@ class LogManager implements LoggerInterface
      * Create a new LogManager.
      *
      * @param string $defaultChannel The default channel to log to
-     * @param bool   $bufferEnabled  Keep entries in memory (default: false)
+     * @param bool $bufferEnabled Keep entries in memory (default: false)
      */
     public function __construct(
         string $defaultChannel = 'default',
@@ -119,7 +121,7 @@ class LogManager implements LoggerInterface
     /**
      * Add a handler to a channel.
      *
-     * @param string              $channel Channel name
+     * @param string $channel Channel name
      * @param LogHandlerInterface $handler Handler instance
      *
      * @return $this
@@ -198,7 +200,7 @@ class LogManager implements LoggerInterface
      */
     public function getChannelNames(): array
     {
-        return array_keys($this->channels);
+        return \array_keys($this->channels);
     }
 
     /**
@@ -232,10 +234,10 @@ class LogManager implements LoggerInterface
             if ($this->bufferEnabled) {
                 $this->buffer[] = [
                     'timestamp' => $timestamp,
-                    'level'     => $level,
-                    'message'   => $interpolated,
-                    'context'   => $context,
-                    'channel'   => $channelName,
+                    'level' => $level,
+                    'message' => $interpolated,
+                    'context' => $context,
+                    'channel' => $channelName,
                 ];
             }
 
@@ -294,7 +296,7 @@ class LogManager implements LoggerInterface
     {
         if (!isset(self::LEVEL_PRIORITY[$level])) {
             throw new InvalidArgumentException(
-                "Unknown log level '{$level}'. Valid levels: " . implode(', ', array_keys(self::LEVEL_PRIORITY))
+                "Unknown log level '{$level}'. Valid levels: " . \implode(', ', \array_keys(self::LEVEL_PRIORITY)),
             );
         }
 
@@ -306,27 +308,27 @@ class LogManager implements LoggerInterface
      */
     private function interpolate(string $message, array $context): string
     {
-        if (empty($context) || !str_contains($message, '{')) {
+        if (empty($context) || !\str_contains($message, '{')) {
             return $message;
         }
 
         $replacements = [];
         foreach ($context as $key => $value) {
-            if (!is_string($key)) {
+            if (!\is_string($key)) {
                 continue;
             }
             $token = '{' . $key . '}';
-            if (!str_contains($message, $token)) {
+            if (!\str_contains($message, $token)) {
                 continue;
             }
 
-            if ($value instanceof Stringable || $value instanceof \DateTimeInterface) {
+            if ($value instanceof Stringable || $value instanceof DateTimeInterface) {
                 $replacements[$token] = (string) $value;
-            } elseif (is_scalar($value) || $value === null) {
+            } elseif (\is_scalar($value) || $value === null) {
                 $replacements[$token] = (string) $value;
             }
         }
 
-        return strtr($message, $replacements);
+        return \strtr($message, $replacements);
     }
 }

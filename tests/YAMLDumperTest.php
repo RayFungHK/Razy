@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\YAML\YAMLDumper internal API.
  *
@@ -21,6 +22,54 @@ use Razy\YAML\YAMLParser;
 #[CoversClass(YAMLDumper::class)]
 class YAMLDumperTest extends TestCase
 {
+    public static function reservedWordProvider(): array
+    {
+        return [
+            'true' => ['true'],
+            'false' => ['false'],
+            'null' => ['null'],
+            'yes' => ['yes'],
+            'no' => ['no'],
+            'on' => ['on'],
+            'off' => ['off'],
+        ];
+    }
+
+    // ==================== ROUND-TRIP (DUMP → PARSE → DUMP) ====================
+
+    public static function roundTripProvider(): array
+    {
+        return [
+            'simple scalars' => [[
+                'name' => 'app',
+                'version' => 1,
+                'enabled' => true,
+                'extra' => null,
+            ]],
+            'nested map' => [[
+                'database' => [
+                    'host' => 'localhost',
+                    'port' => 3306,
+                    'options' => [
+                        'charset' => 'utf8mb4',
+                        'timeout' => 30,
+                    ],
+                ],
+            ]],
+            'simple list' => [[
+                'items' => ['a', 'b', 'c'],
+            ]],
+            'integers list' => [[
+                'ports' => [80, 443, 8080],
+            ]],
+            'booleans' => [[
+                'flags' => [
+                    'debug' => false,
+                    'verbose' => true,
+                ],
+            ]],
+        ];
+    }
     // ==================== SCALAR DUMPING ====================
 
     public function testDumpNull(): void
@@ -141,19 +190,6 @@ class YAMLDumperTest extends TestCase
 
         $yaml = $dumper->dump(['empty' => '']);
         $this->assertStringContainsString('""', $yaml);
-    }
-
-    public static function reservedWordProvider(): array
-    {
-        return [
-            'true'  => ['true'],
-            'false' => ['false'],
-            'null'  => ['null'],
-            'yes'   => ['yes'],
-            'no'    => ['no'],
-            'on'    => ['on'],
-            'off'   => ['off'],
-        ];
     }
 
     #[DataProvider('reservedWordProvider')]
@@ -344,42 +380,6 @@ class YAMLDumperTest extends TestCase
         $this->assertStringContainsString('{x: 1, y: 2}', $yaml);
     }
 
-    // ==================== ROUND-TRIP (DUMP → PARSE → DUMP) ====================
-
-    public static function roundTripProvider(): array
-    {
-        return [
-            'simple scalars' => [[
-                'name' => 'app',
-                'version' => 1,
-                'enabled' => true,
-                'extra' => null,
-            ]],
-            'nested map' => [[
-                'database' => [
-                    'host' => 'localhost',
-                    'port' => 3306,
-                    'options' => [
-                        'charset' => 'utf8mb4',
-                        'timeout' => 30,
-                    ],
-                ],
-            ]],
-            'simple list' => [[
-                'items' => ['a', 'b', 'c'],
-            ]],
-            'integers list' => [[
-                'ports' => [80, 443, 8080],
-            ]],
-            'booleans' => [[
-                'flags' => [
-                    'debug' => false,
-                    'verbose' => true,
-                ],
-            ]],
-        ];
-    }
-
     #[DataProvider('roundTripProvider')]
     public function testRoundTripDumpThenParse(array $original): void
     {
@@ -472,9 +472,9 @@ class YAMLDumperTest extends TestCase
         $yaml = $dumper->dump($data);
 
         // All these should be quoted because they contain special YAML chars
-        $lines = explode("\n", $yaml);
+        $lines = \explode("\n", $yaml);
         foreach ($lines as $line) {
-            if (str_contains($line, ':') && trim($line) !== '') {
+            if (\str_contains($line, ':') && \trim($line) !== '') {
                 // The value portion should be quoted
                 $this->assertStringContainsString('"', $line, "Line should contain quotes: $line");
             }
@@ -488,9 +488,9 @@ class YAMLDumperTest extends TestCase
         $data = ['z' => 1, 'a' => 2, 'm' => 3];
         $yaml = $dumper->dump($data);
 
-        $zPos = strpos($yaml, 'z:');
-        $aPos = strpos($yaml, 'a:');
-        $mPos = strpos($yaml, 'm:');
+        $zPos = \strpos($yaml, 'z:');
+        $aPos = \strpos($yaml, 'a:');
+        $mPos = \strpos($yaml, 'm:');
 
         $this->assertLessThan($aPos, $zPos, 'Key order should be preserved');
         $this->assertLessThan($mPos, $aPos, 'Key order should be preserved');

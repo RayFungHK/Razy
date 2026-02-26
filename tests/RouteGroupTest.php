@@ -67,7 +67,7 @@ class RouteGroupTest extends TestCase
     public function testMultipleMiddleware(): void
     {
         $mw1 = $this->createMockMiddleware();
-        $mw2 = fn(array $ctx, Closure $next) => $next($ctx);
+        $mw2 = fn (array $ctx, Closure $next) => $next($ctx);
         $group = (new RouteGroup('/api'))->middleware($mw1, $mw2);
         $this->assertCount(2, $group->getMiddleware());
     }
@@ -413,7 +413,8 @@ class RouteGroupTest extends TestCase
     public function testNestedGroupReturnsSelf(): void
     {
         $group = new RouteGroup('/api');
-        $result = $group->group('/sub', function (RouteGroup $sub) {});
+        $result = $group->group('/sub', function (RouteGroup $sub) {
+        });
         $this->assertSame($group, $result);
     }
 
@@ -474,7 +475,8 @@ class RouteGroupTest extends TestCase
     public function testGroupWithOnlyNestedGroupsNoRoutes(): void
     {
         $group = new RouteGroup('/api');
-        $group->group('/v1', function (RouteGroup $sub) {});
+        $group->group('/v1', function (RouteGroup $sub) {
+        });
 
         $resolved = $group->resolve();
         $this->assertSame([], $resolved);
@@ -591,7 +593,7 @@ class RouteGroupTest extends TestCase
 
     private function createMockMiddleware(): MiddlewareInterface
     {
-        return new class implements MiddlewareInterface {
+        return new class() implements MiddlewareInterface {
             public function handle(array $context, Closure $next): mixed
             {
                 return $next($context);

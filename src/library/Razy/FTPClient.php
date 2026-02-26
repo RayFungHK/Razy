@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -14,12 +15,14 @@
  * Requires PHP ext-ftp.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
 use FTP\Connection;
+use InvalidArgumentException;
 use Razy\Exception\FTPException;
 
 /**
@@ -67,10 +70,10 @@ class FTPClient
      * set $ssl to true. The connection is established but not authenticated
      * until login() is called.
      *
-     * @param string $host    FTP server hostname or IP address
-     * @param int    $port    FTP port (default: 21)
-     * @param int    $timeout Connection timeout in seconds (default: 30)
-     * @param bool   $ssl     Use FTPS (FTP over TLS/SSL) (default: false)
+     * @param string $host FTP server hostname or IP address
+     * @param int $port FTP port (default: 21)
+     * @param int $timeout Connection timeout in seconds (default: 30)
+     * @param bool $ssl Use FTPS (FTP over TLS/SSL) (default: false)
      *
      * @throws Error If the FTP extension is not loaded or connection fails
      */
@@ -78,17 +81,17 @@ class FTPClient
         private readonly string $host,
         private readonly int $port = 21,
         private readonly int $timeout = 30,
-        bool $ssl = false
+        bool $ssl = false,
     ) {
-        if (!extension_loaded('ftp')) {
+        if (!\extension_loaded('ftp')) {
             throw new FTPException('The FTP extension (ext-ftp) is required for FTPClient.');
         }
 
         $this->secure = $ssl;
 
         $conn = $ssl
-            ? @ftp_ssl_connect($host, $port, $timeout)
-            : @ftp_connect($host, $port, $timeout);
+            ? @\ftp_ssl_connect($host, $port, $timeout)
+            : @\ftp_connect($host, $port, $timeout);
 
         if (!$conn) {
             throw new FTPException("Failed to connect to FTP server: {$host}:{$port}");
@@ -123,7 +126,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!@ftp_login($this->connection, $username, $password)) {
+        if (!@\ftp_login($this->connection, $username, $password)) {
             throw new FTPException("FTP login failed for user: {$username}");
         }
 
@@ -131,7 +134,7 @@ class FTPClient
 
         // Enable passive mode by default after login
         if ($this->passive) {
-            ftp_pasv($this->connection, true);
+            \ftp_pasv($this->connection, true);
             $this->log('Passive mode enabled');
         }
 
@@ -155,7 +158,7 @@ class FTPClient
         $this->passive = $passive;
 
         if ($this->connection) {
-            ftp_pasv($this->connection, $passive);
+            \ftp_pasv($this->connection, $passive);
             $this->log('Passive mode ' . ($passive ? 'enabled' : 'disabled'));
         }
 
@@ -169,12 +172,12 @@ class FTPClient
      *
      * @return $this
      *
-     * @throws \InvalidArgumentException If mode is invalid
+     * @throws InvalidArgumentException If mode is invalid
      */
     public function setTransferMode(int $mode): static
     {
         if ($mode !== FTP_BINARY && $mode !== FTP_ASCII) {
-            throw new \InvalidArgumentException('Transfer mode must be FTPClient::MODE_BINARY or FTPClient::MODE_ASCII.');
+            throw new InvalidArgumentException('Transfer mode must be FTPClient::MODE_BINARY or FTPClient::MODE_ASCII.');
         }
 
         $this->transferMode = $mode;
@@ -193,7 +196,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        ftp_set_option($this->connection, FTP_TIMEOUT_SEC, $seconds);
+        \ftp_set_option($this->connection, FTP_TIMEOUT_SEC, $seconds);
         $this->log("Timeout set to {$seconds}s");
 
         return $this;
@@ -204,9 +207,9 @@ class FTPClient
     /**
      * Upload a local file to the remote server.
      *
-     * @param string   $localPath  Path to the local file
-     * @param string   $remotePath Remote destination path
-     * @param int|null $mode       Transfer mode (null = use default)
+     * @param string $localPath Path to the local file
+     * @param string $remotePath Remote destination path
+     * @param int|null $mode Transfer mode (null = use default)
      *
      * @return $this
      *
@@ -216,13 +219,13 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!is_file($localPath)) {
+        if (!\is_file($localPath)) {
             throw new FTPException("Local file not found: {$localPath}");
         }
 
-        $mode = $mode ?? $this->transferMode;
+        $mode ??= $this->transferMode;
 
-        if (!@ftp_put($this->connection, $remotePath, $localPath, $mode)) {
+        if (!@\ftp_put($this->connection, $remotePath, $localPath, $mode)) {
             throw new FTPException("Failed to upload: {$localPath} ??{$remotePath}");
         }
 
@@ -234,9 +237,9 @@ class FTPClient
     /**
      * Download a remote file to the local filesystem.
      *
-     * @param string   $remotePath Remote file path
-     * @param string   $localPath  Local destination path
-     * @param int|null $mode       Transfer mode (null = use default)
+     * @param string $remotePath Remote file path
+     * @param string $localPath Local destination path
+     * @param int|null $mode Transfer mode (null = use default)
      *
      * @return $this
      *
@@ -246,15 +249,15 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $mode = $mode ?? $this->transferMode;
+        $mode ??= $this->transferMode;
 
         // Ensure the local directory exists
-        $localDir = dirname($localPath);
-        if (!is_dir($localDir)) {
-            mkdir($localDir, 0755, true);
+        $localDir = \dirname($localPath);
+        if (!\is_dir($localDir)) {
+            \mkdir($localDir, 0o755, true);
         }
 
-        if (!@ftp_get($this->connection, $localPath, $remotePath, $mode)) {
+        if (!@\ftp_get($this->connection, $localPath, $remotePath, $mode)) {
             throw new FTPException("Failed to download: {$remotePath} ??{$localPath}");
         }
 
@@ -266,9 +269,9 @@ class FTPClient
     /**
      * Upload a string as a remote file.
      *
-     * @param string $content    String content to upload
+     * @param string $content String content to upload
      * @param string $remotePath Remote destination path
-     * @param int|null $mode     Transfer mode (null = use default)
+     * @param int|null $mode Transfer mode (null = use default)
      *
      * @return $this
      *
@@ -278,18 +281,18 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $mode = $mode ?? $this->transferMode;
-        $stream = fopen('php://temp', 'r+');
-        fwrite($stream, $content);
-        rewind($stream);
+        $mode ??= $this->transferMode;
+        $stream = \fopen('php://temp', 'r+');
+        \fwrite($stream, $content);
+        \rewind($stream);
 
-        if (!@ftp_fput($this->connection, $remotePath, $stream, $mode)) {
-            fclose($stream);
+        if (!@\ftp_fput($this->connection, $remotePath, $stream, $mode)) {
+            \fclose($stream);
             throw new FTPException("Failed to upload string to: {$remotePath}");
         }
 
-        fclose($stream);
-        $this->log("Uploaded string to: {$remotePath} (" . strlen($content) . ' bytes)');
+        \fclose($stream);
+        $this->log("Uploaded string to: {$remotePath} (" . \strlen($content) . ' bytes)');
 
         return $this;
     }
@@ -297,8 +300,8 @@ class FTPClient
     /**
      * Download a remote file and return its content as a string.
      *
-     * @param string   $remotePath Remote file path
-     * @param int|null $mode       Transfer mode (null = use default)
+     * @param string $remotePath Remote file path
+     * @param int|null $mode Transfer mode (null = use default)
      *
      * @return string File content
      *
@@ -308,19 +311,19 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $mode = $mode ?? $this->transferMode;
-        $stream = fopen('php://temp', 'r+');
+        $mode ??= $this->transferMode;
+        $stream = \fopen('php://temp', 'r+');
 
-        if (!@ftp_fget($this->connection, $stream, $remotePath, $mode)) {
-            fclose($stream);
+        if (!@\ftp_fget($this->connection, $stream, $remotePath, $mode)) {
+            \fclose($stream);
             throw new FTPException("Failed to download: {$remotePath}");
         }
 
-        rewind($stream);
-        $content = stream_get_contents($stream);
-        fclose($stream);
+        \rewind($stream);
+        $content = \stream_get_contents($stream);
+        \fclose($stream);
 
-        $this->log("Downloaded string from: {$remotePath} (" . strlen($content) . ' bytes)');
+        $this->log("Downloaded string from: {$remotePath} (" . \strlen($content) . ' bytes)');
 
         return $content;
     }
@@ -338,7 +341,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!@ftp_delete($this->connection, $remotePath)) {
+        if (!@\ftp_delete($this->connection, $remotePath)) {
             throw new FTPException("Failed to delete file: {$remotePath}");
         }
 
@@ -361,7 +364,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!@ftp_rename($this->connection, $oldPath, $newPath)) {
+        if (!@\ftp_rename($this->connection, $oldPath, $newPath)) {
             throw new FTPException("Failed to rename: {$oldPath} ??{$newPath}");
         }
 
@@ -374,7 +377,7 @@ class FTPClient
      * Set permissions on a remote file (chmod).
      *
      * @param string $remotePath Remote file path
-     * @param int    $mode       Octal permission mode (e.g. 0644, 0755)
+     * @param int $mode Octal permission mode (e.g. 0644, 0755)
      *
      * @return $this
      *
@@ -384,11 +387,11 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (@ftp_chmod($this->connection, $mode, $remotePath) === false) {
-            throw new FTPException("Failed to chmod {$remotePath} to " . decoct($mode));
+        if (@\ftp_chmod($this->connection, $mode, $remotePath) === false) {
+            throw new FTPException("Failed to chmod {$remotePath} to " . \decoct($mode));
         }
 
-        $this->log("Chmod: {$remotePath} ??" . decoct($mode));
+        $this->log("Chmod: {$remotePath} ??" . \decoct($mode));
 
         return $this;
     }
@@ -406,7 +409,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $dir = @ftp_pwd($this->connection);
+        $dir = @\ftp_pwd($this->connection);
         if ($dir === false) {
             throw new FTPException('Failed to get current directory.');
         }
@@ -427,7 +430,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!@ftp_chdir($this->connection, $directory)) {
+        if (!@\ftp_chdir($this->connection, $directory)) {
             throw new FTPException("Failed to change directory: {$directory}");
         }
 
@@ -447,7 +450,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!@ftp_cdup($this->connection)) {
+        if (!@\ftp_cdup($this->connection)) {
             throw new FTPException('Failed to move to parent directory.');
         }
 
@@ -469,7 +472,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (@ftp_mkdir($this->connection, $directory) === false) {
+        if (@\ftp_mkdir($this->connection, $directory) === false) {
             throw new FTPException("Failed to create directory: {$directory}");
         }
 
@@ -491,9 +494,9 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $parts = explode('/', trim($directory, '/'));
+        $parts = \explode('/', \trim($directory, '/'));
         $currentDir = $this->pwd();
-        $path = (str_starts_with($directory, '/')) ? '/' : '';
+        $path = (\str_starts_with($directory, '/')) ? '/' : '';
 
         foreach ($parts as $part) {
             if ($part === '') {
@@ -503,13 +506,13 @@ class FTPClient
             $path .= $part . '/';
 
             // Try to change into it; if that fails, create it
-            if (!@ftp_chdir($this->connection, $path)) {
-                @ftp_mkdir($this->connection, $path);
+            if (!@\ftp_chdir($this->connection, $path)) {
+                @\ftp_mkdir($this->connection, $path);
             }
         }
 
         // Restore the original directory
-        @ftp_chdir($this->connection, $currentDir);
+        @\ftp_chdir($this->connection, $currentDir);
         $this->log("Created directory path: {$directory}");
 
         return $this;
@@ -528,7 +531,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        if (!@ftp_rmdir($this->connection, $directory)) {
+        if (!@\ftp_rmdir($this->connection, $directory)) {
             throw new FTPException("Failed to remove directory: {$directory}");
         }
 
@@ -548,23 +551,23 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $items = @ftp_nlist($this->connection, $directory);
+        $items = @\ftp_nlist($this->connection, $directory);
 
         if ($items !== false) {
             foreach ($items as $item) {
-                $basename = basename($item);
+                $basename = \basename($item);
                 if ($basename === '.' || $basename === '..') {
                     continue;
                 }
 
                 // Attempt to delete as a file; if that fails, treat as directory
-                if (!@ftp_delete($this->connection, $item)) {
+                if (!@\ftp_delete($this->connection, $item)) {
                     $this->rmdirRecursive($item);
                 }
             }
         }
 
-        @ftp_rmdir($this->connection, $directory);
+        @\ftp_rmdir($this->connection, $directory);
         $this->log("Recursively removed: {$directory}");
 
         return $this;
@@ -581,14 +584,14 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $list = @ftp_nlist($this->connection, $directory);
+        $list = @\ftp_nlist($this->connection, $directory);
 
         if ($list === false) {
             return [];
         }
 
         // Filter out . and ..
-        return array_values(array_filter($list, fn($item) => !in_array(basename($item), ['.', '..'])));
+        return \array_values(\array_filter($list, fn ($item) => !\in_array(\basename($item), ['.', '..'])));
     }
 
     /**
@@ -605,7 +608,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $list = @ftp_rawlist($this->connection, $directory);
+        $list = @\ftp_rawlist($this->connection, $directory);
 
         return $list ?: [];
     }
@@ -621,7 +624,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        return ftp_size($this->connection, $remotePath);
+        return \ftp_size($this->connection, $remotePath);
     }
 
     /**
@@ -635,7 +638,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        return ftp_mdtm($this->connection, $remotePath);
+        return \ftp_mdtm($this->connection, $remotePath);
     }
 
     /**
@@ -650,14 +653,14 @@ class FTPClient
         $this->requireConnection();
 
         // Try size first (works for files)
-        if (ftp_size($this->connection, $remotePath) !== -1) {
+        if (\ftp_size($this->connection, $remotePath) !== -1) {
             return true;
         }
 
         // Try changing to it (works for directories)
-        $currentDir = @ftp_pwd($this->connection);
-        if (@ftp_chdir($this->connection, $remotePath)) {
-            @ftp_chdir($this->connection, $currentDir);
+        $currentDir = @\ftp_pwd($this->connection);
+        if (@\ftp_chdir($this->connection, $remotePath)) {
+            @\ftp_chdir($this->connection, $currentDir);
             return true;
         }
 
@@ -675,9 +678,9 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $currentDir = @ftp_pwd($this->connection);
-        if (@ftp_chdir($this->connection, $remotePath)) {
-            @ftp_chdir($this->connection, $currentDir);
+        $currentDir = @\ftp_pwd($this->connection);
+        if (@\ftp_chdir($this->connection, $remotePath)) {
+            @\ftp_chdir($this->connection, $currentDir);
             return true;
         }
 
@@ -697,8 +700,8 @@ class FTPClient
     {
         $this->requireConnection();
 
-        $response = @ftp_raw($this->connection, $command);
-        $this->log("RAW: {$command} ??" . implode(' ', $response));
+        $response = @\ftp_raw($this->connection, $command);
+        $this->log("RAW: {$command} ??" . \implode(' ', $response));
 
         return $response;
     }
@@ -712,7 +715,7 @@ class FTPClient
     {
         $this->requireConnection();
 
-        return ftp_systype($this->connection) ?: 'UNKNOWN';
+        return \ftp_systype($this->connection) ?: 'UNKNOWN';
     }
 
     // ==================== CONNECTION MANAGEMENT ====================
@@ -725,7 +728,7 @@ class FTPClient
     public function disconnect(): static
     {
         if ($this->connection) {
-            @ftp_close($this->connection);
+            @\ftp_close($this->connection);
             $this->connection = null;
             $this->log('Disconnected');
         }
@@ -745,7 +748,7 @@ class FTPClient
         }
 
         // Test connection by getting the current directory
-        return @ftp_pwd($this->connection) !== false;
+        return @\ftp_pwd($this->connection) !== false;
     }
 
     /**
@@ -816,6 +819,6 @@ class FTPClient
      */
     private function log(string $message): void
     {
-        $this->logs[] = '[' . date('Y-m-d H:i:s') . '] ' . $message;
+        $this->logs[] = '[' . \date('Y-m-d H:i:s') . '] ' . $message;
     }
 }

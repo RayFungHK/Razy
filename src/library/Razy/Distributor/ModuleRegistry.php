@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -21,7 +23,7 @@ use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
 
 /**
- * Class ModuleRegistry
+ * Class ModuleRegistry.
  *
  * Tracks loaded modules, API module registrations, await list management,
  * module handshake protocol, and module lifecycle queue.
@@ -29,6 +31,7 @@ use Razy\ModuleInfo;
  * Extracted from the Distributor god class to follow Single Responsibility Principle.
  *
  * @class ModuleRegistry
+ *
  * @package Razy\Distributor
  */
 class ModuleRegistry
@@ -59,7 +62,7 @@ class ModuleRegistry
      */
     public function __construct(
         private readonly object $distributor,
-        bool $autoload = false
+        bool $autoload = false,
     ) {
         $this->autoload = $autoload;
     }
@@ -119,6 +122,7 @@ class ModuleRegistry
      * Check if a module exists in the registry.
      *
      * @param string $moduleCode
+     *
      * @return bool
      */
     public function has(string $moduleCode): bool
@@ -130,6 +134,7 @@ class ModuleRegistry
      * Get a module by code (regardless of load status).
      *
      * @param string $moduleCode
+     *
      * @return Module|null
      */
     public function get(string $moduleCode): ?Module
@@ -141,11 +146,12 @@ class ModuleRegistry
      * Check if the module is loadable (autoload or explicitly required).
      *
      * @param ModuleInterface $module
+     *
      * @return bool
      */
     public function isLoadable(ModuleInterface $module): bool
     {
-        return $this->autoload || array_key_exists($module->getModuleInfo()->getCode(), $this->modules);
+        return $this->autoload || \array_key_exists($module->getModuleInfo()->getCode(), $this->modules);
     }
 
     /**
@@ -157,7 +163,7 @@ class ModuleRegistry
      */
     public function registerAPI(Module $module): static
     {
-        if (strlen($module->getModuleInfo()->getAPIName()) > 0) {
+        if (\strlen($module->getModuleInfo()->getAPIName()) > 0) {
             $this->APIModules[$module->getModuleInfo()->getAPIName()] = $module;
         }
 
@@ -181,6 +187,7 @@ class ModuleRegistry
      * Get the loaded module by given module code.
      *
      * @param string $moduleCode
+     *
      * @return Module|null
      */
     public function getLoadedModule(string $moduleCode): ?Module
@@ -237,8 +244,6 @@ class ModuleRegistry
      *
      * @param string $moduleCode Comma-separated module codes to wait for
      * @param callable $caller The callable to execute once all modules are ready
-     *
-     * @return void
      */
     public function addAwait(string $moduleCode, callable $caller): void
     {
@@ -247,10 +252,10 @@ class ModuleRegistry
             'caller' => $caller(...),
         ];
 
-        $clips = explode(',', $moduleCode);
+        $clips = \explode(',', $moduleCode);
         foreach ($clips as $code) {
             // Register each valid module code as a dependency for this await callable
-            if (preg_match(ModuleInfo::REGEX_MODULE_CODE, $code)) {
+            if (\preg_match(ModuleInfo::REGEX_MODULE_CODE, $code)) {
                 $entity['required'][$code] = true;
                 if (!isset($this->awaitList[$code])) {
                     $this->awaitList[$code] = [];
@@ -271,7 +276,7 @@ class ModuleRegistry
             if (isset($this->awaitList[$moduleCode])) {
                 foreach ($this->awaitList[$moduleCode] as $index => &$await) {
                     unset($await['required'][$moduleCode]);
-                    if (count($await['required']) === 0) {
+                    if (\count($await['required']) === 0) {
                         // If all required modules are ready, execute the await function immediately
                         $await['caller']();
                         unset($this->awaitList[$moduleCode][$index]);
@@ -334,6 +339,7 @@ class ModuleRegistry
      *
      * @param string $sourceModuleCode The module code that emitted the event
      * @param string $eventName The event name
+     *
      * @return Module[] Array of listener modules
      */
     public function getEventListeners(string $sourceModuleCode, string $eventName): array
@@ -351,7 +357,7 @@ class ModuleRegistry
     public function unregisterModuleListeners(Module $module): void
     {
         foreach ($this->listenerIndex as $key => &$listeners) {
-            $listeners = array_values(array_filter($listeners, fn(Module $m) => $m !== $module));
+            $listeners = \array_values(\array_filter($listeners, fn (Module $m) => $m !== $module));
             if (empty($listeners)) {
                 unset($this->listenerIndex[$key]);
             }
@@ -372,6 +378,7 @@ class ModuleRegistry
      * Create the API instance.
      *
      * @param Module $module The module that is calling
+     *
      * @return API
      */
     public function createAPI(Module $module): API

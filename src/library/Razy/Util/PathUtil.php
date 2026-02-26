@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Provides static utility methods for path manipulation and normalization.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -35,7 +37,7 @@ class PathUtil
      */
     public static function tidy(string $path, bool $ending = false, string $separator = DIRECTORY_SEPARATOR): string
     {
-        return preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\\]+/', $separator, $path . ($ending ? $separator : ''));
+        return \preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\\]+/', $separator, $path . ($ending ? $separator : ''));
     }
 
     /**
@@ -50,16 +52,16 @@ class PathUtil
     {
         $separator = DIRECTORY_SEPARATOR;
         $protocol = '';
-        if (preg_match('/^(https?:\/\/)(.*)/', $path, $matches)) {
+        if (\preg_match('/^(https?:\/\/)(.*)/', $path, $matches)) {
             $protocol = $matches[1];
             $path = $matches[2];
             $separator = '/';
         }
 
         foreach ($extra as $pathToAppend) {
-            if (is_array($pathToAppend) && count($pathToAppend)) {
-                $path .= $separator . implode($separator, $pathToAppend);
-            } elseif (is_scalar($pathToAppend) && strlen($pathToAppend)) {
+            if (\is_array($pathToAppend) && \count($pathToAppend)) {
+                $path .= $separator . \implode($separator, $pathToAppend);
+            } elseif (\is_scalar($pathToAppend) && \strlen($pathToAppend)) {
                 $path .= $separator . $pathToAppend;
             }
         }
@@ -80,7 +82,7 @@ class PathUtil
         $path = self::tidy($path);
         $root = self::tidy($root);
 
-        $relativePath = preg_replace('/^' . preg_quote($root, '/\\') . '/', '', $path);
+        $relativePath = \preg_replace('/^' . \preg_quote($root, '/\\') . '/', '', $path);
         return $relativePath ?? '';
     }
 
@@ -95,27 +97,27 @@ class PathUtil
      */
     public static function fixPath(string $path, string $separator = DIRECTORY_SEPARATOR, bool $relative = false): bool|string
     {
-        $path = trim($path);
+        $path = \trim($path);
         $isDirectory = false;
         if (self::isDirPath($path)) {
             // If the path ending is a slash or backslash
             $isDirectory = true;
-        } elseif (preg_match('/^\.\.?$/', $path)) {
+        } elseif (\preg_match('/^\.\.?$/', $path)) {
             // If the path is a `.` or `..` only
             $isDirectory = true;
         }
 
-        $clips = explode($separator, rtrim(self::tidy($path, false, $separator), $separator));
+        $clips = \explode($separator, \rtrim(self::tidy($path, false, $separator), $separator));
         $pathAry = [];
         foreach ($clips as $index => $clip) {
             if ($index > 0) {
                 if ('..' == $clip) {
-                    if ('..' == end($pathAry)) {
+                    if ('..' == \end($pathAry)) {
                         $pathAry[] = '..';
-                    } elseif ('.' == end($pathAry)) {
+                    } elseif ('.' == \end($pathAry)) {
                         $pathAry[0] = '..';
                     } else {
-                        array_pop($pathAry);
+                        \array_pop($pathAry);
                     }
                 } elseif ('.' != $clip) {
                     $pathAry[] = $clip;
@@ -125,9 +127,9 @@ class PathUtil
             }
         }
 
-        $fixedPath = implode($separator, $pathAry) . ($isDirectory ? $separator : '');
+        $fixedPath = \implode($separator, $pathAry) . ($isDirectory ? $separator : '');
 
-        if ($relative && !str_starts_with($fixedPath, $path)) {
+        if ($relative && !\str_starts_with($fixedPath, $path)) {
             return false;
         }
 
@@ -143,6 +145,6 @@ class PathUtil
      */
     public static function isDirPath(string $path): bool
     {
-        return $path && preg_match('/[\\\\\/]/', substr($path, -1));
+        return $path && \preg_match('/[\\\\\/]/', \substr($path, -1));
     }
 }

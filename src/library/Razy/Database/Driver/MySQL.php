@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -15,13 +16,14 @@ use PDOException;
 use Razy\Database\Driver;
 
 /**
- * MySQL Database Driver
- * 
+ * MySQL Database Driver.
+ *
  * Provides MySQL-specific database operations and SQL syntax generation,
  * including CONCAT(), LIMIT offset syntax, AUTO_INCREMENT, and
  * ON DUPLICATE KEY UPDATE for upsert operations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class MySQL extends Driver
@@ -33,7 +35,7 @@ class MySQL extends Driver
     {
         return 'mysql';
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -46,19 +48,19 @@ class MySQL extends Driver
             $password = $config['password'] ?? '';
             $port = $config['port'] ?? 3306;
             $charset = $config['charset'] ?? 'UTF8';
-            
+
             $dsn = "mysql:host={$host};port={$port};dbname={$database};charset={$charset}";
-            
+
             $this->adapter = new PDO($dsn, $username, $password, $this->getConnectionOptions());
             $this->connected = true;
-            
+
             return true;
         } catch (PDOException) {
             $this->connected = false;
             return false;
         }
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -72,24 +74,24 @@ class MySQL extends Driver
             PDO::MYSQL_ATTR_FOUND_ROWS => true,
         ];
     }
-    
+
     /**
      * @inheritDoc
      */
     public function tableExists(string $tableName): bool
     {
-        $stmt = $this->adapter->prepare("SHOW TABLES LIKE ?");
+        $stmt = $this->adapter->prepare('SHOW TABLES LIKE ?');
         $stmt->execute([$tableName]);
-        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        return (bool) $stmt->fetch(PDO::FETCH_ASSOC);
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getCharset(): array
     {
         // Lazy-load charset list from the server on first call
-        if (!count($this->charset)) {
+        if (!\count($this->charset)) {
             $stmt = $this->adapter->query('SHOW CHARACTER SET');
             while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $this->charset[$result['Charset']] = [
@@ -100,19 +102,19 @@ class MySQL extends Driver
         }
         return $this->charset;
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getCollation(string $charset): array
     {
-        $charset = strtolower(trim($charset));
+        $charset = \strtolower(\trim($charset));
         $this->getCharset();
-        
+
         if (isset($this->charset[$charset])) {
             $collation = &$this->charset[$charset]['collation'];
-            if (!count($collation)) {
-                $stmt = $this->adapter->prepare("SHOW COLLATION WHERE Charset = ?");
+            if (!\count($collation)) {
+                $stmt = $this->adapter->prepare('SHOW COLLATION WHERE Charset = ?');
                 $stmt->execute([$charset]);
                 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $collation[$result['Collation']] = $result['Charset'];
@@ -122,17 +124,17 @@ class MySQL extends Driver
         }
         return [];
     }
-    
+
     /**
      * @inheritDoc
      */
     public function setTimezone(string $timezone): void
     {
-        if (preg_match('/^[+-]\d{1,2}:\d{2}$/', $timezone)) {
+        if (\preg_match('/^[+-]\d{1,2}:\d{2}$/', $timezone)) {
             $this->adapter->exec("SET time_zone='{$timezone}'");
         }
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -147,7 +149,7 @@ class MySQL extends Driver
         }
         return '';
     }
-    
+
     /**
      * @inheritDoc
      */
@@ -155,49 +157,49 @@ class MySQL extends Driver
     {
         return "INT({$length}) NOT NULL AUTO_INCREMENT";
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getUpsertSyntax(string $tableName, array $columns, array $duplicateKeys, callable $valueGetter): string
     {
-        $sql = 'INSERT INTO ' . $tableName . ' (`' . implode('`, `', $columns) . '`) VALUES (';
+        $sql = 'INSERT INTO ' . $tableName . ' (`' . \implode('`, `', $columns) . '`) VALUES (';
         $values = [];
         foreach ($columns as $column) {
             $values[] = $valueGetter($column);
         }
-        $sql .= implode(', ', $values) . ')';
-        
+        $sql .= \implode(', ', $values) . ')';
+
         // Append ON DUPLICATE KEY UPDATE for MySQL-specific upsert behavior
-        if (count($duplicateKeys)) {
+        if (\count($duplicateKeys)) {
             $updates = [];
             foreach ($duplicateKeys as $column) {
-                if (is_string($column)) {
+                if (\is_string($column)) {
                     $updates[] = '`' . $column . '` = ' . $valueGetter($column);
                 }
             }
-            if (count($updates)) {
-                $sql .= ' ON DUPLICATE KEY UPDATE ' . implode(', ', $updates);
+            if (\count($updates)) {
+                $sql .= ' ON DUPLICATE KEY UPDATE ' . \implode(', ', $updates);
             }
         }
-        
+
         return $sql;
     }
-    
+
     /**
      * @inheritDoc
      */
     public function getConcatSyntax(array $parts): string
     {
-        return 'CONCAT(' . implode(', ', $parts) . ')';
+        return 'CONCAT(' . \implode(', ', $parts) . ')';
     }
-    
+
     /**
      * @inheritDoc
      */
     public function quoteIdentifier(string $identifier): string
     {
         // MySQL uses backticks for identifiers; escape by doubling existing backticks
-        return '`' . str_replace('`', '``', $identifier) . '`';
+        return '`' . \str_replace('`', '``', $identifier) . '`';
     }
 }

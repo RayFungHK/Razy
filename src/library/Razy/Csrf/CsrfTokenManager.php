@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -62,7 +63,8 @@ class CsrfTokenManager
      */
     public function __construct(
         private readonly SessionInterface $session,
-    ) {}
+    ) {
+    }
 
     /**
      * Get the current CSRF token, generating one if none exists.
@@ -76,7 +78,7 @@ class CsrfTokenManager
     {
         $token = $this->session->get(self::SESSION_KEY);
 
-        if ($token === null || !is_string($token) || $token === '') {
+        if ($token === null || !\is_string($token) || $token === '') {
             $token = $this->generateToken();
             $this->session->set(self::SESSION_KEY, $token);
         }
@@ -98,11 +100,11 @@ class CsrfTokenManager
     {
         $storedToken = $this->session->get(self::SESSION_KEY);
 
-        if ($storedToken === null || !is_string($storedToken) || $storedToken === '') {
+        if ($storedToken === null || !\is_string($storedToken) || $storedToken === '') {
             return false;
         }
 
-        return hash_equals($storedToken, $submittedToken);
+        return \hash_equals($storedToken, $submittedToken);
     }
 
     /**
@@ -131,15 +133,13 @@ class CsrfTokenManager
     {
         $token = $this->session->get(self::SESSION_KEY);
 
-        return is_string($token) && $token !== '';
+        return \is_string($token) && $token !== '';
     }
 
     /**
      * Remove the CSRF token from the session.
      *
      * Useful when explicitly invalidating tokens (e.g., on logout).
-     *
-     * @return void
      */
     public function clearToken(): void
     {
@@ -163,6 +163,6 @@ class CsrfTokenManager
      */
     private function generateToken(): string
     {
-        return bin2hex(random_bytes(self::TOKEN_BYTES));
+        return \bin2hex(\random_bytes(self::TOKEN_BYTES));
     }
 }

@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -34,6 +35,15 @@ use Razy\Contract\SessionInterface;
 class Session implements SessionInterface
 {
     /**
+     * Internal keys for flash data bookkeeping.
+     */
+    private const FLASH_NEW = '_flash.new';
+
+    private const FLASH_OLD = '_flash.old';
+
+    private const FLASH_DATA = '_flash.data';
+
+    /**
      * @var array<string, mixed> Session attributes
      */
     private array $attributes = [];
@@ -48,17 +58,11 @@ class Session implements SessionInterface
      */
     private bool $started = false;
 
-    /**
-     * Internal keys for flash data bookkeeping.
-     */
-    private const FLASH_NEW = '_flash.new';
-    private const FLASH_OLD = '_flash.old';
-    private const FLASH_DATA = '_flash.data';
-
     public function __construct(
         private readonly SessionDriverInterface $driver,
         private readonly SessionConfig $config = new SessionConfig(),
-    ) {}
+    ) {
+    }
 
     // ── Lifecycle ─────────────────────────────────────────────
 
@@ -82,7 +86,7 @@ class Session implements SessionInterface
 
         // Probabilistic GC
         if ($this->config->gcDivisor > 0
-            && random_int(1, $this->config->gcDivisor) <= $this->config->gcProbability
+            && \random_int(1, $this->config->gcDivisor) <= $this->config->gcProbability
         ) {
             $this->driver->gc($this->config->gcMaxLifetime);
         }
@@ -184,7 +188,7 @@ class Session implements SessionInterface
      */
     public function has(string $key): bool
     {
-        return array_key_exists($key, $this->attributes);
+        return \array_key_exists($key, $this->attributes);
     }
 
     /**
@@ -224,13 +228,13 @@ class Session implements SessionInterface
 
         // Track in new list, remove from old
         $new = $this->attributes[self::FLASH_NEW] ?? [];
-        if (!in_array($key, $new, true)) {
+        if (!\in_array($key, $new, true)) {
             $new[] = $key;
         }
         $this->attributes[self::FLASH_NEW] = $new;
 
         $old = $this->attributes[self::FLASH_OLD] ?? [];
-        $this->attributes[self::FLASH_OLD] = array_values(array_diff($old, [$key]));
+        $this->attributes[self::FLASH_OLD] = \array_values(\array_diff($old, [$key]));
     }
 
     /**
@@ -250,7 +254,7 @@ class Session implements SessionInterface
     {
         $flashData = $this->attributes[self::FLASH_DATA] ?? [];
 
-        return array_key_exists($key, $flashData);
+        return \array_key_exists($key, $flashData);
     }
 
     /**
@@ -261,7 +265,7 @@ class Session implements SessionInterface
         $old = $this->attributes[self::FLASH_OLD] ?? [];
         $new = $this->attributes[self::FLASH_NEW] ?? [];
 
-        $this->attributes[self::FLASH_NEW] = array_values(array_unique(array_merge($new, $old)));
+        $this->attributes[self::FLASH_NEW] = \array_values(\array_unique(\array_merge($new, $old)));
         $this->attributes[self::FLASH_OLD] = [];
     }
 
@@ -273,10 +277,10 @@ class Session implements SessionInterface
         $old = $this->attributes[self::FLASH_OLD] ?? [];
         $new = $this->attributes[self::FLASH_NEW] ?? [];
 
-        $kept = array_intersect($old, $keys);
+        $kept = \array_intersect($old, $keys);
 
-        $this->attributes[self::FLASH_NEW] = array_values(array_unique(array_merge($new, $kept)));
-        $this->attributes[self::FLASH_OLD] = array_values(array_diff($old, $keys));
+        $this->attributes[self::FLASH_NEW] = \array_values(\array_unique(\array_merge($new, $kept)));
+        $this->attributes[self::FLASH_OLD] = \array_values(\array_diff($old, $keys));
     }
 
     /**
@@ -322,6 +326,6 @@ class Session implements SessionInterface
      */
     private function generateId(): string
     {
-        return bin2hex(random_bytes(20));
+        return \bin2hex(\random_bytes(20));
     }
 }

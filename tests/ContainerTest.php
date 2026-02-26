@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Container — the lightweight DI container.
  *
@@ -7,16 +8,14 @@
 
 namespace Razy\Tests;
 
-use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\Container;
+use Razy\Contract\Container\NotFoundExceptionInterface;
+use Razy\Contract\Container\PsrContainerInterface;
 use Razy\Contract\ContainerInterface;
 use Razy\Exception\ContainerException;
 use Razy\Exception\ContainerNotFoundException;
-use Razy\Contract\Container\PsrContainerInterface;
-use Razy\Contract\Container\NotFoundExceptionInterface;
 
 // ──────────────────────────────────────────────────────────
 // Test Fixtures
@@ -31,19 +30,25 @@ class StubNoDeps
 /** Class with a scalar default value */
 class StubWithDefault
 {
-    public function __construct(public string $name = 'default-name') {}
+    public function __construct(public string $name = 'default-name')
+    {
+    }
 }
 
 /** Class with a nullable dependency */
 class StubWithNullable
 {
-    public function __construct(public ?StubNoDeps $dep = null) {}
+    public function __construct(public ?StubNoDeps $dep = null)
+    {
+    }
 }
 
 /** Class with a typed dependency (auto-wirable) */
 class StubWithDep
 {
-    public function __construct(public StubNoDeps $dep) {}
+    public function __construct(public StubNoDeps $dep)
+    {
+    }
 }
 
 /** Class with multiple dependencies */
@@ -53,13 +58,16 @@ class StubMultiDep
         public StubNoDeps $a,
         public StubWithDefault $b,
         public string $label = 'multi',
-    ) {}
+    ) {
+    }
 }
 
 /** Class with Container dependency (self-referencing) */
 class StubNeedsContainer
 {
-    public function __construct(public Container $container) {}
+    public function __construct(public Container $container)
+    {
+    }
 }
 
 /** Interface for testing interface bindings */
@@ -71,32 +79,47 @@ interface StubServiceInterface
 /** Concrete implementation of StubServiceInterface */
 class StubServiceImpl implements StubServiceInterface
 {
-    public function __construct(private string $val = 'impl') {}
-    public function value(): string { return $this->val; }
+    public function __construct(private string $val = 'impl')
+    {
+    }
+
+    public function value(): string
+    {
+        return $this->val;
+    }
 }
 
 /** Another implementation of StubServiceInterface */
 class StubServiceAltImpl implements StubServiceInterface
 {
-    public function value(): string { return 'alt'; }
+    public function value(): string
+    {
+        return 'alt';
+    }
 }
 
 /** Class that depends on an interface */
 class StubUsesInterface
 {
-    public function __construct(public StubServiceInterface $service) {}
+    public function __construct(public StubServiceInterface $service)
+    {
+    }
 }
 
 /** Circular dependency A → B */
 class StubCircularA
 {
-    public function __construct(public StubCircularB $b) {}
+    public function __construct(public StubCircularB $b)
+    {
+    }
 }
 
 /** Circular dependency B → A */
 class StubCircularB
 {
-    public function __construct(public StubCircularA $a) {}
+    public function __construct(public StubCircularA $a)
+    {
+    }
 }
 
 /** Abstract class (not instantiable) */
@@ -108,7 +131,9 @@ abstract class StubAbstract
 /** Class with an unresolvable primitive parameter */
 class StubUnresolvable
 {
-    public function __construct(public int $count) {}
+    public function __construct(public int $count)
+    {
+    }
 }
 
 // ──────────────────────────────────────────────────────────

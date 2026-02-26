@@ -9,6 +9,7 @@
  * multiline values, casting, error handling, and the env() helper function.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -31,8 +32,8 @@ class EnvTest extends TestCase
     protected function setUp(): void
     {
         Env::reset();
-        $this->tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_env_test_' . bin2hex(random_bytes(4));
-        mkdir($this->tempDir, 0700, true);
+        $this->tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_env_test_' . \bin2hex(\random_bytes(4));
+        \mkdir($this->tempDir, 0o700, true);
     }
 
     protected function tearDown(): void
@@ -40,12 +41,12 @@ class EnvTest extends TestCase
         Env::reset();
 
         // Clean up temp files
-        if (is_dir($this->tempDir)) {
-            $files = glob($this->tempDir . DIRECTORY_SEPARATOR . '*');
+        if (\is_dir($this->tempDir)) {
+            $files = \glob($this->tempDir . DIRECTORY_SEPARATOR . '*');
             foreach ($files as $file) {
-                unlink($file);
+                \unlink($file);
             }
-            rmdir($this->tempDir);
+            \rmdir($this->tempDir);
         }
 
         // Clean up test env vars we set
@@ -58,17 +59,56 @@ class EnvTest extends TestCase
                    'NEW_VAR', 'REQUIRED_VAR', 'LINE1', 'MULTILINE',
                    'WITH_NEWLINE', 'WITH_TAB', 'WITH_QUOTE', 'WITH_BACKSLASH',
                    'WITH_DOLLAR', 'RAZY_ENV_TEST_SENTINEL'] as $var) {
-            putenv($var);
+            \putenv($var);
             unset($_ENV[$var], $_SERVER[$var]);
         }
     }
 
-    private function writeEnvFile(string $content, string $name = '.env'): string
+    public static function castingProvider(): array
     {
-        $path = $this->tempDir . DIRECTORY_SEPARATOR . $name;
-        file_put_contents($path, $content);
+        return [
+            'true' => ['true', true],
+            'TRUE' => ['TRUE', true],
+            'True' => ['True', true],
+            '(true)' => ['(true)', true],
+            'false' => ['false', false],
+            'FALSE' => ['FALSE', false],
+            '(false)' => ['(false)', false],
+            'null' => ['null', null],
+            'NULL' => ['NULL', null],
+            '(null)' => ['(null)', null],
+            'empty' => ['empty', ''],
+            '(empty)' => ['(empty)', ''],
+            'regular' => ['hello', 'hello'],
+            'numeric' => ['42', '42'],
+        ];
+    }
 
-        return $path;
+    // ══════════════════════════════════════════════════════════════
+    //  DataProvider — Variable Name Validation
+    // ══════════════════════════════════════════════════════════════
+
+    public static function validNameProvider(): array
+    {
+        return [
+            'simple' => ['FOO'],
+            'lowercase' => ['foo'],
+            'mixed' => ['FooBar'],
+            'underscore' => ['_PRIVATE'],
+            'with_numbers' => ['VAR_123'],
+            'all_under' => ['___'],
+        ];
+    }
+
+    public static function invalidNameProvider(): array
+    {
+        return [
+            'starts with number' => ['1FOO'],
+            'has hyphen' => ['MY-VAR'],
+            'has dot' => ['MY.VAR'],
+            'has space' => ['MY VAR'],
+            'has special' => ['MY@VAR'],
+        ];
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -81,13 +121,13 @@ class EnvTest extends TestCase
 
         $this->assertSame([
             'APP_NAME' => 'Razy',
-            'APP_ENV'  => 'production',
+            'APP_ENV' => 'production',
         ], $result);
     }
 
     public function testParseEmptyValue(): void
     {
-        $result = Env::parse("EMPTY_VAR=");
+        $result = Env::parse('EMPTY_VAR=');
 
         $this->assertSame(['EMPTY_VAR' => ''], $result);
     }
@@ -95,7 +135,7 @@ class EnvTest extends TestCase
     public function testParseSkipsEmptyLines(): void
     {
         $content = "FOO=bar\n\n\nBAZ=qux\n";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame(['FOO' => 'bar', 'BAZ' => 'qux'], $result);
     }
@@ -103,21 +143,21 @@ class EnvTest extends TestCase
     public function testParseSkipsComments(): void
     {
         $content = "# Database settings\nDB_HOST=localhost\n# Port\nDB_PORT=3306";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame(['DB_HOST' => 'localhost', 'DB_PORT' => '3306'], $result);
     }
 
     public function testParseStripsInlineComments(): void
     {
-        $result = Env::parse("APP_ENV=production # the environment");
+        $result = Env::parse('APP_ENV=production # the environment');
 
         $this->assertSame(['APP_ENV' => 'production'], $result);
     }
 
     public function testParseTrimsKeyWhitespace(): void
     {
-        $result = Env::parse("  APP_NAME  = Razy");
+        $result = Env::parse('  APP_NAME  = Razy');
 
         $this->assertSame(['APP_NAME' => 'Razy'], $result);
     }
@@ -229,7 +269,7 @@ class EnvTest extends TestCase
     public function testParseInterpolateDollarBrace(): void
     {
         $content = "BASE_URL=http://localhost\nAPI_URL=\"\${BASE_URL}/api\"";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame('http://localhost/api', $result['API_URL']);
     }
@@ -237,7 +277,7 @@ class EnvTest extends TestCase
     public function testParseInterpolateDollarSign(): void
     {
         $content = "BASE_URL=http://localhost\nAPI_URL=\"\$BASE_URL/api\"";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame('http://localhost/api', $result['API_URL']);
     }
@@ -245,7 +285,7 @@ class EnvTest extends TestCase
     public function testParseInterpolateUnquotedValue(): void
     {
         $content = "FOO=hello\nBAR=\$FOO-world";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame('hello-world', $result['BAR']);
     }
@@ -253,7 +293,7 @@ class EnvTest extends TestCase
     public function testParseInterpolateChained(): void
     {
         $content = "FOO=alpha\nBAR=\${FOO}-beta\nBAZ=\${BAR}-gamma";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame('alpha-beta-gamma', $result['BAZ']);
     }
@@ -268,7 +308,7 @@ class EnvTest extends TestCase
     public function testParseSingleQuotedNoInterpolation(): void
     {
         $content = "BASE=http://localhost\nREF='\${BASE}/api'";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         // Single-quoted: literal, no interpolation
         $this->assertSame('${BASE}/api', $result['REF']);
@@ -281,7 +321,7 @@ class EnvTest extends TestCase
     public function testParseMultilineDoubleQuoted(): void
     {
         $content = "MULTILINE=\"line one\nline two\nline three\"";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame("line one\nline two\nline three", $result['MULTILINE']);
     }
@@ -289,7 +329,7 @@ class EnvTest extends TestCase
     public function testParseMultilineWithFollowingVar(): void
     {
         $content = "MULTI=\"hello\nworld\"\nFOO=bar";
-        $result  = Env::parse($content);
+        $result = Env::parse($content);
 
         $this->assertSame("hello\nworld", $result['MULTI']);
         $this->assertSame('bar', $result['FOO']);
@@ -322,7 +362,7 @@ class EnvTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("missing '='");
 
-        Env::parse("NO_EQUALS_HERE");
+        Env::parse('NO_EQUALS_HERE');
     }
 
     public function testParseInvalidVarNameThrows(): void
@@ -330,14 +370,14 @@ class EnvTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid environment variable name');
 
-        Env::parse("123INVALID=value");
+        Env::parse('123INVALID=value');
     }
 
     public function testParseInvalidVarNameHyphenThrows(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        Env::parse("MY-VAR=value");
+        Env::parse('MY-VAR=value');
     }
 
     public function testParseUnterminatedSingleQuoteThrows(): void
@@ -373,7 +413,7 @@ class EnvTest extends TestCase
 
     public function testLoadPopulatesEnvSuperglobal(): void
     {
-        $path = $this->writeEnvFile("MY_VAR=hello");
+        $path = $this->writeEnvFile('MY_VAR=hello');
 
         Env::load($path);
 
@@ -382,11 +422,11 @@ class EnvTest extends TestCase
 
     public function testLoadPopulatesPutenv(): void
     {
-        $path = $this->writeEnvFile("MY_VAR=world");
+        $path = $this->writeEnvFile('MY_VAR=world');
 
         Env::load($path);
 
-        $this->assertSame('world', getenv('MY_VAR'));
+        $this->assertSame('world', \getenv('MY_VAR'));
     }
 
     public function testLoadMissingFileThrows(): void
@@ -400,23 +440,23 @@ class EnvTest extends TestCase
     public function testLoadDoesNotOverwriteByDefault(): void
     {
         // Set an existing value
-        putenv('EXISTING=original');
+        \putenv('EXISTING=original');
         $_ENV['EXISTING'] = 'original';
 
-        $path = $this->writeEnvFile("EXISTING=new_value");
+        $path = $this->writeEnvFile('EXISTING=new_value');
 
         Env::load($path);
 
         // Should keep the original
-        $this->assertSame('original', getenv('EXISTING'));
+        $this->assertSame('original', \getenv('EXISTING'));
     }
 
     public function testLoadOverwriteWhenEnabled(): void
     {
-        putenv('EXISTING=original');
+        \putenv('EXISTING=original');
         $_ENV['EXISTING'] = 'original';
 
-        $path = $this->writeEnvFile("EXISTING=new_value");
+        $path = $this->writeEnvFile('EXISTING=new_value');
 
         Env::load($path, overwrite: true);
 
@@ -429,7 +469,7 @@ class EnvTest extends TestCase
 
     public function testLoadIfExistsReturnsTrueWhenFound(): void
     {
-        $path = $this->writeEnvFile("FOO=bar");
+        $path = $this->writeEnvFile('FOO=bar');
 
         $this->assertTrue(Env::loadIfExists($path));
         $this->assertSame('bar', Env::get('FOO'));
@@ -455,26 +495,6 @@ class EnvTest extends TestCase
         $this->assertNull(Env::get('UNDEFINED_VAR'));
     }
 
-    public static function castingProvider(): array
-    {
-        return [
-            'true'     => ['true',    true],
-            'TRUE'     => ['TRUE',    true],
-            'True'     => ['True',    true],
-            '(true)'   => ['(true)',  true],
-            'false'    => ['false',   false],
-            'FALSE'    => ['FALSE',   false],
-            '(false)'  => ['(false)', false],
-            'null'     => ['null',    null],
-            'NULL'     => ['NULL',    null],
-            '(null)'   => ['(null)',  null],
-            'empty'    => ['empty',   ''],
-            '(empty)'  => ['(empty)', ''],
-            'regular'  => ['hello',   'hello'],
-            'numeric'  => ['42',      '42'],
-        ];
-    }
-
     #[DataProvider('castingProvider')]
     public function testGetCastsSpecialValues(string $raw, mixed $expected): void
     {
@@ -487,7 +507,7 @@ class EnvTest extends TestCase
 
     public function testGetNoCastReturnsRawString(): void
     {
-        $path = $this->writeEnvFile("TRUE_VAR=true");
+        $path = $this->writeEnvFile('TRUE_VAR=true');
         Env::load($path);
 
         $this->assertSame('true', Env::get('TRUE_VAR', cast: false));
@@ -499,7 +519,7 @@ class EnvTest extends TestCase
 
     public function testHasReturnsTrueForLoadedVar(): void
     {
-        $path = $this->writeEnvFile("FOO=bar");
+        $path = $this->writeEnvFile('FOO=bar');
         Env::load($path);
 
         $this->assertTrue(Env::has('FOO'));
@@ -512,7 +532,7 @@ class EnvTest extends TestCase
 
     public function testHasReturnsTrueForPutenvVar(): void
     {
-        putenv('RAZY_ENV_TEST_SENTINEL=1');
+        \putenv('RAZY_ENV_TEST_SENTINEL=1');
 
         $this->assertTrue(Env::has('RAZY_ENV_TEST_SENTINEL'));
     }
@@ -527,7 +547,7 @@ class EnvTest extends TestCase
 
         $this->assertSame('new_value', Env::get('NEW_VAR', cast: false));
         $this->assertSame('new_value', $_ENV['NEW_VAR']);
-        $this->assertSame('new_value', getenv('NEW_VAR'));
+        $this->assertSame('new_value', \getenv('NEW_VAR'));
     }
 
     public function testSetOverwritesExisting(): void
@@ -565,7 +585,7 @@ class EnvTest extends TestCase
 
     public function testGetRequiredReturnsValue(): void
     {
-        $path = $this->writeEnvFile("REQUIRED_VAR=important");
+        $path = $this->writeEnvFile('REQUIRED_VAR=important');
         Env::load($path);
 
         $this->assertSame('important', Env::getRequired('REQUIRED_VAR'));
@@ -581,7 +601,7 @@ class EnvTest extends TestCase
 
     public function testGetRequiredCasts(): void
     {
-        $path = $this->writeEnvFile("APP_DEBUG=true");
+        $path = $this->writeEnvFile('APP_DEBUG=true');
         Env::load($path);
 
         $this->assertTrue(Env::getRequired('APP_DEBUG'));
@@ -589,7 +609,7 @@ class EnvTest extends TestCase
 
     public function testGetRequiredNoCast(): void
     {
-        $path = $this->writeEnvFile("APP_DEBUG=true");
+        $path = $this->writeEnvFile('APP_DEBUG=true');
         Env::load($path);
 
         $this->assertSame('true', Env::getRequired('APP_DEBUG', cast: false));
@@ -601,7 +621,7 @@ class EnvTest extends TestCase
 
     public function testResetClearsState(): void
     {
-        $path = $this->writeEnvFile("FOO=bar");
+        $path = $this->writeEnvFile('FOO=bar');
         Env::load($path);
 
         $this->assertTrue(Env::isInitialized());
@@ -620,25 +640,25 @@ class EnvTest extends TestCase
     public function testFullEnvFile(): void
     {
         $content = <<<'ENV'
-# Application
-APP_NAME=Razy
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://example.com
+            # Application
+            APP_NAME=Razy
+            APP_ENV=production
+            APP_DEBUG=false
+            APP_URL=https://example.com
 
-# Database
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=razy_db
-DB_USER=root
-DB_PASS='s3cr3t p@ss!'
+            # Database
+            DB_HOST=localhost
+            DB_PORT=3306
+            DB_NAME=razy_db
+            DB_USER=root
+            DB_PASS='s3cr3t p@ss!'
 
-# API
-API_URL="${APP_URL}/api/v1"
+            # API
+            API_URL="${APP_URL}/api/v1"
 
-# Feature flags
-export EMPTY_VAR=
-ENV;
+            # Feature flags
+            export EMPTY_VAR=
+            ENV;
 
         $path = $this->writeEnvFile($content);
         Env::load($path);
@@ -662,7 +682,7 @@ ENV;
 
     public function testEnvHelperReturnsValue(): void
     {
-        $path = $this->writeEnvFile("APP_NAME=Razy");
+        $path = $this->writeEnvFile('APP_NAME=Razy');
         Env::load($path);
 
         $this->assertSame('Razy', \Razy\env('APP_NAME'));
@@ -689,7 +709,7 @@ ENV;
 
     public function testValueWithEqualsSign(): void
     {
-        $result = Env::parse("DB_URL=mysql://user:pass@host/db?opt=val");
+        $result = Env::parse('DB_URL=mysql://user:pass@host/db?opt=val');
 
         $this->assertSame('mysql://user:pass@host/db?opt=val', $result['DB_URL']);
     }
@@ -710,14 +730,14 @@ ENV;
 
     public function testUnderscoreInName(): void
     {
-        $result = Env::parse("MY_LONG_VAR_NAME=value");
+        $result = Env::parse('MY_LONG_VAR_NAME=value');
 
         $this->assertSame(['MY_LONG_VAR_NAME' => 'value'], $result);
     }
 
     public function testNumericValue(): void
     {
-        $result = Env::parse("PORT=8080");
+        $result = Env::parse('PORT=8080');
 
         $this->assertSame(['PORT' => '8080'], $result);
     }
@@ -750,22 +770,6 @@ ENV;
         $this->assertSame(['FOO' => 'second'], $result);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  DataProvider — Variable Name Validation
-    // ══════════════════════════════════════════════════════════════
-
-    public static function validNameProvider(): array
-    {
-        return [
-            'simple'       => ['FOO'],
-            'lowercase'    => ['foo'],
-            'mixed'        => ['FooBar'],
-            'underscore'   => ['_PRIVATE'],
-            'with_numbers' => ['VAR_123'],
-            'all_under'    => ['___'],
-        ];
-    }
-
     #[DataProvider('validNameProvider')]
     public function testValidVariableNames(string $name): void
     {
@@ -774,22 +778,19 @@ ENV;
         $this->assertArrayHasKey($name, $result);
     }
 
-    public static function invalidNameProvider(): array
-    {
-        return [
-            'starts with number' => ['1FOO'],
-            'has hyphen'         => ['MY-VAR'],
-            'has dot'            => ['MY.VAR'],
-            'has space'          => ['MY VAR'],
-            'has special'        => ['MY@VAR'],
-        ];
-    }
-
     #[DataProvider('invalidNameProvider')]
     public function testInvalidVariableNamesThrow(string $name): void
     {
         $this->expectException(InvalidArgumentException::class);
 
         Env::parse("{$name}=value");
+    }
+
+    private function writeEnvFile(string $content, string $name = '.env'): string
+    {
+        $path = $this->tempDir . DIRECTORY_SEPARATOR . $name;
+        \file_put_contents($path, $content);
+
+        return $path;
     }
 }

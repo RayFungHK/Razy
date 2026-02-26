@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,10 +11,10 @@
 
 namespace Razy\Routing;
 
-use Exception;
 use Razy\Distributor;
 use Razy\Template;
 use Razy\Util\PathUtil;
+use Throwable;
 
 /**
  * Compiles a Caddyfile from the multisite configuration for use with
@@ -31,6 +32,7 @@ use Razy\Util\PathUtil;
  *   php Razy.phar rewrite --caddy
  *
  * @package Razy\Routing
+ *
  * @license MIT
  */
 class CaddyfileCompiler
@@ -38,15 +40,15 @@ class CaddyfileCompiler
     /**
      * Compile and write the Caddyfile.
      *
-     * @param array<string, array<string, string>> $multisite    Domain => path => distributor mapping
-     * @param array<string, string>                $aliases      Alias domain => canonical domain mapping
-     * @param string                               $outputPath   Path to write the Caddyfile
-     * @param bool                                 $workerMode   Whether to generate worker mode directives
-     * @param string                               $documentRoot Document root path for root directive
+     * @param array<string, array<string, string>> $multisite Domain => path => distributor mapping
+     * @param array<string, string> $aliases Alias domain => canonical domain mapping
+     * @param string $outputPath Path to write the Caddyfile
+     * @param bool $workerMode Whether to generate worker mode directives
+     * @param string $documentRoot Document root path for root directive
      *
      * @return bool True on success
      *
-     * @throws \Throwable
+     * @throws Throwable
      */
     public function compile(
         array  $multisite,
@@ -64,7 +66,7 @@ class CaddyfileCompiler
         // Build per-domain site blocks
         $this->compileSiteBlocks($rootBlock, $multisite, $domainAliases, $workerMode, $documentRoot);
 
-        file_put_contents($outputPath, $source->output());
+        \file_put_contents($outputPath, $source->output());
 
         return true;
     }
@@ -72,7 +74,7 @@ class CaddyfileCompiler
     /**
      * Build a map of canonical domain => [alias1, alias2, ...].
      *
-     * @param array<string, string>                $aliases   Alias => canonical domain
+     * @param array<string, string> $aliases Alias => canonical domain
      * @param array<string, array<string, string>> $multisite Domain config
      *
      * @return array<string, list<string>>
@@ -96,10 +98,10 @@ class CaddyfileCompiler
      * In Caddy, each domain gets its own site block. If a domain has aliases,
      * they are listed as additional addresses in the same site block.
      *
-     * @param mixed  $rootBlock    Template root block
-     * @param array  $multisite    Domain => path => distributor mapping
-     * @param array  $domainAliases Canonical domain => alias list
-     * @param bool   $workerMode   Use FrankenPHP worker mode
+     * @param mixed $rootBlock Template root block
+     * @param array $multisite Domain => path => distributor mapping
+     * @param array $domainAliases Canonical domain => alias list
+     * @param bool $workerMode Use FrankenPHP worker mode
      * @param string $documentRoot Server document root
      */
     private function compileSiteBlocks(
@@ -117,39 +119,38 @@ class CaddyfileCompiler
 
             $siteBlock = $rootBlock->newBlock('site')->assign([
                 'domain' => $siteAddresses,
-                'document_root' => rtrim($documentRoot, '/'),
+                'document_root' => \rtrim($documentRoot, '/'),
             ]);
 
             foreach ($paths as $urlPath => $distIdentifier) {
                 try {
-                    [$code, $tag] = explode('@', $distIdentifier . '@', 2);
+                    [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
                     $distributor = new Distributor($code, $tag ?: '*');
                     $distributor->initialize(true);
                     $modules = $distributor->getRegistry()->getModules();
 
-                    $routePath = ($urlPath === '/') ? '' : trim($urlPath, '/') . '/';
+                    $routePath = ($urlPath === '/') ? '' : \trim($urlPath, '/') . '/';
 
                     // ── Webasset handlers ──
                     $this->compileWebAssetHandlers($siteBlock, $modules, $routePath, $addedWebAssets);
 
                     // ── Data mapping handlers ──
                     $this->compileDataMappingHandlers($siteBlock, $distributor, $domain, $code, $routePath, $documentRoot);
-
-                } catch (\Throwable $e) {
-                    error_log('Warning: Failed to process distribution ' . $distIdentifier . ' for domain ' . $domain . ': ' . $e->getMessage());
+                } catch (Throwable $e) {
+                    \error_log('Warning: Failed to process distribution ' . $distIdentifier . ' for domain ' . $domain . ': ' . $e->getMessage());
                     continue;
                 }
             }
 
             // Shared module path handler
             $siteBlock->newBlock('shared')->assign([
-                'document_root' => rtrim($documentRoot, '/'),
+                'document_root' => \rtrim($documentRoot, '/'),
             ]);
 
             // PHP server mode
             if ($workerMode) {
                 $siteBlock->newBlock('worker')->assign([
-                    'document_root' => rtrim($documentRoot, '/'),
+                    'document_root' => \rtrim($documentRoot, '/'),
                 ]);
             } else {
                 $siteBlock->newBlock('standard');
@@ -163,7 +164,7 @@ class CaddyfileCompiler
      * For a domain with aliases, returns "domain, alias1, alias2".
      * For wildcard domain, returns ":80" (catch-all).
      *
-     * @param string   $domain  Canonical domain
+     * @param string $domain Canonical domain
      * @param string[] $aliases Alias domains
      *
      * @return string
@@ -181,7 +182,7 @@ class CaddyfileCompiler
             $addresses[] = $alias;
         }
 
-        return implode(', ', $addresses);
+        return \implode(', ', $addresses);
     }
 
     /**
@@ -191,10 +192,10 @@ class CaddyfileCompiler
      * handler that strips the URL prefix and serves files from the
      * module's container path.
      *
-     * @param mixed  $siteBlock      Template site block
-     * @param array  $modules        Loaded modules
-     * @param string $routePath      URL route path prefix
-     * @param array  &$addedWebAssets Tracking array for deduplication
+     * @param mixed $siteBlock Template site block
+     * @param array $modules Loaded modules
+     * @param string $routePath URL route path prefix
+     * @param array &$addedWebAssets Tracking array for deduplication
      */
     private function compileWebAssetHandlers(
         mixed  $siteBlock,
@@ -206,10 +207,10 @@ class CaddyfileCompiler
             $moduleInfo = $module->getModuleInfo();
             $modulePath = $moduleInfo->getPath();
 
-            if (!empty($modulePath) && is_dir($modulePath)) {
+            if (!empty($modulePath) && \is_dir($modulePath)) {
                 $webassetPath = PathUtil::append($modulePath, 'webassets');
 
-                if (is_dir($webassetPath)) {
+                if (\is_dir($webassetPath)) {
                     $alias = $moduleInfo->getAlias();
                     $webAssetKey = $alias . '::' . $routePath;
 
@@ -217,10 +218,10 @@ class CaddyfileCompiler
                         $addedWebAssets[$webAssetKey] = true;
 
                         $containerPathRel = $moduleInfo->getContainerPath(true);
-                        $containerPathRel = ltrim(str_replace('\\', '/', $containerPathRel), '/');
+                        $containerPathRel = \ltrim(\str_replace('\\', '/', $containerPathRel), '/');
 
                         // Create a safe identifier for Caddy named matcher
-                        $mappingId = preg_replace('/[^a-zA-Z0-9_]/', '_', $alias . '_' . $routePath);
+                        $mappingId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $alias . '_' . $routePath);
 
                         $siteBlock->newBlock('webassets')->assign([
                             'mapping' => $alias,
@@ -240,12 +241,12 @@ class CaddyfileCompiler
      * Maps the data/ URL prefix to the distributor's data directory,
      * serving uploaded/generated files.
      *
-     * @param mixed       $siteBlock    Template site block
-     * @param Distributor $distributor  The distributor instance
-     * @param string      $domain      Domain name
-     * @param string      $code        Distributor code
-     * @param string      $routePath   URL route path prefix
-     * @param string      $documentRoot Server document root
+     * @param mixed $siteBlock Template site block
+     * @param Distributor $distributor The distributor instance
+     * @param string $domain Domain name
+     * @param string $code Distributor code
+     * @param string $routePath URL route path prefix
+     * @param string $documentRoot Server document root
      */
     private function compileDataMappingHandlers(
         mixed       $siteBlock,
@@ -258,9 +259,9 @@ class CaddyfileCompiler
         $dataMapping = $distributor->getDataMapping();
         $counter = 0;
 
-        if (!count($dataMapping) || !isset($dataMapping['/'])) {
-            $dataPath = rtrim($documentRoot, '/') . '/data/' . $domain . '-' . $code;
-            $dataId = preg_replace('/[^a-zA-Z0-9_]/', '_', $code . '_' . $routePath . '_' . $counter++);
+        if (!\count($dataMapping) || !isset($dataMapping['/'])) {
+            $dataPath = \rtrim($documentRoot, '/') . '/data/' . $domain . '-' . $code;
+            $dataId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $code . '_' . $routePath . '_' . $counter++);
 
             $siteBlock->newBlock('data_mapping')->assign([
                 'dist_code' => $code,
@@ -273,10 +274,10 @@ class CaddyfileCompiler
         foreach ($dataMapping as $path => $site) {
             $mappingRoutePath = ($path === '/')
                 ? $routePath
-                : rtrim($routePath . trim($path, '/'), '/') . '/';
+                : \rtrim($routePath . \trim($path, '/'), '/') . '/';
 
-            $dataPath = rtrim($documentRoot, '/') . '/data/' . $site['domain'] . '-' . $site['dist'];
-            $dataId = preg_replace('/[^a-zA-Z0-9_]/', '_', $code . '_' . $mappingRoutePath . '_' . $counter++);
+            $dataPath = \rtrim($documentRoot, '/') . '/data/' . $site['domain'] . '-' . $site['dist'];
+            $dataId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $code . '_' . $mappingRoutePath . '_' . $counter++);
 
             $siteBlock->newBlock('data_mapping')->assign([
                 'dist_code' => $code,

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,14 +9,17 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy;
 
+use Exception;
 use Razy\Exception\FileException;
-use Razy\YAML\YAMLParser;
 use Razy\YAML\YAMLDumper;
+use Razy\YAML\YAMLParser;
+use RuntimeException;
 
 /**
  * YAML facade class providing static parse/dump methods.
@@ -40,15 +44,16 @@ class YAML
      * @param string $yaml YAML string
      *
      * @return mixed Parsed data
-     * @throws \RuntimeException
+     *
+     * @throws RuntimeException
      */
     public static function parse(string $yaml): mixed
     {
         try {
             $parser = new YAMLParser($yaml);
             return $parser->parse();
-        } catch (\Exception $e) {
-            throw new \RuntimeException('YAML parse error: ' . $e->getMessage(), 0, $e);
+        } catch (Exception $e) {
+            throw new RuntimeException('YAML parse error: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -58,29 +63,30 @@ class YAML
      * @param string $filename Path to YAML file
      *
      * @return mixed Parsed data
-     * @throws FileException|\RuntimeException
+     *
+     * @throws FileException|RuntimeException
      */
     public static function parseFile(string $filename): mixed
     {
-        if (!file_exists($filename)) {
+        if (!\file_exists($filename)) {
             throw new FileException("YAML file not found: {$filename}");
         }
 
-        if (!is_readable($filename)) {
+        if (!\is_readable($filename)) {
             throw new FileException("YAML file not readable: {$filename}");
         }
 
         // Try to load from cache (validated against file modification time)
-        $realPath = realpath($filename);
+        $realPath = \realpath($filename);
         if ($realPath !== false) {
-            $cacheKey = 'yaml.' . md5($realPath);
+            $cacheKey = 'yaml.' . \md5($realPath);
             $cached = Cache::getValidated($cacheKey, $realPath);
             if ($cached !== null) {
                 return $cached;
             }
         }
 
-        $content = file_get_contents($filename);
+        $content = \file_get_contents($filename);
         if ($content === false) {
             throw new FileException("Failed to read YAML file: {$filename}");
         }
@@ -119,20 +125,21 @@ class YAML
      * @param int $inline Inline arrays from this level
      *
      * @return bool Success
+     *
      * @throws FileException
      */
     public static function dumpFile(string $filename, mixed $data, int $indent = 2, int $inline = 4): bool
     {
         $yaml = self::dump($data, $indent, $inline);
 
-        $dir = dirname($filename);
-        if (!is_dir($dir)) {
-            if (!mkdir($dir, 0755, true) && !is_dir($dir)) {
+        $dir = \dirname($filename);
+        if (!\is_dir($dir)) {
+            if (!\mkdir($dir, 0o755, true) && !\is_dir($dir)) {
                 throw new FileException("Failed to create directory: {$dir}");
             }
         }
 
-        $result = file_put_contents($filename, $yaml);
+        $result = \file_put_contents($filename, $yaml);
         if ($result === false) {
             throw new FileException("Failed to write YAML file: {$filename}");
         }

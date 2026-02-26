@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for P1: HTTP Method Routing support.
  *
@@ -12,10 +13,10 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
@@ -26,29 +27,10 @@ use Razy\Route;
 #[CoversClass(RouteDispatcher::class)]
 class HttpMethodRoutingTest extends TestCase
 {
-    // ═══════════════════════════════════════════════════════
-    //  Route — HTTP method property
-    // ═══════════════════════════════════════════════════════
-
-    public function testRouteMethodDefaultsToWildcard(): void
+    protected function tearDown(): void
     {
-        $route = new Route('handler');
-        $this->assertSame('*', $route->getMethod());
-    }
-
-    public function testRouteMethodSetterReturnsFluent(): void
-    {
-        $route = new Route('handler');
-        $result = $route->method('GET');
-        $this->assertSame($route, $result);
-    }
-
-    #[DataProvider('validMethodProvider')]
-    public function testRouteMethodAcceptsValidMethods(string $input, string $expected): void
-    {
-        $route = new Route('handler');
-        $route->method($input);
-        $this->assertSame($expected, $route->getMethod());
+        // Restore REQUEST_METHOD to avoid leaking state
+        unset($_SERVER['REQUEST_METHOD']);
     }
 
     public static function validMethodProvider(): array
@@ -66,52 +48,6 @@ class HttpMethodRoutingTest extends TestCase
             'mixed case Post' => ['Post', 'POST'],
             'lowercase with spaces' => ['  get  ', 'GET'],
         ];
-    }
-
-    public function testRouteMethodRejectsInvalidMethod(): void
-    {
-        $route = new Route('handler');
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("Invalid HTTP method 'TRACE'");
-        $route->method('TRACE');
-    }
-
-    public function testRouteMethodRejectsEmptyString(): void
-    {
-        $route = new Route('handler');
-        $this->expectException(\InvalidArgumentException::class);
-        $route->method('');
-    }
-
-    public function testRouteMethodChainWithContain(): void
-    {
-        $route = new Route('handler');
-        $route->method('POST')->contain(['key' => 'value']);
-
-        $this->assertSame('POST', $route->getMethod());
-        $this->assertSame(['key' => 'value'], $route->getData());
-    }
-
-    public function testRouteMethodCanBeOverwritten(): void
-    {
-        $route = new Route('handler');
-        $route->method('GET');
-        $this->assertSame('GET', $route->getMethod());
-
-        $route->method('POST');
-        $this->assertSame('POST', $route->getMethod());
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  RouteDispatcher::parseMethodPrefix()
-    // ═══════════════════════════════════════════════════════
-
-    #[DataProvider('parseMethodPrefixProvider')]
-    public function testParseMethodPrefix(string $input, string $expectedMethod, string $expectedRoute): void
-    {
-        [$method, $route] = RouteDispatcher::parseMethodPrefix($input);
-        $this->assertSame($expectedMethod, $method);
-        $this->assertSame($expectedRoute, $route);
     }
 
     public static function parseMethodPrefixProvider(): array
@@ -151,24 +87,90 @@ class HttpMethodRoutingTest extends TestCase
         ];
     }
 
+    public static function methodFilterProvider(): array
+    {
+        return [
+            'wildcard matches GET' => ['*', 'GET', false],
+            'wildcard matches POST' => ['*', 'POST', false],
+            'wildcard matches DELETE' => ['*', 'DELETE', false],
+            'GET matches GET' => ['GET', 'GET', false],
+            'POST matches POST' => ['POST', 'POST', false],
+            'PUT matches PUT' => ['PUT', 'PUT', false],
+            'GET rejects POST' => ['GET', 'POST', true],
+            'POST rejects GET' => ['POST', 'GET', true],
+            'DELETE rejects PUT' => ['DELETE', 'PUT', true],
+            'PATCH rejects DELETE' => ['PATCH', 'DELETE', true],
+        ];
+    }
     // ═══════════════════════════════════════════════════════
-    //  RouteDispatcher — Method-aware registration
+    //  Route — HTTP method property
     // ═══════════════════════════════════════════════════════
 
-    private function createModuleMock(
-        string $alias = 'test',
-        string $code = 'vendor/test',
-        ModuleStatus $status = ModuleStatus::Loaded
-    ): Module {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getAlias')->willReturn($alias);
-        $moduleInfo->method('getCode')->willReturn($code);
+    public function testRouteMethodDefaultsToWildcard(): void
+    {
+        $route = new Route('handler');
+        $this->assertSame('*', $route->getMethod());
+    }
 
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-        $module->method('getStatus')->willReturn($status);
+    public function testRouteMethodSetterReturnsFluent(): void
+    {
+        $route = new Route('handler');
+        $result = $route->method('GET');
+        $this->assertSame($route, $result);
+    }
 
-        return $module;
+    #[DataProvider('validMethodProvider')]
+    public function testRouteMethodAcceptsValidMethods(string $input, string $expected): void
+    {
+        $route = new Route('handler');
+        $route->method($input);
+        $this->assertSame($expected, $route->getMethod());
+    }
+
+    public function testRouteMethodRejectsInvalidMethod(): void
+    {
+        $route = new Route('handler');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid HTTP method 'TRACE'");
+        $route->method('TRACE');
+    }
+
+    public function testRouteMethodRejectsEmptyString(): void
+    {
+        $route = new Route('handler');
+        $this->expectException(InvalidArgumentException::class);
+        $route->method('');
+    }
+
+    public function testRouteMethodChainWithContain(): void
+    {
+        $route = new Route('handler');
+        $route->method('POST')->contain(['key' => 'value']);
+
+        $this->assertSame('POST', $route->getMethod());
+        $this->assertSame(['key' => 'value'], $route->getData());
+    }
+
+    public function testRouteMethodCanBeOverwritten(): void
+    {
+        $route = new Route('handler');
+        $route->method('GET');
+        $this->assertSame('GET', $route->getMethod());
+
+        $route->method('POST');
+        $this->assertSame('POST', $route->getMethod());
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  RouteDispatcher::parseMethodPrefix()
+    // ═══════════════════════════════════════════════════════
+
+    #[DataProvider('parseMethodPrefixProvider')]
+    public function testParseMethodPrefix(string $input, string $expectedMethod, string $expectedRoute): void
+    {
+        [$method, $route] = RouteDispatcher::parseMethodPrefix($input);
+        $this->assertSame($expectedMethod, $method);
+        $this->assertSame($expectedRoute, $route);
     }
 
     public function testSetRouteStoresDefaultMethod(): void
@@ -178,7 +180,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/home', '/handler');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('*', $route['method']);
     }
 
@@ -189,7 +191,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/users', '/handler', 'GET');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('GET', $route['method']);
     }
 
@@ -200,7 +202,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/users', '/handler', 'post');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('POST', $route['method']);
     }
 
@@ -212,7 +214,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/items', $routeObj, 'GET');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('DELETE', $route['method'], 'Route object method should override explicit parameter');
     }
 
@@ -224,7 +226,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/items', $routeObj, 'PUT');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('PUT', $route['method'], 'When Route object has wildcard, explicit param should be used');
     }
 
@@ -235,7 +237,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setLazyRoute($module, '/lazy', '/handler');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('*', $route['method']);
     }
 
@@ -246,7 +248,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setLazyRoute($module, '/api', '/handler', 'POST');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('POST', $route['method']);
     }
 
@@ -258,7 +260,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setShadowRoute($module, '/proxy', $target, '/handler');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('*', $route['method']);
     }
 
@@ -270,7 +272,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setShadowRoute($module, '/proxy', $target, '/handler', 'PATCH');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('PATCH', $route['method']);
     }
 
@@ -308,8 +310,12 @@ class HttpMethodRoutingTest extends TestCase
         $homeRoute = null;
         $apiRoute = null;
         foreach ($routes as $key => $entry) {
-            if (str_contains($key, 'home')) $homeRoute = $entry;
-            if (str_contains($key, 'api')) $apiRoute = $entry;
+            if (\str_contains($key, 'home')) {
+                $homeRoute = $entry;
+            }
+            if (\str_contains($key, 'api')) {
+                $apiRoute = $entry;
+            }
         }
 
         $this->assertNotNull($homeRoute);
@@ -355,22 +361,6 @@ class HttpMethodRoutingTest extends TestCase
         $this->assertSame($expectSkip, $shouldSkip);
     }
 
-    public static function methodFilterProvider(): array
-    {
-        return [
-            'wildcard matches GET' => ['*', 'GET', false],
-            'wildcard matches POST' => ['*', 'POST', false],
-            'wildcard matches DELETE' => ['*', 'DELETE', false],
-            'GET matches GET' => ['GET', 'GET', false],
-            'POST matches POST' => ['POST', 'POST', false],
-            'PUT matches PUT' => ['PUT', 'PUT', false],
-            'GET rejects POST' => ['GET', 'POST', true],
-            'POST rejects GET' => ['POST', 'GET', true],
-            'DELETE rejects PUT' => ['DELETE', 'PUT', true],
-            'PATCH rejects DELETE' => ['PATCH', 'DELETE', true],
-        ];
-    }
-
     public function testRoutedInfoIncludesMethodField(): void
     {
         $dispatcher = new RouteDispatcher();
@@ -379,7 +369,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/dashboard', '/handler', 'GET');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
 
         // Verify the route entry has all expected fields
         $this->assertArrayHasKey('method', $route);
@@ -401,7 +391,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, '/legacy', '/handler');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('*', $route['method'], 'Legacy routes should default to wildcard');
     }
 
@@ -414,7 +404,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setLazyRoute($module, '/endpoint', '/handler');
 
         $routes = $dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('*', $route['method'], 'Legacy lazy routes should default to wildcard');
     }
 
@@ -447,7 +437,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, $route, '/handler', $method);
 
         $routes = $dispatcher->getRoutes();
-        $storedRoute = reset($routes);
+        $storedRoute = \reset($routes);
         $this->assertSame('POST', $storedRoute['method']);
     }
 
@@ -465,13 +455,27 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setRoute($module, $route, '/handler', $method);
 
         $routes = $dispatcher->getRoutes();
-        $storedRoute = reset($routes);
+        $storedRoute = \reset($routes);
         $this->assertSame('*', $storedRoute['method']);
     }
 
-    protected function tearDown(): void
-    {
-        // Restore REQUEST_METHOD to avoid leaking state
-        unset($_SERVER['REQUEST_METHOD']);
+    // ═══════════════════════════════════════════════════════
+    //  RouteDispatcher — Method-aware registration
+    // ═══════════════════════════════════════════════════════
+
+    private function createModuleMock(
+        string $alias = 'test',
+        string $code = 'vendor/test',
+        ModuleStatus $status = ModuleStatus::Loaded,
+    ): Module {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getAlias')->willReturn($alias);
+        $moduleInfo->method('getCode')->willReturn($code);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+        $module->method('getStatus')->willReturn($status);
+
+        return $module;
     }
 }

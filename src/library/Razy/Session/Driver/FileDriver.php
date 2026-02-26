@@ -15,6 +15,7 @@
  * based on file modification times.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -49,11 +50,11 @@ class FileDriver implements SessionDriverInterface
      * FileDriver constructor.
      *
      * @param string $savePath Directory path for session file storage
-     * @param string $prefix   Filename prefix (default: 'sess_')
+     * @param string $prefix Filename prefix (default: 'sess_')
      */
     public function __construct(string $savePath, string $prefix = self::DEFAULT_PREFIX)
     {
-        $this->savePath = rtrim($savePath, '/\\');
+        $this->savePath = \rtrim($savePath, '/\\');
         $this->prefix = $prefix;
     }
 
@@ -64,13 +65,13 @@ class FileDriver implements SessionDriverInterface
      */
     public function open(): bool
     {
-        if (!is_dir($this->savePath)) {
-            if (!mkdir($this->savePath, 0700, true)) {
+        if (!\is_dir($this->savePath)) {
+            if (!\mkdir($this->savePath, 0o700, true)) {
                 return false;
             }
         }
 
-        return is_writable($this->savePath);
+        return \is_writable($this->savePath);
     }
 
     /**
@@ -90,19 +91,19 @@ class FileDriver implements SessionDriverInterface
     {
         $file = $this->getFilePath($id);
 
-        if (!is_file($file)) {
+        if (!\is_file($file)) {
             return [];
         }
 
-        $contents = file_get_contents($file);
+        $contents = \file_get_contents($file);
 
         if ($contents === false || $contents === '') {
             return [];
         }
 
-        $data = @unserialize($contents);
+        $data = @\unserialize($contents);
 
-        return is_array($data) ? $data : [];
+        return \is_array($data) ? $data : [];
     }
 
     /**
@@ -114,17 +115,17 @@ class FileDriver implements SessionDriverInterface
     public function write(string $id, array $data): bool
     {
         $file = $this->getFilePath($id);
-        $tmpFile = $file . '.tmp.' . bin2hex(random_bytes(4));
+        $tmpFile = $file . '.tmp.' . \bin2hex(\random_bytes(4));
 
-        $serialized = serialize($data);
+        $serialized = \serialize($data);
 
-        if (file_put_contents($tmpFile, $serialized, LOCK_EX) === false) {
+        if (\file_put_contents($tmpFile, $serialized, LOCK_EX) === false) {
             return false;
         }
 
         // Atomic rename (on the same filesystem)
-        if (!rename($tmpFile, $file)) {
-            @unlink($tmpFile);
+        if (!\rename($tmpFile, $file)) {
+            @\unlink($tmpFile);
 
             return false;
         }
@@ -139,8 +140,8 @@ class FileDriver implements SessionDriverInterface
     {
         $file = $this->getFilePath($id);
 
-        if (is_file($file)) {
-            return unlink($file);
+        if (\is_file($file)) {
+            return \unlink($file);
         }
 
         return true;
@@ -155,10 +156,10 @@ class FileDriver implements SessionDriverInterface
     public function gc(int $maxLifetime): int
     {
         $count = 0;
-        $cutoff = time() - $maxLifetime;
-        $prefixLen = strlen($this->prefix);
+        $cutoff = \time() - $maxLifetime;
+        $prefixLen = \strlen($this->prefix);
 
-        $files = @scandir($this->savePath);
+        $files = @\scandir($this->savePath);
 
         if ($files === false) {
             $this->lastGcCount = 0;
@@ -172,20 +173,20 @@ class FileDriver implements SessionDriverInterface
             }
 
             // Only process files with the correct prefix
-            if (substr($file, 0, $prefixLen) !== $this->prefix) {
+            if (\substr($file, 0, $prefixLen) !== $this->prefix) {
                 continue;
             }
 
             $fullPath = $this->savePath . DIRECTORY_SEPARATOR . $file;
 
-            if (!is_file($fullPath)) {
+            if (!\is_file($fullPath)) {
                 continue;
             }
 
-            $mtime = filemtime($fullPath);
+            $mtime = \filemtime($fullPath);
 
             if ($mtime !== false && $mtime < $cutoff) {
-                if (unlink($fullPath)) {
+                if (\unlink($fullPath)) {
                     ++$count;
                 }
             }
@@ -228,6 +229,7 @@ class FileDriver implements SessionDriverInterface
      * Build the full file path for a session ID.
      *
      * @param string $id Session ID
+     *
      * @return string Absolute file path
      */
     private function getFilePath(string $id): string

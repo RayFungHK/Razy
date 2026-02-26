@@ -11,7 +11,8 @@ class Regex extends ValidationRule
 {
     public function __construct(
         private readonly string $pattern,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, string $field, array $data = []): mixed
     {
@@ -21,7 +22,7 @@ class Regex extends ValidationRule
             return $value;
         }
 
-        if (!preg_match($this->pattern, (string) $value)) {
+        if (!\preg_match($this->pattern, (string) $value)) {
             $this->fail();
 
             return $value;

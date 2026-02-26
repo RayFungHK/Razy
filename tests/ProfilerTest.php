@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Profiler;
@@ -20,7 +21,7 @@ class ProfilerTest extends TestCase
     {
         $profiler = new Profiler();
         // After construction, reportTo will fail because no checkpoints exist yet
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $profiler->reportTo('nonexistent');
     }
 
@@ -43,7 +44,7 @@ class ProfilerTest extends TestCase
     public function testCheckpointEmptyLabelThrows(): void
     {
         $profiler = new Profiler();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('label');
         $profiler->checkpoint('');
     }
@@ -51,7 +52,7 @@ class ProfilerTest extends TestCase
     public function testCheckpointWhitespaceLabelThrows(): void
     {
         $profiler = new Profiler();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $profiler->checkpoint('   ');
     }
 
@@ -59,7 +60,7 @@ class ProfilerTest extends TestCase
     {
         $profiler = new Profiler();
         $profiler->checkpoint('alpha');
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('already exists');
         $profiler->checkpoint('alpha');
     }
@@ -71,7 +72,7 @@ class ProfilerTest extends TestCase
         $profiler = new Profiler();
         $profiler->checkpoint('start');
         // Do some work to create a measurable delta
-        $dummy = str_repeat('x', 1024);
+        $dummy = \str_repeat('x', 1024);
         $profiler->checkpoint('end');
 
         $report = $profiler->report();
@@ -108,7 +109,7 @@ class ProfilerTest extends TestCase
     {
         $profiler = new Profiler();
         $profiler->checkpoint('only_one');
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Not enough checkpoints');
         $profiler->report();
     }
@@ -116,7 +117,7 @@ class ProfilerTest extends TestCase
     public function testReportNoCheckpointsThrows(): void
     {
         $profiler = new Profiler();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Not enough checkpoints');
         $profiler->report();
     }
@@ -136,7 +137,7 @@ class ProfilerTest extends TestCase
     public function testReportCompareWithInitAndOneCheckpoint(): void
     {
         $profiler = new Profiler();
-        $dummy = str_repeat('x', 4096);
+        $dummy = \str_repeat('x', 4096);
         $profiler->checkpoint('mid');
 
         $report = $profiler->report(true);
@@ -181,7 +182,7 @@ class ProfilerTest extends TestCase
     public function testReportToExistingLabel(): void
     {
         $profiler = new Profiler();
-        $dummy = range(1, 1000);
+        $dummy = \range(1, 1000);
         $profiler->checkpoint('after_work');
 
         $report = $profiler->reportTo('after_work');
@@ -194,7 +195,7 @@ class ProfilerTest extends TestCase
     public function testReportToNonexistentLabelThrows(): void
     {
         $profiler = new Profiler();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('was not found');
         $profiler->reportTo('missing');
     }
@@ -205,7 +206,7 @@ class ProfilerTest extends TestCase
     {
         $profiler = new Profiler();
         $profiler->checkpoint('before');
-        usleep(10000); // 10ms
+        \usleep(10000); // 10ms
         $profiler->checkpoint('after');
 
         $report = $profiler->report();
@@ -220,7 +221,7 @@ class ProfilerTest extends TestCase
         $profiler->checkpoint('before_class');
 
         // Create anonymous class — it will be declared between checkpoints
-        $anon = new class {};
+        $anon = new class() {};
 
         $profiler->checkpoint('after_class');
 

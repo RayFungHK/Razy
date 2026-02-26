@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Distributor;
 
 use Closure;
+use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Exception\RedirectException;
 use Razy\Module;
@@ -21,18 +24,25 @@ use Razy\Module\ModuleStatus;
 use Razy\Route;
 use Razy\Util\PathUtil;
 use Razy\Util\StringUtil;
+use RuntimeException;
+use Throwable;
+
 /**
- * Class RouteDispatcher
+ * Class RouteDispatcher.
  *
  * Handles route registration (standard, lazy, shadow, CLI script) and URL matching/dispatching.
  *
  * Extracted from the Distributor god class to follow Single Responsibility Principle.
  *
  * @class RouteDispatcher
+ *
  * @package Razy\Distributor
  */
 class RouteDispatcher
 {
+    /** @var string[] Recognized HTTP methods for route constraints */
+    public const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', '*'];
+
     /** @var array<string, array> Registered routes keyed by path pattern */
     private array $routes = [];
 
@@ -57,8 +67,93 @@ class RouteDispatcher
     /** @var array<string, array<MiddlewareInterface|Closure>> Module-level middleware keyed by module code */
     private array $moduleMiddleware = [];
 
-    /** @var string[] Recognized HTTP methods for route constraints */
-    public const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', '*'];
+    /**
+     * Substitute positional parameters into a route pattern.
+     *
+     * Replaces each Razy route placeholder (`:d+`, `:a{2,5}`, `:[a-z]+`, etc.)
+     * with the corresponding parameter value.
+     *
+     * @param string $pattern The route pattern (e.g., '/users/:d+/posts/:a+/')
+     * @param array $params Positional parameter values
+     *
+     * @return string The URL with placeholders replaced
+     *
+     * @throws InvalidArgumentException If there are more placeholders than parameters
+     */
+    public static function substituteParams(string $pattern, array $params): string
+    {
+        $paramIndex = 0;
+        $paramValues = \array_values($params);
+        $paramCount = \count($paramValues);
+
+        $result = \preg_replace_callback(
+            '/\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|\[([^\[\]]+)\])(?:\{\d+,?\d*\})?\+?/',
+            function ($match) use (&$paramIndex, $paramValues, $paramCount) {
+                if ($paramIndex >= $paramCount) {
+                    throw new InvalidArgumentException(
+                        'Not enough parameters provided for route pattern. '
+                        . 'Expected at least ' . ($paramIndex + 1) . ", got {$paramCount}.",
+                    );
+                }
+                return (string) $paramValues[$paramIndex++];
+            },
+            $pattern,
+        );
+
+        return $result;
+    }
+
+    /**
+     * Pre-compile a route pattern into a regex string.
+     *
+     * Converts route parameter placeholders (e.g., :a, :d, :[a-z]) into
+     * regex capture groups. Called once at registration time instead of
+     * on every matchRoute() invocation — P4 optimization.
+     *
+     * @param string $route The route pattern (e.g., '/users/:d{1,5}/')
+     *
+     * @return string The compiled regex pattern
+     */
+    public static function compileRouteRegex(string $route): string
+    {
+        $compiled = \preg_replace_callback(
+            '/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/',
+            function ($matches) {
+                $regex = (\strlen($matches[2] ?? '')) > 0
+                    ? $matches[2]
+                    : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
+                return $regex . ((0 !== \strlen($matches[3] ?? '')) ? $matches[3] : '+');
+            },
+            $route,
+        );
+        return '/^(' . \preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $compiled) . ')((?:.+)?)/';
+    }
+
+    /**
+     * Parse an HTTP method prefix from a route string.
+     *
+     * Supports the syntax "METHOD /path" where METHOD is a valid HTTP method.
+     * Returns an array of [method, cleanRoute]. If no method prefix is found,
+     * returns ['*', originalRoute].
+     *
+     * Examples:
+     *   'GET /users'    → ['GET', '/users']
+     *   'POST /api'     → ['POST', '/api']
+     *   '/users'        → ['*', '/users']
+     *   'GET|POST /api' → ['GET|POST', '/api']
+     *
+     * @param string $route The raw route string
+     *
+     * @return array{string, string} [method, cleanRoute]
+     */
+    public static function parseMethodPrefix(string $route): array
+    {
+        $route = \trim($route);
+        if (\preg_match('/^((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)(?:\|(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS))*)\s+(.+)$/i', $route, $matches)) {
+            return [\strtoupper($matches[1]), \trim($matches[2])];
+        }
+        return ['*', $route];
+    }
 
     /**
      * Set up a standard route.
@@ -82,7 +177,7 @@ class RouteDispatcher
             'path' => $path,
             'route' => $route,
             'type' => 'standard',
-            'method' => strtoupper($method),
+            'method' => \strtoupper($method),
             'compiled_regex' => self::compileRouteRegex($route),
         ];
         $this->routesDirty = true;
@@ -114,7 +209,7 @@ class RouteDispatcher
                 'path' => $path,
                 'route' => $route,
                 'type' => 'lazy',
-                'method' => strtoupper($method),
+                'method' => \strtoupper($method),
             ];
             $this->routesDirty = true;
         }
@@ -138,7 +233,7 @@ class RouteDispatcher
             'path' => $path,
             'route' => $route,
             'type' => 'lazy',
-            'method' => strtoupper($method),
+            'method' => \strtoupper($method),
         ];
         $this->routesDirty = true;
 
@@ -151,6 +246,7 @@ class RouteDispatcher
      * @param Module $module
      * @param string $route
      * @param string $path
+     *
      * @return $this
      */
     public function setScript(Module $module, string $route, string $path): static
@@ -163,25 +259,6 @@ class RouteDispatcher
         ];
         $this->scriptsDirty = true;
         return $this;
-    }
-
-    /**
-     * Register a named route mapping.
-     *
-     * @param string $name     The route name
-     * @param string $routeKey The route key in the $routes array
-     *
-     * @return void
-     * @throws \RuntimeException If a route with the same name is already registered
-     */
-    private function registerNamedRoute(string $name, string $routeKey): void
-    {
-        if (isset($this->namedRoutes[$name]) && $this->namedRoutes[$name] !== $routeKey) {
-            throw new \RuntimeException(
-                "Duplicate named route '{$name}'. Already registered to '{$this->namedRoutes[$name]}', cannot re-register to '{$routeKey}'."
-            );
-        }
-        $this->namedRoutes[$name] = $routeKey;
     }
 
     /**
@@ -234,63 +311,29 @@ class RouteDispatcher
      * Parameters are substituted left-to-right into the route pattern's
      * placeholder positions.
      *
-     * @param string $name   The route name
-     * @param array  $params Positional parameters to fill placeholders
-     * @param array  $query  Optional query string parameters
+     * @param string $name The route name
+     * @param array $params Positional parameters to fill placeholders
+     * @param array $query Optional query string parameters
      *
      * @return string The generated URL path
-     * @throws \InvalidArgumentException If the named route does not exist
-     * @throws \InvalidArgumentException If not enough parameters are provided
+     *
+     * @throws InvalidArgumentException If the named route does not exist
+     * @throws InvalidArgumentException If not enough parameters are provided
      */
     public function route(string $name, array $params = [], array $query = []): string
     {
         if (!isset($this->namedRoutes[$name])) {
-            throw new \InvalidArgumentException("Named route '{$name}' is not defined.");
+            throw new InvalidArgumentException("Named route '{$name}' is not defined.");
         }
 
         $routeKey = $this->namedRoutes[$name];
         $url = self::substituteParams($routeKey, $params);
 
         if (!empty($query)) {
-            $url .= '?' . http_build_query($query);
+            $url .= '?' . \http_build_query($query);
         }
 
         return $url;
-    }
-
-    /**
-     * Substitute positional parameters into a route pattern.
-     *
-     * Replaces each Razy route placeholder (`:d+`, `:a{2,5}`, `:[a-z]+`, etc.)
-     * with the corresponding parameter value.
-     *
-     * @param string $pattern The route pattern (e.g., '/users/:d+/posts/:a+/')
-     * @param array  $params  Positional parameter values
-     *
-     * @return string The URL with placeholders replaced
-     * @throws \InvalidArgumentException If there are more placeholders than parameters
-     */
-    public static function substituteParams(string $pattern, array $params): string
-    {
-        $paramIndex = 0;
-        $paramValues = array_values($params);
-        $paramCount = count($paramValues);
-
-        $result = preg_replace_callback(
-            '/\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|\[([^\[\]]+)\])(?:\{\d+,?\d*\})?\+?/',
-            function ($match) use (&$paramIndex, $paramValues, $paramCount) {
-                if ($paramIndex >= $paramCount) {
-                    throw new \InvalidArgumentException(
-                        'Not enough parameters provided for route pattern. '
-                        . "Expected at least " . ($paramIndex + 1) . ", got {$paramCount}."
-                    );
-                }
-                return (string) $paramValues[$paramIndex++];
-            },
-            $pattern
-        );
-
-        return $result;
     }
 
     /**
@@ -321,7 +364,8 @@ class RouteDispatcher
      * @param ModuleRegistry $registry The module registry (for announce)
      *
      * @return bool True if a route was matched and executed
-     * @throws \Throwable
+     *
+     * @throws Throwable
      */
     public function matchRoute(string $urlQuery, string $siteURL, ModuleRegistry $registry): bool
     {
@@ -355,33 +399,31 @@ class RouteDispatcher
                     // Use pre-compiled regex from registration time (P4 optimization)
                     $compiledRegex = $data['compiled_regex'] ?? self::compileRouteRegex($route);
 
-                    if (!preg_match($compiledRegex, $urlQuery, $matches)) {
+                    if (!\preg_match($compiledRegex, $urlQuery, $matches)) {
                         continue;
-                    } else {
-                        // Extract the matched route, remaining URL query, and captured arguments
-                        array_shift($matches);
-                        $route = array_shift($matches);
-                        $remainingQuery = array_pop($matches);
-                        $args = $matches;
-                        $args += explode('/', trim($remainingQuery, '/'));
                     }
+                    // Extract the matched route, remaining URL query, and captured arguments
+                    \array_shift($matches);
+                    $route = \array_shift($matches);
+                    $remainingQuery = \array_pop($matches);
+                    $args = $matches;
+                    $args += \explode('/', \trim($remainingQuery, '/'));
                 } else {
-                    if (!str_starts_with($urlQuery, $route)) {
+                    if (!\str_starts_with($urlQuery, $route)) {
                         continue;
-                    } else {
-                        $remainingQuery = rtrim(substr($urlQuery, strlen($route)), '/');
-                        $args = explode('/', $remainingQuery);
                     }
+                    $remainingQuery = \rtrim(\substr($urlQuery, \strlen($route)), '/');
+                    $args = \explode('/', $remainingQuery);
                 }
 
-                $path = (is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
+                $path = (\is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
                 $path = PathUtil::tidy($path, false, '/');
 
                 // Handle redirect routes: paths starting with "r:" or "r@:" trigger HTTP redirect
-                if (preg_match('/^r(@?):(.+)/', $path, $matches)) {
+                if (\preg_match('/^r(@?):(.+)/', $path, $matches)) {
                     $path = $matches[2];
                     $redirectUrl = PathUtil::append($matches[1] ? $siteURL : $data['module']->getModuleURL(), $path);
-                    header('Location: ' . $redirectUrl);
+                    \header('Location: ' . $redirectUrl);
                     throw new RedirectException($redirectUrl, 302);
                 }
 
@@ -395,7 +437,7 @@ class RouteDispatcher
                     // Build the routed info metadata for the matched route
                     $this->routedInfo = [
                         'url_query' => $urlQuery,
-                        'base_url' => PathUtil::append($siteURL, rtrim($route, '/')),
+                        'base_url' => PathUtil::append($siteURL, \rtrim($route, '/')),
                         'route' => PathUtil::tidy('/' . $data['route'], false, '/'),
                         'module' => $data['module']->getModuleInfo()->getCode(),
                         'closure_path' => $path,
@@ -405,7 +447,7 @@ class RouteDispatcher
                         'is_shadow' => isset($data['target']),
                     ];
 
-                    if (!is_string($data['path'])) {
+                    if (!\is_string($data['path'])) {
                         $this->routedInfo['contains'] = $data['path']->getData();
                     }
 
@@ -425,7 +467,7 @@ class RouteDispatcher
                     }
 
                     // Route-level middleware from Route objects
-                    if (!is_string($data['path']) && $data['path'] instanceof Route && $data['path']->hasMiddleware()) {
+                    if (!\is_string($data['path']) && $data['path'] instanceof Route && $data['path']->hasMiddleware()) {
                         $pipeline->pipeMany($data['path']->getMiddleware());
                     }
 
@@ -433,11 +475,11 @@ class RouteDispatcher
                         $finalClosure = $closure;
                         $finalArgs = $args;
                         $pipeline->process($this->routedInfo, static function (array $context) use ($finalClosure, $finalArgs): mixed {
-                            call_user_func_array($finalClosure, $finalArgs);
+                            \call_user_func_array($finalClosure, $finalArgs);
                             return null;
                         });
                     } else {
-                        call_user_func_array($closure, $args);
+                        \call_user_func_array($closure, $args);
                     }
                 }
 
@@ -454,6 +496,7 @@ class RouteDispatcher
      * Global middleware runs before module-level and route-level middleware.
      *
      * @param MiddlewareInterface|Closure ...$middleware One or more middleware
+     *
      * @return $this Fluent interface
      */
     public function addGlobalMiddleware(MiddlewareInterface|Closure ...$middleware): static
@@ -471,6 +514,7 @@ class RouteDispatcher
      *
      * @param string $moduleCode The module code (e.g., 'vendor/module')
      * @param MiddlewareInterface|Closure ...$middleware One or more middleware
+     *
      * @return $this Fluent interface
      */
     public function addModuleMiddleware(string $moduleCode, MiddlewareInterface|Closure ...$middleware): static
@@ -498,6 +542,7 @@ class RouteDispatcher
      * Get module-level middleware for a specific module.
      *
      * @param string $moduleCode
+     *
      * @return array<MiddlewareInterface|Closure>
      */
     public function getModuleMiddleware(string $moduleCode): array
@@ -506,52 +551,20 @@ class RouteDispatcher
     }
 
     /**
-     * Pre-compile a route pattern into a regex string.
+     * Register a named route mapping.
      *
-     * Converts route parameter placeholders (e.g., :a, :d, :[a-z]) into
-     * regex capture groups. Called once at registration time instead of
-     * on every matchRoute() invocation — P4 optimization.
+     * @param string $name The route name
+     * @param string $routeKey The route key in the $routes array
      *
-     * @param string $route The route pattern (e.g., '/users/:d{1,5}/')
-     * @return string The compiled regex pattern
+     * @throws RuntimeException If a route with the same name is already registered
      */
-    public static function compileRouteRegex(string $route): string
+    private function registerNamedRoute(string $name, string $routeKey): void
     {
-        $compiled = preg_replace_callback(
-            '/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/',
-            function ($matches) {
-                $regex = (strlen($matches[2] ?? '')) > 0
-                    ? $matches[2]
-                    : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
-                return $regex . ((0 !== strlen($matches[3] ?? '')) ? $matches[3] : '+');
-            },
-            $route
-        );
-        return '/^(' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $compiled) . ')((?:.+)?)/';
-    }
-
-    /**
-     * Parse an HTTP method prefix from a route string.
-     *
-     * Supports the syntax "METHOD /path" where METHOD is a valid HTTP method.
-     * Returns an array of [method, cleanRoute]. If no method prefix is found,
-     * returns ['*', originalRoute].
-     *
-     * Examples:
-     *   'GET /users'    → ['GET', '/users']
-     *   'POST /api'     → ['POST', '/api']
-     *   '/users'        → ['*', '/users']
-     *   'GET|POST /api' → ['GET|POST', '/api']
-     *
-     * @param string $route The raw route string
-     * @return array{string, string} [method, cleanRoute]
-     */
-    public static function parseMethodPrefix(string $route): array
-    {
-        $route = trim($route);
-        if (preg_match('/^((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)(?:\|(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS))*)\s+(.+)$/i', $route, $matches)) {
-            return [strtoupper($matches[1]), trim($matches[2])];
+        if (isset($this->namedRoutes[$name]) && $this->namedRoutes[$name] !== $routeKey) {
+            throw new RuntimeException(
+                "Duplicate named route '{$name}'. Already registered to '{$this->namedRoutes[$name]}', cannot re-register to '{$routeKey}'.",
+            );
         }
-        return ['*', $route];
+        $this->namedRoutes[$name] = $routeKey;
     }
 }

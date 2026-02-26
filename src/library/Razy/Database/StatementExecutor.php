@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -20,18 +21,20 @@ use Throwable;
  * providing a clean interface for query execution, view creation, and parameter merging.
  *
  * @package Razy\Database
+ *
  * @license MIT
  */
 class StatementExecutor
 {
     /**
-     * @param Database  $database  The database connection instance
+     * @param Database $database The database connection instance
      * @param Statement $statement The statement to execute
      */
     public function __construct(
         private readonly Database $database,
         private readonly Statement $statement,
-    ) {}
+    ) {
+    }
 
     /**
      * Execute the statement and return the Query instance for row-by-row fetching.
@@ -40,11 +43,12 @@ class StatementExecutor
      * @param array $parameters Optional parameters to merge before execution
      *
      * @return Query The query result wrapper for fetching rows
+     *
      * @throws Throwable If execution fails
      */
     public function query(array $parameters = []): Query
     {
-        if (count($parameters)) {
+        if (\count($parameters)) {
             $this->statement->mergeParameters($parameters);
         }
 
@@ -55,15 +59,16 @@ class StatementExecutor
      * Create a database view from the parent SELECT statement.
      *
      * @param string $viewTableName The name for the new view
-     * @param array  $parameters    Optional parameters to merge into the statement
+     * @param array $parameters Optional parameters to merge into the statement
      *
      * @return bool True if the view was created successfully
+     *
      * @throws Error
      * @throws Throwable
      */
     public function createViewTable(string $viewTableName, array $parameters = []): bool
     {
-        if (count($parameters)) {
+        if (\count($parameters)) {
             $this->statement->mergeParameters($parameters);
         }
 

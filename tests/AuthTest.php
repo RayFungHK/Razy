@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
-use Closure;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -18,6 +17,7 @@ use Razy\Auth\GenericUser;
 use Razy\Auth\Hash;
 use Razy\Contract\AuthenticatableInterface;
 use Razy\Contract\GuardInterface;
+use RuntimeException;
 
 // ─── Fixture: Simple Post class for policy tests ─────────────────
 
@@ -27,7 +27,8 @@ class AuthTestPost
         public readonly int $id,
         public readonly int $authorId,
         public readonly string $title = 'Test Post',
-    ) {}
+    ) {
+    }
 }
 
 // ─── Fixture: Post Policy ────────────────────────────────────────
@@ -230,7 +231,7 @@ class AuthTest extends TestCase
     public function testCallbackGuardWithUserResolver(): void
     {
         $user = new GenericUser(['id' => 5, 'name' => 'Charlie']);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
 
         $this->assertTrue($guard->check());
         $this->assertFalse($guard->guest());
@@ -258,7 +259,7 @@ class AuthTest extends TestCase
 
     public function testCallbackGuardResolverReturnsNull(): void
     {
-        $guard = new CallbackGuard(userResolver: fn() => null);
+        $guard = new CallbackGuard(userResolver: fn () => null);
 
         $this->assertFalse($guard->check());
         $this->assertTrue($guard->guest());
@@ -281,7 +282,7 @@ class AuthTest extends TestCase
         $resolverUser = new GenericUser(['id' => 1]);
         $manualUser = new GenericUser(['id' => 99]);
 
-        $guard = new CallbackGuard(userResolver: fn() => $resolverUser);
+        $guard = new CallbackGuard(userResolver: fn () => $resolverUser);
         $guard->setUser($manualUser);
 
         // setUser marks resolved=true, so resolver won't be called
@@ -292,7 +293,7 @@ class AuthTest extends TestCase
     public function testCallbackGuardValidate(): void
     {
         $guard = new CallbackGuard(
-            credentialValidator: fn(array $creds) => $creds['password'] === 'correct'
+            credentialValidator: fn (array $creds) => $creds['password'] === 'correct',
         );
 
         $this->assertTrue($guard->validate(['password' => 'correct']));
@@ -422,7 +423,7 @@ class AuthTest extends TestCase
     public function testAuthManagerDelegatesCheck(): void
     {
         $user = new GenericUser(['id' => 1]);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
         $auth = new AuthManager(['default' => $guard]);
 
         $this->assertTrue($auth->check());
@@ -432,7 +433,7 @@ class AuthTest extends TestCase
     public function testAuthManagerDelegatesUser(): void
     {
         $user = new GenericUser(['id' => 42]);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
         $auth = new AuthManager(['default' => $guard]);
 
         $this->assertSame($user, $auth->user());
@@ -442,7 +443,7 @@ class AuthTest extends TestCase
     public function testAuthManagerDelegatesValidate(): void
     {
         $guard = new CallbackGuard(
-            credentialValidator: fn(array $c) => $c['key'] === 'valid'
+            credentialValidator: fn (array $c) => $c['key'] === 'valid',
         );
         $auth = new AuthManager(['default' => $guard]);
 
@@ -467,8 +468,8 @@ class AuthTest extends TestCase
         $apiUser = new GenericUser(['id' => 2, 'name' => 'APIUser']);
 
         $auth = new AuthManager([
-            'web' => new CallbackGuard(userResolver: fn() => $webUser),
-            'api' => new CallbackGuard(userResolver: fn() => $apiUser),
+            'web' => new CallbackGuard(userResolver: fn () => $webUser),
+            'api' => new CallbackGuard(userResolver: fn () => $apiUser),
         ], 'web');
 
         // Default (web) guard
@@ -503,31 +504,10 @@ class AuthTest extends TestCase
         $this->assertSame('b', $auth->getDefaultGuard());
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Section 5: Gate — Basic Abilities
-    // ═══════════════════════════════════════════════════════════════
-
-    private function createAuthenticatedGate(GenericUser $user = null): Gate
-    {
-        $user ??= new GenericUser(['id' => 1, 'name' => 'Admin']);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
-        $auth = new AuthManager(['default' => $guard]);
-
-        return new Gate($auth);
-    }
-
-    private function createGuestGate(): Gate
-    {
-        $guard = new CallbackGuard(); // no resolver = guest
-        $auth = new AuthManager(['default' => $guard]);
-
-        return new Gate($auth);
-    }
-
     public function testGateDefineAndAllow(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('create-post', fn(AuthenticatableInterface $user) => true);
+        $gate->define('create-post', fn (AuthenticatableInterface $user) => true);
 
         $this->assertTrue($gate->allows('create-post'));
     }
@@ -535,7 +515,7 @@ class AuthTest extends TestCase
     public function testGateDefineAndDeny(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('delete-all', fn(AuthenticatableInterface $user) => false);
+        $gate->define('delete-all', fn (AuthenticatableInterface $user) => false);
 
         $this->assertTrue($gate->denies('delete-all'));
         $this->assertFalse($gate->allows('delete-all'));
@@ -552,7 +532,7 @@ class AuthTest extends TestCase
     public function testGateGuestAlwaysDenied(): void
     {
         $gate = $this->createGuestGate();
-        $gate->define('anything', fn(AuthenticatableInterface $user) => true);
+        $gate->define('anything', fn (AuthenticatableInterface $user) => true);
 
         $this->assertFalse($gate->allows('anything'));
     }
@@ -574,7 +554,7 @@ class AuthTest extends TestCase
     public function testGateHasAbility(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('fly', fn() => true);
+        $gate->define('fly', fn () => true);
 
         $this->assertTrue($gate->has('fly'));
         $this->assertFalse($gate->has('swim'));
@@ -583,9 +563,9 @@ class AuthTest extends TestCase
     public function testGateAbilities(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('a', fn() => true);
-        $gate->define('b', fn() => true);
-        $gate->define('c', fn() => true);
+        $gate->define('a', fn () => true);
+        $gate->define('b', fn () => true);
+        $gate->define('c', fn () => true);
 
         $abilities = $gate->abilities();
         $this->assertCount(3, $abilities);
@@ -598,7 +578,7 @@ class AuthTest extends TestCase
     {
         $gate = $this->createAuthenticatedGate();
 
-        $result = $gate->define('x', fn() => true);
+        $result = $gate->define('x', fn () => true);
         $this->assertSame($gate, $result);
     }
 
@@ -609,9 +589,9 @@ class AuthTest extends TestCase
     public function testGateCheckAllAbilities(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('read', fn() => true);
-        $gate->define('write', fn() => true);
-        $gate->define('delete', fn() => false);
+        $gate->define('read', fn () => true);
+        $gate->define('write', fn () => true);
+        $gate->define('delete', fn () => false);
 
         $this->assertTrue($gate->check(['read', 'write']));
         $this->assertFalse($gate->check(['read', 'delete']));
@@ -620,9 +600,9 @@ class AuthTest extends TestCase
     public function testGateAny(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('read', fn() => true);
-        $gate->define('write', fn() => false);
-        $gate->define('delete', fn() => false);
+        $gate->define('read', fn () => true);
+        $gate->define('write', fn () => false);
+        $gate->define('delete', fn () => false);
 
         $this->assertTrue($gate->any(['read', 'write']));
         $this->assertFalse($gate->any(['write', 'delete']));
@@ -631,8 +611,8 @@ class AuthTest extends TestCase
     public function testGateNone(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('read', fn() => false);
-        $gate->define('write', fn() => false);
+        $gate->define('read', fn () => false);
+        $gate->define('write', fn () => false);
 
         $this->assertTrue($gate->none(['read', 'write']));
     }
@@ -640,8 +620,8 @@ class AuthTest extends TestCase
     public function testGateNoneFalseWhenOneAllowed(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('read', fn() => true);
-        $gate->define('write', fn() => false);
+        $gate->define('read', fn () => true);
+        $gate->define('write', fn () => false);
 
         $this->assertFalse($gate->none(['read', 'write']));
     }
@@ -653,7 +633,7 @@ class AuthTest extends TestCase
     public function testGateAuthorizeSuccess(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('allowed', fn() => true);
+        $gate->define('allowed', fn () => true);
 
         // Should not throw
         $gate->authorize('allowed');
@@ -663,7 +643,7 @@ class AuthTest extends TestCase
     public function testGateAuthorizeThrowsOnDeny(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('restricted', fn() => false);
+        $gate->define('restricted', fn () => false);
 
         $this->expectException(AccessDeniedException::class);
         $this->expectExceptionMessage('restricted');
@@ -673,7 +653,7 @@ class AuthTest extends TestCase
     public function testGateAuthorizeThrowsForGuest(): void
     {
         $gate = $this->createGuestGate();
-        $gate->define('anything', fn() => true);
+        $gate->define('anything', fn () => true);
 
         $this->expectException(AccessDeniedException::class);
         $gate->authorize('anything');
@@ -751,8 +731,8 @@ class AuthTest extends TestCase
     public function testGateBeforeAllowsAll(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('restricted', fn() => false);
-        $gate->before(fn() => true); // override: always allow
+        $gate->define('restricted', fn () => false);
+        $gate->before(fn () => true); // override: always allow
 
         $this->assertTrue($gate->allows('restricted'));
     }
@@ -760,8 +740,8 @@ class AuthTest extends TestCase
     public function testGateBeforeDeniesAll(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('allowed', fn() => true);
-        $gate->before(fn() => false); // override: always deny
+        $gate->define('allowed', fn () => true);
+        $gate->before(fn () => false); // override: always deny
 
         $this->assertFalse($gate->allows('allowed'));
     }
@@ -769,8 +749,8 @@ class AuthTest extends TestCase
     public function testGateBeforeNullProceedsNormally(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('check', fn() => true);
-        $gate->before(fn() => null); // null = proceed to normal check
+        $gate->define('check', fn () => true);
+        $gate->before(fn () => null); // null = proceed to normal check
 
         $this->assertTrue($gate->allows('check'));
     }
@@ -778,7 +758,7 @@ class AuthTest extends TestCase
     public function testGateAfterCanOverride(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('check', fn() => false);
+        $gate->define('check', fn () => false);
 
         // After callback overrides the result
         $gate->after(function (AuthenticatableInterface $user, string $ability, bool $result) {
@@ -791,8 +771,8 @@ class AuthTest extends TestCase
     public function testGateAfterNullKeepsResult(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('check', fn() => true);
-        $gate->after(fn() => null); // null = no override
+        $gate->define('check', fn () => true);
+        $gate->after(fn () => null); // null = no override
 
         $this->assertTrue($gate->allows('check'));
     }
@@ -806,9 +786,8 @@ class AuthTest extends TestCase
         $gate->before(function (AuthenticatableInterface $user, string $ability, array $args) use (&$receivedAbility, &$receivedArgs) {
             $receivedAbility = $ability;
             $receivedArgs = $args;
-            return null;
         });
-        $gate->define('test-ability', fn() => true);
+        $gate->define('test-ability', fn () => true);
 
         $post = new AuthTestPost(1, 1);
         $gate->allows('test-ability', $post);
@@ -828,7 +807,7 @@ class AuthTest extends TestCase
         $otherUser = new GenericUser(['id' => 99]);
 
         $gate = $this->createAuthenticatedGate($currentUser);
-        $gate->define('is-admin', fn(AuthenticatableInterface $user) => $user->getAuthIdentifier() === 1);
+        $gate->define('is-admin', fn (AuthenticatableInterface $user) => $user->getAuthIdentifier() === 1);
 
         // Current user (id=1) is admin
         $this->assertTrue($gate->allows('is-admin'));
@@ -841,7 +820,7 @@ class AuthTest extends TestCase
     {
         $user = new GenericUser(['id' => 1]);
         $gate = $this->createAuthenticatedGate($user);
-        $gate->define('test', fn(AuthenticatableInterface $u) => $u->getAuthIdentifier() === 1);
+        $gate->define('test', fn (AuthenticatableInterface $u) => $u->getAuthIdentifier() === 1);
 
         $other = new GenericUser(['id' => 2]);
         $scopedGate = $gate->forUser($other);
@@ -856,7 +835,7 @@ class AuthTest extends TestCase
     public function testGateForUserSharesAbilities(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('shared', fn() => true);
+        $gate->define('shared', fn () => true);
 
         $other = new GenericUser(['id' => 2]);
         $scopedGate = $gate->forUser($other);
@@ -889,7 +868,7 @@ class AuthTest extends TestCase
     public function testAccessDeniedExceptionIsRuntimeException(): void
     {
         $e = new AccessDeniedException();
-        $this->assertInstanceOf(\RuntimeException::class, $e);
+        $this->assertInstanceOf(RuntimeException::class, $e);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -899,7 +878,7 @@ class AuthTest extends TestCase
     public function testAuthMiddlewarePassesWhenAuthenticated(): void
     {
         $user = new GenericUser(['id' => 1]);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
         $auth = new AuthManager(['default' => $guard]);
 
         $middleware = new AuthMiddleware($auth);
@@ -935,7 +914,7 @@ class AuthTest extends TestCase
     {
         $webUser = new GenericUser(['id' => 1]);
         $auth = new AuthManager([
-            'web' => new CallbackGuard(userResolver: fn() => $webUser),
+            'web' => new CallbackGuard(userResolver: fn () => $webUser),
             'api' => new CallbackGuard(), // no user
         ]);
 
@@ -975,7 +954,7 @@ class AuthTest extends TestCase
         });
 
         $context = ['url_query' => '/protected'];
-        $result = $middleware->handle($context, fn() => 'should_not_reach');
+        $result = $middleware->handle($context, fn () => 'should_not_reach');
 
         $this->assertTrue($handlerCalled);
         $this->assertSame($context, $receivedContext);
@@ -997,7 +976,7 @@ class AuthTest extends TestCase
     public function testAuthorizeMiddlewarePassesWhenAllowed(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('manage', fn() => true);
+        $gate->define('manage', fn () => true);
 
         $middleware = new AuthorizeMiddleware($gate, 'manage');
         $called = false;
@@ -1014,7 +993,7 @@ class AuthTest extends TestCase
     public function testAuthorizeMiddlewareBlocksWhenDenied(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('admin', fn() => false);
+        $gate->define('admin', fn () => false);
 
         $middleware = new AuthorizeMiddleware($gate, 'admin');
         $called = false;
@@ -1037,7 +1016,7 @@ class AuthTest extends TestCase
 
         // Argument resolver extracts the post from context
         $post = new AuthTestPost(1, 5); // owned by user 5
-        $middleware = new AuthorizeMiddleware($gate, 'edit-post', fn(array $ctx) => [$post]);
+        $middleware = new AuthorizeMiddleware($gate, 'edit-post', fn (array $ctx) => [$post]);
 
         $called = false;
         $middleware->handle([], function () use (&$called) {
@@ -1057,7 +1036,7 @@ class AuthTest extends TestCase
 
         // Post NOT owned by user 5
         $post = new AuthTestPost(1, 99);
-        $middleware = new AuthorizeMiddleware($gate, 'edit-post', fn(array $ctx) => [$post]);
+        $middleware = new AuthorizeMiddleware($gate, 'edit-post', fn (array $ctx) => [$post]);
 
         $called = false;
         $middleware->handle([], function () use (&$called) {
@@ -1070,7 +1049,7 @@ class AuthTest extends TestCase
     public function testAuthorizeMiddlewareCustomForbiddenHandler(): void
     {
         $gate = $this->createAuthenticatedGate();
-        $gate->define('restricted', fn() => false);
+        $gate->define('restricted', fn () => false);
 
         $handlerCalled = false;
         $middleware = new AuthorizeMiddleware(
@@ -1079,10 +1058,10 @@ class AuthTest extends TestCase
             onForbidden: function (array $ctx) use (&$handlerCalled) {
                 $handlerCalled = true;
                 return 'forbidden_response';
-            }
+            },
         );
 
-        $result = $middleware->handle([], fn() => 'should_not_reach');
+        $result = $middleware->handle([], fn () => 'should_not_reach');
 
         $this->assertTrue($handlerCalled);
         $this->assertSame('forbidden_response', $result);
@@ -1096,7 +1075,7 @@ class AuthTest extends TestCase
         });
 
         // Return non-array — should be wrapped
-        $middleware = new AuthorizeMiddleware($gate, 'view', fn(array $ctx) => 'allowed');
+        $middleware = new AuthorizeMiddleware($gate, 'view', fn (array $ctx) => 'allowed');
         $called = false;
 
         $middleware->handle([], function () use (&$called) {
@@ -1128,7 +1107,7 @@ class AuthTest extends TestCase
         // 2. Set up guard with credential validation
         $users = [$admin, $user];
         $guard = new CallbackGuard(
-            userResolver: fn() => null, // no one logged in initially
+            userResolver: fn () => null, // no one logged in initially
             credentialValidator: function (array $creds) use ($users) {
                 foreach ($users as $u) {
                     if ($u->getAttribute('name') === $creds['name'] && Hash::check($creds['password'], $u->getAuthPassword())) {
@@ -1136,7 +1115,7 @@ class AuthTest extends TestCase
                     }
                 }
                 return false;
-            }
+            },
         );
 
         // 3. Set up auth manager
@@ -1157,8 +1136,8 @@ class AuthTest extends TestCase
 
         // 7. Set up gate with abilities
         $gate = new Gate($auth);
-        $gate->define('manage-users', fn(AuthenticatableInterface $u) => $u->getAttribute('role') === 'admin');
-        $gate->define('create-post', fn() => true);
+        $gate->define('manage-users', fn (AuthenticatableInterface $u) => $u->getAttribute('role') === 'admin');
+        $gate->define('create-post', fn () => true);
 
         // 8. Admin can manage users
         $this->assertTrue($gate->allows('manage-users'));
@@ -1181,12 +1160,12 @@ class AuthTest extends TestCase
     {
         // Set up authenticated user
         $user = new GenericUser(['id' => 1, 'role' => 'admin']);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
         $auth = new AuthManager(['default' => $guard]);
 
         // Set up gate
         $gate = new Gate($auth);
-        $gate->define('admin-panel', fn(AuthenticatableInterface $u) => $u->getAttribute('role') === 'admin');
+        $gate->define('admin-panel', fn (AuthenticatableInterface $u) => $u->getAttribute('role') === 'admin');
 
         // Create middleware chain (manual pipeline simulation)
         $authMiddleware = new AuthMiddleware($auth);
@@ -1211,7 +1190,7 @@ class AuthTest extends TestCase
         // Guest (not authenticated)
         $auth = new AuthManager(['default' => new CallbackGuard()]);
         $gate = new Gate($auth);
-        $gate->define('anything', fn() => true);
+        $gate->define('anything', fn () => true);
 
         $authMiddleware = new AuthMiddleware($auth);
         $authorizeMiddleware = new AuthorizeMiddleware($gate, 'anything');
@@ -1232,11 +1211,11 @@ class AuthTest extends TestCase
     {
         // Authenticated but unauthorized
         $user = new GenericUser(['id' => 1, 'role' => 'user']);
-        $guard = new CallbackGuard(userResolver: fn() => $user);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
         $auth = new AuthManager(['default' => $guard]);
 
         $gate = new Gate($auth);
-        $gate->define('admin-only', fn(AuthenticatableInterface $u) => $u->getAttribute('role') === 'admin');
+        $gate->define('admin-only', fn (AuthenticatableInterface $u) => $u->getAttribute('role') === 'admin');
 
         $authMiddleware = new AuthMiddleware($auth);
         $authorizeMiddleware = new AuthorizeMiddleware($gate, 'admin-only');
@@ -1252,5 +1231,26 @@ class AuthTest extends TestCase
         // Auth passes, but authorization blocks
         $this->assertFalse($handlerExecuted);
         $this->assertNull($result);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Section 5: Gate — Basic Abilities
+    // ═══════════════════════════════════════════════════════════════
+
+    private function createAuthenticatedGate(GenericUser $user = null): Gate
+    {
+        $user ??= new GenericUser(['id' => 1, 'name' => 'Admin']);
+        $guard = new CallbackGuard(userResolver: fn () => $user);
+        $auth = new AuthManager(['default' => $guard]);
+
+        return new Gate($auth);
+    }
+
+    private function createGuestGate(): Gate
+    {
+        $guard = new CallbackGuard(); // no resolver = guest
+        $auth = new AuthManager(['default' => $guard]);
+
+        return new Gate($auth);
     }
 }

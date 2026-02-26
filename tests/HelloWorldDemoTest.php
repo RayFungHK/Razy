@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for the Hello World minimal demo module.
  *
@@ -6,6 +7,7 @@
  * and route handler — ensuring the demo stays minimal and correct.
  *
  * @package Razy\Tests
+ *
  * @license MIT
  */
 
@@ -16,6 +18,8 @@ namespace Razy\Tests;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 #[CoversNothing]
 class HelloWorldDemoTest extends TestCase
@@ -25,7 +29,7 @@ class HelloWorldDemoTest extends TestCase
     protected function setUp(): void
     {
         // demo_modules/demo/hello_world relative to project root
-        $this->moduleRoot = dirname(__DIR__)
+        $this->moduleRoot = \dirname(__DIR__)
             . DIRECTORY_SEPARATOR . 'demo_modules'
             . DIRECTORY_SEPARATOR . 'demo'
             . DIRECTORY_SEPARATOR . 'hello_world';
@@ -55,7 +59,7 @@ class HelloWorldDemoTest extends TestCase
     public function controllerFileExists(): void
     {
         $this->assertFileExists(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
     }
 
@@ -63,7 +67,7 @@ class HelloWorldDemoTest extends TestCase
     public function indexHandlerFileExists(): void
     {
         $this->assertFileExists(
-            $this->moduleRoot . '/default/controller/hello_world.index.php'
+            $this->moduleRoot . '/default/controller/hello_world.index.php',
         );
     }
 
@@ -98,7 +102,7 @@ class HelloWorldDemoTest extends TestCase
         $result = require $this->moduleRoot . '/module.php';
         $this->assertMatchesRegularExpression(
             '/^\d+\.\d+\.\d+$/',
-            $result['version']
+            $result['version'],
         );
     }
 
@@ -131,8 +135,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function controllerExtendsControllerClass(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         $this->assertStringContainsString('extends Controller', $source);
     }
@@ -140,8 +144,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function controllerHasOnInit(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         $this->assertStringContainsString('__onInit', $source);
     }
@@ -149,8 +153,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function controllerRegistersIndexRoute(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         $this->assertStringContainsString("addRoute('/', 'index')", $source);
     }
@@ -158,8 +162,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function controllerHasNoEventRegistration(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         // No events — this is a minimal module
         $this->assertStringNotContainsString('listen(', $source);
@@ -169,8 +173,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function controllerHasNoApiRegistration(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         $this->assertStringNotContainsString('addAPI(', $source);
         $this->assertStringNotContainsString('addAPICommand(', $source);
@@ -179,8 +183,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function controllerHasNoTemplateUsage(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         $this->assertStringNotContainsString('loadTemplate(', $source);
         $this->assertStringNotContainsString('Template::', $source);
@@ -191,8 +195,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function indexHandlerReturnsClosure(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.index.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.index.php',
         );
         $this->assertStringContainsString('return function', $source);
     }
@@ -200,8 +204,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function indexHandlerOutputsHelloWorld(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.index.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.index.php',
         );
         $this->assertStringContainsString('Hello, World!', $source);
     }
@@ -210,8 +214,8 @@ class HelloWorldDemoTest extends TestCase
     public function indexHandlerIsMinimal(): void
     {
         // The handler file should be very short (< 30 lines)
-        $lines = file($this->moduleRoot . '/default/controller/hello_world.index.php');
-        $this->assertLessThan(30, count($lines), 'Handler should be minimal');
+        $lines = \file($this->moduleRoot . '/default/controller/hello_world.index.php');
+        $this->assertLessThan(30, \count($lines), 'Handler should be minimal');
     }
 
     // ── Minimality: only 4 files ────────────────────────────────
@@ -220,11 +224,11 @@ class HelloWorldDemoTest extends TestCase
     public function moduleHasExactlyFourFiles(): void
     {
         $files = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator(
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
                 $this->moduleRoot,
-                \RecursiveDirectoryIterator::SKIP_DOTS
-            )
+                RecursiveDirectoryIterator::SKIP_DOTS,
+            ),
         );
         foreach ($iterator as $file) {
             if ($file->isFile()) {
@@ -239,15 +243,15 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function modulePhpHasComments(): void
     {
-        $source = file_get_contents($this->moduleRoot . '/module.php');
+        $source = \file_get_contents($this->moduleRoot . '/module.php');
         $this->assertStringContainsString('/*', $source);
     }
 
     #[Test]
     public function controllerHasComments(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.php',
         );
         $this->assertStringContainsString('/*', $source);
     }
@@ -255,8 +259,8 @@ class HelloWorldDemoTest extends TestCase
     #[Test]
     public function handlerHasComments(): void
     {
-        $source = file_get_contents(
-            $this->moduleRoot . '/default/controller/hello_world.index.php'
+        $source = \file_get_contents(
+            $this->moduleRoot . '/default/controller/hello_world.index.php',
         );
         $this->assertStringContainsString('/*', $source);
     }
@@ -267,7 +271,7 @@ class HelloWorldDemoTest extends TestCase
     public function noViewDirectoryExists(): void
     {
         $this->assertDirectoryDoesNotExist(
-            $this->moduleRoot . '/default/view'
+            $this->moduleRoot . '/default/view',
         );
     }
 
@@ -275,7 +279,7 @@ class HelloWorldDemoTest extends TestCase
     public function noTemplateDirectoryExists(): void
     {
         $this->assertDirectoryDoesNotExist(
-            $this->moduleRoot . '/default/template'
+            $this->moduleRoot . '/default/template',
         );
     }
 }

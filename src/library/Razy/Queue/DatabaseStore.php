@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -35,13 +36,14 @@ class DatabaseStore implements QueueStoreInterface
     public const TABLE_NAME = 'razy_jobs';
 
     /**
-     * @param Database $database  The database connection
-     * @param string   $tableName Custom table name (without prefix)
+     * @param Database $database The database connection
+     * @param string $tableName Custom table name (without prefix)
      */
     public function __construct(
         private readonly Database $database,
         private readonly string $tableName = self::TABLE_NAME,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}
@@ -55,9 +57,9 @@ class DatabaseStore implements QueueStoreInterface
         int $retryDelay = 0,
         int $priority = 100,
     ): int|string {
-        $now = date('Y-m-d H:i:s');
+        $now = \date('Y-m-d H:i:s');
         $availableAt = $delay > 0
-            ? date('Y-m-d H:i:s', time() + $delay)
+            ? \date('Y-m-d H:i:s', \time() + $delay)
             : $now;
 
         $this->database->execute(
@@ -68,7 +70,7 @@ class DatabaseStore implements QueueStoreInterface
             ])->assign([
                 'queue' => $queue,
                 'handler' => $handler,
-                'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+                'payload' => \json_encode($payload, JSON_THROW_ON_ERROR),
                 'status' => JobStatus::Pending->value,
                 'attempts' => 0,
                 'max_attempts' => $maxAttempts,
@@ -76,7 +78,7 @@ class DatabaseStore implements QueueStoreInterface
                 'priority' => $priority,
                 'available_at' => $availableAt,
                 'created_at' => $now,
-            ])
+            ]),
         );
 
         return (int) $this->database->lastID();
@@ -87,7 +89,7 @@ class DatabaseStore implements QueueStoreInterface
      */
     public function reserve(string $queue): ?Job
     {
-        $now = date('Y-m-d H:i:s');
+        $now = \date('Y-m-d H:i:s');
 
         // SELECT next available pending job
         $row = $this->database->prepare()
@@ -116,7 +118,7 @@ class DatabaseStore implements QueueStoreInterface
                     'reserved_at' => $now,
                     'id' => $row['id'],
                     'old_status' => JobStatus::Pending->value,
-                ])
+                ]),
         );
 
         $job = Job::fromArray($row);
@@ -140,8 +142,8 @@ class DatabaseStore implements QueueStoreInterface
     public function release(int|string $jobId, int $retryDelay = 0, string $error = ''): void
     {
         $availableAt = $retryDelay > 0
-            ? date('Y-m-d H:i:s', time() + $retryDelay)
-            : date('Y-m-d H:i:s');
+            ? \date('Y-m-d H:i:s', \time() + $retryDelay)
+            : \date('Y-m-d H:i:s');
 
         $this->database->execute(
             $this->database->update($this->tableName, ['status', 'available_at', 'reserved_at', 'error'])
@@ -152,7 +154,7 @@ class DatabaseStore implements QueueStoreInterface
                     'reserved_at' => null,
                     'error' => $error,
                     'id' => $jobId,
-                ])
+                ]),
         );
     }
 
@@ -168,7 +170,7 @@ class DatabaseStore implements QueueStoreInterface
                     'status' => JobStatus::Buried->value,
                     'error' => $error,
                     'id' => $jobId,
-                ])
+                ]),
         );
     }
 
@@ -178,7 +180,7 @@ class DatabaseStore implements QueueStoreInterface
     public function delete(int|string $jobId): void
     {
         $this->database->execute(
-            $this->database->delete($this->tableName, ['id' => $jobId])
+            $this->database->delete($this->tableName, ['id' => $jobId]),
         );
     }
 
@@ -238,7 +240,7 @@ class DatabaseStore implements QueueStoreInterface
                 $this->database->delete($this->tableName, [
                     'queue' => $queue,
                     'status' => [JobStatus::Completed->value, JobStatus::Buried->value],
-                ])
+                ]),
             );
         }
 
@@ -329,7 +331,7 @@ class DatabaseStore implements QueueStoreInterface
                 ->assign([
                     'status' => $status->value,
                     'id' => $jobId,
-                ])
+                ]),
         );
     }
 }

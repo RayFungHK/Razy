@@ -9,13 +9,16 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\ORM;
 
+use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
+use JsonException;
 use Razy\Database;
 use Razy\Exception\ModelNotFoundException;
 use Razy\ORM\Relation\BelongsTo;
@@ -23,6 +26,9 @@ use Razy\ORM\Relation\BelongsToMany;
 use Razy\ORM\Relation\HasMany;
 use Razy\ORM\Relation\HasOne;
 use Razy\ORM\Relation\Relation;
+use ReflectionClass;
+use ReflectionMethod;
+use RuntimeException;
 
 /**
  * Abstract Active Record base class.
@@ -116,6 +122,46 @@ abstract class Model
     protected static array $visible = [];
 
     // -----------------------------------------------------------------------
+    //  Boot & Global Scopes (class-level, stored per concrete class)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Registry of global scopes keyed by [className][scopeName].
+     *
+     * Global scopes are automatically applied to every SELECT query built
+     * through `ModelQuery`.  They can be removed per-query with
+     * `withoutGlobalScope()` / `withoutGlobalScopes()`.
+     *
+     * @var array<class-string, array<string, Closure>>
+     */
+    private static array $globalScopes = [];
+
+    /**
+     * Tracks which concrete model classes have been booted.
+     *
+     * @var array<class-string, true>
+     */
+    private static array $booted = [];
+
+    /**
+     * Registered model event listeners keyed by [className][eventName].
+     *
+     * Supported events:
+     * - `creating` / `created`   — INSERT operations
+     * - `updating` / `updated`   — UPDATE operations
+     * - `saving`   / `saved`     — any persistence (INSERT or UPDATE)
+     * - `deleting`  / `deleted`  — DELETE (soft or hard)
+     * - `restoring` / `restored` — SoftDeletes restore
+     *
+     * "Before" events (`creating`, `updating`, `saving`, `deleting`,
+     * `restoring`) can return `false` from any listener to cancel the
+     * operation.
+     *
+     * @var array<class-string, array<string, list<Closure>>>
+     */
+    private static array $events = [];
+
+    // -----------------------------------------------------------------------
     //  Instance state
     // -----------------------------------------------------------------------
 
@@ -151,46 +197,6 @@ abstract class Model
     private array $relationCache = [];
 
     // -----------------------------------------------------------------------
-    //  Boot & Global Scopes (class-level, stored per concrete class)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Registry of global scopes keyed by [className][scopeName].
-     *
-     * Global scopes are automatically applied to every SELECT query built
-     * through `ModelQuery`.  They can be removed per-query with
-     * `withoutGlobalScope()` / `withoutGlobalScopes()`.
-     *
-     * @var array<class-string, array<string, \Closure>>
-     */
-    private static array $globalScopes = [];
-
-    /**
-     * Tracks which concrete model classes have been booted.
-     *
-     * @var array<class-string, true>
-     */
-    private static array $booted = [];
-
-    /**
-     * Registered model event listeners keyed by [className][eventName].
-     *
-     * Supported events:
-     * - `creating` / `created`   — INSERT operations
-     * - `updating` / `updated`   — UPDATE operations
-     * - `saving`   / `saved`     — any persistence (INSERT or UPDATE)
-     * - `deleting`  / `deleted`  — DELETE (soft or hard)
-     * - `restoring` / `restored` — SoftDeletes restore
-     *
-     * "Before" events (`creating`, `updating`, `saving`, `deleting`,
-     * `restoring`) can return `false` from any listener to cancel the
-     * operation.
-     *
-     * @var array<class-string, array<string, list<\Closure>>>
-     */
-    private static array $events = [];
-
-    // -----------------------------------------------------------------------
     //  Construction
     // -----------------------------------------------------------------------
 
@@ -202,11 +208,80 @@ abstract class Model
         $this->fill($attributes);
     }
 
+    // -----------------------------------------------------------------------
+    //  Attribute access
+    // -----------------------------------------------------------------------
+
+    /**
+     * Get an attribute value, with accessor and casting applied.
+     *
+     * Resolution order:
+     * 1. Relationship method (e.g. `posts()` → resolves relation)
+     * 2. Accessor method `get{StudlyName}Attribute($rawValue)`
+     * 3. Cast via `$casts` configuration
+     */
+    public function __get(string $name): mixed
+    {
+        // Check if a relationship method exists (must accept 0 arguments)
+        if (\method_exists($this, $name)) {
+            $ref = new ReflectionMethod($this, $name);
+            if ($ref->getNumberOfRequiredParameters() === 0 && !$ref->isStatic()) {
+                return $this->resolveRelation($name);
+            }
+        }
+
+        // Check for an accessor: getNameAttribute()
+        $accessor = 'get' . self::studly($name) . 'Attribute';
+        if (\method_exists($this, $accessor)) {
+            return $this->{$accessor}($this->attributes[$name] ?? null);
+        }
+
+        if (!\array_key_exists($name, $this->attributes)) {
+            return null;
+        }
+
+        return $this->castGet($name, $this->attributes[$name]);
+    }
+
+    /**
+     * Set an attribute value, with mutator support.
+     *
+     * If a mutator `set{StudlyName}Attribute($value)` exists on the model,
+     * it is called instead of the default cast-and-store logic.
+     */
+    public function __set(string $name, mixed $value): void
+    {
+        $mutator = 'set' . self::studly($name) . 'Attribute';
+        if (\method_exists($this, $mutator)) {
+            $this->{$mutator}($value);
+
+            return;
+        }
+
+        $this->attributes[$name] = $this->castSet($name, $value);
+    }
+
+    /**
+     * Check if an attribute is set.
+     */
+    public function __isset(string $name): bool
+    {
+        return \array_key_exists($name, $this->attributes) || \method_exists($this, $name);
+    }
+
+    /**
+     * Unset an attribute.
+     */
+    public function __unset(string $name): void
+    {
+        unset($this->attributes[$name]);
+    }
+
     /**
      * Hydrate a model from a database row (marks it as existing).
      *
-     * @param array<string, mixed> $row       Raw database row
-     * @param Database             $database  Database connection
+     * @param array<string, mixed> $row Raw database row
+     * @param Database $database Database connection
      *
      * @return static
      */
@@ -258,10 +333,10 @@ abstract class Model
      * }
      * ```
      *
-     * @param string   $name  Unique scope identifier
-     * @param \Closure $scope Receives a ModelQuery instance
+     * @param string $name Unique scope identifier
+     * @param Closure $scope Receives a ModelQuery instance
      */
-    public static function addGlobalScope(string $name, \Closure $scope): void
+    public static function addGlobalScope(string $name, Closure $scope): void
     {
         self::$globalScopes[static::class][$name] = $scope;
     }
@@ -277,81 +352,11 @@ abstract class Model
     /**
      * Get all global scopes registered for this model class.
      *
-     * @return array<string, \Closure>
+     * @return array<string, Closure>
      */
     public static function getGlobalScopes(): array
     {
         return self::$globalScopes[static::class] ?? [];
-    }
-
-    /**
-     * Override in subclasses to register global scopes or perform
-     * other one-time class-level setup.
-     *
-     * Called exactly once per concrete class, on the first `query()` call.
-     */
-    protected static function boot(): void
-    {
-        // Override in subclasses
-    }
-
-    /**
-     * Ensure `boot()` has been called for the current concrete class.
-     */
-    private static function bootIfNotBooted(): void
-    {
-        if (!isset(self::$booted[static::class])) {
-            self::$booted[static::class] = true;
-            static::boot();
-            static::bootTraits();
-        }
-    }
-
-    /**
-     * Call `boot{TraitName}()` for each trait used by this model.
-     *
-     * This allows traits like `SoftDeletes` to register global scopes
-     * or do other one-time setup via `bootSoftDeletes()`.
-     */
-    private static function bootTraits(): void
-    {
-        $traits = static::collectTraits(static::class);
-
-        foreach ($traits as $trait) {
-            $method = 'boot' . (new \ReflectionClass($trait))->getShortName();
-
-            if (method_exists(static::class, $method)) {
-                static::{$method}();
-            }
-        }
-    }
-
-    /**
-     * Recursively collect all traits used by a class and its parents.
-     *
-     * @return list<class-string>
-     */
-    private static function collectTraits(string $class): array
-    {
-        $traits = [];
-
-        foreach (class_uses($class) ?: [] as $trait) {
-            $traits[] = $trait;
-            // Also collect traits used by traits
-            foreach (static::collectTraits($trait) as $nested) {
-                $traits[] = $nested;
-            }
-        }
-
-        // Also collect traits from parent classes
-        $parent = get_parent_class($class);
-        if ($parent) {
-            foreach (static::collectTraits($parent) as $inherited) {
-                $traits[] = $inherited;
-            }
-        }
-
-        return array_unique($traits);
     }
 
     /**
@@ -367,49 +372,11 @@ abstract class Model
         self::$events = [];
     }
 
-    // -----------------------------------------------------------------------
-    //  Model Events API
-    // -----------------------------------------------------------------------
-
-    /**
-     * Register a listener for a model event.
-     *
-     * @param string   $event    Event name (e.g. 'creating', 'updated')
-     * @param \Closure $callback Receives the model instance; return false to cancel "before" events
-     */
-    protected static function registerModelEvent(string $event, \Closure $callback): void
-    {
-        self::$events[static::class][$event][] = $callback;
-    }
-
-    /**
-     * Fire all listeners for a model event.
-     *
-     * @param string $event Event name
-     * @param bool   $halt  If true, return false when any listener returns false ("before" events)
-     *
-     * @return bool False only when $halt is true and a listener returned false
-     */
-    protected function fireModelEvent(string $event, bool $halt = false): bool
-    {
-        $listeners = self::$events[static::class][$event] ?? [];
-
-        foreach ($listeners as $listener) {
-            $result = $listener($this);
-
-            if ($halt && $result === false) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     /**
      * Register a "creating" listener (fires before INSERT).
      * Return false from the callback to cancel the insert.
      */
-    public static function creating(\Closure $callback): void
+    public static function creating(Closure $callback): void
     {
         static::registerModelEvent('creating', $callback);
     }
@@ -417,7 +384,7 @@ abstract class Model
     /**
      * Register a "created" listener (fires after INSERT).
      */
-    public static function created(\Closure $callback): void
+    public static function created(Closure $callback): void
     {
         static::registerModelEvent('created', $callback);
     }
@@ -426,7 +393,7 @@ abstract class Model
      * Register an "updating" listener (fires before UPDATE).
      * Return false from the callback to cancel the update.
      */
-    public static function updating(\Closure $callback): void
+    public static function updating(Closure $callback): void
     {
         static::registerModelEvent('updating', $callback);
     }
@@ -434,7 +401,7 @@ abstract class Model
     /**
      * Register an "updated" listener (fires after UPDATE).
      */
-    public static function updated(\Closure $callback): void
+    public static function updated(Closure $callback): void
     {
         static::registerModelEvent('updated', $callback);
     }
@@ -443,7 +410,7 @@ abstract class Model
      * Register a "saving" listener (fires before INSERT or UPDATE).
      * Return false from the callback to cancel the operation.
      */
-    public static function saving(\Closure $callback): void
+    public static function saving(Closure $callback): void
     {
         static::registerModelEvent('saving', $callback);
     }
@@ -451,7 +418,7 @@ abstract class Model
     /**
      * Register a "saved" listener (fires after INSERT or UPDATE).
      */
-    public static function saved(\Closure $callback): void
+    public static function saved(Closure $callback): void
     {
         static::registerModelEvent('saved', $callback);
     }
@@ -460,7 +427,7 @@ abstract class Model
      * Register a "deleting" listener (fires before DELETE — soft or hard).
      * Return false from the callback to cancel the delete.
      */
-    public static function deleting(\Closure $callback): void
+    public static function deleting(Closure $callback): void
     {
         static::registerModelEvent('deleting', $callback);
     }
@@ -468,7 +435,7 @@ abstract class Model
     /**
      * Register a "deleted" listener (fires after DELETE — soft or hard).
      */
-    public static function deleted(\Closure $callback): void
+    public static function deleted(Closure $callback): void
     {
         static::registerModelEvent('deleted', $callback);
     }
@@ -477,7 +444,7 @@ abstract class Model
      * Register a "restoring" listener (fires before SoftDeletes restore).
      * Return false from the callback to cancel the restore.
      */
-    public static function restoring(\Closure $callback): void
+    public static function restoring(Closure $callback): void
     {
         static::registerModelEvent('restoring', $callback);
     }
@@ -485,7 +452,7 @@ abstract class Model
     /**
      * Register a "restored" listener (fires after SoftDeletes restore).
      */
-    public static function restored(\Closure $callback): void
+    public static function restored(Closure $callback): void
     {
         static::registerModelEvent('restored', $callback);
     }
@@ -559,7 +526,7 @@ abstract class Model
 
         foreach ($ids as $id) {
             $database->execute(
-                $database->delete($table, [$pk => $id])
+                $database->delete($table, [$pk => $id]),
             );
             $count += $database->affectedRows();
         }
@@ -574,9 +541,9 @@ abstract class Model
     /**
      * Find the first model matching the search attributes, or create it.
      *
-     * @param Database             $database Database connection
-     * @param array<string, mixed> $search   Attributes to search by (WHERE conditions)
-     * @param array<string, mixed> $extra    Extra attributes to set only when creating
+     * @param Database $database Database connection
+     * @param array<string, mixed> $search Attributes to search by (WHERE conditions)
+     * @param array<string, mixed> $extra Extra attributes to set only when creating
      *
      * @return static
      */
@@ -588,15 +555,15 @@ abstract class Model
             return $model;
         }
 
-        return static::create($database, array_merge($search, $extra));
+        return static::create($database, \array_merge($search, $extra));
     }
 
     /**
      * Find the first model matching the search attributes, or instantiate a new one (unsaved).
      *
-     * @param Database             $database Database connection
-     * @param array<string, mixed> $search   Attributes to search by (WHERE conditions)
-     * @param array<string, mixed> $extra    Extra attributes to set on the new instance
+     * @param Database $database Database connection
+     * @param array<string, mixed> $search Attributes to search by (WHERE conditions)
+     * @param array<string, mixed> $extra Extra attributes to set on the new instance
      *
      * @return static
      */
@@ -610,7 +577,7 @@ abstract class Model
 
         $instance = new static();
         $instance->database = $database;
-        $instance->fill(array_merge($search, $extra));
+        $instance->fill(\array_merge($search, $extra));
 
         return $instance;
     }
@@ -619,9 +586,9 @@ abstract class Model
      * Find the first model matching the search attributes and update it,
      * or create a new one with the merged attributes.
      *
-     * @param Database             $database Database connection
-     * @param array<string, mixed> $search   Attributes to search by (WHERE conditions)
-     * @param array<string, mixed> $update   Attributes to update (or set on create)
+     * @param Database $database Database connection
+     * @param array<string, mixed> $search Attributes to search by (WHERE conditions)
+     * @param array<string, mixed> $update Attributes to update (or set on create)
      *
      * @return static
      */
@@ -636,7 +603,168 @@ abstract class Model
             return $model;
         }
 
-        return static::create($database, array_merge($search, $update));
+        return static::create($database, \array_merge($search, $update));
+    }
+
+    /**
+     * Get the list of hidden attribute names for this model.
+     *
+     * @return list<string>
+     */
+    public static function getHidden(): array
+    {
+        return static::$hidden;
+    }
+
+    /**
+     * Get the list of visible attribute names for this model.
+     *
+     * @return list<string>
+     */
+    public static function getVisible(): array
+    {
+        return static::$visible;
+    }
+
+    // -----------------------------------------------------------------------
+    //  Meta accessors used by ModelQuery / Relation
+    // -----------------------------------------------------------------------
+
+    /**
+     * Resolve the table name for this model.
+     */
+    public static function resolveTable(): string
+    {
+        if (static::$table !== '') {
+            return static::$table;
+        }
+
+        // Derive from short class name: User → users
+        $shortName = (new ReflectionClass(static::class))->getShortName();
+
+        return \strtolower($shortName) . 's';
+    }
+
+    /**
+     * Get the primary key column name.
+     */
+    public static function getPrimaryKeyName(): string
+    {
+        return static::$primaryKey;
+    }
+
+    /**
+     * Override in subclasses to register global scopes or perform
+     * other one-time class-level setup.
+     *
+     * Called exactly once per concrete class, on the first `query()` call.
+     */
+    protected static function boot(): void
+    {
+        // Override in subclasses
+    }
+
+    // -----------------------------------------------------------------------
+    //  Model Events API
+    // -----------------------------------------------------------------------
+
+    /**
+     * Register a listener for a model event.
+     *
+     * @param string $event Event name (e.g. 'creating', 'updated')
+     * @param Closure $callback Receives the model instance; return false to cancel "before" events
+     */
+    protected static function registerModelEvent(string $event, Closure $callback): void
+    {
+        self::$events[static::class][$event][] = $callback;
+    }
+
+    /**
+     * Ensure `boot()` has been called for the current concrete class.
+     */
+    private static function bootIfNotBooted(): void
+    {
+        if (!isset(self::$booted[static::class])) {
+            self::$booted[static::class] = true;
+            static::boot();
+            static::bootTraits();
+        }
+    }
+
+    /**
+     * Call `boot{TraitName}()` for each trait used by this model.
+     *
+     * This allows traits like `SoftDeletes` to register global scopes
+     * or do other one-time setup via `bootSoftDeletes()`.
+     */
+    private static function bootTraits(): void
+    {
+        $traits = static::collectTraits(static::class);
+
+        foreach ($traits as $trait) {
+            $method = 'boot' . (new ReflectionClass($trait))->getShortName();
+
+            if (\method_exists(static::class, $method)) {
+                static::{$method}();
+            }
+        }
+    }
+
+    /**
+     * Recursively collect all traits used by a class and its parents.
+     *
+     * @return list<class-string>
+     */
+    private static function collectTraits(string $class): array
+    {
+        $traits = [];
+
+        foreach (\class_uses($class) ?: [] as $trait) {
+            $traits[] = $trait;
+            // Also collect traits used by traits
+            foreach (static::collectTraits($trait) as $nested) {
+                $traits[] = $nested;
+            }
+        }
+
+        // Also collect traits from parent classes
+        $parent = \get_parent_class($class);
+        if ($parent) {
+            foreach (static::collectTraits($parent) as $inherited) {
+                $traits[] = $inherited;
+            }
+        }
+
+        return \array_unique($traits);
+    }
+
+    /**
+     * Find the first model matching a set of attribute conditions.
+     *
+     * @param Database $database Database connection
+     * @param array<string, mixed> $attributes Column => value pairs for WHERE
+     *
+     * @return static|null
+     */
+    private static function firstByAttributes(Database $database, array $attributes): ?static
+    {
+        $query = static::query($database);
+
+        // Build Simple Syntax: col1=:col1,col2=:col2 (comma = AND)
+        $conditions = \implode(',', \array_map(fn ($key) => "$key=:$key", \array_keys($attributes)));
+        $query->where($conditions, $attributes);
+
+        return $query->first();
+    }
+
+    /**
+     * Convert a snake_case string to StudlyCase.
+     *
+     * Example: `first_name` → `FirstName`, `email` → `Email`
+     */
+    private static function studly(string $value): string
+    {
+        return \str_replace(' ', '', \ucwords(\str_replace(['_', '-'], ' ', $value)));
     }
 
     /**
@@ -644,7 +772,7 @@ abstract class Model
      *
      * Uses an atomic SQL `SET column = column + amount` statement.
      *
-     * @param string    $column Column to increment
+     * @param string $column Column to increment
      * @param int|float $amount Amount to increment by (default 1)
      * @param array<string, mixed> $extra Additional columns to update
      *
@@ -670,7 +798,7 @@ abstract class Model
         }
 
         if (static::$timestamps) {
-            $now = date('Y-m-d H:i:s');
+            $now = \date('Y-m-d H:i:s');
             $updateSyntax[] = 'updated_at';
             $params['updated_at'] = $now;
         }
@@ -678,7 +806,7 @@ abstract class Model
         $this->database->execute(
             $this->database->update($table, $updateSyntax)
                 ->where($pk . '=:_pk')
-                ->assign($params)
+                ->assign($params),
         );
 
         // Sync in-memory state
@@ -699,7 +827,7 @@ abstract class Model
      *
      * Uses an atomic SQL `SET column = column - amount` statement.
      *
-     * @param string    $column Column to decrement
+     * @param string $column Column to decrement
      * @param int|float $amount Amount to decrement by (default 1)
      * @param array<string, mixed> $extra Additional columns to update
      *
@@ -722,20 +850,20 @@ abstract class Model
     public function replicate(array $except = []): static
     {
         // Always exclude the primary key
-        $exclude = array_merge([static::$primaryKey], $except);
+        $exclude = \array_merge([static::$primaryKey], $except);
 
         if (static::$timestamps) {
             $exclude[] = 'created_at';
             $exclude[] = 'updated_at';
         }
 
-        $exclude = array_unique($exclude);
+        $exclude = \array_unique($exclude);
 
         $clone = new static();
         $clone->database = $this->database;
 
         foreach ($this->attributes as $key => $value) {
-            if (!in_array($key, $exclude, true)) {
+            if (!\in_array($key, $exclude, true)) {
                 $clone->attributes[$key] = $value;
             }
         }
@@ -754,7 +882,7 @@ abstract class Model
             return false;
         }
 
-        $now = date('Y-m-d H:i:s');
+        $now = \date('Y-m-d H:i:s');
         $this->attributes['updated_at'] = $now;
 
         $table = static::resolveTable();
@@ -763,100 +891,12 @@ abstract class Model
         $this->database->execute(
             $this->database->update($table, ['updated_at'])
                 ->where($pk . '=:_pk')
-                ->assign(['updated_at' => $now, '_pk' => $this->attributes[$pk]])
+                ->assign(['updated_at' => $now, '_pk' => $this->attributes[$pk]]),
         );
 
         $this->original['updated_at'] = $now;
 
         return true;
-    }
-
-    /**
-     * Find the first model matching a set of attribute conditions.
-     *
-     * @param Database             $database Database connection
-     * @param array<string, mixed> $attributes Column => value pairs for WHERE
-     *
-     * @return static|null
-     */
-    private static function firstByAttributes(Database $database, array $attributes): ?static
-    {
-        $query = static::query($database);
-
-        // Build Simple Syntax: col1=:col1,col2=:col2 (comma = AND)
-        $conditions = implode(',', array_map(fn($key) => "$key=:$key", array_keys($attributes)));
-        $query->where($conditions, $attributes);
-
-        return $query->first();
-    }
-
-    // -----------------------------------------------------------------------
-    //  Attribute access
-    // -----------------------------------------------------------------------
-
-    /**
-     * Get an attribute value, with accessor and casting applied.
-     *
-     * Resolution order:
-     * 1. Relationship method (e.g. `posts()` → resolves relation)
-     * 2. Accessor method `get{StudlyName}Attribute($rawValue)`
-     * 3. Cast via `$casts` configuration
-     */
-    public function __get(string $name): mixed
-    {
-        // Check if a relationship method exists (must accept 0 arguments)
-        if (method_exists($this, $name)) {
-            $ref = new \ReflectionMethod($this, $name);
-            if ($ref->getNumberOfRequiredParameters() === 0 && !$ref->isStatic()) {
-                return $this->resolveRelation($name);
-            }
-        }
-
-        // Check for an accessor: getNameAttribute()
-        $accessor = 'get' . self::studly($name) . 'Attribute';
-        if (method_exists($this, $accessor)) {
-            return $this->{$accessor}($this->attributes[$name] ?? null);
-        }
-
-        if (!array_key_exists($name, $this->attributes)) {
-            return null;
-        }
-
-        return $this->castGet($name, $this->attributes[$name]);
-    }
-
-    /**
-     * Set an attribute value, with mutator support.
-     *
-     * If a mutator `set{StudlyName}Attribute($value)` exists on the model,
-     * it is called instead of the default cast-and-store logic.
-     */
-    public function __set(string $name, mixed $value): void
-    {
-        $mutator = 'set' . self::studly($name) . 'Attribute';
-        if (method_exists($this, $mutator)) {
-            $this->{$mutator}($value);
-
-            return;
-        }
-
-        $this->attributes[$name] = $this->castSet($name, $value);
-    }
-
-    /**
-     * Check if an attribute is set.
-     */
-    public function __isset(string $name): bool
-    {
-        return array_key_exists($name, $this->attributes) || method_exists($this, $name);
-    }
-
-    /**
-     * Unset an attribute.
-     */
-    public function __unset(string $name): void
-    {
-        unset($this->attributes[$name]);
     }
 
     /**
@@ -902,7 +942,7 @@ abstract class Model
     {
         // If fillable is explicitly defined, only those are allowed
         if (!empty(static::$fillable)) {
-            return in_array($column, static::$fillable, true);
+            return \in_array($column, static::$fillable, true);
         }
 
         // If guarded is ['*'], nothing is fillable
@@ -911,7 +951,7 @@ abstract class Model
         }
 
         // Otherwise, allow anything not in guarded
-        return !in_array($column, static::$guarded, true);
+        return !\in_array($column, static::$guarded, true);
     }
 
     // -----------------------------------------------------------------------
@@ -940,7 +980,7 @@ abstract class Model
         $dirty = [];
 
         foreach ($this->attributes as $key => $value) {
-            if (!array_key_exists($key, $this->original) || $this->original[$key] !== $value) {
+            if (!\array_key_exists($key, $this->original) || $this->original[$key] !== $value) {
                 $dirty[$key] = $value;
             }
         }
@@ -974,7 +1014,7 @@ abstract class Model
     public function save(): bool
     {
         if ($this->database === null) {
-            throw new \RuntimeException('Cannot save a model without a database connection. Use Model::setDatabase() or pass $db.');
+            throw new RuntimeException('Cannot save a model without a database connection. Use Model::setDatabase() or pass $db.');
         }
 
         if ($this->fireModelEvent('saving', true) === false) {
@@ -1018,7 +1058,7 @@ abstract class Model
 
         $table = static::resolveTable();
         $this->database->execute(
-            $this->database->delete($table, [$pk => $id])
+            $this->database->delete($table, [$pk => $id]),
         );
 
         $deleted = $this->database->affectedRows() > 0;
@@ -1066,104 +1106,6 @@ abstract class Model
     }
 
     // -----------------------------------------------------------------------
-    //  Relationships
-    // -----------------------------------------------------------------------
-
-    /**
-     * Define a has-one relationship.
-     *
-     * @param string      $related    Related model class
-     * @param string|null $foreignKey Foreign key on the related table (default: thisModel_id)
-     * @param string|null $localKey   Local key (default: primary key)
-     */
-    protected function hasOne(string $related, ?string $foreignKey = null, ?string $localKey = null): HasOne
-    {
-        $foreignKey ??= $this->inferForeignKey();
-        $localKey ??= static::$primaryKey;
-
-        return new HasOne($this, $related, $foreignKey, $localKey);
-    }
-
-    /**
-     * Define a has-many relationship.
-     */
-    protected function hasMany(string $related, ?string $foreignKey = null, ?string $localKey = null): HasMany
-    {
-        $foreignKey ??= $this->inferForeignKey();
-        $localKey ??= static::$primaryKey;
-
-        return new HasMany($this, $related, $foreignKey, $localKey);
-    }
-
-    /**
-     * Define a belongs-to relationship.
-     *
-     * @param string      $related    Related (parent) model class
-     * @param string|null $foreignKey Column on *this* model holding the reference
-     * @param string|null $ownerKey   Column on the related model (default: its primary key)
-     */
-    protected function belongsTo(string $related, ?string $foreignKey = null, ?string $ownerKey = null): BelongsTo
-    {
-        // Infer foreign key from the related class name: Post::belongsTo(User::class) → 'user_id'
-        if ($foreignKey === null) {
-            $shortName = (new \ReflectionClass($related))->getShortName();
-            $foreignKey = strtolower($shortName) . '_id';
-        }
-        $ownerKey ??= $related::$primaryKey;
-
-        return new BelongsTo($this, $related, $foreignKey, $ownerKey);
-    }
-
-    /**
-     * Define a many-to-many (belongs-to-many) relationship via a pivot table.
-     *
-     * @param string      $related         Related model class
-     * @param string|null $pivotTable      Pivot table name (default: alphabetically sorted table names joined by _)
-     * @param string|null $foreignPivotKey Column in pivot referencing this model (default: thisModel_id)
-     * @param string|null $relatedPivotKey Column in pivot referencing the related model (default: relatedModel_id)
-     * @param string|null $parentKey       Column on this model (default: primary key)
-     * @param string|null $relatedKey      Column on the related model (default: its primary key)
-     */
-    protected function belongsToMany(
-        string $related,
-        ?string $pivotTable = null,
-        ?string $foreignPivotKey = null,
-        ?string $relatedPivotKey = null,
-        ?string $parentKey = null,
-        ?string $relatedKey = null,
-    ): BelongsToMany {
-        $foreignPivotKey ??= $this->inferForeignKey();
-
-        // Infer related pivot key: relatedClassName_id
-        if ($relatedPivotKey === null) {
-            $shortName = (new \ReflectionClass($related))->getShortName();
-            $relatedPivotKey = strtolower($shortName) . '_id';
-        }
-
-        // Infer pivot table: alphabetically sorted table name stems joined by _
-        if ($pivotTable === null) {
-            $parentStem = strtolower((new \ReflectionClass(static::class))->getShortName());
-            $relatedStem = strtolower((new \ReflectionClass($related))->getShortName());
-            $parts = [$parentStem, $relatedStem];
-            sort($parts);
-            $pivotTable = implode('_', $parts);
-        }
-
-        $parentKey ??= static::$primaryKey;
-        $relatedKey ??= $related::$primaryKey;
-
-        return new BelongsToMany(
-            $this,
-            $related,
-            $pivotTable,
-            $foreignPivotKey,
-            $relatedPivotKey,
-            $parentKey,
-            $relatedKey,
-        );
-    }
-
-    // -----------------------------------------------------------------------
     //  Serialisation
     // -----------------------------------------------------------------------
 
@@ -1180,7 +1122,7 @@ abstract class Model
         foreach ($this->attributes as $key => $value) {
             // Apply accessor if present, otherwise cast
             $accessor = 'get' . self::studly($key) . 'Attribute';
-            if (method_exists($this, $accessor)) {
+            if (\method_exists($this, $accessor)) {
                 $result[$key] = $this->{$accessor}($value);
             } else {
                 $result[$key] = $this->castGet($key, $value);
@@ -1197,58 +1139,11 @@ abstract class Model
      *
      * @return string
      *
-     * @throws \JsonException
+     * @throws JsonException
      */
     public function toJson(int $options = 0): string
     {
-        return json_encode($this->toArray(), $options | JSON_THROW_ON_ERROR);
-    }
-
-    /**
-     * Get the list of hidden attribute names for this model.
-     *
-     * @return list<string>
-     */
-    public static function getHidden(): array
-    {
-        return static::$hidden;
-    }
-
-    /**
-     * Get the list of visible attribute names for this model.
-     *
-     * @return list<string>
-     */
-    public static function getVisible(): array
-    {
-        return static::$visible;
-    }
-
-    // -----------------------------------------------------------------------
-    //  Meta accessors used by ModelQuery / Relation
-    // -----------------------------------------------------------------------
-
-    /**
-     * Resolve the table name for this model.
-     */
-    public static function resolveTable(): string
-    {
-        if (static::$table !== '') {
-            return static::$table;
-        }
-
-        // Derive from short class name: User → users
-        $shortName = (new \ReflectionClass(static::class))->getShortName();
-
-        return strtolower($shortName) . 's';
-    }
-
-    /**
-     * Get the primary key column name.
-     */
-    public static function getPrimaryKeyName(): string
-    {
-        return static::$primaryKey;
+        return \json_encode($this->toArray(), $options | JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -1285,6 +1180,168 @@ abstract class Model
         return $this;
     }
 
+    /**
+     * Pre-set a relation result in the cache (used by eager loading).
+     *
+     * @param string $name Relation method name
+     * @param Model|ModelCollection|null $value The pre-loaded result
+     *
+     * @return static
+     */
+    public function setRelation(string $name, self|ModelCollection|null $value): static
+    {
+        $this->relationCache[$name] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Check whether a relation has been loaded (cached).
+     */
+    public function relationLoaded(string $name): bool
+    {
+        return \array_key_exists($name, $this->relationCache);
+    }
+
+    /**
+     * Get the Relation object (without resolving it) for a named relationship.
+     *
+     * Used internally by eager loading to inspect relation metadata.
+     *
+     * @return Relation|null
+     */
+    public function getRelationInstance(string $name): ?Relation
+    {
+        if (!\method_exists($this, $name)) {
+            return null;
+        }
+
+        $result = $this->{$name}();
+
+        return $result instanceof Relation ? $result : null;
+    }
+
+    /**
+     * Fire all listeners for a model event.
+     *
+     * @param string $event Event name
+     * @param bool $halt If true, return false when any listener returns false ("before" events)
+     *
+     * @return bool False only when $halt is true and a listener returned false
+     */
+    protected function fireModelEvent(string $event, bool $halt = false): bool
+    {
+        $listeners = self::$events[static::class][$event] ?? [];
+
+        foreach ($listeners as $listener) {
+            $result = $listener($this);
+
+            if ($halt && $result === false) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // -----------------------------------------------------------------------
+    //  Relationships
+    // -----------------------------------------------------------------------
+
+    /**
+     * Define a has-one relationship.
+     *
+     * @param string $related Related model class
+     * @param string|null $foreignKey Foreign key on the related table (default: thisModel_id)
+     * @param string|null $localKey Local key (default: primary key)
+     */
+    protected function hasOne(string $related, ?string $foreignKey = null, ?string $localKey = null): HasOne
+    {
+        $foreignKey ??= $this->inferForeignKey();
+        $localKey ??= static::$primaryKey;
+
+        return new HasOne($this, $related, $foreignKey, $localKey);
+    }
+
+    /**
+     * Define a has-many relationship.
+     */
+    protected function hasMany(string $related, ?string $foreignKey = null, ?string $localKey = null): HasMany
+    {
+        $foreignKey ??= $this->inferForeignKey();
+        $localKey ??= static::$primaryKey;
+
+        return new HasMany($this, $related, $foreignKey, $localKey);
+    }
+
+    /**
+     * Define a belongs-to relationship.
+     *
+     * @param string $related Related (parent) model class
+     * @param string|null $foreignKey Column on *this* model holding the reference
+     * @param string|null $ownerKey Column on the related model (default: its primary key)
+     */
+    protected function belongsTo(string $related, ?string $foreignKey = null, ?string $ownerKey = null): BelongsTo
+    {
+        // Infer foreign key from the related class name: Post::belongsTo(User::class) → 'user_id'
+        if ($foreignKey === null) {
+            $shortName = (new ReflectionClass($related))->getShortName();
+            $foreignKey = \strtolower($shortName) . '_id';
+        }
+        $ownerKey ??= $related::$primaryKey;
+
+        return new BelongsTo($this, $related, $foreignKey, $ownerKey);
+    }
+
+    /**
+     * Define a many-to-many (belongs-to-many) relationship via a pivot table.
+     *
+     * @param string $related Related model class
+     * @param string|null $pivotTable Pivot table name (default: alphabetically sorted table names joined by _)
+     * @param string|null $foreignPivotKey Column in pivot referencing this model (default: thisModel_id)
+     * @param string|null $relatedPivotKey Column in pivot referencing the related model (default: relatedModel_id)
+     * @param string|null $parentKey Column on this model (default: primary key)
+     * @param string|null $relatedKey Column on the related model (default: its primary key)
+     */
+    protected function belongsToMany(
+        string $related,
+        ?string $pivotTable = null,
+        ?string $foreignPivotKey = null,
+        ?string $relatedPivotKey = null,
+        ?string $parentKey = null,
+        ?string $relatedKey = null,
+    ): BelongsToMany {
+        $foreignPivotKey ??= $this->inferForeignKey();
+
+        // Infer related pivot key: relatedClassName_id
+        if ($relatedPivotKey === null) {
+            $shortName = (new ReflectionClass($related))->getShortName();
+            $relatedPivotKey = \strtolower($shortName) . '_id';
+        }
+
+        // Infer pivot table: alphabetically sorted table name stems joined by _
+        if ($pivotTable === null) {
+            $parentStem = \strtolower((new ReflectionClass(static::class))->getShortName());
+            $relatedStem = \strtolower((new ReflectionClass($related))->getShortName());
+            $parts = [$parentStem, $relatedStem];
+            \sort($parts);
+            $pivotTable = \implode('_', $parts);
+        }
+
+        $parentKey ??= static::$primaryKey;
+        $relatedKey ??= $related::$primaryKey;
+
+        return new BelongsToMany(
+            $this,
+            $related,
+            $pivotTable,
+            $foreignPivotKey,
+            $relatedPivotKey,
+            $parentKey,
+            $relatedKey,
+        );
+    }
+
     // -----------------------------------------------------------------------
     //  Internal helpers
     // -----------------------------------------------------------------------
@@ -1299,17 +1356,17 @@ abstract class Model
         }
 
         if (static::$timestamps) {
-            $now = date('Y-m-d H:i:s');
+            $now = \date('Y-m-d H:i:s');
             $this->attributes['created_at'] = $now;
             $this->attributes['updated_at'] = $now;
         }
 
         $table = static::resolveTable();
         $data = $this->attributes;
-        $columns = array_keys($data);
+        $columns = \array_keys($data);
 
         $this->database->execute(
-            $this->database->insert($table, $columns)->assign($data)
+            $this->database->insert($table, $columns)->assign($data),
         );
 
         $this->attributes[static::$primaryKey] = (int) $this->database->lastID();
@@ -1337,7 +1394,7 @@ abstract class Model
         }
 
         if (static::$timestamps) {
-            $now = date('Y-m-d H:i:s');
+            $now = \date('Y-m-d H:i:s');
             $dirty['updated_at'] = $now;
             $this->attributes['updated_at'] = $now;
         }
@@ -1347,12 +1404,12 @@ abstract class Model
         $id = $this->attributes[$pk];
 
         // Build update syntax: bare column names (auto-bind to :column)
-        $updateColumns = array_keys($dirty);
+        $updateColumns = \array_keys($dirty);
 
         $this->database->execute(
             $this->database->update($table, $updateColumns)
                 ->where($pk . '=:_pk')
-                ->assign(array_merge($dirty, ['_pk' => $id]))
+                ->assign(\array_merge($dirty, ['_pk' => $id])),
         );
 
         $this->original = $this->attributes;
@@ -1364,21 +1421,21 @@ abstract class Model
 
     /**
      * Infer a foreign key name from this model's class name.
-     * e.g. User → user_id
+     * e.g. User → user_id.
      */
     private function inferForeignKey(): string
     {
-        $shortName = (new \ReflectionClass(static::class))->getShortName();
+        $shortName = (new ReflectionClass(static::class))->getShortName();
 
-        return strtolower($shortName) . '_id';
+        return \strtolower($shortName) . '_id';
     }
 
     /**
      * Resolve and cache a relationship.
      */
-    private function resolveRelation(string $name): Model|ModelCollection|null
+    private function resolveRelation(string $name): self|ModelCollection|null
     {
-        if (array_key_exists($name, $this->relationCache)) {
+        if (\array_key_exists($name, $this->relationCache)) {
             return $this->relationCache[$name];
         }
 
@@ -1394,47 +1451,6 @@ abstract class Model
     }
 
     /**
-     * Pre-set a relation result in the cache (used by eager loading).
-     *
-     * @param string                       $name   Relation method name
-     * @param Model|ModelCollection|null    $value  The pre-loaded result
-     *
-     * @return static
-     */
-    public function setRelation(string $name, Model|ModelCollection|null $value): static
-    {
-        $this->relationCache[$name] = $value;
-
-        return $this;
-    }
-
-    /**
-     * Check whether a relation has been loaded (cached).
-     */
-    public function relationLoaded(string $name): bool
-    {
-        return array_key_exists($name, $this->relationCache);
-    }
-
-    /**
-     * Get the Relation object (without resolving it) for a named relationship.
-     *
-     * Used internally by eager loading to inspect relation metadata.
-     *
-     * @return Relation|null
-     */
-    public function getRelationInstance(string $name): ?Relation
-    {
-        if (!method_exists($this, $name)) {
-            return null;
-        }
-
-        $result = $this->{$name}();
-
-        return $result instanceof Relation ? $result : null;
-    }
-
-    /**
      * Filter an associative array through `$visible` / `$hidden`.
      *
      * If `$visible` is non-empty it acts as a whitelist; otherwise
@@ -1447,24 +1463,14 @@ abstract class Model
     private function filterAttributes(array $attributes): array
     {
         if (!empty(static::$visible)) {
-            return array_intersect_key($attributes, array_flip(static::$visible));
+            return \array_intersect_key($attributes, \array_flip(static::$visible));
         }
 
         if (!empty(static::$hidden)) {
-            return array_diff_key($attributes, array_flip(static::$hidden));
+            return \array_diff_key($attributes, \array_flip(static::$hidden));
         }
 
         return $attributes;
-    }
-
-    /**
-     * Convert a snake_case string to StudlyCase.
-     *
-     * Example: `first_name` → `FirstName`, `email` → `Email`
-     */
-    private static function studly(string $value): string
-    {
-        return str_replace(' ', '', ucwords(str_replace(['_', '-'], ' ', $value)));
     }
 
     /**
@@ -1481,7 +1487,7 @@ abstract class Model
             'float', 'double' => (float) $value,
             'bool', 'boolean' => (bool) $value,
             'string' => (string) $value,
-            'array', 'json' => is_array($value) ? $value : json_decode((string) $value, true),
+            'array', 'json' => \is_array($value) ? $value : \json_decode((string) $value, true),
             'datetime' => $value instanceof DateTimeInterface
                 ? $value
                 : new DateTimeImmutable((string) $value),
@@ -1503,7 +1509,7 @@ abstract class Model
             'float', 'double' => (float) $value,
             'bool', 'boolean' => $value ? 1 : 0, // Store booleans as int for DB compatibility
             'string' => (string) $value,
-            'array', 'json' => is_array($value) ? json_encode($value, JSON_THROW_ON_ERROR) : $value,
+            'array', 'json' => \is_array($value) ? \json_encode($value, JSON_THROW_ON_ERROR) : $value,
             'datetime' => $value instanceof DateTimeInterface
                 ? $value->format('Y-m-d H:i:s')
                 : $value,

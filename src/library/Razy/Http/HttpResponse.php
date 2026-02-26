@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -65,15 +66,23 @@ class HttpResponse
     /**
      * Create a new HttpResponse.
      *
-     * @param int                    $statusCode HTTP status code
-     * @param string                 $body       Raw body
-     * @param array<string, string>  $headers    Response headers (lowercase keys)
+     * @param int $statusCode HTTP status code
+     * @param string $body Raw body
+     * @param array<string, string> $headers Response headers (lowercase keys)
      */
     public function __construct(int $statusCode, string $body, array $headers = [])
     {
         $this->statusCode = $statusCode;
         $this->body = $body;
         $this->headers = $headers;
+    }
+
+    /**
+     * Get a string representation.
+     */
+    public function __toString(): string
+    {
+        return $this->body;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -158,15 +167,15 @@ class HttpResponse
     public function json(bool $assoc = true): mixed
     {
         if (!$this->jsonDecoded) {
-            $this->decodedJson = json_decode($this->body, $assoc);
+            $this->decodedJson = \json_decode($this->body, $assoc);
             $this->jsonDecoded = true;
         }
 
         // If assoc differs from cached, re-decode
         if ($assoc) {
-            return is_array($this->decodedJson)
+            return \is_array($this->decodedJson)
                 ? $this->decodedJson
-                : json_decode($this->body, true);
+                : \json_decode($this->body, true);
         }
 
         return $this->decodedJson;
@@ -175,21 +184,21 @@ class HttpResponse
     /**
      * Get a specific value from JSON body using dot notation.
      *
-     * @param string $key     Dot-notated key (e.g., 'data.users.0.name')
-     * @param mixed  $default Default value if key not found
+     * @param string $key Dot-notated key (e.g., 'data.users.0.name')
+     * @param mixed $default Default value if key not found
      */
     public function jsonGet(string $key, mixed $default = null): mixed
     {
         $data = $this->json(true);
-        if (!is_array($data)) {
+        if (!\is_array($data)) {
             return $default;
         }
 
-        $segments = explode('.', $key);
+        $segments = \explode('.', $key);
         $current = $data;
 
         foreach ($segments as $segment) {
-            if (is_array($current) && array_key_exists($segment, $current)) {
+            if (\is_array($current) && \array_key_exists($segment, $current)) {
                 $current = $current[$segment];
             } else {
                 return $default;
@@ -220,7 +229,7 @@ class HttpResponse
      */
     public function header(string $name, ?string $default = null): ?string
     {
-        $name = strtolower($name);
+        $name = \strtolower($name);
 
         return $this->headers[$name] ?? $default;
     }
@@ -232,7 +241,7 @@ class HttpResponse
      */
     public function hasHeader(string $name): bool
     {
-        return isset($this->headers[strtolower($name)]);
+        return isset($this->headers[\strtolower($name)]);
     }
 
     /**
@@ -297,13 +306,5 @@ class HttpResponse
             'headers' => $this->headers,
             'body' => $this->body,
         ];
-    }
-
-    /**
-     * Get a string representation.
-     */
-    public function __toString(): string
-    {
-        return $this->body;
     }
 }

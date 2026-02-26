@@ -14,6 +14,7 @@
  * - Edge cases (concurrent keys, zero limits, empty keys)
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -22,6 +23,7 @@ declare(strict_types=1);
 namespace Tests;
 
 use Closure;
+use FilesystemIterator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -29,11 +31,14 @@ use Razy\Cache\NullAdapter;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Contract\RateLimitStoreInterface;
 use Razy\RateLimit\Limit;
+use Razy\RateLimit\RateLimiter;
 use Razy\RateLimit\RateLimitExceededException;
 use Razy\RateLimit\RateLimitMiddleware;
-use Razy\RateLimit\RateLimiter;
 use Razy\RateLimit\Store\ArrayStore;
 use Razy\RateLimit\Store\CacheStore;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
 
 #[CoversClass(Limit::class)]
 #[CoversClass(RateLimiter::class)]
@@ -44,12 +49,42 @@ use Razy\RateLimit\Store\CacheStore;
 class RateLimitTest extends TestCase
 {
     private ArrayStore $store;
+
     private RateLimiter $limiter;
 
     protected function setUp(): void
     {
         $this->store = new ArrayStore();
         $this->limiter = new RateLimiter($this->store);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  DataProvider Tests
+    // ══════════════════════════════════════════════════════════════
+
+    public static function limitFactoryProvider(): array
+    {
+        return [
+            'perMinute(1)' => [Limit::perMinute(1), 1, 60],
+            'perMinute(100)' => [Limit::perMinute(100), 100, 60],
+            'perHour(500)' => [Limit::perHour(500), 500, 3600],
+            'perDay(5000)' => [Limit::perDay(5000), 5000, 86400],
+            'every(10, 3)' => [Limit::every(10, 3), 3, 10],
+            'every(3600, 1)' => [Limit::every(3600, 1), 1, 3600],
+        ];
+    }
+
+    public static function attemptOutcomeProvider(): array
+    {
+        return [
+            '1 of 5 — allowed' => [1, 5, true, 4],
+            '5 of 5 — allowed (last one)' => [5, 5, true, 0],
+            '6 of 5 — blocked' => [6, 5, false, 0],
+            '1 of 1 — allowed' => [1, 1, true, 0],
+            '2 of 1 — blocked' => [2, 1, false, 0],
+            '10 of 10 — allowed' => [10, 10, true, 0],
+            '11 of 10 — blocked' => [11, 10, false, 0],
+        ];
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -164,7 +199,7 @@ class RateLimitTest extends TestCase
 
     public function testArrayStoreSetAndGet(): void
     {
-        $resetAt = time() + 60;
+        $resetAt = \time() + 60;
         $this->store->set('key1', 5, $resetAt);
 
         $record = $this->store->get('key1');
@@ -176,7 +211,7 @@ class RateLimitTest extends TestCase
 
     public function testArrayStoreDelete(): void
     {
-        $this->store->set('key1', 3, time() + 60);
+        $this->store->set('key1', 3, \time() + 60);
         $this->store->delete('key1');
 
         $this->assertNull($this->store->get('key1'));
@@ -227,22 +262,22 @@ class RateLimitTest extends TestCase
         $this->store->setCurrentTime(null);
         $now = $this->store->getCurrentTime();
 
-        $this->assertEqualsWithDelta(time(), $now, 2);
+        $this->assertEqualsWithDelta(\time(), $now, 2);
     }
 
     public function testArrayStoreCount(): void
     {
         $this->assertSame(0, $this->store->count());
 
-        $this->store->set('a', 1, time() + 60);
-        $this->store->set('b', 2, time() + 60);
+        $this->store->set('a', 1, \time() + 60);
+        $this->store->set('b', 2, \time() + 60);
 
         $this->assertSame(2, $this->store->count());
     }
 
     public function testArrayStoreGetRecords(): void
     {
-        $resetAt = time() + 60;
+        $resetAt = \time() + 60;
         $this->store->set('k1', 1, $resetAt);
         $this->store->set('k2', 5, $resetAt);
 
@@ -255,8 +290,8 @@ class RateLimitTest extends TestCase
 
     public function testArrayStoreFlush(): void
     {
-        $this->store->set('a', 1, time() + 60);
-        $this->store->set('b', 2, time() + 60);
+        $this->store->set('a', 1, \time() + 60);
+        $this->store->set('b', 2, \time() + 60);
 
         $this->store->flush();
 
@@ -266,8 +301,8 @@ class RateLimitTest extends TestCase
 
     public function testArrayStoreOverwritesExistingKey(): void
     {
-        $this->store->set('key', 3, time() + 60);
-        $this->store->set('key', 10, time() + 120);
+        $this->store->set('key', 3, \time() + 60);
+        $this->store->set('key', 10, \time() + 120);
 
         $record = $this->store->get('key');
         $this->assertSame(10, $record['hits']);
@@ -288,14 +323,14 @@ class RateLimitTest extends TestCase
     public function testCacheStoreSetAndGetWithFileAdapter(): void
     {
         // Use a real FileAdapter for integration
-        $cacheDir = sys_get_temp_dir() . '/razy_ratelimit_test_' . uniqid();
-        mkdir($cacheDir, 0777, true);
+        $cacheDir = \sys_get_temp_dir() . '/razy_ratelimit_test_' . \uniqid();
+        \mkdir($cacheDir, 0o777, true);
 
         try {
             $cache = new \Razy\Cache\FileAdapter($cacheDir);
             $store = new CacheStore($cache);
 
-            $resetAt = time() + 60;
+            $resetAt = \time() + 60;
             $store->set('test_key', 7, $resetAt);
 
             $record = $store->get('test_key');
@@ -309,14 +344,14 @@ class RateLimitTest extends TestCase
 
     public function testCacheStoreDeleteRemovesRecord(): void
     {
-        $cacheDir = sys_get_temp_dir() . '/razy_ratelimit_test_' . uniqid();
-        mkdir($cacheDir, 0777, true);
+        $cacheDir = \sys_get_temp_dir() . '/razy_ratelimit_test_' . \uniqid();
+        \mkdir($cacheDir, 0o777, true);
 
         try {
             $cache = new \Razy\Cache\FileAdapter($cacheDir);
             $store = new CacheStore($cache);
 
-            $store->set('del_key', 3, time() + 60);
+            $store->set('del_key', 3, \time() + 60);
             $store->delete('del_key');
 
             $this->assertNull($store->get('del_key'));
@@ -351,15 +386,15 @@ class RateLimitTest extends TestCase
 
     public function testCacheStoreExpiredRecordReturnsNull(): void
     {
-        $cacheDir = sys_get_temp_dir() . '/razy_ratelimit_test_' . uniqid();
-        mkdir($cacheDir, 0777, true);
+        $cacheDir = \sys_get_temp_dir() . '/razy_ratelimit_test_' . \uniqid();
+        \mkdir($cacheDir, 0o777, true);
 
         try {
             $cache = new \Razy\Cache\FileAdapter($cacheDir);
             $store = new CacheStore($cache);
 
             // Set with past resetAt — will be detected as expired on get()
-            $store->set('expired_key', 5, time() - 10);
+            $store->set('expired_key', 5, \time() - 10);
 
             $this->assertNull($store->get('expired_key'));
         } finally {
@@ -369,8 +404,8 @@ class RateLimitTest extends TestCase
 
     public function testCacheStoreInvalidDataReturnsNull(): void
     {
-        $cacheDir = sys_get_temp_dir() . '/razy_ratelimit_test_' . uniqid();
-        mkdir($cacheDir, 0777, true);
+        $cacheDir = \sys_get_temp_dir() . '/razy_ratelimit_test_' . \uniqid();
+        \mkdir($cacheDir, 0o777, true);
 
         try {
             $cache = new \Razy\Cache\FileAdapter($cacheDir);
@@ -537,8 +572,8 @@ class RateLimitTest extends TestCase
 
         $resetAt = $this->limiter->resetAt('test');
 
-        $this->assertGreaterThan(time() - 1, $resetAt);
-        $this->assertLessThanOrEqual(time() + 60, $resetAt);
+        $this->assertGreaterThan(\time() - 1, $resetAt);
+        $this->assertLessThanOrEqual(\time() + 60, $resetAt);
     }
 
     public function testResetAtReturnsZeroForUnknownKey(): void
@@ -637,7 +672,7 @@ class RateLimitTest extends TestCase
 
     public function testRegisterNamedLimiter(): void
     {
-        $callback = fn(array $ctx) => Limit::perMinute(60);
+        $callback = fn (array $ctx) => Limit::perMinute(60);
 
         $this->limiter->for('api', $callback);
 
@@ -657,8 +692,10 @@ class RateLimitTest extends TestCase
 
     public function testResolveNamedLimiter(): void
     {
-        $this->limiter->for('api', fn(array $ctx) =>
-            Limit::perMinute(60)->by($ctx['ip'] ?? 'unknown')
+        $this->limiter->for(
+            'api',
+            fn (array $ctx) =>
+            Limit::perMinute(60)->by($ctx['ip'] ?? 'unknown'),
         );
 
         $limit = $this->limiter->resolve('api', ['ip' => '10.0.0.1']);
@@ -676,8 +713,10 @@ class RateLimitTest extends TestCase
 
     public function testResolveWithEmptyContext(): void
     {
-        $this->limiter->for('global', fn(array $ctx) =>
-            Limit::perHour(1000)
+        $this->limiter->for(
+            'global',
+            fn (array $ctx) =>
+            Limit::perHour(1000),
         );
 
         $limit = $this->limiter->resolve('global');
@@ -688,7 +727,7 @@ class RateLimitTest extends TestCase
 
     public function testResolveUnlimitedLimiter(): void
     {
-        $this->limiter->for('internal', fn(array $ctx) => Limit::none());
+        $this->limiter->for('internal', fn (array $ctx) => Limit::none());
 
         $limit = $this->limiter->resolve('internal');
 
@@ -697,9 +736,9 @@ class RateLimitTest extends TestCase
 
     public function testMultipleNamedLimiters(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(60));
-        $this->limiter->for('login', fn() => Limit::every(300, 5));
-        $this->limiter->for('uploads', fn() => Limit::perHour(100));
+        $this->limiter->for('api', fn () => Limit::perMinute(60));
+        $this->limiter->for('login', fn () => Limit::every(300, 5));
+        $this->limiter->for('uploads', fn () => Limit::perHour(100));
 
         $this->assertTrue($this->limiter->hasLimiter('api'));
         $this->assertTrue($this->limiter->hasLimiter('login'));
@@ -715,8 +754,8 @@ class RateLimitTest extends TestCase
 
     public function testOverwriteNamedLimiter(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(60));
-        $this->limiter->for('api', fn() => Limit::perMinute(100));
+        $this->limiter->for('api', fn () => Limit::perMinute(60));
+        $this->limiter->for('api', fn () => Limit::perMinute(100));
 
         $limit = $this->limiter->resolve('api');
         $this->assertSame(100, $limit->getMaxAttempts());
@@ -749,7 +788,7 @@ class RateLimitTest extends TestCase
     {
         $e = new RateLimitExceededException('key', 10, 30);
 
-        $this->assertInstanceOf(\RuntimeException::class, $e);
+        $this->assertInstanceOf(RuntimeException::class, $e);
     }
 
     public function testExceptionCanBeCaught(): void
@@ -779,13 +818,13 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewarePassesThroughWhenUnderLimit(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(60)->by('test-ip'));
+        $this->limiter->for('api', fn () => Limit::perMinute(60)->by('test-ip'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
         $result = $mw->handle(
             ['route' => '/api/test', 'method' => 'GET'],
-            fn(array $ctx) => 'handler_result',
+            fn (array $ctx) => 'handler_result',
         );
 
         $this->assertSame('handler_result', $result);
@@ -793,12 +832,12 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareBlocksWhenLimitExceeded(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(2)->by('test-ip'));
+        $this->limiter->for('api', fn () => Limit::perMinute(2)->by('test-ip'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
         $context = ['route' => '/api/test', 'method' => 'GET'];
-        $handler = fn(array $ctx) => 'ok';
+        $handler = fn (array $ctx) => 'ok';
 
         // First two pass
         $mw->handle($context, $handler);
@@ -823,7 +862,7 @@ class RateLimitTest extends TestCase
 
         $result = $mw->handle(
             ['route' => '/test'],
-            fn(array $ctx) => 'passed',
+            fn (array $ctx) => 'passed',
         );
 
         $this->assertSame('passed', $result);
@@ -831,7 +870,7 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewarePassesThroughForUnlimitedLimiter(): void
     {
-        $this->limiter->for('internal', fn() => Limit::none());
+        $this->limiter->for('internal', fn () => Limit::none());
 
         $mw = new RateLimitMiddleware($this->limiter, 'internal', sendHeaders: false);
 
@@ -839,7 +878,7 @@ class RateLimitTest extends TestCase
         for ($i = 0; $i < 100; $i++) {
             $result = $mw->handle(
                 ['route' => '/internal'],
-                fn(array $ctx) => 'ok',
+                fn (array $ctx) => 'ok',
             );
             $this->assertSame('ok', $result);
         }
@@ -847,11 +886,11 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareTracksHitsCorrectly(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(5)->by('ip1'));
+        $this->limiter->for('api', fn () => Limit::perMinute(5)->by('ip1'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
         $context = ['route' => '/api/data'];
-        $handler = fn(array $ctx) => 'ok';
+        $handler = fn (array $ctx) => 'ok';
 
         $mw->handle($context, $handler);
         $mw->handle($context, $handler);
@@ -881,9 +920,9 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareWithCustomKeyResolver(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(5)->by('default'));
+        $this->limiter->for('api', fn () => Limit::perMinute(5)->by('default'));
 
-        $keyResolver = fn(array $ctx) => 'user:' . ($ctx['user_id'] ?? 'guest');
+        $keyResolver = fn (array $ctx) => 'user:' . ($ctx['user_id'] ?? 'guest');
 
         $mw = new RateLimitMiddleware(
             $this->limiter,
@@ -892,7 +931,7 @@ class RateLimitTest extends TestCase
             sendHeaders: false,
         );
 
-        $mw->handle(['user_id' => '42'], fn($ctx) => 'ok');
+        $mw->handle(['user_id' => '42'], fn ($ctx) => 'ok');
 
         // Key should be 'api:user:42' (name + custom key)
         $this->assertSame(1, $this->limiter->attempts('api:user:42'));
@@ -900,16 +939,16 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareKeyResolverOverridesLimitKey(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(5)->by('limit-default-key'));
+        $this->limiter->for('api', fn () => Limit::perMinute(5)->by('limit-default-key'));
 
         $mw = new RateLimitMiddleware(
             $this->limiter,
             'api',
-            keyResolver: fn(array $ctx) => 'override-key',
+            keyResolver: fn (array $ctx) => 'override-key',
             sendHeaders: false,
         );
 
-        $mw->handle([], fn($ctx) => 'ok');
+        $mw->handle([], fn ($ctx) => 'ok');
 
         $this->assertSame(1, $this->limiter->attempts('api:override-key'));
         $this->assertSame(0, $this->limiter->attempts('api:limit-default-key'));
@@ -917,22 +956,22 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareFallsBackToRouteKey(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(5)); // No key set on Limit
+        $this->limiter->for('api', fn () => Limit::perMinute(5)); // No key set on Limit
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
-        $mw->handle(['route' => '/api/items'], fn($ctx) => 'ok');
+        $mw->handle(['route' => '/api/items'], fn ($ctx) => 'ok');
 
         $this->assertSame(1, $this->limiter->attempts('api:/api/items'));
     }
 
     public function testMiddlewareFallsBackToGlobalWhenNoRoute(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(5));
+        $this->limiter->for('api', fn () => Limit::perMinute(5));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
-        $mw->handle([], fn($ctx) => 'ok');
+        $mw->handle([], fn ($ctx) => 'ok');
 
         $this->assertSame(1, $this->limiter->attempts('api:global'));
     }
@@ -943,7 +982,7 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareCustomRejectionHandler(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(1)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(1)->by('test'));
 
         $rejectionCalled = false;
         $capturedRetryAfter = null;
@@ -963,7 +1002,7 @@ class RateLimitTest extends TestCase
         );
 
         $context = ['route' => '/api/data'];
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         $mw->handle($context, $handler); // Allowed
         $result = $mw->handle($context, $handler); // Blocked
@@ -976,7 +1015,7 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareRejectionHandlerReceivesContext(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(1)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(1)->by('test'));
 
         $capturedContext = null;
 
@@ -985,16 +1024,14 @@ class RateLimitTest extends TestCase
             'api',
             onLimitExceeded: function (array $ctx, Limit $limit, int $retryAfter) use (&$capturedContext) {
                 $capturedContext = $ctx;
-
-                return null;
             },
             sendHeaders: false,
         );
 
         $context = ['route' => '/api/data', 'method' => 'POST'];
 
-        $mw->handle($context, fn($ctx) => 'ok'); // Allowed
-        $mw->handle($context, fn($ctx) => 'ok'); // Blocked
+        $mw->handle($context, fn ($ctx) => 'ok'); // Allowed
+        $mw->handle($context, fn ($ctx) => 'ok'); // Blocked
 
         $this->assertSame($context, $capturedContext);
     }
@@ -1005,12 +1042,14 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareIsolatesRateLimitsByKey(): void
     {
-        $this->limiter->for('api', fn(array $ctx) =>
-            Limit::perMinute(2)->by($ctx['ip'] ?? 'unknown')
+        $this->limiter->for(
+            'api',
+            fn (array $ctx) =>
+            Limit::perMinute(2)->by($ctx['ip'] ?? 'unknown'),
         );
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // User A: 2 requests (at limit)
         $mw->handle(['ip' => '10.0.0.1'], $handler);
@@ -1039,7 +1078,7 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewarePassesContextUnmodified(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(100)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(100)->by('test'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
@@ -1090,13 +1129,13 @@ class RateLimitTest extends TestCase
 
     public function testConcurrentMiddlewareInstances(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(3)->by('shared'));
-        $this->limiter->for('login', fn() => Limit::every(300, 5)->by('shared'));
+        $this->limiter->for('api', fn () => Limit::perMinute(3)->by('shared'));
+        $this->limiter->for('login', fn () => Limit::every(300, 5)->by('shared'));
 
         $apiMw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
         $loginMw = new RateLimitMiddleware($this->limiter, 'login', sendHeaders: false);
 
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // API and login have separate namespaced keys
         $apiMw->handle([], $handler);
@@ -1116,12 +1155,14 @@ class RateLimitTest extends TestCase
         $this->store->setCurrentTime(1000);
         $this->limiter->setCurrentTime(1000);
 
-        $this->limiter->for('login', fn(array $ctx) =>
-            Limit::every(300, 3)->by($ctx['email'] ?? 'anon')
+        $this->limiter->for(
+            'login',
+            fn (array $ctx) =>
+            Limit::every(300, 3)->by($ctx['email'] ?? 'anon'),
         );
 
         $mw = new RateLimitMiddleware($this->limiter, 'login', sendHeaders: false);
-        $handler = fn($ctx) => 'login_ok';
+        $handler = fn ($ctx) => 'login_ok';
 
         $ctx = ['email' => 'user@test.com'];
 
@@ -1150,13 +1191,13 @@ class RateLimitTest extends TestCase
 
     public function testDifferentLimitsForDifferentRoutes(): void
     {
-        $this->limiter->for('strict', fn() => Limit::perMinute(2)->by('ip'));
-        $this->limiter->for('lenient', fn() => Limit::perMinute(100)->by('ip'));
+        $this->limiter->for('strict', fn () => Limit::perMinute(2)->by('ip'));
+        $this->limiter->for('lenient', fn () => Limit::perMinute(100)->by('ip'));
 
         $strictMw = new RateLimitMiddleware($this->limiter, 'strict', sendHeaders: false);
         $lenientMw = new RateLimitMiddleware($this->limiter, 'lenient', sendHeaders: false);
 
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // Strict: 2 allowed, 3rd blocked
         $strictMw->handle([], $handler);
@@ -1181,8 +1222,8 @@ class RateLimitTest extends TestCase
 
     public function testCacheStoreIntegrationWithRateLimiter(): void
     {
-        $cacheDir = sys_get_temp_dir() . '/razy_ratelimit_test_' . uniqid();
-        mkdir($cacheDir, 0777, true);
+        $cacheDir = \sys_get_temp_dir() . '/razy_ratelimit_test_' . \uniqid();
+        \mkdir($cacheDir, 0o777, true);
 
         try {
             $cache = new \Razy\Cache\FileAdapter($cacheDir);
@@ -1215,14 +1256,14 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareInPipelineWithOtherMiddleware(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(10)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(10)->by('test'));
 
         $rateMw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
         $log = [];
 
         // Simulate a pipeline: logging → rate limit → handler
-        $loggingMw = new class implements MiddlewareInterface {
+        $loggingMw = new class() implements MiddlewareInterface {
             /** @var string[] */
             public array $entries = [];
 
@@ -1237,11 +1278,11 @@ class RateLimitTest extends TestCase
         };
 
         // Manually chain: logging → rate limit → handler
-        $handler = fn($ctx) => 'final_result';
+        $handler = fn ($ctx) => 'final_result';
 
         $result = $loggingMw->handle(
             ['route' => '/api/test'],
-            fn(array $ctx) => $rateMw->handle($ctx, $handler),
+            fn (array $ctx) => $rateMw->handle($ctx, $handler),
         );
 
         $this->assertSame('final_result', $result);
@@ -1250,11 +1291,11 @@ class RateLimitTest extends TestCase
 
     public function testMiddlewareShortCircuitInPipeline(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(1)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(1)->by('test'));
 
         $rateMw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // First request passes
         $rateMw->handle([], $handler);
@@ -1262,7 +1303,7 @@ class RateLimitTest extends TestCase
         // Second request: rate limiter short-circuits before handler
         $handlerCalled = false;
 
-        $outerMw = new class implements MiddlewareInterface {
+        $outerMw = new class() implements MiddlewareInterface {
             public bool $called = false;
 
             public function handle(array $context, Closure $next): mixed
@@ -1276,7 +1317,7 @@ class RateLimitTest extends TestCase
 
         $outerMw->handle(
             [],
-            fn(array $ctx) => $rateMw->handle($ctx, function ($ctx) use (&$handlerCalled) {
+            fn (array $ctx) => $rateMw->handle($ctx, function ($ctx) use (&$handlerCalled) {
                 $handlerCalled = true;
 
                 return 'x';
@@ -1323,7 +1364,7 @@ class RateLimitTest extends TestCase
 
     public function testLongKey(): void
     {
-        $key = str_repeat('a', 1000);
+        $key = \str_repeat('a', 1000);
 
         $this->limiter->hit($key, 60);
         $this->assertSame(1, $this->limiter->attempts($key));
@@ -1372,7 +1413,7 @@ class RateLimitTest extends TestCase
     public function testStoreDirectManipulation(): void
     {
         // Manually set a record and verify RateLimiter reads it
-        $this->store->set('manual', 99, time() + 600);
+        $this->store->set('manual', 99, \time() + 600);
 
         $this->assertSame(99, $this->limiter->attempts('manual'));
         $this->assertTrue($this->limiter->tooManyAttempts('manual', 50));
@@ -1390,7 +1431,7 @@ class RateLimitTest extends TestCase
 
     public function testHandlerReturnValuePreserved(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(100)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(100)->by('test'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
@@ -1404,7 +1445,7 @@ class RateLimitTest extends TestCase
         ];
 
         foreach ($results as $type => $expected) {
-            $result = $mw->handle([], fn($ctx) => $expected);
+            $result = $mw->handle([], fn ($ctx) => $expected);
             $this->assertSame($expected, $result, "Return type '$type' not preserved");
         }
     }
@@ -1421,7 +1462,7 @@ class RateLimitTest extends TestCase
         });
 
         $mw = new RateLimitMiddleware($this->limiter, 'dynamic', sendHeaders: false);
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // Regular user: limited to 10/min
         for ($i = 0; $i < 10; $i++) {
@@ -1495,7 +1536,7 @@ class RateLimitTest extends TestCase
         });
 
         $mw = new RateLimitMiddleware($this->limiter, 'per_route', sendHeaders: false);
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // Upload endpoint: limited to 5
         for ($i = 0; $i < 5; $i++) {
@@ -1517,10 +1558,10 @@ class RateLimitTest extends TestCase
 
     public function testClearAfterExceedingLimitAllowsAgain(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(2)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(2)->by('test'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
-        $handler = fn($ctx) => 'ok';
+        $handler = fn ($ctx) => 'ok';
 
         // Exhaust limit
         $mw->handle([], $handler);
@@ -1545,37 +1586,21 @@ class RateLimitTest extends TestCase
 
     public function testExceptionInHandlerDoesNotAffectRateLimitCount(): void
     {
-        $this->limiter->for('api', fn() => Limit::perMinute(5)->by('test'));
+        $this->limiter->for('api', fn () => Limit::perMinute(5)->by('test'));
 
         $mw = new RateLimitMiddleware($this->limiter, 'api', sendHeaders: false);
 
         // Hit is recorded before the handler runs
         try {
             $mw->handle([], function ($ctx) {
-                throw new \RuntimeException('handler error');
+                throw new RuntimeException('handler error');
             });
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             // Expected
         }
 
         // The hit should still have been recorded
         $this->assertSame(1, $this->limiter->attempts('api:test'));
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  DataProvider Tests
-    // ══════════════════════════════════════════════════════════════
-
-    public static function limitFactoryProvider(): array
-    {
-        return [
-            'perMinute(1)' => [Limit::perMinute(1), 1, 60],
-            'perMinute(100)' => [Limit::perMinute(100), 100, 60],
-            'perHour(500)' => [Limit::perHour(500), 500, 3600],
-            'perDay(5000)' => [Limit::perDay(5000), 5000, 86400],
-            'every(10, 3)' => [Limit::every(10, 3), 3, 10],
-            'every(3600, 1)' => [Limit::every(3600, 1), 1, 3600],
-        ];
     }
 
     #[DataProvider('limitFactoryProvider')]
@@ -1584,19 +1609,6 @@ class RateLimitTest extends TestCase
         $this->assertSame($expectedMax, $limit->getMaxAttempts());
         $this->assertSame($expectedDecay, $limit->getDecaySeconds());
         $this->assertFalse($limit->isUnlimited());
-    }
-
-    public static function attemptOutcomeProvider(): array
-    {
-        return [
-            '1 of 5 — allowed' => [1, 5, true, 4],
-            '5 of 5 — allowed (last one)' => [5, 5, true, 0],
-            '6 of 5 — blocked' => [6, 5, false, 0],
-            '1 of 1 — allowed' => [1, 1, true, 0],
-            '2 of 1 — blocked' => [2, 1, false, 0],
-            '10 of 10 — allowed' => [10, 10, true, 0],
-            '11 of 10 — blocked' => [11, 10, false, 0],
-        ];
     }
 
     #[DataProvider('attemptOutcomeProvider')]
@@ -1658,23 +1670,23 @@ class RateLimitTest extends TestCase
      */
     private function removeDirectory(string $dir): void
     {
-        if (!is_dir($dir)) {
+        if (!\is_dir($dir)) {
             return;
         }
 
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
+        $items = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($items as $item) {
             if ($item->isDir()) {
-                rmdir($item->getPathname());
+                \rmdir($item->getPathname());
             } else {
-                unlink($item->getPathname());
+                \unlink($item->getPathname());
             }
         }
 
-        rmdir($dir);
+        \rmdir($dir);
     }
 }

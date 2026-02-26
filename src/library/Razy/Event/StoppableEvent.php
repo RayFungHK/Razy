@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Base stoppable event implementing PSR-14 StoppableEventInterface.
  *
  * @package Razy
+ *
  * @license MIT
  */
 

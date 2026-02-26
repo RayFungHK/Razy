@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -31,7 +33,7 @@ class YAMLDumper
      */
     public function __construct(
         private readonly int $indent = 2,
-        private readonly int $inline = 4
+        private readonly int $inline = 4,
     ) {
     }
 
@@ -53,9 +55,9 @@ class YAMLDumper
      * Decides whether to render inline or block-style based on depth
      * and data complexity.
      *
-     * @param mixed $data       The data to dump
-     * @param int   $level      Current nesting depth
-     * @param bool  $inlineMode Whether inline rendering was requested
+     * @param mixed $data The data to dump
+     * @param int $level Current nesting depth
+     * @param bool $inlineMode Whether inline rendering was requested
      *
      * @return string YAML fragment
      */
@@ -65,16 +67,16 @@ class YAMLDumper
             return 'null';
         }
 
-        if (is_bool($data)) {
+        if (\is_bool($data)) {
             return $data ? 'true' : 'false';
         }
 
-        if (is_scalar($data)) {
+        if (\is_scalar($data)) {
             return $this->dumpScalar($data);
         }
 
-        if (!is_array($data)) {
-            return $this->dumpScalar((string)$data);
+        if (!\is_array($data)) {
+            return $this->dumpScalar((string) $data);
         }
 
         // Check if data should be rendered inline (exceeds depth threshold or is simple)
@@ -83,7 +85,7 @@ class YAMLDumper
         }
 
         // Determine if sequential (list) or associative (mapping) array
-        $isList = array_keys($data) === range(0, count($data) - 1);
+        $isList = \array_keys($data) === \range(0, \count($data) - 1);
 
         if ($isList) {
             return $this->dumpSequence($data, $level);
@@ -95,8 +97,8 @@ class YAMLDumper
     /**
      * Dump a sequential array as a YAML sequence (block style).
      *
-     * @param array $data  The list data
-     * @param int   $level Current nesting depth
+     * @param array $data The list data
+     * @param int $level Current nesting depth
      *
      * @return string YAML sequence output
      */
@@ -107,12 +109,12 @@ class YAMLDumper
         }
 
         $output = "\n";
-        $indent = str_repeat(' ', $this->indent * $level);
+        $indent = \str_repeat(' ', $this->indent * $level);
 
         foreach ($data as $value) {
-            if (is_array($value) && !$this->isSimpleArray($value)) {
+            if (\is_array($value) && !$this->isSimpleArray($value)) {
                 $nested = $this->dumpLevel($value, $level + 1, false);
-                if (str_starts_with($nested, "\n")) {
+                if (\str_starts_with($nested, "\n")) {
                     $output .= $indent . '-' . $nested;
                 } else {
                     $output .= $indent . '- ' . $nested . "\n";
@@ -128,8 +130,8 @@ class YAMLDumper
     /**
      * Dump an associative array as a YAML mapping (block style).
      *
-     * @param array $data  The mapping data
-     * @param int   $level Current nesting depth
+     * @param array $data The mapping data
+     * @param int $level Current nesting depth
      *
      * @return string YAML mapping output
      */
@@ -140,14 +142,14 @@ class YAMLDumper
         }
 
         $output = $level === 0 ? '' : "\n";
-        $indent = str_repeat(' ', $this->indent * $level);
+        $indent = \str_repeat(' ', $this->indent * $level);
 
         foreach ($data as $key => $value) {
             $output .= $indent . $this->dumpScalar($key) . ':';
 
-            if (is_array($value) && !$this->isSimpleArray($value)) {
+            if (\is_array($value) && !$this->isSimpleArray($value)) {
                 $nested = $this->dumpLevel($value, $level + 1, false);
-                if (str_starts_with($nested, "\n")) {
+                if (\str_starts_with($nested, "\n")) {
                     $output .= $nested;
                 } else {
                     $output .= ' ' . $nested . "\n";
@@ -170,18 +172,18 @@ class YAMLDumper
     private function dumpInline(array $data): string
     {
         // Determine if list ([]) or mapping ({})
-        $isList = array_keys($data) === range(0, count($data) - 1);
+        $isList = \array_keys($data) === \range(0, \count($data) - 1);
 
         if ($isList) {
-            $items = array_map(fn($v) => $this->dumpLevel($v, 999, true), $data);
-            return '[' . implode(', ', $items) . ']';
+            $items = \array_map(fn ($v) => $this->dumpLevel($v, 999, true), $data);
+            return '[' . \implode(', ', $items) . ']';
         }
 
         $items = [];
         foreach ($data as $key => $value) {
             $items[] = $this->dumpScalar($key) . ': ' . $this->dumpLevel($value, 999, true);
         }
-        return '{' . implode(', ', $items) . '}';
+        return '{' . \implode(', ', $items) . '}';
     }
 
     /**
@@ -199,20 +201,20 @@ class YAMLDumper
             return 'null';
         }
 
-        if (is_bool($value)) {
+        if (\is_bool($value)) {
             return $value ? 'true' : 'false';
         }
 
-        if (is_int($value) || is_float($value)) {
-            return (string)$value;
+        if (\is_int($value) || \is_float($value)) {
+            return (string) $value;
         }
 
-        $value = (string)$value;
+        $value = (string) $value;
 
         // Check if needs quoting
         if ($this->needsQuoting($value)) {
             // Escape special characters
-            $escaped = str_replace(['\\', '"', "\n", "\t"], ['\\\\', '\\"', '\\n', '\\t'], $value);
+            $escaped = \str_replace(['\\', '"', "\n", "\t"], ['\\\\', '\\"', '\\n', '\\t'], $value);
             return '"' . $escaped . '"';
         }
 
@@ -237,22 +239,22 @@ class YAMLDumper
         }
 
         // Reserved words
-        if (in_array(strtolower($value), ['true', 'false', 'null', 'yes', 'no', 'on', 'off'], true)) {
+        if (\in_array(\strtolower($value), ['true', 'false', 'null', 'yes', 'no', 'on', 'off'], true)) {
             return true;
         }
 
         // Numeric strings
-        if (is_numeric($value)) {
+        if (\is_numeric($value)) {
             return true;
         }
 
         // Contains special YAML characters
-        if (preg_match('/[:\[\]{},&*#?|\-<>=!%@`"]/', $value)) {
+        if (\preg_match('/[:\[\]{},&*#?|\-<>=!%@`"]/', $value)) {
             return true;
         }
 
         // Starts with special characters
-        if (preg_match('/^[\s@`]/', $value)) {
+        if (\preg_match('/^[\s@`]/', $value)) {
             return true;
         }
 
@@ -271,10 +273,10 @@ class YAMLDumper
     private function isSimpleArray(array $data): bool
     {
         foreach ($data as $value) {
-            if (is_array($value)) {
+            if (\is_array($value)) {
                 return false;
             }
         }
-        return count($data) <= 5;
+        return \count($data) <= 5;
     }
 }

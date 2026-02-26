@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -50,13 +51,14 @@ class Limit
     private bool $unlimited = false;
 
     /**
-     * @param int $maxAttempts  Maximum number of attempts allowed within the decay window.
+     * @param int $maxAttempts Maximum number of attempts allowed within the decay window.
      * @param int $decaySeconds Duration of the time window in seconds before the counter resets.
      */
     private function __construct(
         private readonly int $maxAttempts,
         private readonly int $decaySeconds,
-    ) {}
+    ) {
+    }
 
     /**
      * Create a limit allowing $maxAttempts per minute.
@@ -98,7 +100,7 @@ class Limit
      * Create a limit allowing $maxAttempts within a custom decay period.
      *
      * @param int $decaySeconds Duration of the time window in seconds.
-     * @param int $maxAttempts  Maximum attempts allowed within the window.
+     * @param int $maxAttempts Maximum attempts allowed within the window.
      *
      * @return static
      */

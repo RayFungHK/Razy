@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -43,8 +45,8 @@ class YAMLParser
     public function __construct(private readonly string $yaml)
     {
         // Split into lines and count for iteration
-        $this->lines = explode("\n", $this->yaml);
-        $this->lineCount = count($this->lines);
+        $this->lines = \explode("\n", $this->yaml);
+        $this->lineCount = \count($this->lines);
     }
 
     /**
@@ -56,15 +58,15 @@ class YAMLParser
     {
         $this->currentLine = 0;
         $result = $this->parseLevel(0);
-        
+
         // If result is array with single key at root, return it directly
-        if (is_array($result) && count($result) === 1) {
-            $keys = array_keys($result);
-            if (is_string($keys[0])) {
+        if (\is_array($result) && \count($result) === 1) {
+            $keys = \array_keys($result);
+            if (\is_string($keys[0])) {
                 return $result;
             }
         }
-        
+
         return $result;
     }
 
@@ -90,16 +92,16 @@ class YAMLParser
 
         while ($this->currentLine < $this->lineCount) {
             $line = $this->lines[$this->currentLine];
-            $trimmed = ltrim($line);
+            $trimmed = \ltrim($line);
 
             // Skip empty lines and comments
-            if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+            if ($trimmed === '' || \str_starts_with($trimmed, '#')) {
                 $this->currentLine++;
                 continue;
             }
 
             // Calculate indentation by comparing raw vs trimmed line length
-            $indent = strlen($line) - strlen($trimmed);
+            $indent = \strlen($line) - \strlen($trimmed);
 
             // If dedented, return to parent
             if ($indent < $baseIndent) {
@@ -126,30 +128,31 @@ class YAMLParser
             $this->currentLine++;
 
             // Handle flow collections (inline)
-            if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
+            if (\str_starts_with($trimmed, '[') || \str_starts_with($trimmed, '{')) {
                 return $this->parseFlow($trimmed);
             }
 
-            // Handle list items
-            if (preg_match('/^-\s+(.*)$/', $trimmed, $matches)) {
+            // Handle list items (bare "-" or "- value")
+            if ($trimmed === '-' || \preg_match('/^-\s+(.*)$/', $trimmed, $matches)) {
                 $isList = true;
-                $this->parseListItem(trim($matches[1]), $indent, $result);
+                $value = isset($matches[1]) ? \trim($matches[1]) : '';
+                $this->parseListItem($value, $indent, $result);
                 continue;
             }
 
             // Handle key-value pairs
-            if (preg_match('/^([^:]+):\s*(.*)$/', $trimmed, $matches)) {
+            if (\preg_match('/^([^:]+):\s*(.*)$/', $trimmed, $matches)) {
                 $isList = false;
                 $this->parseKeyValue(
-                    trim($matches[1]),
-                    trim($matches[2]),
+                    \trim($matches[1]),
+                    \trim($matches[2]),
                     $indent,
                     $result,
                     $multilineMode,
                     $multilineKey,
                     $multilineIndent,
                     $multilineChomp,
-                    $multilineContent
+                    $multilineContent,
                 );
                 continue;
             }
@@ -179,29 +182,29 @@ class YAMLParser
      * For literal blocks (|), lines are joined with newlines.
      * For folded blocks (>), lines are joined with spaces after trimming.
      *
-     * @param string $mode    The multi-line mode ('|' for literal, '>' for folded)
-     * @param string $key     The key to assign the result to
-     * @param array  $content The accumulated content lines
-     * @param bool   $chomp   Whether to strip the trailing newline (reserved for future use)
-     * @param array  &$result The result array to assign into
+     * @param string $mode The multi-line mode ('|' for literal, '>' for folded)
+     * @param string $key The key to assign the result to
+     * @param array $content The accumulated content lines
+     * @param bool $chomp Whether to strip the trailing newline (reserved for future use)
+     * @param array &$result The result array to assign into
      */
     private function finalizeMultilineBlock(string $mode, string $key, array $content, bool $chomp, array &$result): void
     {
         if ($mode === '|') {
-            $result[$key] = implode("\n", $content);
+            $result[$key] = \implode("\n", $content);
         } else {
-            $result[$key] = implode(' ', array_map('trim', $content));
+            $result[$key] = \implode(' ', \array_map('trim', $content));
         }
     }
 
     /**
      * Check if the current line continues a multi-line block and accumulate content.
      *
-     * @param string $line            The raw line
-     * @param int    $indent          The line's indentation level
-     * @param int    $multilineIndent The expected indentation for multi-line content
-     * @param string $trimmed         The left-trimmed line
-     * @param array  &$content        The accumulated content lines (modified by reference)
+     * @param string $line The raw line
+     * @param int $indent The line's indentation level
+     * @param int $multilineIndent The expected indentation for multi-line content
+     * @param string $trimmed The left-trimmed line
+     * @param array &$content The accumulated content lines (modified by reference)
      *
      * @return bool True if the line was consumed as multi-line content
      */
@@ -209,7 +212,7 @@ class YAMLParser
     {
         if ($indent >= $multilineIndent || $trimmed === '') {
             // Content line: strip base indentation and accumulate
-            $contentLine = ($indent >= $multilineIndent) ? substr($line, $multilineIndent) : '';
+            $contentLine = ($indent >= $multilineIndent) ? \substr($line, $multilineIndent) : '';
             $content[] = $contentLine;
             $this->currentLine++;
             return true;
@@ -220,16 +223,16 @@ class YAMLParser
     /**
      * Handle a list item (- value) including nested structures and inline mappings.
      *
-     * @param string $value  The trimmed value after the list marker
-     * @param int    $indent The indentation level of the list marker
-     * @param array  &$result The result array to append to
+     * @param string $value The trimmed value after the list marker
+     * @param int $indent The indentation level of the list marker
+     * @param array &$result The result array to append to
      */
     private function parseListItem(string $value, int $indent, array &$result): void
     {
         if ($value === '') {
             // Nested structure
             $result[] = $this->parseLevel($indent + 2);
-        } elseif (str_contains($value, ':')) {
+        } elseif (\str_contains($value, ':')) {
             // Inline mapping in list
             $result[] = $this->parseLine($value);
         } else {
@@ -241,15 +244,15 @@ class YAMLParser
      * Handle a key-value pair including anchors, aliases, nested recursion,
      * and multi-line indicators.
      *
-     * @param string  $key              The parsed key
-     * @param string  $value            The parsed value portion
-     * @param int     $indent           The indentation level
-     * @param array   &$result          The result array to assign into
-     * @param ?string &$multilineMode   Set if a multi-line block is started
-     * @param ?string &$multilineKey    Set to the key for multi-line content
-     * @param ?int    &$multilineIndent Set to the expected indentation for multi-line content
-     * @param ?bool   &$multilineChomp  Set to true if trailing newline should be stripped
-     * @param array   &$multilineContent Reset when multi-line mode is started
+     * @param string $key The parsed key
+     * @param string $value The parsed value portion
+     * @param int $indent The indentation level
+     * @param array &$result The result array to assign into
+     * @param ?string &$multilineMode Set if a multi-line block is started
+     * @param ?string &$multilineKey Set to the key for multi-line content
+     * @param ?int &$multilineIndent Set to the expected indentation for multi-line content
+     * @param ?bool &$multilineChomp Set to true if trailing newline should be stripped
+     * @param array &$multilineContent Reset when multi-line mode is started
      */
     private function parseKeyValue(
         string $key,
@@ -260,17 +263,17 @@ class YAMLParser
         ?string &$multilineKey,
         ?int &$multilineIndent,
         ?bool &$multilineChomp,
-        array &$multilineContent
+        array &$multilineContent,
     ): void {
         // Handle anchors
-        if (preg_match('/^&(\w+)\s+(.+)$/', $key, $anchorMatch)) {
+        if (\preg_match('/^&(\w+)\s+(.+)$/', $key, $anchorMatch)) {
             $anchorName = $anchorMatch[1];
-            $key = trim($anchorMatch[2]);
+            $key = \trim($anchorMatch[2]);
         }
 
         // Handle aliases
-        if (str_starts_with($value, '*')) {
-            $aliasName = substr($value, 1);
+        if (\str_starts_with($value, '*')) {
+            $aliasName = \substr($value, 1);
             $result[$key] = $this->anchors[$aliasName] ?? null;
             return;
         }
@@ -326,18 +329,18 @@ class YAMLParser
     private function parseLine(string $line): mixed
     {
         $result = [];
-        
+
         // Split by commas that aren't inside brackets/braces
-        $pairs = preg_split('/,\s*(?![^{}\[\]]*[\}\]])/', $line);
-        
+        $pairs = \preg_split('/,\s*(?![^{}\[\]]*[\}\]])/', $line);
+
         foreach ($pairs as $pair) {
-            if (preg_match('/^([^:]+):\s*(.*)$/', trim($pair), $matches)) {
-                $key = trim($matches[1]);
-                $value = trim($matches[2]);
+            if (\preg_match('/^([^:]+):\s*(.*)$/', \trim($pair), $matches)) {
+                $key = \trim($matches[1]);
+                $value = \trim($matches[2]);
                 $result[$key] = $this->parseValue($value);
             }
         }
-        
+
         return $result;
     }
 
@@ -350,38 +353,38 @@ class YAMLParser
      */
     private function parseFlow(string $text): mixed
     {
-        $text = trim($text);
-        
-        if (str_starts_with($text, '[')) {
+        $text = \trim($text);
+
+        if (\str_starts_with($text, '[')) {
             // Flow sequence
-            $content = substr($text, 1, -1);
+            $content = \substr($text, 1, -1);
             $items = $this->splitFlow($content);
             $result = [];
-            
+
             foreach ($items as $item) {
-                $result[] = $this->parseValue(trim($item));
+                $result[] = $this->parseValue(\trim($item));
             }
-            
+
             return $result;
         }
-        
-        if (str_starts_with($text, '{')) {
+
+        if (\str_starts_with($text, '{')) {
             // Flow mapping
-            $content = substr($text, 1, -1);
+            $content = \substr($text, 1, -1);
             $items = $this->splitFlow($content);
             $result = [];
-            
+
             foreach ($items as $item) {
-                if (preg_match('/^([^:]+):\s*(.*)$/', trim($item), $matches)) {
-                    $key = trim($matches[1], '"\'');
-                    $value = trim($matches[2]);
+                if (\preg_match('/^([^:]+):\s*(.*)$/', \trim($item), $matches)) {
+                    $key = \trim($matches[1], '"\'');
+                    $value = \trim($matches[2]);
                     $result[$key] = $this->parseValue($value);
                 }
             }
-            
+
             return $result;
         }
-        
+
         return null;
     }
 
@@ -402,10 +405,10 @@ class YAMLParser
         $depth = 0;
         $inQuote = false;
         $quoteChar = null;
-        
-        for ($i = 0; $i < strlen($content); $i++) {
+
+        for ($i = 0; $i < \strlen($content); $i++) {
             $char = $content[$i];
-            
+
             if (($char === '"' || $char === "'") && ($i === 0 || $content[$i - 1] !== '\\')) {
                 if (!$inQuote) {
                     $inQuote = true;
@@ -415,7 +418,7 @@ class YAMLParser
                     $quoteChar = null;
                 }
             }
-            
+
             if (!$inQuote) {
                 if ($char === '[' || $char === '{') {
                     $depth++;
@@ -427,14 +430,14 @@ class YAMLParser
                     continue;
                 }
             }
-            
+
             $current .= $char;
         }
-        
+
         if ($current !== '') {
             $items[] = $current;
         }
-        
+
         return $items;
     }
 
@@ -450,7 +453,7 @@ class YAMLParser
      */
     private function parseValue(string $value): mixed
     {
-        $value = trim($value);
+        $value = \trim($value);
 
         // Null
         if ($value === '' || $value === 'null' || $value === '~') {
@@ -458,29 +461,29 @@ class YAMLParser
         }
 
         // Boolean
-        if (in_array(strtolower($value), ['true', 'yes', 'on'], true)) {
+        if (\in_array(\strtolower($value), ['true', 'yes', 'on'], true)) {
             return true;
         }
-        if (in_array(strtolower($value), ['false', 'no', 'off'], true)) {
+        if (\in_array(\strtolower($value), ['false', 'no', 'off'], true)) {
             return false;
         }
 
         // Number
-        if (is_numeric($value)) {
-            return str_contains($value, '.') ? (float)$value : (int)$value;
+        if (\is_numeric($value)) {
+            return \str_contains($value, '.') ? (float) $value : (int) $value;
         }
 
         // Flow collection
-        if (str_starts_with($value, '[') || str_starts_with($value, '{')) {
+        if (\str_starts_with($value, '[') || \str_starts_with($value, '{')) {
             return $this->parseFlow($value);
         }
 
         // Quoted string
-        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) ||
-            (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
-            $unquoted = substr($value, 1, -1);
+        if ((\str_starts_with($value, '"') && \str_ends_with($value, '"'))
+            || (\str_starts_with($value, "'") && \str_ends_with($value, "'"))) {
+            $unquoted = \substr($value, 1, -1);
             // Unescape
-            return str_replace(['\\n', '\\t', '\\\\', '\\"'], ["\n", "\t", '\\', '"'], $unquoted);
+            return \str_replace(['\\n', '\\t', '\\\\', '\\"'], ["\n", "\t", '\\', '"'], $unquoted);
         }
 
         // Plain string
@@ -498,15 +501,15 @@ class YAMLParser
     {
         for ($i = $this->currentLine; $i < $this->lineCount; $i++) {
             $line = $this->lines[$i];
-            $trimmed = ltrim($line);
-            
-            if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+            $trimmed = \ltrim($line);
+
+            if ($trimmed === '' || \str_starts_with($trimmed, '#')) {
                 continue;
             }
-            
-            return strlen($line) - strlen($trimmed);
+
+            return \strlen($line) - \strlen($trimmed);
         }
-        
+
         return 0;
     }
 }

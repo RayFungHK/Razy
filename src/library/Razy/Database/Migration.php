@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Abstract base class for database migrations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -54,8 +56,6 @@ abstract class Migration
      * Run the migration (apply schema changes).
      *
      * @param SchemaBuilder $schema The schema builder for executing DDL
-     *
-     * @return void
      */
     abstract public function up(SchemaBuilder $schema): void;
 
@@ -63,8 +63,6 @@ abstract class Migration
      * Reverse the migration (undo schema changes).
      *
      * @param SchemaBuilder $schema The schema builder for executing DDL
-     *
-     * @return void
      */
     abstract public function down(SchemaBuilder $schema): void;
 

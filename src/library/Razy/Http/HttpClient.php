@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -139,14 +140,14 @@ class HttpClient
     /**
      * Before-request interceptor.
      *
-     * @var Closure|null fn(CurlHandle $ch, string $method, string $url, array $options): void
+     * @var Closure|null fn(CurlHandle, string, string, array): void
      */
     private ?Closure $beforeCallback = null;
 
     /**
      * After-response interceptor.
      *
-     * @var Closure|null fn(HttpResponse $response, string $method, string $url): void
+     * @var Closure|null fn(HttpResponse, string, string): void
      */
     private ?Closure $afterCallback = null;
 
@@ -182,7 +183,7 @@ class HttpClient
      */
     public function baseUrl(string $url): static
     {
-        $this->baseUrl = rtrim($url, '/');
+        $this->baseUrl = \rtrim($url, '/');
 
         return $this;
     }
@@ -195,7 +196,7 @@ class HttpClient
     public function withHeaders(array $headers): static
     {
         foreach ($headers as $name => $value) {
-            $this->headers[strtolower($name)] = $value;
+            $this->headers[\strtolower($name)] = $value;
         }
 
         return $this;
@@ -206,7 +207,7 @@ class HttpClient
      */
     public function withHeader(string $name, string $value): static
     {
-        $this->headers[strtolower($name)] = $value;
+        $this->headers[\strtolower($name)] = $value;
 
         return $this;
     }
@@ -310,7 +311,7 @@ class HttpClient
      */
     public function withQuery(array $params): static
     {
-        $this->queryParams = array_merge($this->queryParams, $params);
+        $this->queryParams = \array_merge($this->queryParams, $params);
 
         return $this;
     }
@@ -328,8 +329,8 @@ class HttpClient
     /**
      * Set a raw cURL option.
      *
-     * @param int   $option CURLOPT_* constant
-     * @param mixed $value  Option value
+     * @param int $option CURLOPT_* constant
+     * @param mixed $value Option value
      */
     public function withCurlOption(int $option, mixed $value): static
     {
@@ -341,8 +342,8 @@ class HttpClient
     /**
      * Configure retry behavior for failed requests.
      *
-     * @param int       $times    Number of retry attempts
-     * @param int       $delay    Delay between retries in milliseconds
+     * @param int $times Number of retry attempts
+     * @param int $delay Delay between retries in milliseconds
      * @param list<int> $onStatus HTTP status codes that trigger retry
      */
     public function retry(int $times, int $delay = 100, array $onStatus = []): static
@@ -387,7 +388,7 @@ class HttpClient
     /**
      * Send a GET request.
      *
-     * @param string              $url   URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $query Additional query parameters
      */
     public function get(string $url, array $query = []): HttpResponse
@@ -398,7 +399,7 @@ class HttpClient
     /**
      * Send a POST request.
      *
-     * @param string              $url  URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $data Request body data
      */
     public function post(string $url, array $data = []): HttpResponse
@@ -409,7 +410,7 @@ class HttpClient
     /**
      * Send a PUT request.
      *
-     * @param string              $url  URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $data Request body data
      */
     public function put(string $url, array $data = []): HttpResponse
@@ -420,7 +421,7 @@ class HttpClient
     /**
      * Send a PATCH request.
      *
-     * @param string              $url  URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $data Request body data
      */
     public function patch(string $url, array $data = []): HttpResponse
@@ -431,7 +432,7 @@ class HttpClient
     /**
      * Send a DELETE request.
      *
-     * @param string              $url  URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $data Request body data
      */
     public function delete(string $url, array $data = []): HttpResponse
@@ -442,7 +443,7 @@ class HttpClient
     /**
      * Send a HEAD request.
      *
-     * @param string              $url   URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $query Additional query parameters
      */
     public function head(string $url, array $query = []): HttpResponse
@@ -467,8 +468,8 @@ class HttpClient
     /**
      * Send an HTTP request.
      *
-     * @param string              $method  HTTP method
-     * @param string              $url     Full URL or relative path
+     * @param string $method HTTP method
+     * @param string $url Full URL or relative path
      * @param array<string,mixed> $options Request options: 'query', 'body', 'headers'
      *
      * @return HttpResponse
@@ -485,8 +486,8 @@ class HttpClient
             $response = $this->executeRequest($method, $fullUrl, $options);
 
             // Check if retry is needed
-            if ($attempt < $maxAttempts && in_array($response->status(), $this->retryOnStatus, true)) {
-                usleep($this->retryDelay * 1000);
+            if ($attempt < $maxAttempts && \in_array($response->status(), $this->retryOnStatus, true)) {
+                \usleep($this->retryDelay * 1000);
                 continue;
             }
 
@@ -613,21 +614,21 @@ class HttpClient
     /**
      * Build the full URL from base URL, path, and query parameters.
      *
-     * @param string              $url   URL or path
+     * @param string $url URL or path
      * @param array<string,mixed> $query Per-request query params
      */
     protected function buildUrl(string $url, array $query = []): string
     {
         // If URL is relative (no scheme), prepend base URL
-        if (!preg_match('#^https?://#i', $url)) {
-            $url = $this->baseUrl . '/' . ltrim($url, '/');
+        if (!\preg_match('#^https?://#i', $url)) {
+            $url = $this->baseUrl . '/' . \ltrim($url, '/');
         }
 
         // Merge query parameters
-        $allQuery = array_merge($this->queryParams, $query);
+        $allQuery = \array_merge($this->queryParams, $query);
         if (!empty($allQuery)) {
-            $separator = str_contains($url, '?') ? '&' : '?';
-            $url .= $separator . http_build_query($allQuery, '', '&', PHP_QUERY_RFC3986);
+            $separator = \str_contains($url, '?') ? '&' : '?';
+            $url .= $separator . \http_build_query($allQuery, '', '&', PHP_QUERY_RFC3986);
         }
 
         return $url;
@@ -636,65 +637,65 @@ class HttpClient
     /**
      * Execute a single HTTP request using cURL.
      *
-     * @param string              $method  HTTP method
-     * @param string              $url     Full URL
+     * @param string $method HTTP method
+     * @param string $url Full URL
      * @param array<string,mixed> $options Request options
      */
     protected function executeRequest(string $method, string $url, array $options = []): HttpResponse
     {
-        $ch = curl_init();
+        $ch = \curl_init();
 
         // URL & method
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_URL, $url);
+        \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, \strtoupper($method));
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         // Capture headers
         $responseHeaders = [];
-        curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $headerLine) use (&$responseHeaders) {
-            $parts = explode(':', $headerLine, 2);
-            if (count($parts) === 2) {
-                $responseHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+        \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $headerLine) use (&$responseHeaders) {
+            $parts = \explode(':', $headerLine, 2);
+            if (\count($parts) === 2) {
+                $responseHeaders[\strtolower(\trim($parts[0]))] = \trim($parts[1]);
             }
 
-            return strlen($headerLine);
+            return \strlen($headerLine);
         });
 
         // Timeouts
-        curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
 
         // SSL
         if (!$this->verifySsl) {
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            \curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         }
 
         // Follow redirects
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         // User-Agent
         if ($this->userAgent !== null) {
-            curl_setopt($ch, CURLOPT_USERAGENT, $this->userAgent);
+            \curl_setopt($ch, CURLOPT_USERAGENT, $this->userAgent);
         }
 
         // Build headers
         $requestHeaders = $this->buildRequestHeaders($options);
         if (!empty($requestHeaders)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
+            \curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
         }
 
         // Authentication
         if ($this->bearerToken !== null) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge(
+            \curl_setopt($ch, CURLOPT_HTTPHEADER, \array_merge(
                 $requestHeaders,
                 ['Authorization: Bearer ' . $this->bearerToken],
             ));
         }
 
         if ($this->basicAuth !== null) {
-            curl_setopt($ch, CURLOPT_USERPWD, $this->basicAuth['username'] . ':' . $this->basicAuth['password']);
+            \curl_setopt($ch, CURLOPT_USERPWD, $this->basicAuth['username'] . ':' . $this->basicAuth['password']);
         }
 
         // Body
@@ -704,7 +705,7 @@ class HttpClient
 
         // Custom cURL options
         foreach ($this->curlOptions as $opt => $val) {
-            curl_setopt($ch, $opt, $val);
+            \curl_setopt($ch, $opt, $val);
         }
 
         // Before callback
@@ -713,22 +714,22 @@ class HttpClient
         }
 
         // Execute
-        $body = curl_exec($ch);
-        $statusCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $body = \curl_exec($ch);
+        $statusCode = (int) \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if ($body === false) {
-            $error = curl_error($ch);
-            $errno = curl_errno($ch);
-            curl_close($ch);
+            $error = \curl_error($ch);
+            $errno = \curl_errno($ch);
+            \curl_close($ch);
 
             // Return a synthetic error response
-            return new HttpResponse(0, json_encode([
+            return new HttpResponse(0, \json_encode([
                 'error' => $error,
                 'errno' => $errno,
             ]), []);
         }
 
-        curl_close($ch);
+        \curl_close($ch);
 
         return new HttpResponse($statusCode, $body, $responseHeaders);
     }
@@ -746,9 +747,9 @@ class HttpClient
 
         // Merge per-request headers
         $allHeaders = $this->headers;
-        if (isset($options['headers']) && is_array($options['headers'])) {
+        if (isset($options['headers']) && \is_array($options['headers'])) {
             foreach ($options['headers'] as $k => $v) {
-                $allHeaders[strtolower($k)] = $v;
+                $allHeaders[\strtolower($k)] = $v;
             }
         }
 
@@ -768,7 +769,7 @@ class HttpClient
 
         foreach ($allHeaders as $name => $value) {
             // Capitalize header names for readability
-            $headerName = implode('-', array_map('ucfirst', explode('-', $name)));
+            $headerName = \implode('-', \array_map('ucfirst', \explode('-', $name)));
             $headers[] = $headerName . ': ' . $value;
         }
 
@@ -778,19 +779,19 @@ class HttpClient
     /**
      * Apply the request body to the cURL handle.
      *
-     * @param CurlHandle          $ch      cURL handle
-     * @param array<string,mixed> $body    Body data
-     * @param list<string>        $headers Current request headers (may be augmented)
+     * @param CurlHandle $ch cURL handle
+     * @param array<string,mixed> $body Body data
+     * @param list<string> $headers Current request headers (may be augmented)
      */
     protected function applyBody(CurlHandle $ch, array $body, array &$headers): void
     {
         if ($this->bodyFormat === 'json') {
-            $encoded = json_encode($body, JSON_THROW_ON_ERROR);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
+            $encoded = \json_encode($body, JSON_THROW_ON_ERROR);
+            \curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
         } elseif ($this->bodyFormat === 'form') {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($body, '', '&'));
+            \curl_setopt($ch, CURLOPT_POSTFIELDS, \http_build_query($body, '', '&'));
         } elseif ($this->bodyFormat === 'multipart') {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+            \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
     }
 }

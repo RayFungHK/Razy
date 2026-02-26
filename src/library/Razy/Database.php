@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -15,6 +17,7 @@ namespace Razy;
 
 use Exception;
 use PDO;
+use Razy\Contract\DatabaseInterface;
 use Razy\Database\Driver;
 use Razy\Database\Driver\MySQL;
 use Razy\Database\Driver\PostgreSQL;
@@ -23,63 +26,75 @@ use Razy\Database\Query;
 use Razy\Database\Statement;
 use Razy\Database\StatementPool;
 use Razy\Database\Transaction;
-use Razy\Contract\DatabaseInterface;
 use Razy\Exception\ConnectionException;
 use Razy\Exception\QueryException;
 use Razy\Exception\TransactionException;
+use Razy\Util\StringUtil;
 use Throwable;
 
-use Razy\Util\StringUtil;
 /**
- * Class Database
+ * Class Database.
  *
  * Provides a unified database abstraction layer supporting multiple drivers (MySQL,
  * PostgreSQL, SQLite). Manages named connection instances, SQL statement preparation
  * and execution, query history tracking, and table prefix management.
  *
  * @class Database
+ *
  * @package Razy
  */
 class Database implements DatabaseInterface
 {
     /** @var string Driver type constant for MySQL/MariaDB */
     public const DRIVER_MYSQL = 'mysql';
+
     /** @var string Driver type constant for PostgreSQL */
     public const DRIVER_PGSQL = 'pgsql';
+
     /** @var string Driver type constant for SQLite */
     public const DRIVER_SQLITE = 'sqlite';
-    
+
+    /** @var int Maximum number of SQL statements retained in query history (ring buffer) */
+    private const MAX_QUERY_HISTORY = 200;
+
     /** @var array<string, Database> Registry of named Database instances */
     private static array $instances = [];
 
     /** @var array<string, string> Registry of driver type aliases to driver class names */
     private static array $driverRegistry = [
-        'mysql'      => MySQL::class,
-        'mariadb'    => MySQL::class,
-        'pgsql'      => PostgreSQL::class,
-        'postgres'   => PostgreSQL::class,
+        'mysql' => MySQL::class,
+        'mariadb' => MySQL::class,
+        'pgsql' => PostgreSQL::class,
+        'postgres' => PostgreSQL::class,
         'postgresql' => PostgreSQL::class,
-        'sqlite'     => SQLite::class,
-        'sqlite3'    => SQLite::class,
+        'sqlite' => SQLite::class,
+        'sqlite3' => SQLite::class,
     ];
+
     /** @var PDO|null The underlying PDO adapter for executing queries */
     private ?PDO $adapter = null;
+
     /** @var Driver|null The active database driver instance */
     private ?Driver $driver = null;
+
     /** @var bool Whether a database connection has been established */
     private bool $connected = false;
+
     /** @var string Table name prefix applied to all table references */
     private string $prefix = '';
-    /** @var int Maximum number of SQL statements retained in query history (ring buffer) */
-    private const MAX_QUERY_HISTORY = 200;
+
     /** @var array<string> History of executed SQL statements (ring buffer) */
     private array $queried = [];
+
     /** @var int Ring buffer write index — total queries recorded since last clear */
     private int $queryIndex = 0;
+
     /** @var int Number of rows affected by the last query */
     private int $affected_rows = 0;
+
     /** @var StatementPool|null Prepared statement cache with LRU eviction */
     private ?StatementPool $statementPool = null;
+
     /** @var Transaction|null Transaction manager for nested transaction support */
     private ?Transaction $transaction = null;
 
@@ -91,9 +106,9 @@ class Database implements DatabaseInterface
     public function __construct(private string $name = '')
     {
         // Generate a random name if none provided
-        $this->name = trim($this->name);
+        $this->name = \trim($this->name);
         if (!$this->name) {
-            $this->name = 'Database_' . sprintf('%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff));
+            $this->name = 'Database_' . \sprintf('%04x%04x', \mt_rand(0, 0xffff), \mt_rand(0, 0xffff));
         }
     }
 
@@ -104,9 +119,9 @@ class Database implements DatabaseInterface
      *
      * @param string $name
      *
-     * @return null|Database
+     * @return Database|null
      */
-    public static function getInstance(string $name): ?Database
+    public static function getInstance(string $name): ?self
     {
         if (!isset(self::$instances[$name])) {
             self::$instances[$name] = new self($name);
@@ -122,7 +137,7 @@ class Database implements DatabaseInterface
     {
         self::$instances = [];
     }
-    
+
     /**
      * Register a custom database driver.
      *
@@ -136,10 +151,10 @@ class Database implements DatabaseInterface
      */
     public static function registerDriver(string $type, string $className): void
     {
-        if (!is_subclass_of($className, Driver::class)) {
+        if (!\is_subclass_of($className, Driver::class)) {
             throw new ConnectionException("Driver class '{$className}' must extend " . Driver::class);
         }
-        self::$driverRegistry[strtolower($type)] = $className;
+        self::$driverRegistry[\strtolower($type)] = $className;
     }
 
     /**
@@ -149,12 +164,14 @@ class Database implements DatabaseInterface
      * Custom drivers can be registered via `registerDriver()`.
      *
      * @param string $type Driver type: mysql, pgsql, sqlite, or any registered custom type
+     *
      * @return Driver
+     *
      * @throws Error If the driver type is not registered
      */
     public static function createDriver(string $type): Driver
     {
-        $normalizedType = strtolower($type);
+        $normalizedType = \strtolower($type);
 
         if (!isset(self::$driverRegistry[$normalizedType])) {
             throw new ConnectionException("Unsupported database driver: {$type}");
@@ -170,7 +187,7 @@ class Database implements DatabaseInterface
      *
      * @return self Chainable
      */
-    public function clearQueried(): Database
+    public function clearQueried(): self
     {
         $this->queried = [];
         $this->queryIndex = 0;
@@ -184,7 +201,7 @@ class Database implements DatabaseInterface
      *
      * @return self Chainable
      */
-    public function clearStatementPool(): Database
+    public function clearStatementPool(): self
     {
         $this->statementPool?->clear();
 
@@ -200,6 +217,7 @@ class Database implements DatabaseInterface
      * @param string $database
      *
      * @return bool
+     *
      * @deprecated Use connectWithDriver() for new code
      */
     public function connect(string $host, string $username, string $password, string $database): bool
@@ -211,19 +229,20 @@ class Database implements DatabaseInterface
             'database' => $database,
         ]);
     }
-    
+
     /**
-     * Connect to database using a driver
+     * Connect to database using a driver.
      *
      * @param string $driverType Driver type: mysql, pgsql, sqlite
      * @param array $config Connection configuration
+     *
      * @return bool
      */
     public function connectWithDriver(string $driverType, array $config): bool
     {
         try {
             $this->driver = self::createDriver($driverType);
-            
+
             if ($this->driver->connect($config)) {
                 $this->adapter = $this->driver->getAdapter();
                 $this->statementPool = new StatementPool($this->adapter);
@@ -231,15 +250,15 @@ class Database implements DatabaseInterface
                 $this->connected = true;
                 return true;
             }
-            
+
             return false;
         } catch (Exception) {
             return false;
         }
     }
-    
+
     /**
-     * Get the current database driver
+     * Get the current database driver.
      *
      * @return Driver|null
      */
@@ -247,9 +266,9 @@ class Database implements DatabaseInterface
     {
         return $this->driver;
     }
-    
+
     /**
-     * Get the driver type
+     * Get the driver type.
      *
      * @return string|null
      */
@@ -259,10 +278,12 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Set the database timezone
+     * Set the database timezone.
      *
      * @param string $timezone
+     *
      * @return $this
+     *
      * @throws Error If no driver is connected
      */
     public function setTimezone(string $timezone): static
@@ -282,6 +303,7 @@ class Database implements DatabaseInterface
      * @param Statement $statement
      *
      * @return Query
+     *
      * @throws Throwable
      */
     public function execute(Statement $statement): Query
@@ -308,17 +330,19 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Create a view table by given select statement and table name
+     * Create a view table by given select statement and table name.
      *
      * @param Statement $statement
      * @param string $viewTableName
+     *
      * @return bool
+     *
      * @throws Error
      * @throws Throwable
      */
     public function createViewTable(Statement $statement, string $viewTableName): bool
     {
-        $viewTableName = trim($viewTableName);
+        $viewTableName = \trim($viewTableName);
         if (!$viewTableName) {
             throw new QueryException('View table name cannot be empty.');
         }
@@ -344,13 +368,15 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Check if the table is existing
+     * Check if the table is existing.
      *
      * @param string $tableName
+     *
      * @return bool
      */
-    public function isTableExists(string $tableName): bool {
-        $tableName = trim($tableName);
+    public function isTableExists(string $tableName): bool
+    {
+        $tableName = \trim($tableName);
         if (!$tableName) {
             return false;
         }
@@ -374,13 +400,13 @@ class Database implements DatabaseInterface
         return $this->affected_rows;
     }
 
-
     /**
      * Get the collation list.
      *
      * @param string $charset The support charset name
      *
      * @return array The collation list
+     *
      * @throws Error If no driver is connected
      */
     public function getCollation(string $charset): array
@@ -396,6 +422,7 @@ class Database implements DatabaseInterface
      * Get the support charset list.
      *
      * @return array The support charset list
+     *
      * @throws Error If no driver is connected
      */
     public function getCharset(): array
@@ -431,7 +458,7 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Get the name
+     * Get the name.
      *
      * @return string
      */
@@ -441,7 +468,7 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Get the table prefix
+     * Get the table prefix.
      *
      * @return string
      */
@@ -451,12 +478,13 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Set the table prefix
+     * Set the table prefix.
      *
      * @param string $prefix
+     *
      * @return $this
      */
-    public function setPrefix(string $prefix): Database
+    public function setPrefix(string $prefix): self
     {
         $this->prefix = $prefix;
         return $this;
@@ -478,9 +506,9 @@ class Database implements DatabaseInterface
         }
         // Ring buffer has wrapped — reorder oldest→newest
         $start = $this->queryIndex % self::MAX_QUERY_HISTORY;
-        return array_merge(
-            array_slice($this->queried, $start),
-            array_slice($this->queried, 0, $start)
+        return \array_merge(
+            \array_slice($this->queried, $start),
+            \array_slice($this->queried, 0, $start),
         );
     }
 
@@ -505,6 +533,7 @@ class Database implements DatabaseInterface
      * @param array $duplicateKeys A set of columns to check the duplicate key
      *
      * @return Statement The Statement object
+     *
      * @throws Error
      */
     public function insert(string $tableName, array $dataset, array $duplicateKeys = []): Statement
@@ -555,8 +584,8 @@ class Database implements DatabaseInterface
      * @param array $updateSyntax An array contains the column name or update syntax
      *
      * @return Statement The Statement object
-     * @throws Throwable
      *
+     * @throws Throwable
      */
     public function update(string $tableName, array $updateSyntax): Statement
     {
@@ -567,7 +596,9 @@ class Database implements DatabaseInterface
      * @param string $tableName
      * @param array $parameters
      * @param string $whereSyntax
+     *
      * @return Statement
+     *
      * @throws Error
      */
     public function delete(string $tableName, array $parameters = [], string $whereSyntax = ''): Statement
@@ -588,12 +619,13 @@ class Database implements DatabaseInterface
      * @param array $extraSelect Additional columns to include in the SELECT
      *
      * @return Statement
+     *
      * @throws Error
      */
     public function getMaxStatement(string $tableName, string $binding, string $valueColumn, array $extraSelect = []): Statement
     {
-        $tableName = trim($tableName);
-        if (!preg_match('^[a-z]\w*$', $tableName)) {
+        $tableName = \trim($tableName);
+        if (!\preg_match('^[a-z]\w*$', $tableName)) {
             throw new QueryException('The table name format is invalid');
         }
         $binding = Statement::standardizeColumn($binding);
@@ -607,7 +639,7 @@ class Database implements DatabaseInterface
         }
 
         $selectColumn = '';
-        if (count($extraSelect)) {
+        if (\count($extraSelect)) {
             foreach ($extraSelect as $column) {
                 $column = Statement::standardizeColumn($column);
                 if ($column) {
@@ -686,8 +718,11 @@ class Database implements DatabaseInterface
      * Supports nesting — inner calls create savepoints.
      *
      * @template T
+     *
      * @param callable(Database): T $callback Receives this Database instance
+     *
      * @return T The callback's return value
+     *
      * @throws Throwable Re-throws after rollback
      */
     public function transaction(callable $callback): mixed

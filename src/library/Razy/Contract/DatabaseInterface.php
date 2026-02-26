@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Core interface contract for database access (Phase 2.4).
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -88,7 +90,9 @@ interface DatabaseInterface
      * Automatically commits on success, rolls back on exception.
      *
      * @template T
+     *
      * @param callable(\Razy\Database): T $callback
+     *
      * @return T
      */
     public function transaction(callable $callback): mixed;

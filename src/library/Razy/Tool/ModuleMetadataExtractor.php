@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * primarily for generating skills documentation.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -50,14 +52,15 @@ class ModuleMetadataExtractor
      * ModuleMetadataExtractor constructor.
      *
      * @param string $modulePath Absolute path to the module directory
+     *
      * @throws Exception If the module path does not exist
      */
     public function __construct(string $modulePath)
     {
-        if (!is_dir($modulePath)) {
+        if (!\is_dir($modulePath)) {
             throw new Exception("Module path not found: $modulePath");
         }
-        $this->modulePath = rtrim($modulePath, '/\\');
+        $this->modulePath = \rtrim($modulePath, '/\\');
     }
 
     /**
@@ -72,13 +75,23 @@ class ModuleMetadataExtractor
         $this->extractPackageData();
         $this->extractAPICommands();
         $this->extractEvents();
-        
+
         return [
             'package' => $this->packageData,
             'api_commands' => $this->apiCommands,
             'events' => $this->events,
             'dependencies' => $this->dependencies,
         ];
+    }
+
+    /**
+     * Pretty-print extracted metadata as JSON (for debugging).
+     *
+     * @return string JSON-encoded metadata with pretty formatting
+     */
+    public function pretty(): string
+    {
+        return \json_encode($this->extract(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 
     /**
@@ -89,15 +102,15 @@ class ModuleMetadataExtractor
     private function extractPackageData(): void
     {
         $packageFile = $this->modulePath . '/package.json';
-        if (!is_file($packageFile)) {
+        if (!\is_file($packageFile)) {
             throw new Exception("package.json not found in {$this->modulePath}");
         }
 
-        $content = file_get_contents($packageFile);
-        $this->packageData = json_decode($content, true) ?? [];
+        $content = \file_get_contents($packageFile);
+        $this->packageData = \json_decode($content, true) ?? [];
 
         // Extract module dependencies from the 'require' section
-        if (isset($this->packageData['require']) && is_array($this->packageData['require'])) {
+        if (isset($this->packageData['require']) && \is_array($this->packageData['require'])) {
             $this->dependencies = $this->packageData['require'];
         }
     }
@@ -111,30 +124,32 @@ class ModuleMetadataExtractor
     private function extractAPICommands(): void
     {
         $controllerFile = $this->modulePath . '/src/Controller.php';
-        if (!is_file($controllerFile)) {
+        if (!\is_file($controllerFile)) {
             return;
         }
 
-        $content = file_get_contents($controllerFile);
+        $content = \file_get_contents($controllerFile);
 
         // Pattern: $agent->addAPICommand('command', 'path/to/file') - public API
         $pattern1 = '/\$agent\s*->\s*addAPICommand\s*\(\s*[\'"]([^\'"]+)[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)/';
-        
+
         // Pattern: $agent->addAPICommand('#internal', 'path/to/file') - internal binding
         $pattern2 = '/\$agent\s*->\s*addAPICommand\s*\(\s*[\'"]#([^\'"]+)[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)/';
 
         $matches1 = [];
         $matches2 = [];
-        
-        preg_match_all($pattern1, $content, $matches1);
-        preg_match_all($pattern2, $content, $matches2);
+
+        \preg_match_all($pattern1, $content, $matches1);
+        \preg_match_all($pattern2, $content, $matches2);
 
         // Extract from Pattern 1 (public)
         if (!empty($matches1[1])) {
             foreach ($matches1[1] as $i => $command) {
                 // Skip if it's an internal binding (starts with #)
-                if (str_starts_with($command, '#')) continue;
-                
+                if (\str_starts_with($command, '#')) {
+                    continue;
+                }
+
                 $this->apiCommands[] = [
                     'command' => $command,
                     'path' => $matches1[2][$i],
@@ -164,34 +179,24 @@ class ModuleMetadataExtractor
     private function extractEvents(): void
     {
         $controllerFile = $this->modulePath . '/src/Controller.php';
-        if (!is_file($controllerFile)) {
+        if (!\is_file($controllerFile)) {
             return;
         }
 
-        $content = file_get_contents($controllerFile);
+        $content = \file_get_contents($controllerFile);
 
         // Pattern: public function __onEventName(...)
         $pattern = '/public\s+function\s+(__on\w+)\s*\(/';
         $matches = [];
-        preg_match_all($pattern, $content, $matches);
+        \preg_match_all($pattern, $content, $matches);
 
         if (!empty($matches[1])) {
             // Filter to only custom implementations (not default no-ops)
-            $this->events = array_unique(array_filter($matches[1], function($event) use ($content) {
+            $this->events = \array_unique(\array_filter($matches[1], function ($event) use ($content) {
                 // Simple heuristic: if event body has more than just return/closing brace,
                 // it's likely implemented
                 return true; // For now, include all discovered events
             }));
         }
-    }
-
-    /**
-     * Pretty-print extracted metadata as JSON (for debugging).
-     *
-     * @return string JSON-encoded metadata with pretty formatting
-     */
-    public function pretty(): string
-    {
-        return json_encode($this->extract(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,11 +12,12 @@
 namespace Razy;
 
 use Closure;
+use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Routing\RouteGroup;
+use Razy\Util\PathUtil;
 use Throwable;
 
-use Razy\Util\PathUtil;
 /**
  * Agent acts as the public interface for module initialization and configuration.
  *
@@ -24,7 +26,9 @@ use Razy\Util\PathUtil;
  * and scripts. It delegates all registration calls to the underlying Module instance.
  *
  * @class Agent
+ *
  * @package Razy
+ *
  * @license MIT
  */
 class Agent
@@ -42,25 +46,26 @@ class Agent
      * Register an API command.
      *
      * @param array|string $command An array of API command or the API command will register
-     * @param null|string $path The path of the closure file
+     * @param string|null $path The path of the closure file
      *
      * @return $this Fluent interface
+     *
      * @throws Throwable
      */
     public function addAPICommand(mixed $command, ?string $path = null): static
     {
-        if (is_array($command)) {
+        if (\is_array($command)) {
             // Batch registration: recursively register each command => path pair
             foreach ($command as $_command => $_path) {
-                if (is_string($_path)) {
+                if (\is_string($_path)) {
                     $this->addAPICommand($_command, $_path);
                 }
             }
         } else {
-            $command = trim($command);
+            $command = \trim($command);
             // Validate command name: optional '#' prefix, starts with letter, then word chars
-            if (1 !== preg_match('/^#?[a-z]\w*$/i', $command)) {
-                throw new \InvalidArgumentException('Invalid command name format');
+            if (1 !== \preg_match('/^#?[a-z]\w*$/i', $command)) {
+                throw new InvalidArgumentException('Invalid command name format');
             }
 
             $this->module->addAPICommand($command, $path);
@@ -74,25 +79,26 @@ class Agent
      * Bridge commands are separate from API commands - they are exposed to external distributors.
      *
      * @param array|string $command An array of bridge commands or single command name
-     * @param null|string $path The path of the closure file
+     * @param string|null $path The path of the closure file
      *
      * @return $this Fluent interface
+     *
      * @throws Throwable
      */
     public function addBridgeCommand(mixed $command, ?string $path = null): static
     {
-        if (is_array($command)) {
+        if (\is_array($command)) {
             // Batch registration: recursively register each bridge command => path pair
             foreach ($command as $_command => $_path) {
-                if (is_string($_path)) {
+                if (\is_string($_path)) {
                     $this->addBridgeCommand($_command, $_path);
                 }
             }
         } else {
-            $command = trim($command);
+            $command = \trim($command);
             // Validate: must start with a letter, followed by word characters (no '#' prefix unlike API commands)
-            if (1 !== preg_match('/^[a-z]\w*$/i', $command)) {
-                throw new \InvalidArgumentException('Invalid bridge command name format');
+            if (1 !== \preg_match('/^[a-z]\w*$/i', $command)) {
+                throw new InvalidArgumentException('Invalid bridge command name format');
             }
 
             $this->module->addBridgeCommand($command, $path);
@@ -112,12 +118,13 @@ class Agent
      * @param string|Closure|null $path The path of the closure or anonymous function
      *
      * @return bool|array True if target module loaded, false if not (or array for multiple)
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      * @throws Throwable
      */
     public function listen(mixed $event, null|string|callable $path = null): bool|array
     {
-        if (is_array($event)) {
+        if (\is_array($event)) {
             $results = [];
             foreach ($event as $_event => $_path) {
                 $results[$_event] = $this->listen($_event, $_path);
@@ -125,16 +132,16 @@ class Agent
             return $results;
         }
 
-        $event = trim($event);
+        $event = \trim($event);
         // Split event into "moduleCode:eventName" parts
-        [$moduleCode, $eventName] = explode(':', $event . ':');
+        [$moduleCode, $eventName] = \explode(':', $event . ':');
         // Validate module code format and event name (dot-separated identifiers)
-        if (!preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode) || !preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
-            throw new \InvalidArgumentException('Invalid event name format');
+        if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode) || !\preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
+            throw new InvalidArgumentException('Invalid event name format');
         }
 
         // Convert callable to first-class closure for consistent handling
-        if (is_callable($path)) {
+        if (\is_callable($path)) {
             $path = $path(...);
         }
 
@@ -147,20 +154,22 @@ class Agent
      * @param string $route
      * @param string $moduleCode
      * @param string $path
+     *
      * @return $this
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function addShadowRoute(string $route, string $moduleCode, string $path = ''): static
     {
-        $moduleCode = trim($moduleCode);
-        $route = trim($route);
-        $path = trim($path);
+        $moduleCode = \trim($moduleCode);
+        $route = \trim($route);
+        $path = \trim($path);
         if (!$path) {
             $path = $route;
         }
 
         if ($moduleCode === $this->module->getModuleInfo()->getCode()) {
-            throw new \InvalidArgumentException('You cannot add a shadow route');
+            throw new InvalidArgumentException('You cannot add a shadow route');
         }
 
         $this->module->addShadowRoute($route, $moduleCode, $path);
@@ -174,67 +183,12 @@ class Agent
      * @param string|Route|array|null $path The path to the closure file, a Route entity, or nested array
      *
      * @return $this Fluent interface
-     * @throws \InvalidArgumentException
+     *
+     * @throws InvalidArgumentException
      */
     public function addScript($route, $path = null): self
     {
         return $this->addRoutePath('Script', $route, $path);
-    }
-
-    /**
-     * Internal helper to register a route, lazy route, or script path.
-     *
-     * Handles scalar, array, and nested array formats for route definitions.
-     * Nested arrays allow defining hierarchical routes where each level corresponds
-     * to a URL path segment and folder level.
-     *
-     * @param string $type The registration type ('Route', 'LazyRoute', or 'Script')
-     * @param mixed $route The route path or array of route => path pairs
-     * @param mixed $path The closure file path, Route entity, or nested definition
-     *
-     * @return $this Fluent interface
-     * @throws \InvalidArgumentException
-     */
-    private function addRoutePath(string $type, mixed $route, mixed $path = null): static
-    {
-        if (is_array($route)) {
-            foreach ($route as $_route => $_method) {
-                $this->addRoutePath($type, $_route, $_method);
-            }
-        } else {
-            if (!is_string($route)) {
-                throw new \InvalidArgumentException('The route must be a string or an array');
-            }
-            $route = trim($route);
-
-            if (is_string($path) || $path instanceof Route) {
-                if (is_string($path)) {
-                    $path = trim(PathUtil::tidy($path, false, '/'), '/');
-                }
-                call_user_func_array([$this->module, 'add' . $type], [$route, $path]);
-            } elseif (is_array($path)) {
-                // Recursively expand nested route arrays into flat route registrations.
-                // '@self' key maps the current level's path to a closure without appending a sub-path.
-                $extendRoute = function (array $routeSet, string $relativePath = '') use (&$extendRoute, $type) {
-                    foreach ($routeSet as $node => $path) {
-                        if (is_array($path)) {
-                            // Recurse into sub-directory level
-                            $extendRoute($path, PathUtil::append($relativePath, $node));
-                        } else {
-                            $path = trim($path);
-                            if (strlen($path) > 0) {
-                                // '@self' references the current directory level itself
-                                $routePath = ($node == '@self') ? $relativePath : PathUtil::append($relativePath, $node);
-                                call_user_func_array([$this->module, 'add' . $type], [$routePath, PathUtil::append($relativePath, $path)]);
-                            }
-                        }
-                    }
-                };
-                $extendRoute($path, $route);
-            }
-        }
-
-        return $this;
     }
 
     /**
@@ -246,6 +200,7 @@ class Agent
      * @param mixed|null $path
      *
      * @return $this Fluent interface
+     *
      * @throws Throwable
      */
     public function addLazyRoute(mixed $route, mixed $path = null): static
@@ -296,26 +251,27 @@ class Agent
      * @param string|Route|null $path The path of the closure file or a Route entity
      *
      * @return $this Fluent interface
+     *
      * @throws Throwable
      */
     public function addRoute(mixed $route, mixed $path = null): static
     {
-        if (is_array($route)) {
+        if (\is_array($route)) {
             // Batch registration: iterate route => closure path pairs
             foreach ($route as $_route => $_method) {
-                if (is_string($_method) || $_method instanceof Route) {
+                if (\is_string($_method) || $_method instanceof Route) {
                     $this->addRoute($_route, $_method);
                 }
             }
         } else {
-            if (!is_string($path) && !($path instanceof Route)) {
-                throw new \InvalidArgumentException('The route must be a string or a Route entity');
+            if (!\is_string($path) && !($path instanceof Route)) {
+                throw new InvalidArgumentException('The route must be a string or a Route entity');
             }
 
-            $route = trim($route);
-            if (is_string($path)) {
+            $route = \trim($route);
+            if (\is_string($path)) {
                 // Normalize the closure file path separators
-                $path = trim(PathUtil::tidy($path, false, '/'), '/');
+                $path = \trim(PathUtil::tidy($path, false, '/'), '/');
                 $method = $path;
             } else {
                 // Extract closure path from the Route entity
@@ -323,7 +279,7 @@ class Agent
             }
 
             // Only register if the resolved closure path is non-empty
-            if (strlen($method) > 0 && ($path instanceof Route || strlen($path) > 0)) {
+            if (\strlen($method) > 0 && ($path instanceof Route || \strlen($path) > 0)) {
                 $this->module->addRoute($route, $path);
             }
         }
@@ -352,6 +308,7 @@ class Agent
      * ```
      *
      * @param MiddlewareInterface|Closure ...$middleware One or more middleware
+     *
      * @return $this Fluent interface
      */
     public function middleware(MiddlewareInterface|Closure ...$middleware): static
@@ -381,7 +338,7 @@ class Agent
      * });
      * ```
      *
-     * @param string  $prefix   URL prefix for the group
+     * @param string $prefix URL prefix for the group
      * @param Closure $callback fn(RouteGroup $group): void
      *
      * @return $this Fluent interface
@@ -394,6 +351,63 @@ class Agent
         foreach ($group->resolve() as $entry) {
             $registrar = 'add' . $entry['routeType'];
             $this->$registrar($entry['path'], $entry['handler']);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Internal helper to register a route, lazy route, or script path.
+     *
+     * Handles scalar, array, and nested array formats for route definitions.
+     * Nested arrays allow defining hierarchical routes where each level corresponds
+     * to a URL path segment and folder level.
+     *
+     * @param string $type The registration type ('Route', 'LazyRoute', or 'Script')
+     * @param mixed $route The route path or array of route => path pairs
+     * @param mixed $path The closure file path, Route entity, or nested definition
+     *
+     * @return $this Fluent interface
+     *
+     * @throws InvalidArgumentException
+     */
+    private function addRoutePath(string $type, mixed $route, mixed $path = null): static
+    {
+        if (\is_array($route)) {
+            foreach ($route as $_route => $_method) {
+                $this->addRoutePath($type, $_route, $_method);
+            }
+        } else {
+            if (!\is_string($route)) {
+                throw new InvalidArgumentException('The route must be a string or an array');
+            }
+            $route = \trim($route);
+
+            if (\is_string($path) || $path instanceof Route) {
+                if (\is_string($path)) {
+                    $path = \trim(PathUtil::tidy($path, false, '/'), '/');
+                }
+                \call_user_func_array([$this->module, 'add' . $type], [$route, $path]);
+            } elseif (\is_array($path)) {
+                // Recursively expand nested route arrays into flat route registrations.
+                // '@self' key maps the current level's path to a closure without appending a sub-path.
+                $extendRoute = function (array $routeSet, string $relativePath = '') use (&$extendRoute, $type) {
+                    foreach ($routeSet as $node => $path) {
+                        if (\is_array($path)) {
+                            // Recurse into sub-directory level
+                            $extendRoute($path, PathUtil::append($relativePath, $node));
+                        } else {
+                            $path = \trim($path);
+                            if (\strlen($path) > 0) {
+                                // '@self' references the current directory level itself
+                                $routePath = ($node == '@self') ? $relativePath : PathUtil::append($relativePath, $node);
+                                \call_user_func_array([$this->module, 'add' . $type], [$routePath, PathUtil::append($relativePath, $path)]);
+                            }
+                        }
+                    }
+                };
+                $extendRoute($path, $route);
+            }
         }
 
         return $this;

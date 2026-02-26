@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,6 +10,7 @@
  */
 
 namespace Razy\Database;
+
 use Razy\Database;
 use Razy\Database\Statement\Builder;
 use Razy\Database\Statement\DeleteSyntaxBuilder;
@@ -20,9 +22,9 @@ use Razy\Exception\QueryException;
 use Razy\PluginTrait;
 use Razy\SimpleSyntax;
 use Throwable;
-use function preg_match;
+
 /**
- * Class Statement
+ * Class Statement.
  *
  * Builds and executes SQL statements (SELECT, INSERT, UPDATE, DELETE) using
  * a fluent interface. Supports Where Simple Syntax, TableJoin Simple Syntax,
@@ -30,6 +32,7 @@ use function preg_match;
  * pagination, and result parsing/collection.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class Statement
@@ -37,7 +40,7 @@ class Statement
     use PluginTrait;
 
     /** @var string Regex pattern for validating column names (backtick-quoted or alpha-start identifiers) */
-    const REGEX_COLUMN = '/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/';
+    public const REGEX_COLUMN = '/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/';
 
     /** @var array Column names used in INSERT/DELETE statements */
     private array $columns = [];
@@ -98,7 +101,7 @@ class Statement
      */
     public function __construct(private readonly Database $database, private string $sql = '')
     {
-        $this->sql = trim($this->sql);
+        $this->sql = \trim($this->sql);
         if ($this->sql) {
             $this->type = StatementType::Raw;
         }
@@ -108,18 +111,19 @@ class Statement
     }
 
     /**
-     * Convert a list of column into where syntax with wildcard
+     * Convert a list of column into where syntax with wildcard.
      *
      * @param string $parameter
      * @param array $columns
      *
      * @return string
+     *
      * @throws Error
      */
     public static function getSearchTextSyntax(string $parameter, array $columns): string
     {
         $syntax = [];
-        $parameter = trim($parameter);
+        $parameter = \trim($parameter);
         if (!$parameter) {
             throw new QueryException('The parameter is required');
         }
@@ -130,7 +134,7 @@ class Statement
             }
         }
 
-        return (count($syntax)) ? implode('|', $syntax) : '';
+        return (\count($syntax)) ? \implode('|', $syntax) : '';
     }
 
     /**
@@ -142,17 +146,17 @@ class Statement
      */
     public static function standardizeColumn(string $column): string
     {
-        $column = trim($column);
+        $column = \trim($column);
         // Match column syntax: optional table alias prefix, column name (backtick-quoted or identifier),
         // with optional JSON path operator (-> or ->>)
-        if (preg_match('/^((`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
-            if (isset($matches[3]) && preg_match('/^[a-z]\w*$/', $matches[3])) {
+        if (\preg_match('/^((`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
+            if (isset($matches[3]) && \preg_match('/^[a-z]\w*$/', $matches[3])) {
                 // Column with table alias: quote the column part
-                return $matches[2] . '.`' . trim($matches[3]) . '`';
+                return $matches[2] . '.`' . \trim($matches[3]) . '`';
             }
-            if (preg_match('/^[a-z]\w*$/', $matches[2])) {
+            if (\preg_match('/^[a-z]\w*$/', $matches[2])) {
                 // Standalone column name: wrap in backticks
-                return '`' . trim($matches[2]) . '`';
+                return '`' . \trim($matches[2]) . '`';
             }
         }
 
@@ -165,9 +169,9 @@ class Statement
      *
      * @param string $tableName the table will be replaced
      *
-     * @return null|Statement
+     * @return Statement|null
      */
-    public function alias(string $tableName): ?Statement
+    public function alias(string $tableName): ?self
     {
         return ($this->tableJoinSyntax) ? $this->tableJoinSyntax->getAlias($tableName) : null;
     }
@@ -180,6 +184,7 @@ class Statement
      * @param mixed ...$arguments Arguments passed to the builder factory
      *
      * @return Builder|null The initialized builder instance
+     *
      * @throws Error If the builder cannot be created
      */
     public function builder(string $builderName, ...$arguments): ?Builder
@@ -203,7 +208,7 @@ class Statement
      *
      * @return $this
      */
-    public function assign(array $parameters = []): Statement
+    public function assign(array $parameters = []): self
     {
         $this->parameters = $parameters;
 
@@ -218,15 +223,16 @@ class Statement
      * @param string|callable $syntax A well formatted TableJoin Simple Syntax string or callable
      *
      * @return $this
+     *
      * @throws Error If the syntax is invalid
      */
-    public function from(string|callable $syntax): Statement
+    public function from(string|callable $syntax): self
     {
         if (!$this->tableJoinSyntax) {
             $this->tableJoinSyntax = new TableJoinSyntax($this);
         }
 
-        if (is_callable($syntax)) {
+        if (\is_callable($syntax)) {
             $syntax = $syntax(...);
         }
 
@@ -237,22 +243,7 @@ class Statement
     }
 
     /**
-     * Parse the update syntax.
-     *
-     * @param string $syntax
-     *
-     * @return array
-     */
-    private function parseSyntax(string $syntax): array
-    {
-        $syntax = trim($syntax);
-
-        // Delegate to SimpleSyntax parser with arithmetic and concatenation operators
-        return SimpleSyntax::parseSyntax($syntax, '+-*/&');
-    }
-
-    /**
-     * Get the Database entity
+     * Get the Database entity.
      *
      * @return Database
      */
@@ -276,6 +267,7 @@ class Statement
      * Returns the parsed FROM clause without the SELECT part.
      *
      * @return string|null The FROM clause syntax, or null if not set
+     *
      * @throws Throwable
      */
     public function getFromSyntax(): ?string
@@ -288,6 +280,7 @@ class Statement
      * Returns the parsed WHERE clause without the WHERE keyword.
      *
      * @return string|null The WHERE clause syntax, or null if not set
+     *
      * @throws Throwable
      */
     public function getWhereSyntax(): ?string
@@ -300,6 +293,7 @@ class Statement
      * Returns the parsed HAVING clause without the HAVING keyword.
      *
      * @return string|null The HAVING clause syntax, or null if not set
+     *
      * @throws Throwable
      */
     public function getHavingSyntax(): ?string
@@ -311,6 +305,7 @@ class Statement
      * Generate the SQL statement.
      *
      * @return string
+     *
      * @throws Throwable
      */
     public function getSyntax(): string
@@ -459,17 +454,16 @@ class Statement
             return 'NULL';
         }
 
-        if (is_bool($value)) {
-            return (int)$value;
+        if (\is_bool($value)) {
+            return (int) $value;
         }
 
-
-        if (is_array($value)) {
-            $value = json_encode($value);
+        if (\is_array($value)) {
+            $value = \json_encode($value);
         }
 
-        if (is_scalar($value)) {
-            if (is_string($value)) {
+        if (\is_scalar($value)) {
+            if (\is_string($value)) {
                 // Use PDO::quote() for safe SQL escaping instead of addslashes()
                 $adapter = $this->database->getDBAdapter();
                 return $adapter->quote($value);
@@ -486,7 +480,7 @@ class Statement
      *
      * @param string $name The parameter name
      *
-     * @return null|mixed The parameter value or null
+     * @return mixed|null The parameter value or null
      */
     public function getValue(string $name): mixed
     {
@@ -498,12 +492,11 @@ class Statement
      *
      * @param array $parameters Parameters to merge
      *
-     * @return void
      * @internal Used by StatementExecutor
      */
     public function mergeParameters(array $parameters): void
     {
-        $this->parameters = array_merge($this->parameters, $parameters);
+        $this->parameters = \array_merge($this->parameters, $parameters);
     }
 
     /**
@@ -534,15 +527,15 @@ class Statement
      *
      * @return $this
      */
-    public function group(string $syntax): Statement
+    public function group(string $syntax): self
     {
-        $clips = preg_split('/\s*,\s*/', $syntax);
+        $clips = \preg_split('/\s*,\s*/', $syntax);
 
         // Standardize each column name and add to GROUP BY list
         $this->groupby = [];
         foreach ($clips as &$column) {
             $column = self::standardizeColumn($column);
-            $this->groupby[] = trim($column);
+            $this->groupby[] = \trim($column);
         }
 
         return $this;
@@ -556,12 +549,13 @@ class Statement
      * @param array $duplicateKeys A set of columns to check the duplicate key
      *
      * @return $this
+     *
      * @throws Error
      */
-    public function insert(string $tableName, array $columns, array $duplicateKeys = []): Statement
+    public function insert(string $tableName, array $columns, array $duplicateKeys = []): self
     {
         $this->type = StatementType::Insert;
-        $tableName = trim($tableName);
+        $tableName = \trim($tableName);
         if (!$tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
@@ -569,16 +563,16 @@ class Statement
 
         // Validate and normalize column names, stripping backticks from quoted names
         foreach ($columns as $index => &$column) {
-            $column = trim($column);
-            if (preg_match('/^(?:`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)$/', $column)) {
-                $column = trim($column, '`');
+            $column = \trim($column);
+            if (\preg_match('/^(?:`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)$/', $column)) {
+                $column = \trim($column, '`');
             } else {
                 unset($columns[$index]);
             }
         }
 
         $this->columns = $columns;
-        $this->onDuplicateKey = array_values($duplicateKeys);
+        $this->onDuplicateKey = \array_values($duplicateKeys);
 
         return $this;
     }
@@ -600,13 +594,13 @@ class Statement
      * @param array $parameters Optional parameters to merge into the statement
      *
      * @return mixed The first result row (possibly transformed by parser), or false/null
+     *
      * @throws Throwable
      */
     public function lazy(array $parameters = []): mixed
     {
         return $this->resultSet->lazy($parameters);
     }
-
 
     /**
      * Execute the statement and return the Query instance for row-by-row fetching.
@@ -615,6 +609,7 @@ class Statement
      * @param array $parameters Optional parameters to merge before execution
      *
      * @return Query The query result wrapper for fetching rows
+     *
      * @throws Throwable If execution fails
      */
     public function query(array $parameters = []): Query
@@ -629,6 +624,7 @@ class Statement
      * @param array $parameters Optional parameters to merge into the statement
      *
      * @return bool True if the view was created successfully
+     *
      * @throws Error
      * @throws Throwable
      */
@@ -660,6 +656,7 @@ class Statement
      * @param string $stackColumn When stacking, use this column as the sub-key within each group
      *
      * @return array The result set, optionally grouped and keyed
+     *
      * @throws Throwable
      */
     public function &lazyGroup(array $parameters = [], string $column = '', bool $stackable = false, string $stackColumn = ''): array
@@ -675,6 +672,7 @@ class Statement
      * @param array $parameters Optional parameters to merge
      *
      * @return array Associative array of key => value pairs
+     *
      * @throws Error If column names are empty or not found in results
      * @throws Throwable
      */
@@ -693,7 +691,7 @@ class Statement
      *
      * @return Statement
      */
-    public function limit(int $position, int $fetchLength = 0): Statement
+    public function limit(int $position, int $fetchLength = 0): self
     {
         $this->fetchLength = $fetchLength;
         $this->position = $position;
@@ -708,16 +706,17 @@ class Statement
      * @param string $syntax Comma-separated column expressions with optional direction prefix
      *
      * @return $this
+     *
      * @throws Error|Throwable
      */
-    public function order(string $syntax): Statement
+    public function order(string $syntax): self
     {
         $clips = SimpleSyntax::parseSyntax($syntax, ',', '', null, true);
 
         $this->orderby = [];
         foreach ($clips as $column) {
             $ordering = '';
-            if (preg_match('/^([<>])?(.+)/', $column, $matches)) {
+            if (\preg_match('/^([<>])?(.+)/', $column, $matches)) {
                 $ordering = $matches[1];
                 $column = $matches[2];
             }
@@ -731,7 +730,7 @@ class Statement
                 $this->orderby[] = [
                     'syntax' => $orderSyntax,
                     'column' => $column,
-                    'ordering' => ('>' === $ordering) ? 'DESC' : 'ASC'
+                    'ordering' => ('>' === $ordering) ? 'DESC' : 'ASC',
                 ];
             }
         }
@@ -765,13 +764,13 @@ class Statement
      *
      * @return $this
      */
-    public function select(string $columns): Statement
+    public function select(string $columns): self
     {
         // Split by commas while preserving quoted strings (single, double, or backtick-quoted)
-        $this->selectColumns = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $columns);
+        $this->selectColumns = \preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $columns);
 
         foreach ($this->selectColumns as &$column) {
-            $column = (preg_match('/^\w+$/', $column)) ? '`' . $column . '`' : $column;
+            $column = (\preg_match('/^\w+$/', $column)) ? '`' . $column . '`' : $column;
         }
 
         return $this;
@@ -786,7 +785,7 @@ class Statement
      *
      * @return Statement
      */
-    public function setParser(callable $closure, bool $once = false): Statement
+    public function setParser(callable $closure, bool $once = false): self
     {
         $this->resultSet->setParser($closure, $once);
 
@@ -802,32 +801,33 @@ class Statement
      * @param string $whereSyntax Optional explicit Where Simple Syntax
      *
      * @return $this
+     *
      * @throws Error
      */
     public function delete(string $tableName, array $parameters = [], string $whereSyntax = ''): static
     {
         $this->type = StatementType::Delete;
-        $tableName = trim($tableName);
+        $tableName = \trim($tableName);
         if (!$tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
         $this->tableName = $this->getPrefix() . $tableName;
 
-        if (count($parameters)) {
-            $this->columns = array_keys($parameters);
+        if (\count($parameters)) {
+            $this->columns = \array_keys($parameters);
             $this->whereSyntax = new WhereSyntax($this);
 
             // Auto-build WHERE conditions: use |= (IN) for arrays, = for scalars
             if (!$whereSyntax) {
                 $conditions = [];
                 foreach ($parameters as $key => $value) {
-                    if (is_array($value)) {
+                    if (\is_array($value)) {
                         $conditions[] = $key . '|=?';
                     } else {
                         $conditions[] = $key . '=?';
                     }
                 }
-                $whereSyntax = implode(',', $conditions);
+                $whereSyntax = \implode(',', $conditions);
             }
             $this->whereSyntax->parseSyntax($whereSyntax);
             $this->assign($parameters);
@@ -844,12 +844,13 @@ class Statement
      * @param array $updateSyntax Array of Update Simple Syntax strings
      *
      * @return $this
+     *
      * @throws Error If no valid update syntax provided
      */
-    public function update(string $tableName, array $updateSyntax): Statement
+    public function update(string $tableName, array $updateSyntax): self
     {
         $this->type = StatementType::Update;
-        $tableName = trim($tableName);
+        $tableName = \trim($tableName);
         if (!$tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
@@ -857,11 +858,11 @@ class Statement
 
         $this->updateSyntax = [];
         foreach ($updateSyntax as &$syntax) {
-            $syntax = trim($syntax);
+            $syntax = \trim($syntax);
             // Match update syntax: column(++|--), column(op)=value, or bare column name
             // Handles backtick-quoted columns, shorthand increment/decrement, and compound operators (+= -= *= /= &=)
-            if (preg_match('/(?:(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|^(`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:(\+\+|--)|\s*([+\-*\/&]?=)\s*(.+))?$/', $syntax, $matches)) {
-                $matches[3] = trim($matches[3], '`');
+            if (\preg_match('/(?:(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|^(`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:(\+\+|--)|\s*([+\-*\/&]?=)\s*(.+))?$/', $syntax, $matches)) {
+                $matches[3] = \trim($matches[3], '`');
 
                 if (isset($matches[4]) && $matches[4]) {
                     // Shorthand increment/decrement: column++ or column--
@@ -869,11 +870,11 @@ class Statement
                 } elseif (isset($matches[6])) {
                     // Assignment with optional operator: column=value or column+=value
                     $shortenSyntax = [];
-                    if (2 === strlen($matches[5])) {
+                    if (2 === \strlen($matches[5])) {
                         $operator = $matches[5][0];
                         $shortenSyntax = ['`' . $matches[3] . '`', $operator];
                     }
-                    $this->updateSyntax[$matches[3]] = array_merge($shortenSyntax, $this->parseSyntax($matches[6]));
+                    $this->updateSyntax[$matches[3]] = \array_merge($shortenSyntax, $this->parseSyntax($matches[6]));
                 } else {
                     // Simple assignment: column (no operator) defaults to parameter reference :column
                     $this->updateSyntax[$matches[3]] = [':' . $matches[3]];
@@ -896,15 +897,16 @@ class Statement
      * @param string|callable $syntax The Where Simple Syntax string or callable
      *
      * @return Statement
+     *
      * @throws Error If the syntax is invalid
      */
-    public function where(string|callable $syntax): Statement
+    public function where(string|callable $syntax): self
     {
         if (!$this->whereSyntax) {
             $this->whereSyntax = new WhereSyntax($this);
         }
 
-        if (is_callable($syntax)) {
+        if (\is_callable($syntax)) {
             $syntax = $syntax(...);
         }
 
@@ -921,5 +923,20 @@ class Statement
     public function getType(): string
     {
         return $this->type?->value ?? '';
+    }
+
+    /**
+     * Parse the update syntax.
+     *
+     * @param string $syntax
+     *
+     * @return array
+     */
+    private function parseSyntax(string $syntax): array
+    {
+        $syntax = \trim($syntax);
+
+        // Delegate to SimpleSyntax parser with arithmetic and concatenation operators
+        return SimpleSyntax::parseSyntax($syntax, '+-*/&');
     }
 }

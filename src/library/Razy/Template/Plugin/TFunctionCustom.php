@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * automatic parameter parsing, allowing full control over argument handling.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -35,38 +37,24 @@ class TFunctionCustom
     /** @var bool Whether this function encloses content between open/close tags */
     protected bool $encloseContent = false;
 
+    /** @var Controller|null The bound controller instance, if any */
+    protected ?Controller $controller = null;
+
     /** @var string The registered name of this custom function plugin */
     private string $name;
 
-	/** @var Controller|null The bound controller instance, if any */
-	protected ?Controller $controller = null;
-
-	/**
-	 * Bind a Controller instance to this plugin for module context access.
-	 *
-	 * @param Controller $entity The controller to bind
-	 * @return static Chainable
-	 */
-	final public function bind(Controller $entity): static
-	{
-		$this->controller = $entity;
-
-		return $this;
-	}
-
     /**
-     * Process the custom function tag and return rendered output.
+     * Bind a Controller instance to this plugin for module context access.
      *
-     * Override this method in subclasses to implement custom parsing logic.
-     * The raw syntax string is passed without any parameter parsing.
+     * @param Controller $entity The controller to bind
      *
-     * @param Entity $entity The current template Entity context
-     * @param string $syntax The raw syntax string from the function tag
-     * @param string $wrappedText Content enclosed between open/close tags (if encloseContent is true)
-     * @return string|null The rendered output string
+     * @return static Chainable
      */
-    protected function processor(Entity $entity, string $syntax = '', string $wrappedText = ''): ?string {
-        return '';
+    final public function bind(Controller $entity): static
+    {
+        $this->controller = $entity;
+
+        return $this;
     }
 
     /**
@@ -107,12 +95,30 @@ class TFunctionCustom
      * Set the registered name of this custom function plugin.
      *
      * @param string $name The plugin name
+     *
      * @return TFunctionCustom Chainable
      */
-    final public function setName(string $name): TFunctionCustom
+    final public function setName(string $name): self
     {
         $this->name = $name;
 
         return $this;
+    }
+
+    /**
+     * Process the custom function tag and return rendered output.
+     *
+     * Override this method in subclasses to implement custom parsing logic.
+     * The raw syntax string is passed without any parameter parsing.
+     *
+     * @param Entity $entity The current template Entity context
+     * @param string $syntax The raw syntax string from the function tag
+     * @param string $wrappedText Content enclosed between open/close tags (if encloseContent is true)
+     *
+     * @return string|null The rendered output string
+     */
+    protected function processor(Entity $entity, string $syntax = '', string $wrappedText = ''): ?string
+    {
+        return '';
     }
 }

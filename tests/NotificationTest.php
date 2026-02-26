@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Comprehensive tests for #20: Notification System.
  *
@@ -12,6 +13,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use LogicException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Notification\Channel\DatabaseChannel;
@@ -19,6 +21,8 @@ use Razy\Notification\Channel\MailChannel;
 use Razy\Notification\Notification;
 use Razy\Notification\NotificationChannelInterface;
 use Razy\Notification\NotificationManager;
+use RuntimeException;
+use Throwable;
 
 // ═══════════════════════════════════════════════════════
 //  Test Doubles — prefixed NTTest_ to avoid collisions
@@ -27,7 +31,9 @@ use Razy\Notification\NotificationManager;
 /** @internal */
 class NTTest_WelcomeNotification extends Notification
 {
-    public function __construct(private readonly string $name) {}
+    public function __construct(private readonly string $name)
+    {
+    }
 
     public function via(object $notifiable): array
     {
@@ -38,7 +44,7 @@ class NTTest_WelcomeNotification extends Notification
     {
         return [
             'subject' => "Welcome, {$this->name}!",
-            'body'    => "Hello {$this->name}, welcome aboard.",
+            'body' => "Hello {$this->name}, welcome aboard.",
         ];
     }
 
@@ -129,7 +135,8 @@ class NTTest_UserWithEmail
     public function __construct(
         private readonly int $id,
         private readonly string $emailAddr,
-    ) {}
+    ) {
+    }
 
     public function getId(): int
     {
@@ -146,11 +153,12 @@ class NTTest_UserWithEmail
 class NTTest_UserWithProperty
 {
     public int $id;
+
     public string $email;
 
     public function __construct(int $id, string $email)
     {
-        $this->id    = $id;
+        $this->id = $id;
         $this->email = $email;
     }
 }
@@ -158,7 +166,9 @@ class NTTest_UserWithProperty
 /** @internal */
 class NTTest_UserNoEmail
 {
-    public function __construct(public readonly int $id) {}
+    public function __construct(public readonly int $id)
+    {
+    }
 
     public function getId(): int
     {
@@ -192,7 +202,7 @@ class NotificationTest extends TestCase
         $n = new NTTest_WelcomeNotification('Alice');
         $id = $n->getId();
         $this->assertNotEmpty($id);
-        $this->assertSame(32, strlen($id)); // 16 bytes → 32 hex
+        $this->assertSame(32, \strlen($id)); // 16 bytes → 32 hex
     }
 
     public function testGetIdIsStable(): void
@@ -308,13 +318,13 @@ class NotificationTest extends TestCase
 
     public function testMailChannelName(): void
     {
-        $ch = new MailChannel(fn() => null);
+        $ch = new MailChannel(fn () => null);
         $this->assertSame('mail', $ch->getName());
     }
 
     public function testMailChannelImplementsInterface(): void
     {
-        $ch = new MailChannel(fn() => null);
+        $ch = new MailChannel(fn () => null);
         $this->assertInstanceOf(NotificationChannelInterface::class, $ch);
     }
 
@@ -342,7 +352,7 @@ class NotificationTest extends TestCase
 
     public function testMailChannelRecordingDisabledByDefault(): void
     {
-        $ch = new MailChannel(fn() => null);
+        $ch = new MailChannel(fn () => null);
         $user = new NTTest_UserWithEmail(1, 'a@b.com');
         $ch->send($user, new NTTest_MailOnlyNotification());
 
@@ -351,7 +361,7 @@ class NotificationTest extends TestCase
 
     public function testMailChannelRecordingEnabled(): void
     {
-        $ch = new MailChannel(fn() => null, recording: true);
+        $ch = new MailChannel(fn () => null, recording: true);
         $user = new NTTest_UserWithEmail(1, 'a@b.com');
         $ch->send($user, new NTTest_MailOnlyNotification());
 
@@ -362,7 +372,7 @@ class NotificationTest extends TestCase
 
     public function testMailChannelClearSent(): void
     {
-        $ch = new MailChannel(fn() => null, recording: true);
+        $ch = new MailChannel(fn () => null, recording: true);
         $user = new NTTest_UserWithEmail(1, 'a@b.com');
         $ch->send($user, new NTTest_MailOnlyNotification());
 
@@ -373,7 +383,7 @@ class NotificationTest extends TestCase
 
     public function testMailChannelClearSentReturnsThis(): void
     {
-        $ch = new MailChannel(fn() => null);
+        $ch = new MailChannel(fn () => null);
         $this->assertSame($ch, $ch->clearSent());
     }
 
@@ -405,10 +415,10 @@ class NotificationTest extends TestCase
 
     public function testMailChannelThrowsWhenNoEmail(): void
     {
-        $ch = new MailChannel(fn() => null);
+        $ch = new MailChannel(fn () => null);
         $user = new NTTest_UserNoEmail(1);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('getEmail');
         $ch->send($user, new NTTest_MailOnlyNotification());
     }
@@ -543,7 +553,7 @@ class NotificationTest extends TestCase
         $ch->send($user, new NTTest_DbOnlyNotification());
 
         $id = $ch->getRecords()[0]['notifiable_id'];
-        $this->assertSame(spl_object_id($user), $id);
+        $this->assertSame(\spl_object_id($user), $id);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -553,13 +563,13 @@ class NotificationTest extends TestCase
     public function testRegisterChannelReturnsThis(): void
     {
         $m = new NotificationManager();
-        $this->assertSame($m, $m->registerChannel(new MailChannel(fn() => null)));
+        $this->assertSame($m, $m->registerChannel(new MailChannel(fn () => null)));
     }
 
     public function testGetChannelReturnsRegistered(): void
     {
         $m = new NotificationManager();
-        $mail = new MailChannel(fn() => null);
+        $mail = new MailChannel(fn () => null);
         $m->registerChannel($mail);
 
         $this->assertSame($mail, $m->getChannel('mail'));
@@ -575,7 +585,7 @@ class NotificationTest extends TestCase
     {
         $m = new NotificationManager();
         $this->assertFalse($m->hasChannel('mail'));
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $this->assertTrue($m->hasChannel('mail'));
     }
 
@@ -584,7 +594,7 @@ class NotificationTest extends TestCase
         $m = new NotificationManager();
         $this->assertSame([], $m->getChannelNames());
 
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $m->registerChannel(new DatabaseChannel());
 
         $names = $m->getChannelNames();
@@ -620,7 +630,7 @@ class NotificationTest extends TestCase
     {
         $m = new NotificationManager();
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('sms');
 
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), new NTTest_UnregisteredChannelNotification());
@@ -634,7 +644,7 @@ class NotificationTest extends TestCase
     {
         $db = new DatabaseChannel();
         $m = new NotificationManager();
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $m->registerChannel($db);
 
         $users = [
@@ -674,7 +684,7 @@ class NotificationTest extends TestCase
     public function testBeforeHookReturnsThis(): void
     {
         $m = new NotificationManager();
-        $this->assertSame($m, $m->beforeSend(fn() => null));
+        $this->assertSame($m, $m->beforeSend(fn () => null));
     }
 
     // ═══════════════════════════════════════════════════════
@@ -702,7 +712,7 @@ class NotificationTest extends TestCase
     public function testAfterHookReturnsThis(): void
     {
         $m = new NotificationManager();
-        $this->assertSame($m, $m->afterSend(fn() => null));
+        $this->assertSame($m, $m->afterSend(fn () => null));
     }
 
     // ═══════════════════════════════════════════════════════
@@ -715,17 +725,17 @@ class NotificationTest extends TestCase
 
         $m = new NotificationManager();
         $m->registerChannel(new MailChannel(function (): void {
-            throw new \RuntimeException('Mail failed');
+            throw new RuntimeException('Mail failed');
         }));
 
-        $m->onError(function ($n, $notif, $ch, \Throwable $e) use (&$captured): void {
+        $m->onError(function ($n, $notif, $ch, Throwable $e) use (&$captured): void {
             $captured = $e;
         });
 
         // Should NOT throw
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), new NTTest_MailOnlyNotification());
 
-        $this->assertInstanceOf(\RuntimeException::class, $captured);
+        $this->assertInstanceOf(RuntimeException::class, $captured);
         $this->assertSame('Mail failed', $captured->getMessage());
     }
 
@@ -733,17 +743,17 @@ class NotificationTest extends TestCase
     {
         $m = new NotificationManager();
         $m->registerChannel(new MailChannel(function (): void {
-            throw new \RuntimeException('Mail failed');
+            throw new RuntimeException('Mail failed');
         }));
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), new NTTest_MailOnlyNotification());
     }
 
     public function testOnErrorReturnsThis(): void
     {
         $m = new NotificationManager();
-        $this->assertSame($m, $m->onError(fn() => null));
+        $this->assertSame($m, $m->onError(fn () => null));
     }
 
     // ═══════════════════════════════════════════════════════
@@ -753,7 +763,7 @@ class NotificationTest extends TestCase
     public function testSentLogDisabledByDefault(): void
     {
         $m = new NotificationManager();
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), new NTTest_MailOnlyNotification());
 
         $this->assertSame([], $m->getSentLog());
@@ -762,7 +772,7 @@ class NotificationTest extends TestCase
     public function testSentLogEnabled(): void
     {
         $m = new NotificationManager(logging: true);
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
 
         $n = new NTTest_MailOnlyNotification();
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), $n);
@@ -778,7 +788,7 @@ class NotificationTest extends TestCase
     public function testSentLogMultipleChannels(): void
     {
         $m = new NotificationManager(logging: true);
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $m->registerChannel(new DatabaseChannel());
 
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), new NTTest_WelcomeNotification('X'));
@@ -792,7 +802,7 @@ class NotificationTest extends TestCase
     public function testClearSentLog(): void
     {
         $m = new NotificationManager(logging: true);
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $m->send(new NTTest_UserWithEmail(1, 'a@b.com'), new NTTest_MailOnlyNotification());
 
         $this->assertCount(1, $m->getSentLog());
@@ -812,7 +822,7 @@ class NotificationTest extends TestCase
 
     public function testFullPipeline(): void
     {
-        $mailSent  = [];
+        $mailSent = [];
         $hookOrder = [];
 
         $mailer = function (string $to, array $data) use (&$mailSent): void {
@@ -856,7 +866,7 @@ class NotificationTest extends TestCase
     {
         $db = new DatabaseChannel();
         $m = new NotificationManager();
-        $m->registerChannel(new MailChannel(fn() => null));
+        $m->registerChannel(new MailChannel(fn () => null));
         $m->registerChannel($db);
 
         $users = [
@@ -877,7 +887,7 @@ class NotificationTest extends TestCase
 
     public function testMailChannelMultipleSends(): void
     {
-        $ch = new MailChannel(fn() => null, recording: true);
+        $ch = new MailChannel(fn () => null, recording: true);
 
         for ($i = 0; $i < 5; $i++) {
             $ch->send(new NTTest_UserWithEmail($i, "u{$i}@t.com"), new NTTest_MailOnlyNotification());
@@ -907,12 +917,12 @@ class NotificationTest extends TestCase
 
         $m = new NotificationManager();
         $m->registerChannel(new MailChannel(function (): void {
-            throw new \LogicException('test');
+            throw new LogicException('test');
         }));
 
-        $m->onError(function ($notifiable, $notification, $channel, \Throwable $e) use (&$receivedChannel, &$receivedNotif): void {
+        $m->onError(function ($notifiable, $notification, $channel, Throwable $e) use (&$receivedChannel, &$receivedNotif): void {
             $receivedChannel = $channel;
-            $receivedNotif   = $notification;
+            $receivedNotif = $notification;
         });
 
         $n = new NTTest_MailOnlyNotification();

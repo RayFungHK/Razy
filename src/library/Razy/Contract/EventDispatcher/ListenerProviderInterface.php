@@ -14,7 +14,9 @@ declare(strict_types=1);
  * Fulfills the PSR-14 specification without requiring psr/event-dispatcher.
  *
  * @package Razy
+ *
  * @license MIT
+ *
  * @see https://www.php-fig.org/psr/psr-14/
  */
 

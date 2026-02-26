@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -20,6 +22,7 @@ use Razy\Cache\CacheInterface;
 use Razy\Cache\FileAdapter;
 use Razy\Cache\InvalidArgumentException;
 use Razy\Cache\NullAdapter;
+use Throwable;
 
 /**
  * Static cache facade for the Razy framework.
@@ -52,10 +55,8 @@ class Cache
     /**
      * Initialize the cache system with a directory path or custom adapter.
      *
-     * @param string              $cacheDir The root cache directory (used for FileAdapter)
-     * @param CacheInterface|null $adapter  Optional custom adapter. If null, FileAdapter is used.
-     *
-     * @return void
+     * @param string $cacheDir The root cache directory (used for FileAdapter)
+     * @param CacheInterface|null $adapter Optional custom adapter. If null, FileAdapter is used.
      */
     public static function initialize(string $cacheDir = '', ?CacheInterface $adapter = null): void
     {
@@ -91,8 +92,6 @@ class Cache
      * When disabled, all operations behave as if the NullAdapter is in use.
      *
      * @param bool $enabled
-     *
-     * @return void
      */
     public static function setEnabled(bool $enabled): void
     {
@@ -127,8 +126,6 @@ class Cache
      * Set a custom cache adapter.
      *
      * @param CacheInterface $adapter The adapter to use
-     *
-     * @return void
      */
     public static function setAdapter(CacheInterface $adapter): void
     {
@@ -139,8 +136,8 @@ class Cache
     /**
      * Fetches a value from the cache.
      *
-     * @param string $key     The unique key of this item in the cache.
-     * @param mixed  $default Default value to return if the key does not exist.
+     * @param string $key The unique key of this item in the cache.
+     * @param mixed $default Default value to return if the key does not exist.
      *
      * @return mixed The value of the item from the cache, or $default in case of cache miss.
      */
@@ -152,7 +149,7 @@ class Cache
 
         try {
             return self::$adapter->get($key, $default);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return $default;
         }
     }
@@ -160,9 +157,9 @@ class Cache
     /**
      * Persists data in the cache.
      *
-     * @param string                $key   The key of the item to store.
-     * @param mixed                 $value The value of the item to store.
-     * @param null|int|DateInterval $ttl   Optional TTL.
+     * @param string $key The key of the item to store.
+     * @param mixed $value The value of the item to store.
+     * @param int|DateInterval|null $ttl Optional TTL.
      *
      * @return bool True on success.
      */
@@ -174,7 +171,7 @@ class Cache
 
         try {
             return self::$adapter->set($key, $value, $ttl);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -194,7 +191,7 @@ class Cache
 
         try {
             return self::$adapter->delete($key);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -212,7 +209,7 @@ class Cache
 
         try {
             return self::$adapter->clear();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -232,7 +229,7 @@ class Cache
 
         try {
             return self::$adapter->has($key);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -240,8 +237,8 @@ class Cache
     /**
      * Obtains multiple cache items.
      *
-     * @param iterable<string> $keys    A list of keys.
-     * @param mixed            $default Default value for missing keys.
+     * @param iterable<string> $keys A list of keys.
+     * @param mixed $default Default value for missing keys.
      *
      * @return iterable<string, mixed> Key => value pairs.
      */
@@ -257,7 +254,7 @@ class Cache
 
         try {
             return self::$adapter->getMultiple($keys, $default);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             $result = [];
             foreach ($keys as $key) {
                 $result[$key] = $default;
@@ -270,7 +267,7 @@ class Cache
      * Persists multiple key => value pairs.
      *
      * @param iterable<string, mixed> $values Key => value pairs.
-     * @param null|int|DateInterval   $ttl    Optional TTL.
+     * @param int|DateInterval|null $ttl Optional TTL.
      *
      * @return bool True on success.
      */
@@ -282,7 +279,7 @@ class Cache
 
         try {
             return self::$adapter->setMultiple($values, $ttl);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -302,7 +299,7 @@ class Cache
 
         try {
             return self::$adapter->deleteMultiple($keys);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -315,9 +312,9 @@ class Cache
      * the current file mtime is compared — if the file has been modified since caching,
      * the cache entry is considered stale and the default is returned.
      *
-     * @param string $key      The cache key
+     * @param string $key The cache key
      * @param string $filePath The file path to validate against
-     * @param mixed  $default  Default value if cache miss or stale
+     * @param mixed $default Default value if cache miss or stale
      *
      * @return mixed The cached data, or $default if stale/missing
      */
@@ -330,12 +327,12 @@ class Cache
         try {
             $cached = self::$adapter->get($key);
 
-            if (!is_array($cached) || !isset($cached['mtime'], $cached['data'])) {
+            if (!\is_array($cached) || !isset($cached['mtime'], $cached['data'])) {
                 return $default;
             }
 
             // Validate file modification time
-            $currentMtime = @filemtime($filePath);
+            $currentMtime = @\filemtime($filePath);
             if ($currentMtime === false || $currentMtime !== $cached['mtime']) {
                 // File modified or missing — cache is stale
                 self::$adapter->delete($key);
@@ -343,7 +340,7 @@ class Cache
             }
 
             return $cached['data'];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return $default;
         }
     }
@@ -354,10 +351,10 @@ class Cache
      * Pairs with getValidated() to provide automatic cache invalidation
      * when the source file changes.
      *
-     * @param string                $key      The cache key
-     * @param string                $filePath The file path whose mtime is tracked
-     * @param mixed                 $data     The data to cache
-     * @param null|int|DateInterval $ttl      Optional TTL
+     * @param string $key The cache key
+     * @param string $filePath The file path whose mtime is tracked
+     * @param mixed $data The data to cache
+     * @param int|DateInterval|null $ttl Optional TTL
      *
      * @return bool True on success
      */
@@ -367,7 +364,7 @@ class Cache
             return false;
         }
 
-        $mtime = @filemtime($filePath);
+        $mtime = @\filemtime($filePath);
         if ($mtime === false) {
             return false;
         }
@@ -377,7 +374,7 @@ class Cache
                 'mtime' => $mtime,
                 'data' => $data,
             ], $ttl);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -385,8 +382,6 @@ class Cache
     /**
      * Reset the cache system to its uninitialized state.
      * Primarily used for testing.
-     *
-     * @return void
      */
     public static function reset(): void
     {

@@ -29,25 +29,6 @@ class RouteDispatcherTest extends TestCase
         $this->dispatcher = new RouteDispatcher();
     }
 
-    /**
-     * Create a Module mock with a given ModuleInfo (or default).
-     */
-    private function createModuleMock(
-        string $alias = 'test',
-        string $code = 'vendor/test',
-        ModuleStatus $status = ModuleStatus::Loaded
-    ): Module {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getAlias')->willReturn($alias);
-        $moduleInfo->method('getCode')->willReturn($code);
-
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-        $module->method('getStatus')->willReturn($status);
-
-        return $module;
-    }
-
     // ─── setRoute() ───────────────────────────────────────
 
     public function testSetRouteReturnsFluentSelf(): void
@@ -73,7 +54,7 @@ class RouteDispatcherTest extends TestCase
         $this->dispatcher->setRoute($module, '/home', '/my_handler');
 
         $routes = $this->dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame($module, $route['module']);
         $this->assertSame('/my_handler', $route['path']);
         $this->assertSame('standard', $route['type']);
@@ -98,7 +79,7 @@ class RouteDispatcherTest extends TestCase
 
         $routes = $this->dispatcher->getRoutes();
         $this->assertCount(1, $routes);
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('/handler_v2', $route['path']);
     }
 
@@ -117,7 +98,7 @@ class RouteDispatcherTest extends TestCase
         $this->dispatcher->setLazyRoute($module, '/endpoint', '/handler');
 
         $routes = $this->dispatcher->getRoutes();
-        $route = reset($routes);
+        $route = \reset($routes);
         $this->assertSame('lazy', $route['type']);
     }
 
@@ -128,7 +109,7 @@ class RouteDispatcherTest extends TestCase
 
         $routes = $this->dispatcher->getRoutes();
         // The key should be prefixed with the module alias
-        $keys = array_keys($routes);
+        $keys = \array_keys($routes);
         $key = $keys[0];
         $this->assertStringContainsString('admin', $key);
     }
@@ -242,7 +223,7 @@ class RouteDispatcherTest extends TestCase
         $routes = $this->dispatcher->getRoutes();
         $this->assertCount(3, $routes);
 
-        $types = array_column($routes, 'type');
+        $types = \array_column($routes, 'type');
         $this->assertContains('standard', $types);
         $this->assertContains('lazy', $types);
     }
@@ -257,5 +238,24 @@ class RouteDispatcherTest extends TestCase
         $routes = $this->dispatcher->getRoutes();
         // Routes should be normalized (trailing/leading slash handling)
         $this->assertNotEmpty($routes);
+    }
+
+    /**
+     * Create a Module mock with a given ModuleInfo (or default).
+     */
+    private function createModuleMock(
+        string $alias = 'test',
+        string $code = 'vendor/test',
+        ModuleStatus $status = ModuleStatus::Loaded,
+    ): Module {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getAlias')->willReturn($alias);
+        $moduleInfo->method('getCode')->willReturn($code);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+        $module->method('getStatus')->willReturn($status);
+
+        return $module;
     }
 }

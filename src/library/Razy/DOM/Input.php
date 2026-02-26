@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * such as type, name, value, and placeholder.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -46,6 +48,7 @@ class Input extends DOM
      * Set the input type attribute.
      *
      * @param string $type the input type (text, email, password, etc.)
+     *
      * @return self
      */
     public function setType(string $type): self
@@ -57,6 +60,7 @@ class Input extends DOM
      * Set the input name attribute.
      *
      * @param string $name the input name
+     *
      * @return self
      */
     public function setName(string $name): self
@@ -68,6 +72,7 @@ class Input extends DOM
      * Set the input value attribute.
      *
      * @param string $value the input value
+     *
      * @return self
      */
     public function setValue(string $value): self
@@ -79,6 +84,7 @@ class Input extends DOM
      * Set the placeholder attribute.
      *
      * @param string $placeholder the placeholder text
+     *
      * @return self
      */
     public function setPlaceholder(string $placeholder): self

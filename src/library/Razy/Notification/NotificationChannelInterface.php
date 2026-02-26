@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -28,7 +29,7 @@ interface NotificationChannelInterface
     /**
      * Send the given notification.
      *
-     * @param object       $notifiable  The entity receiving the notification
+     * @param object $notifiable The entity receiving the notification
      * @param Notification $notification The notification instance
      */
     public function send(object $notifiable, Notification $notification): void;

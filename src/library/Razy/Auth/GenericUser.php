@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -31,11 +32,12 @@ class GenericUser implements AuthenticatableInterface
      * Create a new GenericUser.
      *
      * @param array<string, mixed> $attributes User attributes (must include 'id' and 'password' keys,
-     *                                          or custom keys specified by getAuthIdentifierName())
+     *                                         or custom keys specified by getAuthIdentifierName())
      */
     public function __construct(
         private readonly array $attributes,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}
@@ -64,8 +66,8 @@ class GenericUser implements AuthenticatableInterface
     /**
      * Get an attribute by key.
      *
-     * @param string $key     The attribute key
-     * @param mixed  $default Default value if key doesn't exist
+     * @param string $key The attribute key
+     * @param mixed $default Default value if key doesn't exist
      *
      * @return mixed The attribute value
      */
@@ -93,6 +95,6 @@ class GenericUser implements AuthenticatableInterface
      */
     public function hasAttribute(string $key): bool
     {
-        return array_key_exists($key, $this->attributes);
+        return \array_key_exists($key, $this->attributes);
     }
 }

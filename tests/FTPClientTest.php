@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\FTPClient.
  *
@@ -9,10 +10,12 @@
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Exception\FTPException;
 use Razy\FTPClient;
+use ReflectionClass;
 
 #[CoversClass(FTPClient::class)]
 class FTPClientTest extends TestCase
@@ -22,8 +25,8 @@ class FTPClientTest extends TestCase
     public function testFtpExtensionLoaded(): void
     {
         $this->assertTrue(
-            extension_loaded('ftp'),
-            'The FTP extension (ext-ftp) must be loaded to run these tests.'
+            \extension_loaded('ftp'),
+            'The FTP extension (ext-ftp) must be loaded to run these tests.',
         );
     }
 
@@ -49,7 +52,7 @@ class FTPClientTest extends TestCase
 
     public function testSetTransferModeRejectsInvalid(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Transfer mode must be');
 
         // Create a mock that bypasses the constructor connection
@@ -220,7 +223,7 @@ class FTPClientTest extends TestCase
         $this->expectException(FTPException::class);
 
         $client = $this->createPartialMockWithoutConnection();
-        $client->chmod('/remote/file.txt', 0644);
+        $client->chmod('/remote/file.txt', 0o644);
     }
 
     public function testRawWithoutConnectionThrows(): void
@@ -303,7 +306,7 @@ class FTPClientTest extends TestCase
      */
     private function createPartialMockWithoutConnection(): FTPClient
     {
-        $reflection = new \ReflectionClass(FTPClient::class);
+        $reflection = new ReflectionClass(FTPClient::class);
         $instance = $reflection->newInstanceWithoutConstructor();
 
         return $instance;

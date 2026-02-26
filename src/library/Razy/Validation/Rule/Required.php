@@ -18,8 +18,8 @@ class Required extends ValidationRule
             return $value;
         }
 
-        if (is_string($value)) {
-            $value = trim($value);
+        if (\is_string($value)) {
+            $value = \trim($value);
             if ($value === '') {
                 $this->fail();
 

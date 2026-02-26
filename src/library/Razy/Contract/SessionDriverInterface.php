@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -51,8 +52,8 @@ interface SessionDriverInterface
     /**
      * Write session data for the given ID.
      *
-     * @param string $id   The session ID
-     * @param array  $data The session data to persist
+     * @param string $id The session ID
+     * @param array $data The session data to persist
      *
      * @return bool True on success
      */

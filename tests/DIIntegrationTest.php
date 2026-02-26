@@ -1,4 +1,5 @@
 <?php
+
 /**
  * DI Integration Tests for Phase 2 of Stage 2 Refactoring.
  *
@@ -23,7 +24,7 @@ use Razy\Distributor;
 use Razy\Exception\ContainerException;
 use Razy\Module;
 use Razy\ThreadManager;
-use ReflectionProperty;
+use stdClass;
 
 // ──────────────────────────────────────────────────────────
 // Test Fixtures for Controller DI tests
@@ -32,13 +33,17 @@ use ReflectionProperty;
 /** A simple service to test resolution through Controller */
 class DITestService
 {
-    public function __construct(public string $name = 'di-test') {}
+    public function __construct(public string $name = 'di-test')
+    {
+    }
 }
 
 /** A service with a dependency for auto-wiring tests */
 class DITestServiceWithDep
 {
-    public function __construct(public DITestService $dep) {}
+    public function __construct(public DITestService $dep)
+    {
+    }
 }
 
 /** Interface for binding tests */
@@ -49,7 +54,10 @@ interface DITestServiceInterface
 
 class DITestServiceImpl implements DITestServiceInterface
 {
-    public function value(): string { return 'concrete'; }
+    public function value(): string
+    {
+        return 'concrete';
+    }
 }
 
 // ──────────────────────────────────────────────────────────
@@ -97,7 +105,7 @@ class DIIntegrationTest extends TestCase
         $callCount = 0;
         $container->singleton('TestPluginManager', function () use (&$callCount) {
             $callCount++;
-            return new \stdClass();
+            return new stdClass();
         });
 
         $first = $container->get('TestPluginManager');
@@ -313,7 +321,7 @@ class DIIntegrationTest extends TestCase
         $container->alias(ContainerInterface::class, Container::class);
 
         // Register a service at application level
-        $container->singleton(DITestService::class, fn() => new DITestService('shared'));
+        $container->singleton(DITestService::class, fn () => new DITestService('shared'));
 
         // Mock the chain
         $mockModule = $this->createMock(Module::class);

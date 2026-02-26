@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Route and Razy\Agent.
  *
@@ -7,9 +8,11 @@
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Route;
+use stdClass;
 
 #[CoversClass(Route::class)]
 class RouteTest extends TestCase
@@ -36,17 +39,17 @@ class RouteTest extends TestCase
 
     public function testConstructorEmptyPathThrowsError(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The closure path cannot be empty');
-        
+
         new Route('');
     }
 
     public function testConstructorOnlySlashesThrowsError(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The closure path cannot be empty');
-        
+
         new Route('///');
     }
 
@@ -76,9 +79,9 @@ class RouteTest extends TestCase
     {
         $route = new Route('test');
         $data = ['key' => 'value'];
-        
+
         $result = $route->contain($data);
-        
+
         $this->assertInstanceOf(Route::class, $result);
         $this->assertEquals($data, $route->getData());
     }
@@ -87,7 +90,7 @@ class RouteTest extends TestCase
     {
         $route = new Route('test');
         $returnValue = $route->contain('test-data');
-        
+
         $this->assertSame($route, $returnValue);
     }
 
@@ -100,10 +103,10 @@ class RouteTest extends TestCase
     public function testContainDataOverwrite(): void
     {
         $route = new Route('test');
-        
+
         $route->contain('first');
         $this->assertEquals('first', $route->getData());
-        
+
         $route->contain('second');
         $this->assertEquals('second', $route->getData());
     }
@@ -112,7 +115,7 @@ class RouteTest extends TestCase
     {
         $route = new Route('test');
         $route->contain(null);
-        
+
         $this->assertNull($route->getData());
     }
 
@@ -124,9 +127,9 @@ class RouteTest extends TestCase
         $data = [
             'user' => 'John',
             'id' => 123,
-            'roles' => ['admin', 'user']
+            'roles' => ['admin', 'user'],
         ];
-        
+
         $route->contain($data);
         $this->assertEquals($data, $route->getData());
     }
@@ -134,14 +137,14 @@ class RouteTest extends TestCase
     public function testContainObjectData(): void
     {
         $route = new Route('test');
-        $data = new \stdClass();
+        $data = new stdClass();
         $data->name = 'Test';
         $data->value = 42;
-        
+
         $route->contain($data);
         $retrieved = $route->getData();
-        
-        $this->assertInstanceOf(\stdClass::class, $retrieved);
+
+        $this->assertInstanceOf(stdClass::class, $retrieved);
         $this->assertEquals('Test', $retrieved->name);
         $this->assertEquals(42, $retrieved->value);
     }
@@ -150,17 +153,17 @@ class RouteTest extends TestCase
     {
         $route = new Route('test');
         $route->contain('simple string');
-        
+
         $this->assertEquals('simple string', $route->getData());
     }
 
     public function testContainNumericData(): void
     {
         $route = new Route('test');
-        
+
         $route->contain(123);
         $this->assertEquals(123, $route->getData());
-        
+
         $route->contain(45.67);
         $this->assertEquals(45.67, $route->getData());
     }
@@ -168,10 +171,10 @@ class RouteTest extends TestCase
     public function testContainBooleanData(): void
     {
         $route = new Route('test');
-        
+
         $route->contain(true);
         $this->assertTrue($route->getData());
-        
+
         $route->contain(false);
         $this->assertFalse($route->getData());
     }
@@ -232,7 +235,7 @@ class RouteTest extends TestCase
     {
         $route1 = new Route('Path/To/Resource');
         $route2 = new Route('path/to/resource');
-        
+
         $this->assertNotEquals($route1->getClosurePath(), $route2->getClosurePath());
         $this->assertEquals('Path/To/Resource', $route1->getClosurePath());
         $this->assertEquals('path/to/resource', $route2->getClosurePath());
@@ -260,15 +263,15 @@ class RouteTest extends TestCase
             'user' => [
                 'profile' => [
                     'name' => 'John',
-                    'email' => 'john@example.com'
+                    'email' => 'john@example.com',
                 ],
-                'roles' => ['admin', 'editor']
-            ]
+                'roles' => ['admin', 'editor'],
+            ],
         ];
-        
+
         $route->contain($data);
         $retrieved = $route->getData();
-        
+
         $this->assertEquals('John', $retrieved['user']['profile']['name']);
         $this->assertEquals(['admin', 'editor'], $retrieved['user']['roles']);
     }
@@ -276,11 +279,11 @@ class RouteTest extends TestCase
     public function testContainCallableData(): void
     {
         $route = new Route('test');
-        $callable = fn() => 'test';
-        
+        $callable = fn () => 'test';
+
         $route->contain($callable);
         $retrieved = $route->getData();
-        
+
         $this->assertIsCallable($retrieved);
         $this->assertEquals('test', $retrieved());
     }
@@ -291,10 +294,10 @@ class RouteTest extends TestCase
     {
         $route = new Route('original/path');
         $originalPath = $route->getClosurePath();
-        
+
         // Try to manipulate (data doesn't affect path)
         $route->contain('new data');
-        
+
         $this->assertEquals($originalPath, $route->getClosurePath());
     }
 
@@ -303,10 +306,10 @@ class RouteTest extends TestCase
         $route = new Route('test');
         $data = ['key' => 'value'];
         $route->contain($data);
-        
+
         $first = $route->getData();
         $second = $route->getData();
-        
+
         $this->assertEquals($first, $second);
     }
 
@@ -331,12 +334,12 @@ class RouteTest extends TestCase
             'method' => 'GET',
             'auth' => true,
             'roles' => ['user', 'admin'],
-            'cache' => 300
+            'cache' => 300,
         ];
-        
+
         $route->contain($metadata);
         $retrieved = $route->getData();
-        
+
         $this->assertEquals('GET', $retrieved['method']);
         $this->assertTrue($retrieved['auth']);
         $this->assertEquals(['user', 'admin'], $retrieved['roles']);

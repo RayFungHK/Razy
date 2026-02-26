@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\YAML parser and dumper.
  *
@@ -15,8 +16,8 @@ namespace Razy\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Razy\YAML;
 use Razy\Exception\FileException;
+use Razy\YAML;
 
 #[CoversClass(YAML::class)]
 class YAMLTest extends TestCase
@@ -26,32 +27,65 @@ class YAMLTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->tempDir = sys_get_temp_dir() . '/razy-yaml-test-' . uniqid();
-        if (!is_dir($this->tempDir)) {
-            mkdir($this->tempDir, 0755, true);
+        $this->tempDir = \sys_get_temp_dir() . '/razy-yaml-test-' . \uniqid();
+        if (!\is_dir($this->tempDir)) {
+            \mkdir($this->tempDir, 0o755, true);
         }
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        if (is_dir($this->tempDir)) {
+        if (\is_dir($this->tempDir)) {
             $this->deleteDirectory($this->tempDir);
         }
     }
 
-    private function deleteDirectory(string $dir): void
+    public static function dumpScalarProvider(): array
     {
-        if (!is_dir($dir)) {
-            return;
-        }
+        return [
+            'boolean true' => [['enabled' => true], 'enabled: true'],
+            'boolean false' => [['disabled' => false], 'disabled: false'],
+            'null' => [['value' => null], 'value: null'],
+            'integer' => [['integer' => 42], 'integer: 42'],
+            'float' => [['float' => 3.14], 'float: 3.14'],
+        ];
+    }
 
-        $files = array_diff(scandir($dir), ['.', '..']);
-        foreach ($files as $file) {
-            $path = $dir . '/' . $file;
-            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
-        }
-        rmdir($dir);
+    // ==================== ROUND-TRIP TESTS ====================
+
+    public static function roundTripProvider(): array
+    {
+        return [
+            'simple' => [[
+                'name' => 'MyApp',
+                'version' => 1.0,
+                'enabled' => true,
+            ]],
+            'nested' => [[
+                'database' => [
+                    'host' => 'localhost',
+                    'port' => 3306,
+                    'options' => [
+                        'charset' => 'utf8mb4',
+                        'timeout' => 30,
+                    ],
+                ],
+            ]],
+            'lists' => [[
+                'features' => ['auth', 'api', 'admin'],
+                'ports' => [8080, 8081, 8082],
+            ]],
+            'mixed types' => [[
+                'string' => 'value',
+                'integer' => 42,
+                'float' => 3.14,
+                'boolean' => true,
+                'null' => null,
+                'array' => [1, 2, 3],
+                'object' => ['key' => 'value'],
+            ]],
+        ];
     }
 
     // ==================== PARSING TESTS ====================
@@ -69,13 +103,13 @@ class YAMLTest extends TestCase
     public function testParseNestedStructure(): void
     {
         $yaml = <<<YAML
-database:
-  host: localhost
-  port: 3306
-  credentials:
-    username: root
-    password: secret
-YAML;
+            database:
+              host: localhost
+              port: 3306
+              credentials:
+                username: root
+                password: secret
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -89,11 +123,11 @@ YAML;
     public function testParseList(): void
     {
         $yaml = <<<YAML
-features:
-  - authentication
-  - api
-  - admin
-YAML;
+            features:
+              - authentication
+              - api
+              - admin
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -104,7 +138,7 @@ YAML;
 
     public function testParseInlineArray(): void
     {
-        $yaml = "colors: [red, green, blue]";
+        $yaml = 'colors: [red, green, blue]';
         $result = YAML::parse($yaml);
 
         $this->assertEquals(['red', 'green', 'blue'], $result['colors']);
@@ -112,7 +146,7 @@ YAML;
 
     public function testParseInlineObject(): void
     {
-        $yaml = "server: {host: localhost, port: 8080}";
+        $yaml = 'server: {host: localhost, port: 8080}';
         $result = YAML::parse($yaml);
 
         $this->assertEquals('localhost', $result['server']['host']);
@@ -122,13 +156,13 @@ YAML;
     public function testParseBoolean(): void
     {
         $yaml = <<<YAML
-enabled: true
-disabled: false
-yes_value: yes
-no_value: no
-on_value: on
-off_value: off
-YAML;
+            enabled: true
+            disabled: false
+            yes_value: yes
+            no_value: no
+            on_value: on
+            off_value: off
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -143,10 +177,10 @@ YAML;
     public function testParseNull(): void
     {
         $yaml = <<<YAML
-null1: null
-null2: ~
-null3:
-YAML;
+            null1: null
+            null2: ~
+            null3:
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -158,11 +192,11 @@ YAML;
     public function testParseNumbers(): void
     {
         $yaml = <<<YAML
-integer: 42
-float: 3.14
-negative: -10
-zero: 0
-YAML;
+            integer: 42
+            float: 3.14
+            negative: -10
+            zero: 0
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -175,10 +209,10 @@ YAML;
     public function testParseQuotedStrings(): void
     {
         $yaml = <<<YAML
-double: "Hello World"
-single: 'Hello World'
-plain: Hello World
-YAML;
+            double: "Hello World"
+            single: 'Hello World'
+            plain: Hello World
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -190,11 +224,11 @@ YAML;
     public function testParseComments(): void
     {
         $yaml = <<<YAML
-# This is a comment
-name: MyApp  # Inline comment
-# Another comment
-version: 1.0
-YAML;
+            # This is a comment
+            name: MyApp  # Inline comment
+            # Another comment
+            version: 1.0
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -207,27 +241,27 @@ YAML;
     public function testParseMultilineLiteral(): void
     {
         $yaml = <<<YAML
-message: |
-  Line 1
-  Line 2
-  Line 3
-YAML;
+            message: |
+              Line 1
+              Line 2
+              Line 3
+            YAML;
 
         $result = YAML::parse($yaml);
 
         // Normalize line endings for cross-platform compatibility
-        $normalized = str_replace("\r\n", "\n", $result['message']);
+        $normalized = \str_replace("\r\n", "\n", $result['message']);
         $this->assertStringContainsString("Line 1\nLine 2\nLine 3", $normalized);
     }
 
     public function testParseMultilineFolded(): void
     {
         $yaml = <<<YAML
-description: >
-  This is a long
-  description that
-  will be folded.
-YAML;
+            description: >
+              This is a long
+              description that
+              will be folded.
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -244,18 +278,18 @@ YAML;
     public function testParseComplexStructure(): void
     {
         $yaml = <<<YAML
-app:
-  name: MyApp
-  version: 1.0
-  debug: true
-  features:
-    - auth
-    - api
-  database:
-    host: localhost
-    port: 3306
-    engines: [mysql, postgres]
-YAML;
+            app:
+              name: MyApp
+              version: 1.0
+              debug: true
+              features:
+                - auth
+                - api
+              database:
+                host: localhost
+                port: 3306
+                engines: [mysql, postgres]
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -308,17 +342,6 @@ YAML;
         $this->assertStringContainsString('features:', $yaml);
         // Simple arrays are dumped inline by the YAML dumper
         $this->assertStringContainsString('[auth, api, admin]', $yaml);
-    }
-
-    public static function dumpScalarProvider(): array
-    {
-        return [
-            'boolean true'  => [['enabled' => true], 'enabled: true'],
-            'boolean false' => [['disabled' => false], 'disabled: false'],
-            'null'          => [['value' => null], 'value: null'],
-            'integer'       => [['integer' => 42], 'integer: 42'],
-            'float'         => [['float' => 3.14], 'float: 3.14'],
-        ];
     }
 
     #[DataProvider('dumpScalarProvider')]
@@ -381,11 +404,11 @@ YAML;
     {
         $filename = $this->tempDir . '/test.yaml';
         $content = <<<YAML
-name: TestApp
-version: 1.0
-YAML;
+            name: TestApp
+            version: 1.0
+            YAML;
 
-        file_put_contents($filename, $content);
+        \file_put_contents($filename, $content);
 
         $result = YAML::parseFile($filename);
 
@@ -414,7 +437,7 @@ YAML;
         $this->assertTrue($result);
         $this->assertFileExists($filename);
 
-        $content = file_get_contents($filename);
+        $content = \file_get_contents($filename);
         $this->assertStringContainsString('name: MyApp', $content);
         $this->assertStringContainsString('version: "2.0"', $content);
     }
@@ -428,42 +451,6 @@ YAML;
 
         $this->assertFileExists($filename);
         $this->assertDirectoryExists($this->tempDir . '/subdir');
-    }
-
-    // ==================== ROUND-TRIP TESTS ====================
-
-    public static function roundTripProvider(): array
-    {
-        return [
-            'simple' => [[
-                'name' => 'MyApp',
-                'version' => 1.0,
-                'enabled' => true,
-            ]],
-            'nested' => [[
-                'database' => [
-                    'host' => 'localhost',
-                    'port' => 3306,
-                    'options' => [
-                        'charset' => 'utf8mb4',
-                        'timeout' => 30,
-                    ],
-                ],
-            ]],
-            'lists' => [[
-                'features' => ['auth', 'api', 'admin'],
-                'ports' => [8080, 8081, 8082],
-            ]],
-            'mixed types' => [[
-                'string' => 'value',
-                'integer' => 42,
-                'float' => 3.14,
-                'boolean' => true,
-                'null' => null,
-                'array' => [1, 2, 3],
-                'object' => ['key' => 'value'],
-            ]],
-        ];
     }
 
     #[DataProvider('roundTripProvider')]
@@ -481,7 +468,7 @@ YAML;
 
     public function testParseEmptyArray(): void
     {
-        $yaml = "features: []";
+        $yaml = 'features: []';
         $result = YAML::parse($yaml);
 
         $this->assertEquals([], $result['features']);
@@ -489,7 +476,7 @@ YAML;
 
     public function testParseEmptyObject(): void
     {
-        $yaml = "settings: {}";
+        $yaml = 'settings: {}';
         $result = YAML::parse($yaml);
 
         $this->assertEquals([], $result['settings']);
@@ -524,10 +511,10 @@ YAML;
     public function testParseMixedIndentation(): void
     {
         $yaml = <<<YAML
-level1:
-  level2:
-    level3: value
-YAML;
+            level1:
+              level2:
+                level3: value
+            YAML;
 
         $result = YAML::parse($yaml);
 
@@ -538,13 +525,27 @@ YAML;
     {
         // Quoted keys with special characters are not supported by this parser
         $yaml = <<<YAML
-simple_key: value1
-another_key: value2
-YAML;
+            simple_key: value1
+            another_key: value2
+            YAML;
 
         $result = YAML::parse($yaml);
 
         $this->assertEquals('value1', $result['simple_key']);
         $this->assertEquals('value2', $result['another_key']);
+    }
+
+    private function deleteDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+
+        $files = \array_diff(\scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            \is_dir($path) ? $this->deleteDirectory($path) : \unlink($path);
+        }
+        \rmdir($dir);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Terminal.
  *
@@ -9,6 +10,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -38,7 +40,7 @@ class TerminalTest extends TestCase
     #[Test]
     public function constructorThrowsOnEmptyCode(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The terminal code is required.');
         new Terminal('');
     }
@@ -46,7 +48,7 @@ class TerminalTest extends TestCase
     #[Test]
     public function constructorThrowsOnWhitespaceOnlyCode(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         new Terminal('   ');
     }
 
@@ -351,63 +353,63 @@ class TerminalTest extends TestCase
     #[Test]
     public function writeLinePrintsFormattedMessage(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine('Hello');
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame('Hello' . PHP_EOL, $output);
     }
 
     #[Test]
     public function writeLineAppliesFormat(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine('{@c:red}Error{@reset}');
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame("\033[31mError\033[0m" . PHP_EOL, $output);
     }
 
     #[Test]
     public function writeLineAppliesResetStyle(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine('{@c:red}Error', true);
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame("\033[31mError\033[0m" . PHP_EOL, $output);
     }
 
     #[Test]
     public function writeLineWithoutResetStyle(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine('{@c:red}Error', false);
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame("\033[31mError" . PHP_EOL, $output);
     }
 
     #[Test]
     public function writeLineAppliesSprintfFormat(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine('test', false, '[%s]');
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame('[test]' . PHP_EOL, $output);
     }
 
     #[Test]
     public function writeLineReplacesTabsWithSpaces(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine("a\tb");
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame('a    b' . PHP_EOL, $output);
     }
 
     #[Test]
     public function writeLineWithEmptyFormatUsesMessageDirectly(): void
     {
-        ob_start();
+        \ob_start();
         Terminal::WriteLine('plain', false, '   ');
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         // Empty/whitespace-only format string is trimmed to '', so no sprintf applied
         $this->assertSame('plain' . PHP_EOL, $output);
     }
@@ -504,9 +506,9 @@ class TerminalTest extends TestCase
     {
         $terminal = new Terminal('test');
         $terminal->logging(true);
-        ob_start();
+        \ob_start();
         $result = $terminal->writeLineLogging('Logged message');
-        ob_get_clean();
+        \ob_get_clean();
         $this->assertSame($terminal, $result);
     }
 
@@ -514,9 +516,9 @@ class TerminalTest extends TestCase
     public function writeLineLoggingOutputsFormattedText(): void
     {
         $terminal = new Terminal('test');
-        ob_start();
+        \ob_start();
         $terminal->writeLineLogging('Test output');
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame('Test output' . PHP_EOL, $output);
     }
 
@@ -524,9 +526,9 @@ class TerminalTest extends TestCase
     public function writeLineLoggingWithResetStyle(): void
     {
         $terminal = new Terminal('test');
-        ob_start();
+        \ob_start();
         $terminal->writeLineLogging('{@c:red}Error', true);
-        $output = ob_get_clean();
+        $output = \ob_get_clean();
         $this->assertSame("\033[31mError\033[0m" . PHP_EOL, $output);
     }
 
@@ -539,11 +541,11 @@ class TerminalTest extends TestCase
     {
         $terminal = new Terminal('runner');
         $captured = null;
-        ob_start();
+        \ob_start();
         $result = $terminal->run(function () use (&$captured) {
             $captured = $this->getCode();
         });
-        ob_get_clean();
+        \ob_get_clean();
         $this->assertSame('runner', $captured);
         $this->assertSame($terminal, $result);
     }
@@ -553,11 +555,11 @@ class TerminalTest extends TestCase
     {
         $terminal = new Terminal('runner');
         $captured = null;
-        ob_start();
+        \ob_start();
         $terminal->run(function (string $a, string $b) use (&$captured) {
             $captured = $a . '-' . $b;
         }, ['hello', 'world']);
-        ob_get_clean();
+        \ob_get_clean();
         $this->assertSame('hello-world', $captured);
     }
 
@@ -566,9 +568,10 @@ class TerminalTest extends TestCase
     {
         $terminal = new Terminal('runner');
         $params = ['key' => 'value', 'num' => 42];
-        ob_start();
-        $terminal->run(function () {}, [], $params);
-        ob_get_clean();
+        \ob_start();
+        $terminal->run(function () {
+        }, [], $params);
+        \ob_get_clean();
         $this->assertSame($params, $terminal->getParameters());
     }
 
@@ -612,24 +615,24 @@ class TerminalTest extends TestCase
         $terminal->addLog('Entry one');
         $terminal->addLog('Entry two');
 
-        $tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_terminal_test_' . uniqid();
+        $tmpDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_terminal_test_' . \uniqid();
         $result = $terminal->saveLog($tmpDir . '/');
 
         $this->assertTrue($result);
         // Verify a file was created in the directory
-        $files = glob($tmpDir . '/*.txt');
+        $files = \glob($tmpDir . '/*.txt');
         $this->assertNotEmpty($files);
 
         // Verify content
-        $content = file_get_contents($files[0]);
+        $content = \file_get_contents($files[0]);
         $this->assertStringContainsString('Entry one', $content);
         $this->assertStringContainsString('Entry two', $content);
 
         // Cleanup
         foreach ($files as $f) {
-            @unlink($f);
+            @\unlink($f);
         }
-        @rmdir($tmpDir);
+        @\rmdir($tmpDir);
     }
 
     #[Test]
@@ -638,18 +641,18 @@ class TerminalTest extends TestCase
         $terminal = new Terminal('logtest');
         $terminal->addLog('Custom file entry');
 
-        $tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_terminal_test2_' . uniqid();
+        $tmpDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_terminal_test2_' . \uniqid();
         $result = $terminal->saveLog($tmpDir . '/custom.log');
 
         $this->assertTrue($result);
         $this->assertFileExists($tmpDir . DIRECTORY_SEPARATOR . 'custom.log');
 
-        $content = file_get_contents($tmpDir . DIRECTORY_SEPARATOR . 'custom.log');
+        $content = \file_get_contents($tmpDir . DIRECTORY_SEPARATOR . 'custom.log');
         $this->assertStringContainsString('Custom file entry', $content);
 
         // Cleanup
-        @unlink($tmpDir . DIRECTORY_SEPARATOR . 'custom.log');
-        @rmdir($tmpDir);
+        @\unlink($tmpDir . DIRECTORY_SEPARATOR . 'custom.log');
+        @\rmdir($tmpDir);
     }
 
     // ══════════════════════════════════════════════════════

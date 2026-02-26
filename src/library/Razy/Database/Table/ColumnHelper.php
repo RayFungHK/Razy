@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -17,7 +19,7 @@ use Razy\Database\Column;
 use Razy\Database\Table;
 
 /**
- * Class ColumnHelper
+ * Class ColumnHelper.
  *
  * Fluent builder for generating column-specific ALTER TABLE statements.
  * Provides chainable methods for modifying a single column's definition
@@ -27,6 +29,7 @@ use Razy\Database\Table;
  * whether a rename is involved.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class ColumnHelper
@@ -87,18 +90,31 @@ class ColumnHelper
      */
     public function __construct(private readonly Table $table, string $columnName)
     {
-        $this->columnName = trim($columnName, '` ');
+        $this->columnName = \trim($columnName, '` ');
+    }
+
+    /**
+     * Convert to string (returns SQL syntax).
+     *
+     * @return string
+     *
+     * @throws Error
+     */
+    public function __toString(): string
+    {
+        return $this->getSyntax();
     }
 
     /**
      * Rename the column.
      *
      * @param string $newName The new column name
+     *
      * @return $this
      */
     public function rename(string $newName): static
     {
-        $this->newName = trim($newName, '` ');
+        $this->newName = \trim($newName, '` ');
         return $this;
     }
 
@@ -106,11 +122,12 @@ class ColumnHelper
      * Set the column type.
      *
      * @param string $type The data type (VARCHAR, INT, TEXT, etc.)
+     *
      * @return $this
      */
     public function type(string $type): static
     {
-        $this->type = strtoupper(trim($type));
+        $this->type = \strtoupper(\trim($type));
         return $this;
     }
 
@@ -118,12 +135,13 @@ class ColumnHelper
      * Set the column as VARCHAR with optional length.
      *
      * @param int $length The length (default: 255)
+     *
      * @return $this
      */
     public function varchar(int $length = 255): static
     {
         $this->type = 'VARCHAR';
-        $this->length = max(1, $length);
+        $this->length = \max(1, $length);
         return $this;
     }
 
@@ -131,12 +149,13 @@ class ColumnHelper
      * Set the column as INT with optional length.
      *
      * @param int $length The display width (default: 11)
+     *
      * @return $this
      */
     public function int(int $length = 11): static
     {
         $this->type = 'INT';
-        $this->length = max(1, $length);
+        $this->length = \max(1, $length);
         return $this;
     }
 
@@ -144,12 +163,13 @@ class ColumnHelper
      * Set the column as BIGINT.
      *
      * @param int $length The display width (default: 20)
+     *
      * @return $this
      */
     public function bigint(int $length = 20): static
     {
         $this->type = 'BIGINT';
-        $this->length = max(1, $length);
+        $this->length = \max(1, $length);
         return $this;
     }
 
@@ -157,12 +177,13 @@ class ColumnHelper
      * Set the column as TINYINT (for boolean-like values).
      *
      * @param int $length The display width (default: 1)
+     *
      * @return $this
      */
     public function tinyint(int $length = 1): static
     {
         $this->type = 'TINYINT';
-        $this->length = max(1, $length);
+        $this->length = \max(1, $length);
         return $this;
     }
 
@@ -171,13 +192,14 @@ class ColumnHelper
      *
      * @param int $precision Total number of digits
      * @param int $scale Number of digits after decimal point
+     *
      * @return $this
      */
     public function decimal(int $precision = 10, int $scale = 2): static
     {
         $this->type = 'DECIMAL';
-        $this->length = max(1, $precision);
-        $this->decimalPoints = max(0, min($precision - 1, $scale));
+        $this->length = \max(1, $precision);
+        $this->decimalPoints = \max(0, \min($precision - 1, $scale));
         return $this;
     }
 
@@ -186,13 +208,14 @@ class ColumnHelper
      *
      * @param int $precision Total number of digits
      * @param int $scale Number of digits after decimal point
+     *
      * @return $this
      */
     public function float(int $precision = 10, int $scale = 2): static
     {
         $this->type = 'FLOAT';
-        $this->length = max(1, $precision);
-        $this->decimalPoints = max(0, min($precision - 1, $scale));
+        $this->length = \max(1, $precision);
+        $this->decimalPoints = \max(0, \min($precision - 1, $scale));
         return $this;
     }
 
@@ -308,11 +331,12 @@ class ColumnHelper
      * Set the column as ENUM.
      *
      * @param array $values The enum values
+     *
      * @return $this
      */
     public function enum(array $values): static
     {
-        $this->type = "ENUM('" . implode("','", array_map('addslashes', $values)) . "')";
+        $this->type = "ENUM('" . \implode("','", \array_map('addslashes', $values)) . "')";
         $this->length = null;
         return $this;
     }
@@ -322,12 +346,13 @@ class ColumnHelper
      *
      * @param int $length The column length
      * @param int $decimalPoints The decimal points (for DECIMAL, FLOAT, etc.)
+     *
      * @return $this
      */
     public function length(int $length, int $decimalPoints = 0): static
     {
-        $this->length = max(1, $length);
-        $this->decimalPoints = max(0, $decimalPoints);
+        $this->length = \max(1, $length);
+        $this->decimalPoints = \max(0, $decimalPoints);
         return $this;
     }
 
@@ -335,6 +360,7 @@ class ColumnHelper
      * Set the column as nullable.
      *
      * @param bool $nullable Whether the column allows NULL
+     *
      * @return $this
      */
     public function nullable(bool $nullable = true): static
@@ -358,6 +384,7 @@ class ColumnHelper
      * Set the default value.
      *
      * @param mixed $value The default value (use null for NULL default)
+     *
      * @return $this
      */
     public function default(mixed $value): static
@@ -398,11 +425,12 @@ class ColumnHelper
      * Set the column charset.
      *
      * @param string $charset The character set
+     *
      * @return $this
      */
     public function charset(string $charset): static
     {
-        $this->charset = trim($charset);
+        $this->charset = \trim($charset);
         return $this;
     }
 
@@ -410,11 +438,12 @@ class ColumnHelper
      * Set the column collation.
      *
      * @param string $collation The collation
+     *
      * @return $this
      */
     public function collation(string $collation): static
     {
-        $this->collation = trim($collation);
+        $this->collation = \trim($collation);
         return $this;
     }
 
@@ -422,6 +451,7 @@ class ColumnHelper
      * Set the column comment.
      *
      * @param string $comment The comment
+     *
      * @return $this
      */
     public function comment(string $comment): static
@@ -434,6 +464,7 @@ class ColumnHelper
      * Set the column as auto increment.
      *
      * @param bool $autoIncrement Whether to enable auto increment
+     *
      * @return $this
      */
     public function autoIncrement(bool $autoIncrement = true): static
@@ -446,6 +477,7 @@ class ColumnHelper
      * Set the column as zerofill.
      *
      * @param bool $zerofill Whether to enable zerofill
+     *
      * @return $this
      */
     public function zerofill(bool $zerofill = true): static
@@ -470,12 +502,13 @@ class ColumnHelper
      * Move the column after another column.
      *
      * @param string $columnName The column to place after
+     *
      * @return $this
      */
     public function after(string $columnName): static
     {
         $this->position = 'AFTER';
-        $this->afterColumn = trim($columnName, '` ');
+        $this->afterColumn = \trim($columnName, '` ');
         return $this;
     }
 
@@ -483,12 +516,13 @@ class ColumnHelper
      * Generate the ALTER COLUMN SQL statement.
      *
      * @return string The ALTER TABLE ... MODIFY/CHANGE COLUMN statement
+     *
      * @throws Error
      */
     public function getSyntax(): string
     {
-        $tableName = addslashes($this->table->getName());
-        $columnName = addslashes($this->columnName);
+        $tableName = \addslashes($this->table->getName());
+        $columnName = \addslashes($this->columnName);
 
         // Build column definition
         $definition = $this->buildColumnDefinition();
@@ -505,81 +539,10 @@ class ColumnHelper
         if ($this->position === 'FIRST') {
             $sql .= ' FIRST';
         } elseif ($this->position === 'AFTER' && $this->afterColumn) {
-            $sql .= ' AFTER `' . addslashes($this->afterColumn) . '`';
+            $sql .= ' AFTER `' . \addslashes($this->afterColumn) . '`';
         }
 
         return $sql . ';';
-    }
-
-    /**
-     * Build the column definition part of the ALTER statement.
-     *
-     * @return string
-     */
-    private function buildColumnDefinition(): string
-    {
-        // Use the new name if renaming, otherwise keep the original column name
-        $name = $this->newName ?? $this->columnName;
-        $sql = '`' . addslashes($name) . '`';
-
-        // Append data type if specified
-        if ($this->type) {
-            $sql .= ' ' . $this->type;
-
-            // Append length/precision — skip for ENUM since values are embedded in the type string
-            if ($this->length !== null && !str_starts_with($this->type, 'ENUM')) {
-                if ($this->decimalPoints !== null && $this->decimalPoints > 0) {
-                    $sql .= '(' . $this->length . ',' . $this->decimalPoints . ')';
-                } else {
-                    $sql .= '(' . $this->length . ')';
-                }
-            }
-        }
-
-        // Zerofill
-        if ($this->zerofill === true) {
-            $sql .= ' ZEROFILL';
-        }
-
-        // Charset and Collation
-        if ($this->charset) {
-            $sql .= ' CHARACTER SET ' . addslashes($this->charset);
-        }
-        if ($this->collation) {
-            $sql .= ' COLLATE ' . addslashes($this->collation);
-        }
-
-        // Nullable
-        if ($this->nullable === true) {
-            $sql .= ' NULL';
-        } elseif ($this->nullable === false) {
-            $sql .= ' NOT NULL';
-        }
-
-        // Default
-        if ($this->dropDefault) {
-            // No default clause - effectively drops it
-        } elseif ($this->defaultNull) {
-            $sql .= ' DEFAULT NULL';
-        } elseif ($this->default !== null) {
-            if ($this->default === 'CURRENT_TIMESTAMP') {
-                $sql .= ' DEFAULT CURRENT_TIMESTAMP';
-            } else {
-                $sql .= " DEFAULT '" . addslashes($this->default) . "'";
-            }
-        }
-
-        // Auto increment
-        if ($this->autoIncrement === true) {
-            $sql .= ' AUTO_INCREMENT';
-        }
-
-        // Comment
-        if ($this->comment !== null) {
-            $sql .= " COMMENT '" . addslashes($this->comment) . "'";
-        }
-
-        return $sql;
     }
 
     /**
@@ -613,13 +576,73 @@ class ColumnHelper
     }
 
     /**
-     * Convert to string (returns SQL syntax).
+     * Build the column definition part of the ALTER statement.
      *
      * @return string
-     * @throws Error
      */
-    public function __toString(): string
+    private function buildColumnDefinition(): string
     {
-        return $this->getSyntax();
+        // Use the new name if renaming, otherwise keep the original column name
+        $name = $this->newName ?? $this->columnName;
+        $sql = '`' . \addslashes($name) . '`';
+
+        // Append data type if specified
+        if ($this->type) {
+            $sql .= ' ' . $this->type;
+
+            // Append length/precision — skip for ENUM since values are embedded in the type string
+            if ($this->length !== null && !\str_starts_with($this->type, 'ENUM')) {
+                if ($this->decimalPoints !== null && $this->decimalPoints > 0) {
+                    $sql .= '(' . $this->length . ',' . $this->decimalPoints . ')';
+                } else {
+                    $sql .= '(' . $this->length . ')';
+                }
+            }
+        }
+
+        // Zerofill
+        if ($this->zerofill === true) {
+            $sql .= ' ZEROFILL';
+        }
+
+        // Charset and Collation
+        if ($this->charset) {
+            $sql .= ' CHARACTER SET ' . \addslashes($this->charset);
+        }
+        if ($this->collation) {
+            $sql .= ' COLLATE ' . \addslashes($this->collation);
+        }
+
+        // Nullable
+        if ($this->nullable === true) {
+            $sql .= ' NULL';
+        } elseif ($this->nullable === false) {
+            $sql .= ' NOT NULL';
+        }
+
+        // Default
+        if ($this->dropDefault) {
+            // No default clause - effectively drops it
+        } elseif ($this->defaultNull) {
+            $sql .= ' DEFAULT NULL';
+        } elseif ($this->default !== null) {
+            if ($this->default === 'CURRENT_TIMESTAMP') {
+                $sql .= ' DEFAULT CURRENT_TIMESTAMP';
+            } else {
+                $sql .= " DEFAULT '" . \addslashes($this->default) . "'";
+            }
+        }
+
+        // Auto increment
+        if ($this->autoIncrement === true) {
+            $sql .= ' AUTO_INCREMENT';
+        }
+
+        // Comment
+        if ($this->comment !== null) {
+            $sql .= " COMMENT '" . \addslashes($this->comment) . "'";
+        }
+
+        return $sql;
     }
 }

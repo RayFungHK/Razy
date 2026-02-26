@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -9,6 +10,7 @@
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -16,6 +18,10 @@ namespace Razy\Cache;
 
 use DateInterval;
 use DateTime;
+use DirectoryIterator;
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 /**
  * File-based cache adapter for the Razy framework.
@@ -46,15 +52,15 @@ class FileAdapter implements CacheInterface
      */
     public function __construct(string $directory)
     {
-        $this->directory = rtrim($directory, '/\\');
+        $this->directory = \rtrim($directory, '/\\');
 
-        if (!is_dir($this->directory)) {
-            if (!@mkdir($this->directory, 0775, true) && !is_dir($this->directory)) {
+        if (!\is_dir($this->directory)) {
+            if (!@\mkdir($this->directory, 0o775, true) && !\is_dir($this->directory)) {
                 throw new InvalidArgumentException("Cache directory '{$this->directory}' could not be created.");
             }
         }
 
-        if (!is_writable($this->directory)) {
+        if (!\is_writable($this->directory)) {
             throw new InvalidArgumentException("Cache directory '{$this->directory}' is not writable.");
         }
     }
@@ -68,7 +74,7 @@ class FileAdapter implements CacheInterface
 
         $path = $this->getFilePath($key);
 
-        if (!is_file($path)) {
+        if (!\is_file($path)) {
             return $default;
         }
 
@@ -78,8 +84,8 @@ class FileAdapter implements CacheInterface
         }
 
         // Check expiry: 0 means no expiry
-        if ($data['e'] > 0 && $data['e'] < time()) {
-            @unlink($path);
+        if ($data['e'] > 0 && $data['e'] < \time()) {
+            @\unlink($path);
             return $default;
         }
 
@@ -96,35 +102,35 @@ class FileAdapter implements CacheInterface
         $expiry = $this->calculateExpiry($ttl);
 
         // A TTL of 0 or negative means the item should be deleted
-        if ($ttl !== null && $expiry <= time() && $expiry > 0) {
+        if ($ttl !== null && $expiry <= \time() && $expiry > 0) {
             return $this->delete($key);
         }
 
         $path = $this->getFilePath($key);
-        $dir = dirname($path);
+        $dir = \dirname($path);
 
-        if (!is_dir($dir)) {
-            if (!@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        if (!\is_dir($dir)) {
+            if (!@\mkdir($dir, 0o775, true) && !\is_dir($dir)) {
                 return false;
             }
         }
 
-        $data = serialize(['e' => $expiry, 'd' => $value]);
+        $data = \serialize(['e' => $expiry, 'd' => $value]);
 
         // Write atomically: write to temp file, then rename
-        $tmp = $path . '.' . uniqid('', true) . '.tmp';
-        if (@file_put_contents($tmp, $data, LOCK_EX) === false) {
-            @unlink($tmp);
+        $tmp = $path . '.' . \uniqid('', true) . '.tmp';
+        if (@\file_put_contents($tmp, $data, LOCK_EX) === false) {
+            @\unlink($tmp);
             return false;
         }
 
         // On Windows, rename() fails if destination exists — remove first
-        if (PHP_OS_FAMILY === 'Windows' && is_file($path)) {
-            @unlink($path);
+        if (PHP_OS_FAMILY === 'Windows' && \is_file($path)) {
+            @\unlink($path);
         }
 
-        if (!@rename($tmp, $path)) {
-            @unlink($tmp);
+        if (!@\rename($tmp, $path)) {
+            @\unlink($tmp);
             return false;
         }
 
@@ -140,8 +146,8 @@ class FileAdapter implements CacheInterface
 
         $path = $this->getFilePath($key);
 
-        if (is_file($path)) {
-            return @unlink($path);
+        if (\is_file($path)) {
+            return @\unlink($path);
         }
 
         return true;
@@ -207,7 +213,7 @@ class FileAdapter implements CacheInterface
 
         $path = $this->getFilePath($key);
 
-        if (!is_file($path)) {
+        if (!\is_file($path)) {
             return false;
         }
 
@@ -216,8 +222,8 @@ class FileAdapter implements CacheInterface
             return false;
         }
 
-        if ($data['e'] > 0 && $data['e'] < time()) {
-            @unlink($path);
+        if ($data['e'] > 0 && $data['e'] < \time()) {
+            @\unlink($path);
             return false;
         }
 
@@ -234,9 +240,9 @@ class FileAdapter implements CacheInterface
         $files = 0;
         $size = 0;
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::LEAVES_ONLY
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($this->directory, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY,
         );
 
         foreach ($iterator as $file) {
@@ -261,35 +267,35 @@ class FileAdapter implements CacheInterface
     public function gc(): int
     {
         $removed = 0;
-        $now = time();
+        $now = \time();
 
-        if (!is_dir($this->directory)) {
+        if (!\is_dir($this->directory)) {
             return 0;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::LEAVES_ONLY
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($this->directory, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY,
         );
 
         foreach ($iterator as $file) {
             if ($file->isFile() && $file->getExtension() === 'cache') {
                 $data = $this->readFile($file->getPathname());
                 if ($data !== false && $data['e'] > 0 && $data['e'] < $now) {
-                    @unlink($file->getPathname());
+                    @\unlink($file->getPathname());
                     $removed++;
                 }
             }
         }
 
         // Clean up empty shard directories
-        foreach (new \DirectoryIterator($this->directory) as $dir) {
+        foreach (new DirectoryIterator($this->directory) as $dir) {
             if ($dir->isDot() || !$dir->isDir()) {
                 continue;
             }
 
             $isEmpty = true;
-            foreach (new \DirectoryIterator($dir->getPathname()) as $child) {
+            foreach (new DirectoryIterator($dir->getPathname()) as $child) {
                 if (!$child->isDot()) {
                     $isEmpty = false;
                     break;
@@ -297,7 +303,7 @@ class FileAdapter implements CacheInterface
             }
 
             if ($isEmpty) {
-                @rmdir($dir->getPathname());
+                @\rmdir($dir->getPathname());
             }
         }
 
@@ -313,8 +319,8 @@ class FileAdapter implements CacheInterface
      */
     private function getFilePath(string $key): string
     {
-        $hash = md5($key);
-        $shard = substr($hash, 0, 2);
+        $hash = \md5($key);
+        $shard = \substr($hash, 0, 2);
 
         return $this->directory . DIRECTORY_SEPARATOR . $shard . DIRECTORY_SEPARATOR . $hash . '.cache';
     }
@@ -328,15 +334,15 @@ class FileAdapter implements CacheInterface
      */
     private function readFile(string $path): array|false
     {
-        $content = @file_get_contents($path);
+        $content = @\file_get_contents($path);
         if ($content === false) {
             return false;
         }
 
-        $data = @unserialize($content);
-        if (!is_array($data) || !array_key_exists('e', $data) || !array_key_exists('d', $data)) {
+        $data = @\unserialize($content);
+        if (!\is_array($data) || !\array_key_exists('e', $data) || !\array_key_exists('d', $data)) {
             // Corrupted cache file — remove it
-            @unlink($path);
+            @\unlink($path);
             return false;
         }
 
@@ -346,7 +352,7 @@ class FileAdapter implements CacheInterface
     /**
      * Calculate the expiry timestamp from a TTL value.
      *
-     * @param null|int|DateInterval $ttl The TTL value
+     * @param int|DateInterval|null $ttl The TTL value
      *
      * @return int Unix timestamp of expiry, or 0 for no expiry
      */
@@ -363,10 +369,10 @@ class FileAdapter implements CacheInterface
         }
 
         if ($ttl <= 0) {
-            return time(); // Already expired
+            return \time(); // Already expired
         }
 
-        return time() + $ttl;
+        return \time() + $ttl;
     }
 
     /**
@@ -383,7 +389,7 @@ class FileAdapter implements CacheInterface
         }
 
         // PSR-16 reserved characters: {}()/\@:
-        if (preg_match('/[{}()\/\\\\@:]/', $key)) {
+        if (\preg_match('/[{}()\/\\\\@:]/', $key)) {
             throw new InvalidArgumentException("Cache key '{$key}' contains reserved characters: {}()/\\@:");
         }
     }
@@ -397,22 +403,22 @@ class FileAdapter implements CacheInterface
      */
     private function deleteDirectory(string $directory): bool
     {
-        if (!is_dir($directory)) {
+        if (!\is_dir($directory)) {
             return true;
         }
 
-        foreach (scandir($directory) as $item) {
+        foreach (\scandir($directory) as $item) {
             if ($item === '.' || $item === '..') {
                 continue;
             }
 
             $path = $directory . DIRECTORY_SEPARATOR . $item;
 
-            if (is_dir($path)) {
+            if (\is_dir($path)) {
                 $this->deleteDirectory($path);
-                @rmdir($path);
+                @\rmdir($path);
             } else {
-                @unlink($path);
+                @\unlink($path);
             }
         }
 

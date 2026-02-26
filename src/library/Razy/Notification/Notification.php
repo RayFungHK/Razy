@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -76,7 +77,7 @@ abstract class Notification
     public function getId(): string
     {
         if ($this->id === null) {
-            $this->id = bin2hex(random_bytes(16));
+            $this->id = \bin2hex(\random_bytes(16));
         }
 
         return $this->id;
@@ -108,20 +109,20 @@ abstract class Notification
      * Looks for a `to{Channel}()` method (e.g., `toMail()`, `toDatabase()`).
      * Falls back to `toArray()` if defined, otherwise returns an empty array.
      *
-     * @param string $channel    The channel name
+     * @param string $channel The channel name
      * @param object $notifiable The entity receiving the notification
      *
      * @return array<string, mixed>
      */
     public function getData(string $channel, object $notifiable): array
     {
-        $method = 'to' . ucfirst($channel);
+        $method = 'to' . \ucfirst($channel);
 
-        if (method_exists($this, $method)) {
+        if (\method_exists($this, $method)) {
             return $this->{$method}($notifiable);
         }
 
-        if (method_exists($this, 'toArray')) {
+        if (\method_exists($this, 'toArray')) {
             return $this->toArray($notifiable);
         }
 

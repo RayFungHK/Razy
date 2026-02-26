@@ -10,6 +10,7 @@ use Razy\Exception\TemplateException;
 use Razy\Template;
 use Razy\Template\Block;
 use Razy\Template\Source;
+use ReflectionClass;
 
 /**
  * Tests for Block nesting, USE directives, maxDepth guards,
@@ -25,45 +26,19 @@ class BlockNestingTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tempDir = sys_get_temp_dir() . '/razy-block-test-' . uniqid();
-        mkdir($this->tempDir, 0755, true);
+        $this->tempDir = \sys_get_temp_dir() . '/razy-block-test-' . \uniqid();
+        \mkdir($this->tempDir, 0o755, true);
     }
 
     protected function tearDown(): void
     {
-        if (is_dir($this->tempDir)) {
-            $files = array_diff(scandir($this->tempDir), ['.', '..']);
+        if (\is_dir($this->tempDir)) {
+            $files = \array_diff(\scandir($this->tempDir), ['.', '..']);
             foreach ($files as $file) {
-                unlink($this->tempDir . '/' . $file);
+                \unlink($this->tempDir . '/' . $file);
             }
-            rmdir($this->tempDir);
+            \rmdir($this->tempDir);
         }
-    }
-
-    /**
-     * Write template content to a temp file and load via Template.
-     */
-    private function loadTemplate(string $content): Source
-    {
-        $file = $this->tempDir . '/test-' . uniqid() . '.tpl';
-        file_put_contents($file, $content);
-        $template = new Template();
-
-        return $template->load($file);
-    }
-
-    /**
-     * Access root block from a Source.
-     */
-    private function getRootBlock(Source $source): Block
-    {
-        // Source stores root block internally; we access via newEntity → nested block access
-        // Actually, Source exposes the root through its entity's block
-        $reflection = new \ReflectionClass($source);
-        $prop = $reflection->getProperty('rootBlock');
-        $prop->setAccessible(true);
-
-        return $prop->getValue($source);
     }
 
     // ─── Basic Nesting ───────────────────────────────────────────
@@ -75,7 +50,7 @@ class BlockNestingTest extends TestCase
             "<!-- START BLOCK: child -->\n" .
             "Child content\n" .
             "<!-- END BLOCK: child -->\n" .
-            "After\n"
+            "After\n",
         );
         $root = $this->getRootBlock($source);
 
@@ -92,7 +67,7 @@ class BlockNestingTest extends TestCase
             "<!-- START BLOCK: inner -->\n" .
             "Inner\n" .
             "<!-- END BLOCK: inner -->\n" .
-            "<!-- END BLOCK: outer -->\n"
+            "<!-- END BLOCK: outer -->\n",
         );
         $root = $this->getRootBlock($source);
         $outer = $root->getBlock('outer');
@@ -113,7 +88,7 @@ class BlockNestingTest extends TestCase
             "L3\n" .
             "<!-- END BLOCK: level3 -->\n" .
             "<!-- END BLOCK: level2 -->\n" .
-            "<!-- END BLOCK: level1 -->\n"
+            "<!-- END BLOCK: level1 -->\n",
         );
         $root = $this->getRootBlock($source);
         $l1 = $root->getBlock('level1');
@@ -136,16 +111,17 @@ class BlockNestingTest extends TestCase
             "<!-- END BLOCK: ddd -->\n" .
             "<!-- END BLOCK: ccc -->\n" .
             "<!-- END BLOCK: bbb -->\n" .
-            "<!-- END BLOCK: aaa -->\n"
+            "<!-- END BLOCK: aaa -->\n",
         );
         $root = $this->getRootBlock($source);
 
-        $this->assertSame('/aaa/bbb/ccc/ddd',
+        $this->assertSame(
+            '/aaa/bbb/ccc/ddd',
             $root->getBlock('aaa')
                 ->getBlock('bbb')
                 ->getBlock('ccc')
                 ->getBlock('ddd')
-                ->getPath()
+                ->getPath(),
         );
     }
 
@@ -161,7 +137,7 @@ class BlockNestingTest extends TestCase
             "<!-- START BLOCK: container -->\n" .
             "<!-- USE original BLOCK: reused -->\n" .
             "<!-- END BLOCK: container -->\n" .
-            "<!-- END BLOCK: parent -->\n"
+            "<!-- END BLOCK: parent -->\n",
         );
         $root = $this->getRootBlock($source);
         $parent = $root->getBlock('parent');
@@ -171,7 +147,7 @@ class BlockNestingTest extends TestCase
         // The reused block is the same object as original
         $this->assertSame(
             $parent->getBlock('original'),
-            $container->getBlock('reused')
+            $container->getBlock('reused'),
         );
     }
 
@@ -187,7 +163,7 @@ class BlockNestingTest extends TestCase
             "<!-- USE shared BLOCK: deep_reuse -->\n" .
             "<!-- END BLOCK: level_b -->\n" .
             "<!-- END BLOCK: level_a -->\n" .
-            "<!-- END BLOCK: root_blk -->\n"
+            "<!-- END BLOCK: root_blk -->\n",
         );
         $root = $this->getRootBlock($source);
         $rootBlk = $root->getBlock('root_blk');
@@ -196,7 +172,7 @@ class BlockNestingTest extends TestCase
         $this->assertTrue($levelB->hasBlock('deep_reuse'));
         $this->assertSame(
             $rootBlk->getBlock('shared'),
-            $levelB->getBlock('deep_reuse')
+            $levelB->getBlock('deep_reuse'),
         );
     }
 
@@ -208,7 +184,7 @@ class BlockNestingTest extends TestCase
         $this->loadTemplate(
             "<!-- START BLOCK: outer -->\n" .
             "<!-- USE nonexistent BLOCK: fail_reuse -->\n" .
-            "<!-- END BLOCK: outer -->\n"
+            "<!-- END BLOCK: outer -->\n",
         );
     }
 
@@ -219,7 +195,7 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- TEMPLATE BLOCK: tpl_def -->\n" .
             "Template content\n" .
-            "<!-- END BLOCK: tpl_def -->\n"
+            "<!-- END BLOCK: tpl_def -->\n",
         );
         $root = $this->getRootBlock($source);
         $tplBlock = $root->getBlock('tpl_def');
@@ -232,7 +208,7 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- START BLOCK: normal -->\n" .
             "Normal content\n" .
-            "<!-- END BLOCK: normal -->\n"
+            "<!-- END BLOCK: normal -->\n",
         );
         $root = $this->getRootBlock($source);
         $this->assertFalse($root->getBlock('normal')->isReadonly());
@@ -246,7 +222,7 @@ class BlockNestingTest extends TestCase
             "<!-- START BLOCK: tree_node -->\n" .
             "Node {\$name}\n" .
             "<!-- RECURSION BLOCK: tree_node -->\n" .
-            "<!-- END BLOCK: tree_node -->\n"
+            "<!-- END BLOCK: tree_node -->\n",
         );
         $root = $this->getRootBlock($source);
         $treeNode = $root->getBlock('tree_node');
@@ -264,7 +240,7 @@ class BlockNestingTest extends TestCase
         $this->loadTemplate(
             "<!-- START BLOCK: child_blk -->\n" .
             "<!-- RECURSION BLOCK: nonexistent -->\n" .
-            "<!-- END BLOCK: child_blk -->\n"
+            "<!-- END BLOCK: child_blk -->\n",
         );
     }
 
@@ -281,7 +257,7 @@ class BlockNestingTest extends TestCase
             "<!-- END BLOCK: dup_test -->\n" .
             "<!-- START BLOCK: dup_test -->\n" .
             "Second\n" .
-            "<!-- END BLOCK: dup_test -->\n"
+            "<!-- END BLOCK: dup_test -->\n",
         );
     }
 
@@ -296,7 +272,7 @@ class BlockNestingTest extends TestCase
             "Leaf\n" .
             "<!-- END BLOCK: leaf_gc -->\n" .
             "<!-- END BLOCK: middle_gc -->\n" .
-            "<!-- END BLOCK: ancestor -->\n"
+            "<!-- END BLOCK: ancestor -->\n",
         );
         $root = $this->getRootBlock($source);
         $leaf = $root->getBlock('ancestor')->getBlock('middle_gc')->getBlock('leaf_gc');
@@ -311,7 +287,7 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- START BLOCK: solo_blk -->\n" .
             "Content\n" .
-            "<!-- END BLOCK: solo_blk -->\n"
+            "<!-- END BLOCK: solo_blk -->\n",
         );
         $root = $this->getRootBlock($source);
         $solo = $root->getBlock('solo_blk');
@@ -330,7 +306,7 @@ class BlockNestingTest extends TestCase
             "<!-- END BLOCK: tpl_item -->\n" .
             "<!-- START BLOCK: content -->\n" .
             "Content\n" .
-            "<!-- END BLOCK: content -->\n"
+            "<!-- END BLOCK: content -->\n",
         );
         $root = $this->getRootBlock($source);
         $content = $root->getBlock('content');
@@ -351,7 +327,7 @@ class BlockNestingTest extends TestCase
             "Sub content\n" .
             "<!-- END BLOCK: sub_mix -->\n" .
             "Text after\n" .
-            "<!-- END BLOCK: mixed -->\n"
+            "<!-- END BLOCK: mixed -->\n",
         );
         $root = $this->getRootBlock($source);
         $mixed = $root->getBlock('mixed');
@@ -361,7 +337,7 @@ class BlockNestingTest extends TestCase
         $textCount = 0;
         $blockCount = 0;
         foreach ($structure as $item) {
-            if (is_string($item)) {
+            if (\is_string($item)) {
                 $textCount++;
             }
             if ($item instanceof Block) {
@@ -379,7 +355,7 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- START BLOCK: typed -->\n" .
             "Content\n" .
-            "<!-- END BLOCK: typed -->\n"
+            "<!-- END BLOCK: typed -->\n",
         );
         $root = $this->getRootBlock($source);
         $this->assertSame('START', $root->getBlock('typed')->getType());
@@ -390,7 +366,7 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- WRAPPER BLOCK: wrap_blk -->\n" .
             "Wrapper content\n" .
-            "<!-- END BLOCK: wrap_blk -->\n"
+            "<!-- END BLOCK: wrap_blk -->\n",
         );
         $root = $this->getRootBlock($source);
         $this->assertSame('WRAPPER', $root->getBlock('wrap_blk')->getType());
@@ -401,7 +377,7 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- TEMPLATE BLOCK: tpl_type -->\n" .
             "Template content\n" .
-            "<!-- END BLOCK: tpl_type -->\n"
+            "<!-- END BLOCK: tpl_type -->\n",
         );
         $root = $this->getRootBlock($source);
         $this->assertSame('TEMPLATE', $root->getBlock('tpl_type')->getType());
@@ -416,7 +392,7 @@ class BlockNestingTest extends TestCase
             "<!-- START BLOCK: kiddo -->\n" .
             "Child\n" .
             "<!-- END BLOCK: kiddo -->\n" .
-            "<!-- END BLOCK: papa -->\n"
+            "<!-- END BLOCK: papa -->\n",
         );
         $root = $this->getRootBlock($source);
         $papa = $root->getBlock('papa');
@@ -438,7 +414,7 @@ class BlockNestingTest extends TestCase
             "<!-- END BLOCK: sib_b -->\n" .
             "<!-- START BLOCK: sib_c -->\n" .
             "Sibling C\n" .
-            "<!-- END BLOCK: sib_c -->\n"
+            "<!-- END BLOCK: sib_c -->\n",
         );
         $root = $this->getRootBlock($source);
 
@@ -454,13 +430,13 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- START BLOCK: entity_test -->\n" .
             "Content\n" .
-            "<!-- END BLOCK: entity_test -->\n"
+            "<!-- END BLOCK: entity_test -->\n",
         );
         $root = $this->getRootBlock($source);
         $block = $root->getBlock('entity_test');
         $entity = $block->newEntity();
 
-        $this->assertInstanceOf(\Razy\Template\Entity::class, $entity);
+        $this->assertInstanceOf(Template\Entity::class, $entity);
     }
 
     // ─── getBlock Error Case ─────────────────────────────────────
@@ -470,12 +446,38 @@ class BlockNestingTest extends TestCase
         $source = $this->loadTemplate(
             "<!-- START BLOCK: exists -->\n" .
             "Content\n" .
-            "<!-- END BLOCK: exists -->\n"
+            "<!-- END BLOCK: exists -->\n",
         );
         $root = $this->getRootBlock($source);
 
         $this->expectException(TemplateException::class);
         $this->expectExceptionMessage('not exists');
         $root->getBlock('doesnotexist');
+    }
+
+    /**
+     * Write template content to a temp file and load via Template.
+     */
+    private function loadTemplate(string $content): Source
+    {
+        $file = $this->tempDir . '/test-' . \uniqid() . '.tpl';
+        \file_put_contents($file, $content);
+        $template = new Template();
+
+        return $template->load($file);
+    }
+
+    /**
+     * Access root block from a Source.
+     */
+    private function getRootBlock(Source $source): Block
+    {
+        // Source stores root block internally; we access via newEntity → nested block access
+        // Actually, Source exposes the root through its entity's block
+        $reflection = new ReflectionClass($source);
+        $prop = $reflection->getProperty('rootBlock');
+        $prop->setAccessible(true);
+
+        return $prop->getValue($source);
     }
 }

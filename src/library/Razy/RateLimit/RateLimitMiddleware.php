@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -60,14 +61,14 @@ use Razy\Contract\MiddlewareInterface;
 class RateLimitMiddleware implements MiddlewareInterface
 {
     /**
-     * @param RateLimiter  $limiter         The rate limiter instance.
-     * @param string       $name            The name of the registered limiter to use.
-     * @param Closure|null $keyResolver     Optional. Override the key from the Limit.
-     *                                      Receives `(array $context)`, returns `string`.
+     * @param RateLimiter $limiter The rate limiter instance.
+     * @param string $name The name of the registered limiter to use.
+     * @param Closure|null $keyResolver Optional. Override the key from the Limit.
+     *                                  Receives `(array $context)`, returns `string`.
      * @param Closure|null $onLimitExceeded Optional. Custom handler when limit is exceeded.
      *                                      Receives `(array $context, Limit $limit)`, returns mixed.
      *                                      If null, sets HTTP 429 and returns null.
-     * @param bool         $sendHeaders     Whether to send rate limit response headers.
+     * @param bool $sendHeaders Whether to send rate limit response headers.
      */
     public function __construct(
         private readonly RateLimiter $limiter,
@@ -75,7 +76,8 @@ class RateLimitMiddleware implements MiddlewareInterface
         private readonly ?Closure $keyResolver = null,
         private readonly ?Closure $onLimitExceeded = null,
         private readonly bool $sendHeaders = true,
-    ) {}
+    ) {
+    }
 
     /**
      * Handle the request through the rate limiter.
@@ -152,7 +154,7 @@ class RateLimitMiddleware implements MiddlewareInterface
      * to the key defined on the Limit object. Prepends the limiter
      * name as a namespace.
      *
-     * @param Limit $limit   The resolved limit configuration.
+     * @param Limit $limit The resolved limit configuration.
      * @param array $context The middleware context.
      *
      * @return string The fully-qualified bucket key.
@@ -181,10 +183,10 @@ class RateLimitMiddleware implements MiddlewareInterface
      * Either delegates to the custom rejection handler or sets HTTP 429
      * with Retry-After header and returns null.
      *
-     * @param array  $context     The middleware context.
-     * @param Limit  $limit       The resolved limit configuration.
-     * @param string $key         The bucket key that was exceeded.
-     * @param int    $maxAttempts The maximum attempts allowed.
+     * @param array $context The middleware context.
+     * @param Limit $limit The resolved limit configuration.
+     * @param string $key The bucket key that was exceeded.
+     * @param int $maxAttempts The maximum attempts allowed.
      *
      * @return mixed Result from the rejection handler, or null for default 429.
      */
@@ -202,7 +204,7 @@ class RateLimitMiddleware implements MiddlewareInterface
             return ($this->onLimitExceeded)($context, $limit, $retryAfter);
         }
 
-        http_response_code(429);
+        \http_response_code(429);
 
         return null;
     }
@@ -211,15 +213,15 @@ class RateLimitMiddleware implements MiddlewareInterface
      * Send standard rate limit response headers.
      *
      * @param int $maxAttempts Maximum attempts allowed.
-     * @param int $remaining   Remaining attempts in the current window.
-     * @param int $resetAt     Unix timestamp when the window resets.
+     * @param int $remaining Remaining attempts in the current window.
+     * @param int $resetAt Unix timestamp when the window resets.
      */
     private function sendRateLimitHeaders(int $maxAttempts, int $remaining, int $resetAt): void
     {
-        if (!headers_sent()) {
-            header('X-RateLimit-Limit: ' . $maxAttempts);
-            header('X-RateLimit-Remaining: ' . $remaining);
-            header('X-RateLimit-Reset: ' . $resetAt);
+        if (!\headers_sent()) {
+            \header('X-RateLimit-Limit: ' . $maxAttempts);
+            \header('X-RateLimit-Remaining: ' . $remaining);
+            \header('X-RateLimit-Reset: ' . $resetAt);
         }
     }
 
@@ -230,8 +232,8 @@ class RateLimitMiddleware implements MiddlewareInterface
      */
     private function sendRetryAfterHeader(int $retryAfter): void
     {
-        if (!headers_sent()) {
-            header('Retry-After: ' . $retryAfter);
+        if (!\headers_sent()) {
+            \header('Retry-After: ' . $retryAfter);
         }
     }
 }

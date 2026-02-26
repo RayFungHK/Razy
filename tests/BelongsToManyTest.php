@@ -11,6 +11,7 @@ use Razy\ORM\Model;
 use Razy\ORM\ModelCollection;
 use Razy\ORM\Relation\BelongsToMany;
 use Razy\ORM\Relation\Relation;
+use RuntimeException;
 
 /**
  * Tests for P16: BelongsToMany (Many-to-Many Relations).
@@ -161,7 +162,7 @@ class BelongsToManyTest extends TestCase
 
         $this->assertCount(3, $roles);
         $names = $roles->pluck('name');
-        sort($names);
+        \sort($names);
         $this->assertSame(['admin', 'editor', 'viewer'], $names);
     }
 
@@ -303,7 +304,7 @@ class BelongsToManyTest extends TestCase
         $user = new BTM_User();
         $user->setDatabase($db);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Cannot attach');
 
         $user->roles()->attach(1);
@@ -469,7 +470,7 @@ class BelongsToManyTest extends TestCase
         $this->assertCount(2, $remaining);
 
         $names = $remaining->pluck('name');
-        sort($names);
+        \sort($names);
         $this->assertSame(['editor', 'viewer'], $names);
 
         $this->assertContains($r3->getKey(), $changes['attached']);
@@ -518,7 +519,7 @@ class BelongsToManyTest extends TestCase
         $user = new BTM_User();
         $user->setDatabase($db);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Cannot sync');
 
         $user->roles()->sync([1]);
@@ -574,7 +575,7 @@ class BelongsToManyTest extends TestCase
         $editorUsers = $editor->users()->resolve();
         $this->assertCount(2, $editorUsers);
         $userNames = $editorUsers->pluck('name');
-        sort($userNames);
+        \sort($userNames);
         $this->assertSame(['Alice', 'Bob'], $userNames);
     }
 
@@ -628,7 +629,7 @@ class BelongsToManyTest extends TestCase
         $remaining = $user->roles()->resolve();
         $this->assertCount(2, $remaining);
         $names = $remaining->pluck('name');
-        sort($names);
+        \sort($names);
         $this->assertSame(['admin', 'viewer'], $names);
     }
 
@@ -821,6 +822,7 @@ class BelongsToManyTest extends TestCase
 class BTM_User extends Model
 {
     protected static string $table = 'btm_users';
+
     protected static array $fillable = ['name'];
 
     /**
@@ -851,7 +853,9 @@ class BTM_User extends Model
 class BTM_Role extends Model
 {
     protected static string $table = 'btm_roles';
+
     protected static array $fillable = ['name'];
+
     protected static bool $timestamps = false;
 
     /**
@@ -869,6 +873,8 @@ class BTM_Role extends Model
 class BTM_Tag extends Model
 {
     protected static string $table = 'btm_tags';
+
     protected static array $fillable = ['label'];
+
     protected static bool $timestamps = false;
 }

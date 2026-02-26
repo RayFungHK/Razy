@@ -7,10 +7,6 @@ namespace Razy\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Validation\FieldValidator;
-use Razy\Validation\ValidationResult;
-use Razy\Validation\ValidationRule;
-use Razy\Validation\ValidationRuleInterface;
-use Razy\Validation\Validator;
 use Razy\Validation\Rule\Between;
 use Razy\Validation\Rule\Callback;
 use Razy\Validation\Rule\Confirmed;
@@ -23,6 +19,10 @@ use Razy\Validation\Rule\Numeric;
 use Razy\Validation\Rule\Regex;
 use Razy\Validation\Rule\Required;
 use Razy\Validation\Rule\Url;
+use Razy\Validation\ValidationResult;
+use Razy\Validation\ValidationRule;
+use Razy\Validation\ValidationRuleInterface;
+use Razy\Validation\Validator;
 
 /**
  * Tests for P8: Validation System.
@@ -482,7 +482,7 @@ class ValidationTest extends TestCase
 
     public function testCallbackPassesWhenReturnsTrue(): void
     {
-        $rule = new Callback(fn($v) => $v === 'yes');
+        $rule = new Callback(fn ($v) => $v === 'yes');
         $result = $rule->validate('yes', 'agree');
         $this->assertTrue($rule->passed());
         $this->assertSame('yes', $result);
@@ -490,14 +490,14 @@ class ValidationTest extends TestCase
 
     public function testCallbackFailsWhenReturnsFalse(): void
     {
-        $rule = new Callback(fn($v) => $v === 'yes');
+        $rule = new Callback(fn ($v) => $v === 'yes');
         $rule->validate('no', 'agree');
         $this->assertFalse($rule->passed());
     }
 
     public function testCallbackTransformsValue(): void
     {
-        $rule = new Callback(fn($v) => strtoupper($v));
+        $rule = new Callback(fn ($v) => \strtoupper($v));
         $result = $rule->validate('hello', 'name');
         $this->assertTrue($rule->passed());
         $this->assertSame('HELLO', $result);
@@ -506,10 +506,10 @@ class ValidationTest extends TestCase
     public function testCallbackReceivesFieldAndData(): void
     {
         $receivedField = null;
-        $receivedData  = null;
+        $receivedData = null;
         $rule = new Callback(function ($v, $field, $data) use (&$receivedField, &$receivedData) {
             $receivedField = $field;
-            $receivedData  = $data;
+            $receivedData = $data;
             return true;
         });
         $rule->validate('x', 'myfield', ['myfield' => 'x', 'other' => 'y']);
@@ -519,7 +519,7 @@ class ValidationTest extends TestCase
 
     public function testCallbackDefaultMessage(): void
     {
-        $rule = new Callback(fn() => false);
+        $rule = new Callback(fn () => false);
         $rule->validate('x', 'f');
         $this->assertStringContainsString('invalid', $rule->message('f'));
     }
@@ -781,7 +781,7 @@ class ValidationTest extends TestCase
 
     public function testFieldValidatorNoRulesPassesAnything(): void
     {
-        $fv     = new FieldValidator('x');
+        $fv = new FieldValidator('x');
         $result = $fv->validate('any');
         $this->assertSame('any', $result['value']);
         $this->assertSame([], $result['errors']);
@@ -826,7 +826,7 @@ class ValidationTest extends TestCase
         $fv = new FieldValidator('email');
         $fv->bail(false)
            ->rule(new Required())
-           ->rule((new Callback(fn() => false))->withMessage('Extra check failed.'));
+           ->rule((new Callback(fn () => false))->withMessage('Extra check failed.'));
         $result = $fv->validate('');
         // Both rules fail (Required on empty, Callback always fails)
         $this->assertCount(2, $result['errors']);
@@ -842,14 +842,14 @@ class ValidationTest extends TestCase
     public function testFieldValidatorWhenTrueAppliesCallback(): void
     {
         $fv = new FieldValidator('name');
-        $fv->when(true, fn(FieldValidator $f) => $f->rule(new Required()));
+        $fv->when(true, fn (FieldValidator $f) => $f->rule(new Required()));
         $this->assertCount(1, $fv->getRules());
     }
 
     public function testFieldValidatorWhenFalseSkipsCallback(): void
     {
         $fv = new FieldValidator('name');
-        $fv->when(false, fn(FieldValidator $f) => $f->rule(new Required()));
+        $fv->when(false, fn (FieldValidator $f) => $f->rule(new Required()));
         $this->assertCount(0, $fv->getRules());
     }
 
@@ -921,7 +921,7 @@ class ValidationTest extends TestCase
         $v = new Validator(['name' => 'Ray', 'age' => '25']);
         $result = $v->fields([
             'name' => [new Required()],
-            'age'  => [new Required(), new Numeric()],
+            'age' => [new Required(), new Numeric()],
         ])->validate();
         $this->assertTrue($result->passes());
     }
@@ -971,7 +971,7 @@ class ValidationTest extends TestCase
     public function testValidatorBeforeHook(): void
     {
         $v = new Validator(['name' => '  Ray  ']);
-        $v->before(fn(array $data) => array_map('trim', $data));
+        $v->before(fn (array $data) => \array_map('trim', $data));
         $v->field('name')->rule(new Required());
         $result = $v->validate();
         $this->assertTrue($result->passes());
@@ -1008,9 +1008,9 @@ class ValidationTest extends TestCase
         $result = Validator::make(
             ['name' => 'Ray', 'email' => 'r@e.com'],
             [
-                'name'  => [new Required()],
+                'name' => [new Required()],
                 'email' => [new Required(), new Email()],
-            ]
+            ],
         );
         $this->assertTrue($result->passes());
     }
@@ -1020,9 +1020,9 @@ class ValidationTest extends TestCase
         $result = Validator::make(
             ['name' => '', 'email' => 'bad'],
             [
-                'name'  => [new Required()],
+                'name' => [new Required()],
                 'email' => [new Email()],
-            ]
+            ],
         );
         $this->assertTrue($result->fails());
         $this->assertTrue($result->hasError('name'));
@@ -1042,11 +1042,11 @@ class ValidationTest extends TestCase
     public function testRegistrationFormValidation(): void
     {
         $data = [
-            'username'              => 'john_doe',
-            'email'                 => 'john@example.com',
-            'password'              => 'SecureP4ss',
+            'username' => 'john_doe',
+            'email' => 'john@example.com',
+            'password' => 'SecureP4ss',
             'password_confirmation' => 'SecureP4ss',
-            'age'                   => '25',
+            'age' => '25',
         ];
 
         $v = new Validator($data);
@@ -1063,11 +1063,11 @@ class ValidationTest extends TestCase
     public function testRegistrationFormValidationFails(): void
     {
         $data = [
-            'username'              => 'jd',
-            'email'                 => 'not-email',
-            'password'              => 'short',
+            'username' => 'jd',
+            'email' => 'not-email',
+            'password' => 'short',
             'password_confirmation' => 'mismatch',
-            'age'                   => '5',
+            'age' => '5',
         ];
 
         $v = new Validator($data);
@@ -1090,7 +1090,7 @@ class ValidationTest extends TestCase
         $v = new Validator($data);
         $v->field('start')->rule(new Date('Y-m-d'));
         $v->field('end')->rule(new Date('Y-m-d'))->rule(new Callback(
-            fn($v, $f, $d) => strtotime($v) > strtotime($d['start'])
+            fn ($v, $f, $d) => \strtotime($v) > \strtotime($d['start']),
         ));
         $result = $v->validate();
         $this->assertTrue($result->passes());
@@ -1102,8 +1102,8 @@ class ValidationTest extends TestCase
         $v = new Validator($data);
         $v->field('start')->rule(new Date('Y-m-d'));
         $v->field('end')->rule(new Date('Y-m-d'))->rule(
-            (new Callback(fn($v, $f, $d) => strtotime($v) > strtotime($d['start'])))
-                ->withMessage('End date must be after start date.')
+            (new Callback(fn ($v, $f, $d) => \strtotime($v) > \strtotime($d['start'])))
+                ->withMessage('End date must be after start date.'),
         );
         $result = $v->validate();
         $this->assertTrue($result->fails());
@@ -1117,7 +1117,7 @@ class ValidationTest extends TestCase
         $v = new Validator($data);
         $v->field('name')->rule(new Required());
         $v->field('access_level')
-          ->when($isAdmin, fn(FieldValidator $f) => $f->rule(new Required())->rule(new Between(1, 10)));
+          ->when($isAdmin, fn (FieldValidator $f) => $f->rule(new Required())->rule(new Between(1, 10)));
         $result = $v->validate();
         $this->assertTrue($result->passes());
     }
@@ -1129,7 +1129,7 @@ class ValidationTest extends TestCase
         $v = new Validator($data);
         $v->field('name')->rule(new Required());
         $v->field('access_level')
-          ->when($isAdmin, fn(FieldValidator $f) => $f->rule(new Required())->rule(new Between(1, 10)));
+          ->when($isAdmin, fn (FieldValidator $f) => $f->rule(new Required())->rule(new Between(1, 10)));
         $result = $v->validate();
         $this->assertTrue($result->passes());
     }
@@ -1139,7 +1139,7 @@ class ValidationTest extends TestCase
         $data = ['EMAIL' => 'RAY@EXAMPLE.COM', 'NAME' => 'RAY'];
         $v = new Validator($data);
         $v->before(function (array $d) {
-            return array_change_key_case($d, CASE_LOWER);
+            return \array_change_key_case($d, CASE_LOWER);
         });
         $v->field('email')->rule(new Required())->rule(new Email());
         $v->field('name')->rule(new Required());
@@ -1151,8 +1151,8 @@ class ValidationTest extends TestCase
     {
         $data = ['name' => '  RAY  '];
         $v = new Validator($data);
-        $v->before(fn(array $d) => array_map('trim', $d));
-        $v->before(fn(array $d) => array_map('strtolower', $d));
+        $v->before(fn (array $d) => \array_map('trim', $d));
+        $v->before(fn (array $d) => \array_map('strtolower', $d));
         $v->field('name')->rule(new Required());
         $result = $v->validate();
         $this->assertTrue($result->passes());
@@ -1165,7 +1165,7 @@ class ValidationTest extends TestCase
         $v = new Validator($data);
         $v->field('name')
           ->rule(new Required())  // trims to 'Ray'
-          ->rule(new Callback(fn($v) => strtoupper($v)));  // transforms to 'RAY'
+          ->rule(new Callback(fn ($v) => \strtoupper($v)));  // transforms to 'RAY'
         $result = $v->validate();
         $this->assertTrue($result->passes());
         $this->assertSame('RAY', $result->get('name'));
@@ -1197,7 +1197,7 @@ class ValidationTest extends TestCase
         $data = ['good' => 'ok', 'bad' => ''];
         $result = Validator::make($data, [
             'good' => [new Required()],
-            'bad'  => [new Required()],
+            'bad' => [new Required()],
         ]);
         $this->assertArrayHasKey('good', $result->validated());
         $this->assertArrayNotHasKey('bad', $result->validated());
@@ -1207,7 +1207,7 @@ class ValidationTest extends TestCase
     {
         $result = Validator::make(
             ['username' => 'user_123'],
-            ['username' => [new Required(), new Regex('/^[a-zA-Z0-9_]+$/')]]
+            ['username' => [new Required(), new Regex('/^[a-zA-Z0-9_]+$/')]],
         );
         $this->assertTrue($result->passes());
     }
@@ -1216,7 +1216,7 @@ class ValidationTest extends TestCase
     {
         $result = Validator::make(
             ['username' => 'user@123!'],
-            ['username' => [new Required(), new Regex('/^[a-zA-Z0-9_]+$/')]]
+            ['username' => [new Required(), new Regex('/^[a-zA-Z0-9_]+$/')]],
         );
         $this->assertTrue($result->fails());
     }
@@ -1226,9 +1226,9 @@ class ValidationTest extends TestCase
         $result = Validator::make(
             ['website' => 'https://mysite.com', 'name' => 'Ray'],
             [
-                'name'    => [new Required()],
+                'name' => [new Required()],
                 'website' => [new Url()],
-            ]
+            ],
         );
         $this->assertTrue($result->passes());
     }
@@ -1239,10 +1239,10 @@ class ValidationTest extends TestCase
         $result = Validator::make(
             ['name' => 'Ray', 'website' => '', 'email' => null],
             [
-                'name'    => [new Required()],
+                'name' => [new Required()],
                 'website' => [new Url()],
-                'email'   => [new Email()],
-            ]
+                'email' => [new Email()],
+            ],
         );
         $this->assertTrue($result->passes());
     }
@@ -1261,7 +1261,7 @@ class ValidationTest extends TestCase
                     new Regex('/[0-9]/'),     // at least one digit
                     new Confirmed(),
                 ],
-            ]
+            ],
         );
         $this->assertTrue($result->passes());
     }
@@ -1276,7 +1276,7 @@ class ValidationTest extends TestCase
                     new MinLength(8),
                     new Regex('/[A-Z]/'),
                 ],
-            ]
+            ],
         );
         $this->assertTrue($result->fails());
     }
@@ -1287,10 +1287,10 @@ class ValidationTest extends TestCase
 
     public function testCustomRuleClassImplementation(): void
     {
-        $rule = new class extends ValidationRule {
+        $rule = new class() extends ValidationRule {
             public function validate(mixed $value, string $field, array $data = []): mixed
             {
-                if (!is_string($value) || !str_starts_with($value, 'SKU-')) {
+                if (!\is_string($value) || !\str_starts_with($value, 'SKU-')) {
                     $this->fail();
                     return $value;
                 }
@@ -1314,10 +1314,10 @@ class ValidationTest extends TestCase
 
     public function testCustomRuleInValidator(): void
     {
-        $skuRule = new class extends ValidationRule {
+        $skuRule = new class() extends ValidationRule {
             public function validate(mixed $value, string $field, array $data = []): mixed
             {
-                if (!is_string($value) || !str_starts_with($value, 'SKU-')) {
+                if (!\is_string($value) || !\str_starts_with($value, 'SKU-')) {
                     $this->fail();
                     return $value;
                 }
@@ -1333,7 +1333,7 @@ class ValidationTest extends TestCase
 
         $result = Validator::make(
             ['sku' => 'SKU-001'],
-            ['sku' => [new Required(), $skuRule]]
+            ['sku' => [new Required(), $skuRule]],
         );
         $this->assertTrue($result->passes());
     }
@@ -1402,7 +1402,7 @@ class ValidationTest extends TestCase
     public function testCallbackReturnValueZeroIsNotFalse(): void
     {
         // `0` is not `false`, so callback should pass and return 0
-        $rule = new Callback(fn($v) => 0);
+        $rule = new Callback(fn ($v) => 0);
         $result = $rule->validate('any', 'f');
         $this->assertTrue($rule->passed());
         $this->assertSame(0, $result);
@@ -1410,7 +1410,7 @@ class ValidationTest extends TestCase
 
     public function testCallbackReturnValueEmptyStringIsNotFalse(): void
     {
-        $rule = new Callback(fn($v) => '');
+        $rule = new Callback(fn ($v) => '');
         $result = $rule->validate('any', 'f');
         $this->assertTrue($rule->passed());
         $this->assertSame('', $result);
@@ -1418,7 +1418,7 @@ class ValidationTest extends TestCase
 
     public function testCallbackReturnValueNullIsNotFalse(): void
     {
-        $rule = new Callback(fn($v) => null);
+        $rule = new Callback(fn ($v) => null);
         $result = $rule->validate('any', 'f');
         $this->assertTrue($rule->passed());
         $this->assertNull($result);
@@ -1466,8 +1466,8 @@ class ValidationTest extends TestCase
         $same = $v->setData(['x' => 1])
                    ->defaults(['y' => 2])
                    ->stopOnFirstFailure(false)
-                   ->before(fn(array $d) => $d)
-                   ->after(fn(ValidationResult $r) => null);
+                   ->before(fn (array $d) => $d)
+                   ->after(fn (ValidationResult $r) => null);
         $this->assertSame($v, $same);
     }
 

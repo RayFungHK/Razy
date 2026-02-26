@@ -9,13 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Auth;
 
 use Closure;
-use InvalidArgumentException;
 use Razy\Contract\AuthenticatableInterface;
 
 /**
@@ -92,12 +92,13 @@ class Gate
      */
     public function __construct(
         private readonly AuthManager $auth,
-    ) {}
+    ) {
+    }
 
     /**
      * Define an authorization ability.
      *
-     * @param string  $ability  The ability name (e.g., 'edit-post')
+     * @param string $ability The ability name (e.g., 'edit-post')
      * @param Closure $callback Closure(AuthenticatableInterface $user, mixed ...$args): bool
      *
      * @return static For method chaining
@@ -115,7 +116,7 @@ class Gate
      * The policy class should have methods named after abilities
      * (e.g., `edit(AuthenticatableInterface $user, Post $post): bool`).
      *
-     * @param string $modelClass  The fully qualified model class name
+     * @param string $modelClass The fully qualified model class name
      * @param string $policyClass The fully qualified policy class name
      *
      * @return static For method chaining
@@ -165,8 +166,8 @@ class Gate
     /**
      * Determine if the given ability is allowed for the current user.
      *
-     * @param string $ability   The ability name
-     * @param mixed  ...$arguments Additional arguments (e.g., the resource)
+     * @param string $ability The ability name
+     * @param mixed ...$arguments Additional arguments (e.g., the resource)
      *
      * @return bool True if the ability is allowed
      */
@@ -211,8 +212,8 @@ class Gate
     /**
      * Determine if the given ability is denied for the current user.
      *
-     * @param string $ability      The ability name
-     * @param mixed  ...$arguments Additional arguments
+     * @param string $ability The ability name
+     * @param mixed ...$arguments Additional arguments
      *
      * @return bool True if the ability is denied
      */
@@ -224,8 +225,8 @@ class Gate
     /**
      * Check if ALL of the given abilities are allowed.
      *
-     * @param string[] $abilities  Array of ability names
-     * @param mixed    ...$arguments Additional arguments
+     * @param string[] $abilities Array of ability names
+     * @param mixed ...$arguments Additional arguments
      *
      * @return bool True if ALL abilities are allowed
      */
@@ -243,8 +244,8 @@ class Gate
     /**
      * Check if ANY of the given abilities are allowed.
      *
-     * @param string[] $abilities  Array of ability names
-     * @param mixed    ...$arguments Additional arguments
+     * @param string[] $abilities Array of ability names
+     * @param mixed ...$arguments Additional arguments
      *
      * @return bool True if at least one ability is allowed
      */
@@ -262,8 +263,8 @@ class Gate
     /**
      * Check if NONE of the given abilities are allowed.
      *
-     * @param string[] $abilities  Array of ability names
-     * @param mixed    ...$arguments Additional arguments
+     * @param string[] $abilities Array of ability names
+     * @param mixed ...$arguments Additional arguments
      *
      * @return bool True if no abilities are allowed
      */
@@ -275,8 +276,8 @@ class Gate
     /**
      * Authorize the given ability or throw an exception.
      *
-     * @param string $ability      The ability name
-     * @param mixed  ...$arguments Additional arguments
+     * @param string $ability The ability name
+     * @param mixed ...$arguments Additional arguments
      *
      * @throws AccessDeniedException If the ability is denied
      */
@@ -321,7 +322,7 @@ class Gate
      */
     public function abilities(): array
     {
-        return array_keys($this->abilities);
+        return \array_keys($this->abilities);
     }
 
     /**
@@ -381,7 +382,7 @@ class Gate
         $model = $arguments[0];
 
         // Support both objects and class name strings
-        $modelClass = is_object($model) ? get_class($model) : (is_string($model) ? $model : null);
+        $modelClass = \is_object($model) ? \get_class($model) : (\is_string($model) ? $model : null);
 
         if ($modelClass === null || !isset($this->policies[$modelClass])) {
             return null;
@@ -393,7 +394,7 @@ class Gate
         // Convert ability name to method name (e.g., 'edit-post' => 'editPost')
         $method = $this->abilityToMethod($ability);
 
-        if (!method_exists($policy, $method)) {
+        if (!\method_exists($policy, $method)) {
             return null;
         }
 
@@ -409,6 +410,6 @@ class Gate
      */
     private function abilityToMethod(string $ability): string
     {
-        return lcfirst(str_replace(' ', '', ucwords(str_replace('-', ' ', $ability))));
+        return \lcfirst(\str_replace(' ', '', \ucwords(\str_replace('-', ' ', $ability))));
     }
 }

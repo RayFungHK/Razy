@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Manages API and bridge command registration and execution.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -52,11 +54,11 @@ class CommandRegistry
         $bindInternally = false;
         // Commands prefixed with '#' are registered both as API and internal bindings
         if ($command[0] === '#') {
-            $command = substr($command, 1);
+            $command = \substr($command, 1);
             $bindInternally = true;
         }
 
-        if (array_key_exists($command, $this->apiCommands)) {
+        if (\array_key_exists($command, $this->apiCommands)) {
             throw new ModuleException('The command `' . $command . '` is already registered.');
         }
         $this->apiCommands[$command] = $path;
@@ -87,7 +89,7 @@ class CommandRegistry
      */
     public function addBridgeCommand(string $command, string $path): void
     {
-        if (array_key_exists($command, $this->bridgeCommands)) {
+        if (\array_key_exists($command, $this->bridgeCommands)) {
             throw new ModuleException('The bridge command `' . $command . '` is already registered.');
         }
         $this->bridgeCommands[$command] = $path;
@@ -124,7 +126,7 @@ class CommandRegistry
             $args,
             $controller,
             $closureLoader,
-            fn() => $controller->__onAPICall($module, $command)
+            fn () => $controller->__onAPICall($module, $command),
         );
     }
 
@@ -146,7 +148,7 @@ class CommandRegistry
             $command,
             $args,
             $controller,
-            $closureLoader
+            $closureLoader,
         );
     }
 
@@ -171,7 +173,7 @@ class CommandRegistry
             $args,
             $controller,
             $closureLoader,
-            fn() => $controller->__onBridgeCall($sourceDistributor, $command)
+            fn () => $controller->__onBridgeCall($sourceDistributor, $command),
         );
     }
 
@@ -193,11 +195,11 @@ class CommandRegistry
         array $args,
         Controller $controller,
         ClosureLoader $closureLoader,
-        ?callable $permissionCheck = null
+        ?callable $permissionCheck = null,
     ): mixed {
         $result = null;
         try {
-            if (array_key_exists($command, $registry)) {
+            if (\array_key_exists($command, $registry)) {
                 // Check permission if a gate callback is provided
                 if ($permissionCheck !== null && !$permissionCheck()) {
                     return null;
@@ -205,14 +207,14 @@ class CommandRegistry
 
                 $closure = null;
                 // Prefer a direct controller method if the command has no path separator
-                if (!str_contains($command, '/') && method_exists($controller, $command)) {
+                if (!\str_contains($command, '/') && \method_exists($controller, $command)) {
                     $closure = [$controller, $command];
                 } elseif (($loaded = $closureLoader->getClosure($registry[$command], $controller)) !== null) {
                     $closure = $loaded->bindTo($controller);
                 }
 
                 if ($closure) {
-                    $result = call_user_func_array($closure, $args);
+                    $result = \call_user_func_array($closure, $args);
                 }
             }
         } catch (Throwable $exception) {

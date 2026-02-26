@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\SimplifiedMessage.
  *
@@ -9,6 +10,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -50,14 +52,14 @@ class SimplifiedMessageTest extends TestCase
     #[Test]
     public function constructorThrowsOnEmptyCommand(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         new SimplifiedMessage('   ');
     }
 
     #[Test]
     public function constructorThrowsOnNumericOnlyCommand(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         new SimplifiedMessage('1234');
     }
 
@@ -121,7 +123,7 @@ class SimplifiedMessageTest extends TestCase
     #[Test]
     public function setHeaderThrowsOnEmptyKey(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $msg = new SimplifiedMessage('CMD');
         $msg->setHeader('   ', 'value');
     }
@@ -129,7 +131,7 @@ class SimplifiedMessageTest extends TestCase
     #[Test]
     public function setHeaderThrowsOnInvalidKeyFormat(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $msg = new SimplifiedMessage('CMD');
         $msg->setHeader('!@#', 'value');
     }
@@ -186,7 +188,7 @@ class SimplifiedMessageTest extends TestCase
     {
         // Encode replaces : ??\c then \ ??\\
         // So 'key:value' ??'key\cvalue' ??'key\\cvalue'
-        $this->assertSame("key\\\\cvalue", SimplifiedMessage::encode('key:value'));
+        $this->assertSame('key\\\\cvalue', SimplifiedMessage::encode('key:value'));
     }
 
     #[Test]

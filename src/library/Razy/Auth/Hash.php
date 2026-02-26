@@ -9,10 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Auth;
+
+use RuntimeException;
 
 /**
  * Password hashing utility.
@@ -27,20 +30,20 @@ class Hash
     /**
      * Hash a password using the specified algorithm.
      *
-     * @param string          $password The plain-text password
-     * @param string|int|null $algo     The hashing algorithm (PASSWORD_BCRYPT, PASSWORD_ARGON2ID, etc.)
-     * @param array           $options  Algorithm-specific options (e.g., ['cost' => 12] for bcrypt)
+     * @param string $password The plain-text password
+     * @param string|int|null $algo The hashing algorithm (PASSWORD_BCRYPT, PASSWORD_ARGON2ID, etc.)
+     * @param array $options Algorithm-specific options (e.g., ['cost' => 12] for bcrypt)
      *
      * @return string The hashed password
      *
-     * @throws \RuntimeException If hashing fails
+     * @throws RuntimeException If hashing fails
      */
     public static function make(string $password, string|int|null $algo = PASSWORD_BCRYPT, array $options = []): string
     {
-        $hash = password_hash($password, $algo, $options);
+        $hash = \password_hash($password, $algo, $options);
 
         if ($hash === false) {
-            throw new \RuntimeException('Failed to hash password');
+            throw new RuntimeException('Failed to hash password');
         }
 
         return $hash;
@@ -50,27 +53,27 @@ class Hash
      * Verify a plain-text password against a hash.
      *
      * @param string $password The plain-text password to check
-     * @param string $hash     The hashed password to check against
+     * @param string $hash The hashed password to check against
      *
      * @return bool True if the password matches the hash
      */
     public static function check(string $password, string $hash): bool
     {
-        return password_verify($password, $hash);
+        return \password_verify($password, $hash);
     }
 
     /**
      * Determine if the given hash needs to be rehashed (e.g., cost changed or algorithm upgraded).
      *
-     * @param string          $hash    The hashed password
-     * @param string|int|null $algo    The desired algorithm
-     * @param array           $options The desired options
+     * @param string $hash The hashed password
+     * @param string|int|null $algo The desired algorithm
+     * @param array $options The desired options
      *
      * @return bool True if the hash should be rehashed
      */
     public static function needsRehash(string $hash, string|int|null $algo = PASSWORD_BCRYPT, array $options = []): bool
     {
-        return password_needs_rehash($hash, $algo, $options);
+        return \password_needs_rehash($hash, $algo, $options);
     }
 
     /**
@@ -82,6 +85,6 @@ class Hash
      */
     public static function info(string $hash): array
     {
-        return password_get_info($hash);
+        return \password_get_info($hash);
     }
 }

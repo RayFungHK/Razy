@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Module;
 use Razy\ModuleInfo;
+use stdClass;
 
 /**
  * Tests for P3: ModuleRegistry centralized listener index.
@@ -20,19 +21,8 @@ class ModuleRegistryListenerTest extends TestCase
 
     protected function setUp(): void
     {
-        $distributor = new \stdClass();
+        $distributor = new stdClass();
         $this->registry = new ModuleRegistry($distributor);
-    }
-
-    private function createModuleMock(string $code = 'vendor/test'): Module
-    {
-        $moduleInfo = $this->createMock(ModuleInfo::class);
-        $moduleInfo->method('getCode')->willReturn($code);
-
-        $module = $this->createMock(Module::class);
-        $module->method('getModuleInfo')->willReturn($moduleInfo);
-
-        return $module;
     }
 
     // ─── registerListener / getEventListeners ─────────────────
@@ -153,5 +143,16 @@ class ModuleRegistryListenerTest extends TestCase
 
         $this->registry->registerListener('vendor/source', 'onEvent', $module);
         $this->assertCount(1, $this->registry->getEventListeners('vendor/source', 'onEvent'));
+    }
+
+    private function createModuleMock(string $code = 'vendor/test'): Module
+    {
+        $moduleInfo = $this->createMock(ModuleInfo::class);
+        $moduleInfo->method('getCode')->willReturn($code);
+
+        $module = $this->createMock(Module::class);
+        $module->method('getModuleInfo')->willReturn($moduleInfo);
+
+        return $module;
     }
 }

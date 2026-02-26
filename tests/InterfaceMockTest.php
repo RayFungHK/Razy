@@ -1,9 +1,9 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Razy\Tests;
 
-use Closure;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -17,6 +17,7 @@ use Razy\Database\Statement;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
 use Razy\Template\Source;
+use stdClass;
 
 /**
  * Tests that all core interfaces can be mocked/stubbed properly,
@@ -25,6 +26,15 @@ use Razy\Template\Source;
 #[CoversClass(ContainerInterface::class)]
 class InterfaceMockTest extends TestCase
 {
+    public static function moduleStatusProvider(): array
+    {
+        $cases = [];
+        foreach (ModuleStatus::cases() as $status) {
+            $cases[$status->name] = [$status];
+        }
+        return $cases;
+    }
+
     // ─── ContainerInterface ──────────────────────────────────
     public function testContainerMockGet(): void
     {
@@ -64,7 +74,7 @@ class InterfaceMockTest extends TestCase
 
     public function testContainerMockSingletonWithClosure(): void
     {
-        $factory = fn() => new \stdClass();
+        $factory = fn () => new stdClass();
         $container = $this->createMock(ContainerInterface::class);
         $container->expects($this->once())
             ->method('singleton')
@@ -74,7 +84,7 @@ class InterfaceMockTest extends TestCase
 
     public function testContainerMockInstance(): void
     {
-        $obj = new \stdClass();
+        $obj = new stdClass();
         $container = $this->createMock(ContainerInterface::class);
         $container->expects($this->once())
             ->method('instance')
@@ -84,7 +94,7 @@ class InterfaceMockTest extends TestCase
 
     public function testContainerMockMake(): void
     {
-        $result = new \stdClass();
+        $result = new stdClass();
         $container = $this->createMock(ContainerInterface::class);
         $container->method('make')->with('service', ['param' => 1])->willReturn($result);
         $this->assertSame($result, $container->make('service', ['param' => 1]));
@@ -220,15 +230,6 @@ class InterfaceMockTest extends TestCase
         $this->assertSame($status, $module->getStatus());
     }
 
-    public static function moduleStatusProvider(): array
-    {
-        $cases = [];
-        foreach (ModuleStatus::cases() as $status) {
-            $cases[$status->name] = [$status];
-        }
-        return $cases;
-    }
-
     public function testModuleMockExecute(): void
     {
         $info = $this->createMock(ModuleInfo::class);
@@ -262,7 +263,9 @@ class InterfaceMockTest extends TestCase
 
     public function testEventDispatcherMockListenWithClosure(): void
     {
-        $handler = function () { return true; };
+        $handler = function () {
+            return true;
+        };
         $dispatcher = $this->createMock(EventDispatcherInterface::class);
         $dispatcher->expects($this->once())
             ->method('listen')
@@ -289,7 +292,7 @@ class InterfaceMockTest extends TestCase
         $dispatcher->expects($this->exactly(3))->method('listen');
         $dispatcher->listen('onInit', 'handler1.php');
         $dispatcher->listen('onReady', 'handler2.php');
-        $dispatcher->listen('onDispose', fn() => null);
+        $dispatcher->listen('onDispose', fn () => null);
     }
 
     // ─── Cross-Interface Integration Mock ───────────────────
@@ -345,9 +348,9 @@ class InterfaceMockTest extends TestCase
     {
         $container = $this->createStub(ContainerInterface::class);
         $container->method('has')->willReturn(true);
-        $container->method('get')->willReturn(new \stdClass());
+        $container->method('get')->willReturn(new stdClass());
         $this->assertTrue($container->has('anything'));
-        $this->assertInstanceOf(\stdClass::class, $container->get('anything'));
+        $this->assertInstanceOf(stdClass::class, $container->get('anything'));
     }
 
     public function testDatabaseStub(): void

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -20,10 +22,11 @@ use Razy\Exception\ModuleLoadException;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
-
 use Razy\Util\PathUtil;
+use Throwable;
+
 /**
- * Class ModuleScanner
+ * Class ModuleScanner.
  *
  * Handles filesystem scanning for module discovery, manifest caching, and
  * module namespace autoloading.
@@ -31,6 +34,7 @@ use Razy\Util\PathUtil;
  * Extracted from the Distributor god class to follow Single Responsibility Principle.
  *
  * @class ModuleScanner
+ *
  * @package Razy\Distributor
  */
 class ModuleScanner
@@ -41,7 +45,7 @@ class ModuleScanner
      * @param object $distributor The parent Distributor instance (passed to Module constructors)
      */
     public function __construct(
-        private readonly object $distributor
+        private readonly object $distributor,
     ) {
     }
 
@@ -56,28 +60,27 @@ class ModuleScanner
      * @param array<string, string|null> $requires Required module codes mapped to version constraints
      * @param array<string, Module> &$modules Reference to the module registry to populate
      *
-     * @return void
      * @throws ModuleConfigException
      * @throws ModuleLoadException
-     * @throws \Throwable
+     * @throws Throwable
      */
     public function scan(string $path, bool $globally, array $requires, array &$modules): void
     {
         $path = PathUtil::tidy($path, true);
-        if (!is_dir($path)) {
+        if (!\is_dir($path)) {
             return;
         }
 
         // Try to load module manifest from cache
-        $cacheKey = 'modules.' . md5($path);
+        $cacheKey = 'modules.' . \md5($path);
         $dirSignature = $this->getModuleDirSignature($path);
         $cached = Cache::get($cacheKey);
 
-        if (is_array($cached) && isset($cached['sig'], $cached['manifest']) && $cached['sig'] === $dirSignature) {
+        if (\is_array($cached) && isset($cached['sig'], $cached['manifest']) && $cached['sig'] === $dirSignature) {
             // Load modules from cached manifest (skip filesystem scanning)
             foreach ($cached['manifest'] as $entry) {
                 $version = $requires[$entry['module_code']] ?? 'default';
-                if (is_file(PathUtil::append($entry['packageFolder'], $version, 'package.php'))) {
+                if (\is_file(PathUtil::append($entry['packageFolder'], $version, 'package.php'))) {
                     try {
                         $module = new Module($this->distributor, $entry['packageFolder'], $entry['config'], $version, $globally);
                         if (!isset($modules[$entry['module_code']])) {
@@ -95,32 +98,32 @@ class ModuleScanner
         // Full filesystem scan — build module manifest
         $manifest = [];
 
-        foreach (scandir($path) as $vendor) {
+        foreach (\scandir($path) as $vendor) {
             if ('.' === $vendor || '..' === $vendor) {
                 continue;
             }
 
             $moduleFolder = PathUtil::append($path, $vendor);
-            if (is_dir($moduleFolder)) {
-                foreach (scandir($moduleFolder) as $packageName) {
+            if (\is_dir($moduleFolder)) {
+                foreach (\scandir($moduleFolder) as $packageName) {
                     if ('.' === $packageName || '..' === $packageName) {
                         continue;
                     }
 
                     $packageFolder = PathUtil::append($moduleFolder, $packageName);
-                    if (is_dir($packageFolder)) {
+                    if (\is_dir($packageFolder)) {
                         // Look for module.php configuration file in vendor/package directory
                         $moduleConfigPath = PathUtil::append($packageFolder, 'module.php');
-                        if (is_file($moduleConfigPath)) {
+                        if (\is_file($moduleConfigPath)) {
                             try {
                                 $config = require $moduleConfigPath;
 
-                                $config['module_code'] = $config['module_code'] ?? '';
-                                if (!preg_match(ModuleInfo::REGEX_MODULE_CODE, $config['module_code'])) {
+                                $config['module_code'] ??= '';
+                                if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $config['module_code'])) {
                                     throw new ModuleConfigException("Incorrect module code format '{$config['module_code']}' in '{$moduleConfigPath}'. Expected 'vendor/package'.");
                                 }
-                                $config['author'] = $config['author'] ?? '';
-                                $config['description'] = $config['description'] ?? '';
+                                $config['author'] ??= '';
+                                $config['description'] ??= '';
                             } catch (Exception $e) {
                                 throw new ModuleConfigException("Unable to read module config at '{$moduleConfigPath}': " . $e->getMessage());
                             }
@@ -135,7 +138,7 @@ class ModuleScanner
                             $version = (isset($requires[$config['module_code']])) ? $requires[$config['module_code']] : 'default';
 
                             // Only load the module if the versioned package.php exists
-                            if (is_file(PathUtil::append($packageFolder, $version, 'package.php'))) {
+                            if (\is_file(PathUtil::append($packageFolder, $version, 'package.php'))) {
                                 try {
                                     $module = new Module($this->distributor, $packageFolder, $config, $version, $globally);
 
@@ -171,20 +174,20 @@ class ModuleScanner
      */
     public function getModuleDirSignature(string $path): string
     {
-        $mtimes = [(string) @filemtime($path)];
+        $mtimes = [(string) @\filemtime($path)];
 
-        foreach (scandir($path) as $vendor) {
+        foreach (\scandir($path) as $vendor) {
             if ($vendor === '.' || $vendor === '..') {
                 continue;
             }
 
             $vendorPath = PathUtil::append($path, $vendor);
-            if (is_dir($vendorPath)) {
-                $mtimes[] = $vendor . ':' . @filemtime($vendorPath);
+            if (\is_dir($vendorPath)) {
+                $mtimes[] = $vendor . ':' . @\filemtime($vendorPath);
             }
         }
 
-        return md5(implode('|', $mtimes));
+        return \md5(\implode('|', $mtimes));
     }
 
     /**
@@ -202,11 +205,11 @@ class ModuleScanner
     public function autoload(string $className, array $modules, string $code): bool
     {
         // Convert namespace separators to directory separators for file lookup
-        $moduleClassName = str_replace('\\', '/', $className);
-        if (preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleClassName, $matches)) {
-            $namespaces = explode('/', $moduleClassName);
-            $moduleClassName = array_pop($namespaces);
-            $moduleCode = implode('/', $namespaces);
+        $moduleClassName = \str_replace('\\', '/', $className);
+        if (\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleClassName, $matches)) {
+            $namespaces = \explode('/', $moduleClassName);
+            $moduleClassName = \array_pop($namespaces);
+            $moduleCode = \implode('/', $namespaces);
 
             // Try to load the class from the module library
             if (isset($modules[$moduleCode])) {
@@ -214,19 +217,19 @@ class ModuleScanner
                 if ($module->getStatus() === ModuleStatus::Loaded) {
                     $moduleInfo = $module->getModuleInfo();
                     $path = PathUtil::append($moduleInfo->getPath(), 'library');
-                    if (is_dir($path)) {
+                    if (\is_dir($path)) {
                         $libraryPath = PathUtil::append($path, $moduleClassName);
-                        if (is_file($libraryPath . '.php')) {
+                        if (\is_file($libraryPath . '.php')) {
                             $libraryPath .= '.php';
-                        } elseif (is_dir($libraryPath) && is_file(PathUtil::append($libraryPath, $moduleClassName . '.php'))) {
+                        } elseif (\is_dir($libraryPath) && \is_file(PathUtil::append($libraryPath, $moduleClassName . '.php'))) {
                             $libraryPath = PathUtil::append($libraryPath, $moduleClassName . '.php');
                         }
 
-                        if (is_file($libraryPath)) {
+                        if (\is_file($libraryPath)) {
                             try {
                                 include $libraryPath;
 
-                                return class_exists($moduleClassName);
+                                return \class_exists($moduleClassName);
                             } catch (Exception) {
                                 return false;
                             }

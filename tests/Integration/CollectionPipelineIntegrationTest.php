@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Integration test: Collection → Pipeline → Container data flow.
  *
@@ -43,8 +44,8 @@ class UppercaseAction extends Action
         }
 
         foreach ($collection as $key => $value) {
-            if (is_string($value)) {
-                $collection[$key] = strtoupper($value);
+            if (\is_string($value)) {
+                $collection[$key] = \strtoupper($value);
             }
         }
 
@@ -89,7 +90,7 @@ class FilterAction extends Action
 
         $filtered = [];
         foreach ($collection as $key => $value) {
-            if (!str_starts_with((string) $key, '_')) {
+            if (!\str_starts_with((string) $key, '_')) {
                 $filtered[$key] = $value;
             }
         }
@@ -116,8 +117,9 @@ class HaltAction extends Action
 class DataProcessor
 {
     public function __construct(
-        private readonly string $prefix = 'processed'
-    ) {}
+        private readonly string $prefix = 'processed',
+    ) {
+    }
 
     /**
      * Transform a Collection by prefixing all string values.
@@ -126,7 +128,7 @@ class DataProcessor
     {
         $result = [];
         foreach ($collection as $key => $value) {
-            $result[$key] = is_string($value)
+            $result[$key] = \is_string($value)
                 ? $this->prefix . ':' . $value
                 : $value;
         }
@@ -255,7 +257,7 @@ class CollectionPipelineIntegrationTest extends TestCase
         // 3. Register a service in Container and resolve through Controller
         $container = new Container();
         $container->instance(Container::class, $container);
-        $container->singleton(DataProcessor::class, fn() => new DataProcessor('output'));
+        $container->singleton(DataProcessor::class, fn () => new DataProcessor('output'));
 
         $mockModule = $this->createMock(Module::class);
         $mockModule->method('getContainer')->willReturn($container);
@@ -310,8 +312,11 @@ class CollectionPipelineIntegrationTest extends TestCase
         $pipeline->add($stamp1)->add($stamp2)->add($stamp3);
         $pipeline->execute($collection);
 
-        $this->assertEquals(3, $collection['_step_count'],
-            'Each StampAction should increment the shared counter');
+        $this->assertEquals(
+            3,
+            $collection['_step_count'],
+            'Each StampAction should increment the shared counter',
+        );
         $this->assertTrue($collection['_processed']);
     }
 }

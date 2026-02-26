@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Collection.
  *
@@ -73,9 +74,9 @@ class CollectionTest extends TestCase
         $collection = new Collection([
             'level1' => [
                 'level2' => [
-                    'level3' => 'value'
-                ]
-            ]
+                    'level3' => 'value',
+                ],
+            ],
         ]);
 
         $this->assertEquals('value', $collection['level1']['level2']['level3']);
@@ -109,7 +110,7 @@ class CollectionTest extends TestCase
             'bool' => true,
             'null' => null,
             'array' => [1, 2, 3],
-            'nested' => ['key' => 'value']
+            'nested' => ['key' => 'value'],
         ]);
 
         $this->assertIsString($collection['string']);
@@ -124,7 +125,7 @@ class CollectionTest extends TestCase
     public function testExchangeArray(): void
     {
         $collection = new Collection(['old' => 'data']);
-        
+
         $old = $collection->exchangeArray(['new' => 'data']);
 
         $this->assertEquals(['old' => 'data'], $old);

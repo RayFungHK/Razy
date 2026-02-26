@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -37,7 +38,8 @@ class SessionMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private readonly SessionInterface $session,
-    ) {}
+    ) {
+    }
 
     /**
      * Start session → delegate → save session.

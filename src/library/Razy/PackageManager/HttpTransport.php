@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * mirror that follows the Composer repository structure.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -38,7 +40,7 @@ class HttpTransport implements PackageTransportInterface
      * @param string $baseUrl Root URL of the Composer repository (e.g. 'https://repo.packagist.org')
      */
     public function __construct(
-        private readonly string $baseUrl = 'https://repo.packagist.org'
+        private readonly string $baseUrl = 'https://repo.packagist.org',
     ) {
     }
 
@@ -47,17 +49,17 @@ class HttpTransport implements PackageTransportInterface
      */
     public function fetchMetadata(string $packageName): ?array
     {
-        $packageName = strtolower($packageName);
+        $packageName = \strtolower($packageName);
         $url = PathUtil::append($this->baseUrl, 'p2', $packageName . '.json');
 
-        $context = stream_context_create([
+        $context = \stream_context_create([
             'http' => [
                 'header' => "User-Agent: Razy-Package-Manager\r\n",
                 'timeout' => 30,
             ],
         ]);
 
-        $content = @file_get_contents($url, false, $context);
+        $content = @\file_get_contents($url, false, $context);
         if (false === $content) {
             return null;
         }
@@ -68,9 +70,9 @@ class HttpTransport implements PackageTransportInterface
         }
 
         try {
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            $data = \json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
-            return is_array($data) ? $data : null;
+            return \is_array($data) ? $data : null;
         } catch (Exception) {
             return null;
         }
@@ -81,33 +83,33 @@ class HttpTransport implements PackageTransportInterface
      */
     public function download(string $url, string $destinationPath, ?Closure $progressCallback = null): bool
     {
-        $targetFile = fopen($destinationPath, 'w');
+        $targetFile = \fopen($destinationPath, 'w');
         if (false === $targetFile) {
             return false;
         }
 
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_FILE, $targetFile);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        $ch = \curl_init($url);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_FILE, $targetFile);
+        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'User-Agent: Razy-Package-Manager',
             'Accept-Encoding: gzip, deflate',
         ]);
 
         if (null !== $progressCallback) {
-            curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $downloadSize, $downloaded) use ($progressCallback) {
+            \curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+            \curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $downloadSize, $downloaded) use ($progressCallback) {
                 if ($downloadSize > 0) {
                     $progressCallback($downloadSize, $downloaded);
                 }
             });
         }
 
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        fclose($targetFile);
+        $result = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        \curl_close($ch);
+        \fclose($targetFile);
 
         return false !== $result && $httpCode >= 200 && $httpCode < 400;
     }
@@ -130,7 +132,7 @@ class HttpTransport implements PackageTransportInterface
     private function isResponseOk(array $headers): bool
     {
         foreach ($headers as $header) {
-            if (preg_match('/^HTTP\/[\d.]+\s+(\d+)/', $header, $matches)) {
+            if (\preg_match('/^HTTP\/[\d.]+\s+(\d+)/', $header, $matches)) {
                 $code = (int) $matches[1];
 
                 return $code >= 200 && $code < 300;

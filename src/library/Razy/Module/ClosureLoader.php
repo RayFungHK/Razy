@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,6 +12,7 @@
  * Manages closure file loading, caching, and method binding for a module's controller.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -21,6 +23,7 @@ use Razy\Controller;
 use Razy\Exception\ModuleLoadException;
 use Razy\ModuleInfo;
 use Razy\Util\PathUtil;
+
 /**
  * Loads and caches closure files from a module's controller directory,
  * and manages method-name-to-closure-path bindings.
@@ -44,7 +47,7 @@ class ClosureLoader
     public function __construct(
         private readonly ModuleInfo $moduleInfo,
         private readonly bool $strict,
-        private readonly string $distCode
+        private readonly string $distCode,
     ) {
     }
 
@@ -56,7 +59,7 @@ class ClosureLoader
      */
     public function bind(string $method, string $path): void
     {
-        $path = trim($path);
+        $path = \trim($path);
         if ($path) {
             $path = PathUtil::tidy($path);
             $this->binding[$method] = $path;
@@ -93,9 +96,9 @@ class ClosureLoader
         $originalPath = $path;
         $path = PathUtil::tidy($path, false, '/');
 
-        if (0 === substr_count($path, '/')) {
+        if (0 === \substr_count($path, '/')) {
             // No directory separator — check if it's a direct controller method
-            if (method_exists($controller, $path)) {
+            if (\method_exists($controller, $path)) {
                 return $controller->$path(...);
             }
             // Standalone closure files are prefixed with the module class name
@@ -106,21 +109,21 @@ class ClosureLoader
         $fullPath = PathUtil::append($this->moduleInfo->getPath(), 'controller', $path . '.php');
 
         if (!isset($this->closures[$fullPath])) {
-            if (is_file($fullPath)) {
+            if (\is_file($fullPath)) {
                 /** @var Closure $closure */
                 $closure = require $fullPath;
-                if (!is_callable($closure) && $closure instanceof Closure) {
-                    throw new ModuleLoadException("File '{$fullPath}' in module '{$this->moduleInfo->getCode()}' must return a Closure, got " . gettype($closure) . '.');
+                if (!\is_callable($closure) && $closure instanceof Closure) {
+                    throw new ModuleLoadException("File '{$fullPath}' in module '{$this->moduleInfo->getCode()}' must return a Closure, got " . \gettype($closure) . '.');
                 }
                 // Bind the closure to the controller's scope for $this access
-                $this->closures[$fullPath] = $closure->bindTo($controller, get_class($controller));
+                $this->closures[$fullPath] = $closure->bindTo($controller, \get_class($controller));
             } elseif ($this->strict) {
                 // In strict mode, missing closure files cause a hard error
                 throw new ModuleLoadException(
                     "Missing closure file in module '{$this->moduleInfo->getCode()}'.\n" .
                     "Expected file: {$fullPath}\n" .
                     "Closure path: {$originalPath}\n" .
-                    "Run 'php Razy.phar validate {$this->distCode} --generate' to create dummy files."
+                    "Run 'php Razy.phar validate {$this->distCode} --generate' to create dummy files.",
                 );
             }
         }

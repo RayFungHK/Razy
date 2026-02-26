@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -46,20 +47,21 @@ use Razy\Contract\MiddlewareInterface;
 class AuthorizeMiddleware implements MiddlewareInterface
 {
     /**
-     * @param Gate         $gate             The authorization gate
-     * @param string       $ability          The ability to check
+     * @param Gate $gate The authorization gate
+     * @param string $ability The ability to check
      * @param Closure|null $argumentResolver Optional closure to extract gate arguments
      *                                       from the route context: fn(array $ctx): array
-     * @param Closure|null $onForbidden      Optional handler when authorization fails.
-     *                                       Receives (array $context) and should return mixed.
-     *                                       If null, sets HTTP 403 and returns null.
+     * @param Closure|null $onForbidden Optional handler when authorization fails.
+     *                                  Receives (array $context) and should return mixed.
+     *                                  If null, sets HTTP 403 and returns null.
      */
     public function __construct(
         private readonly Gate $gate,
         private readonly string $ability,
         private readonly ?Closure $argumentResolver = null,
         private readonly ?Closure $onForbidden = null,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}
@@ -70,7 +72,7 @@ class AuthorizeMiddleware implements MiddlewareInterface
 
         if ($this->argumentResolver !== null) {
             $arguments = ($this->argumentResolver)($context);
-            if (!is_array($arguments)) {
+            if (!\is_array($arguments)) {
                 $arguments = [$arguments];
             }
         }
@@ -80,7 +82,7 @@ class AuthorizeMiddleware implements MiddlewareInterface
                 return ($this->onForbidden)($context);
             }
 
-            http_response_code(403);
+            \http_response_code(403);
 
             return null;
         }

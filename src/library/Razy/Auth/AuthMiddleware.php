@@ -9,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -44,8 +45,8 @@ use Razy\Contract\MiddlewareInterface;
 class AuthMiddleware implements MiddlewareInterface
 {
     /**
-     * @param AuthManager  $auth           The auth manager
-     * @param string|null  $guard          Guard name (null for default)
+     * @param AuthManager $auth The auth manager
+     * @param string|null $guard Guard name (null for default)
      * @param Closure|null $onUnauthorized Optional handler when auth fails.
      *                                     Receives (array $context) and should return mixed.
      *                                     If null, sets HTTP 401 and returns null.
@@ -54,7 +55,8 @@ class AuthMiddleware implements MiddlewareInterface
         private readonly AuthManager $auth,
         private readonly ?string $guard = null,
         private readonly ?Closure $onUnauthorized = null,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritdoc}
@@ -66,7 +68,7 @@ class AuthMiddleware implements MiddlewareInterface
                 return ($this->onUnauthorized)($context);
             }
 
-            http_response_code(401);
+            \http_response_code(401);
 
             return null;
         }

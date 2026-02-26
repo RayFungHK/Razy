@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,6 +9,7 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -18,7 +20,7 @@ use Razy\Database\Table;
 use Razy\Exception\DatabaseException;
 
 /**
- * Class TableHelper
+ * Class TableHelper.
  *
  * Fluent builder for generating ALTER TABLE SQL statements. Supports a comprehensive
  * range of table modification operations including adding, modifying, dropping, and
@@ -28,6 +30,7 @@ use Razy\Exception\DatabaseException;
  * statement via getSyntax() or individual statements via getSyntaxArray().
  *
  * @package Razy
+ *
  * @license MIT
  */
 class TableHelper
@@ -81,14 +84,27 @@ class TableHelper
     }
 
     /**
+     * Convert to string (returns SQL syntax).
+     *
+     * @return string
+     *
+     * @throws Error
+     */
+    public function __toString(): string
+    {
+        return $this->getSyntax();
+    }
+
+    /**
      * Rename the table.
      *
      * @param string $newName The new table name
+     *
      * @return $this
      */
     public function rename(string $newName): static
     {
-        $this->newTableName = trim($newName);
+        $this->newTableName = \trim($newName);
         return $this;
     }
 
@@ -96,11 +112,12 @@ class TableHelper
      * Change the table charset.
      *
      * @param string $charset The new charset
+     *
      * @return $this
      */
     public function charset(string $charset): static
     {
-        $this->newCharset = trim($charset);
+        $this->newCharset = \trim($charset);
         return $this;
     }
 
@@ -108,11 +125,12 @@ class TableHelper
      * Change the table collation.
      *
      * @param string $collation The new collation
+     *
      * @return $this
      */
     public function collation(string $collation): static
     {
-        $this->newCollation = trim($collation);
+        $this->newCollation = \trim($collation);
         return $this;
     }
 
@@ -120,11 +138,12 @@ class TableHelper
      * Change the table engine.
      *
      * @param string $engine The new engine (InnoDB, MyISAM, etc.)
+     *
      * @return $this
      */
     public function engine(string $engine): static
     {
-        $this->newEngine = trim($engine);
+        $this->newEngine = \trim($engine);
         return $this;
     }
 
@@ -132,6 +151,7 @@ class TableHelper
      * Set or change the table comment.
      *
      * @param string $comment The table comment
+     *
      * @return $this
      */
     public function comment(string $comment): static
@@ -145,17 +165,19 @@ class TableHelper
      *
      * @param string $columnSyntax Column definition syntax (e.g., "name=type(text),nullable")
      * @param string $position Position: 'FIRST' or 'AFTER column_name' or empty for end
+     *
      * @return Column The created column for further configuration
+     *
      * @throws Error
      */
     public function addColumn(string $columnSyntax, string $position = ''): Column
     {
-        $columnSyntax = trim($columnSyntax);
-        if (!preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+        $columnSyntax = \trim($columnSyntax);
+        if (!\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
             throw new DatabaseException('Invalid column syntax: ' . $columnSyntax);
         }
 
-        $columnName = trim($matches[1], '`');
+        $columnName = \trim($matches[1], '`');
 
         // Check if column already queued for addition
         if (isset($this->addColumns[$columnName])) {
@@ -163,11 +185,11 @@ class TableHelper
         }
 
         $column = new Column($columnName, $matches[2] ?? '', $this->table);
-        $position = strtoupper(trim($position));
+        $position = \strtoupper(\trim($position));
         $after = '';
 
-        if (str_starts_with($position, 'AFTER ')) {
-            $after = trim(substr($position, 6), '` ');
+        if (\str_starts_with($position, 'AFTER ')) {
+            $after = \trim(\substr($position, 6), '` ');
             $position = 'AFTER';
         } elseif ($position !== 'FIRST') {
             $position = '';
@@ -188,12 +210,14 @@ class TableHelper
      * @param string $columnName The column name to modify
      * @param string $newSyntax New column definition syntax
      * @param string $position Optional new position
+     *
      * @return Column The column for further configuration
+     *
      * @throws Error
      */
     public function modifyColumn(string $columnName, string $newSyntax = '', string $position = ''): Column
     {
-        $columnName = trim($columnName, '` ');
+        $columnName = \trim($columnName, '` ');
         if (!$columnName) {
             throw new DatabaseException('Column name is required.');
         }
@@ -201,7 +225,7 @@ class TableHelper
         // Parse new syntax if provided
         $configSyntax = '';
         if ($newSyntax) {
-            if (preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
+            if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
                 $configSyntax = $matches[2] ?? '';
             } else {
                 $configSyntax = $newSyntax;
@@ -209,11 +233,11 @@ class TableHelper
         }
 
         $column = new Column($columnName, $configSyntax, $this->table);
-        $position = strtoupper(trim($position));
+        $position = \strtoupper(\trim($position));
         $after = '';
 
-        if (str_starts_with($position, 'AFTER ')) {
-            $after = trim(substr($position, 6), '` ');
+        if (\str_starts_with($position, 'AFTER ')) {
+            $after = \trim(\substr($position, 6), '` ');
             $position = 'AFTER';
         } elseif ($position !== 'FIRST') {
             $position = '';
@@ -235,13 +259,15 @@ class TableHelper
      * @param string $oldName Current column name
      * @param string $newName New column name
      * @param string $newSyntax Optional new column definition
+     *
      * @return Column The column for further configuration
+     *
      * @throws Error
      */
     public function renameColumn(string $oldName, string $newName, string $newSyntax = ''): Column
     {
-        $oldName = trim($oldName, '` ');
-        $newName = trim($newName, '` ');
+        $oldName = \trim($oldName, '` ');
+        $newName = \trim($newName, '` ');
 
         if (!$oldName || !$newName) {
             throw new DatabaseException('Both old and new column names are required.');
@@ -251,7 +277,7 @@ class TableHelper
 
         // Also modify the column if syntax provided
         $configSyntax = '';
-        if ($newSyntax && preg_match('/^(?:\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
+        if ($newSyntax && \preg_match('/^(?:\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
             $configSyntax = $matches[1] ?? '';
         }
 
@@ -270,12 +296,13 @@ class TableHelper
      * Drop a column from the table.
      *
      * @param string $columnName The column name to drop
+     *
      * @return $this
      */
     public function dropColumn(string $columnName): static
     {
-        $columnName = trim($columnName, '` ');
-        if ($columnName && !in_array($columnName, $this->dropColumns)) {
+        $columnName = \trim($columnName, '` ');
+        if ($columnName && !\in_array($columnName, $this->dropColumns)) {
             $this->dropColumns[] = $columnName;
         }
         return $this;
@@ -287,13 +314,15 @@ class TableHelper
      * @param string $type Index type: 'INDEX', 'UNIQUE', 'FULLTEXT', 'SPATIAL'
      * @param array|string $columns Column(s) to index
      * @param string $indexName Optional index name
+     *
      * @return $this
+     *
      * @throws Error
      */
     public function addIndex(string $type, array|string $columns, string $indexName = ''): static
     {
-        $type = strtoupper(trim($type));
-        if (!in_array($type, ['INDEX', 'KEY', 'UNIQUE', 'FULLTEXT', 'SPATIAL', 'PRIMARY'])) {
+        $type = \strtoupper(\trim($type));
+        if (!\in_array($type, ['INDEX', 'KEY', 'UNIQUE', 'FULLTEXT', 'SPATIAL', 'PRIMARY'])) {
             throw new DatabaseException('Invalid index type: ' . $type);
         }
 
@@ -301,16 +330,16 @@ class TableHelper
             $type = 'INDEX';
         }
 
-        $columns = is_array($columns) ? $columns : [$columns];
-        $columns = array_map(fn($c) => trim($c, '` '), $columns);
-        $columns = array_filter($columns);
+        $columns = \is_array($columns) ? $columns : [$columns];
+        $columns = \array_map(fn ($c) => \trim($c, '` '), $columns);
+        $columns = \array_filter($columns);
 
         if (empty($columns)) {
             throw new DatabaseException('At least one column is required for index.');
         }
 
         if (!$indexName) {
-            $indexName = 'idx_' . implode('_', array_map(fn($c) => substr($c, 0, 4), $columns));
+            $indexName = 'idx_' . \implode('_', \array_map(fn ($c) => \substr($c, 0, 4), $columns));
         }
 
         $this->addIndexes[$indexName] = [
@@ -326,7 +355,9 @@ class TableHelper
      * Add a primary key.
      *
      * @param array|string $columns Column(s) for primary key
+     *
      * @return $this
+     *
      * @throws Error
      */
     public function addPrimaryKey(array|string $columns): static
@@ -339,7 +370,9 @@ class TableHelper
      *
      * @param array|string $columns Column(s) to index
      * @param string $indexName Optional index name
+     *
      * @return $this
+     *
      * @throws Error
      */
     public function addUniqueIndex(array|string $columns, string $indexName = ''): static
@@ -352,7 +385,9 @@ class TableHelper
      *
      * @param array|string $columns Column(s) to index
      * @param string $indexName Optional index name
+     *
      * @return $this
+     *
      * @throws Error
      */
     public function addFulltextIndex(array|string $columns, string $indexName = ''): static
@@ -364,12 +399,13 @@ class TableHelper
      * Drop an index.
      *
      * @param string $indexName The index name to drop
+     *
      * @return $this
      */
     public function dropIndex(string $indexName): static
     {
-        $indexName = trim($indexName);
-        if ($indexName && !in_array($indexName, $this->dropIndexes)) {
+        $indexName = \trim($indexName);
+        if ($indexName && !\in_array($indexName, $this->dropIndexes)) {
             $this->dropIndexes[] = $indexName;
         }
         return $this;
@@ -394,7 +430,9 @@ class TableHelper
      * @param string $onDelete Action on delete: CASCADE, SET NULL, RESTRICT, NO ACTION
      * @param string $onUpdate Action on update: CASCADE, SET NULL, RESTRICT, NO ACTION
      * @param string $constraintName Optional constraint name
+     *
      * @return $this
+     *
      * @throws Error
      */
     public function addForeignKey(
@@ -403,24 +441,24 @@ class TableHelper
         string $referenceColumn = '',
         string $onDelete = 'RESTRICT',
         string $onUpdate = 'RESTRICT',
-        string $constraintName = ''
+        string $constraintName = '',
     ): static {
-        $column = trim($column, '` ');
-        $referenceTable = trim($referenceTable, '` ');
-        $referenceColumn = trim($referenceColumn, '` ') ?: $column;
+        $column = \trim($column, '` ');
+        $referenceTable = \trim($referenceTable, '` ');
+        $referenceColumn = \trim($referenceColumn, '` ') ?: $column;
 
         if (!$column || !$referenceTable) {
             throw new DatabaseException('Column and reference table are required for foreign key.');
         }
 
-        $onDelete = strtoupper(trim($onDelete));
-        $onUpdate = strtoupper(trim($onUpdate));
+        $onDelete = \strtoupper(\trim($onDelete));
+        $onUpdate = \strtoupper(\trim($onUpdate));
         $validActions = ['CASCADE', 'SET NULL', 'RESTRICT', 'NO ACTION', 'SET DEFAULT'];
 
-        if (!in_array($onDelete, $validActions)) {
+        if (!\in_array($onDelete, $validActions)) {
             $onDelete = 'RESTRICT';
         }
-        if (!in_array($onUpdate, $validActions)) {
+        if (!\in_array($onUpdate, $validActions)) {
             $onUpdate = 'RESTRICT';
         }
 
@@ -443,12 +481,13 @@ class TableHelper
      * Drop a foreign key constraint.
      *
      * @param string $constraintName The constraint name to drop
+     *
      * @return $this
      */
     public function dropForeignKey(string $constraintName): static
     {
-        $constraintName = trim($constraintName);
-        if ($constraintName && !in_array($constraintName, $this->dropForeignKeys)) {
+        $constraintName = \trim($constraintName);
+        if ($constraintName && !\in_array($constraintName, $this->dropForeignKeys)) {
             $this->dropForeignKeys[] = $constraintName;
         }
         return $this;
@@ -513,6 +552,7 @@ class TableHelper
      * Generate the ALTER TABLE SQL statement.
      *
      * @return string The complete ALTER TABLE statement
+     *
      * @throws Error
      */
     public function getSyntax(): string
@@ -525,18 +565,18 @@ class TableHelper
 
         // Rename table (included inline at the beginning for single-statement mode)
         if ($this->newTableName && $this->newTableName !== $this->table->getName()) {
-            $alterations[] = 'RENAME TO `' . addslashes($this->newTableName) . '`';
+            $alterations[] = 'RENAME TO `' . \addslashes($this->newTableName) . '`';
         }
 
-        $alterations = array_merge($alterations, $this->collectAlterations());
+        $alterations = \array_merge($alterations, $this->collectAlterations());
 
         if (empty($alterations)) {
             return '';
         }
 
-        $tableName = addslashes($this->table->getName());
+        $tableName = \addslashes($this->table->getName());
 
-        return 'ALTER TABLE `' . $tableName . '` ' . implode(', ', $alterations) . ';';
+        return 'ALTER TABLE `' . $tableName . '` ' . \implode(', ', $alterations) . ';';
     }
 
     /**
@@ -544,6 +584,7 @@ class TableHelper
      * Useful when some databases don't support multiple alterations in one statement.
      *
      * @return string[] Array of ALTER TABLE statements
+     *
      * @throws Error
      */
     public function getSyntaxArray(): array
@@ -552,17 +593,17 @@ class TableHelper
             return [];
         }
 
-        $tableName = addslashes($this->table->getName());
+        $tableName = \addslashes($this->table->getName());
         $alterations = $this->collectAlterations();
 
-        $statements = array_map(
-            fn(string $alteration) => 'ALTER TABLE `' . $tableName . '` ' . $alteration . ';',
-            $alterations
+        $statements = \array_map(
+            fn (string $alteration) => 'ALTER TABLE `' . $tableName . '` ' . $alteration . ';',
+            $alterations,
         );
 
         // Apply rename last (separate statement so prior statements use the original name)
         if ($this->newTableName && $this->newTableName !== $this->table->getName()) {
-            $statements[] = 'ALTER TABLE `' . $tableName . '` RENAME TO `' . addslashes($this->newTableName) . '`;';
+            $statements[] = 'ALTER TABLE `' . $tableName . '` RENAME TO `' . \addslashes($this->newTableName) . '`;';
         }
 
         return $statements;
@@ -582,7 +623,7 @@ class TableHelper
         }
 
         if ($data['position'] === 'AFTER' && $data['after']) {
-            return ' AFTER `' . addslashes($data['after']) . '`';
+            return ' AFTER `' . \addslashes($data['after']) . '`';
         }
 
         return '';
@@ -599,7 +640,7 @@ class TableHelper
 
         // Drop foreign keys first (before dropping columns they might reference)
         foreach ($this->dropForeignKeys as $constraintName) {
-            $alterations[] = 'DROP FOREIGN KEY `' . addslashes($constraintName) . '`';
+            $alterations[] = 'DROP FOREIGN KEY `' . \addslashes($constraintName) . '`';
         }
 
         // Drop indexes (before dropping columns they might include)
@@ -607,13 +648,13 @@ class TableHelper
             if ($indexName === 'PRIMARY') {
                 $alterations[] = 'DROP PRIMARY KEY';
             } else {
-                $alterations[] = 'DROP INDEX `' . addslashes($indexName) . '`';
+                $alterations[] = 'DROP INDEX `' . \addslashes($indexName) . '`';
             }
         }
 
         // Drop columns
         foreach ($this->dropColumns as $columnName) {
-            $alterations[] = 'DROP COLUMN `' . addslashes($columnName) . '`';
+            $alterations[] = 'DROP COLUMN `' . \addslashes($columnName) . '`';
         }
 
         // Add columns
@@ -630,7 +671,7 @@ class TableHelper
 
             if (isset($this->renameColumns[$oldName])) {
                 // CHANGE for rename + modify
-                $sql = 'CHANGE COLUMN `' . addslashes($oldName) . '` ' . $column->getSyntax();
+                $sql = 'CHANGE COLUMN `' . \addslashes($oldName) . '` ' . $column->getSyntax();
             } else {
                 // MODIFY for just modification
                 $sql = 'MODIFY COLUMN ' . $column->getSyntax();
@@ -641,22 +682,22 @@ class TableHelper
 
         // Add indexes
         foreach ($this->addIndexes as $data) {
-            $columns = array_map(fn($c) => '`' . addslashes($c) . '`', $data['columns']);
-            $columnList = implode(', ', $columns);
+            $columns = \array_map(fn ($c) => '`' . \addslashes($c) . '`', $data['columns']);
+            $columnList = \implode(', ', $columns);
 
             if ($data['type'] === 'PRIMARY') {
                 $alterations[] = 'ADD PRIMARY KEY (' . $columnList . ')';
             } else {
-                $indexName = '`' . addslashes($data['name']) . '`';
+                $indexName = '`' . \addslashes($data['name']) . '`';
                 $alterations[] = 'ADD ' . $data['type'] . ' ' . $indexName . ' (' . $columnList . ')';
             }
         }
 
         // Add foreign keys
         foreach ($this->addForeignKeys as $name => $data) {
-            $sql = 'ADD CONSTRAINT `' . addslashes($name) . '` ';
-            $sql .= 'FOREIGN KEY (`' . addslashes($data['column']) . '`) ';
-            $sql .= 'REFERENCES `' . addslashes($data['refTable']) . '` (`' . addslashes($data['refColumn']) . '`)';
+            $sql = 'ADD CONSTRAINT `' . \addslashes($name) . '` ';
+            $sql .= 'FOREIGN KEY (`' . \addslashes($data['column']) . '`) ';
+            $sql .= 'REFERENCES `' . \addslashes($data['refTable']) . '` (`' . \addslashes($data['refColumn']) . '`)';
 
             if ($data['onDelete'] !== 'RESTRICT') {
                 $sql .= ' ON DELETE ' . $data['onDelete'];
@@ -670,16 +711,16 @@ class TableHelper
 
         // Table options
         if ($this->newEngine) {
-            $alterations[] = 'ENGINE = ' . addslashes($this->newEngine);
+            $alterations[] = 'ENGINE = ' . \addslashes($this->newEngine);
         }
 
         if ($this->newCharset || $this->newCollation) {
             $charsetSql = '';
             if ($this->newCharset) {
-                $charsetSql = 'CONVERT TO CHARACTER SET ' . addslashes($this->newCharset);
+                $charsetSql = 'CONVERT TO CHARACTER SET ' . \addslashes($this->newCharset);
             }
             if ($this->newCollation) {
-                $charsetSql .= ($charsetSql ? ' ' : '') . 'COLLATE ' . addslashes($this->newCollation);
+                $charsetSql .= ($charsetSql ? ' ' : '') . 'COLLATE ' . \addslashes($this->newCollation);
             }
             if ($charsetSql) {
                 $alterations[] = $charsetSql;
@@ -687,20 +728,9 @@ class TableHelper
         }
 
         if ($this->newComment !== '') {
-            $alterations[] = "COMMENT = '" . addslashes($this->newComment) . "'";
+            $alterations[] = "COMMENT = '" . \addslashes($this->newComment) . "'";
         }
 
         return $alterations;
-    }
-
-    /**
-     * Convert to string (returns SQL syntax).
-     *
-     * @return string
-     * @throws Error
-     */
-    public function __toString(): string
-    {
-        return $this->getSyntax();
     }
 }

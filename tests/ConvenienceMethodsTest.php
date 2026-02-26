@@ -8,7 +8,6 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database;
 use Razy\ORM\Model;
-use Razy\ORM\ModelCollection;
 
 /**
  * Tests for P23: Convenience Model Methods.
@@ -240,7 +239,7 @@ class ConvenienceMethodsTest extends TestCase
         $originalTimestamp = $product->getRawAttribute('updated_at');
 
         // Small delay to ensure timestamp changes
-        usleep(10000);
+        \usleep(10000);
         $product->increment('price');
 
         $this->assertNotNull($product->getRawAttribute('updated_at'));
@@ -507,13 +506,17 @@ class ConvenienceMethodsTest extends TestCase
 class CM_Product extends Model
 {
     protected static string $table = 'cm_products';
+
     protected static array $fillable = ['name', 'price', 'category'];
+
     protected static array $casts = ['price' => 'int'];
 }
 
 class CM_NoTimestamps extends Model
 {
     protected static string $table = 'cm_notimestamps';
+
     protected static array $fillable = ['name', 'price', 'category'];
+
     protected static bool $timestamps = false;
 }

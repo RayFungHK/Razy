@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,17 +9,18 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Database;
 
-use Razy\Database\Table\TableHelper;
 use Razy\Database\Table\ColumnHelper;
+use Razy\Database\Table\TableHelper;
 use Razy\Exception\DatabaseException;
 
 /**
- * Class Table
+ * Class Table.
  *
  * Represents a database table definition. Manages column definitions, charset,
  * collation, indexing, and foreign key references. Supports generating CREATE TABLE
@@ -26,6 +28,7 @@ use Razy\Exception\DatabaseException;
  * a compact syntax string, and tracking schema changes for migrations.
  *
  * @package Razy
+ *
  * @license MIT
  */
 class Table
@@ -48,6 +51,13 @@ class Table
     /** @var array<string, string[]> Composite index definitions keyed by index name */
     private array $groupIndexingList = [];
 
+    /** @var array{add: array, remove: array, modify: array} Pending ALTER TABLE column operations */
+    private array $alterColumn = [
+        'add' => [],
+        'remove' => [],
+        'modify' => [],
+    ];
+
     /**
      * Table constructor.
      *
@@ -58,8 +68,8 @@ class Table
      */
     public function __construct(private string $name, string $configSyntax = '')
     {
-        $this->name = trim($this->name);
-        $configSyntax = trim($configSyntax);
+        $this->name = \trim($this->name);
+        $configSyntax = \trim($configSyntax);
         if ($configSyntax) {
             $parameters = $this->parseSyntax($configSyntax);
             $this->configure($parameters);
@@ -67,81 +77,41 @@ class Table
     }
 
     /**
-     * Parse the config syntax.
+     * Deep clone handler. Creates independent copies of all Column instances
+     * and re-binds them to this cloned table.
      *
-     * @param string $syntax
-     *
-     * @return array
-     */
-    private function parseSyntax(string $syntax): array
-    {
-        $parameters = [];
-
-        // Split syntax by commas, respecting parenthesized groups and quoted strings
-        $clips = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($clips as $clip) {
-            if (preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
-                if (!isset($parameters[$matches[1]])) {
-                    $parameters[$matches[1]] = null;
-                }
-
-                if ($matches[2] ?? '') {
-                    $parameters[$matches[1]] = [];
-                    while (preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
-                        $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
-                        $matches[2] = substr($matches[2], strlen($extracted[0]));
-                    }
-                }
-            }
-        }
-
-        return $parameters;
-    }
-
-    /**
-     * Configure the table properties from a parsed parameter array.
-     * Currently supports 'charset' and 'collation' settings.
-     *
-     * @param array $parameters Parsed configuration parameters
-     *
-     * @return Table
      * @throws Error
      */
-    public function configure(array $parameters): Table
+    public function __clone()
     {
-        // Apply charset and collation from the parameters, if provided
-        foreach (['charset', 'collation'] as $method) {
-            $arguments = $parameters[$method] ?? null;
-            if ('charset' == $method) {
-                $this->setCharset((!$arguments || !is_scalar($arguments[0])) ? '' : $arguments[0]);
-            } elseif ('collation' == $method) {
-                $this->setCollation((!$arguments || !is_scalar($arguments[0])) ? '' : $arguments[0]);
-            }
+        $columns = $this->columns;
+        $this->columns = [];
+        foreach ($columns as $column) {
+            $this->columns[] = (clone $column)->bindTo($this);
         }
-
-        return $this;
     }
 
     /**
      * Import a table definition from a compact configuration syntax string.
-     * Format: tableName=option1,option2[col1=config1:col2=config2]
+     * Format: tableName=option1,option2[col1=config1:col2=config2].
      *
      * @param string $syntax The table configuration syntax string
      *
      * @return Table The created Table instance
+     *
      * @throws Error If the syntax is invalid
      */
-    public static function import(string $syntax): Table
+    public static function import(string $syntax): self
     {
-        $syntax = trim($syntax);
+        $syntax = \trim($syntax);
         // Match table name (plain or backtick-quoted), optional config, optional columns block
-        if (preg_match('/(?<skip>\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+?))?(?:\[(.+?)])?$/', $syntax, $matches)) {
-            $tableName = trim($matches[3], '`');
-            $table = new Table($tableName, $matches[4] ?? '');
+        if (\preg_match('/(?<skip>\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+?))?(?:\[(.+?)])?$/', $syntax, $matches)) {
+            $tableName = \trim($matches[3], '`');
+            $table = new self($tableName, $matches[4] ?? '');
 
             // Parse column definitions separated by colons
             if ($matches[5] ?? '') {
-                $clips = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*:\s*/', $matches[5], -1, PREG_SPLIT_NO_EMPTY);
+                $clips = \preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*:\s*/', $matches[5], -1, PREG_SPLIT_NO_EMPTY);
                 foreach ($clips as $clip) {
                     $table->addColumn($clip);
                 }
@@ -154,32 +124,58 @@ class Table
     }
 
     /**
+     * Configure the table properties from a parsed parameter array.
+     * Currently supports 'charset' and 'collation' settings.
+     *
+     * @param array $parameters Parsed configuration parameters
+     *
+     * @return Table
+     *
+     * @throws Error
+     */
+    public function configure(array $parameters): self
+    {
+        // Apply charset and collation from the parameters, if provided
+        foreach (['charset', 'collation'] as $method) {
+            $arguments = $parameters[$method] ?? null;
+            if ('charset' == $method) {
+                $this->setCharset((!$arguments || !\is_scalar($arguments[0])) ? '' : $arguments[0]);
+            } elseif ('collation' == $method) {
+                $this->setCollation((!$arguments || !\is_scalar($arguments[0])) ? '' : $arguments[0]);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Add a new column.
      *
      * @param string $columnSyntax
      * @param string $after
      *
      * @return Column
+     *
      * @throws Error
      */
     public function addColumn(string $columnSyntax, string $after = ''): Column
     {
-        $columnSyntax = trim($columnSyntax);
-        if (preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
-            $columnName = trim($matches[1], '`');
+        $columnSyntax = \trim($columnSyntax);
+        if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+            $columnName = \trim($matches[1], '`');
             foreach ($this->columns as $column) {
                 if ($column->getName() == $columnSyntax) {
                     throw new DatabaseException('The column `' . $columnName . '` already exists.');
                 }
             }
             $column = new Column($columnName, $matches[2] ?? '', $this);
-            $after = trim($after);
+            $after = \trim($after);
             $this->columns[] = $column;
             if ($after) {
                 $this->moveColumnAfter($columnName, $after);
                 $this->validate();
             } else {
-                $lastColumn = end($this->columns);
+                $lastColumn = \end($this->columns);
                 if ($lastColumn) {
                     $column->insertAfter($lastColumn->getName());
                 }
@@ -214,8 +210,9 @@ class Table
 
     /**
      * Create a ColumnHelper instance for modifying a specific column.
-     * 
+     *
      * @param string $columnName The column to alter
+     *
      * @return ColumnHelper
      */
     public function columnHelper(string $columnName): ColumnHelper
@@ -230,11 +227,12 @@ class Table
      * @param string $dest
      *
      * @return $this
+     *
      * @throws Error
      */
-    public function moveColumnAfter(string $selected, string $dest = ''): Table
+    public function moveColumnAfter(string $selected, string $dest = ''): self
     {
-        $selected = trim($selected);
+        $selected = \trim($selected);
         $selectedColumn = null;
         foreach ($this->columns as $index => $column) {
             if ($column->getName() == $selected) {
@@ -249,14 +247,14 @@ class Table
             throw new DatabaseException('The source column ' . $selected . ' does not exists in table.');
         }
 
-        $dest = trim($dest);
+        $dest = \trim($dest);
         if (!$dest) {
-            $this->columns = array_merge([$selectedColumn], $this->columns);
+            $this->columns = \array_merge([$selectedColumn], $this->columns);
         } else {
-            $destIndex = array_search($dest, array_keys($this->columns));
-            $beginning = array_slice($this->columns, 0, $destIndex + 1, true);
-            $ending = ($destIndex + 1 == count($this->columns)) ? [] : array_slice($this->columns, $destIndex + 1, true);
-            $this->columns = array_merge($beginning, [$selectedColumn], $ending);
+            $destIndex = \array_search($dest, \array_keys($this->columns));
+            $beginning = \array_slice($this->columns, 0, $destIndex + 1, true);
+            $ending = ($destIndex + 1 == \count($this->columns)) ? [] : \array_slice($this->columns, $destIndex + 1, true);
+            $this->columns = \array_merge($beginning, [$selectedColumn], $ending);
         }
 
         $this->reordered[$selectedColumn->getName()] = true;
@@ -270,9 +268,10 @@ class Table
      * property is set correctly based on the current column order.
      *
      * @return Table
+     *
      * @throws Error
      */
-    public function validate(): Table
+    public function validate(): self
     {
         $columns = [];
         $previous = '';
@@ -285,21 +284,6 @@ class Table
     }
 
     /**
-     * Deep clone handler. Creates independent copies of all Column instances
-     * and re-binds them to this cloned table.
-     *
-     * @throws Error
-     */
-    public function __clone()
-    {
-        $columns = $this->columns;
-        $this->columns = [];
-        foreach ($columns as $column) {
-            $this->columns[] = (clone $column)->bindTo($this);
-        }
-    }
-
-    /**
      * Commit the current table definition and generate the SQL statement.
      * If a previous commit exists, generates ALTER TABLE; otherwise CREATE TABLE.
      * After committing, stores a snapshot for future diff-based ALTER generation.
@@ -307,14 +291,15 @@ class Table
      * @param bool $alter Reserved for future use
      *
      * @return string The SQL statement (CREATE TABLE or ALTER TABLE)
+     *
      * @throws Error
      */
     public function commit(bool $alter = false): string
     {
         if ($this->committed) {
-            $syntax = 'ALTER TABLE `' . addslashes($this->committed->getName()) . '`';
+            $syntax = 'ALTER TABLE `' . \addslashes($this->committed->getName()) . '`';
             if ($this->name != $this->committed->getName()) {
-                $syntax .= ' RENAME TO `' . addslashes($this->name) . '`';
+                $syntax .= ' RENAME TO `' . \addslashes($this->name) . '`';
             }
 
             if ($this->charset != $this->committed->getCharset() || $this->collation != $this->committed->getCollation()) {
@@ -365,7 +350,7 @@ class Table
                 }
             }
 
-            if (count($orgReference)) {
+            if (\count($orgReference)) {
                 foreach ($orgReference as $column) {
                     $name = $column->getReferenceColumn() || $column->getName();
                     $alterReferenceSyntax .= ', DROP FOREIGN KEY `' . $name . '`';
@@ -398,12 +383,13 @@ class Table
      * @param string $charset
      *
      * @return $this
+     *
      * @throws Error
      */
-    public function setCharset(string $charset): Table
+    public function setCharset(string $charset): self
     {
-        $charset = trim($charset);
-        if (!preg_match('/^\w+$/', $charset)) {
+        $charset = \trim($charset);
+        if (!\preg_match('/^\w+$/', $charset)) {
             throw new DatabaseException($charset . ' is not in a correct character set format.');
         }
         $this->charset = $charset;
@@ -427,16 +413,17 @@ class Table
      * @param string $collation
      *
      * @return $this
+     *
      * @throws Error
      */
-    public function setCollation(string $collation): Table
+    public function setCollation(string $collation): self
     {
-        $collation = trim($collation);
-        if ($collation && !preg_match('/^\w+?_\w+$/', $collation)) {
+        $collation = \trim($collation);
+        if ($collation && !\preg_match('/^\w+?_\w+$/', $collation)) {
             throw new DatabaseException($collation . ' is not in a correct collation format.');
         }
 
-        $charset = strtok($collation, '_');
+        $charset = \strtok($collation, '_');
         if ($charset !== $this->charset) {
             $this->charset = $charset;
         }
@@ -452,11 +439,11 @@ class Table
      *
      * @param string $id
      *
-     * @return null|Column
+     * @return Column|null
      */
     public function getColumnByID(string $id): ?Column
     {
-        $id = trim($id);
+        $id = \trim($id);
         foreach ($this->columns as $column) {
             if ($column->getID() == $id) {
                 return $column;
@@ -471,6 +458,7 @@ class Table
      * primary/index keys, foreign key constraints, and table options.
      *
      * @return string The CREATE TABLE statement
+     *
      * @throws Error If duplicate auto-increment columns are found
      */
     public function getSyntax(): string
@@ -497,7 +485,7 @@ class Table
                 $keySet['primary'][] = $column->getName();
                 $autoColumn = $column;
             } elseif ($key = $column->getKey()) {
-                if (array_key_exists($key, $keySet)) {
+                if (\array_key_exists($key, $keySet)) {
                     $keySet[$key][] = $column->getName();
                 }
             }
@@ -510,31 +498,31 @@ class Table
         $syntax = 'CREATE TABLE IF NOT EXISTS ' . $this->name . ' (';
 
         // Add PRIMARY KEY constraint if any primary columns exist
-        if (count($keySet['primary'])) {
-            $clips[] = 'PRIMARY KEY(`' . implode('`, `', $keySet['primary']) . '`)';
+        if (\count($keySet['primary'])) {
+            $clips[] = 'PRIMARY KEY(`' . \implode('`, `', $keySet['primary']) . '`)';
         }
         unset($keySet['primary']);
 
         // Add INDEX, UNIQUE, FULLTEXT, and SPATIAL keys
         foreach ($keySet as $index => $columns) {
             foreach ($columns as $column) {
-                $clips[] = strtoupper($index) . '(`' . $column . '`)';
+                $clips[] = \strtoupper($index) . '(`' . $column . '`)';
             }
         }
 
-        if (count($referenceSet)) {
+        if (\count($referenceSet)) {
             foreach ($referenceSet as $reference) {
                 $clips[] = $reference->getForeignKeySyntax();
             }
         }
 
-        if (count($this->groupIndexingList)) {
+        if (\count($this->groupIndexingList)) {
             foreach ($this->groupIndexingList as $keyName => $columns) {
-                $clips[] = 'KEY `' . $keyName . '` (' . implode(', ', $columns) . ')';
+                $clips[] = 'KEY `' . $keyName . '` (' . \implode(', ', $columns) . ')';
             }
         }
 
-        $syntax .= implode(', ', $clips) . ') ENGINE InnoDB CHARSET=' . $this->charset . ' COLLATE ' . $this->collation . ';';
+        $syntax .= \implode(', ', $clips) . ') ENGINE InnoDB CHARSET=' . $this->charset . ' COLLATE ' . $this->collation . ';';
 
         return $syntax;
     }
@@ -551,25 +539,25 @@ class Table
         $parameters[] = 'charset(' . $this->charset . ')';
         $parameters[] = 'collation(' . $this->collation . ')';
         if (!empty($parameters)) {
-            $config .= '=' . implode(',', $parameters);
+            $config .= '=' . \implode(',', $parameters);
         }
 
-        if (count($this->columns)) {
+        if (\count($this->columns)) {
             $config .= '[';
             $columnsSyntax = [];
             foreach ($this->columns as $column) {
                 $columnsSyntax[] = $column->exportConfig();
             }
-            $config .= implode(':', $columnsSyntax) . ']';
+            $config .= \implode(':', $columnsSyntax) . ']';
         }
 
-        if (count($this->groupIndexingList)) {
+        if (\count($this->groupIndexingList)) {
             $config .= '[';
             $groupIndexingSyntax = [];
             foreach ($this->groupIndexingList as $indexName => $columns) {
-                $groupIndexingSyntax[] = $indexName . '=' . implode(',', $columns);
+                $groupIndexingSyntax[] = $indexName . '=' . \implode(',', $columns);
             }
-            $config .= implode(':', $groupIndexingSyntax) . ']';
+            $config .= \implode(':', $groupIndexingSyntax) . ']';
         }
 
         return $config;
@@ -580,11 +568,11 @@ class Table
      *
      * @param string $columnName
      *
-     * @return null|Column
+     * @return Column|null
      */
     public function getColumn(string $columnName): ?Column
     {
-        $columnName = trim($columnName);
+        $columnName = \trim($columnName);
         foreach ($this->columns as $column) {
             if ($column->getName() == $columnName) {
                 return $column;
@@ -600,9 +588,10 @@ class Table
      * @param Column $newColumn
      *
      * @return Table
+     *
      * @throws Error
      */
-    public function insertColumn(Column $newColumn): Table
+    public function insertColumn(Column $newColumn): self
     {
         foreach ($this->columns as $column) {
             if ($column->getID() == $newColumn->getID()) {
@@ -622,9 +611,9 @@ class Table
      *
      * @return $this
      */
-    public function removeColumn(string $columnName): Table
+    public function removeColumn(string $columnName): self
     {
-        $columnName = trim($columnName);
+        $columnName = \trim($columnName);
         foreach ($this->columns as $index => $column) {
             if ($column->getName() == $columnName) {
                 unset($this->columns[$index]);
@@ -643,9 +632,9 @@ class Table
      *
      * @return $this
      */
-    public function removeColumnById(string $id): Table
+    public function removeColumnById(string $id): self
     {
-        $id = trim($id);
+        $id = \trim($id);
         foreach ($this->columns as $index => $column) {
             if ($column->getID() == $id) {
                 unset($this->columns[$index]);
@@ -670,30 +659,23 @@ class Table
         $keyName = 'fk';
         foreach ($columns as $index => &$column) {
             // Validate column name format and strip backticks
-            if (!preg_match(Statement::REGEX_COLUMN, $column)) {
+            if (!\preg_match(Statement::REGEX_COLUMN, $column)) {
                 unset($columns[$index]);
             } else {
-                $column = trim($column, '`');
+                $column = \trim($column, '`');
                 if (!$indexKey) {
-                    $keyName .= '_' . ((strlen($column) > 4) ? substr($column, 0, 4) : $column);
+                    $keyName .= '_' . ((\strlen($column) > 4) ? \substr($column, 0, 4) : $column);
                 }
 
                 $column = '`' . $column . '`';
             }
         }
 
-        if (count($columns)) {
+        if (\count($columns)) {
             $this->groupIndexingList[$indexKey ?: $keyName] = $columns;
         }
         return $this;
     }
-
-    /** @var array{add: array, remove: array, modify: array} Pending ALTER TABLE column operations */
-    private array $alterColumn = [
-        'add' => [],
-        'remove' => [],
-        'modify' => [],
-    ];
 
     /**
      * Queue a column addition for a batch ALTER TABLE operation.
@@ -702,20 +684,21 @@ class Table
      * @param string $after Column name to insert after (empty for end)
      *
      * @return Column The created Column instance
+     *
      * @throws Error
      */
     public function alterAddColumn(string $columnSyntax, string $after = ''): Column
     {
-        $columnSyntax = trim($columnSyntax);
-        if (preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
-            $columnName = trim($matches[1], '`');
+        $columnSyntax = \trim($columnSyntax);
+        if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+            $columnName = \trim($matches[1], '`');
             foreach ($this->alterColumn['add'] as $column) {
                 if ($column->getName() == $columnSyntax) {
                     throw new DatabaseException('The column `' . $columnName . '` already exists.');
                 }
             }
             $column = new Column($columnName, $matches[2] ?? '', $this);
-            $after = trim($after);
+            $after = \trim($after);
             $this->alterColumn['add'][] = ['entity' => $column, 'after' => $after];
 
             return $column;
@@ -730,11 +713,12 @@ class Table
      * @param string $columnName Column name to remove
      *
      * @return Table
+     *
      * @throws Error
      */
     public function alterRemoveColumn(string $columnName): static
     {
-        $columnName = trim($columnName);
+        $columnName = \trim($columnName);
         foreach ($this->alterColumn['remove'] as $column) {
             if ($column->getName() == $columnName) {
                 throw new DatabaseException('The column `' . $columnName . '` already exists.');
@@ -752,20 +736,21 @@ class Table
      * @param string $after Column name to position after (empty to keep position)
      *
      * @return Column The created Column instance
+     *
      * @throws Error
      */
     public function alterModifyColumn(string $columnSyntax, string $after = ''): Column
     {
-        $columnSyntax = trim($columnSyntax);
-        if (preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
-            $columnName = trim($matches[1], '`');
+        $columnSyntax = \trim($columnSyntax);
+        if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+            $columnName = \trim($matches[1], '`');
             foreach ($this->alterColumn['add'] as $column) {
                 if ($column->getName() == $columnSyntax) {
                     throw new DatabaseException('The column `' . $columnName . '` already exists.');
                 }
             }
             $column = new Column($columnName, $matches[2] ?? '', $this);
-            $after = trim($after);
+            $after = \trim($after);
             $this->alterColumn['modify'][] = ['entity' => $column, 'after' => $after];
 
             return $column;
@@ -790,9 +775,41 @@ class Table
             $syntax[] = 'MODIFY COLUMN ' . $column['entity']->getSyntax();
         }
         foreach ($this->alterColumn['remove'] as $columnName) {
-            $syntax[] = 'DROP COLUMN `' . addslashes($columnName) . '`';
+            $syntax[] = 'DROP COLUMN `' . \addslashes($columnName) . '`';
         }
 
-        return 'ALTER TABLE `' . addslashes($this->getName()) . '`' . implode(', ', $syntax) . ';';
+        return 'ALTER TABLE `' . \addslashes($this->getName()) . '`' . \implode(', ', $syntax) . ';';
+    }
+
+    /**
+     * Parse the config syntax.
+     *
+     * @param string $syntax
+     *
+     * @return array
+     */
+    private function parseSyntax(string $syntax): array
+    {
+        $parameters = [];
+
+        // Split syntax by commas, respecting parenthesized groups and quoted strings
+        $clips = \preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
+        foreach ($clips as $clip) {
+            if (\preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
+                if (!isset($parameters[$matches[1]])) {
+                    $parameters[$matches[1]] = null;
+                }
+
+                if ($matches[2] ?? '') {
+                    $parameters[$matches[1]] = [];
+                    while (\preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
+                        $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
+                        $matches[2] = \substr($matches[2], \strlen($extracted[0]));
+                    }
+                }
+            }
+        }
+
+        return $parameters;
     }
 }

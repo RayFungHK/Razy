@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -11,7 +12,9 @@
  * Fulfills the PSR-16 specification without requiring psr/simple-cache.
  *
  * @package Razy
+ *
  * @license MIT
+ *
  * @see https://www.php-fig.org/psr/psr-16/
  */
 
@@ -27,8 +30,8 @@ interface PsrCacheInterface
     /**
      * Fetches a value from the cache.
      *
-     * @param string $key     The unique key of this item in the cache.
-     * @param mixed  $default Default value to return if the key does not exist.
+     * @param string $key The unique key of this item in the cache.
+     * @param mixed $default Default value to return if the key does not exist.
      *
      * @return mixed The value of the item from the cache, or $default in case of cache miss.
      *
@@ -39,9 +42,9 @@ interface PsrCacheInterface
     /**
      * Persists data in the cache, uniquely referenced by a key with an optional expiration TTL time.
      *
-     * @param string                $key   The key of the item to store.
-     * @param mixed                 $value The value of the item to store, must be serializable.
-     * @param null|int|DateInterval $ttl   Optional. The TTL value of this item.
+     * @param string $key The key of the item to store.
+     * @param mixed $value The value of the item to store, must be serializable.
+     * @param int|DateInterval|null $ttl Optional. The TTL value of this item.
      *
      * @return bool True on success and false on failure.
      *
@@ -70,8 +73,8 @@ interface PsrCacheInterface
     /**
      * Obtains multiple cache items by their unique keys.
      *
-     * @param iterable<string> $keys    A list of keys that can be obtained in a single operation.
-     * @param mixed            $default Default value to return for keys that do not exist.
+     * @param iterable<string> $keys A list of keys that can be obtained in a single operation.
+     * @param mixed $default Default value to return for keys that do not exist.
      *
      * @return iterable<string, mixed> A list of key => value pairs.
      *
@@ -83,8 +86,8 @@ interface PsrCacheInterface
     /**
      * Persists a set of key => value pairs in the cache, with an optional TTL.
      *
-     * @param iterable               $values A list of key => value pairs for a multiple-set operation.
-     * @param null|int|DateInterval  $ttl    Optional. The TTL value of this item.
+     * @param iterable $values A list of key => value pairs for a multiple-set operation.
+     * @param int|DateInterval|null $ttl Optional. The TTL value of this item.
      *
      * @return bool True on success and false on failure.
      *

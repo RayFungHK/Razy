@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -13,6 +14,7 @@
  * Requires PHP ext-ssh2.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -40,13 +42,13 @@ class SftpTransport implements PackageTransportInterface
     private ?SFTPClient $client = null;
 
     /**
-     * @param string      $host       SFTP hostname
-     * @param string      $username   SSH username
-     * @param string      $password   Password (for password auth) or passphrase (for key auth)
-     * @param int         $port       SSH port (default 22)
-     * @param string      $basePath   Root path on the server where the repo structure lives
+     * @param string $host SFTP hostname
+     * @param string $username SSH username
+     * @param string $password Password (for password auth) or passphrase (for key auth)
+     * @param int $port SSH port (default 22)
+     * @param string $basePath Root path on the server where the repo structure lives
      * @param string|null $privateKey Path to the private key file (for key-based auth)
-     * @param string|null $publicKey  Path to the public key file (for key-based auth)
+     * @param string|null $publicKey Path to the public key file (for key-based auth)
      */
     public function __construct(
         private readonly string $host,
@@ -60,6 +62,16 @@ class SftpTransport implements PackageTransportInterface
     }
 
     /**
+     * Disconnect the SFTP client when the transport is destroyed.
+     */
+    public function __destruct()
+    {
+        if (null !== $this->client) {
+            $this->client->disconnect();
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function fetchMetadata(string $packageName): ?array
@@ -69,8 +81,8 @@ class SftpTransport implements PackageTransportInterface
             return null;
         }
 
-        $packageName = strtolower($packageName);
-        $remotePath = rtrim($this->basePath, '/') . '/p2/' . $packageName . '.json';
+        $packageName = \strtolower($packageName);
+        $remotePath = \rtrim($this->basePath, '/') . '/p2/' . $packageName . '.json';
 
         try {
             $content = $client->downloadString($remotePath);
@@ -78,9 +90,9 @@ class SftpTransport implements PackageTransportInterface
                 return null;
             }
 
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            $data = \json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
-            return is_array($data) ? $data : null;
+            return \is_array($data) ? $data : null;
         } catch (Exception) {
             return null;
         }
@@ -103,7 +115,7 @@ class SftpTransport implements PackageTransportInterface
 
             // Report completion via progress callback (SFTP does not support incremental progress)
             if (null !== $progressCallback) {
-                $size = filesize($destinationPath) ?: 0;
+                $size = \filesize($destinationPath) ?: 0;
                 $progressCallback($size, $size);
             }
 
@@ -119,16 +131,6 @@ class SftpTransport implements PackageTransportInterface
     public function getScheme(): string
     {
         return 'sftp';
-    }
-
-    /**
-     * Disconnect the SFTP client when the transport is destroyed.
-     */
-    public function __destruct()
-    {
-        if (null !== $this->client) {
-            $this->client->disconnect();
-        }
     }
 
     /**
@@ -169,7 +171,7 @@ class SftpTransport implements PackageTransportInterface
      */
     private function resolveRemotePath(string $url): string
     {
-        $parsed = parse_url($url);
+        $parsed = \parse_url($url);
         if (isset($parsed['path'])) {
             return $parsed['path'];
         }

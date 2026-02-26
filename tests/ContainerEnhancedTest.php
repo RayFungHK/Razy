@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for Container enhancements:
  * - Tagged Bindings
@@ -32,17 +33,26 @@ interface ReportInterface
 
 class PdfReport implements ReportInterface
 {
-    public function name(): string { return 'pdf'; }
+    public function name(): string
+    {
+        return 'pdf';
+    }
 }
 
 class CsvReport implements ReportInterface
 {
-    public function name(): string { return 'csv'; }
+    public function name(): string
+    {
+        return 'csv';
+    }
 }
 
 class HtmlReport implements ReportInterface
 {
-    public function name(): string { return 'html'; }
+    public function name(): string
+    {
+        return 'html';
+    }
 }
 
 /** Simple service for scoped singleton tests */
@@ -68,19 +78,25 @@ class HookableService
 {
     public string $injectedValue = '';
 
-    public function __construct(public string $label = 'hookable') {}
+    public function __construct(public string $label = 'hookable')
+    {
+    }
 }
 
 /** Service for method injection tests */
 class CallTestService
 {
-    public function __construct(public string $tag = 'call-service') {}
+    public function __construct(public string $tag = 'call-service')
+    {
+    }
 }
 
 /** Another service for method injection */
 class CallTestDep
 {
-    public function __construct(public string $name = 'dep-name') {}
+    public function __construct(public string $name = 'dep-name')
+    {
+    }
 }
 
 /** Invokable class for call() tests */
@@ -159,7 +175,7 @@ class ContainerEnhancedTest extends TestCase
         $this->container->tag([PdfReport::class, CsvReport::class], 'reports');
 
         $reports = $this->container->tagged('reports');
-        $names = array_map(fn(ReportInterface $r) => $r->name(), $reports);
+        $names = \array_map(fn (ReportInterface $r) => $r->name(), $reports);
 
         $this->assertSame(['pdf', 'csv'], $names);
     }
@@ -465,7 +481,7 @@ class ContainerEnhancedTest extends TestCase
             function (CallTestService $svc, string $extra = 'default') {
                 return $svc->tag . ':' . $extra;
             },
-            ['extra' => 'custom']
+            ['extra' => 'custom'],
         );
 
         $this->assertSame('call-service:custom', $result);
@@ -482,7 +498,7 @@ class ContainerEnhancedTest extends TestCase
 
     public function testCallWithInstanceMethod(): void
     {
-        $obj = new class {
+        $obj = new class() {
             public function greet(CallTestService $svc): string
             {
                 return 'hello:' . $svc->tag;
@@ -580,7 +596,7 @@ class ContainerEnhancedTest extends TestCase
     public function testChildContainerDelegatesToParent(): void
     {
         $parent = new Container();
-        $parent->singleton(CallTestService::class, fn() => new CallTestService('from-parent'));
+        $parent->singleton(CallTestService::class, fn () => new CallTestService('from-parent'));
 
         $child = new Container($parent);
 
@@ -591,10 +607,10 @@ class ContainerEnhancedTest extends TestCase
     public function testChildContainerOverridesParentBinding(): void
     {
         $parent = new Container();
-        $parent->singleton(CallTestService::class, fn() => new CallTestService('from-parent'));
+        $parent->singleton(CallTestService::class, fn () => new CallTestService('from-parent'));
 
         $child = new Container($parent);
-        $child->singleton(CallTestService::class, fn() => new CallTestService('from-child'));
+        $child->singleton(CallTestService::class, fn () => new CallTestService('from-child'));
 
         $svc = $child->make(CallTestService::class);
         $this->assertSame('from-child', $svc->tag);
@@ -616,7 +632,7 @@ class ContainerEnhancedTest extends TestCase
     public function testParentSingletonIsSharedAcrossChildren(): void
     {
         $parent = new Container();
-        $parent->singleton(CallTestService::class, fn() => new CallTestService('shared'));
+        $parent->singleton(CallTestService::class, fn () => new CallTestService('shared'));
 
         $child1 = new Container($parent);
         $child2 = new Container($parent);
@@ -632,7 +648,7 @@ class ContainerEnhancedTest extends TestCase
         $parent = new Container();
         $child = new Container($parent);
 
-        $child->singleton(CallTestService::class, fn() => new CallTestService('child-only'));
+        $child->singleton(CallTestService::class, fn () => new CallTestService('child-only'));
 
         $this->assertTrue($child->has(CallTestService::class));
         $this->assertFalse($parent->has(CallTestService::class));
@@ -667,10 +683,10 @@ class ContainerEnhancedTest extends TestCase
     public function testThreeLevelContainerHierarchy(): void
     {
         $root = new Container();
-        $root->singleton(CallTestService::class, fn() => new CallTestService('root'));
+        $root->singleton(CallTestService::class, fn () => new CallTestService('root'));
 
         $mid = new Container($root);
-        $mid->singleton(CallTestDep::class, fn() => new CallTestDep('mid'));
+        $mid->singleton(CallTestDep::class, fn () => new CallTestDep('mid'));
 
         $leaf = new Container($mid);
 
@@ -700,7 +716,7 @@ class ContainerEnhancedTest extends TestCase
     public function testChildGetDelegatesToParent(): void
     {
         $parent = new Container();
-        $parent->singleton(CallTestService::class, fn() => new CallTestService('via-get'));
+        $parent->singleton(CallTestService::class, fn () => new CallTestService('via-get'));
 
         $child = new Container($parent);
 
@@ -769,7 +785,7 @@ class ContainerEnhancedTest extends TestCase
     public function testCallUsesParentContainerBindings(): void
     {
         $parent = new Container();
-        $parent->singleton(CallTestService::class, fn() => new CallTestService('parent-svc'));
+        $parent->singleton(CallTestService::class, fn () => new CallTestService('parent-svc'));
 
         $child = new Container($parent);
 
@@ -827,7 +843,7 @@ class ContainerEnhancedTest extends TestCase
 
     public function testSingletonIfRegistersWhenNotBound(): void
     {
-        $this->container->singletonIf(CallTestService::class, fn() => new CallTestService('singleton-if'));
+        $this->container->singletonIf(CallTestService::class, fn () => new CallTestService('singleton-if'));
         $a = $this->container->make(CallTestService::class);
         $b = $this->container->make(CallTestService::class);
         $this->assertSame($a, $b);
@@ -836,8 +852,8 @@ class ContainerEnhancedTest extends TestCase
 
     public function testSingletonIfSkipsWhenAlreadyBound(): void
     {
-        $this->container->singleton(CallTestService::class, fn() => new CallTestService('first'));
-        $this->container->singletonIf(CallTestService::class, fn() => new CallTestService('second'));
+        $this->container->singleton(CallTestService::class, fn () => new CallTestService('first'));
+        $this->container->singletonIf(CallTestService::class, fn () => new CallTestService('second'));
         $result = $this->container->make(CallTestService::class);
         $this->assertSame('first', $result->tag);
     }
@@ -858,10 +874,10 @@ class ContainerEnhancedTest extends TestCase
     public function testScopedIfSkipsWhenAlreadyBound(): void
     {
         ScopedService::resetCounter();
-        $this->container->scoped(ScopedService::class, fn() => new ScopedService());
+        $this->container->scoped(ScopedService::class, fn () => new ScopedService());
         $first = $this->container->make(ScopedService::class);
 
-        $this->container->scopedIf(ScopedService::class, fn() => new ScopedService());
+        $this->container->scopedIf(ScopedService::class, fn () => new ScopedService());
         $second = $this->container->make(ScopedService::class);
         $this->assertSame($first, $second);
     }
@@ -935,7 +951,7 @@ class ContainerEnhancedTest extends TestCase
 
     public function testFactoryWithSingletonStillReturnsSameInstance(): void
     {
-        $this->container->singleton(CallTestService::class, fn() => new CallTestService('single'));
+        $this->container->singleton(CallTestService::class, fn () => new CallTestService('single'));
         $factory = $this->container->factory(CallTestService::class);
 
         $a = $factory();
@@ -978,7 +994,7 @@ class ContainerEnhancedTest extends TestCase
 
     public function testExtendAppliesImmediatelyToCachedSingleton(): void
     {
-        $this->container->singleton(HookableService::class, fn() => new HookableService('cached'));
+        $this->container->singleton(HookableService::class, fn () => new HookableService('cached'));
         $first = $this->container->make(HookableService::class);
         $this->assertSame('', $first->injectedValue);
 

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Unit tests for Razy\Cache and Razy\Cache\* adapters.
  *
@@ -17,6 +18,7 @@ use Razy\Cache\FileAdapter;
 use Razy\Cache\InvalidArgumentException;
 use Razy\Cache\NullAdapter;
 use Razy\Contract\SimpleCache\PsrCacheInterface;
+use stdClass;
 
 #[CoversClass(Cache::class)]
 #[CoversClass(FileAdapter::class)]
@@ -28,7 +30,7 @@ class CacheTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->cacheDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_cache_test_' . uniqid();
+        $this->cacheDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_cache_test_' . \uniqid();
         Cache::reset();
     }
 
@@ -38,24 +40,40 @@ class CacheTest extends TestCase
         $this->removeDirectory($this->cacheDir);
     }
 
-    private function removeDirectory(string $dir): void
+    // ==================== FILE ADAPTER: DATA TYPES ====================
+
+    public static function cacheDataTypeProvider(): array
     {
-        if (!is_dir($dir)) {
-            return;
-        }
-        foreach (scandir($dir) as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            if (is_dir($path)) {
-                $this->removeDirectory($path);
-                @rmdir($path);
-            } else {
-                @unlink($path);
-            }
-        }
-        @rmdir($dir);
+        return [
+            'array' => ['array.key', ['name' => 'Razy', 'version' => '0.5.4', 'nested' => ['a' => 1]]],
+            'integer' => ['int.key', 42],
+            'float' => ['float.key', 3.14],
+            'bool true' => ['bool.true', true],
+            'bool false' => ['bool.false', false],
+        ];
+    }
+
+    // ==================== FILE ADAPTER: KEY VALIDATION ====================
+
+    public static function invalidCacheKeyProvider(): array
+    {
+        return [
+            'empty key' => ['', 'get', []],
+            'curly braces' => ['invalid{key}', 'set', ['value']],
+            'slash' => ['invalid/key', 'set', ['value']],
+            'colon' => ['invalid:key', 'set', ['value']],
+        ];
+    }
+
+    public static function nullAdapterTrueMethodProvider(): array
+    {
+        return [
+            'set' => ['set', ['any.key', 'value']],
+            'delete' => ['delete', ['any.key']],
+            'clear' => ['clear', []],
+            'setMultiple' => ['setMultiple', [['a' => 1, 'b' => 2]]],
+            'deleteMultiple' => ['deleteMultiple', [['a', 'b']]],
+        ];
     }
 
     // ==================== FILE ADAPTER: BASIC OPERATIONS ====================
@@ -117,19 +135,6 @@ class CacheTest extends TestCase
         $this->assertFalse($adapter->has('key3'));
     }
 
-    // ==================== FILE ADAPTER: DATA TYPES ====================
-
-    public static function cacheDataTypeProvider(): array
-    {
-        return [
-            'array'       => ['array.key', ['name' => 'Razy', 'version' => '0.5.4', 'nested' => ['a' => 1]]],
-            'integer'     => ['int.key', 42],
-            'float'       => ['float.key', 3.14],
-            'bool true'   => ['bool.true', true],
-            'bool false'  => ['bool.false', false],
-        ];
-    }
-
     #[DataProvider('cacheDataTypeProvider')]
     public function testFileAdapterStoresDataTypes(string $key, mixed $value): void
     {
@@ -153,14 +158,14 @@ class CacheTest extends TestCase
     {
         $adapter = new FileAdapter($this->cacheDir);
 
-        $obj = new \stdClass();
+        $obj = new stdClass();
         $obj->name = 'test';
         $obj->value = 123;
 
         $adapter->set('obj.key', $obj);
         $result = $adapter->get('obj.key');
 
-        $this->assertInstanceOf(\stdClass::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result);
         $this->assertSame('test', $result->name);
         $this->assertSame(123, $result->value);
     }
@@ -192,7 +197,7 @@ class CacheTest extends TestCase
 
         // Set with 1-second TTL then wait for expiry
         $adapter->set('expiring.key', 'value', 1);
-        sleep(2);
+        \sleep(2);
 
         $this->assertNull($adapter->get('expiring.key'));
         $this->assertFalse($adapter->has('expiring.key'));
@@ -260,18 +265,6 @@ class CacheTest extends TestCase
         $this->assertFalse($adapter->has('del.c'));
     }
 
-    // ==================== FILE ADAPTER: KEY VALIDATION ====================
-
-    public static function invalidCacheKeyProvider(): array
-    {
-        return [
-            'empty key'    => ['', 'get', []],
-            'curly braces' => ['invalid{key}', 'set', ['value']],
-            'slash'        => ['invalid/key', 'set', ['value']],
-            'colon'        => ['invalid:key', 'set', ['value']],
-        ];
-    }
-
     #[DataProvider('invalidCacheKeyProvider')]
     public function testFileAdapterRejectsInvalidKey(string $key, string $method, array $args): void
     {
@@ -302,7 +295,7 @@ class CacheTest extends TestCase
 
         $adapter->set('gc.live', 'alive', 3600);
         $adapter->set('gc.dead', 'expired', 1);
-        sleep(2);
+        \sleep(2);
 
         $removed = $adapter->gc();
 
@@ -328,7 +321,7 @@ class CacheTest extends TestCase
             $this->markTestSkipped('Permission test skipped on Windows.');
         }
 
-        $dir = '/proc/razy_cache_test_' . uniqid();
+        $dir = '/proc/razy_cache_test_' . \uniqid();
 
         $this->expectException(InvalidArgumentException::class);
         new FileAdapter($dir);
@@ -342,17 +335,6 @@ class CacheTest extends TestCase
 
         $this->assertNull($adapter->get('any.key'));
         $this->assertSame('custom', $adapter->get('any.key', 'custom'));
-    }
-
-    public static function nullAdapterTrueMethodProvider(): array
-    {
-        return [
-            'set'            => ['set', ['any.key', 'value']],
-            'delete'         => ['delete', ['any.key']],
-            'clear'          => ['clear', []],
-            'setMultiple'    => ['setMultiple', [['a' => 1, 'b' => 2]]],
-            'deleteMultiple' => ['deleteMultiple', [['a', 'b']]],
-        ];
     }
 
     #[DataProvider('nullAdapterTrueMethodProvider')]
@@ -529,8 +511,8 @@ class CacheTest extends TestCase
     {
         Cache::initialize($this->cacheDir);
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'razy_cache_test_');
-        file_put_contents($tempFile, 'original content');
+        $tempFile = \tempnam(\sys_get_temp_dir(), 'razy_cache_test_');
+        \file_put_contents($tempFile, 'original content');
 
         $data = ['key' => 'value', 'list' => [1, 2, 3]];
         Cache::setValidated('validated.key', $tempFile, $data);
@@ -538,27 +520,27 @@ class CacheTest extends TestCase
         $result = Cache::getValidated('validated.key', $tempFile);
         $this->assertSame($data, $result);
 
-        @unlink($tempFile);
+        @\unlink($tempFile);
     }
 
     public function testCacheFacadeGetValidatedDetectsFileChange(): void
     {
         Cache::initialize($this->cacheDir);
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'razy_cache_test_');
-        file_put_contents($tempFile, 'original');
+        $tempFile = \tempnam(\sys_get_temp_dir(), 'razy_cache_test_');
+        \file_put_contents($tempFile, 'original');
 
         Cache::setValidated('validchange.key', $tempFile, ['original' => true]);
 
         // Modify the file (ensure mtime changes)
-        sleep(1);
-        file_put_contents($tempFile, 'modified');
-        clearstatcache(true, $tempFile);
+        \sleep(1);
+        \file_put_contents($tempFile, 'modified');
+        \clearstatcache(true, $tempFile);
 
         $result = Cache::getValidated('validchange.key', $tempFile);
         $this->assertNull($result);
 
-        @unlink($tempFile);
+        @\unlink($tempFile);
     }
 
     public function testCacheFacadeGetValidatedReturnDefaultForMissingFile(): void
@@ -651,7 +633,7 @@ class CacheTest extends TestCase
     {
         $adapter = new FileAdapter($this->cacheDir);
 
-        $data = array_fill(0, 1000, 'item-' . str_repeat('x', 100));
+        $data = \array_fill(0, 1000, 'item-' . \str_repeat('x', 100));
         $adapter->set('large.key', $data);
 
         $this->assertSame($data, $adapter->get('large.key'));
@@ -707,8 +689,28 @@ class CacheTest extends TestCase
     public function testCacheInterfaceExtendsPsr16Interface(): void
     {
         $this->assertTrue(
-            is_subclass_of(CacheInterface::class, PsrCacheInterface::class),
-            'Razy\\Cache\\CacheInterface should extend Psr\\SimpleCache\\CacheInterface'
+            \is_subclass_of(CacheInterface::class, PsrCacheInterface::class),
+            'Razy\\Cache\\CacheInterface should extend Psr\\SimpleCache\\CacheInterface',
         );
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        foreach (\scandir($dir) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            if (\is_dir($path)) {
+                $this->removeDirectory($path);
+                @\rmdir($path);
+            } else {
+                @\unlink($path);
+            }
+        }
+        @\rmdir($dir);
     }
 }
