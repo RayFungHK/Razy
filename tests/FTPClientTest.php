@@ -20,6 +20,13 @@ use ReflectionClass;
 #[CoversClass(FTPClient::class)]
 class FTPClientTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        if (!\extension_loaded('ftp')) {
+            $this->markTestSkipped('ext-ftp is required for FTPClient tests.');
+        }
+    }
+
     // ==================== EXTENSION CHECK ====================
 
     public function testFtpExtensionLoaded(): void

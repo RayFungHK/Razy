@@ -15,6 +15,14 @@
 define('SYSTEM_ROOT', dirname(__DIR__));
 define('PHPUNIT_RUNNING', true);
 
+// Define runtime path constants used by framework classes (e.g. Distributor)
+if (!defined('PHAR_PATH')) {
+    define('PHAR_PATH', SYSTEM_ROOT . '/src');
+}
+if (!defined('SITES_FOLDER')) {
+    define('SITES_FOLDER', SYSTEM_ROOT . '/sites');
+}
+
 // Define mode constants needed by Error class and other components
 if (!defined('CLI_MODE')) {
     define('CLI_MODE', true);

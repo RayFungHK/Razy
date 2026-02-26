@@ -1237,7 +1237,7 @@ class AuthTest extends TestCase
     // Section 5: Gate — Basic Abilities
     // ═══════════════════════════════════════════════════════════════
 
-    private function createAuthenticatedGate(GenericUser $user = null): Gate
+    private function createAuthenticatedGate(?GenericUser $user = null): Gate
     {
         $user ??= new GenericUser(['id' => 1, 'name' => 'Admin']);
         $guard = new CallbackGuard(userResolver: fn () => $user);
