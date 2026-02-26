@@ -189,13 +189,13 @@ class Agent
      * to a URL path segment and folder level.
      *
      * @param string $type The registration type ('Route', 'LazyRoute', or 'Script')
-     * @param array|string $route The route path or array of route => path pairs
-     * @param string|Route|array|null $path The closure file path, Route entity, or nested definition
+     * @param mixed $route The route path or array of route => path pairs
+     * @param mixed $path The closure file path, Route entity, or nested definition
      *
      * @return $this Fluent interface
      * @throws \InvalidArgumentException
      */
-    private function addRoutePath(string $type, $route, $path = null): static
+    private function addRoutePath(string $type, mixed $route, mixed $path = null): static
     {
         if (is_array($route)) {
             foreach ($route as $_route => $_method) {
@@ -293,12 +293,12 @@ class Agent
      *
      * @param mixed $route An array of route set or a string of route. The string of route will be matched as a regular
      *                     expression
-     * @param null $path The path of the closure file
+     * @param string|Route|null $path The path of the closure file or a Route entity
      *
      * @return $this Fluent interface
      * @throws Throwable
      */
-    public function addRoute(mixed $route, $path = null): static
+    public function addRoute(mixed $route, mixed $path = null): static
     {
         if (is_array($route)) {
             // Batch registration: iterate route => closure path pairs

@@ -9,19 +9,21 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Exception;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * Exception thrown when a file operation fails (read, write, not found, not readable).
  */
 class FileException extends RuntimeException
 {
-    public function __construct(string $message = 'File operation failed.', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $message = 'File operation failed.', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }

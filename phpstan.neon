@@ -1,5 +1,7 @@
 parameters:
     level: 5
+    bootstrapFiles:
+        - phpstan-bootstrap.php
     paths:
         - src/library/Razy
     excludePaths:

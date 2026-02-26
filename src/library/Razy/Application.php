@@ -103,9 +103,11 @@ class Application
         $this->ensureInitialized();
 
         // Register the SPL autoloader for distributor-managed libraries
-        spl_autoload_register(function ($className) {
+        spl_autoload_register(function (string $className): void {
             // Delegate autoloading to the matched domain's distributor chain
-            return $this->domain && $this->domain->autoload($className);
+            if ($this->domain) {
+                $this->domain->autoload($className);
+            }
         });
 
         // Match the domain by the given FQDN string

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -8,10 +9,13 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Exception;
+
+use Throwable;
 
 /**
  * Exception thrown for transaction-specific errors.
@@ -24,9 +28,9 @@ class TransactionException extends DatabaseException
     /**
      * @param string $message Description of the transaction error
      * @param int $code Error code
-     * @param \Throwable|null $previous The original exception
+     * @param Throwable|null $previous The original exception
      */
-    public function __construct(string $message = '', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }

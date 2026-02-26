@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -12,6 +13,7 @@
  * and render an appropriate error response.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -37,7 +39,7 @@ class HttpException extends RuntimeException
     public function __construct(
         int $statusCode = 400,
         string $message = '',
-        ?Throwable $previous = null
+        ?Throwable $previous = null,
     ) {
         parent::__construct($message, $statusCode, $previous);
     }

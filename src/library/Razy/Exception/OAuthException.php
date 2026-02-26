@@ -9,19 +9,21 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Exception;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * Exception thrown when an OAuth2 or SSO operation fails (token exchange, HTTP errors, JWT parsing).
  */
 class OAuthException extends RuntimeException
 {
-    public function __construct(string $message = 'OAuth operation failed.', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $message = 'OAuth operation failed.', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }

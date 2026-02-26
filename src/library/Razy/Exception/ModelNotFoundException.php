@@ -9,12 +9,14 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Exception;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * Exception thrown when a model cannot be found by its primary key.
@@ -29,7 +31,7 @@ class ModelNotFoundException extends RuntimeException
     /** @var array The ID(s) that were searched */
     private array $ids = [];
 
-    public function __construct(string $message = 'Model not found.', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $message = 'Model not found.', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }
@@ -43,7 +45,7 @@ class ModelNotFoundException extends RuntimeException
     {
         $this->model = $model;
         $this->ids = $ids;
-        $this->message = "No query results for model [{$model}]" . ($ids ? ' ' . implode(', ', $ids) : '') . '.';
+        $this->message = "No query results for model [{$model}]" . ($ids ? ' ' . \implode(', ', $ids) : '') . '.';
 
         return $this;
     }

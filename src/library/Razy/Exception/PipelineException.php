@@ -9,19 +9,21 @@
  * with this source code in the file LICENSE.
  *
  * @package Razy
+ *
  * @license MIT
  */
 
 namespace Razy\Exception;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * Exception thrown when a pipeline operation fails (action creation, plugin not found).
  */
 class PipelineException extends RuntimeException
 {
-    public function __construct(string $message = 'Pipeline operation failed.', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $message = 'Pipeline operation failed.', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }

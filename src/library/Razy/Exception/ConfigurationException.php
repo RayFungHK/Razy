@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of Razy v0.5.
  *
@@ -10,6 +11,7 @@
  * Introduced in Phase 3.3 to replace exit() in Application::loadSiteConfig().
  *
  * @package Razy
+ *
  * @license MIT
  */
 
