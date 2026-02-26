@@ -5,6 +5,7 @@
 !.gitignore
 !.php-cs-fixer.dist.php
 !phpstan.neon
+!phpstan-bootstrap.php
 !LICENSE
 !VERSION
 !build.php
