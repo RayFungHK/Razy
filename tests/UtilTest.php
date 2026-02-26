@@ -126,7 +126,7 @@ class UtilTest extends TestCase
 
     public function testTidyNormalizesBackslashes(): void
     {
-        $this->assertSame('a/b/c', PathUtil::tidy('a\\b\\c', false, '/'));
+        $this->assertSame('a/b/c', PathUtil::tidy('a\b\c', false, '/'));
     }
 
     public function testTidyWithEnding(): void
@@ -203,7 +203,7 @@ class UtilTest extends TestCase
 
     public function testIsDirPathWithTrailingBackslash(): void
     {
-        $this->assertTrue(PathUtil::isDirPath('path\\to\\dir\\'));
+        $this->assertTrue(PathUtil::isDirPath('path\to\dir\\'));
     }
 
     public function testIsDirPathWithoutTrailingSlash(): void

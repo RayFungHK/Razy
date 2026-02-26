@@ -40,7 +40,7 @@ class Statement
     use PluginTrait;
 
     /** @var string Regex pattern for validating column names (backtick-quoted or alpha-start identifiers) */
-    public const REGEX_COLUMN = '/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/';
+    public const REGEX_COLUMN = '/^(?:`(?:(?:\\\.(*SKIP)(*FAIL)|.)+|\\\[\\\`])+`|[a-z]\w*)$/';
 
     /** @var array Column names used in INSERT/DELETE statements */
     private array $columns = [];
@@ -149,7 +149,7 @@ class Statement
         $column = \trim($column);
         // Match column syntax: optional table alias prefix, column name (backtick-quoted or identifier),
         // with optional JSON path operator (-> or ->>)
-        if (\preg_match('/^((`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
+        if (\preg_match('/^((`(?:(?:\\\.(*SKIP)(*FAIL)|.)++|\\\[\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
             if (isset($matches[3]) && \preg_match('/^[a-z]\w*$/', $matches[3])) {
                 // Column with table alias: quote the column part
                 return $matches[2] . '.`' . \trim($matches[3]) . '`';
@@ -564,7 +564,7 @@ class Statement
         // Validate and normalize column names, stripping backticks from quoted names
         foreach ($columns as $index => &$column) {
             $column = \trim($column);
-            if (\preg_match('/^(?:`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)$/', $column)) {
+            if (\preg_match('/^(?:`(?:\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)$/', $column)) {
                 $column = \trim($column, '`');
             } else {
                 unset($columns[$index]);
@@ -767,7 +767,7 @@ class Statement
     public function select(string $columns): self
     {
         // Split by commas while preserving quoted strings (single, double, or backtick-quoted)
-        $this->selectColumns = \preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $columns);
+        $this->selectColumns = \preg_split('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $columns);
 
         foreach ($this->selectColumns as &$column) {
             $column = (\preg_match('/^\w+$/', $column)) ? '`' . $column . '`' : $column;
@@ -861,7 +861,7 @@ class Statement
             $syntax = \trim($syntax);
             // Match update syntax: column(++|--), column(op)=value, or bare column name
             // Handles backtick-quoted columns, shorthand increment/decrement, and compound operators (+= -= *= /= &=)
-            if (\preg_match('/(?:(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|^(`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:(\+\+|--)|\s*([+\-*\/&]?=)\s*(.+))?$/', $syntax, $matches)) {
+            if (\preg_match('/(?:(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\.(*SKIP)|[^\[\]])*]|\\\.)(*SKIP)(*FAIL)|^(`(?:\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:(\+\+|--)|\s*([+\-*\/&]?=)\s*(.+))?$/', $syntax, $matches)) {
                 $matches[3] = \trim($matches[3], '`');
 
                 if (isset($matches[4]) && $matches[4]) {

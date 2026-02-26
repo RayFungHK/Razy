@@ -56,7 +56,7 @@ class Column
         $this->configSyntax = \trim($this->configSyntax);
 
         // Validate column name: must be a backtick-quoted identifier or a lowercase-alpha-starting word
-        if (!\preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $this->name)) {
+        if (!\preg_match('/^(`(?:(?:\\\.(*SKIP)(*FAIL)|.)++|\\\[\\\`])+`|[a-z]\w*)$/', $this->name)) {
             throw new DatabaseException('The column name ' . $this->name . ' is not in a correct format,');
         }
 
@@ -434,7 +434,7 @@ class Column
     public function setName(string $columnName): self
     {
         $columnName = \trim($columnName);
-        if (!\preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
+        if (!\preg_match('/^(`(?:(?:\\\.(*SKIP)(*FAIL)|.)++|\\\[\\\`])+`|[a-z]\w*)$/', $columnName)) {
             throw new DatabaseException('The column name ' . $columnName . ' is not in a correct format,');
         }
         $this->name = $columnName;
@@ -624,7 +624,7 @@ class Column
     public function insertAfter(string $columnName = ''): self
     {
         $columnName = \trim($columnName);
-        if ($columnName && !\preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
+        if ($columnName && !\preg_match('/^(`(?:(?:\\\.(*SKIP)(*FAIL)|.)++|\\\[\\\`])+`|[a-z]\w*)$/', $columnName)) {
             throw new DatabaseException('The column name ' . $columnName . ' is not in a correct format,');
         }
 
@@ -695,10 +695,10 @@ class Column
         $parameters = [];
 
         // Split syntax string by commas, respecting parenthesized groups and quoted strings
-        $clips = \preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
+        $clips = \preg_split('/(?:\\\.|\((?:\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
         foreach ($clips as $clip) {
             // Match keyword with optional parenthesized arguments: e.g., "type(text)" or "nullable"
-            if (\preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
+            if (\preg_match('/^(\w+)(?:\(((?:\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
                 if (!isset($parameters[$matches[1]])) {
                     $parameters[$matches[1]] = null;
                 }
@@ -707,7 +707,7 @@ class Column
                 if ($matches[2] ?? '') {
                     $parameters[$matches[1]] = [];
                     // Extract each argument: identifier, number, or quoted string
-                    while (\preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
+                    while (\preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
                         $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
                         $matches[2] = \substr($matches[2], \strlen($extracted[0]));
                     }

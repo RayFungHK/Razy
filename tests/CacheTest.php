@@ -690,7 +690,7 @@ class CacheTest extends TestCase
     {
         $this->assertTrue(
             \is_subclass_of(CacheInterface::class, PsrCacheInterface::class),
-            'Razy\\Cache\\CacheInterface should extend Psr\\SimpleCache\\CacheInterface',
+            'Razy\Cache\CacheInterface should extend Psr\SimpleCache\CacheInterface',
         );
     }
 

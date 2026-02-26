@@ -34,10 +34,10 @@ namespace Razy\Template;
 class CompiledTemplate
 {
     /** @var string Regex pattern for matching variable tags {$var.path->mod|fallback} */
-    private const VAR_TAG_REGEX = '/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/' ;
+    private const VAR_TAG_REGEX = '/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/' ;
 
     /** @var string Regex pattern for splitting pipe-delimited alternatives */
-    private const PIPE_SPLIT_REGEX = '/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/';
+    private const PIPE_SPLIT_REGEX = '/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/';
 
     /** @var array<string, self> In-memory cache keyed by content hash */
     private static array $cache = [];

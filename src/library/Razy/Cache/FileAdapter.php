@@ -389,7 +389,7 @@ class FileAdapter implements CacheInterface
         }
 
         // PSR-16 reserved characters: {}()/\@:
-        if (\preg_match('/[{}()\/\\\\@:]/', $key)) {
+        if (\preg_match('/[{}()\/\\\@:]/', $key)) {
             throw new InvalidArgumentException("Cache key '{$key}' contains reserved characters: {}()/\\@:");
         }
     }

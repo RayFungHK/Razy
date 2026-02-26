@@ -81,9 +81,9 @@ class Template implements TemplateInterface
     public static function ParseContent(string $content, array $parameters = []): mixed
     {
         // Match template variable tags like {$var} or {$var|fallback} with optional pipe-separated fallbacks
-        return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) use ($parameters) {
+        return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) use ($parameters) {
             // Split the matched expression by pipe '|' to get fallback alternatives
-            $clips = \preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+            $clips = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
             // Try each fallback value until a renderable one is found
             foreach ($clips as $clip) {
                 $value = self::ParseValue($clip, $parameters) ?? '';
@@ -110,7 +110,7 @@ class Template implements TemplateInterface
         if (null !== $value) {
             if (\strlen($path) > 0) {
                 // Extract path segments separated by dots, supporting quoted keys
-                \preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
+                \preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
 
                 // Traverse the value by each path segment (array key or object property)
                 foreach ($matches as $clip) {
@@ -224,7 +224,7 @@ class Template implements TemplateInterface
         }
 
         // Match literal values: booleans, numbers, or quoted strings
-        if (\preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
+        if (\preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
             if ($matches[1]) {
                 return $matches[1] === 'true';
             }
@@ -232,7 +232,7 @@ class Template implements TemplateInterface
         }
 
         // Match parameter variable references like $varName.path.to.value
-        if ('$' == $content[0] && \preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
+        if ('$' == $content[0] && \preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
             if (isset($parameters[$matches[1]])) {
                 return self::GetValueByPath($parameters[$matches[1]], $matches[2] ?? '');
             }

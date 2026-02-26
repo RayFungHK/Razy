@@ -109,7 +109,7 @@ class RouteRegexCompileTest extends TestCase
 
     public function testEscapedDotInRoute(): void
     {
-        $regex = RouteDispatcher::compileRouteRegex('/file\\.json');
+        $regex = RouteDispatcher::compileRouteRegex('/file\.json');
         $this->assertMatchesRegularExpression($regex, '/file.json');
     }
 

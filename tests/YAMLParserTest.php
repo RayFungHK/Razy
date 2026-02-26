@@ -292,7 +292,7 @@ class YAMLParserTest extends TestCase
 
     public function testParseEscapedStrings(): void
     {
-        $yaml = 'msg: "line1\\nline2\\ttab"';
+        $yaml = 'msg: "line1\nline2\ttab"';
         $parser = new YAMLParser($yaml);
         $result = $parser->parse();
 

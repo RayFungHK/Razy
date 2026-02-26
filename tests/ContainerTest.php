@@ -433,7 +433,7 @@ class ContainerTest extends TestCase
     {
         $this->expectException(ContainerNotFoundException::class);
         $this->expectExceptionMessage('does not exist');
-        $this->container->make('Razy\\Tests\\NonExistentClass');
+        $this->container->make('Razy\Tests\NonExistentClass');
     }
 
     public function testAbstractClassThrows(): void

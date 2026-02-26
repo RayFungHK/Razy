@@ -214,7 +214,7 @@ class YAMLDumper
         // Check if needs quoting
         if ($this->needsQuoting($value)) {
             // Escape special characters
-            $escaped = \str_replace(['\\', '"', "\n", "\t"], ['\\\\', '\\"', '\\n', '\\t'], $value);
+            $escaped = \str_replace(['\\', '"', "\n", "\t"], ['\\\\', '\"', '\n', '\t'], $value);
             return '"' . $escaped . '"';
         }
 

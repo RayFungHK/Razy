@@ -63,7 +63,7 @@ class SimplifiedMessage
     public static function decode(string $text): string
     {
         // Reverse the encoding: \c → colon, \\ → backslash
-        return \str_replace('\\\\', '\\', \str_replace('\\c', ':', $text));
+        return \str_replace('\\\\', '\\', \str_replace('\c', ':', $text));
     }
 
     /**
@@ -76,7 +76,7 @@ class SimplifiedMessage
     public static function encode(string $text): string
     {
         // Escape colons and backslashes to avoid conflicts with the message format
-        return \str_replace('\\', '\\\\', \str_replace(':', '\\c', $text));
+        return \str_replace('\\', '\\\\', \str_replace(':', '\c', $text));
     }
 
     /**

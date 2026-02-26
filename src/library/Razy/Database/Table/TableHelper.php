@@ -173,7 +173,7 @@ class TableHelper
     public function addColumn(string $columnSyntax, string $position = ''): Column
     {
         $columnSyntax = \trim($columnSyntax);
-        if (!\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+        if (!\preg_match('/^(\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
             throw new DatabaseException('Invalid column syntax: ' . $columnSyntax);
         }
 
@@ -225,7 +225,7 @@ class TableHelper
         // Parse new syntax if provided
         $configSyntax = '';
         if ($newSyntax) {
-            if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
+            if (\preg_match('/^(\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
                 $configSyntax = $matches[2] ?? '';
             } else {
                 $configSyntax = $newSyntax;
@@ -277,7 +277,7 @@ class TableHelper
 
         // Also modify the column if syntax provided
         $configSyntax = '';
-        if ($newSyntax && \preg_match('/^(?:\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
+        if ($newSyntax && \preg_match('/^(?:\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $newSyntax, $matches)) {
             $configSyntax = $matches[1] ?? '';
         }
 

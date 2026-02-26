@@ -30,10 +30,10 @@ use Throwable;
 class WhereSyntax
 {
     /** @var string Regex to split expressions by comparison/custom operators while respecting quotes and escapes */
-    public const REGEX_SPLIT_OPERAND = '/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!#:@~&]?=|><|<>|(?<![\->])[><]=?)\s*/';
+    public const REGEX_SPLIT_OPERAND = '/(?:\\\.|\((?:\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!#:@~&]?=|><|<>|(?<![\->])[><]=?)\s*/';
 
     /** @var string Regex to validate and parse column references (with optional table alias and JSON path) */
-    public const REGEX_COLUMN = '/^((?<column>`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/';
+    public const REGEX_COLUMN = '/^((?<column>`(?:\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/';
 
     /**
      * @var array<string, string> Maps syntax separators to SQL logical operators.
@@ -343,7 +343,7 @@ class WhereSyntax
                     'expr' => (($table_alias) ? '`' . $table_alias . '`.' : '') . '`' . $column_name . '`' . ($matches[4] ?? ''),
                 ];
             }
-            if (\preg_match('/^(?:(`(?:\\\\.(*SKIP)(*FAIL)|.)+`)|([a-z]\w*))$/', $expr, $matches)) {
+            if (\preg_match('/^(?:(`(?:\\\.(*SKIP)(*FAIL)|.)+`)|([a-z]\w*))$/', $expr, $matches)) {
                 return [
                     'type' => 'column',
                     'column_name' => \trim($expr, '`'),

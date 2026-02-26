@@ -134,7 +134,7 @@ class ValueEscapeTest extends TestCase
 
     public function testBackslashEscaping(): void
     {
-        $result = $this->quoteValue('path\\to\\file');
+        $result = $this->quoteValue('path\to\file');
         $this->assertIsString($result);
         $this->assertStringContainsString('\\', $result);
     }
@@ -232,7 +232,7 @@ class ValueEscapeTest extends TestCase
 
     public function testArrayWithSpecialCharsInValues(): void
     {
-        $result = $this->quoteValue(['name' => "O'Brien", 'path' => 'C:\\dir']);
+        $result = $this->quoteValue(['name' => "O'Brien", 'path' => 'C:\dir']);
         $this->assertIsString($result);
         $this->assertMatchesRegularExpression("/^'.+'$/s", $result);
     }

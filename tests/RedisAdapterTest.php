@@ -68,7 +68,7 @@ class RedisAdapterTest extends TestCase
             'curly close' => ['key}bad'],
             'parenthesis' => ['key(bad)'],
             'slash' => ['key/bad'],
-            'backslash' => ['key\\bad'],
+            'backslash' => ['key\bad'],
             'at sign' => ['key@bad'],
             'colon' => ['key:bad'],
         ];

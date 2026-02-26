@@ -188,13 +188,13 @@ class SimplifiedMessageTest extends TestCase
     {
         // Encode replaces : ??\c then \ ??\\
         // So 'key:value' ??'key\cvalue' ??'key\\cvalue'
-        $this->assertSame('key\\\\cvalue', SimplifiedMessage::encode('key:value'));
+        $this->assertSame('key\\\cvalue', SimplifiedMessage::encode('key:value'));
     }
 
     #[Test]
     public function encodeEscapesBackslashes(): void
     {
-        $this->assertSame('path\\\\file', SimplifiedMessage::encode('path\\file'));
+        $this->assertSame('path\\\file', SimplifiedMessage::encode('path\file'));
     }
 
     #[Test]
@@ -203,26 +203,26 @@ class SimplifiedMessageTest extends TestCase
         // Input literal: a:\b
         // Step 1 (: ??\c): a\c\b
         // Step 2 (\ ??\\): a\\c\\b
-        $this->assertSame('a\\\\c\\\\b', SimplifiedMessage::encode('a:\\b'));
+        $this->assertSame('a\\\c\\\b', SimplifiedMessage::encode('a:\b'));
     }
 
     #[Test]
     public function decodeReversesColonEscape(): void
     {
-        $this->assertSame('key:value', SimplifiedMessage::decode('key\\cvalue'));
+        $this->assertSame('key:value', SimplifiedMessage::decode('key\cvalue'));
     }
 
     #[Test]
     public function decodeReversesBackslashEscape(): void
     {
-        $this->assertSame('path\\file', SimplifiedMessage::decode('path\\\\file'));
+        $this->assertSame('path\file', SimplifiedMessage::decode('path\\\file'));
     }
 
     #[Test]
     public function encodeDecodeRoundTripBackslashOnly(): void
     {
         // Round-trip works for backslash-only content (no colons)
-        $original = 'path\\file';
+        $original = 'path\file';
         $this->assertSame($original, SimplifiedMessage::decode(SimplifiedMessage::encode($original)));
     }
 

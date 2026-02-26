@@ -116,7 +116,7 @@ class TableJoinSyntax
                     $parsed[] = $syntax . (($condition) ? ' ' . $condition : '');
                 } else {
                     // Match table reference: optional alias.tableName or alias.`backtick-quoted`
-                    if (\preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
+                    if (\preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\.(*SKIP)(*FAIL)|.)+|\\\[\\\`])+)`)(\[[?:]?.+])?$/', $clip, $matches)) {
                         $table = (isset($matches[3]) && $matches[3]) ? $matches[3] : $matches[2];
                         $alias = ($matches[1]) ?: $table;
 
@@ -208,13 +208,13 @@ class TableJoinSyntax
         // that detects Preset class references and initializes them
         $this->extracted = SimpleSyntax::parseSyntax($this->syntax, '-<>+', '', function ($syntax) {
             // Match: [alias.]table[->PresetClass(args)][condition] with backtick-quoted name support
-            if (\preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
+            if (\preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\.(*SKIP)(*FAIL)|.)+|\\\[\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
                 $table = (isset($matches[3]) && $matches[3]) ? $matches[3] : $matches[2];
                 $alias = ($matches[1]) ?: $table;
 
                 if (isset($matches[4])) {
                     // Detect Preset class reference: alias.table->ClassName(args)
-                    $className = 'Razy\\Database\\Preset\\' . $matches[4];
+                    $className = 'Razy\Database\Preset\\' . $matches[4];
                     if (\preg_match('/[a-z](\w+)?/i', $alias) && \class_exists($className)) {
                         $this->preset[$alias] = new $className($this->getAlias($alias), $table, $alias);
                     }
@@ -222,7 +222,7 @@ class TableJoinSyntax
 
                 if (isset($this->preset[$alias])) {
                     $params = [];
-                    if (\preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
+                    if (\preg_match('/^,(?:(\w+)|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?))$/', ',' . $matches[5])) {
                         $params = SimpleSyntax::parseSyntax($matches[5], ',');
                         foreach ($params as &$param) {
                             $param = \trim($param, '\'"');
@@ -280,7 +280,7 @@ class TableJoinSyntax
 
                 return 'ON ' . $whereSyntax->getSyntax();
             }
-            $columns = \preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $condition);
+            $columns = \preg_split('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $condition);
 
             if (':' === $type && !$matches[2]) {
                 // USING clause: matching column names in both tables

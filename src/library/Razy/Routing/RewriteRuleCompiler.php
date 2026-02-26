@@ -46,7 +46,7 @@ class RewriteRuleCompiler
      */
     public static function domainToPattern(string $domain): string
     {
-        $pattern = \str_replace('.', '\\.', $domain);
+        $pattern = \str_replace('.', '\.', $domain);
         $pattern = \str_replace('*', '.+', $pattern);
         return $pattern;
     }

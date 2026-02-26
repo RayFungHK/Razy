@@ -37,7 +37,7 @@ class PathUtil
      */
     public static function tidy(string $path, bool $ending = false, string $separator = DIRECTORY_SEPARATOR): string
     {
-        return \preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\\]+/', $separator, $path . ($ending ? $separator : ''));
+        return \preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\]+/', $separator, $path . ($ending ? $separator : ''));
     }
 
     /**

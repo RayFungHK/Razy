@@ -192,7 +192,7 @@ class EnvTest extends TestCase
         $result = Env::parse("SECRET='hello \$HOME \\n world'");
 
         // Single quotes: no interpolation, no escape processing
-        $this->assertSame(['SECRET' => 'hello $HOME \\n world'], $result);
+        $this->assertSame(['SECRET' => 'hello $HOME \n world'], $result);
     }
 
     public function testParseDoubleQuotedBasic(): void
@@ -222,42 +222,42 @@ class EnvTest extends TestCase
 
     public function testParseDoubleQuotedEscapeNewline(): void
     {
-        $result = Env::parse('GREETING="hello\\nworld"');
+        $result = Env::parse('GREETING="hello\nworld"');
 
         $this->assertSame(['GREETING' => "hello\nworld"], $result);
     }
 
     public function testParseDoubleQuotedEscapeTab(): void
     {
-        $result = Env::parse('WITH_TAB="col1\\tcol2"');
+        $result = Env::parse('WITH_TAB="col1\tcol2"');
 
         $this->assertSame(['WITH_TAB' => "col1\tcol2"], $result);
     }
 
     public function testParseDoubleQuotedEscapeQuote(): void
     {
-        $result = Env::parse('WITH_QUOTE="say \\"hello\\""');
+        $result = Env::parse('WITH_QUOTE="say \"hello\""');
 
         $this->assertSame(['WITH_QUOTE' => 'say "hello"'], $result);
     }
 
     public function testParseDoubleQuotedEscapeBackslash(): void
     {
-        $result = Env::parse('WITH_BACKSLASH="C:\\\\Users\\\\test"');
+        $result = Env::parse('WITH_BACKSLASH="C:\\\Users\\\test"');
 
-        $this->assertSame(['WITH_BACKSLASH' => 'C:\\Users\\test'], $result);
+        $this->assertSame(['WITH_BACKSLASH' => 'C:\Users\test'], $result);
     }
 
     public function testParseDoubleQuotedEscapeDollar(): void
     {
-        $result = Env::parse('WITH_DOLLAR="price is \\$5"');
+        $result = Env::parse('WITH_DOLLAR="price is \$5"');
 
         $this->assertSame(['WITH_DOLLAR' => 'price is $5'], $result);
     }
 
     public function testParseDoubleQuotedEscapeReturn(): void
     {
-        $result = Env::parse('RESULT="line\\r"');
+        $result = Env::parse('RESULT="line\r"');
 
         $this->assertSame(['RESULT' => "line\r"], $result);
     }

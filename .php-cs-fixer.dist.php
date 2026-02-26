@@ -39,7 +39,7 @@ return (new Config())
         // ── Base rule sets ─────────────────────────────────────
         '@PSR12'          => true,
         '@PSR12:risky'    => true,
-        '@PHP82Migration' => true,
+        '@PHP8x2Migration' => true,
 
         // ── Modern PHP syntax ──────────────────────────────────
         'modernize_types_casting' => true,
@@ -125,7 +125,7 @@ return (new Config())
             ],
         ],
         'self_accessor'       => true,
-        'visibility_required' => [
+        'modifier_keywords' => [
             'elements' => ['property', 'method', 'const'],
         ],
         'single_class_element_per_statement' => true,
@@ -185,12 +185,12 @@ return (new Config())
         'single_quote' => [
             'strings_containing_single_quote_chars' => false,
         ],
-        'escape_implicit_backslashes' => true,
+        'string_implicit_backslashes' => true,
 
         // ── Whitespace ─────────────────────────────────────────
         'blank_line_after_namespace'   => true,
         'blank_line_after_opening_tag' => true,
-        'compact_nullable_typehint'    => true,
+        'compact_nullable_type_declaration' => true,
         'line_ending'                  => true,
         'no_extra_blank_lines' => [
             'tokens' => [

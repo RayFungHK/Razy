@@ -136,8 +136,8 @@ class Terminal
     {
         $response = \trim(\fgets(STDIN));
         // Remove ANSI arrow-key escape sequences to prevent character overlap in input
-        if (\preg_match('/\\033\[[ABCD]/', $response)) {
-            return \preg_replace('/(?:\\033\[[ABCD])+/', '', $response);
+        if (\preg_match('/\033\[[ABCD]/', $response)) {
+            return \preg_replace('/(?:\033\[[ABCD])+/', '', $response);
         }
 
         return $response;

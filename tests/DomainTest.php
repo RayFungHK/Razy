@@ -172,12 +172,12 @@ class DomainTest extends TestCase
         $mockDist = $this->createMock(Distributor::class);
         $mockDist->expects($this->once())
             ->method('autoload')
-            ->with('App\\Models\\User')
+            ->with('App\Models\User')
             ->willReturn(true);
 
         $this->setPrivate($domain, 'distributor', $mockDist);
 
-        $this->assertTrue($domain->autoload('App\\Models\\User'));
+        $this->assertTrue($domain->autoload('App\Models\User'));
     }
 
     #[Test]
@@ -190,7 +190,7 @@ class DomainTest extends TestCase
 
         $this->setPrivate($domain, 'distributor', $mockDist);
 
-        $this->assertFalse($domain->autoload('NonExistent\\Class'));
+        $this->assertFalse($domain->autoload('NonExistent\Class'));
     }
 
     // ──────────────────────────────────────────────
@@ -322,12 +322,12 @@ class DomainTest extends TestCase
 
         $mockDist = $this->createMock(Distributor::class);
         $mockDist->method('autoload')
-            ->willReturnCallback(fn (string $class) => $class === 'Found\\Class');
+            ->willReturnCallback(fn (string $class) => $class === 'Found\Class');
 
         $this->setPrivate($domain, 'distributor', $mockDist);
 
-        $this->assertTrue($domain->autoload('Found\\Class'));
-        $this->assertFalse($domain->autoload('Missing\\Class'));
+        $this->assertTrue($domain->autoload('Found\Class'));
+        $this->assertFalse($domain->autoload('Missing\Class'));
     }
 
     // ──────────────────────────────────────────────

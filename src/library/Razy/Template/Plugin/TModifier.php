@@ -64,7 +64,7 @@ class TModifier
     final public function modify(mixed $value, string $paramText = ''): mixed
     {
         $arguments = [$value];
-        \preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText ?? '', $args);
+        \preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText ?? '', $args);
 
         // Build argument list: first element is always the value, followed by parsed modifier args
         foreach ($args as $arg) {

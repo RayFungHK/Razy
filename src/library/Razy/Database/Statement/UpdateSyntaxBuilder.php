@@ -115,7 +115,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                             $clip = $statement->getValueAsStatement(('?' === $clip) ? $column : $matches[1]);
                         } else {
                             // Replace inline :parameter references within complex expressions
-                            $clip = \preg_replace_callback('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|:(\w+)/', function ($matches) use ($statement) {
+                            $clip = \preg_replace_callback('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\.(*SKIP)|[^\[\]])*]|\\\.)(*SKIP)(*FAIL)|:(\w+)/', function ($matches) use ($statement) {
                                 return $statement->getValueAsStatement($matches[3]);
                             }, $clip);
                         }

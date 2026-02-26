@@ -90,7 +90,7 @@ class TFunction
                 $parameters = $this->allowedParameters;
                 $arguments = \explode(':', \ltrim(\trim($matches[1]), ':'));
                 $syntax = \trim($matches[2]);
-                $clips = \preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\.)(*SKIP)(*FAIL)|\s+/', $syntax);
+                $clips = \preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\.)(*SKIP)(*FAIL)|\s+/', $syntax);
 
                 if (isset($matches[6])) {
                     // Positional parameters: assign values in order to allowedParameters
@@ -106,7 +106,7 @@ class TFunction
                     }
                 } else {
                     // Named parameters: parse key=value pairs
-                    \preg_match_all('/\s+(\w+)=(?:(\$\w+(?:\.(?:\w+|(?P>rq)))*)|true|false|(-?\d+(?:\.\d+)?)|(?<rq>(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $syntax, $matches, PREG_SET_ORDER);
+                    \preg_match_all('/\s+(\w+)=(?:(\$\w+(?:\.(?:\w+|(?P>rq)))*)|true|false|(-?\d+(?:\.\d+)?)|(?<rq>(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $syntax, $matches, PREG_SET_ORDER);
                     foreach ($clips as $param) {
                         [$parameter, $value] = \explode('=', $param);
                         if ($this->extendedParameter || \array_key_exists($parameter, $this->allowedParameters)) {

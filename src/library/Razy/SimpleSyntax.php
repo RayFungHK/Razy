@@ -57,7 +57,7 @@ class SimpleSyntax
                 if (\is_array($clip)) {
                     $extracted[] = $parseExpr($clip);
                 } else {
-                    $splits = \preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\\.(*SKIP)|[^\[\]])*]|\((?:\\\\.(*SKIP)|[^()])*\)|\\\\.|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|\s*([' . \preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . \preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, ($notCaptureDelimiter) ? PREG_SPLIT_NO_EMPTY : PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    $splits = \preg_split('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\[(?:\\\.(*SKIP)|[^\[\]])*]|\((?:\\\.(*SKIP)|[^()])*\)|\\\.|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|\s*([' . \preg_quote($delimiter, '/') . ']' . (($negativeLookahead) ? '(?![' . \preg_quote($negativeLookahead, '/') . '])' : '') . ')\s*/', $clip, -1, ($notCaptureDelimiter) ? PREG_SPLIT_NO_EMPTY : PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
                     if (false === $splits) {
                         throw new InvalidArgumentException('The delimiter or the ignored lookahead characters is invalid.');
                     }
@@ -95,7 +95,7 @@ class SimpleSyntax
 
             // Match the next unescaped '(' or ')' while skipping quoted strings,
             // bracketed expressions and nested function calls
-            while (\preg_match('/(?:\\\\.|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|[()]/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
+            while (\preg_match('/(?:\\\.|(?<w>\[)(?:\\\.(*SKIP)|[^\[\]])*]|(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(\w+\((?:[^()]|(?-1))*\)))(*SKIP)(*FAIL)|[()]/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
                 // Capture any text preceding the matched parenthesis
                 if ($matches[0][1] > 0) {
                     $extracted[] = \substr($clip, 0, $matches[0][1]);

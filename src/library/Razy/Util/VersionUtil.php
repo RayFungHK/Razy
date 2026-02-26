@@ -151,7 +151,7 @@ class VersionUtil
                     } elseif (\preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
                         $compare = self::standardize($clip, true);
                         if (\str_contains($compare, '*')) {
-                            $compare = \str_replace(['*', '.'], ['\d+', '\\.'], $compare);
+                            $compare = \str_replace(['*', '.'], ['\d+', '\.'], $compare);
                             $result = \preg_match('/^' . $compare . '$/', $version);
                         } else {
                             $result = $compare == $version;

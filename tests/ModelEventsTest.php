@@ -741,7 +741,7 @@ class ModelEventsTest extends TestCase
         $this->createSchema($db);
 
         ME_Post::creating(function () {
-             // should NOT cancel
+            // should NOT cancel
         });
 
         $post = ME_Post::create($db, ['title' => 'Test', 'body' => 'Body']);

@@ -12,17 +12,17 @@ namespace Razy;
 
 use Exception;
 
-if (!\function_exists('Razy\\tidy')) {
+if (!\function_exists('Razy\tidy')) {
     /**
      * Tidy the path, remove duplicated slash or backslash.
      */
     function tidy(string $path, bool $ending = false, string $separator = DIRECTORY_SEPARATOR): string
     {
-        return \preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\\]+/', $separator, $path . ($ending ? $separator : ''));
+        return \preg_replace('/(^\w+:\/\/\/?(*SKIP)(*FAIL))|[\/\\\]+/', $separator, $path . ($ending ? $separator : ''));
     }
 }
 
-if (!\function_exists('Razy\\append')) {
+if (!\function_exists('Razy\append')) {
     /**
      * Append additional path segments.
      */
@@ -48,7 +48,7 @@ if (!\function_exists('Razy\\append')) {
     }
 }
 
-if (!\function_exists('Razy\\fix_path')) {
+if (!\function_exists('Razy\fix_path')) {
     /**
      * Fix the string of the relative path.
      */
@@ -92,7 +92,7 @@ if (!\function_exists('Razy\\fix_path')) {
     }
 }
 
-if (!\function_exists('Razy\\is_dir_path')) {
+if (!\function_exists('Razy\is_dir_path')) {
     /**
      * Check if path ends with a directory separator.
      */
@@ -102,7 +102,7 @@ if (!\function_exists('Razy\\is_dir_path')) {
     }
 }
 
-if (!\function_exists('Razy\\sort_path_level')) {
+if (!\function_exists('Razy\sort_path_level')) {
     /**
      * Sort the route by its folder level, deepest is priority.
      */
@@ -120,7 +120,7 @@ if (!\function_exists('Razy\\sort_path_level')) {
     }
 }
 
-if (!\function_exists('Razy\\is_fqdn')) {
+if (!\function_exists('Razy\is_fqdn')) {
     /**
      * Check if the string is a valid FQDN.
      */
@@ -130,7 +130,7 @@ if (!\function_exists('Razy\\is_fqdn')) {
     }
 }
 
-if (!\function_exists('Razy\\format_fqdn')) {
+if (!\function_exists('Razy\format_fqdn')) {
     /**
      * Format the FQDN string.
      */
@@ -140,7 +140,7 @@ if (!\function_exists('Razy\\format_fqdn')) {
     }
 }
 
-if (!\function_exists('Razy\\versionStandardize')) {
+if (!\function_exists('Razy\versionStandardize')) {
     /**
      * Standardize the version code.
      */
@@ -162,7 +162,7 @@ if (!\function_exists('Razy\\versionStandardize')) {
     }
 }
 
-if (!\function_exists('Razy\\guid')) {
+if (!\function_exists('Razy\guid')) {
     /**
      * Generate the GUID by give length.
      */
@@ -184,7 +184,7 @@ if (!\function_exists('Razy\\guid')) {
     }
 }
 
-if (!\function_exists('Razy\\getRelativePath')) {
+if (!\function_exists('Razy\getRelativePath')) {
     /**
      * Return the relative path between two paths.
      */
@@ -198,7 +198,7 @@ if (!\function_exists('Razy\\getRelativePath')) {
     }
 }
 
-if (!\function_exists('Razy\\comparison')) {
+if (!\function_exists('Razy\comparison')) {
     /**
      * Compare two values by provided comparison operator.
      */
@@ -246,7 +246,7 @@ if (!\function_exists('Razy\\comparison')) {
     }
 }
 
-if (!\function_exists('Razy\\autoload')) {
+if (!\function_exists('Razy\autoload')) {
     /**
      * Autoloader.
      */
@@ -283,7 +283,7 @@ if (!\function_exists('Razy\\autoload')) {
     }
 }
 
-if (!\function_exists('Razy\\collect')) {
+if (!\function_exists('Razy\collect')) {
     /**
      * Convert the data into a Collection object.
      */
@@ -293,7 +293,7 @@ if (!\function_exists('Razy\\collect')) {
     }
 }
 
-if (!\function_exists('Razy\\is_ssl')) {
+if (!\function_exists('Razy\is_ssl')) {
     /**
      * Check if SSL is used.
      */
@@ -309,7 +309,7 @@ if (!\function_exists('Razy\\is_ssl')) {
     }
 }
 
-if (!\function_exists('Razy\\env')) {
+if (!\function_exists('Razy\env')) {
     /**
      * Retrieve an environment variable with an optional default value.
      */

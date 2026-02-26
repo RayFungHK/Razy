@@ -259,7 +259,7 @@ class RedisAdapter implements CacheInterface
             throw new InvalidArgumentException('Cache key must not be empty.');
         }
 
-        if (\preg_match('/[{}()\/\\\\@:]/', $key)) {
+        if (\preg_match('/[{}()\/\\\@:]/', $key)) {
             throw new InvalidArgumentException(
                 "Cache key '{$key}' contains reserved characters: {}()/\\@:",
             );

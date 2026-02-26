@@ -117,7 +117,7 @@ class RouteDispatcher
     public static function compileRouteRegex(string $route): string
     {
         $compiled = \preg_replace_callback(
-            '/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/',
+            '/\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\[\]]+]))({\d+,?\d*})?/',
             function ($matches) {
                 $regex = (\strlen($matches[2] ?? '')) > 0
                     ? $matches[2]
@@ -126,7 +126,7 @@ class RouteDispatcher
             },
             $route,
         );
-        return '/^(' . \preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $compiled) . ')((?:.+)?)/';
+        return '/^(' . \preg_replace('/\\\.(*SKIP)(*FAIL)|\//', '\/', $compiled) . ')((?:.+)?)/';
     }
 
     /**

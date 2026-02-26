@@ -285,7 +285,7 @@ class DIIntegrationTest extends TestCase
 
         $controller = new class($mockModule) extends Controller {};
 
-        $this->assertFalse($controller->hasService('NonExistent\\Service'));
+        $this->assertFalse($controller->hasService('NonExistent\Service'));
     }
 
     public function testControllerHasServiceReturnsFalseWithoutContainer(): void

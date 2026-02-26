@@ -62,11 +62,11 @@ class Collection extends ArrayObject
         $filter = \trim($filter);
         if ($filter) {
             // Split filter string by commas, respecting quoted strings and parenthesized groups
-            $clips = \preg_split('/(?:\((\\\\.(\*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(\*SKIP)|(?!\k<q>).)\*\k<q>\.)(*SKIP)(*FAIL)|\s*,\s*/', $filter);
+            $clips = \preg_split('/(?:\((\\\.(\*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\.(\*SKIP)|(?!\k<q>).)\*\k<q>\.)(*SKIP)(*FAIL)|\s*,\s*/', $filter);
             foreach ($clips as $clip) {
                 $clip = \trim($clip);
                 // Split each selector by dots, respecting quoted segments and escaped chars
-                $selectors = \preg_split('/(?:(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\./', $clip);
+                $selectors = \preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\.)(*SKIP)(*FAIL)|\./', $clip);
                 if (!empty($selectors)) {
                     // Parse the string of the selector and merge the matched elements
                     $filtered += $this->parseSelector($selectors);
@@ -242,7 +242,7 @@ class Collection extends ArrayObject
     private function filter(array &$filtered, string $filterSyntax): void
     {
         // Extract all filter function invocations from the syntax string
-        \preg_match_all('/:(\w+)(?:\(((?:(?<value>(?:\*|\w+)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\d+(?:.\d+)?)(?:\s*,\s*(?P>value))*)?)?\))?/', $filterSyntax, $matches, PREG_SET_ORDER);
+        \preg_match_all('/:(\w+)(?:\(((?:(?<value>(?:\*|\w+)|(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\d+(?:.\d+)?)(?:\s*,\s*(?P>value))*)?)?\))?/', $filterSyntax, $matches, PREG_SET_ORDER);
         if (!empty($matches)) {
             foreach ($matches as $match) {
                 // If all elements already filtered out, return empty Collection
@@ -257,11 +257,11 @@ class Collection extends ArrayObject
                 if ($plugin instanceof Closure) {
                     $parameters = [];
                     // Split filter arguments by commas, respecting quoted strings and nested parens
-                    $clips = \preg_split('/(?:\((\\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $match[2]);
+                    $clips = \preg_split('/(?:\((\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $match[2]);
                     // Parse the string of the parameters
                     foreach ($clips as $clip) {
                         // Extract each parameter value: word, quoted string, or numeric literal
-                        if (\preg_match('/^(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?)$/', $clip, $param)) {
+                        if (\preg_match('/^(\w+)|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?)$/', $clip, $param)) {
                             $parameters[] = $param[4] ?? $param[3] ?? $param[1] ?? '';
                         }
                     }

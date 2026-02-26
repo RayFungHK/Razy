@@ -483,7 +483,7 @@ class YAMLParser
             || (\str_starts_with($value, "'") && \str_ends_with($value, "'"))) {
             $unquoted = \substr($value, 1, -1);
             // Unescape
-            return \str_replace(['\\n', '\\t', '\\\\', '\\"'], ["\n", "\t", '\\', '"'], $unquoted);
+            return \str_replace(['\n', '\t', '\\\\', '\"'], ["\n", "\t", '\\', '"'], $unquoted);
         }
 
         // Plain string

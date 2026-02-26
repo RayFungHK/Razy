@@ -105,13 +105,13 @@ class Table
     {
         $syntax = \trim($syntax);
         // Match table name (plain or backtick-quoted), optional config, optional columns block
-        if (\preg_match('/(?<skip>\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+?))?(?:\[(.+?)])?$/', $syntax, $matches)) {
+        if (\preg_match('/(?<skip>\\\.|\((?:\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|^(\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+?))?(?:\[(.+?)])?$/', $syntax, $matches)) {
             $tableName = \trim($matches[3], '`');
             $table = new self($tableName, $matches[4] ?? '');
 
             // Parse column definitions separated by colons
             if ($matches[5] ?? '') {
-                $clips = \preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*:\s*/', $matches[5], -1, PREG_SPLIT_NO_EMPTY);
+                $clips = \preg_split('/(?:\\\.|\((?:\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*:\s*/', $matches[5], -1, PREG_SPLIT_NO_EMPTY);
                 foreach ($clips as $clip) {
                     $table->addColumn($clip);
                 }
@@ -161,7 +161,7 @@ class Table
     public function addColumn(string $columnSyntax, string $after = ''): Column
     {
         $columnSyntax = \trim($columnSyntax);
-        if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+        if (\preg_match('/^(\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
             $columnName = \trim($matches[1], '`');
             foreach ($this->columns as $column) {
                 if ($column->getName() == $columnSyntax) {
@@ -690,7 +690,7 @@ class Table
     public function alterAddColumn(string $columnSyntax, string $after = ''): Column
     {
         $columnSyntax = \trim($columnSyntax);
-        if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+        if (\preg_match('/^(\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
             $columnName = \trim($matches[1], '`');
             foreach ($this->alterColumn['add'] as $column) {
                 if ($column->getName() == $columnSyntax) {
@@ -742,7 +742,7 @@ class Table
     public function alterModifyColumn(string $columnSyntax, string $after = ''): Column
     {
         $columnSyntax = \trim($columnSyntax);
-        if (\preg_match('/^(\w+|`(?:\\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
+        if (\preg_match('/^(\w+|`(?:\\\.(*SKIP)|[^`])*`)(?:=(.+))?/', $columnSyntax, $matches)) {
             $columnName = \trim($matches[1], '`');
             foreach ($this->alterColumn['add'] as $column) {
                 if ($column->getName() == $columnSyntax) {
@@ -793,16 +793,16 @@ class Table
         $parameters = [];
 
         // Split syntax by commas, respecting parenthesized groups and quoted strings
-        $clips = \preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
+        $clips = \preg_split('/(?:\\\.|\((?:\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
         foreach ($clips as $clip) {
-            if (\preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
+            if (\preg_match('/^(\w+)(?:\(((?:\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
                 if (!isset($parameters[$matches[1]])) {
                     $parameters[$matches[1]] = null;
                 }
 
                 if ($matches[2] ?? '') {
                     $parameters[$matches[1]] = [];
-                    while (\preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
+                    while (\preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
                         $parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
                         $matches[2] = \substr($matches[2], \strlen($extracted[0]));
                     }

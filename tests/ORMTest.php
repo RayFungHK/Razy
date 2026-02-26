@@ -46,21 +46,21 @@ class ORMTest extends TestCase
 
     public function testModelNotFoundExceptionSetModel(): void
     {
-        $e = (new ModelNotFoundException())->setModel('App\\User', [42]);
-        $this->assertSame('App\\User', $e->getModel());
+        $e = (new ModelNotFoundException())->setModel('App\User', [42]);
+        $this->assertSame('App\User', $e->getModel());
         $this->assertSame([42], $e->getIds());
     }
 
     public function testModelNotFoundExceptionMessage(): void
     {
-        $e = (new ModelNotFoundException())->setModel('App\\User', [1, 2, 3]);
+        $e = (new ModelNotFoundException())->setModel('App\User', [1, 2, 3]);
         $this->assertStringContainsString('User', $e->getMessage());
         $this->assertStringContainsString('1, 2, 3', $e->getMessage());
     }
 
     public function testModelNotFoundExceptionEmptyIds(): void
     {
-        $e = (new ModelNotFoundException())->setModel('App\\User');
+        $e = (new ModelNotFoundException())->setModel('App\User');
         $this->assertSame([], $e->getIds());
         $this->assertStringContainsString('User', $e->getMessage());
     }

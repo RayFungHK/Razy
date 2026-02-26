@@ -612,7 +612,7 @@ class Application
             if (NetworkUtil::isFqdn($wildcardFqdn, true)) {
                 // If the FQDN string contains * (wildcard)
                 if ('*' !== $wildcardFqdn && \str_contains($wildcardFqdn, '*')) {
-                    $wildcard = \preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $wildcardFqdn);
+                    $wildcard = \preg_replace('/\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $wildcardFqdn);
                     if (\preg_match('/^' . $wildcard . '$/', $fqdn)) {
                         // Given fqdn becomes the domain's alias
                         return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$wildcardFqdn]);

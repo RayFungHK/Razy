@@ -123,8 +123,8 @@ class SimpleSyntaxTest extends TestCase
     public function parseParensEscapedParens(): void
     {
         // Escaped parens should be treated as literal characters
-        $result = SimpleSyntax::parseParens('a\\(b\\)c');
-        $this->assertSame(['a\\(b\\)c'], $result);
+        $result = SimpleSyntax::parseParens('a\(b\)c');
+        $this->assertSame(['a\(b\)c'], $result);
     }
 
     #[Test]
@@ -252,8 +252,8 @@ class SimpleSyntaxTest extends TestCase
     public function parseSyntaxEscapedDelimiterNotSplit(): void
     {
         // An escaped delimiter should not cause a split
-        $result = SimpleSyntax::parseSyntax('a\\,b,c', ',', '', null, true);
-        $this->assertSame(['a\\,b', 'c'], $result);
+        $result = SimpleSyntax::parseSyntax('a\,b,c', ',', '', null, true);
+        $this->assertSame(['a\,b', 'c'], $result);
     }
 
     #[Test]
@@ -361,10 +361,10 @@ class SimpleSyntaxTest extends TestCase
     public function parseSyntaxComplexExpression(): void
     {
         // Mix of quotes, brackets, escapes, and delimiters
-        $result = SimpleSyntax::parseSyntax('"hello,world",[a|b],c\\,d|e', ',|', '', null, true);
+        $result = SimpleSyntax::parseSyntax('"hello,world",[a|b],c\,d|e', ',|', '', null, true);
         $this->assertContains('"hello,world"', $result);
         $this->assertContains('[a|b]', $result);
-        $this->assertContains('c\\,d', $result);
+        $this->assertContains('c\,d', $result);
         $this->assertContains('e', $result);
     }
 

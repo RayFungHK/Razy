@@ -88,7 +88,7 @@ class JobQueueTest extends TestCase
         $job = new Job(
             id: 1,
             queue: 'emails',
-            handler: 'App\\Handler\\SendEmail',
+            handler: 'App\Handler\SendEmail',
             payload: ['to' => 'a@b.com'],
             attempts: 0,
             maxAttempts: 3,
@@ -100,7 +100,7 @@ class JobQueueTest extends TestCase
 
         $this->assertSame(1, $job->id);
         $this->assertSame('emails', $job->queue);
-        $this->assertSame('App\\Handler\\SendEmail', $job->handler);
+        $this->assertSame('App\Handler\SendEmail', $job->handler);
         $this->assertSame(['to' => 'a@b.com'], $job->payload);
         $this->assertSame(0, $job->attempts);
         $this->assertSame(3, $job->maxAttempts);
@@ -805,7 +805,7 @@ class JobQueueTest extends TestCase
         $manager->ensureStorage();
 
         // Push a job with a non-existent handler class
-        $id = $manager->dispatch('q', 'NonExistent\\Class\\Handler', [], 0, 1);
+        $id = $manager->dispatch('q', 'NonExistent\Class\Handler', [], 0, 1);
         // Process should bury the job (handler resolution fails)
         $manager->process('q');
 

@@ -123,7 +123,7 @@ class Entity
     public function find(string $path): array
     {
         $path = \trim($path);
-        $paths = \preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\//', $path, PREG_SPLIT_NO_EMPTY);
+        $paths = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\//', $path, PREG_SPLIT_NO_EMPTY);
         if (empty($paths)) {
             return [];
         }
@@ -136,7 +136,7 @@ class Entity
         // Walk through each path segment to drill down into nested entities
         foreach ($paths as $blockName) {
             $blockName = \trim($blockName);
-            if (!\preg_match('/^(\w+)(?:\[(?:(\d+)|(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>)\])?$/', $blockName, $matches)) {
+            if (!\preg_match('/^(\w+)(?:\[(?:(\d+)|(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>)\])?$/', $blockName, $matches)) {
                 throw new TemplateException('The path of `' . $blockName . '` is not in valid format.');
             }
 
@@ -386,8 +386,8 @@ class Entity
         $content = $this->parseFunctionTag($content);
 
         // Replace parameter tags {$var} with resolved values, supporting dot-path access and modifier chains
-        return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
-            $clips = \preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+        return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
+            $clips = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
             // Try each pipe-delimited alternative until a renderable value is found
             foreach ($clips as $clip) {
                 $value = $this->parseValue($clip) ?? '';
@@ -415,13 +415,13 @@ class Entity
         }
 
         // If the content is a parameter tag
-        if (\preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
+        if (\preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
             if ($matches[1]) {
                 return $matches[1] === 'true';
             }
             return $matches[4] ?? $matches[2] ?? null;
         }
-        if ('$' == $content[0] && \preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
+        if ('$' == $content[0] && \preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
             return $this->parseParameter($matches[1], $matches[2] ?? '', $matches[5] ?? '');
         }
 
@@ -544,7 +544,7 @@ class Entity
         $stacking = [];
         $result = '';
         // Match function tags {@name...}, closing tags {/name}, and comment tags {#...}
-        while (\preg_match('/\\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\\.|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+)|#[^}]*?)}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+        while (\preg_match('/\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\.|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+)|#[^}]*?)}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
             $offset = (int) $matches[0][1];
 
             $isClosingTag = isset($matches[4][0]);
@@ -633,7 +633,7 @@ class Entity
 
         // Apply modifier chain (e.g., ->uppercase, ->truncate:50)
         if (\strlen($modifier) > 0) {
-            \preg_match_all('/->(\w+)((?::(?:\w+|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|-?\d+(?:\.\d+)?))*)/', $modifier, $matches, PREG_SET_ORDER);
+            \preg_match_all('/->(\w+)((?::(?:\w+|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|-?\d+(?:\.\d+)?))*)/', $modifier, $matches, PREG_SET_ORDER);
             foreach ($matches as $clip) {
                 $plugin = $this->block->loadPlugin('modifier', $clip[1]);
                 if ($plugin) {

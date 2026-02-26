@@ -355,7 +355,7 @@ class ModuleChangeDetectorTest extends TestCase
     public function testClassifyPhpFileWithNamespace(): void
     {
         $file = $this->tempDir . '/Namespaced.php';
-        \file_put_contents($file, '<?php namespace App\\Model; class User { public string $name; }');
+        \file_put_contents($file, '<?php namespace App\Model; class User { public string $name; }');
         $this->assertSame(ChangeType::ClassFile, $this->detector->classifyPhpFile($file));
     }
 

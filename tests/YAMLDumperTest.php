@@ -152,7 +152,7 @@ class YAMLDumperTest extends TestCase
         $dumper = new YAMLDumper();
 
         $yaml = $dumper->dump(['msg' => 'say "hello"']);
-        $this->assertStringContainsString('\\"hello\\"', $yaml);
+        $this->assertStringContainsString('\"hello\"', $yaml);
     }
 
     public function testDumpStringWithNewlineNotQuotedCurrently(): void

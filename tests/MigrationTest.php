@@ -385,7 +385,7 @@ class MigrationTest extends TestCase
         $db = $this->createSqliteDb();
         $manager = new MigrationManager($db);
 
-        $manager->addPath('C:\\Users\\test\\migrations\\');
+        $manager->addPath('C:\Users\test\migrations\\');
         $paths = $manager->getPaths();
         $this->assertSame(['C:/Users/test/migrations'], $paths);
     }
