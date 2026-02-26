@@ -471,7 +471,7 @@ class Statement
             return (string) $value;
         }
 
-        return '';
+        throw new QueryException('Unsupported value type ' . \get_debug_type($value) . ' for column `' . $column . '` in SQL statement.');
     }
 
     /**

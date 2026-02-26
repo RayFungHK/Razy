@@ -170,13 +170,13 @@ class Table
             }
             $column = new Column($columnName, $matches[2] ?? '', $this);
             $after = \trim($after);
+            $lastColumn = \end($this->columns) ?: null;
             $this->columns[] = $column;
             if ($after) {
                 $this->moveColumnAfter($columnName, $after);
                 $this->validate();
             } else {
-                $lastColumn = \end($this->columns);
-                $column->insertAfter($lastColumn->getName());
+                $column->insertAfter($lastColumn ? $lastColumn->getName() : '');
             }
 
             return $column;
@@ -275,6 +275,8 @@ class Table
         $previous = '';
         foreach ($this->columns as $column) {
             $column->insertAfter($previous);
+            $previous = $column->getName();
+            $columns[] = $column;
         }
         $this->columns = $columns;
 
