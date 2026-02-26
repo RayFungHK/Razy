@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Razy\Tests;
 
 use Exception;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Exception\HttpException;
 use Razy\Exception\NotFoundException;
@@ -16,11 +17,10 @@ use RuntimeException;
  *
  * Verifies that RouteDispatcher, Error, and XHR now throw exceptions
  * instead of calling exit(), making them testable and worker-mode safe.
- *
- * @covers \Razy\Exception\HttpException
- * @covers \Razy\Exception\RedirectException
- * @covers \Razy\Exception\NotFoundException
  */
+#[CoversClass(HttpException::class)]
+#[CoversClass(RedirectException::class)]
+#[CoversClass(NotFoundException::class)]
 class ExitRemovalTest extends TestCase
 {
     // ── HttpException hierarchy ──────────────────────────────

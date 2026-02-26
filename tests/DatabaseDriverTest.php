@@ -6,6 +6,7 @@ namespace Razy\Tests;
 
 use Closure;
 use PDO;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database\Driver;
 use Razy\Database\Driver\MySQL;
@@ -19,12 +20,11 @@ use ReflectionMethod;
  *
  * All tests here are pure unit tests — no database connection required.
  * They verify SQL syntax generation, identifier quoting, and driver metadata.
- *
- * @covers \Razy\Database\Driver
- * @covers \Razy\Database\Driver\MySQL
- * @covers \Razy\Database\Driver\SQLite
- * @covers \Razy\Database\Driver\PostgreSQL
  */
+#[CoversClass(Driver::class)]
+#[CoversClass(MySQL::class)]
+#[CoversClass(SQLite::class)]
+#[CoversClass(PostgreSQL::class)]
 class DatabaseDriverTest extends TestCase
 {
     private MySQL $mysql;

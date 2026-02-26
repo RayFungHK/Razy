@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Collection;
 use Razy\Database\Statement;
@@ -17,10 +18,9 @@ use Razy\Template\CompiledTemplate;
  *
  * Phase 1.1: Plugin folders are re-registered after resetAll()
  * Phase 1.3: CompiledTemplate cache is cleared between requests
- *
- * @covers \Razy\PluginManager
- * @covers \Razy\Template\CompiledTemplate
  */
+#[CoversClass(PluginManager::class)]
+#[CoversClass(CompiledTemplate::class)]
 class WorkerModeResetTest extends TestCase
 {
     private PluginManager $manager;

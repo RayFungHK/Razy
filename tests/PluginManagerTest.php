@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Razy\Tests;
 
 use Closure;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\PluginManager;
 
 /**
  * Tests for the PluginManager centralized plugin registry.
- *
- * @covers \Razy\PluginManager
  */
+#[CoversClass(PluginManager::class)]
 class PluginManagerTest extends TestCase
 {
     private PluginManager $manager;
