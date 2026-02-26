@@ -43,13 +43,13 @@ class JobTest extends TestCase
         $job = new Job(
             id: 1,
             queue: 'default',
-            handler: 'App\\Job\\SendEmail',
+            handler: 'App\Job\SendEmail',
             payload: ['to' => 'user@example.com'],
         );
 
         $this->assertSame(1, $job->id);
         $this->assertSame('default', $job->queue);
-        $this->assertSame('App\\Job\\SendEmail', $job->handler);
+        $this->assertSame('App\Job\SendEmail', $job->handler);
         $this->assertSame(['to' => 'user@example.com'], $job->payload);
         $this->assertSame(0, $job->attempts);
         $this->assertSame(3, $job->maxAttempts);
@@ -69,7 +69,7 @@ class JobTest extends TestCase
         $row = [
             'id' => 42,
             'queue' => 'emails',
-            'handler' => 'App\\Job\\Notify',
+            'handler' => 'App\Job\Notify',
             'payload' => '{"subject":"Hi"}',
             'attempts' => '2',
             'max_attempts' => '5',
@@ -99,7 +99,7 @@ class JobTest extends TestCase
     {
         $row = [
             'id' => 1,
-            'handler' => 'App\\Job\\Foo',
+            'handler' => 'App\Job\Foo',
         ];
 
         $job = Job::fromArray($row);
@@ -169,7 +169,7 @@ class JobTest extends TestCase
         $job = new Job(
             id: 10,
             queue: 'default',
-            handler: 'App\\Job\\Test',
+            handler: 'App\Job\Test',
             payload: ['key' => 'value'],
             attempts: 1,
             maxAttempts: 3,
@@ -200,7 +200,7 @@ class JobTest extends TestCase
         return new Job(
             id: 1,
             queue: 'default',
-            handler: 'App\\Job\\Test',
+            handler: 'App\Job\Test',
             payload: [],
         );
     }
