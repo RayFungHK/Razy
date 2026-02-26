@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mailer &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Mailer</h1>
+    <p>The <code>Mailer</code> class is a full-featured SMTP email sender supporting TLS/SSL encryption, file attachments, and asynchronous background sending via <code>ThreadManager</code>. It uses direct socket connections to the SMTP server and supports fluent method chaining for composing emails.</p>
+
+    <h2 id="security-protocols">Security Protocols</h2>
+    <p>Use the protocol constants to specify the encryption method via <code>setProtocol()</code>:</p>
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Recommended Port</th></tr></thead>
+      <tbody>
+        <tr><td><code>SECURE_NONE</code></td><td><code>''</code></td><td>25</td></tr>
+        <tr><td><code>SECURE_TLS</code></td><td><code>'tls'</code></td><td>587</td></tr>
+        <tr><td><code>SECURE_TLSv10</code></td><td><code>'tls1.0'</code></td><td>587</td></tr>
+        <tr><td><code>SECURE_TLSv11</code></td><td><code>'tls1.1'</code></td><td>587</td></tr>
+        <tr><td><code>SECURE_TLSv12</code></td><td><code>'tls1.2'</code></td><td>587</td></tr>
+        <tr><td><code>SECURE_SSLv2</code></td><td><code>'sslv2'</code></td><td>465</td></tr>
+        <tr><td><code>SECURE_SSLv23</code></td><td><code>'sslv23'</code></td><td>465</td></tr>
+        <tr><td><code>SECURE_SSLv3</code></td><td><code>'sslv3'</code></td><td>465</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="constructor">Constructor</h2>
+    <pre><code><span class="hl-kw">new</span> <span class="hl-cls">Mailer</span>(<span class="hl-kw">string</span> <span class="hl-var">$hostname</span>, <span class="hl-kw">int</span> <span class="hl-var">$port</span> = <span class="hl-num">25</span>, <span class="hl-kw">int</span> <span class="hl-var">$connectionTimeout</span> = <span class="hl-num">30</span>, <span class="hl-kw">int</span> <span class="hl-var">$responseTimeout</span> = <span class="hl-num">5</span>, <span class="hl-kw">string</span> <span class="hl-var">$origin</span> = <span class="hl-str">''</span>)</code></pre>
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>$hostname</code></td><td><code>string</code></td><td></td><td>SMTP server hostname</td></tr>
+        <tr><td><code>$port</code></td><td><code>int</code></td><td><code>25</code></td><td>SMTP server port</td></tr>
+        <tr><td><code>$connectionTimeout</code></td><td><code>int</code></td><td><code>30</code></td><td>Connection timeout in seconds</td></tr>
+        <tr><td><code>$responseTimeout</code></td><td><code>int</code></td><td><code>5</code></td><td>Response read timeout in seconds</td></tr>
+        <tr><td><code>$origin</code></td><td><code>string</code></td><td><code>''</code></td><td>EHLO origin hostname (defaults to <code>gethostname()</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="composing">Composing Email</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>from(string $address, string $name = '')</code></td><td><code>Mailer</code></td><td>Set the sender address and display name</td></tr>
+        <tr><td><code>to(array|string $email, ?string $name = null)</code></td><td><code>Mailer</code></td><td>Add one or more recipients</td></tr>
+        <tr><td><code>cc(array|string $email, ?string $name = null)</code></td><td><code>Mailer</code></td><td>Add CC recipients</td></tr>
+        <tr><td><code>bcc(array|string $email, ?string $name = null)</code></td><td><code>Mailer</code></td><td>Add BCC recipients</td></tr>
+        <tr><td><code>replyTo(array|string $email, ?string $name = null)</code></td><td><code>Mailer</code></td><td>Set reply-to addresses</td></tr>
+        <tr><td><code>setSubject(string $subject)</code></td><td><code>Mailer</code></td><td>Set the email subject line</td></tr>
+        <tr><td><code>setText(string $message)</code></td><td><code>Mailer</code></td><td>Set the plain-text body</td></tr>
+        <tr><td><code>setHTML(string $message)</code></td><td><code>Mailer</code></td><td>Set the HTML body</td></tr>
+        <tr><td><code>setCharset(string $charset)</code></td><td><code>Mailer</code></td><td>Set character encoding (default: <code>utf-8</code>)</td></tr>
+        <tr><td><code>setHeader(string $key, string $value)</code></td><td><code>Mailer</code></td><td>Set a custom MIME header</td></tr>
+        <tr><td><code>setProtocol(string $protocol)</code></td><td><code>Mailer</code></td><td>Set the security protocol and auto-adjust port</td></tr>
+        <tr><td><code>useLogin(string $username, string $password)</code></td><td><code>Mailer</code></td><td>Set SMTP authentication credentials</td></tr>
+        <tr><td><code>addAttachment(array|string $attachment, string $name = '')</code></td><td><code>Mailer</code></td><td>Attach a file (or array of files)</td></tr>
+      </tbody>
+    </table>
+    <p>All composition methods return <code>$this</code>, enabling fluent chaining:</p>
+    <pre><code><span class="hl-var">$mailer</span>-><span class="hl-fn">from</span>(<span class="hl-str">'noreply@example.com'</span>, <span class="hl-str">'My App'</span>)
+       -><span class="hl-fn">to</span>(<span class="hl-str">'user@example.com'</span>, <span class="hl-str">'John Doe'</span>)
+       -><span class="hl-fn">cc</span>(<span class="hl-str">'manager@example.com'</span>)
+       -><span class="hl-fn">setSubject</span>(<span class="hl-str">'Monthly Report'</span>)
+       -><span class="hl-fn">setHTML</span>(<span class="hl-str">'&lt;h1&gt;Report&lt;/h1&gt;&lt;p&gt;See attached.&lt;/p&gt;'</span>)
+       -><span class="hl-fn">addAttachment</span>(<span class="hl-str">'/reports/monthly.pdf'</span>);</code></pre>
+
+    <h2 id="sending">Sending</h2>
+    <h3>send()</h3>
+    <p>Sends the email synchronously (blocking). Opens a TCP socket to the SMTP server, performs the EHLO/STARTTLS handshake, authenticates, and transmits the message. Returns <code>true</code> on success.</p>
+    <pre><code><span class="hl-var">$success</span> = <span class="hl-var">$mailer</span>-><span class="hl-fn">send</span>();
+<span class="hl-kw">if</span> (<span class="hl-var">$success</span>) {
+    <span class="hl-fn">echo</span> <span class="hl-str">'Email sent successfully'</span>;
+}</code></pre>
+
+    <h3>sendAsync(ThreadManager $threadManager, ?string $phpBinary = null)</h3>
+    <p>Sends the email in a background process via <code>ThreadManager</code>, returning a <code>Thread</code> object immediately. The email payload is serialized to a temp file arranged and executed by a runner script &mdash; fully non-blocking.</p>
+    <pre><code><span class="hl-var">$thread</span> = <span class="hl-var">$mailer</span>-><span class="hl-fn">sendAsync</span>(<span class="hl-var">$threadManager</span>);
+<span class="hl-cmt">// Continue other work while email sends in background</span></code></pre>
+
+    <h3>Mailer::sendPayloadFile(string $payloadPath)</h3>
+    <p>Static method used internally by the async runner. Reconstructs a <code>Mailer</code> instance from a JSON payload file and sends the email. Returns <code>bool</code>.</p>
+
+    <h2 id="complete-example">Complete Example</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Mailer</span>;
+
+<span class="hl-var">$mailer</span> = <span class="hl-kw">new</span> <span class="hl-cls">Mailer</span>(<span class="hl-str">'smtp.example.com'</span>, <span class="hl-num">587</span>);
+<span class="hl-var">$mailer</span>-><span class="hl-fn">setProtocol</span>(<span class="hl-cls">Mailer</span>::<span class="hl-var">SECURE_TLSv12</span>)
+       -><span class="hl-fn">useLogin</span>(<span class="hl-str">'user@example.com'</span>, <span class="hl-str">'password'</span>)
+       -><span class="hl-fn">from</span>(<span class="hl-str">'noreply@example.com'</span>, <span class="hl-str">'My Application'</span>)
+       -><span class="hl-fn">to</span>(<span class="hl-str">'recipient@example.com'</span>, <span class="hl-str">'Jane Smith'</span>)
+       -><span class="hl-fn">replyTo</span>(<span class="hl-str">'support@example.com'</span>)
+       -><span class="hl-fn">setSubject</span>(<span class="hl-str">'Welcome to Our Platform'</span>)
+       -><span class="hl-fn">setText</span>(<span class="hl-str">'Welcome! Your account is ready.'</span>)
+       -><span class="hl-fn">setHTML</span>(<span class="hl-str">'&lt;h1&gt;Welcome!&lt;/h1&gt;&lt;p&gt;Your account is ready.&lt;/p&gt;'</span>)
+       -><span class="hl-fn">addAttachment</span>(<span class="hl-str">'/docs/welcome-guide.pdf'</span>, <span class="hl-str">'Welcome Guide.pdf'</span>);
+
+<span class="hl-var">$success</span> = <span class="hl-var">$mailer</span>-><span class="hl-fn">send</span>();
+
+<span class="hl-kw">if</span> (<span class="hl-var">$success</span>) {
+    <span class="hl-fn">echo</span> <span class="hl-str">'Email delivered!'</span>;
+} <span class="hl-kw">else</span> {
+    <span class="hl-fn">echo</span> <span class="hl-str">'Failed to send email.'</span>;
+}</code></pre>
+
+    <h2 id="async-example">Async Example</h2>
+    <p>Use <code>ThreadManager</code> to send emails in the background without blocking the current request:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Mailer</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\ThreadManager</span>;
+
+<span class="hl-var">$tm</span> = <span class="hl-kw">new</span> <span class="hl-cls">ThreadManager</span>();
+
+<span class="hl-var">$mailer</span> = <span class="hl-kw">new</span> <span class="hl-cls">Mailer</span>(<span class="hl-str">'smtp.example.com'</span>, <span class="hl-num">587</span>);
+<span class="hl-var">$mailer</span>-><span class="hl-fn">setProtocol</span>(<span class="hl-cls">Mailer</span>::<span class="hl-var">SECURE_TLSv12</span>)
+       -><span class="hl-fn">useLogin</span>(<span class="hl-str">'user@example.com'</span>, <span class="hl-str">'password'</span>)
+       -><span class="hl-fn">from</span>(<span class="hl-str">'noreply@example.com'</span>, <span class="hl-str">'Notifications'</span>)
+       -><span class="hl-fn">to</span>(<span class="hl-str">'user@example.com'</span>)
+       -><span class="hl-fn">setSubject</span>(<span class="hl-str">'Your order has shipped'</span>)
+       -><span class="hl-fn">setHTML</span>(<span class="hl-str">'&lt;p&gt;Your order #1234 is on the way.&lt;/p&gt;'</span>);
+
+<span class="hl-cmt">// Send in background &mdash; returns immediately</span>
+<span class="hl-var">$thread</span> = <span class="hl-var">$mailer</span>-><span class="hl-fn">sendAsync</span>(<span class="hl-var">$tm</span>);
+
+<span class="hl-cmt">// Continue processing the request</span>
+<span class="hl-fn">echo</span> <span class="hl-str">'Order confirmation page rendered.'</span>;
+
+<span class="hl-cmt">// Optionally wait for completion</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">await</span>(<span class="hl-var">$thread</span>-><span class="hl-fn">getId</span>());
+<span class="hl-kw">if</span> (<span class="hl-var">$thread</span>-><span class="hl-fn">getExitCode</span>() === <span class="hl-num">0</span>) {
+    <span class="hl-fn">echo</span> <span class="hl-str">'Email sent successfully in background.'</span>;
+}</code></pre>
+
+    <div class="page-nav">
+      <a href="websocket.html"><span class="label">&larr; Previous</span><span class="title">WebSocket</span></a>
+      <a href="simplified-message.html" class="next"><span class="label">Next &rarr;</span><span class="title">SimplifiedMessage</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

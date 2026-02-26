@@ -6,12 +6,17 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * Defines the Source class for the Razy Template Engine. A Source represents
+ * a loaded template file, managing the root block/entity hierarchy, source-level
+ * parameters, and template rendering output.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy\Template;
-
-use Closure;
-use Razy\Error;
+use Razy\Exception\TemplateException;
 use Razy\FileReader;
 use Razy\ModuleInfo;
 use Razy\Template;
@@ -20,11 +25,29 @@ use Throwable;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TModifier;
 
+/**
+ * Represents a loaded template file source within the Template Engine.
+ *
+ * A Source wraps a single template file, creating a root Block from parsing
+ * and a root Entity for rendering. It manages source-level parameters and
+ * delegates plugin loading and template lookups to the parent Template instance.
+ *
+ * @class Source
+ */
 class Source
 {
+	use ParameterBagTrait;
+
+	/** @var string Absolute directory path of the loaded template file */
 	private string $fileDirectory = '';
+
+	/** @var array<string, mixed> Source-level template parameters */
 	private array $parameters = [];
+
+	/** @var Block|null Root block parsed from the template file */
 	private ?Block $rootBlock = null;
+
+	/** @var Entity|null Root entity for rendering the template */
 	private ?Entity $rootEntity = null;
 
 	/**
@@ -38,7 +61,7 @@ class Source
 	public function __construct(string $tplPath, private Template $template, private readonly ?ModuleInfo $module = null)
 	{
 		if (!is_file($tplPath)) {
-			throw new Error('Template file ' . $tplPath . ' is not exists.');
+			throw new TemplateException('Template file ' . $tplPath . ' is not exists.');
 		}
 
 		$this->fileDirectory = dirname(realpath($tplPath));
@@ -53,52 +76,6 @@ class Source
 	public function getModule(): ?ModuleInfo
 	{
 		return $this->module;
-	}
-
-	/**
-	 * Assign the source level parameter value.
-	 *
-	 * @param mixed $parameter The parameter name or an array of parameters
-	 * @param mixed|null $value The parameter value
-	 *
-	 * @return self Chainable
-	 * @throws Throwable
-	 *
-	 */
-	public function assign(mixed $parameter, mixed $value = null): Source
-	{
-		if (is_array($parameter)) {
-			foreach ($parameter as $index => $value) {
-				$this->assign($index, $value);
-			}
-		} elseif (is_string($parameter)) {
-			if ($value instanceof Closure) {
-				// If the value is closure, pass the current value to closure
-				$this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
-			} else {
-				$this->parameters[$parameter] = $value;
-			}
-		} else {
-			throw new Error('Invalid parameter name');
-		}
-
-		return $this;
-	}
-
-	/**
-	 * Bind reference parameter
-	 *
-	 * @param string $parameter
-	 * @param mixed $value
-	 *
-	 * @return $this
-	 * @throws Throwable
-	 */
-	public function bind(string $parameter, mixed &$value): Source
-	{
-		$this->parameters[$parameter] = &$value;
-
-		return $this;
 	}
 
 	/**
@@ -154,12 +131,15 @@ class Source
 	}
 
 	/**
-	 * Return the parameter value.
+	 * Return a parameter value from the source scope.
+	 *
+	 * When $recursion is true and the parameter is not assigned at this
+	 * scope, resolution continues upward to the Template (manager) scope.
 	 *
 	 * @param string $parameter The parameter name
-	 * @param bool $recursion
+	 * @param bool $recursion If true, walk up to Template scope when not found here
 	 *
-	 * @return mixed The parameter value
+	 * @return mixed The parameter value, or null if not found at any resolved scope
 	 */
 	public function getValue(string $parameter, bool $recursion = false): mixed
 	{

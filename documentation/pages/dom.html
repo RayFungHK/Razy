@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOM Builder &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>DOM Builder</h1>
+    <p>The <code>DOM</code> class provides a fluent, chainable API for building HTML elements in PHP. Each DOM instance represents a single HTML node with attributes, classes, children, and text content.</p>
+
+    <h2 id="creating">Creating Elements</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\DOM</span>;
+
+<span class="hl-cmt">// Basic element</span>
+<span class="hl-var">$div</span> = <span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'div'</span>);
+
+<span class="hl-cmt">// With name and id</span>
+<span class="hl-var">$form</span> = <span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'form'</span>, <span class="hl-str">'login-form'</span>);</code></pre>
+
+    <h2 id="attributes">Setting Attributes</h2>
+    <pre><code><span class="hl-var">$input</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'input'</span>))
+    -><span class="hl-fn">setAttribute</span>(<span class="hl-str">'type'</span>, <span class="hl-str">'email'</span>)
+    -><span class="hl-fn">setAttribute</span>(<span class="hl-str">'placeholder'</span>, <span class="hl-str">'Enter email'</span>)
+    -><span class="hl-fn">setAttribute</span>([
+        <span class="hl-str">'required'</span>    => <span class="hl-kw">true</span>,
+        <span class="hl-str">'autofocus'</span>   => <span class="hl-kw">true</span>,
+        <span class="hl-str">'maxlength'</span>   => <span class="hl-num">255</span>,
+    ])
+    -><span class="hl-fn">setVoidElement</span>(<span class="hl-kw">true</span>);</code></pre>
+
+    <h2 id="classes">CSS Classes</h2>
+    <pre><code><span class="hl-var">$card</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'div'</span>))
+    -><span class="hl-fn">addClass</span>(<span class="hl-str">'card'</span>)
+    -><span class="hl-fn">addClass</span>([<span class="hl-str">'shadow'</span>, <span class="hl-str">'rounded'</span>])
+    -><span class="hl-fn">removeClass</span>(<span class="hl-str">'shadow'</span>);</code></pre>
+
+    <h2 id="children">Nesting &amp; Children</h2>
+    <pre><code><span class="hl-var">$list</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'ul'</span>))-><span class="hl-fn">addClass</span>(<span class="hl-str">'nav'</span>);
+
+<span class="hl-var">$item1</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'li'</span>))-><span class="hl-fn">setText</span>(<span class="hl-str">'Home'</span>);
+<span class="hl-var">$item2</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'li'</span>))-><span class="hl-fn">setText</span>(<span class="hl-str">'About'</span>);
+
+<span class="hl-var">$list</span>-><span class="hl-fn">append</span>(<span class="hl-var">$item1</span>)
+     -><span class="hl-fn">append</span>(<span class="hl-var">$item2</span>);
+
+<span class="hl-cmt">// Prepend moves to front</span>
+<span class="hl-var">$logo</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'li'</span>))-><span class="hl-fn">addClass</span>(<span class="hl-str">'logo'</span>);
+<span class="hl-var">$list</span>-><span class="hl-fn">prepend</span>(<span class="hl-var">$logo</span>);</code></pre>
+
+    <h2 id="datasets">Data Attributes</h2>
+    <pre><code><span class="hl-var">$el</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'div'</span>))
+    -><span class="hl-fn">setDataset</span>(<span class="hl-str">'user-id'</span>, <span class="hl-num">42</span>)
+    -><span class="hl-fn">setDataset</span>([
+        <span class="hl-str">'role'</span>   => <span class="hl-str">'admin'</span>,
+        <span class="hl-str">'active'</span> => <span class="hl-str">'true'</span>,
+    ]);
+<span class="hl-cmt">// Renders: &lt;div data-user-id="42" data-role="admin" data-active="true"&gt;&lt;/div&gt;</span></code></pre>
+
+    <h2 id="rendering">Rendering to HTML</h2>
+    <pre><code><span class="hl-cmt">// saveHTML() or __toString()</span>
+<span class="hl-var">$html</span> = <span class="hl-var">$list</span>-><span class="hl-fn">saveHTML</span>();
+
+<span class="hl-cmt">// Or just echo (uses __toString)</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$list</span>;</code></pre>
+
+    <h2 id="api-reference">Full API Reference</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>addClass(array|string $class)</code></td><td><code>DOM</code></td><td>Add one or more CSS classes</td></tr>
+        <tr><td><code>removeClass(array|string $class)</code></td><td><code>DOM</code></td><td>Remove CSS class(es)</td></tr>
+        <tr><td><code>setAttribute(string|array $attr, mixed $value)</code></td><td><code>DOM</code></td><td>Set HTML attribute(s)</td></tr>
+        <tr><td><code>getAttribute(string $attr)</code></td><td><code>mixed</code></td><td>Get attribute value</td></tr>
+        <tr><td><code>hasAttribute(string $attr)</code></td><td><code>bool</code></td><td>Check attribute exists</td></tr>
+        <tr><td><code>removeAttribute(string $attr)</code></td><td><code>DOM</code></td><td>Remove an attribute</td></tr>
+        <tr><td><code>append(DOM $dom)</code></td><td><code>DOM</code></td><td>Append child element</td></tr>
+        <tr><td><code>prepend(DOM $dom)</code></td><td><code>DOM</code></td><td>Prepend child element</td></tr>
+        <tr><td><code>setText(string $text)</code></td><td><code>DOM</code></td><td>Set/append text content</td></tr>
+        <tr><td><code>setTag(string $tag)</code></td><td><code>DOM</code></td><td>Change element tag name</td></tr>
+        <tr><td><code>getTag()</code></td><td><code>string</code></td><td>Get tag name</td></tr>
+        <tr><td><code>setName(mixed $value)</code></td><td><code>DOM</code></td><td>Set the <code>name</code> attribute</td></tr>
+        <tr><td><code>setDataset(string|array $param, mixed $value)</code></td><td><code>DOM</code></td><td>Set <code>data-*</code> attributes</td></tr>
+        <tr><td><code>setVoidElement(bool $enable)</code></td><td><code>DOM</code></td><td>Mark as self-closing (&lt;br /&gt;)</td></tr>
+        <tr><td><code>saveHTML()</code></td><td><code>string</code></td><td>Generate full HTML string</td></tr>
+        <tr><td><code>getHTMLValue(mixed $value)</code></td><td><code>string</code></td><td>HTML-escape a value</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="complex-example">Complex Example</h2>
+    <pre><code><span class="hl-var">$table</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'table'</span>))
+    -><span class="hl-fn">addClass</span>([<span class="hl-str">'data-table'</span>, <span class="hl-str">'striped'</span>])
+    -><span class="hl-fn">setAttribute</span>(<span class="hl-str">'border'</span>, <span class="hl-num">0</span>);
+
+<span class="hl-var">$thead</span> = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'thead'</span>));
+<span class="hl-var">$tr</span>    = (<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'tr'</span>));
+<span class="hl-kw">foreach</span> ([<span class="hl-str">'ID'</span>, <span class="hl-str">'Name'</span>, <span class="hl-str">'Email'</span>] <span class="hl-kw">as</span> <span class="hl-var">$col</span>) {
+    <span class="hl-var">$tr</span>-><span class="hl-fn">append</span>((<span class="hl-kw">new</span> <span class="hl-cls">DOM</span>(<span class="hl-str">'th'</span>))-><span class="hl-fn">setText</span>(<span class="hl-var">$col</span>));
+}
+<span class="hl-var">$thead</span>-><span class="hl-fn">append</span>(<span class="hl-var">$tr</span>);
+<span class="hl-var">$table</span>-><span class="hl-fn">append</span>(<span class="hl-var">$thead</span>);
+
+<span class="hl-fn">echo</span> <span class="hl-var">$table</span>-><span class="hl-fn">saveHTML</span>();</code></pre>
+
+    <div class="page-nav">
+      <a href="template.html"><span class="label">&larr; Previous</span><span class="title">Template Engine</span></a>
+      <a href="plugins.html" class="next"><span class="label">Next &rarr;</span><span class="title">Plugin System</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Pipeline</h1>
+    <p>Razy's <strong>Pipeline</strong> system provides a plugin-based action pipeline with tree-structured actions, shared storage, broadcast relays, and conditional/tap operations. It is used for orchestrating complex multi-step workflows.</p>
+
+    <h2 id="table-of-contents">Table of Contents</h2>
+    <ul>
+      <li><a href="#quick-start">Quick Start</a></li>
+      <li><a href="#creating-a-pipeline">Creating a Pipeline</a></li>
+      <li><a href="#actions">Actions</a>
+        <ul>
+          <li><a href="#custom-actions">Custom Actions</a></li>
+          <li><a href="#action-chaining">Action Chaining</a></li>
+          <li><a href="#conditional-and-tap">Conditional &amp; Tap</a></li>
+        </ul>
+      </li>
+      <li><a href="#pipeline-storage">Pipeline Storage</a></li>
+      <li><a href="#relay">Relay (Broadcasting)</a></li>
+      <li><a href="#action-tree-navigation">Action Tree Navigation</a></li>
+      <li><a href="#recursive-mode">Recursive Mode</a></li>
+      <li><a href="#api-reference">API Reference</a></li>
+    </ul>
+
+    <hr>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Pipeline</span>;
+
+<span class="hl-var">$pipeline</span> = <span class="hl-kw">new</span> <span class="hl-cls">Pipeline</span>();
+
+<span class="hl-cmt">// Add actions via plugin methods</span>
+<span class="hl-var">$action</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'Validate'</span>, <span class="hl-var">$formData</span>);
+<span class="hl-var">$action</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'Sanitize'</span>);
+<span class="hl-var">$action</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'Store'</span>, <span class="hl-var">$database</span>);
+
+<span class="hl-cmt">// Execute all actions</span>
+<span class="hl-var">$success</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">execute</span>(<span class="hl-var">$request</span>);</code></pre>
+
+    <hr>
+
+    <h2 id="creating-a-pipeline">Creating a Pipeline</h2>
+    <p>The Pipeline uses the <code>PluginTrait</code> to create actions from registered plugins. Actions are executed sequentially:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Pipeline</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Pipeline\Action</span>;
+
+<span class="hl-var">$pipeline</span> = <span class="hl-kw">new</span> <span class="hl-cls">Pipeline</span>();
+
+<span class="hl-cmt">// Create actions via pipe() &#x2502; delegates to the plugin system</span>
+<span class="hl-var">$validate</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'ValidateForm'</span>, <span class="hl-var">$schema</span>);
+<span class="hl-var">$process</span>  = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'ProcessOrder'</span>);
+<span class="hl-var">$notify</span>   = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'SendNotification'</span>);
+
+<span class="hl-cmt">// Or add pre-built actions directly</span>
+<span class="hl-var">$customAction</span> = <span class="hl-cls">Pipeline</span>::<span class="hl-fn">createAction</span>(<span class="hl-str">'MyPlugin'</span>, <span class="hl-var">$arg1</span>, <span class="hl-var">$arg2</span>);
+<span class="hl-kw">if</span> (<span class="hl-var">$customAction</span>) {
+    <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">add</span>(<span class="hl-var">$customAction</span>);
+}
+
+<span class="hl-cmt">// Execute &mdash; runs all actions in order</span>
+<span class="hl-var">$success</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">execute</span>(<span class="hl-var">$context</span>);
+<span class="hl-cmt">// Returns false immediately if any action's execute() returns false</span>
+
+<span class="hl-cmt">// Inspect actions</span>
+<span class="hl-var">$actions</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">getActions</span>(); <span class="hl-cmt">// Action[]</span>
+<span class="hl-var">$map</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">getMap</span>();         <span class="hl-cmt">// introspection data</span></code></pre>
+
+    <hr>
+
+    <h2 id="actions">Actions</h2>
+
+    <h3 id="custom-actions">Custom Actions</h3>
+    <p>Create custom actions by extending the abstract <code>Action</code> class:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Pipeline\Action</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">ValidateAction</span> <span class="hl-kw">extends</span> <span class="hl-cls">Action</span>
+{
+    <span class="hl-kw">private</span> <span class="hl-cls">array</span> <span class="hl-var">$schema</span>;
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(<span class="hl-cls">array</span> <span class="hl-var">$schema</span>)
+    {
+        <span class="hl-var">$this</span>-&gt;schema = <span class="hl-var">$schema</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">accept</span>(<span class="hl-cls">string</span> <span class="hl-var">$actionType</span> = <span class="hl-str">''</span>): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-cmt">// Return true to accept this action type</span>
+        <span class="hl-kw">return</span> <span class="hl-var">$actionType</span> === <span class="hl-str">'validate'</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">execute</span>(...<span class="hl-var">$args</span>): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-var">$data</span> = <span class="hl-var">$args</span>[<span class="hl-num">0</span>] ?? [];
+
+        <span class="hl-kw">foreach</span> (<span class="hl-var">$this</span>-&gt;schema <span class="hl-kw">as</span> <span class="hl-var">$field</span> =&gt; <span class="hl-var">$rules</span>) {
+            <span class="hl-kw">if</span> (!<span class="hl-fn">isset</span>(<span class="hl-var">$data</span>[<span class="hl-var">$field</span>])) {
+                <span class="hl-var">$this</span>-&gt;<span class="hl-fn">reject</span>(<span class="hl-str">"Missing field: {<span class="hl-var">$field</span>}"</span>);
+                <span class="hl-kw">return</span> <span class="hl-kw">false</span>;
+            }
+        }
+
+        <span class="hl-kw">return</span> <span class="hl-kw">true</span>; <span class="hl-cmt">// passes, continue pipeline</span>
+    }
+}</code></pre>
+
+    <h3 id="action-chaining">Action Chaining</h3>
+    <p>Actions form a <strong>tree structure</strong>. Use <code>then()</code> to create child actions:</p>
+    <pre><code><span class="hl-var">$root</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'FormWorker'</span>);
+
+<span class="hl-cmt">// Chain child actions</span>
+<span class="hl-var">$validate</span> = <span class="hl-var">$root</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'Validate'</span>, <span class="hl-var">$rules</span>);
+<span class="hl-var">$sanitize</span> = <span class="hl-var">$root</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'Sanitize'</span>);
+<span class="hl-var">$store</span>    = <span class="hl-var">$root</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'Store'</span>, <span class="hl-var">$db</span>);
+
+<span class="hl-cmt">// Nested chains</span>
+<span class="hl-var">$validate</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'CheckRequired'</span>);
+<span class="hl-var">$validate</span>?-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'CheckFormat'</span>);
+
+<span class="hl-cmt">// Result: tree structure</span>
+<span class="hl-cmt">// FormWorker</span>
+<span class="hl-cmt">//   &#x251C;&#x2500;&#x2500; Validate</span>
+<span class="hl-cmt">//   &#x2502;   &#x251C;&#x2500;&#x2500; CheckRequired</span>
+<span class="hl-cmt">//   &#x2502;   &#x251C;&#x2500;&#x2500; CheckFormat</span>
+<span class="hl-cmt">//   &#x251C;&#x2500;&#x2500; Sanitize</span>
+<span class="hl-cmt">//   &#x251C;&#x2500;&#x2500; Store</span></code></pre>
+
+    <h3 id="conditional-and-tap">Conditional &amp; Tap</h3>
+    <pre><code><span class="hl-var">$action</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'Process'</span>);
+
+<span class="hl-cmt">// When &mdash; execute callback only if condition is true</span>
+<span class="hl-var">$action</span>?-&gt;<span class="hl-fn">when</span>(<span class="hl-var">$isAdmin</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Action</span> <span class="hl-var">$action</span>) {
+    <span class="hl-var">$action</span>-&gt;<span class="hl-fn">then</span>(<span class="hl-str">'AdminAudit'</span>);
+});
+
+<span class="hl-cmt">// Tap &mdash; execute callback for side-effects without affecting the chain</span>
+<span class="hl-var">$action</span>?-&gt;<span class="hl-fn">tap</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Action</span> <span class="hl-var">$action</span>) {
+    <span class="hl-fn">error_log</span>(<span class="hl-str">"Processing action: "</span> . <span class="hl-var">$action</span>-&gt;<span class="hl-fn">getActionType</span>());
+});</code></pre>
+
+    <hr>
+
+    <h2 id="pipeline-storage">Pipeline Storage</h2>
+    <p>Pipelines provide <strong>shared storage</strong> accessible by all actions. Storage supports scoping via identifiers:</p>
+    <pre><code><span class="hl-var">$pipeline</span> = <span class="hl-kw">new</span> <span class="hl-cls">Pipeline</span>();
+
+<span class="hl-cmt">// Set global storage</span>
+<span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">setStorage</span>(<span class="hl-str">'total'</span>, <span class="hl-num">0</span>);
+<span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">setStorage</span>(<span class="hl-str">'items'</span>, []);
+
+<span class="hl-cmt">// Set scoped storage</span>
+<span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">setStorage</span>(<span class="hl-str">'count'</span>, <span class="hl-num">0</span>, <span class="hl-str">'module-a'</span>);
+<span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">setStorage</span>(<span class="hl-str">'count'</span>, <span class="hl-num">0</span>, <span class="hl-str">'module-b'</span>);
+
+<span class="hl-cmt">// Get storage</span>
+<span class="hl-var">$total</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">getStorage</span>(<span class="hl-str">'total'</span>);            <span class="hl-cmt">// global</span>
+<span class="hl-var">$countA</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">getStorage</span>(<span class="hl-str">'count'</span>, <span class="hl-str">'module-a'</span>); <span class="hl-cmt">// scoped</span></code></pre>
+
+    <hr>
+
+    <h2 id="relay">Relay (Broadcasting)</h2>
+    <p>The Relay broadcasts method calls to all actions in the pipeline:</p>
+    <pre><code><span class="hl-var">$pipeline</span> = <span class="hl-kw">new</span> <span class="hl-cls">Pipeline</span>();
+<span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'HandlerA'</span>);
+<span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">pipe</span>(<span class="hl-str">'HandlerB'</span>);
+
+<span class="hl-cmt">// Get relay &mdash; lazy-initialized</span>
+<span class="hl-var">$relay</span> = <span class="hl-var">$pipeline</span>-&gt;<span class="hl-fn">getRelay</span>();
+
+<span class="hl-cmt">// Broadcast to all actions via __call magic</span>
+<span class="hl-var">$relay</span>-&gt;<span class="hl-fn">onDataReceived</span>(<span class="hl-var">$data</span>);
+<span class="hl-var">$relay</span>-&gt;<span class="hl-fn">onError</span>(<span class="hl-var">$exception</span>);
+
+<span class="hl-cmt">// Each action that has an onDataReceived() or onError() method will receive the call</span></code></pre>
+
+    <hr>
+
+    <h2 id="action-tree-navigation">Action Tree Navigation</h2>
+    <p>Actions support rich tree navigation:</p>
+    <pre><code><span class="hl-cmt">// Get parent</span>
+<span class="hl-var">$parent</span> = <span class="hl-var">$action</span>-&gt;<span class="hl-fn">getOwner</span>();         <span class="hl-cmt">// Action|Pipeline|null</span>
+
+<span class="hl-cmt">// Find parent by type (walks up the chain)</span>
+<span class="hl-var">$form</span> = <span class="hl-var">$action</span>-&gt;<span class="hl-fn">findOwner</span>(<span class="hl-str">'FormWorker'</span>);
+<span class="hl-var">$email</span> = <span class="hl-var">$action</span>-&gt;<span class="hl-fn">findOwner</span>(<span class="hl-str">':email'</span>);               <span class="hl-cmt">// match suffix</span>
+<span class="hl-var">$specific</span> = <span class="hl-var">$action</span>-&gt;<span class="hl-fn">findOwner</span>(<span class="hl-str">'Validate:email'</span>);    <span class="hl-cmt">// match exact</span>
+
+<span class="hl-cmt">// Get the root Pipeline</span>
+<span class="hl-var">$pipeline</span> = <span class="hl-var">$action</span>-&gt;<span class="hl-fn">getManager</span>();
+
+<span class="hl-cmt">// Check relationships</span>
+<span class="hl-var">$action</span>-&gt;<span class="hl-fn">isAttached</span>();                 <span class="hl-cmt">// attached to anything?</span>
+<span class="hl-var">$action</span>-&gt;<span class="hl-fn">isAttached</span>(<span class="hl-var">$parent</span>);          <span class="hl-cmt">// attached to specific parent?</span>
+<span class="hl-var">$action</span>-&gt;<span class="hl-fn">hasChild</span>(<span class="hl-var">$otherAction</span>);       <span class="hl-cmt">// is $otherAction a direct child?</span>
+<span class="hl-var">$action</span>-&gt;<span class="hl-fn">isReachable</span>();                <span class="hl-cmt">// connected to a Pipeline root?</span>
+
+<span class="hl-cmt">// Get children</span>
+<span class="hl-var">$children</span> = <span class="hl-var">$action</span>-&gt;<span class="hl-fn">getChildren</span>();    <span class="hl-cmt">// HashMap of child actions</span>
+
+<span class="hl-cmt">// Detach / Terminate</span>
+<span class="hl-var">$action</span>-&gt;<span class="hl-fn">detach</span>();                     <span class="hl-cmt">// detach from parent</span>
+<span class="hl-var">$action</span>-&gt;<span class="hl-fn">terminate</span>();                  <span class="hl-cmt">// recursive detach of entire subtree</span>
+<span class="hl-var">$parent</span>-&gt;<span class="hl-fn">remove</span>(<span class="hl-var">$child</span>);              <span class="hl-cmt">// remove specific child</span></code></pre>
+
+    <hr>
+
+    <h2 id="recursive-mode">Recursive Mode</h2>
+    <p>In recursive mode, <code>then()</code> calls on descendants create <strong>siblings</strong> under the recursive parent instead of nesting deeper:</p>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">FlatProcessAction</span> <span class="hl-kw">extends</span> <span class="hl-cls">Action</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>()
+    {
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">setRecursive</span>(<span class="hl-kw">true</span>);
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">execute</span>(...<span class="hl-var">$args</span>): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-cmt">// All then() calls below create siblings of this action</span>
+        <span class="hl-kw">return</span> <span class="hl-kw">true</span>;
+    }
+}
+
+<span class="hl-cmt">// Without recursive: A -&gt; B -&gt; C (nested)</span>
+<span class="hl-cmt">// With recursive:    A -&gt; B, A -&gt; C (flat siblings under A)</span></code></pre>
+
+    <hr>
+
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>Pipeline</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>()</code></td><td>Create pipeline</td></tr>
+        <tr><td><code>pipe</code></td><td><code>(string $method, ...$arguments): ?Action</code></td><td>Create action from plugin</td></tr>
+        <tr><td><code>add</code></td><td><code>(Action $action): static</code></td><td>Add existing action</td></tr>
+        <tr><td><code>execute</code></td><td><code>(...$args): bool</code></td><td>Run all actions sequentially</td></tr>
+        <tr><td><code>getRelay</code></td><td><code>(): Relay</code></td><td>Get broadcast relay</td></tr>
+        <tr><td><code>getActions</code></td><td><code>(): array</code></td><td>All root actions</td></tr>
+        <tr><td><code>setStorage</code></td><td><code>(string $name, mixed $value, string $identifier = ''): static</code></td><td>Shared storage</td></tr>
+        <tr><td><code>getStorage</code></td><td><code>(string $name, string $identifier = ''): mixed</code></td><td>Read storage</td></tr>
+        <tr><td><code>createAction</code> <em>(static)</em></td><td><code>(string $actionType, ...$arguments): ?Action</code></td><td>Factory method</td></tr>
+        <tr><td><code>isAction</code> <em>(static)</em></td><td><code>(mixed $action): bool</code></td><td>Type check</td></tr>
+        <tr><td><code>getMap</code></td><td><code>(): array</code></td><td>Introspection data</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Action (Abstract)</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>init</code></td><td><code>(string $actionType, string $identifier): static</code></td><td>Initialize (called once)</td></tr>
+        <tr><td><code>accept</code></td><td><code>(string $actionType): bool</code></td><td>Override: accept action type?</td></tr>
+        <tr><td><code>execute</code></td><td><code>(...$args): bool</code></td><td>Override: execute logic</td></tr>
+        <tr><td><code>isExecuted</code></td><td><code>(): bool</code></td><td>Has been executed?</td></tr>
+        <tr><td><code>then</code></td><td><code>(string $method, ...$arguments): ?Action</code></td><td>Create child action</td></tr>
+        <tr><td><code>when</code></td><td><code>(bool $condition, callable $callback): static</code></td><td>Conditional</td></tr>
+        <tr><td><code>tap</code></td><td><code>(callable $callback): static</code></td><td>Side-effect</td></tr>
+        <tr><td><code>reject</code></td><td><code>(mixed $message): ?Action</code></td><td>Propagate rejection up</td></tr>
+        <tr><td><code>broadcast</code></td><td><code>(...$args): static</code></td><td>Broadcast to children</td></tr>
+        <tr><td><code>attachTo</code></td><td><code>(Action|Pipeline $parent): static</code></td><td>Attach to parent</td></tr>
+        <tr><td><code>adopt</code></td><td><code>(Action $child): static</code></td><td>Adopt a child</td></tr>
+        <tr><td><code>remove</code></td><td><code>(Action $child): static</code></td><td>Remove child</td></tr>
+        <tr><td><code>detach</code></td><td><code>(): static</code></td><td>Detach from parent</td></tr>
+        <tr><td><code>terminate</code></td><td><code>(): static</code></td><td>Recursive detach</td></tr>
+        <tr><td><code>getOwner</code></td><td><code>(): Action|Pipeline|null</code></td><td>Get parent</td></tr>
+        <tr><td><code>findOwner</code></td><td><code>(string $actionType): ?Action</code></td><td>Walk up chain</td></tr>
+        <tr><td><code>getManager</code></td><td><code>(): ?Pipeline</code></td><td>Get root pipeline</td></tr>
+        <tr><td><code>isReachable</code></td><td><code>(): bool</code></td><td>Connected to pipeline?</td></tr>
+        <tr><td><code>isAttached</code></td><td><code>(Action|Pipeline|null $entity): bool</code></td><td>Attached check</td></tr>
+        <tr><td><code>hasChild</code></td><td><code>(Action $action): bool</code></td><td>Direct child check</td></tr>
+        <tr><td><code>getChildren</code></td><td><code>(): HashMap</code></td><td>All children</td></tr>
+        <tr><td><code>getIdentifier</code></td><td><code>(): string</code></td><td>Action identifier</td></tr>
+        <tr><td><code>getActionType</code></td><td><code>(): string</code></td><td>Action type string</td></tr>
+        <tr><td><code>getMap</code></td><td><code>(): array</code></td><td>Introspection</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Relay</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(Pipeline $pipeline)</code></td><td>Create relay</td></tr>
+        <tr><td><code>__call</code></td><td><code>(string $method, array $arguments): static</code></td><td>Broadcast to all actions</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="cross-module-api.html"><span class="label">&larr; Previous</span><span class="title">Cross-Module API</span></a>
+      <a href="validation.html" class="next"><span class="label">Next &rarr;</span><span class="title">Validation</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

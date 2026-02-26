@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSE (Server-Sent Events) &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>SSE (Server-Sent Events)</h1>
+    <p>The <code>SSE</code> class provides a simple interface for streaming real-time data from the server to the browser using the Server-Sent Events protocol. It handles response headers, message formatting, heartbeat comments, and proxying SSE streams from external endpoints.</p>
+
+    <h2 id="constructor">Constructor</h2>
+    <pre><code><span class="hl-kw">new</span> <span class="hl-cls">SSE</span>(<span class="hl-kw">int</span> <span class="hl-var">$retry</span> = <span class="hl-num">3000</span>)</code></pre>
+    <p>Creates a new SSE instance. The <code>$retry</code> parameter specifies the reconnection interval (in milliseconds) that the browser will use if the connection is lost.</p>
+
+    <h2 id="methods">Methods</h2>
+
+    <h3>start()</h3>
+    <p>Initializes the SSE connection by sending the required HTTP headers (<code>Content-Type: text/event-stream</code>, <code>Cache-Control: no-cache</code>, <code>Connection: keep-alive</code>) and the retry interval. Called automatically by <code>send()</code> or <code>comment()</code> if not already started.</p>
+    <pre><code><span class="hl-var">$sse</span> = <span class="hl-kw">new</span> <span class="hl-cls">SSE</span>(<span class="hl-num">5000</span>);
+<span class="hl-var">$sse</span>-><span class="hl-fn">start</span>();</code></pre>
+
+    <h3>send(string $data, ?string $event = null, ?string $id = null)</h3>
+    <p>Sends a data message to the client. Optionally specify a named <code>$event</code> type and a message <code>$id</code> for last-event tracking.</p>
+    <pre><code><span class="hl-cmt">// Simple data message</span>
+<span class="hl-var">$sse</span>-><span class="hl-fn">send</span>(<span class="hl-str">'Hello, world!'</span>);
+
+<span class="hl-cmt">// Named event with ID</span>
+<span class="hl-var">$sse</span>-><span class="hl-fn">send</span>(<span class="hl-fn">json_encode</span>([<span class="hl-str">'count'</span> => <span class="hl-num">42</span>]), <span class="hl-str">'update'</span>, <span class="hl-str">'msg-001'</span>);</code></pre>
+
+    <h3>comment(string $comment = '')</h3>
+    <p>Sends a comment line (prefixed with <code>:</code>). Comments are ignored by the browser but keep the connection alive &mdash; useful as a heartbeat.</p>
+    <pre><code><span class="hl-var">$sse</span>-><span class="hl-fn">comment</span>(<span class="hl-str">'keepalive'</span>);</code></pre>
+
+    <h3>proxy(string $url, array $headers = [], string $method = 'GET', ?string $body = null, ?int $timeout = null)</h3>
+    <p>Proxies an SSE-capable endpoint using cURL. The response chunks are forwarded to the client in real time via <code>CURLOPT_WRITEFUNCTION</code>. Supports custom headers, HTTP methods, request bodies, and timeouts.</p>
+    <pre><code><span class="hl-var">$sse</span>-><span class="hl-fn">proxy</span>(
+    <span class="hl-str">'https://api.example.com/stream'</span>,
+    [<span class="hl-str">'Authorization: Bearer token123'</span>],
+    <span class="hl-str">'POST'</span>,
+    <span class="hl-fn">json_encode</span>([<span class="hl-str">'prompt'</span> => <span class="hl-str">'Hello'</span>]),
+    <span class="hl-num">30</span>
+);</code></pre>
+
+    <h3>close()</h3>
+    <p>Sends a closing comment (<code>: closed</code>) to signal the end of the stream.</p>
+    <pre><code><span class="hl-var">$sse</span>-><span class="hl-fn">close</span>();</code></pre>
+
+    <h2 id="basic-example">Basic Example</h2>
+    <p>A simple event loop that sends a timestamp every second:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\SSE</span>;
+
+<span class="hl-var">$sse</span> = <span class="hl-kw">new</span> <span class="hl-cls">SSE</span>(<span class="hl-num">3000</span>);
+<span class="hl-var">$sse</span>-><span class="hl-fn">start</span>();
+
+<span class="hl-kw">for</span> (<span class="hl-var">$i</span> = <span class="hl-num">0</span>; <span class="hl-var">$i</span> < <span class="hl-num">10</span>; <span class="hl-var">$i</span>++) {
+    <span class="hl-var">$data</span> = <span class="hl-fn">json_encode</span>([
+        <span class="hl-str">'time'</span>  => <span class="hl-fn">date</span>(<span class="hl-str">'H:i:s'</span>),
+        <span class="hl-str">'count'</span> => <span class="hl-var">$i</span>,
+    ]);
+    <span class="hl-var">$sse</span>-><span class="hl-fn">send</span>(<span class="hl-var">$data</span>, <span class="hl-str">'tick'</span>, (<span class="hl-kw">string</span>)<span class="hl-var">$i</span>);
+    <span class="hl-fn">sleep</span>(<span class="hl-num">1</span>);
+}
+
+<span class="hl-var">$sse</span>-><span class="hl-fn">close</span>();</code></pre>
+
+    <h2 id="proxy-mode">Proxy Mode</h2>
+    <p>Forward an SSE stream from another service (e.g., an AI API) through your PHP endpoint. The cURL <code>CURLOPT_WRITEFUNCTION</code> callback flushes each chunk to the client immediately:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\SSE</span>;
+
+<span class="hl-var">$sse</span> = <span class="hl-kw">new</span> <span class="hl-cls">SSE</span>();
+
+<span class="hl-cmt">// Proxy a remote SSE endpoint to the browser</span>
+<span class="hl-var">$sse</span>-><span class="hl-fn">proxy</span>(
+    <span class="hl-str">'https://ai-service.example.com/v1/completions'</span>,
+    [
+        <span class="hl-str">'Authorization: Bearer sk-abc123'</span>,
+        <span class="hl-str">'Content-Type: application/json'</span>,
+    ],
+    <span class="hl-str">'POST'</span>,
+    <span class="hl-fn">json_encode</span>([
+        <span class="hl-str">'model'</span>  => <span class="hl-str">'gpt-4'</span>,
+        <span class="hl-str">'prompt'</span> => <span class="hl-str">'Explain SSE in PHP'</span>,
+        <span class="hl-str">'stream'</span> => <span class="hl-kw">true</span>,
+    ]),
+    <span class="hl-num">60</span>
+);
+
+<span class="hl-var">$sse</span>-><span class="hl-fn">close</span>();</code></pre>
+
+    <h2 id="client-side">Client-Side</h2>
+    <p>Use the browser's native <code>EventSource</code> API to listen to your PHP SSE endpoint:</p>
+    <pre><code><span class="hl-cmt">// JavaScript</span>
+<span class="hl-kw">const</span> <span class="hl-var">source</span> = <span class="hl-kw">new</span> <span class="hl-fn">EventSource</span>(<span class="hl-str">'/api/stream'</span>);
+
+<span class="hl-cmt">// Listen for named events</span>
+<span class="hl-var">source</span>.<span class="hl-fn">addEventListener</span>(<span class="hl-str">'tick'</span>, (<span class="hl-var">e</span>) => {
+    <span class="hl-kw">const</span> <span class="hl-var">data</span> = <span class="hl-var">JSON</span>.<span class="hl-fn">parse</span>(<span class="hl-var">e</span>.<span class="hl-var">data</span>);
+    <span class="hl-var">console</span>.<span class="hl-fn">log</span>(<span class="hl-str">'Tick:'</span>, <span class="hl-var">data</span>.<span class="hl-var">time</span>, <span class="hl-var">data</span>.<span class="hl-var">count</span>);
+});
+
+<span class="hl-cmt">// Listen for generic messages</span>
+<span class="hl-var">source</span>.<span class="hl-fn">addEventListener</span>(<span class="hl-str">'message'</span>, (<span class="hl-var">e</span>) => {
+    <span class="hl-var">console</span>.<span class="hl-fn">log</span>(<span class="hl-str">'Message:'</span>, <span class="hl-var">e</span>.<span class="hl-var">data</span>);
+});
+
+<span class="hl-cmt">// Handle errors / reconnection</span>
+<span class="hl-var">source</span>.<span class="hl-fn">addEventListener</span>(<span class="hl-str">'error'</span>, (<span class="hl-var">e</span>) => {
+    <span class="hl-var">console</span>.<span class="hl-fn">log</span>(<span class="hl-str">'Connection lost, reconnecting...'</span>);
+});</code></pre>
+
+    <h2 id="keep-alive">Keep-Alive</h2>
+    <p>For long-lived connections, send periodic empty comments as a heartbeat to prevent proxies and load balancers from closing idle connections:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\SSE</span>;
+
+<span class="hl-var">$sse</span> = <span class="hl-kw">new</span> <span class="hl-cls">SSE</span>();
+<span class="hl-var">$sse</span>-><span class="hl-fn">start</span>();
+
+<span class="hl-kw">while</span> (<span class="hl-kw">true</span>) {
+    <span class="hl-kw">if</span> (<span class="hl-var">$hasNewData</span>) {
+        <span class="hl-var">$sse</span>-><span class="hl-fn">send</span>(<span class="hl-var">$payload</span>, <span class="hl-str">'update'</span>);
+    } <span class="hl-kw">else</span> {
+        <span class="hl-cmt">// Empty comment as heartbeat</span>
+        <span class="hl-var">$sse</span>-><span class="hl-fn">comment</span>(<span class="hl-str">''</span>);
+    }
+
+    <span class="hl-kw">if</span> (<span class="hl-fn">connection_aborted</span>()) {
+        <span class="hl-kw">break</span>;
+    }
+    <span class="hl-fn">sleep</span>(<span class="hl-num">1</span>);
+}</code></pre>
+
+    <div class="page-nav">
+      <a href="xhr.html"><span class="label">&larr; Previous</span><span class="title">XHR</span></a>
+      <a href="websocket.html" class="next"><span class="label">Next &rarr;</span><span class="title">WebSocket</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

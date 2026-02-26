@@ -1,6 +1,8 @@
 {
   "name": "rayfunghk/razy",
+  "version": "1.0.0-beta",
   "description": "A PHP framework for web development, high performance and flexibility. Perfect for team development and code maintenance.",
+  "keywords": ["framework", "php", "psr-12", "psr-4", "modular", "mvc", "composer"],
   "minimum-stability": "stable",
   "license": "MIT",
   "authors": [
@@ -13,13 +15,34 @@
     "php": "^8.2",
     "ext-zip": "*",
     "ext-curl": "*",
-    "ext-json": "*",
-    "friendsofphp/php-cs-fixer": "*"
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5",
+    "friendsofphp/php-cs-fixer": "^3.0",
+    "phpstan/phpstan": "^2.0"
   },
   "autoload": {
     "psr-4": {
       "Razy\\": "src/library/Razy/"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Razy\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "test-coverage": "phpunit --coverage-html coverage",
+    "cs-check": "php-cs-fixer fix --dry-run --diff --verbose",
+    "cs-fix": "php-cs-fixer fix --verbose",
+    "phpstan": "phpstan analyse",
+    "quality": [
+      "@cs-check",
+      "@phpstan",
+      "@test"
+    ]
   },
   "bin": [
     "Razy.phar"

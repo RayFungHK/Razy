@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket ??Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">??/button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">??</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">‚≠?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>WebSocket</h1>
+    <p>The <code>Razy\WebSocket</code> namespace provides a full RFC 6455 WebSocket implementation ??an event-driven <strong>Server</strong>, a connecting <strong>Client</strong>, and the low-level <strong>Frame</strong> and <strong>Connection</strong> building blocks. All communication uses native PHP stream sockets with no external dependencies.</p>
+
+    <h2 id="classes-overview">Classes Overview</h2>
+    <table>
+      <thead><tr><th>Class</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>Frame</code></td><td>RFC 6455 frame encode/decode ??opcodes, masking, payload length encoding</td></tr>
+        <tr><td><code>Connection</code></td><td>Stream wrapper ??handshake, frame I/O, ping/pong, close protocol</td></tr>
+        <tr><td><code>Server</code></td><td>Event-driven TCP server with <code>stream_select</code> loop</td></tr>
+        <tr><td><code>Client</code></td><td>Connects to a remote server, performs handshake, send/receive</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="quick-start-server">Quick Start ??Server</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Server</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Connection</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Frame</span>;
+
+<span class="hl-var">$server</span> = <span class="hl-kw">new</span> <span class="hl-cls">Server</span>(<span class="hl-str">'0.0.0.0'</span>, <span class="hl-num">8080</span>);
+
+<span class="hl-var">$server</span>
+    -><span class="hl-fn">onOpen</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>) => <span class="hl-kw">echo</span> <span class="hl-str">"Connected: {<span class="hl-var">$conn</span>-><span class="hl-fn">getId</span>()}\n"</span>)
+    -><span class="hl-fn">onMessage</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-cls">Frame</span> <span class="hl-var">$frame</span>) <span class="hl-kw">use</span> (<span class="hl-var">$server</span>) {
+        <span class="hl-kw">echo</span> <span class="hl-str">"Received: {<span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>()}\n"</span>;
+        <span class="hl-cmt">// Echo back</span>
+        <span class="hl-var">$conn</span>-><span class="hl-fn">sendText</span>(<span class="hl-str">'echo: '</span> . <span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>());
+        <span class="hl-cmt">// Or broadcast to all</span>
+        <span class="hl-var">$server</span>-><span class="hl-fn">broadcast</span>(<span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>(), <span class="hl-var">exclude</span>: <span class="hl-var">$conn</span>);
+    })
+    -><span class="hl-fn">onClose</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-kw">int</span> <span class="hl-var">$code</span>, <span class="hl-kw">string</span> <span class="hl-var">$reason</span>) =>
+        <span class="hl-kw">echo</span> <span class="hl-str">"Disconnected ({<span class="hl-var">$code</span>}): {<span class="hl-var">$reason</span>}\n"</span>
+    )
+    -><span class="hl-fn">onError</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-cls">\Throwable</span> <span class="hl-var">$e</span>) =>
+        <span class="hl-kw">echo</span> <span class="hl-str">"Error: {<span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>()}\n"</span>
+    );
+
+<span class="hl-var">$server</span>-><span class="hl-fn">start</span>();</code></pre>
+
+    <h2 id="quick-start-client">Quick Start ??Client</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Client</span>;
+
+<span class="hl-var">$client</span> = <span class="hl-cls">Client</span>::<span class="hl-fn">connect</span>(<span class="hl-str">'ws://localhost:8080/chat'</span>);
+<span class="hl-var">$client</span>-><span class="hl-fn">sendText</span>(<span class="hl-str">'Hello, server!'</span>);
+
+<span class="hl-var">$frame</span> = <span class="hl-var">$client</span>-><span class="hl-fn">receiveBlocking</span>(<span class="hl-num">10</span>);
+<span class="hl-kw">echo</span> <span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>(); <span class="hl-cmt">// "echo: Hello, server!"</span>
+
+<span class="hl-var">$client</span>-><span class="hl-fn">close</span>();</code></pre>
+
+    <h2 id="frame">Frame</h2>
+    <p>Represents a single WebSocket frame per RFC 6455 ¬ß5.2. Handles encoding PHP payloads into binary wire frames and decoding binary data back into structured <code>Frame</code> objects.</p>
+
+    <h3>Opcodes</h3>
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>OPCODE_CONTINUATION</code></td><td><code>0x0</code></td><td>Continuation frame</td></tr>
+        <tr><td><code>OPCODE_TEXT</code></td><td><code>0x1</code></td><td>Text frame (UTF-8)</td></tr>
+        <tr><td><code>OPCODE_BINARY</code></td><td><code>0x2</code></td><td>Binary frame</td></tr>
+        <tr><td><code>OPCODE_CLOSE</code></td><td><code>0x8</code></td><td>Connection close</td></tr>
+        <tr><td><code>OPCODE_PING</code></td><td><code>0x9</code></td><td>Ping frame</td></tr>
+        <tr><td><code>OPCODE_PONG</code></td><td><code>0xA</code></td><td>Pong frame</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Constructor</h3>
+    <pre><code><span class="hl-kw">new</span> <span class="hl-cls">Frame</span>(<span class="hl-kw">int</span> <span class="hl-var">$opcode</span>, <span class="hl-kw">string</span> <span class="hl-var">$payload</span> = <span class="hl-str">''</span>, <span class="hl-kw">bool</span> <span class="hl-var">$fin</span> = <span class="hl-kw">true</span>, <span class="hl-kw">bool</span> <span class="hl-var">$masked</span> = <span class="hl-kw">false</span>)</code></pre>
+
+    <h3>Factory Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Frame::text(string $payload, bool $mask = false)</code></td><td>Create a text frame</td></tr>
+        <tr><td><code>Frame::binary(string $payload, bool $mask = false)</code></td><td>Create a binary frame</td></tr>
+        <tr><td><code>Frame::ping(string $payload = '')</code></td><td>Create a ping frame</td></tr>
+        <tr><td><code>Frame::pong(string $payload = '')</code></td><td>Create a pong frame</td></tr>
+        <tr><td><code>Frame::close(int $code = 1000, string $reason = '')</code></td><td>Create a close frame</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Instance Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getOpcode()</code></td><td><code>int</code></td><td>Frame opcode</td></tr>
+        <tr><td><code>getOpcodeName()</code></td><td><code>string</code></td><td>Human-readable opcode name</td></tr>
+        <tr><td><code>getPayload()</code></td><td><code>string</code></td><td>Raw payload data</td></tr>
+        <tr><td><code>getPayloadLength()</code></td><td><code>int</code></td><td>Payload byte length</td></tr>
+        <tr><td><code>isFin()</code></td><td><code>bool</code></td><td>True if this is the final fragment</td></tr>
+        <tr><td><code>isMasked()</code></td><td><code>bool</code></td><td>True if payload is masked</td></tr>
+        <tr><td><code>isControl()</code></td><td><code>bool</code></td><td>True for close, ping, pong</td></tr>
+        <tr><td><code>isText()</code></td><td><code>bool</code></td><td>Opcode is TEXT</td></tr>
+        <tr><td><code>isBinary()</code></td><td><code>bool</code></td><td>Opcode is BINARY</td></tr>
+        <tr><td><code>isClose()</code></td><td><code>bool</code></td><td>Opcode is CLOSE</td></tr>
+        <tr><td><code>isPing()</code></td><td><code>bool</code></td><td>Opcode is PING</td></tr>
+        <tr><td><code>isPong()</code></td><td><code>bool</code></td><td>Opcode is PONG</td></tr>
+        <tr><td><code>getCloseCode()</code></td><td><code>?int</code></td><td>2-byte status code from close frame</td></tr>
+        <tr><td><code>getCloseReason()</code></td><td><code>string</code></td><td>Reason string from close frame</td></tr>
+        <tr><td><code>encode(bool $mask = false)</code></td><td><code>string</code></td><td>Encode to binary wire format</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Static Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Frame::decode(string $buffer)</code></td><td><code>?array{Frame, int}</code></td><td>Decode one frame; returns <code>[frame, bytesConsumed]</code> or <code>null</code></td></tr>
+        <tr><td><code>Frame::applyMask(string $data, string $maskKey)</code></td><td><code>string</code></td><td>XOR-mask/unmask per RFC 6455 ¬ß5.3</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Encoding &amp; Decoding Example</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Frame</span>;
+
+<span class="hl-cmt">// Encode a text frame (unmasked, server ??client)</span>
+<span class="hl-var">$frame</span> = <span class="hl-cls">Frame</span>::<span class="hl-fn">text</span>(<span class="hl-str">'Hello'</span>);
+<span class="hl-var">$binary</span> = <span class="hl-var">$frame</span>-><span class="hl-fn">encode</span>(<span class="hl-var">mask</span>: <span class="hl-kw">false</span>);
+
+<span class="hl-cmt">// Decode a frame from raw bytes</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">Frame</span>::<span class="hl-fn">decode</span>(<span class="hl-var">$binary</span>);
+<span class="hl-kw">if</span> (<span class="hl-var">$result</span> !== <span class="hl-kw">null</span>) {
+    [<span class="hl-var">$decoded</span>, <span class="hl-var">$bytesConsumed</span>] = <span class="hl-var">$result</span>;
+    <span class="hl-kw">echo</span> <span class="hl-var">$decoded</span>-><span class="hl-fn">getPayload</span>(); <span class="hl-cmt">// "Hello"</span>
+}</code></pre>
+
+    <h2 id="connection">Connection</h2>
+    <p>Wraps a PHP stream resource and provides bidirectional WebSocket communication ??handshake, frame-level read/write, automatic ping/pong, and the close protocol.</p>
+
+    <h3>Constructor</h3>
+    <pre><code><span class="hl-kw">new</span> <span class="hl-cls">Connection</span>(<span class="hl-var">resource</span> <span class="hl-var">$stream</span>, <span class="hl-kw">bool</span> <span class="hl-var">$maskOutput</span> = <span class="hl-kw">false</span>)</code></pre>
+    <p>Set <code>$maskOutput</code> to <code>true</code> for <strong>client</strong> connections (RFC 6455 ¬ß5.3 requires clients to mask outgoing frames).</p>
+
+    <h3>Handshake Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>performServerHandshake()</code></td><td><code>bool</code></td><td>Read client's HTTP Upgrade request, send 101 response</td></tr>
+        <tr><td><code>completeClientHandshake(string $expectedAccept)</code></td><td><code>bool</code></td><td>Validate server's 101 response</td></tr>
+        <tr><td><code>isHandshakeCompleted()</code></td><td><code>bool</code></td><td>Whether the opening handshake is done</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Send Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>sendText(string $text)</code></td><td>Send a UTF-8 text frame</td></tr>
+        <tr><td><code>sendBinary(string $data)</code></td><td>Send a binary frame</td></tr>
+        <tr><td><code>sendPing(string $payload = '')</code></td><td>Send a ping frame</td></tr>
+        <tr><td><code>sendPong(string $payload = '')</code></td><td>Send a pong frame</td></tr>
+        <tr><td><code>sendClose(int $code = 1000, string $reason = '')</code></td><td>Send a close frame</td></tr>
+        <tr><td><code>sendFrame(Frame $frame)</code></td><td>Send any raw Frame</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Receive Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>readFrame()</code></td><td><code>?Frame</code></td><td>Read one frame; auto-replies ping?ípong, echoes close</td></tr>
+        <tr><td><code>readFrames()</code></td><td><code>Frame[]</code></td><td>Read all available frames from the buffer</td></tr>
+      </tbody>
+    </table>
+
+    <h3>State &amp; Metadata</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getId()</code></td><td><code>string</code></td><td>Unique connection ID</td></tr>
+        <tr><td><code>getStream()</code></td><td><code>resource</code></td><td>Underlying stream</td></tr>
+        <tr><td><code>isOpen()</code></td><td><code>bool</code></td><td>Stream is open and close not yet sent</td></tr>
+        <tr><td><code>isCloseComplete()</code></td><td><code>bool</code></td><td>Both sides have exchanged close frames</td></tr>
+        <tr><td><code>getRequestUri()</code></td><td><code>?string</code></td><td>URI from the opening GET request</td></tr>
+        <tr><td><code>getHeaders()</code></td><td><code>array</code></td><td>HTTP headers from the handshake</td></tr>
+        <tr><td><code>getHeader(string $name)</code></td><td><code>?string</code></td><td>Single header value (case-insensitive)</td></tr>
+        <tr><td><code>getUserData()</code></td><td><code>mixed</code></td><td>Retrieve custom user data</td></tr>
+        <tr><td><code>setUserData(mixed $data)</code></td><td><code>void</code></td><td>Attach custom user data</td></tr>
+        <tr><td><code>disconnect()</code></td><td><code>void</code></td><td>Close the stream</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="server">Server</h2>
+    <p>A single-process, event-driven WebSocket server using <code>stream_socket_server</code> + <code>stream_select</code>.</p>
+
+    <h3>Constructor</h3>
+    <pre><code><span class="hl-kw">new</span> <span class="hl-cls">Server</span>(<span class="hl-kw">string</span> <span class="hl-var">$host</span> = <span class="hl-str">'0.0.0.0'</span>, <span class="hl-kw">int</span> <span class="hl-var">$port</span> = <span class="hl-num">8080</span>, <span class="hl-kw">int</span> <span class="hl-var">$timeout</span> = <span class="hl-num">200000</span>)</code></pre>
+    <p>The <code>$timeout</code> parameter is the <code>stream_select</code> timeout in <strong>microseconds</strong> (default 200 ms).</p>
+
+    <h3>Event Callbacks</h3>
+    <p>All callbacks return <code>$this</code> for fluent chaining:</p>
+    <table>
+      <thead><tr><th>Method</th><th>Callback Signature</th><th>When Called</th></tr></thead>
+      <tbody>
+        <tr><td><code>onOpen(Closure $cb)</code></td><td><code>fn(Connection): void</code></td><td>After a client completes the handshake</td></tr>
+        <tr><td><code>onMessage(Closure $cb)</code></td><td><code>fn(Connection, Frame): void</code></td><td>On each text or binary data frame</td></tr>
+        <tr><td><code>onClose(Closure $cb)</code></td><td><code>fn(Connection, int, string): void</code></td><td>When a connection is closed</td></tr>
+        <tr><td><code>onError(Closure $cb)</code></td><td><code>fn(Connection, Throwable): void</code></td><td>On exception during frame processing</td></tr>
+        <tr><td><code>onTick(Closure $cb)</code></td><td><code>fn(Server): void</code></td><td>Once per event-loop iteration</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Lifecycle &amp; Utility</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>start()</code></td><td><code>void</code></td><td>Bind the socket and enter the event loop</td></tr>
+        <tr><td><code>stop()</code></td><td><code>void</code></td><td>Signal the loop to exit after the current iteration</td></tr>
+        <tr><td><code>getConnections()</code></td><td><code>array&lt;string, Connection&gt;</code></td><td>Active connections keyed by ID</td></tr>
+        <tr><td><code>broadcast(string $text, ?Connection $exclude)</code></td><td><code>void</code></td><td>Send text to all connected clients</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Chat Server Example</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Server</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Connection</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Frame</span>;
+
+<span class="hl-var">$server</span> = <span class="hl-kw">new</span> <span class="hl-cls">Server</span>(<span class="hl-str">'0.0.0.0'</span>, <span class="hl-num">9000</span>);
+
+<span class="hl-var">$server</span>
+    -><span class="hl-fn">onOpen</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>) <span class="hl-kw">use</span> (<span class="hl-var">$server</span>) {
+        <span class="hl-var">$server</span>-><span class="hl-fn">broadcast</span>(<span class="hl-str">"User {<span class="hl-var">$conn</span>-><span class="hl-fn">getId</span>()} joined"</span>, <span class="hl-var">$conn</span>);
+    })
+    -><span class="hl-fn">onMessage</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-cls">Frame</span> <span class="hl-var">$frame</span>) <span class="hl-kw">use</span> (<span class="hl-var">$server</span>) {
+        <span class="hl-var">$msg</span> = <span class="hl-var">$conn</span>-><span class="hl-fn">getId</span>() . <span class="hl-str">': '</span> . <span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>();
+        <span class="hl-var">$server</span>-><span class="hl-fn">broadcast</span>(<span class="hl-var">$msg</span>);
+    })
+    -><span class="hl-fn">onClose</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-kw">int</span> <span class="hl-var">$code</span>, <span class="hl-kw">string</span> <span class="hl-var">$reason</span>) <span class="hl-kw">use</span> (<span class="hl-var">$server</span>) {
+        <span class="hl-var">$server</span>-><span class="hl-fn">broadcast</span>(<span class="hl-str">"User {<span class="hl-var">$conn</span>-><span class="hl-fn">getId</span>()} left"</span>);
+    });
+
+<span class="hl-var">$server</span>-><span class="hl-fn">start</span>();</code></pre>
+
+    <h3>Periodic Heartbeat Example</h3>
+    <pre><code><span class="hl-var">$server</span>-><span class="hl-fn">onTick</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Server</span> <span class="hl-var">$srv</span>) {
+    <span class="hl-kw">static</span> <span class="hl-var">$lastPing</span> = <span class="hl-num">0</span>;
+    <span class="hl-var">$now</span> = <span class="hl-fn">time</span>();
+    <span class="hl-kw">if</span> (<span class="hl-var">$now</span> - <span class="hl-var">$lastPing</span> >= <span class="hl-num">30</span>) {
+        <span class="hl-kw">foreach</span> (<span class="hl-var">$srv</span>-><span class="hl-fn">getConnections</span>() <span class="hl-kw">as</span> <span class="hl-var">$conn</span>) {
+            <span class="hl-var">$conn</span>-><span class="hl-fn">sendPing</span>();
+        }
+        <span class="hl-var">$lastPing</span> = <span class="hl-var">$now</span>;
+    }
+});</code></pre>
+
+    <h2 id="client">Client</h2>
+    <p>Connects to a remote WebSocket server, performs the opening handshake, and provides send/receive methods. Supports both <code>ws://</code> and <code>wss://</code> (TLS) schemes.</p>
+
+    <h3>Factory</h3>
+    <pre><code><span class="hl-var">$client</span> = <span class="hl-cls">Client</span>::<span class="hl-fn">connect</span>(<span class="hl-kw">string</span> <span class="hl-var">$url</span>, <span class="hl-kw">array</span> <span class="hl-var">$headers</span> = [], <span class="hl-kw">int</span> <span class="hl-var">$timeout</span> = <span class="hl-num">5</span>): <span class="hl-cls">Client</span></code></pre>
+
+    <h3>Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>sendText(string $text)</code></td><td><code>void</code></td><td>Send a UTF-8 text message</td></tr>
+        <tr><td><code>sendBinary(string $data)</code></td><td><code>void</code></td><td>Send a binary message</td></tr>
+        <tr><td><code>sendPing(string $payload = '')</code></td><td><code>void</code></td><td>Send a ping frame</td></tr>
+        <tr><td><code>receive()</code></td><td><code>?Frame</code></td><td>Non-blocking receive</td></tr>
+        <tr><td><code>receiveBlocking(int $timeoutSeconds = 30)</code></td><td><code>?Frame</code></td><td>Block until frame arrives or timeout</td></tr>
+        <tr><td><code>close(int $code = 1000, string $reason = '')</code></td><td><code>void</code></td><td>Send close, read response, disconnect</td></tr>
+        <tr><td><code>listen(Closure $onMessage, int $pollMs = 50)</code></td><td><code>void</code></td><td>Run receive loop until connection closes</td></tr>
+        <tr><td><code>isOpen()</code></td><td><code>bool</code></td><td>Whether the connection is still open</td></tr>
+        <tr><td><code>getConnection()</code></td><td><code>Connection</code></td><td>Access the underlying Connection</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Receive Loop Example</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Client</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Frame</span>;
+
+<span class="hl-var">$client</span> = <span class="hl-cls">Client</span>::<span class="hl-fn">connect</span>(<span class="hl-str">'ws://localhost:8080/feed'</span>);
+
+<span class="hl-var">$client</span>-><span class="hl-fn">listen</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Frame</span> <span class="hl-var">$frame</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Got: {<span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>()}\n"</span>;
+
+    <span class="hl-cmt">// Return false to stop listening</span>
+    <span class="hl-kw">if</span> (<span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>() === <span class="hl-str">'bye'</span>) {
+        <span class="hl-kw">return</span> <span class="hl-kw">false</span>;
+    }
+});</code></pre>
+
+    <h3>Custom Headers &amp; TLS Example</h3>
+    <pre><code><span class="hl-var">$client</span> = <span class="hl-cls">Client</span>::<span class="hl-fn">connect</span>(<span class="hl-str">'wss://secure.example.com/ws'</span>, [
+    <span class="hl-str">'Authorization'</span> => <span class="hl-str">'Bearer my-token'</span>,
+    <span class="hl-str">'X-Custom'</span>      => <span class="hl-str">'value'</span>,
+], <span class="hl-var">timeout</span>: <span class="hl-num">10</span>);
+
+<span class="hl-var">$client</span>-><span class="hl-fn">sendText</span>(<span class="hl-fn">json_encode</span>([<span class="hl-str">'action'</span> => <span class="hl-str">'subscribe'</span>, <span class="hl-str">'channel'</span> => <span class="hl-str">'updates'</span>]));
+
+<span class="hl-var">$frame</span> = <span class="hl-var">$client</span>-><span class="hl-fn">receiveBlocking</span>(<span class="hl-num">30</span>);
+<span class="hl-kw">echo</span> <span class="hl-var">$frame</span>-><span class="hl-fn">getPayload</span>();
+
+<span class="hl-var">$client</span>-><span class="hl-fn">close</span>();</code></pre>
+
+    <h2 id="running-via-cli">Running via CLI</h2>
+    <p>WebSocket servers are long-running processes and cannot run inside a normal HTTP request. Use one of the approaches below to start a server from the command line.</p>
+
+    <h3>Standalone Script</h3>
+    <p>Create a PHP file (e.g. <code>ws-server.php</code>) and run it directly:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// ws-server.php</span>
+<span class="hl-kw">require</span> <span class="hl-var">__DIR__</span> . <span class="hl-str">'/vendor/autoload.php'</span>;
+
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Server</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Connection</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Frame</span>;
+
+<span class="hl-var">$host</span> = <span class="hl-var">$argv</span>[<span class="hl-num">1</span>] &rarr; <span class="hl-str">'0.0.0.0'</span>;
+<span class="hl-var">$port</span> = (<span class="hl-kw">int</span>) (<span class="hl-var">$argv</span>[<span class="hl-num">2</span>] &rarr; <span class="hl-num">8080</span>);
+
+<span class="hl-var">$server</span> = <span class="hl-kw">new</span> <span class="hl-cls">Server</span>(<span class="hl-var">$host</span>, <span class="hl-var">$port</span>);
+
+<span class="hl-var">$server</span>
+    -&gt;<span class="hl-fn">onOpen</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>) =&gt; <span class="hl-kw">echo</span> <span class="hl-str">"[open] {<span class="hl-var">$conn</span>-&gt;<span class="hl-fn">getId</span>()}\n"</span>)
+    -&gt;<span class="hl-fn">onMessage</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-cls">Frame</span> <span class="hl-var">$frame</span>) <span class="hl-kw">use</span> (<span class="hl-var">$server</span>) {
+        <span class="hl-var">$server</span>-&gt;<span class="hl-fn">broadcast</span>(<span class="hl-var">$frame</span>-&gt;<span class="hl-fn">getPayload</span>(), <span class="hl-var">$conn</span>);
+    })
+    -&gt;<span class="hl-fn">onClose</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-kw">int</span> <span class="hl-var">$code</span>, <span class="hl-kw">string</span> <span class="hl-var">$reason</span>) =&gt;
+        <span class="hl-kw">echo</span> <span class="hl-str">"[close] {<span class="hl-var">$conn</span>-&gt;<span class="hl-fn">getId</span>()} ({<span class="hl-var">$code</span>})\n"</span>
+    );
+
+<span class="hl-kw">echo</span> <span class="hl-str">"WebSocket server listening on ws://{<span class="hl-var">$host</span>}:{<span class="hl-var">$port</span>}\n"</span>;
+<span class="hl-var">$server</span>-&gt;<span class="hl-fn">start</span>();</code></pre>
+    <pre><code><span class="hl-cmt"># Start on port 8080 (default)</span>
+php ws-server.php
+
+<span class="hl-cmt"># Custom bind address and port</span>
+php ws-server.php 127.0.0.1 9000</code></pre>
+
+    <h3>Module Script (Razy CLI)</h3>
+    <p>Register a CLI script inside a Razy module so it can be launched via <code>runapp</code>:</p>
+    <p><strong>1. Register the script in your controller's <code>__onInit</code>:</strong></p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addScript</span>(<span class="hl-str">'ws:start'</span>, <span class="hl-str">'script/ws_start'</span>);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p><strong>2. Create the handler</strong> (<code>controller/script/{module_code}.ws_start.php</code>):</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Server</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Connection</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\WebSocket\Frame</span>;
+
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> ...<span class="hl-var">$args</span>): <span class="hl-cls">void</span> {
+    <span class="hl-var">$port</span> = (<span class="hl-kw">int</span>) (<span class="hl-var">$args</span>[<span class="hl-num">0</span>] &rarr; <span class="hl-num">8080</span>);
+    <span class="hl-var">$server</span> = <span class="hl-kw">new</span> <span class="hl-cls">Server</span>(<span class="hl-str">'0.0.0.0'</span>, <span class="hl-var">$port</span>);
+
+    <span class="hl-var">$server</span>
+        -&gt;<span class="hl-fn">onOpen</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>) =&gt; <span class="hl-kw">echo</span> <span class="hl-str">"Connected: {<span class="hl-var">$conn</span>-&gt;<span class="hl-fn">getId</span>()}\n"</span>)
+        -&gt;<span class="hl-fn">onMessage</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>, <span class="hl-cls">Frame</span> <span class="hl-var">$frame</span>) <span class="hl-kw">use</span> (<span class="hl-var">$server</span>) {
+            <span class="hl-var">$server</span>-&gt;<span class="hl-fn">broadcast</span>(<span class="hl-var">$frame</span>-&gt;<span class="hl-fn">getPayload</span>(), <span class="hl-var">$conn</span>);
+        })
+        -&gt;<span class="hl-fn">onClose</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Connection</span> <span class="hl-var">$conn</span>) =&gt; <span class="hl-kw">echo</span> <span class="hl-str">"Disconnected: {<span class="hl-var">$conn</span>-&gt;<span class="hl-fn">getId</span>()}\n"</span>);
+
+    <span class="hl-kw">echo</span> <span class="hl-str">"WebSocket server listening on port {<span class="hl-var">$port</span>}\n"</span>;
+    <span class="hl-var">$server</span>-&gt;<span class="hl-fn">start</span>();
+};</code></pre>
+    <p><strong>3. Launch via <code>runapp</code>:</strong></p>
+    <pre><code><span class="hl-cmt"># Start the interactive shell</span>
+php Razy.phar runapp main
+
+<span class="hl-cmt"># Inside the shell, run the script</span>
+&gt; run /ws:start</code></pre>
+
+    <h3>Running in the Background</h3>
+    <p>For production, run the server as a background process or under a process manager:</p>
+    <pre><code><span class="hl-cmt"># Background with nohup (Linux/macOS)</span>
+nohup php ws-server.php 0.0.0.0 8080 &gt; ws.log 2&gt;&amp;1 &amp;
+
+<span class="hl-cmt"># Supervisor (supervisord.conf)</span>
+[program:ws-server]
+command=php /var/www/myproject/ws-server.php 0.0.0.0 8080
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/ws-server.err.log
+stdout_logfile=/var/log/ws-server.out.log
+
+<span class="hl-cmt"># systemd unit</span>
+[Unit]
+Description=Razy WebSocket Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/php /var/www/myproject/ws-server.php 0.0.0.0 8080
+Restart=always
+User=www-data
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Mistake</th><th>Why It Fails</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Forgetting to mask client frames</td><td>RFC 6455 requires client?íserver masking; server will reject</td><td>Use <code>Client::connect()</code> (auto-masks) or <code>new Connection($stream, maskOutput: true)</code></td></tr>
+        <tr><td>Calling <code>readFrame()</code> on a blocking stream</td><td>Blocks indefinitely if no data</td><td>Set <code>stream_set_blocking($stream, false)</code> or use <code>receiveBlocking()</code> with a timeout</td></tr>
+        <tr><td>Not handling ping frames</td><td>Connection may time out on the remote end</td><td><code>Connection::readFrame()</code> auto-replies ping with pong ??just keep reading</td></tr>
+        <tr><td>Ignoring the close handshake</td><td>Remote side waits for close echo before dropping TCP</td><td><code>Connection::readFrame()</code> auto-echoes close; or call <code>sendClose()</code> explicitly</td></tr>
+        <tr><td>Using <code>broadcast()</code> before handshake completes</td><td>Sends frames to connections with no WebSocket layer</td><td><code>broadcast()</code> already checks <code>isHandshakeCompleted()</code> before sending</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="decision-guide">Decision Guide</h2>
+    <table>
+      <thead><tr><th>Scenario</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>Real-time push from server only (one-way)</td><td><a href="sse.html">SSE</a> (simpler, HTTP-based)</td></tr>
+        <tr><td>Bidirectional real-time messaging</td><td><strong>WebSocket Server + Client</strong></td></tr>
+        <tr><td>Sending HTTP requests to an API</td><td><a href="httpclient.html">HTTP Client</a></td></tr>
+        <tr><td>Inter-process message passing</td><td><a href="simplified-message.html">SimplifiedMessage</a> over pipes or sockets</td></tr>
+        <tr><td>Background job processing</td><td><a href="queue.html">Queue</a></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="flow-diagram">Flow Diagram</h2>
+    <pre><code>Client                              Server
+  ??                                   ??
+  ?Ç‚??Ä TCP connect ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?? ??stream_socket_accept()
+  ??                                   ??
+  ?Ç‚??Ä GET / HTTP/1.1 ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?? ??performServerHandshake()
+  ??  Upgrade: websocket               ??
+  ??  Sec-WebSocket-Key: ...           ??
+  ??                                   ??
+  ?Ç‚??Ä?Ä HTTP/1.1 101 ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä  ??
+  ??   Sec-WebSocket-Accept: ...       ??
+  ??                                   ??
+  ?Ç‚???WebSocket frames ?ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??? ??readFrame() ??onMessage()
+  ?Ç‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚??ê‚?  ??sendText() / broadcast()
+  ??                                   ??
+  ?Ç‚??Ä Close(1000) ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?? ??readFrame() auto-echoes close
+  ?Ç‚??Ä?Ä Close(1000) ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä  ??
+  ??                                   ??
+  ?Ç‚??Ä TCP FIN ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?? ??removeConnection()</code></pre>
+
+    <div class="page-nav">
+      <a href="sse.html"><span class="label">??Previous</span><span class="title">SSE</span></a>
+      <a href="mailer.html" class="next"><span class="label">Next ??/span><span class="title">Mailer</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

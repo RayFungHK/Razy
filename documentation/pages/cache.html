@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cache &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Cache</h1>
+    <p>The <code>Cache</code> class provides a static facade for the PSR-16 cache system. It auto-initializes with a file-based adapter and supports file-validated caching that automatically invalidates entries when source files change.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>The cache system accelerates YAML parsing, configuration loading, and module discovery by storing computed results and serving them on subsequent requests. It requires zero configuration &mdash; the framework initializes it during bootstrap.</p>
+    <table>
+      <thead><tr><th>Feature</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Interface</td><td>PSR-16 Simple Cache</td></tr>
+        <tr><td>Default Adapter</td><td><code>FileAdapter</code> &mdash;file-based with directory sharding</td></tr>
+        <tr><td>Storage</td><td><code>data/cache/</code> (auto-created)</td></tr>
+        <tr><td>Validation</td><td>mtime-based file validation for config/YAML caching</td></tr>
+        <tr><td>Fallback</td><td><code>NullAdapter</code> if directory unwritable</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="methods">Cache Facade Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Cache::get($key, $default)</code></td><td><code>mixed</code></td><td>Fetch a cached value</td></tr>
+        <tr><td><code>Cache::set($key, $value, $ttl)</code></td><td><code>bool</code></td><td>Store a value with optional TTL</td></tr>
+        <tr><td><code>Cache::delete($key)</code></td><td><code>bool</code></td><td>Remove a cached value</td></tr>
+        <tr><td><code>Cache::has($key)</code></td><td><code>bool</code></td><td>Check if key exists and is not expired</td></tr>
+        <tr><td><code>Cache::clear()</code></td><td><code>bool</code></td><td>Wipe all cached data</td></tr>
+        <tr><td><code>Cache::getValidated($key, $filePath, $default)</code></td><td><code>mixed</code></td><td>Get cached data; invalidate if file changed</td></tr>
+        <tr><td><code>Cache::setValidated($key, $filePath, $data, $ttl)</code></td><td><code>bool</code></td><td>Store data with file mtime metadata</td></tr>
+        <tr><td><code>Cache::getMultiple($keys, $default)</code></td><td><code>iterable</code></td><td>Fetch multiple keys at once</td></tr>
+        <tr><td><code>Cache::setMultiple($values, $ttl)</code></td><td><code>bool</code></td><td>Store multiple key =&gt; value pairs</td></tr>
+        <tr><td><code>Cache::deleteMultiple($keys)</code></td><td><code>bool</code></td><td>Delete multiple keys</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="basic-usage">Basic Usage</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache</span>;
+
+<span class="hl-cmt">// Store a value (no expiry)</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">set</span>(<span class="hl-str">'user.profile'</span>, [<span class="hl-str">'name'</span> => <span class="hl-str">'Ray'</span>, <span class="hl-str">'role'</span> => <span class="hl-str">'admin'</span>]);
+
+<span class="hl-cmt">// Store with TTL (1 hour)</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">set</span>(<span class="hl-str">'session.token'</span>, <span class="hl-var">$token</span>, <span class="hl-num">3600</span>);
+
+<span class="hl-cmt">// Retrieve a cached value</span>
+<span class="hl-var">$profile</span> = <span class="hl-cls">Cache</span>::<span class="hl-fn">get</span>(<span class="hl-str">'user.profile'</span>);
+
+<span class="hl-cmt">// Retrieve with a custom default</span>
+<span class="hl-var">$theme</span> = <span class="hl-cls">Cache</span>::<span class="hl-fn">get</span>(<span class="hl-str">'user.theme'</span>, <span class="hl-str">'light'</span>);
+
+<span class="hl-cmt">// Check existence</span>
+<span class="hl-kw">if</span> (<span class="hl-cls">Cache</span>::<span class="hl-fn">has</span>(<span class="hl-str">'user.profile'</span>)) {
+    <span class="hl-cmt">// ...</span>
+}
+
+<span class="hl-cmt">// Delete</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">delete</span>(<span class="hl-str">'user.profile'</span>);
+
+<span class="hl-cmt">// Clear everything</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">clear</span>();</code></pre>
+
+    <h2 id="file-validated">File-Validated Caching</h2>
+    <p>Automatically invalidate cache entries when their source files change. The framework uses this for YAML files, configuration, and module manifests.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache</span>;
+
+<span class="hl-var">$configPath</span> = <span class="hl-str">'/app/config/database.yaml'</span>;
+<span class="hl-var">$cacheKey</span>   = <span class="hl-str">'config.'</span> . <span class="hl-fn">md5</span>(<span class="hl-var">$configPath</span>);
+
+<span class="hl-cmt">// Try cache first &mdash; returns null if file was modified</span>
+<span class="hl-var">$data</span> = <span class="hl-cls">Cache</span>::<span class="hl-fn">getValidated</span>(<span class="hl-var">$cacheKey</span>, <span class="hl-var">$configPath</span>);
+
+<span class="hl-kw">if</span> (<span class="hl-var">$data</span> === <span class="hl-kw">null</span>) {
+    <span class="hl-cmt">// Cache miss or stale &mdash; parse fresh</span>
+    <span class="hl-var">$data</span> = <span class="hl-cls">YAML</span>::<span class="hl-fn">parseFile</span>(<span class="hl-var">$configPath</span>);
+    <span class="hl-cls">Cache</span>::<span class="hl-fn">setValidated</span>(<span class="hl-var">$cacheKey</span>, <span class="hl-var">$configPath</span>, <span class="hl-var">$data</span>);
+}</code></pre>
+
+    <h2 id="ttl">TTL (Time-To-Live)</h2>
+    <table>
+      <thead><tr><th>TTL Value</th><th>Behavior</th></tr></thead>
+      <tbody>
+        <tr><td><code>null</code></td><td>No expiry &mdash; persists indefinitely</td></tr>
+        <tr><td><code>3600</code> (int)</td><td>Expires in 3600 seconds (1 hour)</td></tr>
+        <tr><td><code>new DateInterval('PT30M')</code></td><td>Expires in 30 minutes</td></tr>
+        <tr><td><code>0</code> or negative</td><td>Item is immediately deleted</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="batch">Batch Operations</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache</span>;
+
+<span class="hl-cmt">// Set multiple values at once</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">setMultiple</span>([
+    <span class="hl-str">'config.name'</span>    => <span class="hl-str">'MyApp'</span>,
+    <span class="hl-str">'config.version'</span> => <span class="hl-str">'1.0.0'</span>,
+    <span class="hl-str">'config.debug'</span>   => <span class="hl-kw">true</span>,
+], <span class="hl-num">3600</span>);
+
+<span class="hl-cmt">// Get multiple values</span>
+<span class="hl-var">$values</span> = <span class="hl-cls">Cache</span>::<span class="hl-fn">getMultiple</span>([<span class="hl-str">'config.name'</span>, <span class="hl-str">'config.version'</span>]);
+<span class="hl-cmt">// ['config.name' => 'MyApp', 'config.version' => '1.0.0']</span>
+
+<span class="hl-cmt">// Delete multiple</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">deleteMultiple</span>([<span class="hl-str">'config.name'</span>, <span class="hl-str">'config.version'</span>]);</code></pre>
+
+    <h2 id="adapters">Cache Adapters</h2>
+    <table>
+      <thead><tr><th>Adapter</th><th>Storage</th><th>Best For</th></tr></thead>
+      <tbody>
+        <tr><td><code>FileAdapter</code></td><td>File system (<code>data/cache/</code>)</td><td>Default &mdash; works on any server</td></tr>
+        <tr><td><code>ApcuAdapter</code></td><td>PHP shared memory</td><td>High-traffic &mdash; requires <code>ext-apcu</code></td></tr>
+        <tr><td><code>NullAdapter</code></td><td>None (discards all)</td><td>Development / testing</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Swapping Adapters</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache\ApcuAdapter</span>;
+
+<span class="hl-cmt">// Initialize with APCu instead of file-based</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">initialize</span>(<span class="hl-str">''</span>, <span class="hl-kw">new</span> <span class="hl-cls">ApcuAdapter</span>());
+
+<span class="hl-cmt">// Or swap at runtime</span>
+<span class="hl-cls">Cache</span>::<span class="hl-fn">setAdapter</span>(<span class="hl-kw">new</span> <span class="hl-cls">ApcuAdapter</span>(<span class="hl-str">'myapp_'</span>));</code></pre>
+
+    <h2 id="custom-adapter">Creating a Custom Adapter</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache\CacheInterface</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">DateInterval</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">RedisAdapter</span> <span class="hl-kw">implements</span> <span class="hl-cls">CacheInterface</span>
+{
+    <span class="hl-kw">private</span> <span class="hl-cls">\Redis</span> <span class="hl-var">$redis</span>;
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(<span class="hl-cls">\Redis</span> <span class="hl-var">$redis</span>)
+    {
+        <span class="hl-var">$this</span>-><span class="hl-var">redis</span> = <span class="hl-var">$redis</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">get</span>(<span class="hl-kw">string</span> <span class="hl-var">$key</span>, <span class="hl-kw">mixed</span> <span class="hl-var">$default</span> = <span class="hl-kw">null</span>): <span class="hl-kw">mixed</span>
+    {
+        <span class="hl-var">$value</span> = <span class="hl-var">$this</span>-><span class="hl-var">redis</span>-><span class="hl-fn">get</span>(<span class="hl-var">$key</span>);
+        <span class="hl-kw">return</span> <span class="hl-var">$value</span> === <span class="hl-kw">false</span> ? <span class="hl-var">$default</span> : <span class="hl-fn">unserialize</span>(<span class="hl-var">$value</span>);
+    }
+
+    <span class="hl-cmt">// Implement remaining CacheInterface methods...</span>
+}</code></pre>
+
+    <h2 id="key-rules">Cache Key Rules</h2>
+    <p>Keys must be non-empty strings. The following PSR-16 reserved characters are <strong>not allowed</strong>:</p>
+    <pre><code>{ } ( ) / \ @ :</code></pre>
+    <p>Use dot-separated namespaces for organization:</p>
+    <pre><code><span class="hl-cmt">// &#x2718; Valid keys</span>
+<span class="hl-str">'user.profile.123'</span>
+<span class="hl-str">'yaml.a3f5c8d9e1b2'</span>
+<span class="hl-str">'config_database'</span>
+
+<span class="hl-cmt">// &#x2718; Invalid &mdash; throws InvalidArgumentException</span>
+<span class="hl-str">'user/profile'</span>     <span class="hl-cmt">// contains /</span>
+<span class="hl-str">'cache@key'</span>        <span class="hl-cmt">// contains @</span>
+<span class="hl-str">''</span>                 <span class="hl-cmt">// empty</span></code></pre>
+
+    <h2 id="framework-integration">Framework Integration</h2>
+    <p>The cache is used automatically by these core components:</p>
+    <table>
+      <thead><tr><th>Component</th><th>Cache Key Pattern</th><th>Validation</th></tr></thead>
+      <tbody>
+        <tr><td><code>YAML::parseFile()</code></td><td><code>yaml.{md5}</code></td><td>mtime-based (file change detection)</td></tr>
+        <tr><td><code>Configuration</code> constructor</td><td><code>config.{md5}</code></td><td>mtime-based (file change detection)</td></tr>
+        <tr><td><code>Distributor::scanModule()</code></td><td><code>module.{md5}</code></td><td>Directory signature (file counts &amp; mtimes)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="cli">CLI Commands</h2>
+    <pre><code><span class="hl-cmt"># Show cache system status</span>
+php Razy.phar cache status
+
+<span class="hl-cmt"># Display file count and total size</span>
+php Razy.phar cache stats
+
+<span class="hl-cmt"># Clear all cached data</span>
+php Razy.phar cache clear
+
+<span class="hl-cmt"># Remove only expired entries</span>
+php Razy.phar cache gc</code></pre>
+
+    <div class="page-nav">
+      <a href="yaml.html"><span class="label">&larr; Previous</span><span class="title">YAML</span></a>
+      <a href="template.html" class="next"><span class="label">Next &rarr;</span><span class="title">Template Engine</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

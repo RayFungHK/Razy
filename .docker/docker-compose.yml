@@ -1,0 +1,47 @@
+# Razy Framework — Development Environment
+#
+# Usage:
+#   docker compose -f .docker/docker-compose.yml up
+#   → PHP app:  http://localhost:8080  (playground)
+#   → Caddy:    http://localhost:8080  (reverse proxy, auto TLS locally)
+#
+# For development (mount source):
+#   docker compose -f .docker/docker-compose.yml -f .docker/docker-compose.dev.yml up
+
+services:
+  # ── PHP application server ──────────────────────────────────────────
+  php:
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile
+      target: runtime
+    container_name: razy-php
+    volumes:
+      # Mount entire project for live development
+      - ..:/app
+    working_dir: /app
+    environment:
+      RAZY_HOST: "0.0.0.0"
+      RAZY_PORT: "9000"
+    command: ["php", "-S", "0.0.0.0:9000", "-t", "/app/playground", "/app/playground/router.php"]
+    expose:
+      - "9000"
+    restart: unless-stopped
+
+  # ── Caddy reverse proxy ─────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: razy-caddy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./../.docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - php
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

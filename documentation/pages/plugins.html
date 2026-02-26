@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plugin System &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Plugin System</h1>
+    <p>Razy uses a shared <code>PluginTrait</code> to add plugin loading capabilities to core classes. Plugins extend the functionality of Template, Collection, Statement, and other components through lazy-loaded PHP closures.</p>
+
+    <h2 id="plugin-trait">PluginTrait</h2>
+    <p>Classes that use <code>PluginTrait</code> gain the <code>loadPlugin()</code> method, which searches a structured plugin directory to load closures on demand.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\PluginTrait</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">MyComponent</span> {
+    <span class="hl-kw">use</span> <span class="hl-cls">PluginTrait</span>;
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">doSomething</span>() {
+        <span class="hl-var">$plugin</span> = <span class="hl-var">$this</span>-><span class="hl-fn">loadPlugin</span>(<span class="hl-str">'validator'</span>, <span class="hl-str">'email'</span>);
+        <span class="hl-kw">if</span> (<span class="hl-var">$plugin</span>) {
+            <span class="hl-kw">return</span> <span class="hl-var">$plugin</span>(<span class="hl-var">$data</span>);
+        }
+    }
+}</code></pre>
+
+    <h2 id="classes-using">Classes Using Plugins</h2>
+    <table>
+      <thead><tr><th>Class</th><th>Plugin Types</th><th>Location</th></tr></thead>
+      <tbody>
+        <tr><td><code>Template</code></td><td>Modifiers, Functions, Custom Functions</td><td><code>src/plugins/template/</code></td></tr>
+        <tr><td><code>Statement</code></td><td>Builder plugins</td><td><code>src/plugins/statement/</code></td></tr>
+        <tr><td><code>Collection</code></td><td>Filter plugins</td><td><code>src/plugins/collection/</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="template-plugins">Template Plugins</h2>
+    <h3>Modifiers</h3>
+    <p>Template modifiers transform output in the rendering pipeline. They are invoked with the pipe <code>|</code> operator in template tags.</p>
+    <div class="dir-tree"><pre>src/plugins/template/modifier/
+&#x251C;&#x2500;&#x2500; upper.php
+&#x251C;&#x2500;&#x2500; lower.php
+&#x251C;&#x2500;&#x2500; escape.php
+&#x251C;&#x2500;&#x2500; trim.php
+&#x251C;&#x2500;&#x2500; nl2br.php
+&#x251C;&#x2500;&#x2500; json.php
+&#x251C;&#x2500;&#x2500; base64.php
+&#x251C;&#x2500;&#x2500; md5.php
+&#x251C;&#x2500;&#x2500; number_format.php
+&#x251C;&#x2500;&#x2500; date.php
+&#x251C;&#x2500;&#x2500; default.php
+&#x251C;&#x2500;&#x2500; truncate.php
+&#x251C;&#x2500;&#x2500; url_encode.php</pre></div>
+    <p>A modifier plugin file returns a closure:</p>
+    <pre><code><span class="hl-cmt">// modifier/upper.php</span>
+<span class="hl-kw">return function</span>(<span class="hl-var">$value</span>): <span class="hl-cls">string</span> {
+    <span class="hl-kw">return</span> <span class="hl-fn">strtoupper</span>((<span class="hl-kw">string</span>) <span class="hl-var">$value</span>);
+};</code></pre>
+
+    <h3>Function Tags</h3>
+    <p>Function plugins provide control flow and utility within templates. Called using <code>{@functionName ...}</code> syntax.</p>
+    <div class="dir-tree"><pre>src/plugins/template/function/
+&#x251C;&#x2500;&#x2500; if.php
+&#x251C;&#x2500;&#x2500; include.php
+&#x251C;&#x2500;&#x2500; url.php
+&#x251C;&#x2500;&#x2500; asset.php</pre></div>
+
+    <h2 id="statement-plugins">Statement Builder Plugins</h2>
+    <p>Builder plugins extend the Statement query builder with named sub-interfaces:</p>
+    <pre><code><span class="hl-var">$builder</span> = <span class="hl-var">$statement</span>-><span class="hl-fn">builder</span>(<span class="hl-str">'search'</span>, <span class="hl-var">$searchTerm</span>);
+<span class="hl-cmt">// Adds search-specific WHERE conditions</span></code></pre>
+
+    <h2 id="collection-plugins">Collection Filter Plugins</h2>
+    <p>Filter plugins are invoked through the selector syntax:</p>
+    <pre><code><span class="hl-cmt">// filter/greaterThan.php</span>
+<span class="hl-kw">return function</span>(<span class="hl-var">$value</span>, <span class="hl-var">$threshold</span>): <span class="hl-cls">bool</span> {
+    <span class="hl-kw">return</span> <span class="hl-var">$value</span> > (<span class="hl-kw">int</span>) <span class="hl-var">$threshold</span>;
+};
+
+<span class="hl-cmt">// Usage: $collection('items.*:greaterThan(price, 100)')</span></code></pre>
+
+    <h2 id="global-plugins">Global Plugin Directory</h2>
+    <p>Shared plugins are loaded from <code>plugins/</code> directories in the workspace. Module-specific plugins go in the module's own <code>plugins/</code> folder:</p>
+    <div class="dir-tree"><pre>playground/plugins/
+&#x251C;&#x2500;&#x2500; template/
+&#x2502;  &#x251C;&#x2500;&#x2500; modifier/
+&#x2502;  &#x251C;&#x2500;&#x2500; function/
+&#x251C;&#x2500;&#x2500; statement/
+&#x2502;  &#x251C;&#x2500;&#x2500; builder/
+&#x251C;&#x2500;&#x2500; collection/
+    &#x251C;&#x2500;&#x2500; filter/</pre></div>
+
+    <h2 id="creating-plugins">Creating Custom Plugins</h2>
+    <ol>
+      <li>Identify the plugin type (modifier, function, builder, filter)</li>
+      <li>Create a PHP file in the appropriate directory</li>
+      <li>The file must <code>return</code> a <code>Closure</code></li>
+      <li>The filename becomes the plugin name (without <code>.php</code>)</li>
+    </ol>
+    <div class="callout callout-tip">
+      <strong>Tip:</strong> Plugin files are lazy-loaded &mdash; they are only included when first referenced, keeping memory usage minimal.
+    </div>
+
+    <div class="page-nav">
+      <a href="dom.html"><span class="label">&larr; Previous</span><span class="title">DOM Builder</span></a>
+      <a href="cli.html" class="next"><span class="label">Next &rarr;</span><span class="title">CLI &amp; Terminal</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

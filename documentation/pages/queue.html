@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Queue &mdash; Razy Framework</title>
+<link rel="stylesheet" href="../css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<script src="../js/docs.js" defer></script>
+</head>
+<body>
+<header class="header"><!-- menu toggle --><button class="menu-toggle" aria-label="Toggle navigation">&#9776;</button><a href="../index.html" class="logo"><span class="logo-icon">R</span> Razy <span class="version">v1.0-beta</span></a><nav class="nav"><a href="../index.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/RayFungHK/Razy" target="_blank">GitHub</a><button class="theme-toggle" aria-label="Toggle dark mode">&#x1F319;</button></nav></header>
+<aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+<div class="sidebar-overlay"></div>
+
+<main class="main-content">
+
+<h1>Queue</h1>
+<p>Razy provides a job queue system for deferring time-consuming tasks (sending emails, processing images, generating reports) to be executed asynchronously. Jobs are dispatched to a persistent store and processed by a worker loop.</p>
+
+<h2 id="quick-start">Quick Start</h2>
+<pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Queue\QueueManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Queue\Store\DatabaseStore</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Queue\JobHandlerInterface</span>;
+
+<span class="hl-cmt">// 1. Create a store</span>
+<span class="hl-var">$store</span> = <span class="hl-kw">new</span> <span class="hl-cls">DatabaseStore</span>(<span class="hl-var">$database</span>);
+<span class="hl-var">$store</span>-&gt;<span class="hl-fn">ensureStorage</span>();  <span class="hl-cmt">// create razy_jobs table if needed</span>
+
+<span class="hl-cmt">// 2. Create queue manager</span>
+<span class="hl-var">$queue</span> = <span class="hl-kw">new</span> <span class="hl-cls">QueueManager</span>(<span class="hl-var">$store</span>);
+
+<span class="hl-cmt">// 3. Register a handler</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">registerHandler</span>(<span class="hl-str">'send_email'</span>, <span class="hl-cls">SendEmailHandler</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// 4. Dispatch a job</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">dispatch</span>(<span class="hl-str">'send_email'</span>, [
+    <span class="hl-str">'to'</span>      =&gt; <span class="hl-str">'alice@example.com'</span>,
+    <span class="hl-str">'subject'</span> =&gt; <span class="hl-str">'Welcome!'</span>,
+    <span class="hl-str">'body'</span>    =&gt; <span class="hl-str">'Thanks for signing up.'</span>,
+]);
+
+<span class="hl-cmt">// 5. Process pending jobs</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">process</span>();</code></pre>
+
+<h2 id="queuemanager">QueueManager</h2>
+<p>The central class that coordinates dispatching, processing, and event handling.</p>
+
+<h3 id="dispatching-jobs">Dispatching Jobs</h3>
+<pre><code><span class="hl-var">$queue</span> = <span class="hl-kw">new</span> <span class="hl-cls">QueueManager</span>(<span class="hl-var">$store</span>);
+
+<span class="hl-cmt">// Dispatch to queue (processed later)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">dispatch</span>(<span class="hl-str">'send_email'</span>, [
+    <span class="hl-str">'to'</span>      =&gt; <span class="hl-str">'bob@example.com'</span>,
+    <span class="hl-str">'subject'</span> =&gt; <span class="hl-str">'Invoice #123'</span>,
+]);
+
+<span class="hl-cmt">// Dispatch with delay (seconds)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">dispatch</span>(<span class="hl-str">'send_reminder'</span>, [<span class="hl-str">'user_id'</span> =&gt; <span class="hl-num">42</span>], delay: <span class="hl-num">3600</span>);
+
+<span class="hl-cmt">// Dispatch with max attempts</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">dispatch</span>(<span class="hl-str">'process_image'</span>, [<span class="hl-str">'path'</span> =&gt; <span class="hl-str">'/uploads/photo.jpg'</span>], maxAttempts: <span class="hl-num">5</span>);
+
+<span class="hl-cmt">// Dispatch and execute immediately (synchronous)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">dispatchNow</span>(<span class="hl-str">'send_email'</span>, [
+    <span class="hl-str">'to'</span>      =&gt; <span class="hl-str">'urgent@example.com'</span>,
+    <span class="hl-str">'subject'</span> =&gt; <span class="hl-str">'Alert!'</span>,
+]);</code></pre>
+
+<h3 id="processing-jobs">Processing Jobs</h3>
+<pre><code><span class="hl-cmt">// Process all pending jobs (FIFO)</span>
+<span class="hl-var">$processed</span> = <span class="hl-var">$queue</span>-&gt;<span class="hl-fn">process</span>();
+<span class="hl-cmt">// Returns number of jobs processed</span>
+
+<span class="hl-cmt">// Process a batch of N jobs</span>
+<span class="hl-var">$processed</span> = <span class="hl-var">$queue</span>-&gt;<span class="hl-fn">processBatch</span>(limit: <span class="hl-num">10</span>);
+
+<span class="hl-cmt">// Process a specific job by ID</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">processJob</span>(<span class="hl-var">$jobId</span>);</code></pre>
+
+<p>The processing flow for each job:</p>
+<ol>
+  <li><strong>Reserve</strong> &mdash;mark job status as <code>Reserved</code> (prevents other workers picking it up)</li>
+  <li><strong>Resolve handler</strong> &mdash;find the registered handler class for the job type</li>
+  <li><strong>Execute</strong> &mdash;call <code>$handler-&gt;handle($job)</code></li>
+  <li><strong>Complete</strong> &mdash;on success, mark status as <code>Completed</code></li>
+  <li><strong>Fail</strong> &mdash;on exception, call <code>$handler-&gt;failed($job, $e)</code>, then:
+    <ul>
+      <li>If attempts &lt; maxAttempts &rarr; <strong>Release</strong> back to queue (status <code>Pending</code>)</li>
+      <li>If exhausted &rarr; <strong>Bury</strong> the job (status <code>Buried</code>)</li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="managing-jobs">Managing Jobs</h3>
+<pre><code><span class="hl-cmt">// Find a job by ID</span>
+<span class="hl-var">$job</span> = <span class="hl-var">$queue</span>-&gt;<span class="hl-fn">find</span>(<span class="hl-var">$jobId</span>);
+
+<span class="hl-cmt">// Count pending jobs</span>
+<span class="hl-var">$pending</span> = <span class="hl-var">$queue</span>-&gt;<span class="hl-fn">count</span>();
+<span class="hl-var">$pending</span> = <span class="hl-var">$queue</span>-&gt;<span class="hl-fn">count</span>(status: <span class="hl-cls">JobStatus</span>::<span class="hl-cls">Pending</span>);
+
+<span class="hl-cmt">// Delete a specific job</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">delete</span>(<span class="hl-var">$jobId</span>);
+
+<span class="hl-cmt">// Clear all jobs (or by status)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">clear</span>();
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">clear</span>(status: <span class="hl-cls">JobStatus</span>::<span class="hl-cls">Buried</span>);
+
+<span class="hl-cmt">// Ensure storage exists (create tables)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">ensureStorage</span>();</code></pre>
+
+<h3 id="events">Events</h3>
+<pre><code><span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'dispatched'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>) {
+    <span class="hl-cls">Log</span>::<span class="hl-fn">info</span>(<span class="hl-str">"Job dispatched: {<span class="hl-var">$job</span>-&gt;type}"</span>);
+});
+
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'reserved'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>) {
+    <span class="hl-cls">Log</span>::<span class="hl-fn">info</span>(<span class="hl-str">"Job reserved: {<span class="hl-var">$job</span>-&gt;id}"</span>);
+});
+
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'completed'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>) {
+    <span class="hl-cls">Log</span>::<span class="hl-fn">info</span>(<span class="hl-str">"Job completed: {<span class="hl-var">$job</span>-&gt;id}"</span>);
+});
+
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'failed'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>, \<span class="hl-cls">Throwable</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cls">Log</span>::<span class="hl-fn">error</span>(<span class="hl-str">"Job failed: {<span class="hl-var">$job</span>-&gt;id} &rarr; {<span class="hl-var">$e</span>-&gt;<span class="hl-fn">getMessage</span>()}"</span>);
+});
+
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'buried'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>) {
+    <span class="hl-cls">Log</span>::<span class="hl-fn">warning</span>(<span class="hl-str">"Job buried: {<span class="hl-var">$job</span>-&gt;id}"</span>);
+});
+
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'released'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>) {
+    <span class="hl-cls">Log</span>::<span class="hl-fn">info</span>(<span class="hl-str">"Job released: {<span class="hl-var">$job</span>-&gt;id}, attempt {<span class="hl-var">$job</span>-&gt;attempts}"</span>);
+});</code></pre>
+
+<h2 id="job-handlers">Job Handlers</h2>
+
+<h3 id="jobhandlerinterface">JobHandlerInterface</h3>
+<pre><code><span class="hl-kw">class</span> <span class="hl-cls">SendEmailHandler</span> <span class="hl-kw">implements</span> <span class="hl-cls">JobHandlerInterface</span>
+{
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">handle</span>(<span class="hl-cls">Job</span> <span class="hl-var">$job</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$payload</span> = <span class="hl-var">$job</span>-&gt;payload;
+
+        <span class="hl-var">$mailer</span> = <span class="hl-kw">new</span> <span class="hl-cls">Mailer</span>();
+        <span class="hl-var">$mailer</span>-&gt;<span class="hl-fn">send</span>(
+            to:      <span class="hl-var">$payload</span>[<span class="hl-str">'to'</span>],
+            subject: <span class="hl-var">$payload</span>[<span class="hl-str">'subject'</span>],
+            body:    <span class="hl-var">$payload</span>[<span class="hl-str">'body'</span>] &rarr; <span class="hl-str">''</span>,
+        );
+    }
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">failed</span>(<span class="hl-cls">Job</span> <span class="hl-var">$job</span>, \<span class="hl-cls">Throwable</span> <span class="hl-var">$e</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-cmt">// Called when the job fails</span>
+        <span class="hl-cls">Log</span>::<span class="hl-fn">error</span>(<span class="hl-str">"Email to {<span class="hl-var">$job</span>-&gt;payload[<span class="hl-str">'to'</span>]} failed: {<span class="hl-var">$e</span>-&gt;<span class="hl-fn">getMessage</span>()}"</span>);
+
+        <span class="hl-cmt">// Optionally notify admin</span>
+        <span class="hl-cls">Notification</span>::<span class="hl-fn">send</span>(<span class="hl-str">'admin@example.com'</span>, <span class="hl-str">"Job #{<span class="hl-var">$job</span>-&gt;id} failed"</span>);
+    }
+}</code></pre>
+
+<h3 id="handler-resolution">Handler Resolution</h3>
+<pre><code><span class="hl-cmt">// String class name (instantiated on demand)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">registerHandler</span>(<span class="hl-str">'send_email'</span>, <span class="hl-cls">SendEmailHandler</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Closure handler</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">registerHandler</span>(<span class="hl-str">'log_event'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Job</span> <span class="hl-var">$job</span>) {
+    <span class="hl-fn">file_put_contents</span>(<span class="hl-str">'events.log'</span>, <span class="hl-fn">json_encode</span>(<span class="hl-var">$job</span>-&gt;payload) . <span class="hl-str">"\n"</span>, FILE_APPEND);
+});
+
+<span class="hl-cmt">// With dependency injection (custom resolver)</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">setHandlerResolver</span>(<span class="hl-kw">function</span> (<span class="hl-kw">string</span> <span class="hl-var">$handlerClass</span>) <span class="hl-kw">use</span> (<span class="hl-var">$container</span>) {
+    <span class="hl-kw">return</span> <span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-var">$handlerClass</span>);
+});</code></pre>
+
+<h2 id="job-value-object">Job Value Object</h2>
+<p>The <code>Job</code> class is an immutable value object representing a queued job. It carries 13 properties:</p>
+<pre><code><span class="hl-var">$job</span>-&gt;id;           <span class="hl-cmt">// string &mdash; UUID</span>
+<span class="hl-var">$job</span>-&gt;type;         <span class="hl-cmt">// string &mdash; handler type key</span>
+<span class="hl-var">$job</span>-&gt;payload;      <span class="hl-cmt">// array  &#x2502; job data</span>
+<span class="hl-var">$job</span>-&gt;status;       <span class="hl-cmt">// JobStatus enum</span>
+<span class="hl-var">$job</span>-&gt;attempts;     <span class="hl-cmt">// int</span>
+<span class="hl-var">$job</span>-&gt;maxAttempts;  <span class="hl-cmt">// int</span>
+<span class="hl-var">$job</span>-&gt;createdAt;    <span class="hl-cmt">// string &mdash; ISO</span>
+<span class="hl-var">$job</span>-&gt;updatedAt;    <span class="hl-cmt">// string &mdash; ISO</span>
+<span class="hl-var">$job</span>-&gt;reservedAt;   <span class="hl-cmt">// ?string</span>
+<span class="hl-var">$job</span>-&gt;completedAt;  <span class="hl-cmt">// ?string</span>
+<span class="hl-var">$job</span>-&gt;failedAt;     <span class="hl-cmt">// ?string</span>
+<span class="hl-var">$job</span>-&gt;delay;        <span class="hl-cmt">// int &mdash; seconds</span>
+<span class="hl-var">$job</span>-&gt;error;        <span class="hl-cmt">// ?string</span></code></pre>
+
+<h3 id="state-transitions">State Transitions</h3>
+<pre><code><span class="hl-var">$job</span>-&gt;<span class="hl-fn">incrementAttempts</span>();
+<span class="hl-var">$job</span>-&gt;<span class="hl-fn">hasExhaustedAttempts</span>();
+<span class="hl-var">$job</span>-&gt;<span class="hl-fn">markReserved</span>();
+<span class="hl-var">$job</span>-&gt;<span class="hl-fn">markCompleted</span>();
+<span class="hl-var">$job</span>-&gt;<span class="hl-fn">markFailed</span>(<span class="hl-var">$e</span>);
+<span class="hl-var">$job</span>-&gt;<span class="hl-fn">markBuried</span>();</code></pre>
+
+<h3 id="job-status-lifecycle">Job Status Lifecycle</h3>
+<pre><code>dispatch() &rarr; [Pending] &#x2502; reserve() &rarr; [Reserved]
+  [Reserved] &#x2502; success &rarr; [Completed]
+  [Reserved] &#x2502; failure &rarr; [Failed]
+  [Failed] &#x2502; retry &rarr; [Pending]
+  [Failed] &#x2502; exhausted &rarr; [Buried]</code></pre>
+
+<h3 id="serialisation">Serialisation</h3>
+<pre><code><span class="hl-var">$array</span> = <span class="hl-var">$job</span>-&gt;<span class="hl-fn">toArray</span>();
+<span class="hl-var">$restored</span> = <span class="hl-cls">Job</span>::<span class="hl-fn">fromArray</span>(<span class="hl-var">$array</span>);</code></pre>
+
+<h2 id="queue-stores">Queue Stores</h2>
+
+<h3 id="databasestore">DatabaseStore</h3>
+<p>Persists jobs in a database table using the Razy <code>Database</code> driver.</p>
+<pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Queue\Store\DatabaseStore</span>;
+
+<span class="hl-var">$store</span> = <span class="hl-kw">new</span> <span class="hl-cls">DatabaseStore</span>(<span class="hl-var">$database</span>);
+
+<span class="hl-cmt">// Create the table (if not exists)</span>
+<span class="hl-var">$store</span>-&gt;<span class="hl-fn">ensureStorage</span>();</code></pre>
+
+<p><strong>Table schema</strong> (<code>razy_jobs</code>):</p>
+<table>
+  <thead>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td><code>VARCHAR(36)</code> PK</td><td>UUID</td></tr>
+    <tr><td><code>type</code></td><td><code>VARCHAR(255)</code></td><td>Handler type</td></tr>
+    <tr><td><code>payload</code></td><td><code>TEXT</code></td><td>JSON payload</td></tr>
+    <tr><td><code>status</code></td><td><code>VARCHAR(20)</code></td><td>Pending/Reserved/Completed/Failed/Buried</td></tr>
+    <tr><td><code>attempts</code></td><td><code>INT</code></td><td>Attempt counter</td></tr>
+    <tr><td><code>max_attempts</code></td><td><code>INT</code></td><td>Max allowed attempts</td></tr>
+    <tr><td><code>delay</code></td><td><code>INT</code></td><td>Delay in seconds</td></tr>
+    <tr><td><code>error</code></td><td><code>TEXT</code></td><td>Last error message</td></tr>
+    <tr><td><code>created_at</code></td><td><code>DATETIME</code></td><td></td></tr>
+    <tr><td><code>updated_at</code></td><td><code>DATETIME</code></td><td></td></tr>
+    <tr><td><code>reserved_at</code></td><td><code>DATETIME</code></td><td></td></tr>
+    <tr><td><code>completed_at</code></td><td><code>DATETIME</code></td><td></td></tr>
+    <tr><td><code>failed_at</code></td><td><code>DATETIME</code></td><td></td></tr>
+  </tbody>
+</table>
+
+<h3 id="custom-store">Custom Store</h3>
+<p>Implement <code>QueueStoreInterface</code> for other backends (Redis, SQS, etc.):</p>
+<pre><code><span class="hl-kw">class</span> <span class="hl-cls">RedisStore</span> <span class="hl-kw">implements</span> <span class="hl-cls">QueueStoreInterface</span>
+{
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">push</span>(<span class="hl-cls">Job</span> <span class="hl-var">$job</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">reserve</span>(): ?<span class="hl-cls">Job</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">complete</span>(<span class="hl-cls">Job</span> <span class="hl-var">$job</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">release</span>(<span class="hl-cls">Job</span> <span class="hl-var">$job</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">bury</span>(<span class="hl-cls">Job</span> <span class="hl-var">$job</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">delete</span>(<span class="hl-kw">string</span> <span class="hl-var">$id</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">find</span>(<span class="hl-kw">string</span> <span class="hl-var">$id</span>): ?<span class="hl-cls">Job</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">count</span>(?<span class="hl-cls">JobStatus</span> <span class="hl-var">$status</span> = <span class="hl-kw">null</span>): <span class="hl-kw">int</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">clear</span>(?<span class="hl-cls">JobStatus</span> <span class="hl-var">$status</span> = <span class="hl-kw">null</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">ensureStorage</span>(): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+}</code></pre>
+
+<h2 id="worker-loop-example">Worker Loop Example</h2>
+<p>A simple CLI worker that processes jobs continuously:</p>
+<pre><code><span class="hl-cmt">#!/usr/bin/env php</span>
+&lt;?php
+<span class="hl-kw">require</span> __DIR__ . <span class="hl-str">'/vendor/autoload.php'</span>;
+
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Queue\QueueManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Queue\Store\DatabaseStore</span>;
+
+<span class="hl-var">$db</span> = <span class="hl-kw">new</span> \<span class="hl-cls">Razy\Database</span>(<span class="hl-str">'mysql:host=127.0.0.1;dbname=app'</span>, <span class="hl-str">'root'</span>, <span class="hl-str">'secret'</span>);
+<span class="hl-var">$store</span> = <span class="hl-kw">new</span> <span class="hl-cls">DatabaseStore</span>(<span class="hl-var">$db</span>);
+<span class="hl-var">$queue</span> = <span class="hl-kw">new</span> <span class="hl-cls">QueueManager</span>(<span class="hl-var">$store</span>);
+
+<span class="hl-cmt">// Register handlers</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">registerHandler</span>(<span class="hl-str">'send_email'</span>, <span class="hl-cls">SendEmailHandler</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">registerHandler</span>(<span class="hl-str">'process_image'</span>, <span class="hl-cls">ProcessImageHandler</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Event logging</span>
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'completed'</span>, <span class="hl-kw">fn</span>(<span class="hl-var">$job</span>) =&gt; <span class="hl-kw">echo</span> <span class="hl-str">"[OK] {<span class="hl-var">$job</span>-&gt;type} #{<span class="hl-var">$job</span>-&gt;id}\n"</span>);
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'failed'</span>, <span class="hl-kw">fn</span>(<span class="hl-var">$job</span>, <span class="hl-var">$e</span>) =&gt; <span class="hl-kw">echo</span> <span class="hl-str">"[FAIL] {<span class="hl-var">$job</span>-&gt;type}: {<span class="hl-var">$e</span>-&gt;<span class="hl-fn">getMessage</span>()}\n"</span>);
+<span class="hl-var">$queue</span>-&gt;<span class="hl-fn">on</span>(<span class="hl-str">'buried'</span>, <span class="hl-kw">fn</span>(<span class="hl-var">$job</span>) =&gt; <span class="hl-kw">echo</span> <span class="hl-str">"[BURIED] {<span class="hl-var">$job</span>-&gt;type} #{<span class="hl-var">$job</span>-&gt;id}\n"</span>);
+
+<span class="hl-kw">echo</span> <span class="hl-str">"Worker started. Listening for jobs...\n"</span>;
+
+<span class="hl-kw">while</span> (<span class="hl-kw">true</span>) {
+    <span class="hl-var">$processed</span> = <span class="hl-var">$queue</span>-&gt;<span class="hl-fn">processBatch</span>(limit: <span class="hl-num">10</span>);
+
+    <span class="hl-kw">if</span> (<span class="hl-var">$processed</span> === <span class="hl-num">0</span>) {
+        <span class="hl-cmt">// No work &mdash; sleep to avoid busy loop</span>
+        <span class="hl-fn">usleep</span>(<span class="hl-num">500_000</span>);  <span class="hl-cmt">// 500ms</span>
+    }
+}</code></pre>
+
+<h3 id="supervisor-configuration">Supervisor Configuration</h3>
+<p>For production, use a process manager like Supervisor:</p>
+<pre><code>[program:razy-worker]
+command=php /var/www/app/worker.php
+autostart=true
+autorestart=true
+numprocs=2
+stderr_logfile=/var/log/razy-worker.err.log
+stdout_logfile=/var/log/razy-worker.out.log</code></pre>
+
+<h2 id="api-reference">API Reference</h2>
+
+<h3>QueueManager</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Signature</th><th>Returns</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>__construct</code></td><td><code>(QueueStoreInterface $store)</code></td><td></td></tr>
+    <tr><td><code>dispatch</code></td><td><code>(string $type, array $payload, int $delay = 0, int $maxAttempts = 3): Job</code></td><td>Queued job</td></tr>
+    <tr><td><code>dispatchNow</code></td><td><code>(string $type, array $payload): void</code></td><td>Synchronous execution</td></tr>
+    <tr><td><code>process</code></td><td><code>(): int</code></td><td>Jobs processed</td></tr>
+    <tr><td><code>processBatch</code></td><td><code>(int $limit): int</code></td><td>Jobs processed</td></tr>
+    <tr><td><code>processJob</code></td><td><code>(string $id): void</code></td><td>Process specific job</td></tr>
+    <tr><td><code>find</code></td><td><code>(string $id): ?Job</code></td><td>Find by ID</td></tr>
+    <tr><td><code>count</code></td><td><code>(?JobStatus $status = null): int</code></td><td>Job count</td></tr>
+    <tr><td><code>delete</code></td><td><code>(string $id): void</code></td><td>Remove job</td></tr>
+    <tr><td><code>clear</code></td><td><code>(?JobStatus $status = null): void</code></td><td>Remove jobs</td></tr>
+    <tr><td><code>ensureStorage</code></td><td><code>(): void</code></td><td>Create storage</td></tr>
+    <tr><td><code>registerHandler</code></td><td><code>(string $type, string|Closure $handler): void</code></td><td>Register handler</td></tr>
+    <tr><td><code>setHandlerResolver</code></td><td><code>(Closure $resolver): void</code></td><td>DI resolver</td></tr>
+    <tr><td><code>on</code></td><td><code>(string $event, Closure $listener): void</code></td><td>Register event</td></tr>
+  </tbody>
+</table>
+
+<h3>Job Properties</h3>
+<table>
+  <thead>
+    <tr><th>Property</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td><code>string</code></td><td>UUID</td></tr>
+    <tr><td><code>type</code></td><td><code>string</code></td><td>Handler type key</td></tr>
+    <tr><td><code>payload</code></td><td><code>array</code></td><td>Job data</td></tr>
+    <tr><td><code>status</code></td><td><code>JobStatus</code></td><td>Current status</td></tr>
+    <tr><td><code>attempts</code></td><td><code>int</code></td><td>Attempts so far</td></tr>
+    <tr><td><code>maxAttempts</code></td><td><code>int</code></td><td>Max attempts</td></tr>
+    <tr><td><code>delay</code></td><td><code>int</code></td><td>Delay (seconds)</td></tr>
+    <tr><td><code>error</code></td><td><code>?string</code></td><td>Last error</td></tr>
+    <tr><td><code>createdAt</code></td><td><code>string</code></td><td>Created timestamp</td></tr>
+    <tr><td><code>updatedAt</code></td><td><code>string</code></td><td>Updated timestamp</td></tr>
+    <tr><td><code>reservedAt</code></td><td><code>?string</code></td><td>Reserved timestamp</td></tr>
+    <tr><td><code>completedAt</code></td><td><code>?string</code></td><td>Completed timestamp</td></tr>
+    <tr><td><code>failedAt</code></td><td><code>?string</code></td><td>Failed timestamp</td></tr>
+  </tbody>
+</table>
+
+<h3>Job Methods</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Signature</th><th>Returns</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>incrementAttempts</code></td><td><code>(): void</code></td><td>Bump counter</td></tr>
+    <tr><td><code>hasExhaustedAttempts</code></td><td><code>(): bool</code></td><td>At limit?</td></tr>
+    <tr><td><code>markReserved</code></td><td><code>(): void</code></td><td>Set Reserved</td></tr>
+    <tr><td><code>markCompleted</code></td><td><code>(): void</code></td><td>Set Completed</td></tr>
+    <tr><td><code>markFailed</code></td><td><code>(\Throwable $e): void</code></td><td>Set Failed</td></tr>
+    <tr><td><code>markBuried</code></td><td><code>(): void</code></td><td>Set Buried</td></tr>
+    <tr><td><code>toArray</code></td><td><code>(): array</code></td><td>Serialise</td></tr>
+    <tr><td><code>fromArray</code></td><td><code>(array $data): static</code></td><td>Deserialise</td></tr>
+  </tbody>
+</table>
+
+<h3>JobStatus Enum</h3>
+<table>
+  <thead>
+    <tr><th>Case</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Pending</code></td><td><code>'pending'</code></td></tr>
+    <tr><td><code>Reserved</code></td><td><code>'reserved'</code></td></tr>
+    <tr><td><code>Completed</code></td><td><code>'completed'</code></td></tr>
+    <tr><td><code>Failed</code></td><td><code>'failed'</code></td></tr>
+    <tr><td><code>Buried</code></td><td><code>'buried'</code></td></tr>
+  </tbody>
+</table>
+
+<h3>QueueStoreInterface</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Signature</th><th>Returns</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>push</code></td><td><code>(Job $job): void</code></td><td>Add to store</td></tr>
+    <tr><td><code>reserve</code></td><td><code>(): ?Job</code></td><td>Reserve next</td></tr>
+    <tr><td><code>complete</code></td><td><code>(Job $job): void</code></td><td>Mark done</td></tr>
+    <tr><td><code>release</code></td><td><code>(Job $job): void</code></td><td>Back to queue</td></tr>
+    <tr><td><code>bury</code></td><td><code>(Job $job): void</code></td><td>Mark buried</td></tr>
+    <tr><td><code>delete</code></td><td><code>(string $id): void</code></td><td>Remove</td></tr>
+    <tr><td><code>find</code></td><td><code>(string $id): ?Job</code></td><td>Lookup</td></tr>
+    <tr><td><code>count</code></td><td><code>(?JobStatus $status): int</code></td><td>Count</td></tr>
+    <tr><td><code>clear</code></td><td><code>(?JobStatus $status): void</code></td><td>Purge</td></tr>
+    <tr><td><code>ensureStorage</code></td><td><code>(): void</code></td><td>Init storage</td></tr>
+  </tbody>
+</table>
+
+<div class="page-nav">
+  <a href="yaml.html"><span class="label">&larr; Previous</span><span class="title">YAML</span></a>
+  <a href="template.html" class="next"><span class="label">Next &rarr;</span><span class="title">Template Engine</span></a>
+</div>
+
+</main>
+<footer class="footer"><p>Razy Framework v1.0-beta &mdash; <a href="https://github.com/RayFungHK/Razy">GitHub</a></p></footer>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event System &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+    <main class="main-content">
+    <h1>Event System</h1>
+    <p>Razy provides two distinct event systems for different use cases:</p>
+    <ol>
+      <li><strong>Module Event System</strong> &mdash; Decoupled inter-module communication within a Distributor, using <code>Agent::listen()</code> and <code>Controller::trigger()</code>.</li>
+      <li><strong>PSR-14 Event Dispatcher</strong> &mdash; A standalone, standards-compliant event dispatcher with priority and stoppable events.</li>
+    </ol>
+
+    <h2 id="module-event-system">Module Event System</h2>
+    <p>The module event system enables modules to fire events that other modules can listen and respond to, without direct dependencies between them. Events are scoped to a single Distributor &mdash; modules in different Distributors cannot listen to each other's events.</p>
+
+    <h3 id="event-format">Event Name Format</h3>
+    <p>Event names use the format <code>vendor/module_code:event_name</code>:</p>
+    <pre><code><span class="hl-str">'vendor/module_code:event_name'</span></code></pre>
+    <p>The vendor and module code identify the <strong>emitting</strong> module (the one that fires the event). The event name identifies the specific event within that module.</p>
+
+    <h3 id="registering-listeners">Registering Listeners</h3>
+    <p>Register listeners in <code>__onInit()</code> using <code>$agent-&gt;listen()</code>. The method signature is:</p>
+    <pre><code><span class="hl-cls">Agent</span>::<span class="hl-fn">listen</span>(<span class="hl-cls">mixed</span> <span class="hl-var">$event</span>, <span class="hl-cls">null</span>|<span class="hl-cls">string</span>|<span class="hl-cls">callable</span> <span class="hl-var">$path</span> = <span class="hl-kw">null</span>): <span class="hl-cls">bool</span>|<span class="hl-cls">array</span></code></pre>
+
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>$event</code></td><td><code>string|array</code></td><td>Event name or array of event names to listen to</td></tr>
+        <tr><td><code>$path</code></td><td><code>null|string|callable</code></td><td>Inline closure, file path to handler, or <code>null</code> for batch registration</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Return value:</strong> <code>bool</code> &mdash; <code>true</code> if the target module is loaded, <code>false</code> otherwise. When an array is passed, returns an associative array of results.</p>
+
+    <h4>Inline Closure Handler</h4>
+    <p>The simplest approach &mdash; pass a closure directly:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'demo/event_demo:user_registered'</span>, <span class="hl-kw">function</span> (<span class="hl-var">$userData</span>) {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'status'</span>   =&gt; <span class="hl-str">'received'</span>,
+            <span class="hl-str">'user'</span>     =&gt; <span class="hl-var">$userData</span>[<span class="hl-str">'name'</span>],
+            <span class="hl-str">'receiver'</span> =&gt; <span class="hl-str">'event_receiver'</span>,
+        ];
+    });
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h4>File-Based Handler</h4>
+    <p>Point to a PHP file that returns a closure. The file is loaded via <code>ClosureLoader</code> and bound to the controller instance:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Loads from the module's controller/ directory</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'demo/event_demo:user_registered'</span>, <span class="hl-str">'onUserRegistered'</span>);
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p>The handler file <code>controller/onUserRegistered.php</code>:</p>
+    <pre><code><span class="hl-cmt">// controller/onUserRegistered.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-var">$userData</span>) {
+    <span class="hl-cmt">// $this refers to the controller instance</span>
+    <span class="hl-kw">return</span> [<span class="hl-str">'handled'</span> =&gt; <span class="hl-kw">true</span>, <span class="hl-str">'by'</span> =&gt; <span class="hl-var">$this</span>-><span class="hl-fn">getModuleInfo</span>()-><span class="hl-fn">getCode</span>()];
+};</code></pre>
+
+    <h4>Batch Registration</h4>
+    <p>Pass an array of event-to-handler mappings:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-var">$results</span> = <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>([
+        <span class="hl-str">'demo/event_demo:user_registered'</span> =&gt; <span class="hl-kw">function</span> (<span class="hl-var">$userData</span>) {
+            <span class="hl-kw">return</span> [<span class="hl-str">'status'</span> =&gt; <span class="hl-str">'ok'</span>];
+        },
+        <span class="hl-str">'demo/event_demo:user_deleted'</span> =&gt; <span class="hl-str">'onUserDeleted'</span>,
+    ]);
+    <span class="hl-cmt">// $results = ['demo/event_demo:user_registered' =&gt; true, ...]</span>
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h3 id="firing">Firing Events</h3>
+    <p>Fire events from within a controller method using <code>$this-&gt;trigger()</code>:</p>
+    <pre><code><span class="hl-cls">Controller</span>::<span class="hl-fn">trigger</span>(<span class="hl-cls">string</span> <span class="hl-var">$event</span>, ?<span class="hl-cls">callable</span> <span class="hl-var">$callback</span> = <span class="hl-kw">null</span>): <span class="hl-cls">EventEmitter</span></code></pre>
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>$event</code></td><td><code>string</code></td><td>Event name (without vendor prefix &mdash; automatically prepended)</td></tr>
+        <tr><td><code>$callback</code></td><td><code>?callable</code></td><td>Optional callback invoked with each listener's response</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt">// In a route handler or controller method</span>
+<span class="hl-var">$emitter</span> = <span class="hl-var">$this</span>-><span class="hl-fn">trigger</span>(<span class="hl-str">'user_registered'</span>);
+<span class="hl-var">$emitter</span>-><span class="hl-fn">resolve</span>(<span class="hl-var">$userData</span>);
+<span class="hl-var">$responses</span> = <span class="hl-var">$emitter</span>-><span class="hl-fn">getAllResponse</span>();</code></pre>
+
+    <h3 id="emitter-api">EventEmitter API</h3>
+    <p>The <code>EventEmitter</code> object returned by <code>trigger()</code> provides two methods:</p>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>resolve(...$args): self</code></td><td><code>EventEmitter</code></td><td>Broadcasts args to all registered listeners, collecting their return values</td></tr>
+        <tr><td><code>getAllResponse(): array</code></td><td><code>array</code></td><td>Returns an array of all listener return values (raw values, no envelope)</td></tr>
+      </tbody>
+    </table>
+    <div class="callout callout-warning"><strong>Important:</strong> <code>resolve()</code> returns <code>$this</code> for chaining. There is no standard response envelope &mdash; <code>getAllResponse()</code> returns the raw return values from each handler.</div>
+
+    <h3 id="event-flow">Event Flow</h3>
+    <pre><code>1. Registration     Module B calls $agent-&gt;listen('vendor/A:some_event', handler)
+       &darr;               during __onInit()
+2. Creation         Module A calls $this-&gt;trigger('some_event')
+       &darr;               returns EventEmitter with registered listeners
+3. Resolution       $emitter-&gt;resolve($arg1, $arg2, ...)
+       &darr;               each listener is invoked, return values collected
+4. Collection       $emitter-&gt;getAllResponse()
+                       returns array of all listener return values</code></pre>
+
+    <h3 id="dual-module-example">Complete Dual-Module Example</h3>
+    <p><strong>Module A &mdash; Event Emitter</strong> (<code>demo/event_demo</code>):</p>
+    <pre><code><span class="hl-cmt">// controller/main.php &mdash; route handler</span>
+<span class="hl-kw">return function</span> () {
+    <span class="hl-var">$userData</span> = [
+        <span class="hl-str">'name'</span>  =&gt; <span class="hl-str">'Alice'</span>,
+        <span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>,
+    ];
+
+    <span class="hl-var">$emitter</span> = <span class="hl-var">$this</span>-><span class="hl-fn">trigger</span>(<span class="hl-str">'user_registered'</span>);
+    <span class="hl-var">$emitter</span>-><span class="hl-fn">resolve</span>(<span class="hl-var">$userData</span>);
+
+    <span class="hl-var">$responses</span> = <span class="hl-var">$emitter</span>-><span class="hl-fn">getAllResponse</span>();
+    <span class="hl-cmt">// $responses contains return values from all listeners</span>
+};</code></pre>
+
+    <p><strong>Module B &mdash; Event Listener</strong> (<code>demo/event_receiver</code>):</p>
+    <pre><code><span class="hl-cmt">// Controller class</span>
+<span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'demo/event_demo:user_registered'</span>, <span class="hl-kw">function</span> (<span class="hl-var">$userData</span>) {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'status'</span>   =&gt; <span class="hl-str">'received'</span>,
+            <span class="hl-str">'user'</span>     =&gt; <span class="hl-var">$userData</span>[<span class="hl-str">'name'</span>],
+            <span class="hl-str">'receiver'</span> =&gt; <span class="hl-str">'event_receiver'</span>,
+        ];
+    });
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h3 id="error-handling">Error Handling</h3>
+    <p>If a listener throws an exception during <code>resolve()</code>, the error is caught and passed to the emitting module's <code>__onError</code> hook. Other listeners continue to execute normally.</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onError</span>(<span class="hl-cls">string</span> <span class="hl-var">$path</span>, <span class="hl-cls">Throwable</span> <span class="hl-var">$exception</span>): <span class="hl-cls">void</span>
+{
+    <span class="hl-cmt">// Log the error or take corrective action</span>
+    <span class="hl-fn">error_log</span>(<span class="hl-str">"Event error at {$path}: "</span> . <span class="hl-var">$exception</span>-><span class="hl-fn">getMessage</span>());
+}</code></pre>
+
+    <h3 id="scoping-rules">Scoping Rules</h3>
+    <ul>
+      <li>Events are scoped to a <strong>single Distributor</strong> &mdash; modules loaded in different distributors cannot communicate via events.</li>
+      <li>There is <strong>no priority mechanism</strong> &mdash; listeners execute in registration order.</li>
+      <li>There is <strong>no propagation stopping</strong> &mdash; all listeners always execute (errors are caught, not propagated).</li>
+      <li>Event names do <strong>not</strong> support wildcards or pattern matching.</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="psr14">PSR-14 Event Dispatcher</h2>
+    <p>Razy also includes a standalone PSR-14 compliant event system in the <code>Razy\Event</code> namespace. This system is independent of the module event system and can be used anywhere.</p>
+
+    <h3 id="psr14-components">Components</h3>
+    <table>
+      <thead><tr><th>Class</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Razy\Event\EventDispatcher</code></td><td>Dispatches event objects to registered listeners</td></tr>
+        <tr><td><code>Razy\Event\ListenerProvider</code></td><td>Stores listeners with optional priority ordering</td></tr>
+        <tr><td><code>Razy\Event\StoppableEvent</code></td><td>Base class for events that support propagation stopping</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="psr14-usage">Basic Usage</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Event\EventDispatcher</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Event\ListenerProvider</span>;
+
+<span class="hl-var">$provider</span> = <span class="hl-kw">new</span> <span class="hl-cls">ListenerProvider</span>();
+
+<span class="hl-cmt">// Register listeners with optional priority (higher = earlier)</span>
+<span class="hl-var">$provider</span>-><span class="hl-fn">addListener</span>(<span class="hl-cls">UserRegistered</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">UserRegistered</span> <span class="hl-var">$event</span>) {
+    <span class="hl-cmt">// Handle event</span>
+}, priority: <span class="hl-num">10</span>);
+
+<span class="hl-var">$provider</span>-><span class="hl-fn">addListener</span>(<span class="hl-cls">UserRegistered</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">UserRegistered</span> <span class="hl-var">$event</span>) {
+    <span class="hl-cmt">// Lower priority, runs after</span>
+}, priority: <span class="hl-num">0</span>);
+
+<span class="hl-var">$dispatcher</span> = <span class="hl-kw">new</span> <span class="hl-cls">EventDispatcher</span>(<span class="hl-var">$provider</span>);
+
+<span class="hl-cmt">// Dispatch returns the event object</span>
+<span class="hl-var">$event</span> = <span class="hl-var">$dispatcher</span>-><span class="hl-fn">dispatch</span>(<span class="hl-kw">new</span> <span class="hl-cls">UserRegistered</span>(<span class="hl-var">$user</span>));</code></pre>
+
+    <h3 id="listener-provider-api">ListenerProvider API</h3>
+    <pre><code><span class="hl-cls">ListenerProvider</span>::<span class="hl-fn">addListener</span>(<span class="hl-cls">string</span> <span class="hl-var">$eventClass</span>, <span class="hl-cls">callable</span> <span class="hl-var">$listener</span>, <span class="hl-cls">int</span> <span class="hl-var">$priority</span> = <span class="hl-num">0</span>): <span class="hl-cls">static</span></code></pre>
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>$eventClass</code></td><td><code>string</code></td><td>Fully-qualified class name of the event</td></tr>
+        <tr><td><code>$listener</code></td><td><code>callable</code></td><td>Listener callback receiving the event object</td></tr>
+        <tr><td><code>$priority</code></td><td><code>int</code></td><td>Execution priority (higher runs first, default <code>0</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="stoppable-events">Stoppable Events</h3>
+    <p>Extend <code>StoppableEvent</code> to allow listeners to halt propagation:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Event\StoppableEvent</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">UserRegistered</span> <span class="hl-kw">extends</span> <span class="hl-cls">StoppableEvent</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(<span class="hl-kw">public readonly</span> <span class="hl-cls">array</span> <span class="hl-var">$user</span>) {}
+}
+
+<span class="hl-cmt">// In a listener</span>
+<span class="hl-var">$provider</span>-><span class="hl-fn">addListener</span>(<span class="hl-cls">UserRegistered</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">UserRegistered</span> <span class="hl-var">$event</span>) {
+    <span class="hl-var">$event</span>-><span class="hl-fn">stopPropagation</span>();
+    <span class="hl-cmt">// No further listeners will be called</span>
+});</code></pre>
+
+    <h3 id="comparison">Module vs PSR-14 Comparison</h3>
+    <table>
+      <thead><tr><th>Feature</th><th>Module Events</th><th>PSR-14 Events</th></tr></thead>
+      <tbody>
+        <tr><td>Scope</td><td>Within a Distributor</td><td>Anywhere in PHP</td></tr>
+        <tr><td>Event identity</td><td>String name (<code>vendor/code:event</code>)</td><td>Class name (FQCN)</td></tr>
+        <tr><td>Priority</td><td>No (registration order)</td><td>Yes (numeric)</td></tr>
+        <tr><td>Stop propagation</td><td>No</td><td>Yes (<code>StoppableEvent</code>)</td></tr>
+        <tr><td>Response collection</td><td>Yes (<code>getAllResponse()</code>)</td><td>Via event object mutation</td></tr>
+        <tr><td>Auto-wiring</td><td>Bound to controller context</td><td>Independent</td></tr>
+        <tr><td>Use case</td><td>Inter-module communication</td><td>General-purpose eventing</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="decision-guide">Decision Guide &mdash; Events vs Cross-Module API</h2>
+    <table>
+      <thead><tr><th>Scenario</th><th>Use</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>One module notifying many</td><td>Module Events (<code>fireEvent</code>)</td><td>Broadcast to all listeners; responses aggregated</td></tr>
+        <tr><td>Calling a specific module&rsquo;s function</td><td>Cross-Module API (<code>fire</code>)</td><td>Direct call with known <code>module_code:action</code></td></tr>
+        <tr><td>Need to stop processing early</td><td>PSR-14 Events</td><td><code>StoppableEvent</code> with <code>stopPropagation()</code></td></tr>
+        <tr><td>Collecting responses from all listeners</td><td>Module Events</td><td><code>getAllResponse()</code> aggregates return values</td></tr>
+        <tr><td>Need priority ordering</td><td>PSR-14 Events</td><td>Supports numeric priority on listeners</td></tr>
+        <tr><td>Decoupled plugin architecture</td><td>Module Events</td><td>Listeners don&rsquo;t need to know emitter identity</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="routing.html"><span class="label">&larr;&nbsp;Previous</span><span class="title">Routing</span></a>
+      <a href="cross-module-api.html" class="next"><span class="label">Next&nbsp;&rarr;</span><span class="title">Cross-Module API</span></a>
+    </div>
+  </main>
+
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

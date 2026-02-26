@@ -1,0 +1,34 @@
+# Razy — Test Dockerfile
+# PHP 8.3 with ext-redis + ext-ssh2 for full test coverage
+#
+# Build: docker build -t razy-test -f .docker/Dockerfile.test .
+# Run:   docker run --rm razy-test
+
+FROM php:8.3-cli-alpine
+
+# System deps for extensions
+RUN apk add --no-cache \
+        $PHPIZE_DEPS \
+        zip libzip-dev curl-dev icu-dev oniguruma-dev \
+        libssh2-dev \
+        linux-headers \
+    && docker-php-ext-install zip curl mbstring pcntl sockets pdo pdo_mysql ftp \
+    # Redis extension via PECL
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    # SSH2 extension via PECL
+    && pecl install ssh2-1.4.1 \
+    && docker-php-ext-enable ssh2 \
+    # Cleanup build deps to slim down
+    && apk del $PHPIZE_DEPS \
+    && rm -rf /tmp/pear
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+COPY composer.json composer.lock* ./
+RUN composer install --prefer-dist --no-interaction
+
+COPY . .
+
+CMD ["vendor/bin/phpunit", "--no-coverage", "--display-skipped"]

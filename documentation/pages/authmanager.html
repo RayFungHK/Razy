@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth Manager &amp; Gate &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Auth Manager &amp; Gate</h1>
+    <p>Razy provides a <strong>multi-guard authentication system</strong> with an authorization gate, middleware support, and pluggable guard implementations. The system supports multiple authentication strategies simultaneously (e.g. session-based for web, token-based for API).</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#quick-start">Quick Start</a></li>
+        <li><a href="#authmanager-multi-guard">AuthManager &mdash; Multi-Guard</a></li>
+        <li><a href="#guards">Guards</a>
+          <ul>
+            <li><a href="#callbackguard">CallbackGuard</a></li>
+            <li><a href="#custom-guards">Custom Guards</a></li>
+            <li><a href="#genericuser">GenericUser</a></li>
+          </ul>
+        </li>
+        <li><a href="#authorization-gate">Authorization Gate</a>
+          <ul>
+            <li><a href="#defining-abilities">Defining Abilities</a></li>
+            <li><a href="#policies">Policies</a></li>
+            <li><a href="#interceptors">Interceptors</a></li>
+          </ul>
+        </li>
+        <li><a href="#middleware">Middleware</a></li>
+        <li><a href="#password-hashing">Password Hashing</a></li>
+        <li><a href="#contracts">Contracts</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Quick Start -->
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\AuthManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\CallbackGuard</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\GenericUser</span>;
+
+<span class="hl-cmt">// Create auth manager</span>
+<span class="hl-var">$auth</span> = <span class="hl-kw">new</span> <span class="hl-cls">AuthManager</span>(defaultGuard: <span class="hl-str">'web'</span>);
+
+<span class="hl-cmt">// Register a session-based guard</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">addGuard</span>(<span class="hl-str">'web'</span>, <span class="hl-kw">new</span> <span class="hl-cls">CallbackGuard</span>(
+    userResolver: <span class="hl-kw">function</span> () {
+        <span class="hl-var">$userId</span> = <span class="hl-var">$_SESSION</span>[<span class="hl-str">'user_id'</span>] &rarr; <span class="hl-kw">null</span>;
+        <span class="hl-kw">if</span> (<span class="hl-var">$userId</span>) {
+            <span class="hl-kw">return new</span> <span class="hl-cls">GenericUser</span>([<span class="hl-str">'id'</span> => <span class="hl-var">$userId</span>, <span class="hl-str">'name'</span> => <span class="hl-str">'John'</span>]);
+        }
+        <span class="hl-kw">return null</span>;
+    },
+    credentialValidator: <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$credentials</span>) {
+        <span class="hl-kw">return</span> <span class="hl-var">$credentials</span>[<span class="hl-str">'password'</span>] === <span class="hl-str">'secret'</span>;
+    }
+));
+
+<span class="hl-cmt">// Check authentication</span>
+<span class="hl-kw">if</span> (<span class="hl-var">$auth</span>-><span class="hl-fn">check</span>()) {
+    <span class="hl-var">$user</span> = <span class="hl-var">$auth</span>-><span class="hl-fn">user</span>();
+    echo <span class="hl-str">"Welcome, "</span> . <span class="hl-var">$user</span>-><span class="hl-fn">getAttribute</span>(<span class="hl-str">'name'</span>);
+}</code></pre>
+
+    <!-- AuthManager &mdash; Multi-Guard -->
+    <h2 id="authmanager-multi-guard">AuthManager &mdash; Multi-Guard</h2>
+    <p>The <code>AuthManager</code> manages multiple named guards and proxies common auth methods to the default guard:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\AuthManager</span>;
+
+<span class="hl-var">$auth</span> = <span class="hl-kw">new</span> <span class="hl-cls">AuthManager</span>(defaultGuard: <span class="hl-str">'web'</span>);
+
+<span class="hl-cmt">// Register guards</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">addGuard</span>(<span class="hl-str">'web'</span>, <span class="hl-var">$sessionGuard</span>);
+<span class="hl-var">$auth</span>-><span class="hl-fn">addGuard</span>(<span class="hl-str">'api'</span>, <span class="hl-var">$tokenGuard</span>);
+
+<span class="hl-cmt">// Use default guard</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">check</span>();          <span class="hl-cmt">// is authenticated?</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">guest</span>();          <span class="hl-cmt">// is guest?</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">user</span>();           <span class="hl-cmt">// get authenticated user or null</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">id</span>();             <span class="hl-cmt">// get user identifier</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">validate</span>(<span class="hl-var">$creds</span>); <span class="hl-cmt">// validate credentials</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">setUser</span>(<span class="hl-var">$user</span>);   <span class="hl-cmt">// manually set user</span>
+
+<span class="hl-cmt">// Use specific guard</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">guard</span>(<span class="hl-str">'api'</span>)-><span class="hl-fn">check</span>();
+<span class="hl-var">$auth</span>-><span class="hl-fn">guard</span>(<span class="hl-str">'api'</span>)-><span class="hl-fn">user</span>();
+
+<span class="hl-cmt">// Inspect guards</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">hasGuard</span>(<span class="hl-str">'api'</span>);         <span class="hl-cmt">// true</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">getGuardNames</span>();         <span class="hl-cmt">// ['web', 'api']</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">getDefaultGuard</span>();       <span class="hl-cmt">// 'web'</span>
+<span class="hl-var">$auth</span>-><span class="hl-fn">setDefaultGuard</span>(<span class="hl-str">'api'</span>);</code></pre>
+
+    <!-- Guards -->
+    <h2 id="guards">Guards</h2>
+
+    <h3 id="callbackguard">CallbackGuard</h3>
+    <p>A flexible guard that uses closures for user resolution and credential validation:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\CallbackGuard</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\GenericUser</span>;
+
+<span class="hl-var">$guard</span> = <span class="hl-kw">new</span> <span class="hl-cls">CallbackGuard</span>(
+    userResolver: <span class="hl-kw">function</span> () {
+        <span class="hl-cmt">// Resolve the authenticated user from session, token, etc.</span>
+        <span class="hl-var">$token</span> = <span class="hl-var">$_SERVER</span>[<span class="hl-str">'HTTP_AUTHORIZATION'</span>] &rarr; <span class="hl-str">''</span>;
+        <span class="hl-kw">if</span> (<span class="hl-var">$token</span> &amp;&amp; <span class="hl-var">$userData</span> = <span class="hl-fn">verifyToken</span>(<span class="hl-var">$token</span>)) {
+            <span class="hl-kw">return new</span> <span class="hl-cls">GenericUser</span>(<span class="hl-var">$userData</span>);
+        }
+        <span class="hl-kw">return null</span>;
+    },
+    credentialValidator: <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$credentials</span>) {
+        <span class="hl-cmt">// Validate credentials (login attempt)</span>
+        <span class="hl-var">$user</span> = <span class="hl-fn">findUserByEmail</span>(<span class="hl-var">$credentials</span>[<span class="hl-str">'email'</span>]);
+        <span class="hl-kw">return</span> <span class="hl-var">$user</span> &amp;&amp; <span class="hl-fn">password_verify</span>(<span class="hl-var">$credentials</span>[<span class="hl-str">'password'</span>], <span class="hl-var">$user</span>[<span class="hl-str">'password_hash'</span>]);
+    }
+);
+
+<span class="hl-cmt">// Lazy resolution &mdash; userResolver is called once on first user() call</span>
+<span class="hl-var">$user</span> = <span class="hl-var">$guard</span>-><span class="hl-fn">user</span>();    <span class="hl-cmt">// calls resolver</span>
+<span class="hl-var">$user</span> = <span class="hl-var">$guard</span>-><span class="hl-fn">user</span>();    <span class="hl-cmt">// returns cached result</span>
+
+<span class="hl-cmt">// Reset for next request (worker mode)</span>
+<span class="hl-var">$guard</span>-><span class="hl-fn">reset</span>();           <span class="hl-cmt">// clears cached user, re-resolves on next call</span></code></pre>
+
+    <h3 id="custom-guards">Custom Guards</h3>
+    <p>Implement <code>GuardInterface</code> for custom authentication strategies:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Contract\GuardInterface</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Contract\AuthenticatableInterface</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">JwtGuard</span> <span class="hl-kw">implements</span> <span class="hl-cls">GuardInterface</span>
+{
+    <span class="hl-kw">private</span> ?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span> = <span class="hl-kw">null</span>;
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">check</span>(): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-><span class="hl-fn">user</span>() !== <span class="hl-kw">null</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">guest</span>(): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-kw">return</span> !<span class="hl-var">$this</span>-><span class="hl-fn">check</span>();
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">user</span>(): ?<span class="hl-cls">AuthenticatableInterface</span>
+    {
+        <span class="hl-kw">if</span> (<span class="hl-var">$this</span>->user === <span class="hl-kw">null</span>) {
+            <span class="hl-var">$token</span> = <span class="hl-var">$this</span>-><span class="hl-fn">extractBearerToken</span>();
+            <span class="hl-kw">if</span> (<span class="hl-var">$payload</span> = <span class="hl-var">$this</span>-><span class="hl-fn">validateJwt</span>(<span class="hl-var">$token</span>)) {
+                <span class="hl-var">$this</span>->user = <span class="hl-kw">new</span> <span class="hl-cls">GenericUser</span>(<span class="hl-var">$payload</span>);
+            }
+        }
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>->user;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">id</span>(): <span class="hl-kw">string</span>|<span class="hl-kw">int</span>|<span class="hl-kw">null</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-><span class="hl-fn">user</span>()?-><span class="hl-fn">getAuthIdentifier</span>();
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">validate</span>(<span class="hl-kw">array</span> <span class="hl-var">$credentials</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-cmt">// Validate credentials without setting user</span>
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-><span class="hl-fn">attemptLogin</span>(<span class="hl-var">$credentials</span>);
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">setUser</span>(<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$this</span>->user = <span class="hl-var">$user</span>;
+    }
+
+    <span class="hl-cmt">// ... private helper methods</span>
+}</code></pre>
+
+    <h3 id="genericuser">GenericUser</h3>
+    <p>A simple <code>AuthenticatableInterface</code> implementation using an associative array:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\GenericUser</span>;
+
+<span class="hl-var">$user</span> = <span class="hl-kw">new</span> <span class="hl-cls">GenericUser</span>([
+    <span class="hl-str">'id'</span>       => <span class="hl-num">42</span>,
+    <span class="hl-str">'name'</span>     => <span class="hl-str">'John Doe'</span>,
+    <span class="hl-str">'email'</span>    => <span class="hl-str">'john@example.com'</span>,
+    <span class="hl-str">'password'</span> => <span class="hl-str">'$2y$10$...'</span>,
+    <span class="hl-str">'role'</span>     => <span class="hl-str">'admin'</span>,
+]);
+
+<span class="hl-var">$user</span>-><span class="hl-fn">getAuthIdentifier</span>();     <span class="hl-cmt">// 42</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">getAuthIdentifierName</span>(); <span class="hl-cmt">// 'id' (default)</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">getAuthPassword</span>();       <span class="hl-cmt">// '$2y$10$...'</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">getAttribute</span>(<span class="hl-str">'name'</span>);    <span class="hl-cmt">// 'John Doe'</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">getAttribute</span>(<span class="hl-str">'role'</span>);    <span class="hl-cmt">// 'admin'</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">hasAttribute</span>(<span class="hl-str">'email'</span>);   <span class="hl-cmt">// true</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">getAttributes</span>();         <span class="hl-cmt">// full array</span>
+
+<span class="hl-cmt">// Custom identifier name</span>
+<span class="hl-var">$user</span> = <span class="hl-kw">new</span> <span class="hl-cls">GenericUser</span>([
+    <span class="hl-str">'__identifier_name'</span> => <span class="hl-str">'uuid'</span>,
+    <span class="hl-str">'uuid'</span> => <span class="hl-str">'abc-123'</span>,
+    <span class="hl-str">'name'</span> => <span class="hl-str">'Jane'</span>,
+]);
+<span class="hl-var">$user</span>-><span class="hl-fn">getAuthIdentifierName</span>(); <span class="hl-cmt">// 'uuid'</span>
+<span class="hl-var">$user</span>-><span class="hl-fn">getAuthIdentifier</span>();     <span class="hl-cmt">// 'abc-123'</span></code></pre>
+
+    <!-- Authorization Gate -->
+    <h2 id="authorization-gate">Authorization Gate</h2>
+    <p>The <code>Gate</code> class provides ability-based and policy-based authorization:</p>
+
+    <h3 id="defining-abilities">Defining Abilities</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\Gate</span>;
+
+<span class="hl-var">$gate</span> = <span class="hl-kw">new</span> <span class="hl-cls">Gate</span>(<span class="hl-var">$auth</span>);
+
+<span class="hl-cmt">// Define abilities with closures</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">define</span>(<span class="hl-str">'edit-post'</span>, <span class="hl-kw">function</span> (?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>, <span class="hl-var">$post</span>) {
+    <span class="hl-kw">return</span> <span class="hl-var">$user</span> &amp;&amp; <span class="hl-var">$user</span>-><span class="hl-fn">getAuthIdentifier</span>() === <span class="hl-var">$post</span>[<span class="hl-str">'author_id'</span>];
+});
+
+<span class="hl-var">$gate</span>-><span class="hl-fn">define</span>(<span class="hl-str">'delete-post'</span>, <span class="hl-kw">function</span> (?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>, <span class="hl-var">$post</span>) {
+    <span class="hl-kw">return</span> <span class="hl-var">$user</span> &amp;&amp; <span class="hl-var">$user</span>-><span class="hl-fn">getAttribute</span>(<span class="hl-str">'role'</span>) === <span class="hl-str">'admin'</span>;
+});
+
+<span class="hl-var">$gate</span>-><span class="hl-fn">define</span>(<span class="hl-str">'create-post'</span>, <span class="hl-kw">function</span> (?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>) {
+    <span class="hl-kw">return</span> <span class="hl-var">$user</span> !== <span class="hl-kw">null</span>; <span class="hl-cmt">// any authenticated user</span>
+});
+
+<span class="hl-cmt">// Check abilities</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">allows</span>(<span class="hl-str">'edit-post'</span>, <span class="hl-var">$post</span>);    <span class="hl-cmt">// true/false</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">denies</span>(<span class="hl-str">'edit-post'</span>, <span class="hl-var">$post</span>);    <span class="hl-cmt">// true/false</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">has</span>(<span class="hl-str">'edit-post'</span>);               <span class="hl-cmt">// true (ability exists)</span>
+
+<span class="hl-cmt">// Check multiple</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">check</span>([<span class="hl-str">'edit-post'</span>, <span class="hl-str">'delete-post'</span>], <span class="hl-var">$post</span>);  <span class="hl-cmt">// ALL must pass</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">any</span>([<span class="hl-str">'edit-post'</span>, <span class="hl-str">'delete-post'</span>], <span class="hl-var">$post</span>);    <span class="hl-cmt">// at least one</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">none</span>([<span class="hl-str">'edit-post'</span>, <span class="hl-str">'delete-post'</span>], <span class="hl-var">$post</span>);   <span class="hl-cmt">// none pass</span>
+
+<span class="hl-cmt">// Authorize &mdash; throws AccessDeniedException if denied</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">authorize</span>(<span class="hl-str">'edit-post'</span>, <span class="hl-var">$post</span>);
+
+<span class="hl-cmt">// Check as specific user</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">forUser</span>(<span class="hl-var">$anotherUser</span>)-><span class="hl-fn">allows</span>(<span class="hl-str">'edit-post'</span>, <span class="hl-var">$post</span>);</code></pre>
+
+    <h3 id="policies">Policies</h3>
+    <p>Map model classes to policy classes for organized authorization:</p>
+    <pre><code><span class="hl-cmt">// Register policies</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">policy</span>(<span class="hl-cls">Post</span>::<span class="hl-kw">class</span>, <span class="hl-cls">PostPolicy</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$gate</span>-><span class="hl-fn">policy</span>(<span class="hl-cls">Comment</span>::<span class="hl-kw">class</span>, <span class="hl-cls">CommentPolicy</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Policy class &mdash; methods match ability names (kebab &mdash; camelCase)</span>
+<span class="hl-kw">class</span> <span class="hl-cls">PostPolicy</span>
+{
+    <span class="hl-cmt">// 'edit-post' &rarr; editPost()</span>
+    <span class="hl-kw">public function</span> <span class="hl-fn">editPost</span>(?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>, <span class="hl-cls">Post</span> <span class="hl-var">$post</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$user</span> &amp;&amp; <span class="hl-var">$user</span>-><span class="hl-fn">getAuthIdentifier</span>() === <span class="hl-var">$post</span>->authorId;
+    }
+
+    <span class="hl-cmt">// 'delete-post' &rarr; deletePost()</span>
+    <span class="hl-kw">public function</span> <span class="hl-fn">deletePost</span>(?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>, <span class="hl-cls">Post</span> <span class="hl-var">$post</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$user</span> &amp;&amp; <span class="hl-var">$user</span>-><span class="hl-fn">getAttribute</span>(<span class="hl-str">'role'</span>) === <span class="hl-str">'admin'</span>;
+    }
+
+    <span class="hl-cmt">// 'create-post' &rarr; createPost()</span>
+    <span class="hl-kw">public function</span> <span class="hl-fn">createPost</span>(?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$user</span> !== <span class="hl-kw">null</span>;
+    }
+}
+
+<span class="hl-cmt">// Usage</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">allows</span>(<span class="hl-str">'edit-post'</span>, <span class="hl-var">$post</span>);   <span class="hl-cmt">// invokes PostPolicy::editPost()</span></code></pre>
+
+    <h3 id="interceptors">Interceptors</h3>
+    <p>Before/after interceptors can override individual ability checks:</p>
+    <pre><code><span class="hl-cmt">// Before &mdash; runs BEFORE ability check; return non-null to override</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">before</span>(<span class="hl-kw">function</span> (?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>, <span class="hl-kw">string</span> <span class="hl-var">$ability</span>) {
+    <span class="hl-cmt">// Super admin can do anything</span>
+    <span class="hl-kw">if</span> (<span class="hl-var">$user</span> &amp;&amp; <span class="hl-var">$user</span>-><span class="hl-fn">getAttribute</span>(<span class="hl-str">'role'</span>) === <span class="hl-str">'superadmin'</span>) {
+        <span class="hl-kw">return true</span>; <span class="hl-cmt">// bypass all checks</span>
+    }
+    <span class="hl-kw">return null</span>; <span class="hl-cmt">// continue to normal check</span>
+});
+
+<span class="hl-cmt">// After &mdash; runs AFTER ability check; can override the result</span>
+<span class="hl-var">$gate</span>-><span class="hl-fn">after</span>(<span class="hl-kw">function</span> (?<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>, <span class="hl-kw">string</span> <span class="hl-var">$ability</span>, <span class="hl-kw">bool</span> <span class="hl-var">$result</span>) {
+    <span class="hl-cmt">// Log all authorization decisions</span>
+    <span class="hl-fn">logger</span>()-><span class="hl-fn">info</span>(<span class="hl-str">"Gate: {<span class="hl-var">$ability</span>} = "</span> . (<span class="hl-var">$result</span> ? <span class="hl-str">'allowed'</span> : <span class="hl-str">'denied'</span>));
+    <span class="hl-kw">return null</span>; <span class="hl-cmt">// return non-null to override $result</span>
+});</code></pre>
+
+    <!-- Middleware -->
+    <h2 id="middleware">Middleware</h2>
+
+    <h3>AuthMiddleware</h3>
+    <p>Require authentication for a route/controller:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\AuthMiddleware</span>;
+
+<span class="hl-var">$middleware</span> = <span class="hl-kw">new</span> <span class="hl-cls">AuthMiddleware</span>(
+    auth: <span class="hl-var">$authManager</span>,
+    guard: <span class="hl-str">'api'</span>,                    <span class="hl-cmt">// null = default guard</span>
+    onUnauthorized: <span class="hl-kw">function</span> () {    <span class="hl-cmt">// custom 401 handler</span>
+        <span class="hl-fn">http_response_code</span>(<span class="hl-num">401</span>);
+        echo <span class="hl-fn">json_encode</span>([<span class="hl-str">'error'</span> => <span class="hl-str">'Unauthorized'</span>]);
+    }
+);
+
+<span class="hl-cmt">// In a pipeline context</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$middleware</span>-><span class="hl-fn">handle</span>(<span class="hl-var">$context</span>, <span class="hl-kw">function</span> (<span class="hl-var">$context</span>) {
+    <span class="hl-cmt">// Only reached if authenticated</span>
+    <span class="hl-kw">return</span> <span class="hl-fn">handleRequest</span>(<span class="hl-var">$context</span>);
+});</code></pre>
+
+    <h3>AuthorizeMiddleware</h3>
+    <p>Require a specific ability:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\AuthorizeMiddleware</span>;
+
+<span class="hl-var">$middleware</span> = <span class="hl-kw">new</span> <span class="hl-cls">AuthorizeMiddleware</span>(
+    gate: <span class="hl-var">$gate</span>,
+    ability: <span class="hl-str">'edit-post'</span>,
+    argumentResolver: <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$context</span>) {
+        <span class="hl-kw">return</span> [<span class="hl-var">$context</span>[<span class="hl-str">'post'</span>]]; <span class="hl-cmt">// arguments for the ability check</span>
+    },
+    onForbidden: <span class="hl-kw">function</span> () {
+        <span class="hl-fn">http_response_code</span>(<span class="hl-num">403</span>);
+        echo <span class="hl-fn">json_encode</span>([<span class="hl-str">'error'</span> => <span class="hl-str">'Forbidden'</span>]);
+    }
+);</code></pre>
+
+    <!-- Password Hashing -->
+    <h2 id="password-hashing">Password Hashing</h2>
+    <p>The <code>Hash</code> class provides a static utility for password hashing:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Auth\Hash</span>;
+
+<span class="hl-cmt">// Hash a password (bcrypt by default)</span>
+<span class="hl-var">$hash</span> = <span class="hl-cls">Hash</span>::<span class="hl-fn">make</span>(<span class="hl-str">'my-secret-password'</span>);
+<span class="hl-var">$hash</span> = <span class="hl-cls">Hash</span>::<span class="hl-fn">make</span>(<span class="hl-str">'password'</span>, PASSWORD_ARGON2ID, [<span class="hl-str">'memory_cost'</span> => <span class="hl-num">65536</span>]);
+
+<span class="hl-cmt">// Verify</span>
+<span class="hl-var">$valid</span> = <span class="hl-cls">Hash</span>::<span class="hl-fn">check</span>(<span class="hl-str">'my-secret-password'</span>, <span class="hl-var">$hash</span>); <span class="hl-cmt">// true</span>
+
+<span class="hl-cmt">// Check if rehash needed (algorithm/options changed)</span>
+<span class="hl-kw">if</span> (<span class="hl-cls">Hash</span>::<span class="hl-fn">needsRehash</span>(<span class="hl-var">$hash</span>)) {
+    <span class="hl-var">$newHash</span> = <span class="hl-cls">Hash</span>::<span class="hl-fn">make</span>(<span class="hl-var">$plainTextPassword</span>);
+    <span class="hl-cmt">// update stored hash</span>
+}
+
+<span class="hl-cmt">// Inspect hash info</span>
+<span class="hl-var">$info</span> = <span class="hl-cls">Hash</span>::<span class="hl-fn">info</span>(<span class="hl-var">$hash</span>);
+<span class="hl-cmt">// ['algo' =&gt; 1, 'algoName' =&gt; 'bcrypt', 'options' =&gt; ['cost' =&gt; 10]]</span></code></pre>
+
+    <!-- Contracts -->
+    <h2 id="contracts">Contracts</h2>
+
+    <h3>GuardInterface</h3>
+    <pre><code><span class="hl-kw">interface</span> <span class="hl-cls">GuardInterface</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">check</span>(): <span class="hl-kw">bool</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">guest</span>(): <span class="hl-kw">bool</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">user</span>(): ?<span class="hl-cls">AuthenticatableInterface</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">id</span>(): <span class="hl-kw">string</span>|<span class="hl-kw">int</span>|<span class="hl-kw">null</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">validate</span>(<span class="hl-kw">array</span> <span class="hl-var">$credentials</span>): <span class="hl-kw">bool</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">setUser</span>(<span class="hl-cls">AuthenticatableInterface</span> <span class="hl-var">$user</span>): <span class="hl-kw">void</span>;
+}</code></pre>
+
+    <h3>AuthenticatableInterface</h3>
+    <pre><code><span class="hl-kw">interface</span> <span class="hl-cls">AuthenticatableInterface</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">getAuthIdentifier</span>(): <span class="hl-kw">string</span>|<span class="hl-kw">int</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">getAuthIdentifierName</span>(): <span class="hl-kw">string</span>;
+    <span class="hl-kw">public function</span> <span class="hl-fn">getAuthPassword</span>(): <span class="hl-kw">string</span>;
+}</code></pre>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>AuthManager</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(array $guards = [], string $defaultGuard = 'default')</code></td><td>Create manager</td></tr>
+        <tr><td><code>addGuard</code></td><td><code>(string $name, GuardInterface $guard): static</code></td><td>Register guard</td></tr>
+        <tr><td><code>guard</code></td><td><code>(?string $name = null): GuardInterface</code></td><td>Get guard (throws on unknown)</td></tr>
+        <tr><td><code>setDefaultGuard</code></td><td><code>(string $name): static</code></td><td>Change default</td></tr>
+        <tr><td><code>getDefaultGuard</code></td><td><code>(): string</code></td><td>Get default name</td></tr>
+        <tr><td><code>hasGuard</code></td><td><code>(string $name): bool</code></td><td>Check guard exists</td></tr>
+        <tr><td><code>getGuardNames</code></td><td><code>(): array</code></td><td>All guard names</td></tr>
+        <tr><td><code>check</code></td><td><code>(): bool</code></td><td>Authenticated? (default guard)</td></tr>
+        <tr><td><code>guest</code></td><td><code>(): bool</code></td><td>Guest? (default guard)</td></tr>
+        <tr><td><code>user</code></td><td><code>(): ?AuthenticatableInterface</code></td><td>Get user (default guard)</td></tr>
+        <tr><td><code>id</code></td><td><code>(): string|int|null</code></td><td>Get user ID (default guard)</td></tr>
+        <tr><td><code>validate</code></td><td><code>(array $credentials): bool</code></td><td>Validate (default guard)</td></tr>
+        <tr><td><code>setUser</code></td><td><code>(AuthenticatableInterface $user): void</code></td><td>Set user (default guard)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Gate</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>define</code></td><td><code>(string $ability, Closure $callback): static</code></td><td>Define ability</td></tr>
+        <tr><td><code>policy</code></td><td><code>(string $modelClass, string $policyClass): static</code></td><td>Register policy</td></tr>
+        <tr><td><code>before</code></td><td><code>(Closure $callback): static</code></td><td>Before interceptor</td></tr>
+        <tr><td><code>after</code></td><td><code>(Closure $callback): static</code></td><td>After interceptor</td></tr>
+        <tr><td><code>allows</code></td><td><code>(string $ability, mixed ...$args): bool</code></td><td>Check allowed</td></tr>
+        <tr><td><code>denies</code></td><td><code>(string $ability, mixed ...$args): bool</code></td><td>Check denied</td></tr>
+        <tr><td><code>check</code></td><td><code>(array $abilities, mixed ...$args): bool</code></td><td>All must pass</td></tr>
+        <tr><td><code>any</code></td><td><code>(array $abilities, mixed ...$args): bool</code></td><td>At least one</td></tr>
+        <tr><td><code>none</code></td><td><code>(array $abilities, mixed ...$args): bool</code></td><td>None pass</td></tr>
+        <tr><td><code>authorize</code></td><td><code>(string $ability, mixed ...$args): void</code></td><td>Throws <code>AccessDeniedException</code></td></tr>
+        <tr><td><code>forUser</code></td><td><code>(AuthenticatableInterface $user): static</code></td><td>Scoped clone</td></tr>
+        <tr><td><code>has</code></td><td><code>(string $ability): bool</code></td><td>Ability exists?</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Hash</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>make</code></td><td><code>(string $password, string|int|null $algo = PASSWORD_BCRYPT, array $options = []): string</code></td><td>Hash password</td></tr>
+        <tr><td><code>check</code></td><td><code>(string $password, string $hash): bool</code></td><td>Verify password</td></tr>
+        <tr><td><code>needsRehash</code></td><td><code>(string $hash, string|int|null $algo = PASSWORD_BCRYPT, array $options = []): bool</code></td><td>Check rehash needed</td></tr>
+        <tr><td><code>info</code></td><td><code>(string $hash): array</code></td><td>Hash info</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="authenticator.html"><span class="label">&larr; Previous</span><span class="title">Authenticator</span></a>
+      <a href="ratelimiter.html" class="next"><span class="label">Next &rarr;</span><span class="title">Rate Limiter</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

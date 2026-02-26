@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Packaging &amp; Distribution &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">�?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Packaging &amp; Distribution</h1>
+    <p>Razy provides a complete packaging system for versioning, archiving, and distributing modules. Each module declares its metadata in <code>module.php</code>, defines per-version configuration in <code>package.php</code>, and can be packed into distributable PHAR archives.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>The packaging workflow follows these steps:</p>
+    <ol>
+      <li><strong>Define metadata</strong> &mdash;Create <code>module.php</code> at the module root with module code, name, and version.</li>
+      <li><strong>Configure versions</strong> &mdash;Each version folder contains a <code>package.php</code> with dependencies and API settings.</li>
+      <li><strong>Pack</strong> &mdash;Use the CLI to create a <code>.phar</code> archive for distribution.</li>
+      <li><strong>Publish</strong> &mdash;Push packed modules to a GitHub-based repository (see <a href="publishing.html">Repository &amp; Publishing</a>).</li>
+    </ol>
+
+    <h2 id="module-php">module.php</h2>
+    <p>The module metadata file sits at the module root directory (NOT inside a version folder). It declares the module's identity:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'module_code'</span> <span class="hl-op">=></span> <span class="hl-str">'vendor/my-module'</span>,
+    <span class="hl-str">'name'</span> <span class="hl-op">=></span> <span class="hl-str">'My Module'</span>,
+    <span class="hl-str">'author'</span> <span class="hl-op">=></span> <span class="hl-str">'Author Name'</span>,
+    <span class="hl-str">'description'</span> <span class="hl-op">=></span> <span class="hl-str">'Module description'</span>,
+    <span class="hl-str">'version'</span> <span class="hl-op">=></span> <span class="hl-str">'1.0.0'</span>,
+];</code></pre>
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>module_code</code></td><td><code>string</code></td><td>Unique identifier in <code>vendor/name</code> format</td></tr>
+        <tr><td><code>name</code></td><td><code>string</code></td><td>Human-readable module name</td></tr>
+        <tr><td><code>author</code></td><td><code>string</code></td><td>Author or organization name</td></tr>
+        <tr><td><code>description</code></td><td><code>string</code></td><td>Brief module description</td></tr>
+        <tr><td><code>version</code></td><td><code>string</code></td><td>Current module version (semver)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="package-php">package.php</h2>
+    <p>Each version folder (e.g., <code>default/</code>, <code>1.0.0/</code>) contains a <code>package.php</code> that defines what gets loaded for that version:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'module_code'</span> <span class="hl-op">=></span> <span class="hl-str">'vendor/my-module'</span>,
+    <span class="hl-str">'author'</span> <span class="hl-op">=></span> <span class="hl-str">'Author Name'</span>,
+    <span class="hl-str">'description'</span> <span class="hl-op">=></span> <span class="hl-str">'My Module package'</span>,
+    <span class="hl-str">'version'</span> <span class="hl-op">=></span> <span class="hl-str">'1.0.0'</span>,
+    <span class="hl-str">'api_name'</span> <span class="hl-op">=></span> <span class="hl-str">'mymod'</span>,
+    <span class="hl-str">'require'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'vendor/other-module'</span> <span class="hl-op">=></span> <span class="hl-str">'>=1.0.0'</span>,
+    ],
+    <span class="hl-str">'prerequisite'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'monolog/monolog'</span> <span class="hl-op">=></span> <span class="hl-str">'^3.0'</span>,
+    ],
+];</code></pre>
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>module_code</code></td><td><code>string</code></td><td>Must match the parent <code>module.php</code></td></tr>
+        <tr><td><code>author</code></td><td><code>string</code></td><td>Author name for this version</td></tr>
+        <tr><td><code>description</code></td><td><code>string</code></td><td>Version-specific description</td></tr>
+        <tr><td><code>version</code></td><td><code>string</code></td><td>Version string for this package</td></tr>
+        <tr><td><code>api_name</code></td><td><code>string</code></td><td>Cross-module API name (used by other modules to call this module)</td></tr>
+        <tr><td><code>require</code></td><td><code>array</code></td><td>Razy module dependencies &mdash; module codes mapped to version constraints</td></tr>
+        <tr><td><code>prerequisite</code></td><td><code>array</code></td><td>Composer package dependencies &mdash; <code>vendor/package</code> names mapped to version constraints (e.g., <code>^1.0</code>, <code>&gt;=2.0</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="version-management">Version Management</h2>
+    <p>A module's directory structure supports multiple versions side-by-side:</p>
+    <pre><code>{vendor}/my-module/
+&#x251C;&#x2500;&#x2500; module.php           <span class="hl-cmt">// Module-level metadata</span>
+&#x251C;&#x2500;&#x2500; default/             <span class="hl-cmt">// Default version</span>
+&#x2502;  &#x251C;&#x2500;&#x2500; package.php
+&#x2502;  &#x251C;&#x2500;&#x2500; controller/
+&#x2502;  &#x251C;&#x2500;&#x2500; view/
+&#x251C;&#x2500;&#x2500; 1.0.0/               <span class="hl-cmt">// Tagged version</span>
+    &#x251C;&#x2500;&#x2500; package.php
+    &#x251C;&#x2500;&#x2500; controller/</code></pre>
+    <p>Each version folder is self-contained with its own <code>package.php</code>, controllers, views, and assets. The framework selects the correct version based on the distributor's tag configuration.</p>
+
+    <h2 id="dist-tagging-revisited">Dist Tagging Revisited</h2>
+    <p>The <code>modules</code> table in <code>dist.php</code> maps tags to version sets. This determines which version folder is loaded for each module:</p>
+    <pre><code><span class="hl-str">'modules'</span> <span class="hl-op">=></span> [
+    <span class="hl-str">'*'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'*'</span>,       <span class="hl-cmt">// '*' version &mdash; loads latest available</span>
+        <span class="hl-str">'vendor/module-b'</span> <span class="hl-op">=></span> <span class="hl-str">'default'</span>, <span class="hl-cmt">// 'default' &rarr; loads default/ folder</span>
+    ],
+    <span class="hl-str">'v2'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'2.0.0'</span>,   <span class="hl-cmt">// Specific version &mdash; loads 2.0.0/ folder</span>
+    ],
+],</code></pre>
+    <p>When the distributor is loaded with <code>mysite@v2</code>, module-a resolves to the <code>2.0.0/</code> folder, while module-b falls back to <code>default/</code> from the wildcard tag.</p>
+
+    <h2 id="version-strings">Module Package Version</h2>
+    <p>Version strings in the modules table support several conventions:</p>
+    <table>
+      <thead><tr><th>Version String</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>default</code></td><td>Load the <code>default/</code> version folder</td></tr>
+        <tr><td><code>*</code></td><td>Load the latest available version</td></tr>
+        <tr><td><code>1.0.0</code></td><td>Load the exact <code>1.0.0/</code> version folder</td></tr>
+        <tr><td><code>&gt;=1.0.0</code></td><td>Load the latest version that satisfies the constraint (used in <code>require</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="packing-modules">Packing Modules</h2>
+    <p>Use the CLI to create a distributable <code>.phar</code> archive from a module:</p>
+    <pre><code><span class="hl-fn">php</span> Razy.phar <span class="hl-kw">pack</span> vendor/module <span class="hl-num">1.0.0</span> [output] [<span class="hl-op">--</span>no-compress] [<span class="hl-op">--</span>no-assets]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Flag</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>vendor/module</code></td><td>Module code to pack</td></tr>
+        <tr><td><code>1.0.0</code></td><td>Version to pack</td></tr>
+        <tr><td><code>[output]</code></td><td>Optional output path (defaults to <code>packages/</code>)</td></tr>
+        <tr><td><code>--no-compress</code></td><td>Skip PHAR compression</td></tr>
+        <tr><td><code>--no-assets</code></td><td>Exclude asset files from the archive</td></tr>
+      </tbody>
+    </table>
+    <p>The resulting <code>.phar</code> file can be published to a repository or manually copied to another project's <code>packages/</code> directory.</p>
+
+    <h2 id="package-manager">PackageManager &amp; Transports</h2>
+    <p>The <code>PackageManager</code> class handles downloading, extracting, and version-locking Composer-compatible packages from any repository that follows the standard Packagist metadata structure. It is <strong>transport-agnostic</strong> &mdash; the same repository layout works over HTTP, FTP, SFTP, SMB, or a local filesystem.</p>
+
+    <h3 id="supported-transports">Supported Transports</h3>
+    <table>
+      <thead><tr><th>Transport</th><th>Class</th><th>Protocol</th><th>Requires</th></tr></thead>
+      <tbody>
+        <tr><td><strong>HTTP/HTTPS</strong></td><td><code>HttpTransport</code></td><td>Packagist, Satis, Private Packagist, any HTTP mirror</td><td>cURL</td></tr>
+        <tr><td><strong>FTP/FTPS</strong></td><td><code>FtpTransport</code></td><td>FTP mirror with TLS support</td><td><code>ext-ftp</code></td></tr>
+        <tr><td><strong>SFTP</strong></td><td><code>SftpTransport</code></td><td>SSH-based secure file transfer</td><td><code>ext-ssh2</code></td></tr>
+        <tr><td><strong>SMB/CIFS</strong></td><td><code>SmbTransport</code></td><td>Windows network shares, Samba</td><td>UNC paths or <code>smb://</code> stream</td></tr>
+        <tr><td><strong>Local</strong></td><td><code>LocalTransport</code></td><td>Local directory or mounted drive</td><td>&mdash;</td></tr>
+      </tbody>
+    </table>
+    <p>All transports implement <code>PackageTransportInterface</code>. You can create a custom transport by implementing this interface.</p>
+
+    <h3 id="mirror-structure">Required Mirror Structure</h3>
+    <p>Any mirror (regardless of protocol) must expose the standard Composer repository layout:</p>
+    <pre><code>{repository-root}/
+&#x251C;&#x2500;&#x2500; p2/
+&#x2502;   &#x251C;&#x2500;&#x2500; vendor/
+&#x2502;   &#x2502;   &#x2514;&#x2500;&#x2500; package.json   <span class="hl-cmt">// Package metadata (same as Packagist)</span>
+&#x2514;&#x2500;&#x2500; dist/
+    &#x2514;&#x2500;&#x2500; vendor/
+        &#x2514;&#x2500;&#x2500; package/
+            &#x2514;&#x2500;&#x2500; x.y.z.zip      <span class="hl-cmt">// Distribution archive</span></code></pre>
+
+    <h3 id="transport-usage">Usage Examples</h3>
+    <p><strong>Default (HTTP/Packagist):</strong></p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager</span>;
+
+<span class="hl-cmt">// Uses Packagist by default &mdash; no transport argument needed</span>
+<span class="hl-var">$pm</span> = <span class="hl-kw">new</span> <span class="hl-fn">PackageManager</span>(<span class="hl-var">$distributor</span>, <span class="hl-str">'vendor/package'</span>, <span class="hl-str">'^1.0'</span>);
+<span class="hl-var">$pm</span>-&gt;<span class="hl-fn">fetch</span>();
+<span class="hl-var">$pm</span>-&gt;<span class="hl-fn">validate</span>();</code></pre>
+
+    <p><strong>Custom HTTP mirror:</strong></p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager\HttpTransport</span>;
+
+<span class="hl-var">$transport</span> = <span class="hl-kw">new</span> <span class="hl-fn">HttpTransport</span>(<span class="hl-str">'https://packages.example.com'</span>);
+<span class="hl-var">$pm</span> = <span class="hl-kw">new</span> <span class="hl-fn">PackageManager</span>(<span class="hl-var">$distributor</span>, <span class="hl-str">'vendor/package'</span>, <span class="hl-str">'^1.0'</span>, <span class="hl-kw">null</span>, <span class="hl-var">$transport</span>);</code></pre>
+
+    <p><strong>FTP mirror:</strong></p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager\FtpTransport</span>;
+
+<span class="hl-var">$transport</span> = <span class="hl-kw">new</span> <span class="hl-fn">FtpTransport</span>(
+    host: <span class="hl-str">'ftp.example.com'</span>,
+    username: <span class="hl-str">'deploy'</span>,
+    password: <span class="hl-str">'secret'</span>,
+    secure: <span class="hl-kw">true</span>,       <span class="hl-cmt">// FTPS (TLS)</span>
+    basePath: <span class="hl-str">'/packages'</span>,
+);</code></pre>
+
+    <p><strong>SFTP (SSH):</strong></p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager\SftpTransport</span>;
+
+<span class="hl-cmt">// Password authentication</span>
+<span class="hl-var">$transport</span> = <span class="hl-kw">new</span> <span class="hl-fn">SftpTransport</span>(
+    host: <span class="hl-str">'sftp.example.com'</span>,
+    username: <span class="hl-str">'deploy'</span>,
+    password: <span class="hl-str">'secret'</span>,
+    basePath: <span class="hl-str">'/var/packages'</span>,
+);
+
+<span class="hl-cmt">// Public-key authentication</span>
+<span class="hl-var">$transport</span> = <span class="hl-kw">new</span> <span class="hl-fn">SftpTransport</span>(
+    host: <span class="hl-str">'sftp.example.com'</span>,
+    username: <span class="hl-str">'deploy'</span>,
+    basePath: <span class="hl-str">'/var/packages'</span>,
+    privateKey: <span class="hl-str">'/home/deploy/.ssh/id_rsa'</span>,
+    publicKey: <span class="hl-str">'/home/deploy/.ssh/id_rsa.pub'</span>,
+);</code></pre>
+
+    <p><strong>SMB network share (Windows / Samba):</strong></p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager\SmbTransport</span>;
+
+<span class="hl-var">$transport</span> = <span class="hl-kw">new</span> <span class="hl-fn">SmbTransport</span>(
+    sharePath: <span class="hl-str">'\\\\fileserver\\packages'</span>,
+    username: <span class="hl-str">'DOMAIN\\deploy'</span>,
+    password: <span class="hl-str">'secret'</span>,
+);</code></pre>
+
+    <p><strong>Local filesystem:</strong></p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager\LocalTransport</span>;
+
+<span class="hl-var">$transport</span> = <span class="hl-kw">new</span> <span class="hl-fn">LocalTransport</span>(<span class="hl-str">'/mnt/mirror/composer'</span>);</code></pre>
+
+    <h3 id="global-default-transport">Setting a Global Default Transport</h3>
+    <p>Instead of passing a transport each time, you can set a global default at bootstrap time. All <code>PackageManager</code> instances created without an explicit transport parameter will use this default:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy\PackageManager\FtpTransport</span>;
+
+<span class="hl-cmt">// Set once at application bootstrap</span>
+<span class="hl-fn">PackageManager</span>::<span class="hl-fn">setDefaultTransport</span>(<span class="hl-kw">new</span> <span class="hl-fn">FtpTransport</span>(
+    host: <span class="hl-str">'mirror.internal'</span>,
+    username: <span class="hl-str">'deploy'</span>,
+    password: <span class="hl-str">'secret'</span>,
+    basePath: <span class="hl-str">'/composer'</span>,
+));
+
+<span class="hl-cmt">// All subsequent instances use the FTP transport automatically</span>
+<span class="hl-var">$pm</span> = <span class="hl-kw">new</span> <span class="hl-fn">PackageManager</span>(<span class="hl-var">$distributor</span>, <span class="hl-str">'vendor/package'</span>, <span class="hl-str">'^2.0'</span>);</code></pre>
+
+    <h3 id="custom-transport">Creating a Custom Transport</h3>
+    <p>Implement the <code>PackageTransportInterface</code> to add support for any protocol:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy\Contract\PackageTransportInterface</span>;
+
+<span class="hl-kw">class</span> <span class="hl-fn">S3Transport</span> <span class="hl-kw">implements</span> <span class="hl-fn">PackageTransportInterface</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">fetchMetadata</span>(<span class="hl-kw">string</span> <span class="hl-var">$packageName</span>): ?<span class="hl-kw">array</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public function</span> <span class="hl-fn">download</span>(<span class="hl-kw">string</span> <span class="hl-var">$url</span>, <span class="hl-kw">string</span> <span class="hl-var">$dest</span>, ?<span class="hl-fn">Closure</span> <span class="hl-var">$progress</span> = <span class="hl-kw">null</span>): <span class="hl-kw">bool</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public function</span> <span class="hl-fn">getScheme</span>(): <span class="hl-kw">string</span> { <span class="hl-kw">return</span> <span class="hl-str">'s3'</span>; }
+}</code></pre>
+
+    <h2 id="compose-workflow">Compose Workflow &amp; Per-Distributor Isolation</h2>
+    <p>The <code>compose</code> command installs Composer-compatible packages declared in module <code>prerequisite</code> entries. Each distributor gets its own isolated dependency tree.</p>
+
+    <h3 id="compose-how">How It Works</h3>
+    <ol>
+      <li><strong>Collect</strong> &mdash; The <code>PrerequisiteResolver</code> scans every loaded module's <code>package.php</code> and gathers all <code>prerequisite</code> entries for the target distributor.</li>
+      <li><strong>Resolve</strong> &mdash; Version constraints from multiple modules are merged. If two modules require the same package with incompatible constraints, a conflict error is raised.</li>
+      <li><strong>Download</strong> &mdash; The <code>PackageManager</code> fetches package metadata (from Packagist by default or a custom transport) and downloads the matching distribution archive.</li>
+      <li><strong>Extract</strong> &mdash; Packages are extracted into <code>autoload/{distributor_code}/</code> with their original PSR-4/PSR-0 namespace directory structure.</li>
+      <li><strong>Lock</strong> &mdash; Installed versions are recorded in <code>autoload/lock.json</code>, scoped by distributor code.</li>
+    </ol>
+
+    <h3 id="compose-run">Running Compose</h3>
+    <pre><code>php Razy.phar <span class="hl-fn">compose</span> <span class="hl-var">&lt;distcode&gt;</span>
+
+<span class="hl-cmt"># Example</span>
+php Razy.phar <span class="hl-fn">compose</span> <span class="hl-str">mysite</span>
+<span class="hl-cmt"># &rarr; Collects prerequisites from all mysite modules</span>
+<span class="hl-cmt"># &rarr; Downloads &amp; extracts monolog/monolog ^3.0</span>
+<span class="hl-cmt"># &rarr; Downloads &amp; extracts guzzlehttp/guzzle ^7.0</span>
+<span class="hl-cmt"># &rarr; Writes autoload/lock.json</span></code></pre>
+
+    <h3 id="autoload-structure">Autoload Directory Structure</h3>
+    <p>Packages are extracted per distributor, keeping each site's dependencies completely isolated:</p>
+    <pre><code>autoload/
+&#x251C;&#x2500;&#x2500; lock.json                          <span class="hl-cmt">// Version lock (all distributors)</span>
+&#x251C;&#x2500;&#x2500; mysite/                            <span class="hl-cmt">// Packages for "mysite" distributor</span>
+&#x2502;   &#x251C;&#x2500;&#x2500; Monolog/
+&#x2502;   &#x2514;&#x2500;&#x2500; GuzzleHttp/
+&#x2514;&#x2500;&#x2500; admin/                             <span class="hl-cmt">// Packages for "admin" distributor</span>
+    &#x2514;&#x2500;&#x2500; Monolog/</code></pre>
+
+    <h3 id="lock-json">lock.json</h3>
+    <p>The <code>autoload/lock.json</code> file records the exact installed version for each package, keyed by distributor code. This ensures reproducible installs and prevents unnecessary re-downloads.</p>
+
+    <h3 id="require-vs-prerequisite">require vs prerequisite</h3>
+    <table>
+      <thead><tr><th>Key</th><th>Purpose</th><th>Resolved By</th></tr></thead>
+      <tbody>
+        <tr><td><code>require</code></td><td>Dependencies on <strong>other Razy modules</strong></td><td>Module loader &mdash; checks modules are loaded before dispatch</td></tr>
+        <tr><td><code>prerequisite</code></td><td>Dependencies on <strong>Composer packages</strong></td><td><code>PrerequisiteResolver</code> + <code>PackageManager</code> &mdash; downloads from Packagist/mirror</td></tr>
+      </tbody>
+    </table>
+
+    
+    <h2 id="complete-example">Complete Packaging Example</h2>
+    <p>End-to-end workflow for creating and distributing a module:</p>
+
+    <pre><code><span class="hl-cmt">// Step 1: Create module.php at vendor/blog/module.php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'module_code'</span> =&gt; <span class="hl-str">'vendor/blog'</span>,
+    <span class="hl-str">'name'</span>        =&gt; <span class="hl-str">'Blog Module'</span>,
+    <span class="hl-str">'author'</span>      =&gt; <span class="hl-str">'My Team'</span>,
+    <span class="hl-str">'description'</span> =&gt; <span class="hl-str">'A simple blog with CRUD operations'</span>,
+    <span class="hl-str">'version'</span>     =&gt; <span class="hl-str">'1.2.0'</span>,
+];</code></pre>
+
+    <pre><code><span class="hl-cmt">// Step 2: Create package.php at vendor/blog/default/package.php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'module_code'</span>  =&gt; <span class="hl-str">'vendor/blog'</span>,
+    <span class="hl-str">'author'</span>       =&gt; <span class="hl-str">'My Team'</span>,
+    <span class="hl-str">'description'</span>  =&gt; <span class="hl-str">'Blog module &mdash; default version'</span>,
+    <span class="hl-str">'version'</span>      =&gt; <span class="hl-str">'1.2.0'</span>,
+    <span class="hl-str">'api_name'</span>     =&gt; <span class="hl-str">'blog'</span>,
+    <span class="hl-str">'shadow_asset'</span> =&gt; <span class="hl-kw">false</span>,
+    <span class="hl-str">'require'</span>      =&gt; [
+        <span class="hl-str">'vendor/auth'</span>     =&gt; <span class="hl-str">'&gt;=1.0.0'</span>,
+        <span class="hl-str">'vendor/database'</span> =&gt; <span class="hl-str">'&gt;=2.0.0'</span>,
+    ],
+    <span class="hl-str">'prerequisite'</span> =&gt; [
+        <span class="hl-str">'league/commonmark'</span> =&gt; <span class="hl-str">'^2.0'</span>,
+    ],
+];</code></pre>
+
+    <pre><code><span class="hl-cmt">// Step 3: Main controller at vendor/blog/default/controller/blog.php</span>
+<span class="hl-kw">return new class extends</span> <span class="hl-fn">Controller</span> {
+    <span class="hl-kw">protected function</span> <span class="hl-fn">__onInit</span>(<span class="hl-fn">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addRoute</span>(<span class="hl-str">'/'</span>, <span class="hl-str">'index'</span>);
+        <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addRoute</span>(<span class="hl-str">'/post/(:d)'</span>, <span class="hl-str">'post'</span>);
+        <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addAPICommand</span>(<span class="hl-str">'getPost'</span>, <span class="hl-str">'api/getPost'</span>);
+        <span class="hl-kw">return true</span>;
+    }
+};</code></pre>
+
+    <pre><code class="language-bash"><span class="hl-cmt"># Step 4: Pack the module</span>
+php Razy.phar pack vendor/blog 1.2.0
+<span class="hl-cmt"># &rarr; packages/vendor/blog/1.2.0.phar</span>
+
+<span class="hl-cmt"># Step 5: Publish to repository</span>
+php Razy.phar publish --scan --push</code></pre>
+
+
+    <div class="page-nav">
+      <a href="sites-configuration.html"><span class="label">&larr; Previous</span><span class="title">Sites Configuration</span></a>
+      <a href="publishing.html" class="next"><span class="label">Next &rarr;</span><span class="title">Repository &amp; Publishing</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

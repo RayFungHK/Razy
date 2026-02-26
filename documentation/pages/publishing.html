@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repository &amp; Publishing &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Repository &amp; Publishing</h1>
+    <p>Razy uses GitHub repositories as module registries. You can publish packed modules to a repository, install modules from remote repositories, search for available packages, and sync distributor dependencies automatically.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>The publishing and installation workflow:</p>
+    <ol>
+      <li><strong>Pack</strong> &mdash;Create <code>.phar</code> archives from modules (see <a href="packaging.html">Packaging</a>).</li>
+      <li><strong>Publish</strong> &mdash;Push packed modules to a GitHub repository with auto-generated <code>index.json</code>.</li>
+      <li><strong>Install</strong> &mdash;Fetch and install modules from repositories into your project.</li>
+      <li><strong>Sync</strong> &mdash;Automatically install all modules defined in a distributor's repository config.</li>
+    </ol>
+
+    <h2 id="repository-inc">repository.inc.php</h2>
+    <p>The repository configuration file at the project root lists GitHub repositories to fetch modules from:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'https://github.com/owner/module-repo/'</span> <span class="hl-op">=></span> <span class="hl-str">'main'</span>,
+    <span class="hl-str">'https://github.com/owner/another-repo/'</span> <span class="hl-op">=></span> <span class="hl-str">'releases'</span>,
+];</code></pre>
+    <p>Each key is a GitHub repository URL, and the value is the branch name to fetch from. The framework reads <code>index.json</code> from the specified branch to discover available modules.</p>
+
+    <h2 id="packages-directory">packages/ Directory</h2>
+    <p>To host your own module repository, structure your <code>packages/</code> directory as follows:</p>
+    <pre><code>packages/
+&#x251C;&#x2500;&#x2500; index.json           <span class="hl-cmt">// Master module index</span>
+&#x251C;&#x2500;&#x2500; publish.inc.php      <span class="hl-cmt">// Publishing credentials (DO NOT COMMIT)</span>
+&#x251C;&#x2500;&#x2500; vendor/
+    &#x251C;&#x2500;&#x2500; module/
+        &#x251C;&#x2500;&#x2500; 1.0.0.phar   <span class="hl-cmt">// Packed module archives</span></code></pre>
+    <p>The <code>packages/</code> directory acts as your local repository. Packed modules are stored in vendor-namespaced subdirectories, and <code>index.json</code> provides the master index for discovery.</p>
+
+    <h2 id="index-json">index.json Format</h2>
+    <p>The <code>index.json</code> file is auto-generated by the publish command. It catalogs all available modules:</p>
+    <pre><code>{
+    <span class="hl-str">"vendor/module"</span>: {
+        <span class="hl-str">"description"</span>: <span class="hl-str">"Module description"</span>,
+        <span class="hl-str">"author"</span>: <span class="hl-str">"Author"</span>,
+        <span class="hl-str">"latest"</span>: <span class="hl-str">"1.0.0"</span>,
+        <span class="hl-str">"versions"</span>: [<span class="hl-str">"1.0.0"</span>]
+    }
+}</code></pre>
+    <p>Each module entry includes its description, author, latest version, and a list of all available versions. This file is used by the CLI to resolve module dependencies during installation.</p>
+
+    <h2 id="publish-inc">publish.inc.php</h2>
+    <p>Credentials for pushing to a GitHub repository. <strong>Do not commit this file</strong> &mdash;add it to <code>.gitignore</code>:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'token'</span> <span class="hl-op">=></span> <span class="hl-str">'ghp_xxx'</span>,    <span class="hl-cmt">// GitHub Personal Access Token</span>
+    <span class="hl-str">'repo'</span> <span class="hl-op">=></span> <span class="hl-str">'owner/repo'</span>,  <span class="hl-cmt">// Target repository</span>
+];</code></pre>
+    <p>The token requires <code>repo</code> scope permissions to push files to the target repository.</p>
+
+    <h2 id="publishing-workflow">Publishing Workflow</h2>
+    <p>The full publishing workflow: pack your modules, then publish to a GitHub repository:</p>
+    <pre><code><span class="hl-cmt"># Step 1: Pack the module</span>
+<span class="hl-fn">php</span> Razy.phar <span class="hl-kw">pack</span> vendor/module <span class="hl-num">1.0.0</span>
+
+<span class="hl-cmt"># Step 2: Publish &mdash; scan, generate index, and push</span>
+<span class="hl-fn">php</span> Razy.phar <span class="hl-kw">publish</span> <span class="hl-op">--</span>scan <span class="hl-op">--</span>push</code></pre>
+    <p>The <code>publish</code> command scans the <code>packages/</code> directory, auto-generates <code>index.json</code>, and pushes everything to the configured GitHub repository.</p>
+    <table>
+      <thead><tr><th>Option</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>--push</code></td><td>Push to the GitHub repository after generating index</td></tr>
+        <tr><td><code>--branch=NAME</code></td><td>Target branch name (default: main)</td></tr>
+        <tr><td><code>--dist=CODE</code></td><td>Limit to modules from a specific distributor</td></tr>
+        <tr><td><code>--scan</code></td><td>Scan <code>packages/</code> directory for new modules</td></tr>
+        <tr><td><code>--include-shared</code></td><td>Include shared modules in the scan</td></tr>
+        <tr><td><code>--cleanup</code></td><td>Remove orphaned entries from index</td></tr>
+        <tr><td><code>--dry-run</code></td><td>Preview changes without pushing</td></tr>
+        <tr><td><code>--force</code></td><td>Force overwrite existing versions</td></tr>
+        <tr><td><code>-v</code></td><td>Verbose output</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="installing">Installing from Repositories</h2>
+    <p>Install modules from any configured or specified repository:</p>
+    <pre><code><span class="hl-fn">php</span> Razy.phar <span class="hl-kw">install</span> owner/repo[@version] [path] [options]</code></pre>
+    <table>
+      <thead><tr><th>Option</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>--latest</code></td><td>Install the latest available version</td></tr>
+        <tr><td><code>--stable</code></td><td>Install the latest stable version</td></tr>
+        <tr><td><code>--version=VER</code></td><td>Install a specific version</td></tr>
+        <tr><td><code>--branch=NAME</code></td><td>Fetch from a specific branch</td></tr>
+        <tr><td><code>--from-repo</code></td><td>Use repository URL directly</td></tr>
+        <tr><td><code>--name=NAME</code></td><td>Rename the module on install</td></tr>
+        <tr><td><code>--dist=CODE</code></td><td>Install into a specific distributor</td></tr>
+        <tr><td><code>--token=TOKEN</code></td><td>GitHub token for private repositories</td></tr>
+        <tr><td><code>--yes</code></td><td>Auto-confirm prompts</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="searching">Searching Modules</h2>
+    <p>Search for modules across all configured repositories:</p>
+    <pre><code><span class="hl-fn">php</span> Razy.phar <span class="hl-kw">search</span> &lt;query&gt; [<span class="hl-op">--</span>verbose] [<span class="hl-op">--</span>refresh]</code></pre>
+    <table>
+      <thead><tr><th>Option</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;query&gt;</code></td><td>Search term to match against module names and descriptions</td></tr>
+        <tr><td><code>--verbose</code></td><td>Show full module details including all versions</td></tr>
+        <tr><td><code>--refresh</code></td><td>Force refresh the repository index cache</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="syncing">Syncing Modules</h2>
+    <p>Automatically install all modules defined in a distributor's <code>repository.inc.php</code>:</p>
+    <pre><code><span class="hl-fn">php</span> Razy.phar <span class="hl-kw">sync</span> &lt;distributor&gt; [<span class="hl-op">--</span>dry-run] [<span class="hl-op">--</span>yes] [<span class="hl-op">-</span>v]</code></pre>
+    <p>The sync command reads the distributor's <code>repository.inc.php</code> and installs all defined modules. The distributor-level repository config uses an extended format:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'repositories'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'https://github.com/owner/repo/'</span> <span class="hl-op">=></span> <span class="hl-str">'main'</span>,
+    ],
+    <span class="hl-str">'modules'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> [<span class="hl-str">'version'</span> <span class="hl-op">=></span> <span class="hl-str">'1.0.0'</span>, <span class="hl-str">'is_shared'</span> <span class="hl-op">=></span> <span class="hl-kw">false</span>],
+        <span class="hl-str">'vendor/module-b'</span> <span class="hl-op">=></span> <span class="hl-str">'latest'</span>,
+    ],
+];</code></pre>
+    <table>
+      <thead><tr><th>Key</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>repositories</code></td><td>GitHub repositories to fetch from (URL &mdash; branch)</td></tr>
+        <tr><td><code>modules</code></td><td>Modules to install &mdash; either a version string or an array with <code>version</code> and <code>is_shared</code></td></tr>
+      </tbody>
+    </table>
+    <p>The <code>--dry-run</code> flag previews which modules would be installed without making changes. Use <code>--yes</code> to skip confirmation prompts.</p>
+
+    
+    <h2 id="complete-example">Complete Publishing &amp; Installation Example</h2>
+    <p>Full workflow from packing a module to installing it on another project:</p>
+
+    <pre><code class="language-bash"><span class="hl-cmt"># === On the publisher&rsquo;s machine ===</span>
+
+<span class="hl-cmt"># 1. Pack the module</span>
+php Razy.phar pack vendor/blog 1.2.0
+
+<span class="hl-cmt"># 2. Scan, generate index, and push to GitHub</span>
+php Razy.phar publish --scan --push --branch=main
+
+<span class="hl-cmt"># 3. Preview without pushing (dry run)</span>
+php Razy.phar publish --scan --dry-run -v</code></pre>
+
+    <pre><code class="language-bash"><span class="hl-cmt"># === On the consumer&rsquo;s machine ===</span>
+
+<span class="hl-cmt"># 1. Install a specific module version</span>
+php Razy.phar install vendor/blog --version=1.2.0 --from-repo
+
+<span class="hl-cmt"># 2. Install latest version from a private repo</span>
+php Razy.phar install vendor/blog --latest --token=ghp_xxx
+
+<span class="hl-cmt"># 3. Sync all modules defined in distributor config</span>
+php Razy.phar sync mysite --yes
+
+<span class="hl-cmt"># 4. Search for available modules</span>
+php Razy.phar search blog --verbose --refresh</code></pre>
+
+    <pre><code><span class="hl-cmt">// Consumer&rsquo;s repository.inc.php (project root)</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'https://github.com/myorg/razy-modules/'</span> =&gt; <span class="hl-str">'main'</span>,
+];
+
+<span class="hl-cmt">// Consumer&rsquo;s distributor-level repository.inc.php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'repositories'</span> =&gt; [
+        <span class="hl-str">'https://github.com/myorg/razy-modules/'</span> =&gt; <span class="hl-str">'main'</span>,
+    ],
+    <span class="hl-str">'modules'</span> =&gt; [
+        <span class="hl-str">'vendor/blog'</span>     =&gt; [<span class="hl-str">'version'</span> =&gt; <span class="hl-str">'&gt;=1.0.0'</span>, <span class="hl-str">'is_shared'</span> =&gt; <span class="hl-kw">false</span>],
+        <span class="hl-str">'vendor/auth'</span>     =&gt; <span class="hl-str">'latest'</span>,
+        <span class="hl-str">'vendor/database'</span> =&gt; [<span class="hl-str">'version'</span> =&gt; <span class="hl-str">'2.0.0'</span>, <span class="hl-str">'is_shared'</span> =&gt; <span class="hl-kw">true</span>],
+    ],
+];</code></pre>
+
+
+    <div class="page-nav">
+      <a href="packaging.html"><span class="label">&larr; Previous</span><span class="title">Packaging &amp; Distribution</span></a>
+      <a href="caddy-worker.html" class="next"><span class="label">Next &rarr;</span><span class="title">Caddy Worker Mode</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

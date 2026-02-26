@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTP &amp; SFTP &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>FTP &amp; SFTP</h1>
+    <p>Razy provides fluent <strong>FTP</strong> and <strong>SFTP</strong> clients for remote file operations. Both clients share a similar API, support logging, and feature auto-disconnect on destruction.</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#ftp-client">FTP Client</a>
+          <ul>
+            <li><a href="#connection-authentication">Connection &amp; Authentication</a></li>
+            <li><a href="#file-operations">File Operations</a></li>
+            <li><a href="#directory-operations">Directory Operations</a></li>
+            <li><a href="#file-information">File Information</a></li>
+            <li><a href="#settings">Settings</a></li>
+            <li><a href="#fluent-api">Fluent API</a></li>
+          </ul>
+        </li>
+        <li><a href="#sftp-client">SFTP Client</a>
+          <ul>
+            <li><a href="#sftp-connection-authentication">Connection &amp; Authentication</a></li>
+            <li><a href="#file-operations-sftp">File Operations (SFTP)</a></li>
+            <li><a href="#directory-operations-sftp">Directory Operations (SFTP)</a></li>
+            <li><a href="#symlinks-paths">Symlinks &amp; Paths</a></li>
+            <li><a href="#file-information-sftp">File Information (SFTP)</a></li>
+            <li><a href="#remote-commands">Remote Commands</a></li>
+          </ul>
+        </li>
+        <li><a href="#logging">Logging</a></li>
+        <li><a href="#error-handling">Error Handling</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- FTP Client -->
+    <h2 id="ftp-client">FTP Client</h2>
+    <p><strong>Requires:</strong> <code>ext-ftp</code></p>
+
+    <h3 id="connection-authentication">Connection &amp; Authentication</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\FTPClient</span>;
+
+<span class="hl-cmt">// Standard FTP</span>
+<span class="hl-var">$ftp</span> = <span class="hl-kw">new</span> <span class="hl-cls">FTPClient</span>(
+    host: <span class="hl-str">'ftp.example.com'</span>,
+    port: <span class="hl-num">21</span>,
+    timeout: <span class="hl-num">30</span>,
+    ssl: <span class="hl-kw">false</span>
+);
+
+<span class="hl-cmt">// FTPS (FTP over SSL)</span>
+<span class="hl-var">$ftp</span> = <span class="hl-kw">new</span> <span class="hl-cls">FTPClient</span>(<span class="hl-str">'ftp.example.com'</span>, <span class="hl-num">21</span>, <span class="hl-num">30</span>, ssl: <span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Login</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">login</span>(<span class="hl-str">'username'</span>, <span class="hl-str">'password'</span>);
+
+<span class="hl-cmt">// Anonymous login</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">login</span>();
+
+<span class="hl-cmt">// Check connection</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">isConnected</span>();   <span class="hl-cmt">// true</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">isSecure</span>();      <span class="hl-cmt">// true if SSL</span>
+
+<span class="hl-cmt">// Disconnect</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">disconnect</span>();</code></pre>
+
+    <h3 id="file-operations">File Operations</h3>
+    <pre><code><span class="hl-cmt">// Upload local file</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/path/file.txt'</span>, <span class="hl-str">'/remote/path/file.txt'</span>);
+
+<span class="hl-cmt">// Upload with specific transfer mode</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/image.jpg'</span>, <span class="hl-str">'/remote/image.jpg'</span>, <span class="hl-cls">FTPClient</span>::MODE_BINARY);
+
+<span class="hl-cmt">// Upload string content directly</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">uploadString</span>(<span class="hl-str">'Hello, World!'</span>, <span class="hl-str">'/remote/hello.txt'</span>);
+
+<span class="hl-cmt">// Download to local file</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">download</span>(<span class="hl-str">'/remote/file.txt'</span>, <span class="hl-str">'/local/file.txt'</span>);
+
+<span class="hl-cmt">// Download to string</span>
+<span class="hl-var">$content</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">downloadString</span>(<span class="hl-str">'/remote/hello.txt'</span>);
+
+<span class="hl-cmt">// Delete file</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">delete</span>(<span class="hl-str">'/remote/old-file.txt'</span>);
+
+<span class="hl-cmt">// Rename / move</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">rename</span>(<span class="hl-str">'/remote/old-name.txt'</span>, <span class="hl-str">'/remote/new-name.txt'</span>);
+
+<span class="hl-cmt">// Change permissions</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">chmod</span>(<span class="hl-str">'/remote/script.sh'</span>, <span class="hl-num">0755</span>);</code></pre>
+
+    <h3 id="directory-operations">Directory Operations</h3>
+    <pre><code><span class="hl-cmt">// Current directory</span>
+<span class="hl-var">$cwd</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">pwd</span>();
+
+<span class="hl-cmt">// Change directory</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">chdir</span>(<span class="hl-str">'/var/www/html'</span>);
+<span class="hl-var">$ftp</span>-><span class="hl-fn">cdup</span>(); <span class="hl-cmt">// go up one level</span>
+
+<span class="hl-cmt">// Create directory</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">mkdir</span>(<span class="hl-str">'/remote/new-folder'</span>);
+
+<span class="hl-cmt">// Create recursively (nested)</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">mkdirRecursive</span>(<span class="hl-str">'/remote/a/b/c/d'</span>);
+
+<span class="hl-cmt">// Remove directory</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">rmdir</span>(<span class="hl-str">'/remote/empty-folder'</span>);
+
+<span class="hl-cmt">// Remove recursively (with contents)</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">rmdirRecursive</span>(<span class="hl-str">'/remote/folder-with-files'</span>);
+
+<span class="hl-cmt">// List files (names only)</span>
+<span class="hl-var">$files</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">listFiles</span>(<span class="hl-str">'/remote/path'</span>);
+<span class="hl-cmt">// ['file1.txt', 'file2.jpg', 'subfolder']</span>
+
+<span class="hl-cmt">// List with details (parsed ls -l output)</span>
+<span class="hl-var">$details</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">listDetails</span>(<span class="hl-str">'/remote/path'</span>);
+<span class="hl-cmt">// [['name' =&gt; 'file1.txt', 'size' =&gt; 1024, 'type' =&gt; 'file', ...], ...]</span></code></pre>
+
+    <h3 id="file-information">File Information</h3>
+    <pre><code><span class="hl-var">$size</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">size</span>(<span class="hl-str">'/remote/file.txt'</span>);        <span class="hl-cmt">// bytes</span>
+<span class="hl-var">$mtime</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">lastModified</span>(<span class="hl-str">'/remote/file.txt'</span>); <span class="hl-cmt">// Unix timestamp</span>
+<span class="hl-var">$exists</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">exists</span>(<span class="hl-str">'/remote/file.txt'</span>);    <span class="hl-cmt">// bool</span>
+<span class="hl-var">$isDir</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">isDir</span>(<span class="hl-str">'/remote/folder'</span>);        <span class="hl-cmt">// bool</span></code></pre>
+
+    <h3 id="settings">Settings</h3>
+    <pre><code><span class="hl-cmt">// Passive mode (recommended, enabled by default after login)</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">setPassive</span>(<span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Transfer mode</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">setTransferMode</span>(<span class="hl-cls">FTPClient</span>::MODE_BINARY);
+<span class="hl-var">$ftp</span>-><span class="hl-fn">setTransferMode</span>(<span class="hl-cls">FTPClient</span>::MODE_ASCII);
+
+<span class="hl-cmt">// Timeout</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">setTimeout</span>(<span class="hl-num">60</span>);
+
+<span class="hl-cmt">// Raw FTP command</span>
+<span class="hl-var">$response</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">raw</span>(<span class="hl-str">'STAT'</span>);
+
+<span class="hl-cmt">// Server type</span>
+<span class="hl-var">$type</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">systemType</span>(); <span class="hl-cmt">// e.g. 'UNIX'</span></code></pre>
+
+    <h3 id="fluent-api">Fluent API</h3>
+    <p>All methods return <code>$this</code> (except read operations), enabling chains:</p>
+    <pre><code><span class="hl-var">$ftp</span> = (<span class="hl-kw">new</span> <span class="hl-cls">FTPClient</span>(<span class="hl-str">'ftp.example.com'</span>))
+    -><span class="hl-fn">login</span>(<span class="hl-str">'user'</span>, <span class="hl-str">'pass'</span>)
+    -><span class="hl-fn">setPassive</span>(<span class="hl-kw">true</span>)
+    -><span class="hl-fn">chdir</span>(<span class="hl-str">'/var/www'</span>)
+    -><span class="hl-fn">upload</span>(<span class="hl-str">'/local/index.html'</span>, <span class="hl-str">'index.html'</span>)
+    -><span class="hl-fn">upload</span>(<span class="hl-str">'/local/style.css'</span>, <span class="hl-str">'style.css'</span>)
+    -><span class="hl-fn">disconnect</span>();</code></pre>
+
+    <!-- SFTP Client -->
+    <h2 id="sftp-client">SFTP Client</h2>
+    <p><strong>Requires:</strong> <code>ext-ssh2</code></p>
+
+    <h3 id="sftp-connection-authentication">SFTP Connection &amp; Authentication</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\SFTPClient</span>;
+
+<span class="hl-var">$sftp</span> = <span class="hl-kw">new</span> <span class="hl-cls">SFTPClient</span>(
+    host: <span class="hl-str">'ssh.example.com'</span>,
+    port: <span class="hl-num">22</span>,
+    timeout: <span class="hl-num">30</span>
+);
+
+<span class="hl-cmt">// Password authentication</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">loginWithPassword</span>(<span class="hl-str">'username'</span>, <span class="hl-str">'password'</span>);
+
+<span class="hl-cmt">// Public key authentication</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">loginWithKey</span>(
+    username: <span class="hl-str">'deploy'</span>,
+    publicKeyFile: <span class="hl-str">'/home/user/.ssh/id_rsa.pub'</span>,
+    privateKeyFile: <span class="hl-str">'/home/user/.ssh/id_rsa'</span>,
+    passphrase: <span class="hl-str">'optional-passphrase'</span>
+);
+
+<span class="hl-cmt">// SSH agent authentication</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">loginWithAgent</span>(<span class="hl-str">'deploy'</span>);
+
+<span class="hl-cmt">// Connection info</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">isConnected</span>();                    <span class="hl-cmt">// true</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">getFingerprint</span>();                  <span class="hl-cmt">// MD5 hex fingerprint</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">getAuthMethods</span>(<span class="hl-str">'username'</span>);        <span class="hl-cmt">// ['publickey', 'password']</span>
+
+<span class="hl-var">$sftp</span>-><span class="hl-fn">disconnect</span>();</code></pre>
+
+    <h3 id="file-operations-sftp">File Operations (SFTP)</h3>
+    <pre><code><span class="hl-cmt">// Upload with permissions</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/file.txt'</span>, <span class="hl-str">'/remote/file.txt'</span>, permissions: <span class="hl-num">0644</span>);
+
+<span class="hl-cmt">// Upload string content</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">uploadString</span>(<span class="hl-str">'Hello, World!'</span>, <span class="hl-str">'/remote/hello.txt'</span>, permissions: <span class="hl-num">0644</span>);
+
+<span class="hl-cmt">// Download</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">download</span>(<span class="hl-str">'/remote/file.txt'</span>, <span class="hl-str">'/local/file.txt'</span>);
+
+<span class="hl-cmt">// Download to string</span>
+<span class="hl-var">$content</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">downloadString</span>(<span class="hl-str">'/remote/hello.txt'</span>);
+
+<span class="hl-cmt">// Delete</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">delete</span>(<span class="hl-str">'/remote/old-file.txt'</span>);
+
+<span class="hl-cmt">// Rename / move</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">rename</span>(<span class="hl-str">'/remote/old.txt'</span>, <span class="hl-str">'/remote/new.txt'</span>);
+
+<span class="hl-cmt">// Change permissions</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">chmod</span>(<span class="hl-str">'/remote/script.sh'</span>, <span class="hl-num">0755</span>);</code></pre>
+
+    <h3 id="directory-operations-sftp">Directory Operations (SFTP)</h3>
+    <pre><code><span class="hl-cmt">// Create directory</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">mkdir</span>(<span class="hl-str">'/remote/new-folder'</span>, permissions: <span class="hl-num">0755</span>);
+
+<span class="hl-cmt">// Create recursively</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">mkdir</span>(<span class="hl-str">'/remote/a/b/c'</span>, permissions: <span class="hl-num">0755</span>, recursive: <span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Remove directory</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">rmdir</span>(<span class="hl-str">'/remote/empty-folder'</span>);
+
+<span class="hl-cmt">// Remove recursively</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">rmdirRecursive</span>(<span class="hl-str">'/remote/folder-with-files'</span>);
+
+<span class="hl-cmt">// List files</span>
+<span class="hl-var">$files</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">listFiles</span>(<span class="hl-str">'/remote/path'</span>);
+<span class="hl-cmt">// ['file1.txt', 'file2.jpg', 'subfolder']</span></code></pre>
+
+    <h3 id="symlinks-paths">Symlinks &amp; Paths</h3>
+    <pre><code><span class="hl-cmt">// Create symlink</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">symlink</span>(<span class="hl-str">'/remote/target'</span>, <span class="hl-str">'/remote/link'</span>);
+
+<span class="hl-cmt">// Read symlink target</span>
+<span class="hl-var">$target</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">readlink</span>(<span class="hl-str">'/remote/link'</span>);
+
+<span class="hl-cmt">// Resolve real path</span>
+<span class="hl-var">$real</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">realpath</span>(<span class="hl-str">'/remote/./path/../file.txt'</span>);</code></pre>
+
+    <h3 id="file-information-sftp">File Information (SFTP)</h3>
+    <pre><code><span class="hl-cmt">// Full stat</span>
+<span class="hl-var">$stat</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">stat</span>(<span class="hl-str">'/remote/file.txt'</span>);
+<span class="hl-cmt">// ['size' =&gt; 1024, 'uid' =&gt; 1000, 'gid' =&gt; 1000, 'mode' =&gt; 33188, 'atime' =&gt; ..., 'mtime' =&gt; ...]</span>
+
+<span class="hl-cmt">// Symlink stat (doesn't follow links)</span>
+<span class="hl-var">$lstat</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">lstat</span>(<span class="hl-str">'/remote/link'</span>);
+
+<span class="hl-cmt">// Convenience methods</span>
+<span class="hl-var">$exists</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">exists</span>(<span class="hl-str">'/remote/file.txt'</span>);    <span class="hl-cmt">// bool</span>
+<span class="hl-var">$isDir</span>  = <span class="hl-var">$sftp</span>-><span class="hl-fn">isDir</span>(<span class="hl-str">'/remote/folder'</span>);       <span class="hl-cmt">// bool</span>
+<span class="hl-var">$isFile</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">isFile</span>(<span class="hl-str">'/remote/file.txt'</span>);     <span class="hl-cmt">// bool</span>
+<span class="hl-var">$isLink</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">isLink</span>(<span class="hl-str">'/remote/link'</span>);         <span class="hl-cmt">// bool</span>
+<span class="hl-var">$size</span>   = <span class="hl-var">$sftp</span>-><span class="hl-fn">size</span>(<span class="hl-str">'/remote/file.txt'</span>);       <span class="hl-cmt">// bytes</span>
+<span class="hl-var">$mtime</span>  = <span class="hl-var">$sftp</span>-><span class="hl-fn">lastModified</span>(<span class="hl-str">'/remote/file.txt'</span>); <span class="hl-cmt">// Unix timestamp</span></code></pre>
+
+    <h3 id="remote-commands">Remote Commands</h3>
+    <p>Execute SSH commands on the remote server:</p>
+    <pre><code><span class="hl-var">$output</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">exec</span>(<span class="hl-str">'ls -la /var/www'</span>);
+<span class="hl-var">$output</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">exec</span>(<span class="hl-str">'df -h'</span>);
+<span class="hl-var">$output</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">exec</span>(<span class="hl-str">'whoami'</span>);</code></pre>
+
+    <!-- Logging -->
+    <h2 id="logging">Logging</h2>
+    <p>Both clients maintain an internal operation log:</p>
+    <pre><code><span class="hl-cmt">// FTP</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/file.txt'</span>, <span class="hl-str">'/remote/file.txt'</span>);
+<span class="hl-var">$logs</span> = <span class="hl-var">$ftp</span>-><span class="hl-fn">getLogs</span>();
+<span class="hl-cmt">// [</span>
+<span class="hl-cmt">//   ['operation' =&gt; 'login', 'details' =&gt; '...', 'timestamp' =&gt; '...'],</span>
+<span class="hl-cmt">//   ['operation' =&gt; 'upload', 'details' =&gt; '...', 'timestamp' =&gt; '...'],</span>
+<span class="hl-cmt">// ]</span>
+<span class="hl-var">$ftp</span>-><span class="hl-fn">clearLogs</span>();
+
+<span class="hl-cmt">// SFTP</span>
+<span class="hl-var">$sftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/file.txt'</span>, <span class="hl-str">'/remote/file.txt'</span>);
+<span class="hl-var">$logs</span> = <span class="hl-var">$sftp</span>-><span class="hl-fn">getLogs</span>();
+<span class="hl-var">$sftp</span>-><span class="hl-fn">clearLogs</span>();</code></pre>
+
+    <!-- Error Handling -->
+    <h2 id="error-handling">Error Handling</h2>
+    <ul>
+      <li><strong>FTPClient</strong> throws <code>Razy\Exception\FTPException</code> (extends <code>NetworkException</code>)</li>
+      <li><strong>SFTPClient</strong> throws <code>Razy\Exception\SSHException</code> (extends <code>NetworkException</code>)</li>
+    </ul>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\FTPException</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\SSHException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$ftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/missing.txt'</span>, <span class="hl-str">'/remote/file.txt'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">FTPException</span> <span class="hl-var">$e</span>) {
+    echo <span class="hl-str">"FTP error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$sftp</span>-><span class="hl-fn">download</span>(<span class="hl-str">'/remote/nonexistent.txt'</span>, <span class="hl-str">'/local/file.txt'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">SSHException</span> <span class="hl-var">$e</span>) {
+    echo <span class="hl-str">"SFTP error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+    <p>Both clients auto-disconnect on <code>__destruct()</code> &mdash;no need for explicit cleanup in normal flows.</p>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>FTPClient</h3>
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Method</th><th>Signature</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Connect</strong></td><td><code>__construct</code></td><td><code>(string $host, int $port = 21, int $timeout = 30, bool $ssl = false)</code></td></tr>
+        <tr><td></td><td><code>login</code></td><td><code>(string $username = 'anonymous', string $password = ''): static</code></td></tr>
+        <tr><td></td><td><code>disconnect</code></td><td><code>(): static</code></td></tr>
+        <tr><td></td><td><code>isConnected</code></td><td><code>(): bool</code></td></tr>
+        <tr><td></td><td><code>isSecure</code></td><td><code>(): bool</code></td></tr>
+        <tr><td><strong>Files</strong></td><td><code>upload</code></td><td><code>(string $localPath, string $remotePath, ?int $mode = null): static</code></td></tr>
+        <tr><td></td><td><code>download</code></td><td><code>(string $remotePath, string $localPath, ?int $mode = null): static</code></td></tr>
+        <tr><td></td><td><code>uploadString</code></td><td><code>(string $content, string $remotePath, ?int $mode = null): static</code></td></tr>
+        <tr><td></td><td><code>downloadString</code></td><td><code>(string $remotePath, ?int $mode = null): string</code></td></tr>
+        <tr><td></td><td><code>delete</code></td><td><code>(string $remotePath): static</code></td></tr>
+        <tr><td></td><td><code>rename</code></td><td><code>(string $oldPath, string $newPath): static</code></td></tr>
+        <tr><td></td><td><code>chmod</code></td><td><code>(string $remotePath, int $mode): static</code></td></tr>
+        <tr><td><strong>Dirs</strong></td><td><code>pwd</code></td><td><code>(): string</code></td></tr>
+        <tr><td></td><td><code>chdir</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>cdup</code></td><td><code>(): static</code></td></tr>
+        <tr><td></td><td><code>mkdir</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>mkdirRecursive</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>rmdir</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>rmdirRecursive</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>listFiles</code></td><td><code>(string $directory = '.'): array</code></td></tr>
+        <tr><td></td><td><code>listDetails</code></td><td><code>(string $directory = '.'): array</code></td></tr>
+        <tr><td><strong>Info</strong></td><td><code>size</code></td><td><code>(string $remotePath): int</code></td></tr>
+        <tr><td></td><td><code>lastModified</code></td><td><code>(string $remotePath): int</code></td></tr>
+        <tr><td></td><td><code>exists</code></td><td><code>(string $remotePath): bool</code></td></tr>
+        <tr><td></td><td><code>isDir</code></td><td><code>(string $remotePath): bool</code></td></tr>
+        <tr><td><strong>Settings</strong></td><td><code>setPassive</code></td><td><code>(bool $passive = true): static</code></td></tr>
+        <tr><td></td><td><code>setTransferMode</code></td><td><code>(int $mode): static</code></td></tr>
+        <tr><td></td><td><code>setTimeout</code></td><td><code>(int $seconds): static</code></td></tr>
+        <tr><td></td><td><code>raw</code></td><td><code>(string $command): array</code></td></tr>
+        <tr><td></td><td><code>systemType</code></td><td><code>(): string</code></td></tr>
+        <tr><td><strong>Log</strong></td><td><code>getLogs</code></td><td><code>(): array</code></td></tr>
+        <tr><td></td><td><code>clearLogs</code></td><td><code>(): static</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>SFTPClient</h3>
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Method</th><th>Signature</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Connect</strong></td><td><code>__construct</code></td><td><code>(string $host, int $port = 22, int $timeout = 30)</code></td></tr>
+        <tr><td></td><td><code>loginWithPassword</code></td><td><code>(string $username, string $password): static</code></td></tr>
+        <tr><td></td><td><code>loginWithKey</code></td><td><code>(string $username, string $publicKeyFile, string $privateKeyFile, ?string $passphrase = null): static</code></td></tr>
+        <tr><td></td><td><code>loginWithAgent</code></td><td><code>(string $username): static</code></td></tr>
+        <tr><td></td><td><code>disconnect</code></td><td><code>(): static</code></td></tr>
+        <tr><td></td><td><code>isConnected</code></td><td><code>(): bool</code></td></tr>
+        <tr><td></td><td><code>getFingerprint</code></td><td><code>(int $flags = ...): string</code></td></tr>
+        <tr><td></td><td><code>getAuthMethods</code></td><td><code>(string $username): array</code></td></tr>
+        <tr><td><strong>Files</strong></td><td><code>upload</code></td><td><code>(string $localPath, string $remotePath, int $permissions = 0644): static</code></td></tr>
+        <tr><td></td><td><code>download</code></td><td><code>(string $remotePath, string $localPath): static</code></td></tr>
+        <tr><td></td><td><code>uploadString</code></td><td><code>(string $content, string $remotePath, int $permissions = 0644): static</code></td></tr>
+        <tr><td></td><td><code>downloadString</code></td><td><code>(string $remotePath): string</code></td></tr>
+        <tr><td></td><td><code>delete</code></td><td><code>(string $remotePath): static</code></td></tr>
+        <tr><td></td><td><code>rename</code></td><td><code>(string $oldPath, string $newPath): static</code></td></tr>
+        <tr><td></td><td><code>chmod</code></td><td><code>(string $remotePath, int $mode): static</code></td></tr>
+        <tr><td><strong>Dirs</strong></td><td><code>mkdir</code></td><td><code>(string $directory, int $permissions = 0755, bool $recursive = false): static</code></td></tr>
+        <tr><td></td><td><code>rmdir</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>rmdirRecursive</code></td><td><code>(string $directory): static</code></td></tr>
+        <tr><td></td><td><code>listFiles</code></td><td><code>(string $directory = '.'): array</code></td></tr>
+        <tr><td><strong>Links</strong></td><td><code>symlink</code></td><td><code>(string $target, string $linkPath): static</code></td></tr>
+        <tr><td></td><td><code>readlink</code></td><td><code>(string $linkPath): string</code></td></tr>
+        <tr><td></td><td><code>realpath</code></td><td><code>(string $remotePath): string</code></td></tr>
+        <tr><td><strong>Info</strong></td><td><code>stat</code></td><td><code>(string $remotePath): array|false</code></td></tr>
+        <tr><td></td><td><code>lstat</code></td><td><code>(string $remotePath): array|false</code></td></tr>
+        <tr><td></td><td><code>exists</code></td><td><code>(string $remotePath): bool</code></td></tr>
+        <tr><td></td><td><code>isDir</code></td><td><code>(string $remotePath): bool</code></td></tr>
+        <tr><td></td><td><code>isFile</code></td><td><code>(string $remotePath): bool</code></td></tr>
+        <tr><td></td><td><code>isLink</code></td><td><code>(string $remotePath): bool</code></td></tr>
+        <tr><td></td><td><code>size</code></td><td><code>(string $remotePath): int</code></td></tr>
+        <tr><td></td><td><code>lastModified</code></td><td><code>(string $remotePath): int</code></td></tr>
+        <tr><td><strong>SSH</strong></td><td><code>exec</code></td><td><code>(string $command): string</code></td></tr>
+        <tr><td><strong>Log</strong></td><td><code>getLogs</code></td><td><code>(): array</code></td></tr>
+        <tr><td></td><td><code>clearLogs</code></td><td><code>(): static</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="filereader.html"><span class="label">&larr; Previous</span><span class="title">FileReader</span></a>
+      <a href="notification.html" class="next"><span class="label">Next &rarr;</span><span class="title">Notification</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

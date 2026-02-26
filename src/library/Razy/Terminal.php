@@ -2,22 +2,34 @@
 /**
  * This file is part of Razy v0.5.
  *
+ * Terminal CLI interface for the Razy framework. Provides styled text output,
+ * user input reading, logging, and ANSI color/formatting support for
+ * command-line applications.
+ *
  * (c) Ray Fung <hello@rayfung.hk>
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
-
-use Closure;
 use DateTime;
 use Exception;
 
+use Razy\Util\PathUtil;
+/**
+ * CLI terminal handler for the Razy framework.
+ *
+ * Manages terminal output with ANSI color codes, text formatting,
+ * user input reading, command execution, and message logging.
+ * Supports hierarchical terminal instances via parent linking.
+ *
+ * @class Terminal
+ */
 class Terminal
 {
     /**
-     * List of font color
+     * ANSI escape codes for foreground (font) colors.
      */
     public const COLOR_DEFAULT = "\033[39m";
     public const COLOR_BLACK = "\033[30m";
@@ -39,7 +51,7 @@ class Terminal
     public const RESET_STLYE = "\033[0m";
 
     /**
-     * List of background color
+     * ANSI escape codes for background colors.
      */
     public const BACKGROUND_BLACK = "\033[40m";
     public const BACKGROUND_RED = "\033[41m";
@@ -50,13 +62,25 @@ class Terminal
     public const BACKGROUND_CYAN = "\033[46m";
     public const BACKGROUND_LIGHTGRAYE = "\033[47m";
 
+    /** @var string ANSI escape to clear the current line */
     public const CLEAR_LINE = "\033[0G\033[2K";
+
+    /** @var string Newline character */
     public const NEWLINE = "\n";
+
+    /** @var string ANSI escape for blinking text */
     public const TEXT_BLINK = "\033[5m";
 
+    /** @var bool Whether logging is enabled */
     private bool $logging = false;
+
+    /** @var array<int, array{0: string, 1: string}> Log entries as [timestamp, message] */
     private array $logs = [];
+
+    /** @var array Navigation stack for subcommand routing */
     private array $navigation = [];
+
+    /** @var array<string, mixed> Runtime parameters passed to command callbacks */
     private array $parameters = [];
 
     /**
@@ -65,13 +89,13 @@ class Terminal
      * @param string $code
      * @param null|Terminal $parent
      *
-     * @throws Error
+     * @throws \InvalidArgumentException
      */
     public function __construct(private string $code, private readonly ?Terminal $parent = null)
     {
         $this->code = trim($this->code);
         if (!$this->code) {
-            throw new Error('The terminal code is required.');
+            throw new \InvalidArgumentException('The terminal code is required.');
         }
     }
 
@@ -83,7 +107,7 @@ class Terminal
     public static function read(): string
     {
         $response = trim(fgets(STDIN));
-        // Remove arrow character to prevent character overlap
+        // Remove ANSI arrow-key escape sequences to prevent character overlap in input
         if (preg_match('/\\033\[[ABCD]/', $response)) {
             return preg_replace('/(?:\\033\[[ABCD])+/', '', $response);
         }
@@ -150,11 +174,14 @@ class Terminal
      */
     public function getScreenWidth(): int
     {
+        // Windows: parse the 'mode' command output to extract column count
         if ('WIN' === strtoupper(substr(PHP_OS, 0, 3))) {
             $setting = shell_exec('mode');
+            // Split by separator lines and take the last block (active console info)
             $clips = preg_split('/-+/', $setting, -1, PREG_SPLIT_NO_EMPTY);
             $terminalInfo = explode("\n", trim(end($clips)));
             if (count($terminalInfo) >= 2) {
+                // Second line contains "Columns: <number>"
                 [, $value] = explode(':', trim($terminalInfo[1]), 2);
 
                 return (int)$value;
@@ -163,6 +190,7 @@ class Terminal
             return 0;
         }
 
+        // Unix/Linux: use tput to get terminal width
         return (int)shell_exec('tput cols');
     }
 
@@ -177,12 +205,14 @@ class Terminal
     public function length(string $text, ?int &$escaped = 0): int
     {
         $escaped = 0;
+        // Count the total length of ANSI escape sequences so they can be excluded
         if (preg_match_all("/\e\\[(?:\\d+m|[ABCD])/", $text, $matches)) {
             array_walk($matches[0], function (&$value) use (&$lengthOfEscape, &$escaped) {
                 $escaped += strlen($value);
             });
         }
 
+        // Visible length = total length minus escape sequence bytes
         return strlen($text) - $escaped;
     }
 
@@ -227,7 +257,8 @@ class Terminal
     {
         $length = 20;
         $content = '';
-        $path = fix_path($path);
+        $path = PathUtil::fixPath($path);
+        // Format each log entry as a timestamped line
         foreach ($this->logs as $log) {
             $content .= sprintf('%-22s%s', '[' . $log[0] . ']', $log[1]) . PHP_EOL;
         }
@@ -236,13 +267,13 @@ class Terminal
         if ($realPath) {
             // If the path is a valid file or directory
             if (is_dir($realPath)) {
-                $path = append($path, (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt');
+                $path = PathUtil::append($path, (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt');
             }
         } else {
             // If the path is not exists, extract the directory and the file name
             // If no file name is provided, use default file name
             $fileName = (new DateTime())->format('Y_m_d_H_i_s') . '_' . $this->code . '.txt';
-            if (!is_dir_path($path)) {
+            if (!PathUtil::isDirPath($path)) {
                 $fileName = basename($path);
                 $path = dirname($path);
             }
@@ -253,7 +284,7 @@ class Terminal
             } catch (Exception $e) {
                 return false;
             }
-            $path = append($path, $fileName);
+            $path = PathUtil::append($path, $fileName);
         }
 
         try {
@@ -274,21 +305,23 @@ class Terminal
      */
     static public function Format(string $message): string
     {
+        // Match CLI styling tags: {@code|code...} for reset/clear/nl, or {@c:color,b:bg,s:style}
         return preg_replace_callback('/{@(?:((?<code>clear|reset|nl)(?:\|(?&code))*)|((?<config>[cbsk]:\w+)(?:,(?&config))*))}/', function ($matches) {
             $styleString = '';
             if ($matches[3] ?? '') {
+                // Parse comma-separated style configurations: c:color, b:background, s:style
                 $clips = explode(',', $matches[3]);
                 foreach ($clips as $clip) {
                     [$style, $value] = explode(':', $clip, 2);
                     if ('c' == $style || 'b' === $style) {
-                        // Font color style
+                        // Resolve font color (c:) or background color (b:) from class constants
                         $value = strtoupper($value);
                         $constant = __CLASS__ . '::' . (('c' === $style) ? 'COLOR' : 'BACKGROUND') . '_' . $value;
                         if (defined($constant)) {
                             $styleString .= constant($constant);
                         }
                     } elseif ($style == 's') {
-                        // Text decoration
+                        // Text decoration: b=bold, i=italic, u=underline, s=strikethrough, k=blink
                         $values = array_keys(array_flip(str_split($value)));
                         foreach ($values as $styleCode) {
                             switch ($styleCode) {
@@ -312,6 +345,7 @@ class Terminal
                     }
                 }
             } else {
+                // Handle control codes: reset, clear line, newline
                 $clips = array_keys(array_flip(explode('|', $matches[1])));
                 foreach ($clips as $clip) {
                     switch ($clip) {

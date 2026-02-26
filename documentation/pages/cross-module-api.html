@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cross-Module API &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Cross-Module API</h1>
+    <p>The Cross-Module API allows modules to expose and consume typed commands through a provider/consumer handshake. This enables service-style communication between independent modules without tight coupling.</p>
+
+    <h2 id="overview">How It Works</h2>
+    <p>The flow is:</p>
+    <ol>
+      <li><strong>Provider</strong> registers API commands via <code>Agent::addAPICommand()</code> in <code>__onInit()</code>.</li>
+      <li><strong>Consumer</strong> requests an API handle via <code>$this-&gt;api()</code> in <code>__onReady()</code> (after all modules are loaded).</li>
+      <li>Framework performs a <strong>handshake</strong>: calls the provider's <code>__onAPICall()</code> with the consumer's <code>ModuleInfo</code>.</li>
+      <li>If the provider grants access, the consumer receives an <code>Emitter</code> object and can invoke commands.</li>
+    </ol>
+
+    <h2 id="provider">Defining an API Provider</h2>
+    <pre><code><span class="hl-cmt">// In controller __onInit()</span>
+<span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Register API commands &mdash; second argument is a closure file path (without .php)</span>
+    <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addAPICommand</span>(<span class="hl-str">'getVersion'</span>, <span class="hl-str">'api/getVersion'</span>);
+    <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addAPICommand</span>(<span class="hl-str">'processData'</span>, <span class="hl-str">'api/processData'</span>);
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p>Then create the closure files:</p>
+    <pre><code><span class="hl-cmt">// controller/api/getVersion.php</span>
+<span class="hl-kw">return function</span>(): <span class="hl-cls">string</span> {
+    <span class="hl-kw">return</span> <span class="hl-str">'1.0.0'</span>;
+};</code></pre>
+    <pre><code><span class="hl-cmt">// controller/api/processData.php</span>
+<span class="hl-kw">return function</span>(<span class="hl-cls">string</span> <span class="hl-var">$data</span>): <span class="hl-cls">string</span> {
+    <span class="hl-kw">return</span> <span class="hl-fn">strtoupper</span>(<span class="hl-var">$data</span>);
+};</code></pre>
+
+    <h2 id="handshake">Authorizing the Handshake</h2>
+    <pre><code><span class="hl-cmt">// Provider's controller</span>
+<span class="hl-kw">public function</span> <span class="hl-fn">__onAPICall</span>(<span class="hl-cls">ModuleInfo</span> <span class="hl-var">$module</span>, <span class="hl-cls">string</span> <span class="hl-var">$method</span>, <span class="hl-cls">string</span> <span class="hl-var">$fqdn</span> = <span class="hl-str">''</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Grant access to specific modules</span>
+    <span class="hl-kw">return</span> <span class="hl-fn">in_array</span>(<span class="hl-var">$module</span>-&gt;<span class="hl-fn">getCode</span>(), [
+        <span class="hl-str">'demo/consumer_module'</span>,
+        <span class="hl-str">'demo/another_module'</span>,
+    ]);
+}</code></pre>
+    <div class="callout callout-warning">
+      <strong>Security:</strong> Always validate the caller in <code>__onAPICall()</code>. Returning <code>true</code> unconditionally allows any module to call your API.
+    </div>
+
+    <h2 id="consumer">Consuming an API</h2>
+    <pre><code><span class="hl-cmt">// Consumer's controller __onReady()</span>
+<span class="hl-kw">public function</span> <span class="hl-fn">__onReady</span>(): <span class="hl-cls">void</span>
+{
+    <span class="hl-var">$api</span> = <span class="hl-var">$this</span>-&gt;<span class="hl-fn">api</span>(<span class="hl-str">'demo/provider_module'</span>);
+
+    <span class="hl-kw">if</span> (<span class="hl-var">$api</span>) {
+        <span class="hl-cmt">// Invoke the provider's command</span>
+        <span class="hl-var">$version</span> = <span class="hl-var">$api</span>-&gt;<span class="hl-fn">getVersion</span>();
+        <span class="hl-var">$result</span>  = <span class="hl-var">$api</span>-&gt;<span class="hl-fn">processData</span>(<span class="hl-str">'hello'</span>);
+    }
+}</code></pre>
+
+    <h2 id="api-class">API Class Reference</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__call(string $command, array $args)</code></td><td><code>mixed</code></td><td>Invoke a registered API command via magic method</td></tr>
+        <tr><td><code>has(string $command)</code></td><td><code>bool</code></td><td>Check if a command exists</td></tr>
+        <tr><td><code>getModuleCode()</code></td><td><code>string</code></td><td>Get the provider's module code</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="agent-api-methods">Agent API Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Context</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>addAPICommand(mixed $command, ?string $path = null)</code></td><td>Provider (<code>__onInit</code>)</td><td>Register an API command mapped to a closure file path (without <code>.php</code>)</td></tr>
+        <tr><td><code>getAPI(string $moduleCode)</code></td><td>Consumer</td><td>Request API handle from another module</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="best-practices">Best Practices</h2>
+    <ul>
+      <li>Register API commands in <code>__onInit()</code>, where the <code>Agent</code> is available. Use <code>__onReady()</code> to <strong>consume</strong> APIs.</li>
+      <li>Use <code>__onAPICall()</code> to whitelist consumers by module code.</li>
+      <li>Always check the return value of <code>getAPI()</code> &mdash;it returns <code>null</code> if the handshake is denied.</li>
+      <li>Keep API commands focused and well-named to serve as a stable contract between modules.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="events.html"><span class="label">&larr; Previous</span><span class="title">Event System</span></a>
+      <a href="database.html" class="next"><span class="label">Next &rarr;</span><span class="title">Database</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

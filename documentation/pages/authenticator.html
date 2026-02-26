@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authenticator (TOTP/HOTP) &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">�?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Authenticator (TOTP/HOTP)</h1>
+    <p>Razy includes a built-in <strong>two-factor authentication</strong> system implementing RFC 6238 (TOTP) and RFC 4226 (HOTP). The <code>Authenticator</code> class provides static methods for generating secrets, computing codes, verifying codes, and generating provisioning URIs for authenticator apps (Google Authenticator, Authy, etc.).</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#quick-start">Quick Start</a></li>
+        <li><a href="#generating-secrets">Generating Secrets</a></li>
+        <li><a href="#totp">TOTP (Time-Based)</a></li>
+        <li><a href="#hotp">HOTP (Counter-Based)</a></li>
+        <li><a href="#provisioning-uris">Provisioning URIs &amp; QR Codes</a></li>
+        <li><a href="#backup-codes">Backup Codes</a></li>
+        <li><a href="#base32-encoding">Base32 Encoding</a></li>
+        <li><a href="#configuration">Configuration</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Quick Start -->
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Authenticator</span>;
+
+<span class="hl-cmt">// Generate a secret for the user</span>
+<span class="hl-var">$secret</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">generateSecret</span>();
+<span class="hl-cmt">// e.g. 'JBSWY3DPEHPK3PXP4ZQXMZLSMF'</span>
+
+<span class="hl-cmt">// Generate provisioning URI for authenticator app</span>
+<span class="hl-var">$uri</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getProvisioningUri</span>(
+    secret: <span class="hl-var">$secret</span>,
+    account: <span class="hl-str">'john@example.com'</span>,
+    issuer: <span class="hl-str">'MyApp'</span>
+);
+
+<span class="hl-cmt">// User scans QR code and enters the 6-digit code</span>
+<span class="hl-var">$isValid</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">verifyCode</span>(<span class="hl-var">$secret</span>, <span class="hl-str">'123456'</span>);</code></pre>
+
+    <!-- Generating Secrets -->
+    <h2 id="generating-secrets">Generating Secrets</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Authenticator</span>;
+
+<span class="hl-cmt">// Default: 20 bytes &mdash; 32 Base32 characters</span>
+<span class="hl-var">$secret</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">generateSecret</span>();
+
+<span class="hl-cmt">// Custom length (minimum 16 bytes)</span>
+<span class="hl-var">$secret</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">generateSecret</span>(length: <span class="hl-num">32</span>);
+
+<span class="hl-cmt">// The secret should be stored securely per user</span>
+<span class="hl-cmt">// Store: $user-&gt;totp_secret = $secret;</span></code></pre>
+
+    <!-- TOTP -->
+    <h2 id="totp">TOTP (Time-Based)</h2>
+    <p>TOTP generates a code based on the current time. Codes rotate every 30 seconds by default.</p>
+
+    <h3>Getting the Current Code</h3>
+    <pre><code><span class="hl-cmt">// Current code (6 digits, 30-second period, sha1)</span>
+<span class="hl-var">$code</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getCode</span>(<span class="hl-var">$secret</span>);
+<span class="hl-cmt">// e.g. '482915'</span>
+
+<span class="hl-cmt">// Custom parameters</span>
+<span class="hl-var">$code</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getCode</span>(
+    secret: <span class="hl-var">$secret</span>,
+    digits: <span class="hl-num">6</span>,
+    period: <span class="hl-num">30</span>,
+    algorithm: <span class="hl-str">'sha1'</span>,
+    timestamp: <span class="hl-kw">null</span>     <span class="hl-cmt">// null = current time</span>
+);
+
+<span class="hl-cmt">// Code at a specific timestamp (for testing)</span>
+<span class="hl-var">$code</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getCode</span>(<span class="hl-var">$secret</span>, timestamp: <span class="hl-num">1700000000</span>);</code></pre>
+
+    <h3>Verifying a Code</h3>
+    <pre><code><span class="hl-cmt">// Verify with time window tolerance (±1 period by default)</span>
+<span class="hl-var">$valid</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">verifyCode</span>(<span class="hl-var">$secret</span>, <span class="hl-str">'482915'</span>);
+
+<span class="hl-cmt">// Custom window (check ±2 periods = 5 total codes)</span>
+<span class="hl-var">$valid</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">verifyCode</span>(
+    secret: <span class="hl-var">$secret</span>,
+    code: <span class="hl-str">'482915'</span>,
+    digits: <span class="hl-num">6</span>,
+    period: <span class="hl-num">30</span>,
+    algorithm: <span class="hl-str">'sha1'</span>,
+    window: <span class="hl-num">2</span>,           <span class="hl-cmt">// check codes from t-2 to t+2</span>
+    timestamp: <span class="hl-kw">null</span>
+);</code></pre>
+
+    <div class="callout callout-info">
+      <strong>Security:</strong> <code>verifyCode()</code> uses <code>hash_equals()</code> for timing-safe comparison.
+    </div>
+
+    <h3>Time Window</h3>
+    <p>The <code>window</code> parameter defines how many periods before/after the current time to check:</p>
+    <pre><code>window = 0: only current period
+window = 1: current ± 1 (3 codes total, ±30 seconds)
+window = 2: current ± 2 (5 codes total, ±60 seconds)</code></pre>
+
+    <!-- HOTP -->
+    <h2 id="hotp">HOTP (Counter-Based)</h2>
+    <p>HOTP generates a code based on a counter value. The counter must be incremented after each successful verification.</p>
+
+    <h3>Getting a Code</h3>
+    <pre><code><span class="hl-cmt">// Code for counter value</span>
+<span class="hl-var">$code</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getHotpCode</span>(
+    secret: <span class="hl-var">$secret</span>,
+    counter: <span class="hl-num">0</span>,
+    digits: <span class="hl-num">6</span>,
+    algorithm: <span class="hl-str">'sha1'</span>
+);</code></pre>
+
+    <h3>Verifying a Code</h3>
+    <pre><code><span class="hl-cmt">// Verify and get the matched counter</span>
+<span class="hl-var">$matchedCounter</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">verifyHotpCode</span>(
+    secret: <span class="hl-var">$secret</span>,
+    code: <span class="hl-str">'482915'</span>,
+    counter: <span class="hl-num">5</span>,          <span class="hl-cmt">// expected counter</span>
+    digits: <span class="hl-num">6</span>,
+    algorithm: <span class="hl-str">'sha1'</span>,
+    window: <span class="hl-num">5</span>            <span class="hl-cmt">// look-ahead window (check counters 5-10)</span>
+);
+
+<span class="hl-kw">if</span> (<span class="hl-var">$matchedCounter</span> !== <span class="hl-kw">false</span>) {
+    <span class="hl-cmt">// Store counter + 1 for next verification</span>
+    <span class="hl-var">$user</span>->hotp_counter = <span class="hl-var">$matchedCounter</span> + <span class="hl-num">1</span>;
+}</code></pre>
+
+    <div class="callout callout-warning">
+      <strong>Important:</strong> <code>verifyHotpCode()</code> returns the matched counter value (int) on success, or <code>false</code> on failure. Always store <code>$matchedCounter + 1</code> as the new counter.
+    </div>
+
+    <!-- Provisioning URIs & QR Codes -->
+    <h2 id="provisioning-uris">Provisioning URIs &amp; QR Codes</h2>
+    <p>Generate URIs for authenticator apps to scan:</p>
+
+    <h3>TOTP URI</h3>
+    <pre><code><span class="hl-var">$uri</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getProvisioningUri</span>(
+    secret: <span class="hl-var">$secret</span>,
+    account: <span class="hl-str">'john@example.com'</span>,
+    issuer: <span class="hl-str">'MyApp'</span>,
+    digits: <span class="hl-num">6</span>,
+    period: <span class="hl-num">30</span>,
+    algorithm: <span class="hl-str">'sha1'</span>
+);
+<span class="hl-cmt">// otpauth://totp/MyApp:john%40example.com?secret=JBSWY3DP...&amp;issuer=MyApp&amp;algorithm=SHA1&amp;digits=6&amp;period=30</span></code></pre>
+
+    <h3>HOTP URI</h3>
+    <pre><code><span class="hl-var">$uri</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getHotpProvisioningUri</span>(
+    secret: <span class="hl-var">$secret</span>,
+    account: <span class="hl-str">'john@example.com'</span>,
+    issuer: <span class="hl-str">'MyApp'</span>,
+    counter: <span class="hl-num">0</span>,
+    digits: <span class="hl-num">6</span>,
+    algorithm: <span class="hl-str">'sha1'</span>
+);
+<span class="hl-cmt">// otpauth://hotp/MyApp:john%40example.com?secret=JBSWY3DP...&amp;issuer=MyApp&amp;counter=0&amp;algorithm=SHA1&amp;digits=6</span></code></pre>
+
+    <h3>QR Code</h3>
+    <p>Generate a QR code data URI (via Google Chart API):</p>
+    <pre><code><span class="hl-var">$dataUri</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">getQrCodeDataUri</span>(
+    uri: <span class="hl-var">$uri</span>,
+    size: <span class="hl-num">200</span>,
+    fgColor: <span class="hl-str">'#000000'</span>,
+    bgColor: <span class="hl-str">'#ffffff'</span>
+);
+
+<span class="hl-cmt">// Use in HTML</span>
+echo <span class="hl-str">"&lt;img src=\"{<span class="hl-var">$dataUri</span>}\" alt=\"Scan with authenticator app\"&gt;"</span>;</code></pre>
+
+    <!-- Backup Codes -->
+    <h2 id="backup-codes">Backup Codes</h2>
+    <p>Generate one-time backup codes for account recovery:</p>
+    <pre><code><span class="hl-var">$codes</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">generateBackupCodes</span>(
+    count: <span class="hl-num">8</span>,     <span class="hl-cmt">// number of codes</span>
+    length: <span class="hl-num">8</span>     <span class="hl-cmt">// characters per code</span>
+);
+<span class="hl-cmt">// ['a1b2c3d4', 'e5f6g7h8', ...]</span>
+
+<span class="hl-cmt">// Store hashed codes in database</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$codes</span> <span class="hl-kw">as</span> <span class="hl-var">$code</span>) {
+    <span class="hl-var">$hashed</span> = <span class="hl-fn">password_hash</span>(<span class="hl-var">$code</span>, PASSWORD_BCRYPT);
+    <span class="hl-cmt">// save $hashed</span>
+}
+
+<span class="hl-cmt">// Show plain codes to user ONCE &mdash; they must save them</span></code></pre>
+
+    <!-- Base32 Encoding -->
+    <h2 id="base32-encoding">Base32 Encoding</h2>
+    <p>Utility methods for Base32 encoding/decoding (RFC 4648):</p>
+    <pre><code><span class="hl-var">$encoded</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">base32Encode</span>(<span class="hl-str">'Hello'</span>);   <span class="hl-cmt">// 'JBSWY3DP'</span>
+<span class="hl-var">$decoded</span> = <span class="hl-cls">Authenticator</span>::<span class="hl-fn">base32Decode</span>(<span class="hl-str">'JBSWY3DP'</span>); <span class="hl-cmt">// 'Hello'</span></code></pre>
+
+    <!-- Configuration -->
+    <h2 id="configuration">Configuration</h2>
+
+    <h3>Supported Algorithms</h3>
+    <table>
+      <thead>
+        <tr><th>Algorithm</th><th>Constant</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SHA-1</td><td><code>'sha1'</code> (default)</td></tr>
+        <tr><td>SHA-256</td><td><code>'sha256'</code></td></tr>
+        <tr><td>SHA-512</td><td><code>'sha512'</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Default Constants</h3>
+    <table>
+      <thead>
+        <tr><th>Constant</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>DEFAULT_DIGITS</code></td><td><code>6</code></td></tr>
+        <tr><td><code>DEFAULT_PERIOD</code></td><td><code>30</code> seconds</td></tr>
+        <tr><td><code>DEFAULT_WINDOW</code></td><td><code>1</code></td></tr>
+        <tr><td><code>DEFAULT_ALGORITHM</code></td><td><code>'sha1'</code></td></tr>
+        <tr><td><code>DEFAULT_SECRET_LENGTH</code></td><td><code>20</code> bytes</td></tr>
+        <tr><td><code>BASE32_ALPHABET</code></td><td><code>'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>generateSecret</code></td><td><code>(int $length = 20): string</code></td><td>Generate Base32 secret (min 16 bytes)</td></tr>
+        <tr><td><code>generateBackupCodes</code></td><td><code>(int $count = 8, int $length = 8): array</code></td><td>Generate recovery codes</td></tr>
+        <tr><td><code>getCode</code></td><td><code>(string $secret, int $digits = 6, int $period = 30, string $algorithm = 'sha1', ?int $timestamp = null): string</code></td><td>TOTP code</td></tr>
+        <tr><td><code>getHotpCode</code></td><td><code>(string $secret, int $counter, int $digits = 6, string $algorithm = 'sha1'): string</code></td><td>HOTP code</td></tr>
+        <tr><td><code>verifyCode</code></td><td><code>(string $secret, string $code, int $digits = 6, int $period = 30, string $algorithm = 'sha1', int $window = 1, ?int $timestamp = null): bool</code></td><td>Verify TOTP</td></tr>
+        <tr><td><code>verifyHotpCode</code></td><td><code>(string $secret, string $code, int $counter, int $digits = 6, string $algorithm = 'sha1', int $window = 5): int|false</code></td><td>Verify HOTP (returns counter)</td></tr>
+        <tr><td><code>getProvisioningUri</code></td><td><code>(string $secret, string $account, string $issuer, int $digits = 6, int $period = 30, string $algorithm = 'sha1'): string</code></td><td>TOTP URI</td></tr>
+        <tr><td><code>getHotpProvisioningUri</code></td><td><code>(string $secret, string $account, string $issuer, int $counter = 0, int $digits = 6, string $algorithm = 'sha1'): string</code></td><td>HOTP URI</td></tr>
+        <tr><td><code>getQrCodeDataUri</code></td><td><code>(string $uri, int $size = 200, string $fgColor = '#000000', string $bgColor = '#ffffff'): string</code></td><td>QR data URI</td></tr>
+        <tr><td><code>base32Encode</code></td><td><code>(string $data): string</code></td><td>Base32 encode</td></tr>
+        <tr><td><code>base32Decode</code></td><td><code>(string $encoded): string</code></td><td>Base32 decode</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="office365sso.html"><span class="label">&larr; Previous</span><span class="title">Office 365 SSO</span></a>
+      <a href="authmanager.html" class="next"><span class="label">Next &rarr;</span><span class="title">Auth Manager</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

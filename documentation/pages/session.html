@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Session</h1>
+    <p>Razy provides a session system with pluggable drivers, flash data support, and configurable garbage collection. Sessions are managed via the <code>Session</code> class and configured through an immutable <code>SessionConfig</code> value object.</p>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\Session</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\SessionConfig</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\Driver\FileDriver</span>;
+
+<span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">SessionConfig</span>(
+    <span class="hl-fn">lifetime</span>: <span class="hl-num">3600</span>,
+    <span class="hl-fn">path</span>: <span class="hl-str">'/'</span>,
+    <span class="hl-fn">domain</span>: <span class="hl-str">'.example.com'</span>,
+    <span class="hl-fn">secure</span>: <span class="hl-kw">true</span>,
+    <span class="hl-fn">httpOnly</span>: <span class="hl-kw">true</span>,
+    <span class="hl-fn">sameSite</span>: <span class="hl-str">'Lax'</span>,
+);
+
+<span class="hl-var">$session</span> = <span class="hl-kw">new</span> <span class="hl-cls">Session</span>(<span class="hl-kw">new</span> <span class="hl-cls">FileDriver</span>(<span class="hl-str">'/tmp/sessions'</span>), <span class="hl-var">$config</span>);
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">start</span>();
+
+<span class="hl-cmt">// Store data</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">set</span>(<span class="hl-str">'user_id'</span>, <span class="hl-num">42</span>);
+
+<span class="hl-cmt">// Retrieve data</span>
+<span class="hl-var">$userId</span> = <span class="hl-var">$session</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'user_id'</span>);
+
+<span class="hl-cmt">// Flash data (available for next request only)</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">flash</span>(<span class="hl-str">'success'</span>, <span class="hl-str">'Profile updated!'</span>);
+
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">save</span>();</code></pre>
+
+    <h2 id="session-config">SessionConfig</h2>
+    <p>Immutable value object for session cookie and lifetime settings:</p>
+    <pre><code><span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">SessionConfig</span>(
+    <span class="hl-fn">lifetime</span>:  <span class="hl-num">3600</span>,     <span class="hl-cmt">// Cookie max-age (seconds), 0 = session cookie</span>
+    <span class="hl-fn">path</span>:      <span class="hl-str">'/'</span>,      <span class="hl-cmt">// Cookie path</span>
+    <span class="hl-fn">domain</span>:    <span class="hl-str">''</span>,       <span class="hl-cmt">// Cookie domain ('' = current host)</span>
+    <span class="hl-fn">secure</span>:    <span class="hl-kw">true</span>,     <span class="hl-cmt">// Require HTTPS</span>
+    <span class="hl-fn">httpOnly</span>:  <span class="hl-kw">true</span>,     <span class="hl-cmt">// No JavaScript access</span>
+    <span class="hl-fn">sameSite</span>:  <span class="hl-str">'Lax'</span>,    <span class="hl-cmt">// SameSite policy: 'Lax', 'Strict', 'None'</span>
+    <span class="hl-fn">gcProbability</span>: <span class="hl-num">1</span>,    <span class="hl-cmt">// GC numerator</span>
+    <span class="hl-fn">gcDivisor</span>:  <span class="hl-num">100</span>,     <span class="hl-cmt">// GC denominator (1/100 = 1% chance per request)</span>
+);
+
+<span class="hl-cmt">// Accessors (read-only)</span>
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">getLifetime</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">getPath</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">getDomain</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">isSecure</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">isHttpOnly</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">getSameSite</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">getGcProbability</span>();
+<span class="hl-var">$config</span>-&gt;<span class="hl-fn">getGcDivisor</span>();</code></pre>
+
+    <h2 id="session-lifecycle">Session Lifecycle</h2>
+    <pre><code><span class="hl-var">$session</span>-&gt;<span class="hl-fn">start</span>();      <span class="hl-cmt">// Start or resume session</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">save</span>();       <span class="hl-cmt">// Persist session data to driver</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">destroy</span>();    <span class="hl-cmt">// Delete session data and cookie</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">regenerate</span>(); <span class="hl-cmt">// New session ID, keep data</span>
+
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">isStarted</span>();  <span class="hl-cmt">// bool</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">getId</span>();      <span class="hl-cmt">// Current session ID</span></code></pre>
+
+    <h2 id="data-access">Data Access</h2>
+    <pre><code><span class="hl-cmt">// Set / Get</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">set</span>(<span class="hl-str">'key'</span>, <span class="hl-str">'value'</span>);
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'key'</span>);           <span class="hl-cmt">// 'value'</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'missing'</span>, <span class="hl-num">42</span>);   <span class="hl-cmt">// 42 (default)</span>
+
+<span class="hl-cmt">// Check / Remove</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">has</span>(<span class="hl-str">'key'</span>);    <span class="hl-cmt">// true</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">remove</span>(<span class="hl-str">'key'</span>);
+
+<span class="hl-cmt">// Get all data</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">all</span>();         <span class="hl-cmt">// ['key' =&gt; 'value', ...]</span>
+
+<span class="hl-cmt">// Clear all session data</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">clear</span>();</code></pre>
+
+    <h2 id="flash-data">Flash Data</h2>
+    <p>Flash data survives for exactly one subsequent request (two-generation lifecycle):</p>
+    <pre><code><span class="hl-cmt">// Set flash data (current request: generation 1)</span>
+<span class="hl-var">$session</span>-&gt;<span class="hl-fn">flash</span>(<span class="hl-str">'success'</span>, <span class="hl-str">'Item created!'</span>);
+
+<span class="hl-cmt">// On the NEXT request (generation 2): available via get()</span>
+<span class="hl-var">$msg</span> = <span class="hl-var">$session</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'success'</span>);  <span class="hl-cmt">// 'Item created!'</span>
+
+<span class="hl-cmt">// On the request AFTER that: automatically removed</span>
+<span class="hl-var">$msg</span> = <span class="hl-var">$session</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'success'</span>);  <span class="hl-cmt">// null</span></code></pre>
+
+    <h2 id="session-drivers">Session Drivers</h2>
+
+    <h3 id="filedriver">FileDriver</h3>
+    <p>Stores sessions as individual files:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\Driver\FileDriver</span>;
+
+<span class="hl-var">$driver</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileDriver</span>(<span class="hl-str">'/var/sessions'</span>);
+<span class="hl-cmt">// Creates files like /var/sessions/sess_abc123</span>
+<span class="hl-cmt">// Uses atomic writes (write to .tmp then rename)</span></code></pre>
+
+    <h3 id="databasedriver">DatabaseDriver</h3>
+    <p>Stores sessions in a database table:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\Driver\DatabaseDriver</span>;
+
+<span class="hl-var">$driver</span> = <span class="hl-kw">new</span> <span class="hl-cls">DatabaseDriver</span>(<span class="hl-var">$database</span>, <span class="hl-str">'sessions'</span>);
+<span class="hl-cmt">// Table schema:</span>
+<span class="hl-cmt">// id VARCHAR(128) PRIMARY KEY</span>
+<span class="hl-cmt">// data TEXT</span>
+<span class="hl-cmt">// last_activity INT</span>
+<span class="hl-cmt">// Uses upsert (INSERT ON DUPLICATE KEY UPDATE)</span></code></pre>
+
+    <h3 id="arraydriver">ArrayDriver</h3>
+    <p>In-memory driver for testing:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\Driver\ArrayDriver</span>;
+
+<span class="hl-var">$driver</span> = <span class="hl-kw">new</span> <span class="hl-cls">ArrayDriver</span>();
+
+<span class="hl-cmt">// Test helpers</span>
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">getStoredData</span>(<span class="hl-str">'session-id'</span>);
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">clear</span>();</code></pre>
+
+    <h3 id="nulldriver">NullDriver</h3>
+    <p>No-op driver (discards all data):</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\Driver\NullDriver</span>;
+
+<span class="hl-var">$driver</span> = <span class="hl-kw">new</span> <span class="hl-cls">NullDriver</span>();</code></pre>
+
+    <h3 id="custom-driver">Custom Driver</h3>
+    <p>Implement <code>SessionDriverInterface</code>:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Session\SessionDriverInterface</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">RedisDriver</span> <span class="hl-kw">implements</span> <span class="hl-cls">SessionDriverInterface</span>
+{
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">read</span>(<span class="hl-kw">string</span> <span class="hl-var">$id</span>): <span class="hl-kw">array</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">write</span>(<span class="hl-kw">string</span> <span class="hl-var">$id</span>, <span class="hl-kw">array</span> <span class="hl-var">$data</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">destroy</span>(<span class="hl-kw">string</span> <span class="hl-var">$id</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">gc</span>(<span class="hl-kw">int</span> <span class="hl-var">$maxLifetime</span>): <span class="hl-kw">void</span> { <span class="hl-cmt">/* ... */</span> }
+}</code></pre>
+
+    <h2 id="middleware-integration">Middleware Integration</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Middleware\SessionMiddleware</span>;
+
+<span class="hl-var">$middleware</span> = <span class="hl-kw">new</span> <span class="hl-cls">SessionMiddleware</span>(<span class="hl-var">$session</span>);
+<span class="hl-cmt">// Calls $session-&gt;start() before handler</span>
+<span class="hl-cmt">// Calls $session-&gt;save() after handler</span></code></pre>
+
+    <h2 id="garbage-collection">Garbage Collection</h2>
+    <p>GC runs probabilistically based on <code>gcProbability / gcDivisor</code>:</p>
+    <pre><code><span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">SessionConfig</span>(
+    <span class="hl-fn">gcProbability</span>: <span class="hl-num">1</span>,
+    <span class="hl-fn">gcDivisor</span>: <span class="hl-num">100</span>,  <span class="hl-cmt">// 1% chance per request</span>
+);</code></pre>
+
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>SessionConfig</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Returns</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>getLifetime(): int</code></td><td>Cookie max-age</td></tr>
+        <tr><td><code>getPath(): string</code></td><td>Cookie path</td></tr>
+        <tr><td><code>getDomain(): string</code></td><td>Cookie domain</td></tr>
+        <tr><td><code>isSecure(): bool</code></td><td>HTTPS only?</td></tr>
+        <tr><td><code>isHttpOnly(): bool</code></td><td>No JS access?</td></tr>
+        <tr><td><code>getSameSite(): string</code></td><td>SameSite policy</td></tr>
+        <tr><td><code>getGcProbability(): int</code></td><td>GC numerator</td></tr>
+        <tr><td><code>getGcDivisor(): int</code></td><td>GC denominator</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Session</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Returns</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(SessionDriverInterface $driver, ?SessionConfig $config)</code></td><td></td></tr>
+        <tr><td><code>start</code></td><td><code>(): void</code></td><td>Start session</td></tr>
+        <tr><td><code>save</code></td><td><code>(): void</code></td><td>Persist data</td></tr>
+        <tr><td><code>destroy</code></td><td><code>(): void</code></td><td>Delete session</td></tr>
+        <tr><td><code>regenerate</code></td><td><code>(): void</code></td><td>New ID</td></tr>
+        <tr><td><code>isStarted</code></td><td><code>(): bool</code></td><td>Started?</td></tr>
+        <tr><td><code>getId</code></td><td><code>(): string</code></td><td>Session ID</td></tr>
+        <tr><td><code>get</code></td><td><code>(string $key, mixed $default = null): mixed</code></td><td>Get value</td></tr>
+        <tr><td><code>set</code></td><td><code>(string $key, mixed $value): void</code></td><td>Set value</td></tr>
+        <tr><td><code>has</code></td><td><code>(string $key): bool</code></td><td>Key exists?</td></tr>
+        <tr><td><code>remove</code></td><td><code>(string $key): void</code></td><td>Remove key</td></tr>
+        <tr><td><code>all</code></td><td><code>(): array</code></td><td>All data</td></tr>
+        <tr><td><code>clear</code></td><td><code>(): void</code></td><td>Clear all</td></tr>
+        <tr><td><code>flash</code></td><td><code>(string $key, mixed $value): void</code></td><td>Flash data</td></tr>
+      </tbody>
+    </table>
+
+    <h3>SessionDriverInterface</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>read</code></td><td><code>(string $id): array</code></td></tr>
+        <tr><td><code>write</code></td><td><code>(string $id, array $data): void</code></td></tr>
+        <tr><td><code>destroy</code></td><td><code>(string $id): void</code></td></tr>
+        <tr><td><code>gc</code></td><td><code>(int $maxLifetime): void</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="csrf.html"><span class="label">&larr; Previous</span><span class="title">CSRF Protection</span></a>
+      <a href="oauth2.html" class="next"><span class="label">Next &rarr;</span><span class="title">OAuth2</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

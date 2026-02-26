@@ -1,0 +1,1 @@
+Raw: "{$raw_input}" / Trimmed+Capitalized: {$raw_input|trim|capitalize}

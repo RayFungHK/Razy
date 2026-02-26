@@ -1,11 +1,20 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * CLI Command: compose
  *
- * (c) Ray Fung <hello@rayfung.hk>
+ * Composes a distributor by resolving and installing its required packages
+ * and dependencies. This command reads the distributor's module configuration,
+ * validates package versions, downloads missing or outdated packages from
+ * configured repositories, and extracts them into the appropriate directories.
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * Usage:
+ *   php Razy.phar compose <distributor_code>
+ *
+ * Arguments:
+ *   distributor_code  The code identifying the target distributor
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
@@ -30,8 +39,17 @@ return function (string $distCode = '') use (&$parameters) {
         return false;
     }
 
+    // Execute the compose process with a callback to report progress and status
     $app->compose($distCode, function (string $type, string $packageName, ...$args) {
-        if (PackageManager::TYPE_READY == $type) {
+        if ('version_conflict' === $type) {
+            // $args[0] = module, $args[1] = required, $args[2] = installed
+            $this->writeLineLogging('{@c:yellow}[WARNING] Version conflict detected:{@reset}', true);
+            $this->writeLineLogging('  Package: {@c:green}' . $packageName . '{@reset}', true);
+            $this->writeLineLogging('  Module: {@c:cyan}' . ($args[0] ?: 'unknown') . '{@reset}', true);
+            $this->writeLineLogging('  Required: {@c:yellow}' . $args[1] . '{@reset}', true);
+            $this->writeLineLogging('  Installed: {@c:red}' . $args[2] . '{@reset}', true);
+            $this->writeLineLogging('', true);
+        } elseif (PackageManager::TYPE_READY == $type) {
             $this->writeLineLogging('Validating package: {@c:green}' . $packageName . '{@reset} (' . $args[0] . ')', true);
         } elseif (PackageManager::TYPE_DOWNLOAD_PROGRESS == $type) {
             $size       = (int) $args[1];

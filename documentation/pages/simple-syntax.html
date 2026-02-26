@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Syntax &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Simple Syntax</h1>
+    <p>Razy uses a compact "Simple Syntax" DSL in the <code>Statement</code> builder's <code>where()</code>, <code>order()</code>, and <code>update()</code> methods to express SQL operations concisely. The <code>SimpleSyntax</code> class parses these expressions.</p>
+
+    <h2 id="where-operators">WHERE Operators</h2>
+    <p>Used inside <code>Statement::where()</code> strings. Named parameters use the <code>:param</code> prefix.</p>
+    <table>
+      <thead><tr><th>Syntax</th><th>SQL Output</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><code>col = :val</code></td><td><code>col = ?</code></td><td><code>'user_id = :id'</code></td></tr>
+        <tr><td><code>col != :val</code></td><td><code>col != ?</code></td><td><code>'status != :status'</code></td></tr>
+        <tr><td><code>col > :val</code></td><td><code>col > ?</code></td><td><code>'age > :minAge'</code></td></tr>
+        <tr><td><code>col < :val</code></td><td><code>col < ?</code></td><td><code>'price < :maxPrice'</code></td></tr>
+        <tr><td><code>col >= :val</code></td><td><code>col >= ?</code></td><td><code>'score >= :min'</code></td></tr>
+        <tr><td><code>col <= :val</code></td><td><code>col <= ?</code></td><td><code>'amount <= :limit'</code></td></tr>
+        <tr><td><code>col LIKE :val</code></td><td><code>col LIKE ?</code></td><td><code>'name LIKE :search'</code></td></tr>
+        <tr><td><code>col IN (:vals)</code></td><td><code>col IN (?, ?, ...)</code></td><td><code>'id IN (:ids)'</code></td></tr>
+        <tr><td><code>col IS NULL</code></td><td><code>col IS NULL</code></td><td><code>'deleted_at IS NULL'</code></td></tr>
+        <tr><td><code>col IS NOT NULL</code></td><td><code>col IS NOT NULL</code></td><td><code>'email IS NOT NULL'</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="compound-where">Compound WHERE</h2>
+    <pre><code><span class="hl-cmt">// AND conditions</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'active = :active AND role = :role'</span>);
+
+<span class="hl-cmt">// OR conditions</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'status = :s1 OR status = :s2'</span>);
+
+<span class="hl-cmt">// Grouped conditions</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'(role = :role OR permissions LIKE :perm) AND active = :active'</span>);
+
+<span class="hl-cmt">// Bind parameters</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">assign</span>([
+    <span class="hl-str">'role'</span>   => <span class="hl-str">'admin'</span>,
+    <span class="hl-str">'perm'</span>   => <span class="hl-str">'%manage%'</span>,
+    <span class="hl-str">'active'</span> => <span class="hl-num">1</span>,
+]);</code></pre>
+
+    <h2 id="order-syntax">ORDER BY Syntax</h2>
+    <p>The <code>order()</code> method uses <code>&lt;</code> for ASC and <code>&gt;</code> for DESC:</p>
+    <table>
+      <thead><tr><th>Syntax</th><th>SQL Output</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;column</code></td><td><code>column ASC</code></td></tr>
+        <tr><td><code>&gt;column</code></td><td><code>column DESC</code></td></tr>
+        <tr><td><code>&lt;col1, &gt;col2</code></td><td><code>col1 ASC, col2 DESC</code></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt">// Sort by name ASC, then created_at DESC</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">order</span>(<span class="hl-str">'&lt;name, &gt;created_at'</span>);</code></pre>
+
+    <h2 id="update-syntax">UPDATE Syntax</h2>
+    <p>The <code>update()</code> method accepts an array of SET expressions:</p>
+    <pre><code><span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'users'</span>, [
+    <span class="hl-str">'name = :name'</span>,              <span class="hl-cmt">// Parameterised</span>
+    <span class="hl-str">'updated_at = NOW()'</span>,         <span class="hl-cmt">// Raw SQL expression</span>
+    <span class="hl-str">'login_count = login_count + 1'</span>, <span class="hl-cmt">// Increment</span>
+]);</code></pre>
+
+    <h2 id="insert-syntax">INSERT Syntax</h2>
+    <p>The <code>insert()</code> method takes a column&rarr;parameter map:</p>
+    <pre><code><span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">insert</span>(<span class="hl-str">'users'</span>, [
+    <span class="hl-str">'name'</span>       => <span class="hl-str">':name'</span>,
+    <span class="hl-str">'email'</span>      => <span class="hl-str">':email'</span>,
+    <span class="hl-str">'created_at'</span> => <span class="hl-str">'NOW()'</span>,  <span class="hl-cmt">// Raw SQL if no : prefix</span>
+]);
+
+<span class="hl-cmt">// ON DUPLICATE KEY UPDATE</span>
+<span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">insert</span>(<span class="hl-str">'counters'</span>, [
+    <span class="hl-str">'key'</span>   => <span class="hl-str">':key'</span>,
+    <span class="hl-str">'value'</span> => <span class="hl-str">':value'</span>,
+], [<span class="hl-str">'value'</span>]); <span class="hl-cmt">// 3rd arg: duplicate update keys</span></code></pre>
+
+    <h2 id="join-syntax">JOIN Syntax</h2>
+    <p>Use a <code>TableJoin</code> closure in <code>from()</code>:</p>
+    <pre><code><span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-kw">function</span>(<span class="hl-cls">TableJoin</span> <span class="hl-var">$tj</span>) {
+    <span class="hl-var">$tj</span>-><span class="hl-fn">from</span>(<span class="hl-str">'orders'</span>, <span class="hl-str">'o'</span>)
+       -><span class="hl-fn">innerJoin</span>(<span class="hl-str">'users'</span>, <span class="hl-str">'u'</span>, <span class="hl-str">'o.user_id = u.id'</span>)
+       -><span class="hl-fn">leftJoin</span>(<span class="hl-str">'payments'</span>, <span class="hl-str">'p'</span>, <span class="hl-str">'o.id = p.order_id'</span>)
+       -><span class="hl-fn">rightJoin</span>(<span class="hl-str">'shipping'</span>, <span class="hl-str">'s'</span>, <span class="hl-str">'o.id = s.order_id'</span>);
+});</code></pre>
+
+    <h2 id="search-text">Search Text Helper</h2>
+    <pre><code><span class="hl-cmt">// Generate multi-column LIKE WHERE clause</span>
+<span class="hl-var">$where</span> = <span class="hl-cls">Statement</span>::<span class="hl-fn">GetSearchTextSyntax</span>(
+    <span class="hl-str">'search'</span>,         <span class="hl-cmt">// parameter name</span>
+    [<span class="hl-str">'name'</span>, <span class="hl-str">'email'</span>, <span class="hl-str">'bio'</span>]  <span class="hl-cmt">// columns to search</span>
+);
+<span class="hl-cmt">// Generates: (name LIKE :search OR email LIKE :search OR bio LIKE :search)</span>
+
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-var">$where</span>)
+    -><span class="hl-fn">assign</span>([<span class="hl-str">'search'</span> => <span class="hl-str">'%john%'</span>]);</code></pre>
+
+    <h2 id="table-config-syntax">Table Config Syntax</h2>
+    <p>Columns can be defined using a compact config string in <code>Table::addColumn()</code>:</p>
+    <table>
+      <thead><tr><th>Syntax</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>id:auto_id</code></td><td>Auto-increment primary key</td></tr>
+        <tr><td><code>name:text(100)</code></td><td>VARCHAR(100)</td></tr>
+        <tr><td><code>email:text(255)|unique</code></td><td>VARCHAR(255) with UNIQUE key</td></tr>
+        <tr><td><code>price:decimal(10,2)</code></td><td>DECIMAL(10,2)</td></tr>
+        <tr><td><code>is_active:bool|nullable</code></td><td>TINYINT(1) NULL</td></tr>
+        <tr><td><code>bio:full_text|nullable</code></td><td>TEXT NULL</td></tr>
+        <tr><td><code>data:json</code></td><td>JSON column</td></tr>
+        <tr><td><code>ts:timestamp|default(CURRENT_TIMESTAMP)</code></td><td>TIMESTAMP DEFAULT CURRENT_TIMESTAMP</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="simplesyntax-class">SimpleSyntax Class</h2>
+    <p>The underlying parser for all the above syntax forms. <code>SimpleSyntax</code> is a utility class with static methods only &mdash; no constructor needed.</p>
+
+    <h3 id="parsesyntax">ParseSyntax</h3>
+    <p>Parses a syntax string by delimiters while respecting quoted strings and parenthesized groups.</p>
+    <pre><code><span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseSyntax</span>(
+    <span class="hl-cls">string</span>    <span class="hl-var">$syntax</span>,   <span class="hl-cmt">// The string to parse</span>
+    <span class="hl-cls">string</span>    <span class="hl-var">$delim</span>,    <span class="hl-cmt">// Delimiter characters (e.g., ',' for AND)</span>
+    <span class="hl-cls">string</span>    <span class="hl-var">$neg</span>,      <span class="hl-cmt">// Negative lookahead characters</span>
+    ?<span class="hl-cls">callable</span> <span class="hl-var">$parser</span>,   <span class="hl-cmt">// Optional callback for each parsed segment</span>
+    <span class="hl-cls">bool</span>      <span class="hl-var">$noCap</span>    <span class="hl-cmt">// Whether to skip capturing (default: false)</span>
+): <span class="hl-cls">array</span></code></pre>
+
+    <h4>Parameters</h4>
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>$syntax</code></td><td><code>string</code></td><td>The input string to parse. Can contain quoted strings (<code>'...'</code> or <code>"..."</code>) and parenthesized groups <code>(...)</code> that will be preserved as atomic units during splitting.</td></tr>
+        <tr><td><code>$delim</code></td><td><code>string</code></td><td>A string of delimiter characters used to split the syntax. Each character acts as a separate delimiter. For example, <code>','</code> splits on commas, <code>',|'</code> splits on both commas and pipes.</td></tr>
+        <tr><td><code>$neg</code></td><td><code>string</code></td><td>Negative lookahead characters. When a delimiter is immediately followed by one of these characters, the split is suppressed. Useful for distinguishing operators like <code>=</code> from <code>!=</code> or <code>&gt;=</code>.</td></tr>
+        <tr><td><code>$parser</code></td><td><code>?callable</code></td><td>An optional callback invoked for each parsed segment. Receives the segment string and its index. Return value replaces the segment in the result array. Pass <code>null</code> to skip.</td></tr>
+        <tr><td><code>$noCap</code></td><td><code>bool</code></td><td>When <code>true</code>, delimiters are not captured in the output array. When <code>false</code> (default), delimiters are included as separate elements between the split segments.</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Examples</h4>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\SimpleSyntax</span>;
+
+<span class="hl-cmt">// Basic comma-delimited split</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseSyntax</span>(<span class="hl-str">'name, age, email'</span>, <span class="hl-str">','</span>, <span class="hl-str">''</span>, <span class="hl-kw">null</span>, <span class="hl-kw">true</span>);
+<span class="hl-cmt">// Result: ['name', 'age', 'email']</span>
+
+<span class="hl-cmt">// Split on '=' but not '!=' or '>='</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseSyntax</span>(<span class="hl-str">'col = :val'</span>, <span class="hl-str">'='</span>, <span class="hl-str">'!'</span>, <span class="hl-kw">null</span>, <span class="hl-kw">false</span>);
+<span class="hl-cmt">// Result: ['col ', '=', ' :val']</span>
+
+<span class="hl-cmt">// With parser callback to trim each segment</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseSyntax</span>(
+    <span class="hl-str">'a , b , c'</span>,
+    <span class="hl-str">','</span>,
+    <span class="hl-str">''</span>,
+    <span class="hl-kw">function</span> (<span class="hl-cls">string</span> <span class="hl-var">$segment</span>, <span class="hl-cls">int</span> <span class="hl-var">$index</span>): <span class="hl-cls">string</span> {
+        <span class="hl-kw">return</span> <span class="hl-fn">trim</span>(<span class="hl-var">$segment</span>);
+    },
+    <span class="hl-kw">true</span>
+);
+<span class="hl-cmt">// Result: ['a', 'b', 'c']</span>
+
+<span class="hl-cmt">// Quoted strings are preserved as atomic units</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseSyntax</span>(<span class="hl-str">"'hello, world', foo"</span>, <span class="hl-str">','</span>, <span class="hl-str">''</span>, <span class="hl-kw">null</span>, <span class="hl-kw">true</span>);
+<span class="hl-cmt">// Result: ["'hello, world'", 'foo'] &#x2502; comma inside quotes is NOT a split point</span></code></pre>
+
+    <h3 id="parseparens">ParseParens</h3>
+    <p>Extracts parenthesized groups from a string into a nested array structure. Useful for parsing grouped conditions, function call arguments, or any nested syntax.</p>
+    <pre><code><span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseParens</span>(<span class="hl-cls">string</span> <span class="hl-var">$text</span>): <span class="hl-cls">array</span></code></pre>
+
+    <h4>Examples</h4>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\SimpleSyntax</span>;
+
+<span class="hl-cmt">// Simple parenthesized extraction</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseParens</span>(<span class="hl-str">'func(a, b)'</span>);
+<span class="hl-cmt">// Result: ['func', ['a, b']]</span>
+
+<span class="hl-cmt">// Nested parentheses</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseParens</span>(<span class="hl-str">'outer(inner(x, y), z)'</span>);
+<span class="hl-cmt">// Result: ['outer', ['inner', ['x, y'], ', z']]</span>
+
+<span class="hl-cmt">// Multiple groups at the same level</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseParens</span>(<span class="hl-str">'a(b) AND c(d)'</span>);
+<span class="hl-cmt">// Result: ['a', ['b'], ' AND c', ['d']]</span>
+
+<span class="hl-cmt">// WHERE clause grouping</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseParens</span>(<span class="hl-str">'(role = :role OR perm LIKE :perm) AND active = :active'</span>);
+<span class="hl-cmt">// Result: [['role = :role OR perm LIKE :perm'], ' AND active = :active']</span>
+
+<span class="hl-cmt">// Column type definition with nested parens</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">SimpleSyntax</span>::<span class="hl-fn">ParseParens</span>(<span class="hl-str">'decimal(10,2)|default(0.00)'</span>);
+<span class="hl-cmt">// Result: ['decimal', ['10,2'], '|default', ['0.00']]</span></code></pre>
+
+    <h3>Method Summary</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>ParseSyntax(string $syntax, string $delim, string $neg, ?callable $parser, bool $noCap)</code></td><td><code>array</code></td><td>Parse by delimiters, respecting quotes and parens</td></tr>
+        <tr><td><code>ParseParens(string $text)</code></td><td><code>array</code></td><td>Extract parenthesized groups into nested arrays</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <strong>Note:</strong> <code>SimpleSyntax</code> is a utility class with static methods only &mdash; no constructor needed.
+    </div>
+
+    <div class="page-nav">
+      <a href="thread.html"><span class="label">&larr; Previous</span><span class="title">Thread &amp; ThreadManager</span></a>
+      <a href="sites-configuration.html" class="next"><span class="label">Next &rarr;</span><span class="title">Sites Configuration</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learning Roadmap ??Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+  <style>
+    .roadmap-tier { margin: 2rem 0 2.5rem; }
+    .roadmap-tier h2 { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+    .roadmap-tier .tier-goal { color: var(--fg-muted); font-size: 0.95rem; margin-bottom: 1.25rem; font-style: italic; }
+    .tier-badge { display: inline-block; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 10px; border-radius: 12px; }
+    .tier-badge.quick   { background: #fef3c7; color: #92400e; }
+    .tier-badge.day     { background: #dbeafe; color: #1e40af; }
+    .tier-badge.week    { background: #d1fae5; color: #065f46; }
+    .roadmap-outcome { background: var(--bg-code-block); border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0 0.5rem; color: #e2e8f0; }
+    .roadmap-outcome strong { color: var(--fg-link); }
+    .roadmap-outcome code { color: #f472b6; background: rgba(255,255,255,0.08); }
+    .roadmap-halfday { margin-top: 1.5rem; }
+    .roadmap-halfday h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .quick-ref td:first-child { white-space: nowrap; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <button class="menu-toggle" aria-label="Toggle menu">??/button>
+    <a href="../index.html" class="header-logo">
+      <span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span>
+    </a>
+    <nav class="header-nav">
+      <a href="getting-started.html">Docs</a>
+      <a href="api-reference.html">API</a>
+      <a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a>
+      <button class="theme-toggle" aria-label="Toggle theme">??</button>
+    </nav>
+  </header>
+
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">â­?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Learning Roadmap</h1>
+    <p>A structured path from zero to production. Pick the track that matches your available time ??each level builds on the one before it.</p>
+
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <!-- 30-Minute Quick Start                                   -->
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <div class="roadmap-tier">
+      <h2>??30-Minute Quick Start <span class="tier-badge quick">Beginner</span></h2>
+      <p class="tier-goal">Run a working Razy module locally and understand the core loop.</p>
+
+      <table>
+        <thead><tr><th>Step</th><th>What You Do</th><th>What You Learn</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><a href="getting-started.html">Install Razy</a></td><td>Composer setup, <code>Razy.phar build</code></td></tr>
+          <tr><td>2</td><td>Copy the <strong>Hello World</strong> demo module</td><td>4-file minimal module anatomy</td></tr>
+          <tr><td>3</td><td><code>php Razy.phar runapp</code> ??<code>run /hello_world/</code></td><td>Interactive shell, route execution</td></tr>
+          <tr><td>4</td><td>Read each file's comments</td><td><code>module.php</code> ??<code>package.php</code> ??controller ??handler</td></tr>
+        </tbody>
+      </table>
+
+      <div class="roadmap-outcome">
+        <strong>After 30 minutes you know:</strong>
+        <ul>
+          <li>What a module, controller, and route handler are</li>
+          <li>How to run a route in the interactive shell</li>
+          <li>The minimum file structure every module needs</li>
+        </ul>
+      </div>
+      <p>?¡ï? Next: Follow the <a href="tutorial.html">Getting Started Tutorial</a> to build a module from scratch.</p>
+    </div>
+
+    <hr>
+
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <!-- 1-Day Hands-On                                          -->
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <div class="roadmap-tier">
+      <h2>??ï¸?1-Day Hands-On <span class="tier-badge day">Intermediate</span></h2>
+      <p class="tier-goal">Build a multi-page app with templates, a JSON API, and event communication.</p>
+
+      <div class="roadmap-halfday">
+        <h3>Morning ??Core Module Development (3 h)</h3>
+        <table>
+          <thead><tr><th>#</th><th>Topic</th><th>Read</th><th>Practice</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><a href="tutorial.html">Tutorial</a></td><td>Full walkthrough</td><td>Build the <code>app/hello</code> module with 3 routes</td></tr>
+            <tr><td>2</td><td><a href="module-structure.html">Module Structure</a></td><td>File/directory conventions</td><td>Rename files, break things, fix them</td></tr>
+            <tr><td>3</td><td><a href="routing.html">Routing</a></td><td><code>addRoute</code>, <code>addLazyRoute</code>, patterns</td><td>Add <code>(:d)</code>, <code>(:a)</code>, optional segments</td></tr>
+            <tr><td>4</td><td><a href="controller.html">Controller</a></td><td>Lifecycle hooks, <code>$this</code> context</td><td>Add <code>__onReady</code>, try <code>$this-&gt;getModuleInfo()</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-halfday">
+        <h3>Afternoon ??Templates &amp; APIs (3 h)</h3>
+        <table>
+          <thead><tr><th>#</th><th>Topic</th><th>Read</th><th>Practice</th></tr></thead>
+          <tbody>
+            <tr><td>5</td><td><a href="template.html">Template Engine</a></td><td>Variables, blocks, modifiers</td><td>Build a layout with <code>WRAPPER</code> block</td></tr>
+            <tr><td>6</td><td><a href="cross-module-api.html">Cross-Module API</a></td><td>Provider / Consumer pattern</td><td>Create a second module that calls the first</td></tr>
+            <tr><td>7</td><td><a href="events.html">Event System</a></td><td><code>trigger()</code> / <code>listen()</code></td><td>Fire an event from module A, catch it in module B</td></tr>
+            <tr><td>8</td><td><a href="cli.html">CLI Commands</a></td><td><code>runapp</code>, <code>scaffold</code>, <code>validate</code></td><td>Scaffold a new module with <code>php Razy.phar scaffold</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-outcome">
+        <strong>After 1 day you know:</strong>
+        <ul>
+          <li>How to create modules from scratch (or scaffold them)</li>
+          <li>Template variables, blocks, and the <code>WRAPPER</code> pattern</li>
+          <li>Cross-module communication via API and events</li>
+          <li>All the core CLI commands</li>
+        </ul>
+      </div>
+      <p>?¡ï? Next: Pick a track below based on your project's needs.</p>
+    </div>
+
+    <hr>
+
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <!-- 1-Week Mastery                                          -->
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <div class="roadmap-tier">
+      <h2>?? 1-Week Mastery <span class="tier-badge week">Advanced</span></h2>
+      <p class="tier-goal">Be productive in all major framework subsystems.</p>
+
+      <div class="roadmap-halfday">
+        <h3>Day 2-3 ??Data Layer</h3>
+        <table>
+          <thead><tr><th>Topic</th><th>What You'll Build</th></tr></thead>
+          <tbody>
+            <tr><td><a href="database.html">Database</a></td><td>Connect to MySQL/PostgreSQL/SQLite, run queries</td></tr>
+            <tr><td><a href="orm.html">ORM</a></td><td>Define entities, relationships, eager loading</td></tr>
+            <tr><td><a href="collection.html">Collection</a></td><td>Filter, map, reduce with dot-notation selectors</td></tr>
+            <tr><td><a href="cache.html">Cache</a></td><td>PSR-16 cache with TTL and namespaces</td></tr>
+            <tr><td><a href="yaml.html">YAML</a></td><td>Parse config files, dump structured data</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-halfday">
+        <h3>Day 4 ??Security &amp; Auth</h3>
+        <table>
+          <thead><tr><th>Topic</th><th>What You'll Build</th></tr></thead>
+          <tbody>
+            <tr><td><a href="session.html">Session</a></td><td>Secure session handling</td></tr>
+            <tr><td><a href="csrf.html">CSRF Protection</a></td><td>Form token validation</td></tr>
+            <tr><td><a href="authmanager.html">Auth Manager &amp; Gate</a></td><td>Role-based access control</td></tr>
+            <tr><td><a href="crypt.html">Crypt</a></td><td>Encryption, hashing, signing</td></tr>
+            <tr><td><a href="oauth2.html">OAuth2</a></td><td>Third-party login integration</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-halfday">
+        <h3>Day 5 ??IO &amp; Real-time</h3>
+        <table>
+          <thead><tr><th>Topic</th><th>What You'll Build</th></tr></thead>
+          <tbody>
+            <tr><td><a href="httpclient.html">HTTP Client</a></td><td>Outbound requests, API consumption</td></tr>
+            <tr><td><a href="xhr.html">XHR</a></td><td>JSON API responses with proper headers</td></tr>
+            <tr><td><a href="sse.html">SSE</a></td><td>Server-Sent Events for live updates</td></tr>
+            <tr><td><a href="websocket.html">WebSocket</a></td><td>Full-duplex real-time communication</td></tr>
+            <tr><td><a href="mailer.html">Mailer</a></td><td>SMTP email with HTML templates</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-halfday">
+        <h3>Day 6 ??Architecture &amp; Patterns</h3>
+        <table>
+          <thead><tr><th>Topic</th><th>What You'll Build</th></tr></thead>
+          <tbody>
+            <tr><td><a href="middleware.html">Middleware</a></td><td>Request/response pipeline</td></tr>
+            <tr><td><a href="pipeline.html">Pipeline</a></td><td>Stage-based data processing</td></tr>
+            <tr><td><a href="plugins.html">Plugin System</a></td><td>Custom Template/Collection plugins</td></tr>
+            <tr><td><a href="container.html">DI Container</a></td><td>Auto-wired services, interface binding</td></tr>
+            <tr><td><a href="validation.html">Validation</a></td><td>Input validation rules and messages</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-halfday">
+        <h3>Day 7 ??Deployment &amp; Operations</h3>
+        <table>
+          <thead><tr><th>Topic</th><th>What You'll Build</th></tr></thead>
+          <tbody>
+            <tr><td><a href="sites-configuration.html">Sites Configuration</a></td><td>Multi-domain setup</td></tr>
+            <tr><td><a href="packaging.html">Packaging &amp; Distribution</a></td><td>Bundle modules as <code>.razy</code> packages</td></tr>
+            <tr><td><a href="publishing.html">Repository &amp; Publishing</a></td><td>Publish to a module repository</td></tr>
+            <tr><td><a href="caddy-worker.html">Caddy Worker Mode</a></td><td>Production-grade persistent worker</td></tr>
+            <tr><td><a href="testing.html">Testing</a></td><td>PHPUnit integration, test conventions</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-outcome">
+        <strong>After 1 week you can:</strong>
+        <ul>
+          <li>Build full-stack applications with database, auth, and templates</li>
+          <li>Set up real-time features (SSE, WebSocket)</li>
+          <li>Deploy to production with Caddy worker mode</li>
+          <li>Package and distribute your modules</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <!-- Quick Reference Card                                    -->
+    <!-- ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â? -->
+    <h2>Quick Reference Card</h2>
+    <table class="quick-ref">
+      <thead><tr><th>I want to??/th><th>Start with</th></tr></thead>
+      <tbody>
+        <tr><td>Just see it work</td><td><strong>Hello World</strong> demo module</td></tr>
+        <tr><td>Build my first module</td><td><a href="tutorial.html">Tutorial</a></td></tr>
+        <tr><td>Understand the file layout</td><td><a href="module-structure.html">Module Structure</a></td></tr>
+        <tr><td>Add URL routes</td><td><a href="routing.html">Routing</a></td></tr>
+        <tr><td>Render HTML pages</td><td><a href="template.html">Template Engine</a></td></tr>
+        <tr><td>Build a JSON API</td><td><a href="xhr.html">XHR</a> + <a href="cross-module-api.html">Cross-Module API</a></td></tr>
+        <tr><td>Store data in a database</td><td><a href="database.html">Database</a> ??<a href="orm.html">ORM</a></td></tr>
+        <tr><td>Add user login</td><td><a href="session.html">Session</a> ??<a href="authmanager.html">Auth Manager</a></td></tr>
+        <tr><td>Send real-time updates</td><td><a href="sse.html">SSE</a> or <a href="websocket.html">WebSocket</a></td></tr>
+        <tr><td>Deploy to production</td><td><a href="sites-configuration.html">Sites Config</a> ??<a href="caddy-worker.html">Caddy Worker</a></td></tr>
+        <tr><td>Generate a module skeleton</td><td><a href="cli.html">CLI Commands</a> (<code>scaffold</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="../index.html">&larr; Home</a>
+      <a href="getting-started.html">Next &rarr; Installation</a>
+    </div>
+  </main>
+</body>
+</html>

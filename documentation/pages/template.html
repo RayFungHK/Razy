@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Template Engine &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Template Engine</h1>
+    <p>Razy's template engine renders HTML using parameter tags, modifiers, function tags, and a block-based structure system. It supports recursive rendering, reusable template blocks, conditional wrappers, parameter bubbling, and an extensible plugin architecture.</p>
+
+    <!--  -->
+    <h2 id="loading">Loading Templates</h2>
+    <p>Create a <code>Template</code> instance with a base directory, then load individual template files to obtain a <code>Source</code> object. The root <code>Entity</code> is retrieved from the source.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Template</span>;
+
+<span class="hl-cmt">// Create a Template manager with a base directory</span>
+<span class="hl-var">$tpl</span> = <span class="hl-kw">new</span> <span class="hl-cls">Template</span>(<span class="hl-str">'/path/to/templates'</span>);
+
+<span class="hl-cmt">// Load a template file &mdash; returns a Source object</span>
+<span class="hl-var">$source</span> = <span class="hl-var">$tpl</span>-><span class="hl-fn">load</span>(<span class="hl-str">'page.tpl'</span>);
+
+<span class="hl-cmt">// Get the root Entity for assigning parameters and creating blocks</span>
+<span class="hl-var">$root</span> = <span class="hl-var">$source</span>-><span class="hl-fn">getRoot</span>();
+
+<span class="hl-cmt">// Quick-load a standalone file without plugins or manager context</span>
+<span class="hl-var">$source</span> = <span class="hl-cls">Template</span>::<span class="hl-fn">loadFile</span>(<span class="hl-str">'/absolute/path/to/file.tpl'</span>);</code></pre>
+
+    <!--  -->
+    <h2 id="parameter-tags">Parameter Tags</h2>
+    <p>Parameter tags insert dynamic values into templates. They use curly braces with a <code>$</code> prefix and support dot-path access, modifiers, and fallback chains.</p>
+
+    <h3>Basic Variable</h3>
+    <pre><code><span class="hl-cmt">&lt;!-- Simple variable replacement --&gt;</span>
+{<span class="hl-var">$username</span>}</code></pre>
+
+    <h3>Dot-Path Access</h3>
+    <p>Traverse nested arrays or objects using dot notation:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Access nested values --&gt;</span>
+{<span class="hl-var">$user.profile.avatar</span>}
+{<span class="hl-var">$config.database.host</span>}</code></pre>
+
+    <h3>Quoted Key Access</h3>
+    <p>Use single quotes around keys that contain special characters, hyphens, or dots:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Keys with special characters --&gt;</span>
+{<span class="hl-var">$data.'content-type'</span>}
+{<span class="hl-var">$headers.'X-Custom-Header'</span>}</code></pre>
+
+    <h3>Modifiers</h3>
+    <p>Apply transformations to a value using the arrow operator <code>-&gt;</code>. Modifiers can accept colon-separated arguments:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Single modifier --&gt;</span>
+{<span class="hl-var">$title</span>-><span class="hl-fn">upper</span>}
+
+<span class="hl-cmt">&lt;!-- Modifier with arguments --&gt;</span>
+{<span class="hl-var">$items</span>-><span class="hl-fn">join</span>:<span class="hl-str">, </span>}
+
+<span class="hl-cmt">&lt;!-- Chained modifiers --&gt;</span>
+{<span class="hl-var">$description</span>-><span class="hl-fn">trim</span>-><span class="hl-fn">capitalize</span>}</code></pre>
+
+    <h3>Fallback Chain</h3>
+    <p>Use the pipe <code>|</code> operator to provide fallback values. The first non-empty value is used:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Returns first non-empty value --&gt;</span>
+{<span class="hl-var">$nickname</span>|<span class="hl-var">$username</span>|<span class="hl-var">$defaultName</span>}</code></pre>
+
+    <h3>Template Comments</h3>
+    <p>Comments are stripped during rendering and never appear in the output:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Template comment &mdash; not rendered --&gt;</span>
+{<span class="hl-cmt"># This is a comment and will not appear in the output</span>}</code></pre>
+
+    
+    <h2 id="modifiers">Built-in Modifiers</h2>
+    <p>Modifiers transform parameter values during rendering. Apply them with the <code>-&gt;</code> arrow operator. Arguments are passed after a colon.</p>
+    <table>
+      <thead><tr><th>Modifier</th><th>Description</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><code>addslashes</code></td><td>Escape single quotes, double quotes, and backslashes</td><td><code>{$text-&gt;addslashes}</code></td></tr>
+        <tr><td><code>alphabet</code></td><td>Convert number to letter (1?A, 2?B, 27?AA, etc.)</td><td><code>{$index-&gt;alphabet}</code></td></tr>
+        <tr><td><code>capitalize</code></td><td>Capitalize the first letter of the string</td><td><code>{$name-&gt;capitalize}</code></td></tr>
+        <tr><td><code>gettype</code></td><td>Return the PHP type name of the value</td><td><code>{$value-&gt;gettype}</code></td></tr>
+        <tr><td><code>join</code></td><td>Join array values with a separator (arg: separator string)</td><td><code>{$tags-&gt;join:, }</code></td></tr>
+        <tr><td><code>lower</code></td><td>Convert string to lowercase</td><td><code>{$name-&gt;lower}</code></td></tr>
+        <tr><td><code>nl2br</code></td><td>Convert newline characters to <code>&lt;br&gt;</code> tags</td><td><code>{$bio-&gt;nl2br}</code></td></tr>
+        <tr><td><code>trim</code></td><td>Trim leading and trailing whitespace</td><td><code>{$input-&gt;trim}</code></td></tr>
+        <tr><td><code>upper</code></td><td>Convert string to uppercase</td><td><code>{$code-&gt;upper}</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Note:</strong> These are the built-in modifiers. Custom modifiers can be added via the <a href="plugins.html">Plugin System</a> by placing modifier files in your module's plugin directory.</p>
+
+    <!--  -->
+    <h2 id="block-types">Block Types</h2>
+    <p>Blocks define structural regions within templates. Each block type has a specific purpose and rendering behaviour.</p>
+
+    <h3 id="block-start">START / END &mdash; Repeatable Block</h3>
+    <p>The standard block type. Each call to <code>newBlock()</code> creates a new instance that is rendered in sequence. Use for lists, table rows, or any repeated content.</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Template: list.tpl --&gt;</span>
+&lt;ul&gt;
+<span class="hl-cmt">&lt;!-- START item --&gt;</span>
+  &lt;li&gt;{<span class="hl-var">$name</span>} &mdash; {<span class="hl-var">$role</span>}&lt;/li&gt;
+<span class="hl-cmt">&lt;!-- END item --&gt;</span>
+&lt;/ul&gt;</code></pre>
+    <pre><code><span class="hl-cmt">// PHP</span>
+<span class="hl-var">$source</span> = <span class="hl-var">$tpl</span>-><span class="hl-fn">load</span>(<span class="hl-str">'list.tpl'</span>);
+<span class="hl-var">$root</span>   = <span class="hl-var">$source</span>-><span class="hl-fn">getRoot</span>();
+
+<span class="hl-kw">foreach</span> (<span class="hl-var">$users</span> <span class="hl-kw">as</span> <span class="hl-var">$user</span>) {
+    <span class="hl-var">$entity</span> = <span class="hl-var">$root</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'item'</span>);
+    <span class="hl-var">$entity</span>-><span class="hl-fn">assign</span>([
+        <span class="hl-str">'name'</span> => <span class="hl-var">$user</span>[<span class="hl-str">'name'</span>],
+        <span class="hl-str">'role'</span> => <span class="hl-var">$user</span>[<span class="hl-str">'role'</span>],
+    ]);
+}
+
+<span class="hl-fn">echo</span> <span class="hl-var">$root</span>-><span class="hl-fn">process</span>();</code></pre>
+
+    <h3 id="block-template">TEMPLATE &mdash; Reusable Block</h3>
+    <p>A read-only block definition that is <strong>not rendered</strong> directly in the output. It serves as a reusable component that can be referenced via the <code>{@template:name}</code> function tag or instantiated with <code>newBlock()</code>. Useful for defining reusable partials like cards, badges, or rows.</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Define a reusable template block --&gt;</span>
+<span class="hl-cmt">&lt;!-- TEMPLATE badge --&gt;</span>
+  &lt;span class="badge badge-{<span class="hl-var">$color</span>}"&gt;{<span class="hl-var">$label</span>}&lt;/span&gt;
+<span class="hl-cmt">&lt;!-- END badge --&gt;</span>
+
+<span class="hl-cmt">&lt;!-- Reference it via function tag with parameters --&gt;</span>
+{<span class="hl-fn">@template:badge</span> <span class="hl-var">color</span>=<span class="hl-str">green</span> <span class="hl-var">label</span>=<span class="hl-str">Active</span>}
+{<span class="hl-fn">@template:badge</span> <span class="hl-var">color</span>=<span class="hl-str">red</span> <span class="hl-var">label</span>=<span class="hl-str">Inactive</span>}</code></pre>
+    <pre><code><span class="hl-cmt">// PHP: You can also instantiate TEMPLATE blocks programmatically</span>
+<span class="hl-var">$badge</span> = <span class="hl-var">$root</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'badge'</span>);
+<span class="hl-var">$badge</span>-><span class="hl-fn">assign</span>([<span class="hl-str">'color'</span> => <span class="hl-str">'blue'</span>, <span class="hl-str">'label'</span> => <span class="hl-str">'Pending'</span>]);</code></pre>
+
+    <h3 id="block-wrapper">WRAPPER &mdash; Conditional Wrapper</h3>
+    <p>A wrapper block only renders if it contains child entities. This is perfect for container elements like <code>&lt;ul&gt;</code> or <code>&lt;table&gt;</code> that should not appear when their list is empty.</p>
+    <pre><code><span class="hl-cmt">&lt;!-- WRAPPER notification-list --&gt;</span>
+&lt;div class="notifications"&gt;
+  &lt;h3&gt;Notifications&lt;/h3&gt;
+  &lt;ul&gt;
+  <span class="hl-cmt">&lt;!-- START notification --&gt;</span>
+    &lt;li&gt;{<span class="hl-var">$message</span>}&lt;/li&gt;
+  <span class="hl-cmt">&lt;!-- END notification --&gt;</span>
+  &lt;/ul&gt;
+&lt;/div&gt;
+<span class="hl-cmt">&lt;!-- END notification-list --&gt;</span></code></pre>
+    <pre><code><span class="hl-cmt">// PHP: If no notifications exist, the entire wrapper is hidden</span>
+<span class="hl-kw">if</span> (<span class="hl-fn">count</span>(<span class="hl-var">$notifications</span>) > <span class="hl-num">0</span>) {
+    <span class="hl-kw">foreach</span> (<span class="hl-var">$notifications</span> <span class="hl-kw">as</span> <span class="hl-var">$msg</span>) {
+        <span class="hl-var">$root</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'notification-list.notification'</span>)
+             -><span class="hl-fn">assign</span>(<span class="hl-str">'message'</span>, <span class="hl-var">$msg</span>);
+    }
+}
+<span class="hl-cmt">// If $notifications is empty, the &lt;div class="notifications"&gt; block</span>
+<span class="hl-cmt">// is completely omitted from output &mdash; no empty container rendered.</span></code></pre>
+
+    <h3 id="block-include">INCLUDE &mdash; External File</h3>
+    <p>Include the contents of another template file at the position of the tag. The included file is parsed and merged into the current template's block structure.</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Include an external template file --&gt;</span>
+<span class="hl-cmt">&lt;!-- INCLUDE partials/header.tpl --&gt;</span>
+
+&lt;div class="content"&gt;
+  {<span class="hl-var">$body</span>}
+&lt;/div&gt;
+
+<span class="hl-cmt">&lt;!-- INCLUDE partials/footer.tpl --&gt;</span></code></pre>
+
+    <h3 id="block-recursion">RECURSION &mdash; Self-Referencing Block</h3>
+    <p>A recursion block references its parent block definition, enabling tree and nested data structures like menus, file trees, or threaded comment systems.</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Template: tree.tpl --&gt;</span>
+&lt;ul&gt;
+<span class="hl-cmt">&lt;!-- START node --&gt;</span>
+  &lt;li&gt;
+    {<span class="hl-var">$label</span>}
+    <span class="hl-cmt">&lt;!-- RECURSION children --&gt;</span>
+  &lt;/li&gt;
+<span class="hl-cmt">&lt;!-- END node --&gt;</span>
+&lt;/ul&gt;</code></pre>
+    <pre><code><span class="hl-cmt">// PHP: Build a nested tree recursively</span>
+<span class="hl-kw">function</span> <span class="hl-fn">buildTree</span>(<span class="hl-var">$entity</span>, <span class="hl-var">$items</span>) {
+    <span class="hl-kw">foreach</span> (<span class="hl-var">$items</span> <span class="hl-kw">as</span> <span class="hl-var">$item</span>) {
+        <span class="hl-var">$node</span> = <span class="hl-var">$entity</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'node'</span>);
+        <span class="hl-var">$node</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'label'</span>, <span class="hl-var">$item</span>[<span class="hl-str">'name'</span>]);
+        <span class="hl-kw">if</span> (!<span class="hl-fn">empty</span>(<span class="hl-var">$item</span>[<span class="hl-str">'children'</span>])) {
+            <span class="hl-fn">buildTree</span>(<span class="hl-var">$node</span>, <span class="hl-var">$item</span>[<span class="hl-str">'children'</span>]);
+        }
+    }
+}
+
+<span class="hl-fn">buildTree</span>(<span class="hl-var">$root</span>, <span class="hl-var">$menuItems</span>);</code></pre>
+
+    <h3 id="block-use">USE &mdash; Reference Parent Block</h3>
+    <p>The <code>USE</code> block references a block definition from the parent template scope. This allows child templates to access and reuse blocks defined at a higher level.</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Parent template defines a reusable block --&gt;</span>
+<span class="hl-cmt">&lt;!-- TEMPLATE card --&gt;</span>
+  &lt;div class="card"&gt;{<span class="hl-var">$content</span>}&lt;/div&gt;
+<span class="hl-cmt">&lt;!-- END card --&gt;</span>
+
+<span class="hl-cmt">&lt;!-- Child block references it --&gt;</span>
+<span class="hl-cmt">&lt;!-- START section --&gt;</span>
+  <span class="hl-cmt">&lt;!-- USE card --&gt;</span>
+<span class="hl-cmt">&lt;!-- END section --&gt;</span></code></pre>
+
+    
+    <h2 id="function-tags">Built-in Function Tags</h2>
+    <p>Function tags provide control-flow and dynamic rendering logic directly inside templates. They use the <code>{@ }</code> syntax.</p>
+
+    <h3 id="fn-def">def &mdash; Define a Variable</h3>
+    <p>Define a local variable within the current template scope:</p>
+    <pre><code>{<span class="hl-fn">@def</span> <span class="hl-var">name</span>=<span class="hl-str">"siteName"</span> <span class="hl-var">value</span>=<span class="hl-str">"My Website"</span>}
+
+<span class="hl-cmt">&lt;!-- Use it later --&gt;</span>
+&lt;title&gt;{<span class="hl-var">$siteName</span>}&lt;/title&gt;</code></pre>
+
+    <h3 id="fn-each">each &mdash; Iterate Arrays</h3>
+    <p>Loop over an array parameter. Inside the loop, special variables are available:</p>
+    <table>
+      <thead><tr><th>Variable</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>{$_index}</code></td><td>Zero-based numeric index of the current iteration</td></tr>
+        <tr><td><code>{$_key}</code></td><td>The current array key</td></tr>
+        <tr><td><code>{$_value}</code></td><td>The current array value</td></tr>
+      </tbody>
+    </table>
+    <pre><code>{<span class="hl-fn">@each</span> <span class="hl-var">source</span>=<span class="hl-var">$colors</span> <span class="hl-var">as</span>=<span class="hl-str">"color"</span>}
+  &lt;div style="background:{<span class="hl-var">$color</span>}"&gt;
+    {<span class="hl-var">$_index</span>}: {<span class="hl-var">$_key</span>} = {<span class="hl-var">$_value</span>}
+  &lt;/div&gt;
+{<span class="hl-fn">/each</span>}</code></pre>
+
+    <h3 id="fn-if">if / else &mdash; Conditional Rendering</h3>
+    <p>Conditionally render content based on parameter values. Supports multiple operators and compound conditions.</p>
+    <h4>Operators</h4>
+    <table>
+      <thead><tr><th>Operator</th><th>Meaning</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><code>=</code></td><td>Equals</td><td><code>{@if $role=admin}</code></td></tr>
+        <tr><td><code>!=</code></td><td>Not equals</td><td><code>{@if $status!=active}</code></td></tr>
+        <tr><td><code>&gt;</code></td><td>Greater than</td><td><code>{@if $count&gt;0}</code></td></tr>
+        <tr><td><code>&lt;</code></td><td>Less than</td><td><code>{@if $age&lt;18}</code></td></tr>
+        <tr><td><code>&gt;=</code></td><td>Greater or equal</td><td><code>{@if $score&gt;=90}</code></td></tr>
+        <tr><td><code>&lt;=</code></td><td>Less or equal</td><td><code>{@if $qty&lt;=0}</code></td></tr>
+        <tr><td><code>^=</code></td><td>Ends with</td><td><code>{@if $file^=.pdf}</code></td></tr>
+        <tr><td><code>$=</code></td><td>Starts with</td><td><code>{@if $url$=https}</code></td></tr>
+        <tr><td><code>|=</code></td><td>Contains</td><td><code>{@if $text|=error}</code></td></tr>
+        <tr><td><code>!</code></td><td>NOT (negate)</td><td><code>{@if !$isHidden}</code></td></tr>
+      </tbody>
+    </table>
+    <h4>Compound Conditions</h4>
+    <p>Combine multiple conditions with <code>,</code> (AND) or <code>|</code> (OR). Use parentheses for grouping:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- AND: both must be true --&gt;</span>
+{<span class="hl-fn">@if</span> <span class="hl-var">$role</span>=<span class="hl-str">admin</span>,<span class="hl-var">$active</span>=<span class="hl-str">1</span>}
+  &lt;button&gt;Admin Panel&lt;/button&gt;
+{<span class="hl-fn">/if</span>}
+
+<span class="hl-cmt">&lt;!-- OR: either can be true --&gt;</span>
+{<span class="hl-fn">@if</span> <span class="hl-var">$role</span>=<span class="hl-str">admin</span>|<span class="hl-var">$role</span>=<span class="hl-str">moderator</span>}
+  &lt;span&gt;Staff Member&lt;/span&gt;
+{<span class="hl-fn">/if</span>}
+
+<span class="hl-cmt">&lt;!-- With else --&gt;</span>
+{<span class="hl-fn">@if</span> <span class="hl-var">$loggedIn</span>=<span class="hl-str">1</span>}
+  &lt;p&gt;Welcome, {<span class="hl-var">$username</span>}!&lt;/p&gt;
+{<span class="hl-fn">@else</span>}
+  &lt;p&gt;Please &lt;a href="/login"&gt;log in&lt;/a&gt;.&lt;/p&gt;
+{<span class="hl-fn">/if</span>}
+
+<span class="hl-cmt">&lt;!-- Grouped conditions with parentheses --&gt;</span>
+{<span class="hl-fn">@if</span> (<span class="hl-var">$role</span>=<span class="hl-str">admin</span>|<span class="hl-var">$role</span>=<span class="hl-str">editor</span>),<span class="hl-var">$verified</span>=<span class="hl-str">1</span>}
+  &lt;button&gt;Publish&lt;/button&gt;
+{<span class="hl-fn">/if</span>}</code></pre>
+
+    <h3 id="fn-repeat">repeat &mdash; Repeat Content</h3>
+    <p>Repeat a block of content a fixed number of times. The <code>{$_index}</code> variable (zero-based) is available inside:</p>
+    <pre><code>{<span class="hl-fn">@repeat</span> <span class="hl-var">length</span>=<span class="hl-num">5</span>}
+  &lt;div class="star" data-index="{<span class="hl-var">$_index</span>}"&gt;&lt;/div&gt;
+{<span class="hl-fn">/repeat</span>}</code></pre>
+
+    <h3 id="fn-template">template &mdash; Render a Template Block</h3>
+    <p>Render a <code>TEMPLATE</code> block inline, passing parameters as attributes. This is the function-tag counterpart to the <code>TEMPLATE</code> block type:</p>
+    <pre><code><span class="hl-cmt">&lt;!-- Define the template block --&gt;</span>
+<span class="hl-cmt">&lt;!-- TEMPLATE alert --&gt;</span>
+  &lt;div class="alert alert-{<span class="hl-var">$type</span>}"&gt;{<span class="hl-var">$message</span>}&lt;/div&gt;
+<span class="hl-cmt">&lt;!-- END alert --&gt;</span>
+
+<span class="hl-cmt">&lt;!-- Render it with parameters --&gt;</span>
+{<span class="hl-fn">@template:alert</span> <span class="hl-var">type</span>=<span class="hl-str">success</span> <span class="hl-var">message</span>=<span class="hl-str">Operation complete</span>}
+{<span class="hl-fn">@template:alert</span> <span class="hl-var">type</span>=<span class="hl-str">warning</span> <span class="hl-var">message</span>=<span class="hl-str">Check your input</span>}</code></pre>
+
+    <!--  -->
+    <h2 id="entity-api">Entity System</h2>
+    <p>The <code>Entity</code> class represents a single instance of a block. It provides methods for assigning parameters, creating child blocks, and processing output.</p>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>assign($param, $value)</code></td><td><code>Entity</code></td><td>Set parameter (accepts array or key/value pair)</td></tr>
+        <tr><td><code>bind($param, &amp;$value)</code></td><td><code>Entity</code></td><td>Bind a parameter by reference</td></tr>
+        <tr><td><code>newBlock($name, $id)</code></td><td><code>Entity</code></td><td>Create a child entity in the named sub-block</td></tr>
+        <tr><td><code>process()</code></td><td><code>string</code></td><td>Render this entity and its children to HTML</td></tr>
+        <tr><td><code>hasBlock($name)</code></td><td><code>bool</code></td><td>Check if a sub-block exists</td></tr>
+        <tr><td><code>getEntity($block, $id)</code></td><td><code>Entity|null</code></td><td>Get an entity by block name and ID</td></tr>
+        <tr><td><code>getEntities($block)</code></td><td><code>array</code></td><td>Get all entities in a sub-block</td></tr>
+        <tr><td><code>find($path)</code></td><td><code>array</code></td><td>Find entities by dot-path</td></tr>
+        <tr><td><code>detach()</code></td><td><code>Entity</code></td><td>Remove this entity from its parent</td></tr>
+        <tr><td><code>getValue($param)</code></td><td><code>mixed</code></td><td>Get parameter value (bubbles up to parent if not found)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt">// Complete Entity usage example</span>
+<span class="hl-var">$source</span> = <span class="hl-var">$tpl</span>-><span class="hl-fn">load</span>(<span class="hl-str">'dashboard.tpl'</span>);
+<span class="hl-var">$root</span>   = <span class="hl-var">$source</span>-><span class="hl-fn">getRoot</span>();
+
+<span class="hl-cmt">// Assign parameters to root (available to all children via bubbling)</span>
+<span class="hl-var">$root</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'pageTitle'</span>, <span class="hl-str">'Dashboard'</span>);
+
+<span class="hl-cmt">// Create block instances</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$widgets</span> <span class="hl-kw">as</span> <span class="hl-var">$id</span> => <span class="hl-var">$widget</span>) {
+    <span class="hl-var">$entity</span> = <span class="hl-var">$root</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'widget'</span>, <span class="hl-var">$id</span>);
+    <span class="hl-var">$entity</span>-><span class="hl-fn">assign</span>(<span class="hl-var">$widget</span>);
+}
+
+<span class="hl-cmt">// Get a specific entity later</span>
+<span class="hl-var">$specific</span> = <span class="hl-var">$root</span>-><span class="hl-fn">getEntity</span>(<span class="hl-str">'widget'</span>, <span class="hl-str">'stats'</span>);
+
+<span class="hl-cmt">// Render</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$root</span>-><span class="hl-fn">process</span>();</code></pre>
+
+    <!--  -->
+    <h2 id="scope-hierarchy">Parameter Scope Hierarchy</h2>
+    <p>Parameters assigned via <code>assign()</code> or <code>bind()</code> exist at four distinct scope levels. When a parameter is resolved during rendering, the engine searches from the narrowest scope upward until a value is found:</p>
+
+    <table>
+      <thead><tr><th>Scope Level</th><th>Class</th><th>Width</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Entity</strong></td><td><code>Entity</code></td><td>Narrowest</td><td>Single block instance &mdash; only visible to this entity</td></tr>
+        <tr><td><strong>Block</strong></td><td><code>Block</code></td><td></td><td>Block definition &mdash; shared by all entities of this block</td></tr>
+        <tr><td><strong>Source</strong></td><td><code>Source</code></td><td></td><td>Template file &mdash; shared by all blocks in the loaded file</td></tr>
+        <tr><td><strong>Template</strong></td><td><code>Template</code></td><td>Widest</td><td>Manager/global &mdash; shared across all loaded template files</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Resolution Chain</h3>
+    <p>When <code>{$param}</code> is encountered during rendering, the engine resolves it following this chain:</p>
+    <pre><code>Entity &mdash; Block &mdash; Source &mdash; Template &rarr; <span class="hl-cmt">(not found &mdash; empty string)</span></code></pre>
+    <p>This allows you to set a default at a wider scope and override it at a narrower scope:</p>
+    <pre><code><span class="hl-cmt">// Set a global default at the Template (manager) scope</span>
+<span class="hl-var">$tpl</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'siteName'</span>, <span class="hl-str">'My Website'</span>);
+
+<span class="hl-cmt">// Load a template file</span>
+<span class="hl-var">$source</span> = <span class="hl-var">$tpl</span>-><span class="hl-fn">load</span>(<span class="hl-str">'page.tpl'</span>);
+<span class="hl-var">$root</span>   = <span class="hl-var">$source</span>-><span class="hl-fn">getRoot</span>();
+
+<span class="hl-cmt">// Override at the Source (file) scope &mdash; applies to all blocks in page.tpl</span>
+<span class="hl-var">$source</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'theme'</span>, <span class="hl-str">'dark'</span>);
+
+<span class="hl-cmt">// Override at the Entity (instance) scope &mdash; only this entity sees 'title'</span>
+<span class="hl-var">$entity</span> = <span class="hl-var">$root</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'card'</span>);
+<span class="hl-var">$entity</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'title'</span>, <span class="hl-str">'Welcome'</span>);
+
+<span class="hl-cmt">// During rendering of $entity:</span>
+<span class="hl-cmt">//   {$title}    &rarr; 'Welcome'   (found at Entity scope)</span>
+<span class="hl-cmt">//   {$theme}    &rarr; 'dark'      (bubbles up to Source scope)</span>
+<span class="hl-cmt">//   {$siteName} &rarr; 'My Website' (bubbles up to Template scope)</span></code></pre>
+
+    <!--  -->
+    <h2 id="assign-vs-bind">assign() vs bind()</h2>
+    <p>Both methods set parameters at their respective scope level, but they differ in <strong>when</strong> the value is captured:</p>
+
+    <table>
+      <thead><tr><th>Feature</th><th><code>assign()</code></th><th><code>bind()</code></th></tr></thead>
+      <tbody>
+        <tr><td><strong>Value capture</strong></td><td>Immediately copies the value</td><td>Stores a reference pointer &mdash; value resolved at render time</td></tr>
+        <tr><td><strong>Later changes</strong></td><td>Not reflected (snapshot)</td><td>Reflected (deferred resolution)</td></tr>
+        <tr><td><strong>Signature</strong></td><td><code>assign($param, $value)</code></td><td><code>bind($param, &amp;$value)</code></td></tr>
+        <tr><td><strong>Available at</strong></td><td>Template, Source, Block, Entity</td><td>Template, Source, Block, Entity</td></tr>
+      </tbody>
+    </table>
+
+    <h3>assign() &mdash;Immediate Copy</h3>
+    <pre><code><span class="hl-var">$name</span> = <span class="hl-str">'Alice'</span>;
+<span class="hl-var">$entity</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'name'</span>, <span class="hl-var">$name</span>);
+
+<span class="hl-var">$name</span> = <span class="hl-str">'Bob'</span>;  <span class="hl-cmt">// Has no effect &rarr; 'Alice' was already copied</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$entity</span>-><span class="hl-fn">process</span>();  <span class="hl-cmt">// {$name} &rarr; 'Alice'</span></code></pre>
+
+    <h3>bind() &mdash;Deferred Reference</h3>
+    <pre><code><span class="hl-var">$name</span> = <span class="hl-str">'Alice'</span>;
+<span class="hl-var">$entity</span>-><span class="hl-fn">bind</span>(<span class="hl-str">'name'</span>, <span class="hl-var">$name</span>);
+
+<span class="hl-var">$name</span> = <span class="hl-str">'Bob'</span>;  <span class="hl-cmt">// Changes the referenced variable</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$entity</span>-><span class="hl-fn">process</span>();  <span class="hl-cmt">// {$name} &rarr; 'Bob' (resolved at render time)</span></code></pre>
+
+    <h3>Practical Example &mdash; Accumulating Values</h3>
+    <p>Use <code>bind()</code> when the final value is not known at assign time, such as counting totals while building a list:</p>
+    <pre><code><span class="hl-var">$source</span> = <span class="hl-var">$tpl</span>-><span class="hl-fn">load</span>(<span class="hl-str">'order.tpl'</span>);
+<span class="hl-var">$root</span>   = <span class="hl-var">$source</span>-><span class="hl-fn">getRoot</span>();
+
+<span class="hl-cmt">// Bind the total &mdash; value will be determined later</span>
+<span class="hl-var">$total</span> = <span class="hl-num">0</span>;
+<span class="hl-var">$root</span>-><span class="hl-fn">bind</span>(<span class="hl-str">'total'</span>, <span class="hl-var">$total</span>);
+
+<span class="hl-cmt">// Build order items and accumulate the total</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$items</span> <span class="hl-kw">as</span> <span class="hl-var">$item</span>) {
+    <span class="hl-var">$entity</span> = <span class="hl-var">$root</span>-><span class="hl-fn">newBlock</span>(<span class="hl-str">'line'</span>);
+    <span class="hl-var">$entity</span>-><span class="hl-fn">assign</span>(<span class="hl-var">$item</span>);
+    <span class="hl-var">$total</span> += <span class="hl-var">$item</span>[<span class="hl-str">'price'</span>];
+}
+
+<span class="hl-cmt">// At render time, {$total} reflects the accumulated sum</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$root</span>-><span class="hl-fn">process</span>();</code></pre>
+
+    <!--  -->
+    <h2 id="template-api">Template Class API</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>load(string $path)</code></td><td>Load a template file relative to the base directory, returns <code>Source</code></td></tr>
+        <tr><td><code>assign($param, $value)</code></td><td>Set manager-level parameters (accessible by all loaded templates)</td></tr>
+        <tr><td><code>bind($param, &amp;$value)</code></td><td>Bind a reference variable at the manager level</td></tr>
+        <tr><td><code>addQueue(Source $src, string $name)</code></td><td>Queue a source for named output section</td></tr>
+        <tr><td><code>outputQueued(array $sections)</code></td><td>Render all queued sections in order</td></tr>
+        <tr><td><code>getTemplate(string $name)</code></td><td>Get a globally registered template block</td></tr>
+        <tr><td><code>loadTemplate($name, $path)</code></td><td>Load and register a global template block</td></tr>
+        <tr><td><code>loadPlugin($type, $name)</code></td><td>Load a modifier or function tag plugin</td></tr>
+      </tbody>
+    </table>
+
+    <!--  -->
+    <h2 id="static-helpers">Static Helpers</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Template::ParseContent($content, $params)</code></td><td>Parse parameter tags in an arbitrary string with given values</td></tr>
+        <tr><td><code>Template::GetValueByPath($value, $path)</code></td><td>Dot-path value accessor for nested arrays and objects</td></tr>
+        <tr><td><code>Template::loadFile($path)</code></td><td>Quick-load a template file without plugins or manager context</td></tr>
+        <tr><td><code>Template::readComment($path)</code></td><td>Extract <code>{# ... }</code> comment blocks from a template file</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Block not rendered</td><td>Missing <code>&lt;!-- END blockName --&gt;</code></td><td>Ensure every <code>&lt;!-- BEGIN --&gt;</code> has a matching <code>&lt;!-- END --&gt;</code></td></tr>
+        <tr><td>Modifier ignored</td><td>Writing <code>{variable|modifier}</code></td><td>Use <code>{$variable|modifier}</code> &mdash; the <code>$</code> prefix is required</td></tr>
+        <tr><td>Assigned value shows old data</td><td>Using <code>assign()</code> instead of <code>bind()</code></td><td>Use <code>bind()</code> to pass a reference; value updates at render time</td></tr>
+        <tr><td>Plugin not loaded</td><td>Plugin file not in the search path</td><td>Register with <code>loadPlugin()</code> or place in the configured directory</td></tr>
+        <tr><td>Nested include shows blank</td><td>Inner template has unresolved tags</td><td>Assign parameters to the correct <code>Source</code> scope</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="collection.html"><span class="label">&larr; Previous</span><span class="title">Collection</span></a>
+      <a href="dom.html" class="next"><span class="label">Next &rarr;</span><span class="title">DOM Builder</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

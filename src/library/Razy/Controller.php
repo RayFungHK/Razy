@@ -11,23 +11,48 @@
 namespace Razy;
 
 use Closure;
+use Razy\Contract\ContainerInterface;
+use Razy\Database\MigrationManager;
 use Razy\Database\Statement;
 use Razy\Template\Source;
+use Razy\Exception\ContainerException;
+use Razy\Exception\ModuleLoadException;
+use Razy\Exception\RedirectException;
+use Razy\ORM\Model;
 use Throwable;
 
+use Razy\Util\PathUtil;
 /**
  * The Controller class is responsible for handling the lifecycle events of a module,
  * managing assets, configurations, templates, and API interactions.
+ *
+ * Subclass this in each module to define lifecycle hooks (__onInit, __onLoad, __onReady, etc.)
+ * and route handlers. Undeclared methods are resolved via closure file autoloading.
+ *
+ * @class Controller
+ * @package Razy
+ * @license MIT
  */
 class Controller {
+    /** @var int Bitmask flag: load all plugin types */
     const PLUGIN_ALL = 0b1111;
+    /** @var int Bitmask flag: load Template plugins */
     const PLUGIN_TEMPLATE = 0b0001;
+    /** @var int Bitmask flag: load Collection plugins */
     const PLUGIN_COLLECTION = 0b0010;
-    const PLUGIN_FLOWMANAGER = 0b0100;
+    /** @var int Bitmask flag: load Pipeline plugins */
+    const PLUGIN_PIPELINE = 0b0100;
+    /** @var int Bitmask flag: load Statement (Database) plugins */
     const PLUGIN_STATEMENT = 0b1000;
 
+    /** @var array<string, Closure> Dynamically loaded closure methods bound to this controller */
     private array $externalClosure = [];
+
+    /** @var array<string, Emitter> Cached API emitters keyed by module code */
     private array $cachedAPI = [];
+
+    /** @var array<string, class-string<Model>> Cached model FQCNs keyed by model name */
+    private array $loadedModels = [];
 
     /**
      * Controller constructor
@@ -115,7 +140,7 @@ class Controller {
      * @throws Throwable
      */
     public function __onError(string $path, Throwable $exception): void {
-        Error::ShowException($exception);
+        Error::showException($exception);
     }
 
     /**
@@ -133,12 +158,26 @@ class Controller {
     }
 
     /**
+     * Controller Event __onBridgeCall, will be executed if the module is accessed via cross-distributor bridge.
+     * Return false to refuse bridge access.
+     *
+     * @param string $sourceDistributor The identifier of the calling distributor (e.g., 'siteA@1.0.0')
+     * @param string $command The bridge command being called
+     *
+     * @return bool Return false to refuse bridge access
+     */
+    public function __onBridgeCall(string $sourceDistributor, string $command): bool {
+        return true;
+    }
+
+    /**
      * Get the module's asset URL that defined in .htaccess rewrite, before running the application the rewrite must be updated in CLI first.
      *
      * @return string The asset URL
      */
     final public function getAssetPath(): string {
-        return append(
+        // Build URL: {siteURL}/webassets/{moduleAlias}/{moduleVersion}/
+        return PathUtil::append(
                 $this->module->getSiteURL(),
                 'webassets',
                 $this->module->getModuleInfo()->getAlias(),
@@ -161,7 +200,7 @@ class Controller {
      * Get the Configuration entity.
      *
      * @return Configuration
-     * @throws Error
+     * @throws ConfigurationException
      */
     final public function getModuleConfig(): Configuration {
         return $this->module->loadConfig();
@@ -184,20 +223,31 @@ class Controller {
      * @return void
      */
     final public function goto(string $path, array $query = []): void {
-        header('location: ' . append($this->getModuleURL(), $path), true, 301);
-        exit;
+        $url = PathUtil::append($this->getModuleURL(), $path);
+        header('location: ' . $url, true, 301);
+        throw new RedirectException($url, 301);
     }
 
     /**
-     * Prepare the EventEmitter to trigger the event.
+     * Create an EventEmitter to fire an event.
+     *
+     * This is the preferred method for firing events from controllers.
+     * Returns an EventEmitter - call resolve() to dispatch to listeners.
+     *
+     * Example:
+     * ```php
+     * $emitter = $this->trigger('user_registered');
+     * $emitter->resolve($userData);
+     * $responses = $emitter->getAllResponse();
+     * ```
      *
      * @param string $event The name of the event
-     * @param callable|null $callback The callback to execute when the EventEmitter starts to resolve
+     * @param callable|null $callback Optional callback executed when resolving
      *
-     * @return EventEmitter The EventEmitter instance
+     * @return EventEmitter The emitter instance - call resolve() to dispatch
      */
     final public function trigger(string $event, ?callable $callback = null): EventEmitter {
-        return $this->module->propagate($event, !$callback ? null : $callback(...));
+        return $this->module->createEmitter($event, !$callback ? null : $callback(...));
     }
 
     /**
@@ -211,7 +261,7 @@ class Controller {
     final public function loadTemplate(string $path): Template\Source {
         $path = $this->getTemplateFilePath($path);
         if (!is_file($path)) {
-            throw new Error('The path ' . $path . ' is not a valid path.');
+            throw new \InvalidArgumentException('The path ' . $path . ' is not a valid path.');
         }
         $template = $this->module->getGlobalTemplateEntity();
         return $template->load($path, $this->getModuleInfo());
@@ -235,8 +285,10 @@ class Controller {
      * @return string The full file system path to the view
      */
     final public function getTemplateFilePath(string $path): string {
-        $path = append($this->module->getModuleInfo()->getPath(), 'view', $path);
+        // Resolve to the module's view/ directory
+        $path = PathUtil::append($this->module->getModuleInfo()->getPath(), 'view', $path);
         $filename = basename($path);
+        // Auto-append .tpl extension if no extension is present
         if (!preg_match('/[^.]+\..+/', $filename)) {
             $path .= '.tpl';
         }
@@ -289,6 +341,51 @@ class Controller {
     }
 
     /**
+     * Get the DI container.
+     *
+     * @return ContainerInterface|null The Container instance, or null if unavailable
+     */
+    final public function container(): ?ContainerInterface {
+        return $this->module?->getContainer();
+    }
+
+    /**
+     * Resolve a service from the DI container with auto-wiring.
+     *
+     * Convenience method that delegates to Container::make(). Throws if the container
+     * is not available (e.g., Controller created without a Module).
+     *
+     * Usage in module controllers:
+     *   $service = $this->resolve(MyService::class);
+     *   $service = $this->resolve(MyService::class, ['param' => $value]);
+     *
+     * @param string $abstract The class or interface to resolve
+     * @param array  $params   Optional parameters to pass to the constructor
+     *
+     * @return mixed The resolved instance
+     * @throws ContainerException If the DI container is not available
+     */
+    final public function resolve(string $abstract, array $params = []): mixed {
+        $container = $this->container();
+        if (!$container) {
+            throw new ContainerException('DI container is not available. Ensure the Controller is attached to a Module with a valid Distributor chain.');
+        }
+        return $container->make($abstract, $params);
+    }
+
+    /**
+     * Check whether a service is registered in the DI container.
+     *
+     * @param string $abstract The class or interface to check
+     *
+     * @return bool True if the service can be resolved, false if not or container unavailable
+     */
+    final public function hasService(string $abstract): bool {
+        $container = $this->container();
+        return $container !== null && $container->has($abstract);
+    }
+
+    /**
      * Get the routed information.
      *
      * @return array The routed information
@@ -304,6 +401,7 @@ class Controller {
      * @return Emitter The Emitter instance
      */
     final public function api(string $moduleCode): Emitter {
+        // Cache emitters to avoid re-creating them for repeated API calls
         $this->cachedAPI[$moduleCode] = $this->cachedAPI[$moduleCode] ?? $this->module->getEmitter($moduleCode);
         return $this->cachedAPI[$moduleCode];
     }
@@ -329,23 +427,170 @@ class Controller {
     }
 
     /**
+     * Load a Model class from the module's `model/` directory.
+     *
+     * Each model file should return an anonymous class extending `Razy\ORM\Model`.
+     * The returned FQCN (fully-qualified class name) can be used for static calls
+     * such as `::query($db)`, `::find($db, $id)`, `::create($db, [...])`, etc.
+     *
+     * Model files are cached after the first load — subsequent calls with the
+     * same name return the cached class name without re-including the file.
+     *
+     * Example model file (`model/User.php`):
+     * ```php
+     * <?php
+     * use Razy\ORM\Model;
+     *
+     * return new class extends Model {
+     *     protected static string $table    = 'users';
+     *     protected static array  $fillable = ['name', 'email'];
+     * };
+     * ```
+     *
+     * Example usage in controller:
+     * ```php
+     * $User = $this->loadModel('User');
+     * $user = $User::find($db, 1);
+     * $users = $User::query($db)->where('active=:a', ['a' => 1])->get();
+     * ```
+     *
+     * @param string $name Model name (file name without .php extension)
+     *
+     * @return class-string<Model> The fully-qualified anonymous class name
+     *
+     * @throws \InvalidArgumentException If the model file does not exist
+     * @throws ModuleLoadException       If the file does not return a valid Model subclass
+     */
+    final public function loadModel(string $name): string {
+        // Return cached model class if already loaded
+        if (isset($this->loadedModels[$name])) {
+            return $this->loadedModels[$name];
+        }
+
+        $path = PathUtil::append($this->module->getModuleInfo()->getPath(), 'model', $name . '.php');
+
+        if (!is_file($path)) {
+            throw new \InvalidArgumentException(
+                "Model file not found: '{$path}'. Ensure the file exists in the module's model/ directory."
+            );
+        }
+
+        $result = require $path;
+
+        // The file should return an anonymous class instance extending Model
+        if (!$result instanceof Model) {
+            throw new ModuleLoadException(
+                "Model file '{$path}' must return an instance of Razy\\ORM\\Model (anonymous class), got " . (is_object($result) ? get_class($result) : gettype($result)) . '.'
+            );
+        }
+
+        $fqcn = get_class($result);
+        $this->loadedModels[$name] = $fqcn;
+
+        return $fqcn;
+    }
+
+    /**
+     * Create a MigrationManager pre-configured with this module's migration/ directory.
+     *
+     * The migration/ folder sits alongside model/, controller/, view/ inside the
+     * module's versioned package directory. Migration files follow the naming
+     * convention `YYYY_MM_DD_HHMMSS_DescriptionName.php` and return anonymous
+     * classes extending `Razy\Database\Migration`.
+     *
+     * Directory layout:
+     * ```
+     * {vendor}/{module}/{version}/
+     *   migration/
+     *     2026_02_24_100000_CreateUsersTable.php
+     *     2026_02_24_100001_CreatePostsTable.php
+     * ```
+     *
+     * Example migration file (`migration/2026_02_24_100000_CreateUsersTable.php`):
+     * ```php
+     * <?php
+     * use Razy\Database\Migration;
+     * use Razy\Database\SchemaBuilder;
+     *
+     * return new class extends Migration {
+     *     public function up(SchemaBuilder $schema): void {
+     *         $schema->create('users', function ($table) {
+     *             $table->integer('id')->primary()->autoIncrement();
+     *             $table->string('name', 100);
+     *             $table->string('email', 255)->unique();
+     *         });
+     *     }
+     *
+     *     public function down(SchemaBuilder $schema): void {
+     *         $schema->dropIfExists('users');
+     *     }
+     *
+     *     public function getDescription(): string {
+     *         return 'Create the users table';
+     *     }
+     * };
+     * ```
+     *
+     * Example usage in controller:
+     * ```php
+     * public function __onInit(Agent $agent): bool {
+     *     $db = $this->resolve(Database::class);
+     *     $manager = $this->getMigrationManager($db);
+     *
+     *     // Run pending migrations
+     *     $applied = $manager->migrate();
+     *
+     *     // Check status
+     *     $status = $manager->getStatus();
+     *
+     *     // Rollback last batch
+     *     $rolledBack = $manager->rollback();
+     *
+     *     return true;
+     * }
+     * ```
+     *
+     * @param Database $database The database connection to migrate against
+     *
+     * @return MigrationManager A manager with the module's migration/ path registered
+     *
+     * @throws \InvalidArgumentException If the migration/ directory does not exist
+     */
+    final public function getMigrationManager(Database $database): MigrationManager
+    {
+        $migrationPath = PathUtil::append($this->module->getModuleInfo()->getPath(), 'migration');
+
+        if (!is_dir($migrationPath)) {
+            throw new \InvalidArgumentException(
+                "Migration directory not found: '{$migrationPath}'. Create a migration/ folder in the module's package directory."
+            );
+        }
+
+        $manager = new MigrationManager($database);
+        $manager->addPath($migrationPath);
+
+        return $manager;
+    }
+
+    /**
      * Register the module's plugin loader
      *
      * @param int $flag The flag to determine which plugins to load
      * @return $this
      */
     final public function registerPluginLoader(int $flag = 0): self {
+        // Register plugin folders based on bitmask flags
         if ($flag & self::PLUGIN_TEMPLATE) {
-            Template::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Template'), $this);
+            Template::addPluginFolder(PathUtil::append($this->getModuleSystemPath(), 'plugins', 'Template'), $this);
         }
         if ($flag & self::PLUGIN_COLLECTION) {
-            Collection::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Collection'), $this);
+            Collection::addPluginFolder(PathUtil::append($this->getModuleSystemPath(), 'plugins', 'Collection'), $this);
         }
-        if ($flag & self::PLUGIN_FLOWMANAGER) {
-            FlowManager::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'FlowManager'), $this);
+        if ($flag & self::PLUGIN_PIPELINE) {
+            Pipeline::addPluginFolder(PathUtil::append($this->getModuleSystemPath(), 'plugins', 'Pipeline'), $this);
         }
         if ($flag & self::PLUGIN_STATEMENT) {
-            Statement::AddPluginFolder(append($this->getModuleSystemPath(), 'plugins', 'Statement'), $this);
+            Statement::addPluginFolder(PathUtil::append($this->getModuleSystemPath(), 'plugins', 'Statement'), $this);
         }
         return $this;
     }
@@ -359,9 +604,11 @@ class Controller {
      * @return bool
      */
     final public function handshake(string $modules, string $message = ''): bool {
+        // Split comma-separated module codes and handshake each one
         $modules = explode(',', $modules);
         foreach ($modules as $module) {
             $module = trim($module);
+            // If any module refuses the handshake, fail immediately
             if (!$this->module->handshake($module, $message)) {
                 return false;
             }
@@ -413,24 +660,30 @@ class Controller {
      * @throws Throwable
      */
     final public function __call(string $method, array $arguments) {
+        // 1) Check if a closure binding exists for this method name
         if ($path = $this->module->getBinding($method)) {
             if (null !== ($closure = $this->module->getClosure($path))) {
                 return call_user_func_array($closure, $arguments);
             }
         }
+
+        // 2) Attempt to load an external closure file: controller/{ClassName}.{method}.php
         $moduleInfo = $this->module->getModuleInfo();
-        $path = append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
+        $path = PathUtil::append($moduleInfo->getPath(), 'controller', $moduleInfo->getClassName() . '.' . $method . '.php');
         if (is_file($path)) {
             /** @var Closure $closure */
             $closure = require $path;
             if (!is_callable($closure) && $closure instanceof Closure) {
-                throw new Error('The object is not a Closure.');
+                throw new ModuleLoadException("File '{$path}' loaded for method '{$method}' must return a Closure, got " . gettype($closure) . '.');
             }
+            // Bind the closure to this controller instance and cache it
             $this->externalClosure[$method] = $closure->bindTo($this);
         }
+
+        // 3) Execute the cached external closure or throw if method is undefined
         $closure = $this->externalClosure[$method] ?? null;
         if (!$closure) {
-            throw new Error('The method `' . $method . '` is not defined in `' . get_class($this) . '`.');
+            throw new \BadMethodCallException('The method `' . $method . '` is not defined in `' . get_class($this) . '`.');
         }
         return call_user_func_array($closure, $arguments);
     }
@@ -442,7 +695,6 @@ class Controller {
      * @param array ...$args The arguments to pass to the function
      *
      * @return mixed|null The result of the function execution
-     * @throws Error
      */
     final public function fork(string $path, array ...$args): mixed {
         $result = null;

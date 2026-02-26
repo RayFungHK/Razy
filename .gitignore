@@ -1,0 +1,58 @@
+# Ignore everything by default
+*
+
+# === Tracked files ===
+!.gitignore
+!.php-cs-fixer.dist.php
+!phpstan.neon
+!LICENSE
+!VERSION
+!build.php
+!composer.json
+!readme.md
+!phpunit.xml
+!repository.inc.php
+!Razy.phar
+
+# Source
+!src/
+!src/**
+
+# Demo modules (reference examples)
+!demo_modules/
+!demo_modules/**
+
+# Tests
+!tests/
+!tests/**
+
+# Documentation site
+!documentation/
+!documentation/**
+
+# Wiki (pushed separately to GitHub wiki repo)
+# !Razy.wiki/
+# !Razy.wiki/**
+
+# Changelog
+!changelog/
+!changelog/**
+
+# GitHub CI & templates
+!.github/
+!.github/**
+
+# Docker (image build, compose, Caddy config)
+!.docker/
+!.docker/**
+!.dockerignore
+
+# DevContainer (Codespaces / VS Code)
+!.devcontainer/
+!.devcontainer/**
+
+# Community files
+!CONTRIBUTING.md
+!SECURITY.md
+!CODE_OF_CONDUCT.md
+!.editorconfig

@@ -6,6 +6,9 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 
@@ -13,8 +16,23 @@ namespace Razy;
 
 use Throwable;
 
+use Razy\Exception\ConfigurationException;
+use Razy\Util\PathUtil;
+use Razy\Util\StringUtil;
+/**
+ * Class Domain
+ *
+ * Represents a domain configuration in the Razy routing system. Each Domain maps
+ * a hostname (or alias) to one or more Distributor instances based on URL path
+ * prefixes. It handles URL query matching to find the appropriate distributor
+ * and delegates autoloading and lifecycle events to the matched distributor.
+ *
+ * @class Domain
+ * @package Razy
+ */
 class Domain
 {
+    /** @var Distributor|null The matched distributor instance for this request */
     private ?Distributor $distributor = null;
 
     /**
@@ -24,13 +42,16 @@ class Domain
      * @param string $domain The string of the domain
      * @param string $alias The string of the alias
      * @param array $mapping An array of the distributor paths or the string of the distributor path
-     * @throws Error
+     * @throws ConfigurationException
      */
     public function __construct(private readonly Application $app, private readonly string $domain, private readonly string $alias = '', private array $mapping = [])
     {
         if (empty($this->mapping)) {
-            throw new Error('No distributor is found.');
+            throw new ConfigurationException('No distributor is found.');
         }
+        // Pre-sort mappings by path depth (deepest first) once at construction,
+        // avoiding redundant sortPathLevel() on every matchQuery() call
+        StringUtil::sortPathLevel($this->mapping);
     }
 
     /**
@@ -41,6 +62,16 @@ class Domain
     public function getAlias(): string
     {
         return $this->alias;
+    }
+
+    /**
+     * Get the Application instance that owns this Domain.
+     *
+     * @return Application
+     */
+    public function getApplication(): Application
+    {
+        return $this->app;
     }
 
     /**
@@ -67,12 +98,13 @@ class Domain
         if (0 === strlen($urlQuery)) {
             $urlQuery = '/';
         }
-        $urlQuery = tidy($urlQuery, false, '/');
+        $urlQuery = PathUtil::tidy($urlQuery, false, '/');
         if (!empty($this->mapping)) {
-            sort_path_level($this->mapping);
+            // Mapping is already pre-sorted by path depth in the constructor
             foreach ($this->mapping as $urlPath => $distIdentifier) {
+                // Parse distributor identifier into code and tag (e.g., "mysite@dev" -> code="mysite", tag="dev")
                 [$distCode, $tag] = explode('@', $distIdentifier . '@', 2);
-                $urlPath = tidy($urlPath, true, '/');
+                $urlPath = PathUtil::tidy($urlPath, true, '/');
                 if (str_starts_with($urlQuery, $urlPath)) {
                     ($this->distributor = new Distributor($distCode, $tag ?? '*', $this, $urlPath, substr($urlQuery, strlen($urlPath) - 1)))->initialize();
                     return $this->distributor;
@@ -113,7 +145,7 @@ class Domain
     public function dispose(): static
     {
         if ($this->distributor) {
-            $this->distributor->dispose();
+            $this->distributor->getRegistry()->dispose();
         }
         return $this;
     }

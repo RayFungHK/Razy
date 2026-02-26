@@ -1,398 +1,475 @@
-# **Razy v0.5 - The PHP framework for manageable development environment**
+# Razy Framework
 
-## What is the roadmap for v0.5 to become v1.0?
+**A modular PHP framework for multi-site, multi-distributor application development.**
 
-1. ✏️Enable downloading and installing modules from GitHub repositories via CLI
-2. ✅Enhance the application workflow to reduce coding requirements
-3. ✏️Cache system
-4. ✏️Thread system
-5. ✏️Revamp `Table` and `Column` classes to streamline coding
-6. ✅️Revamp `Action` and `Validate` classes to streamline coding
-7. ✏️Cross-distributor communication internally
-8. ✏️More build-in classes and functions
+[![CI](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml/badge.svg)](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-1.0--beta-blue.svg)](https://github.com/RayFungHK/Razy/releases)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-4564_passing-success.svg)](#testing)
+[![codecov](https://codecov.io/gh/RayFungHK/Razy/branch/master/graph/badge.svg)](https://codecov.io/gh/RayFungHK/Razy)
+[![PSR-4](https://img.shields.io/badge/PSR--4-compliant-brightgreen.svg)](https://www.php-fig.org/psr/psr-4/)
+[![PSR-12](https://img.shields.io/badge/PSR--12-compliant-brightgreen.svg)](https://www.php-fig.org/psr/psr-12/)
 
-## **What is new in v0.5?**
-
-### **Simplified Flow**
-
-In Razy v0.5, the module loading and routing stages have been revamped. The operation of each stage in module loading is now clearer and reduces the number of handshakes needed to ensure required modules are loaded successfully. Additionally, it will unload a module if one of its required modules fails to load.
-
-***New module load and route flow***
-
-__onInit(Agent  $agent)
-
-> Trigger when the module has been scanned and loaded in
->
-
-Return false to mark the module as unloaded. This is used to set up the module's route, API, script, async callback, and event listener.
+Razy lets you manage multiple websites, APIs, and services from a single codebase. Each **distributor** runs its own set of versioned modules with independent routing, templates, and database access — while sharing common services through a unified module system.
 
 ---
 
-__onLoad(Agent  $agent)
+## Table of Contents
 
-> Trigger when all modules have loaded and put into the queue
->
-
-Based on loading order to preload module,  return false to remove from the loading queue.
-
----
-
-__onRequire()
-
-> Trigger before any action,  routing or script execute
->
-
-Used to ensure the module has completed initialization, or return false to prevent routing or execution.
-
----
-
-__onReady()
-
-> Trigger after async callbacks is executed
->
-
-Await callbacks (`Agent::await()`) are very useful for accessing the API before any routing or execution occurs. They ensure that required modules have already loaded into the system. All await callbacks execute between the __onRequire and __onReady stages, guaranteeing that API access in __onReady is completely safe.
+- [Key Features](#key-features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Docker](#docker)
+- [Architecture Overview](#architecture-overview)
+- [Module Lifecycle](#module-lifecycle)
+- [Core Concepts](#core-concepts)
+- [Package Management (Composer Integration)](#package-management-composer-integration)
+- [Demo Modules](#demo-modules)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-__onScriptReady()  /  __onRouted
+## Key Features
 
-> Trigger when the URL query has matched
->
-
-Typically used to perform pre-checks on the module before other modules are routed or executed.
-
----
-
-__onEntry()
-
-> Trigger when it has been routed successfully
->
-
-At this stage, developers can preload parameters before any routed method is executed. This is typically used in conjunction with __onRouted() to handle redirecting.
+| Category | Highlights |
+|----------|------------|
+| **Multi-Site Architecture** | Run multiple distributors (sites/apps) from one installation with independent module sets, routing, and configuration |
+| **Module System** | Dependency-aware loading with 14 lifecycle hooks, cross-module APIs, event emitters, and bridge commands |
+| **Template Engine** | Block-based rendering with modifiers, function tags, WRAPPER/INCLUDE/TEMPLATE/USE/RECURSION blocks |
+| **Database Layer** | Multi-driver (MySQL, PostgreSQL, SQLite) with fluent query builder, Simple Syntax, ORM, migrations, and schema management |
+| **CLI Tooling** | 20+ commands — build, pack, publish, install from GitHub, interactive shell (`runapp`), bridge calls |
+| **Thread System** | Process-based concurrency via `ThreadManager` with spawn, await, and joinAll |
+| **Package Management** | Version-locked modules, Composer integration, phar distribution, repository publishing |
+| **Built-in Classes** | SSE, XHR (CORS), Mailer (SMTP), DOM builder, Crypt (AES-256), Collection, HashMap, YAML, OAuth2, Cache (PSR-16), Authenticator (TOTP/HOTP 2FA), FTPClient, SFTPClient, WebSocket |
 
 ---
 
-Based on real-world development experience, Razy v0.5 has reduced the amount of code needed for handling module load status confirmation and preloading by 30%.
+## Requirements
 
-### Guaranteed Module Loading
+- PHP 8.2 or higher
+- Extensions: `ext-zip`, `ext-curl`, `ext-json`
+- Composer (recommended)
 
-Module loading order is now based on dependencies, preventing modules from being unable to access required modules during the loading stage. In previous versions, the module loading stage was confusing; developers often spent time and effort identifying whether a module was already loaded and determining the loading priority. To address this, I've added a handshake logic that allows modules to signal each other, ensuring they're ready for API access.
+## Installation
 
-In Razy v0.5, I've introduced a new stage after `__onLoad` that allows modules to determine their status. This addition has reduced handshake times and minimized the code needed to preload certain functions, resulting in fewer conflicts.
+### Via Composer
 
-### **Module config file required, new namespace rule**
+```bash
+composer require rayfunghk/razy
+```
 
-Now developers need to create a `module.php` file in the module folder, or the module won't load. This file contains `module_code`, `author`, and `description` parameters, which are used for module loading and previewing. Additionally, the module code supports deeper levels for namespace paths and automatically requires the parent namespace's module.
+### Via Docker
 
-For example, when the module code is named `rayfungpi/razit/user`, the `rayfungpi/razit` module is automatically required. This parent module needs to be loaded and is added to the require list when the system scans the module. This feature is particularly useful for bundle packages.
+```bash
+docker pull ghcr.io/rayfunghk/razy:latest
+docker run -p 8080:8080 ghcr.io/rayfunghk/razy
+```
 
-### Revamp Scope
+### From Source
 
-Applications now run as instances, providing a more reliable workflow. Creating an Application object no longer automatically matches the domain, allowing for more flexible operations outside of running the application. When Razy is launched, an Application object must be created to start URL query matching or configure the application.
+```bash
+git clone https://github.com/RayFungHK/Razy.git
+cd Razy
+composer install
+php build.php
+```
 
-Normally, when routing starts and scripts run, the Application is locked to prevent developers from accessing the Application's core configuration functions.
+## Quick Start
 
-### Distributor code is now standardized
+```bash
+# Build the Razy environment
+php Razy.phar build
 
-It now supports using `-` in the code, and the distributor folder name must match the distributor code. Previous versions often caused confusion between the folder name and the distributor code, frequently leading to failed distributor setups.
+# Create a distributor
+php Razy.phar init dist mysite
 
-### Feature
+# Generate rewrite rules
+php Razy.phar rewrite mysite
+```
 
-**Packed in phar**
+This creates the working directory structure:
 
-The Razy framework is now packaged into a single phar file, making source code maintenance easier and enabling self-update functionality. For instance, you can build the Razy environment in any location using "php Razy.phar build", or add new sites with the following command:
+```
+project/
+├── Razy.phar               # Framework binary
+├── config.inc.php           # Global configuration
+├── sites.inc.php            # Domain → distributor mapping
+├── index.php                # Web entry point
+├── shared/module/           # Cross-distributor modules
+└── sites/mysite/            # Your distributor
+    ├── dist.php             # Distributor config (tags, modules, bridge)
+    └── vendor/module/       # Your modules
+        ├── module.php       # Module metadata
+        └── default/
+            ├── package.php  # Package config (API name, requires)
+            └── controller/  # Route handlers
+```
 
-`php Razy.phar set yourdomain.com/path/to/ dest_code`
+---
 
-**Routing**
+## Docker
 
-Razy routes requests using URL queries. First, it matches the URL to a specified distributor. Once matched, it loads the modules under the distributor's folder and prepares for routing. Razy offers two types of routes: lazy routes and regex routes. Lazy routes start with the module code and combine with a simple path. Regex routes match URL queries using regular expressions.
+Razy ships with a complete Docker setup for development and testing.
+
+### Development
+
+```bash
+# Start PHP dev server + Caddy reverse proxy
+docker compose -f .docker/docker-compose.yml up
+
+# With live reload and auto-build
+docker compose -f .docker/docker-compose.yml -f .docker/docker-compose.dev.yml up
+```
+
+### Full Test Suite (Linux + Redis + SSH2)
+
+Run all tests including those that require Linux-only extensions:
+
+```bash
+docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit
+# → 4,564 tests, 8,178 assertions, 0 skipped
+```
+
+### DevContainer (VS Code / Codespaces)
+
+Open the project in VS Code and select **"Reopen in Container"** — the DevContainer is pre-configured with PHP 8.3, Composer, and all required extensions.
+
+---
+
+## Architecture Overview
+
+```
+                    ┌─────────────────────────────────────┐
+                    │           Application                │
+                    │  (Domain matching → Distributor)     │
+                    └──────────────┬──────────────────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              ▼                    ▼                     ▼
+      ┌──────────────┐   ┌──────────────┐      ┌──────────────┐
+      │  Distributor  │   │  Distributor  │      │  Standalone   │
+      │   (mysite)    │   │   (admin)     │      │   (lite)      │
+      └──────┬───────┘   └──────┬───────┘      └──────┬───────┘
+             │                   │                      │
+        ┌────┴────┐         ┌────┴────┐           ┌────┴────┐
+        │ Modules │         │ Modules │           │ Modules │
+        │ (tagged)│         │ (tagged)│           │ (direct)│
+        └─────────┘         └─────────┘           └─────────┘
+```
+
+Each distributor maps to a domain/path via `sites.inc.php` and loads its own versioned module set. Modules communicate through **APIs**, **events**, and **bridge commands**. The **Standalone** mode provides a lightweight runtime for single-module applications.
+
+---
+
+## Module Lifecycle
+
+Modules progress through a well-defined lifecycle during each request:
+
+```
+__onInit  →  __onLoad  →  __onRequire  →  (await callbacks)
+    →  __onReady  →  __onScriptReady / __onRouted  →  __onEntry
+```
 
 ```php
-/**
- * The module code is `hello`
- *
- * The route `domain.com/hello/first/second` will link to ./controller/first/second.php
- * The route `domain.com/hello/root will link to ./controller/Route.root.php
- */
-$agent->addLazyRoute([
-    'first' => [
-        'second' => 'third',
-    ],
-    'root' => 'root'
-]);
+return new class extends Controller {
+    public function __onInit(Agent $agent): bool
+    {
+        // Register routes, APIs, events, scripts
+        $agent->addLazyRoute(['dashboard' => 'dashboard']);
+        $agent->addAPICommand('getUser', 'api/get_user.php');
+        $agent->listen('auth/user:onLogin', 'onUserLogin');
+        return true;
+    }
 
-/**
- * The route `domain.com/regex/get-abc/page-1/tester` will link to ./controller/Route.regex.php,
- * and it will pass the parameters `abc`, `1` and `tester` to the controller
- */
-$agent->addRoute('/regex/get-(:a)/page-(:d)/(:[a-z0-9_-]{3,})', 'regex');
+    public function __onReady(): bool
+    {
+        // Safe to call APIs here — all modules are loaded
+        return true;
+    }
+};
 ```
 
-**Web Asset**
+---
 
-You can create a `webassets` folder under the module folder. Clients will access these web assets through an `.htaccess` rewrite rule automatically generated by Razy.
+## Core Concepts
 
-```
-|- (distributor)
-    |- (vendor)
-        |- (module)
-            |- defualt
-                |- webasset
-                    |- (your js, css or else)
-            |- 0.1.0 # When a version has committed, the `webassets` will be cloned into new version folder
-                |- app.phar
-                |- webassets
-                    |- (your js, css or else)
-```
+### Routing
 
-**Module Structure**
-
-Modules now require a `module.php` file for the module's code, author, and description, and a `package.php` file inside the package folder. The `package.php` file contains `api` code, required modules, and other runtime settings.
-
-```
-| RazyApplication
-    |- shared
-        |- module
-            |- (vendor)
-                |- (module)
-                    |- defualt
-                        |- package.php
-                    |- 0.1.0
-                    |- 0.1.1
-                    |- 0.1.3.phar
-                    |- module.php
-    |- (distributor)
-        |- (vendor)
-            |- (module)
-                |- defualt
-                    |- package.php
-                |- 0.1.0
-                |- 0.1.1
-                |- 0.1.3.phar
-                |- module.php
-```
-
-**Distributor Versioning**
-
-You can assign different domains with different paths to the same module. To achieve this, provide the distributor code identifier in `sites.inc.php`. This identifier will match with `dist.php` for versioning purposes.
+Two routing strategies: **lazy routes** (convention-based) and **regex routes** (pattern-based).
 
 ```php
-return [
-    'domains' => [
-        'localhost' => [
-            '/demo' => 'distCode',
-            '/demo-dev' => 'distCode@dev',
-        ],
-    ],
-];
+// Lazy: /modulecode/users/list → controller/users/list.php
+$agent->addLazyRoute(['users' => ['list' => 'list']]);
+
+// Regex: /api/user-42/profile → controller/Route.user_profile.php
+$agent->addRoute('/api/user-(:d)/profile', 'user_profile');
 ```
 
-In the `dist.php` file, you can set up the version of each module using the `enable_module` parameter.
+### Cross-Module API
+
+Modules expose and consume APIs for inter-module communication:
 
 ```php
-return [
-    'dist' => 'distCode',
-    'global_module' => true,
+// Provider: register in __onInit
+$agent->addAPICommand('getData', 'api/get_data.php');
 
-    // A list to load the modules in shared folder or in distribution folder
-    'enable_module' => [
-        '*' => [], // * means the default version, override by specified identifier as below
-        'dev' => [
-            'vendor/package' => '0.0.1',
-        ]
-    ],
-];
+// Consumer: call from any handler
+$result = $this->api('vendor/provider')->getData($id);
 ```
 
-**Event Emitter**
+### Template Engine
 
-Razy has a new Event & Listen logic to allow modules to interactive with others. In  `Module`  initialize stage, you can set up a list of events to listen for, such as:
-
-```
-$agent->listen('vendor/modulecode:onload', 'pathOfMethod');
-```
-
-In other side, you can create an EventEmitter by  `$this->trigger`  by the given event name, or pass a  `Closure`  as a  `handler`  additionally. After that, you can execute  `EventEmitter`  method named  `reslove(...$args)`  to pass any number of arguments to other modules that which are listening the event and pass the response to the  `handler`  if set. Such as:
+Block-based templates with variables, modifiers, conditionals, and iteration:
 
 ```
-$this->trigger('onload')->resolve(function($paramA, $paramB) {
-    // blah blah blah
-});
-```
+{$user.name|capitalize}
 
-**Template Engine**
-
-Razy features a high-performance template engine that efficiently parses parameter tags and string values. The engine has removed parameter closing tags, which were previously confusing and difficult to identify in template files, despite providing a hashtag identifier. With modifications, array-path values, various functional blocks, and function tags, the template engine offers front-end designers a highly flexible and user-friendly experience.
-
-```
-{$parameter.path.of.the.value->mod:"param":"here"->othermod}
-```
-
-Or consider features like enclosed parameter tags and the `if` function tag.
-
-```
-{@if $text|$parameter.path.of.the.value->gettype="array"}
-// blah blah blah
+{@if $user.role="admin"}
+  <span class="badge">Admin</span>
 {/if}
-```
 
-The parameter tag supports modifier syntax for function tag arguments. The argument is parsed as a value from the `Entity` parameter and passed to the processor. This eliminates the need to parse the argument in the processor itself.
-
-```
-// Shorten, ordered by source, kvp
-{@each $arraydata}
-Key: {$kvp.key}
-Value: {$key.value}
+{@each source=$items as="item"}
+  <li>{$item.name} — {$item.price}</li>
 {/each}
-
-// Parameter Set
-{@each source=$arraydata kvp="nameofkvp"}
-Key: {$nameofkvp.key}
-Value: {$nameofkey.value}
-{/each}
-
-// Bypass
-{@if $data->gettype="array",($data.value="hello"|$data.value="world")}
-// The content after `if` will pass to the plugin as the first parameter
-{/if}
 ```
 
-Or you can define the parameter with in the template file
+### Database Simple Syntax
 
-```
-{@def "name" "Define a new variable"}
+Shorthand syntax for joins, WHERE clauses, and JSON operations:
 
-// Or you can copy the value from other variable
-{@def "newvalue" $data.path.of.value}
-```
+```php
+// Simple syntax generates complex SQL automatically
+$stmt = $db->prepare()
+    ->from('u.user-g.group[group_id]')
+    ->where('u.user_id=?,!g.auths~=?')
+    ->assign(['auths' => 'view', 'user_id' => 1]);
 
-The template system features four distinct types of template blocks: `WRAPPER`, `INCLUDE`, `TEMPLATE`, and `USE`. These blocks are incredibly versatile, allowing you to load external template files, control wrappers, or reuse template blocks within any child block.
-
-```
-<!-- START BLOCK: blockA -->
-    <!-- TEMPLATE BLOCK: template -->
-    Here is the template content
-    <!-- END BLOCK: template -->
-
-    <!-- START BLOCK: sample -->
-        Below is the content generated from the TEMPLATE block
-        <!-- USE template BLOCK: subblock -->
-    <!-- END BLOCK: sample -->
-<!-- END BLOCK: blockA -->
-
-<!-- START BLOCK: blockB -->
-    Include the external template file from the current file location
-    <!-- INCLUDE BLOCK: folder/external.tpl -->
-    You cannot use the template block from other block!
-    <!-- USE template BLOCK: subblock -->
-<!-- END BLOCK: blockB -->
-
-<!-- WRAPPER BLOCK: blockName -->
-<div class="wrapper">
-    <ul>
-        <!-- START BLOCK: blockName -->
-        <li>Block</li>
-        <!-- END BLOCK: blockName -->
-    </ul>
-</div>
-<!-- END BLOCK: blockName -->
+// → SELECT * FROM `user` AS `u` JOIN `group` AS `g`
+//   ON u.group_id = g.group_id
+//   WHERE `u`.`user_id` = 1
+//   AND !(JSON_CONTAINS(JSON_EXTRACT(`g`.`auths`, '$.*'), '"view"') = 1)
 ```
 
-Developers can also load template files from inline template blocks or those defined in the template engine. Note that loaded templates cannot access parameter values from the caller. You must pass parameters using the `template` function tag.
+### CLI Commands
 
-```
-$tpl = $this->getTemplate();
-
-$tpl->loadTemplate([
-    'SampleA' => $this->getTemplateFilePath('include/SampleA'),
-    'SampleB' => $this->getTemplateFilePath('include/SampleB'),
-]);
-```
-
-You can load the template in your template file using the `template` function tag:
-
-```jsx
-{@template:SampleA paramA="test" paramB=$parameter.value.in.array}
+```bash
+php Razy.phar build                    # Build environment
+php Razy.phar runapp mysite            # Interactive shell
+php Razy.phar install owner/repo       # Install from GitHub
+php Razy.phar pack distCode            # Package modules
+php Razy.phar publish                  # Publish to repository
+php Razy.phar validate distCode        # Validate & install deps
+php Razy.phar bridge '{"dist":"..."}'  # Cross-distributor call
 ```
 
-Furthermore, developers can also nest templates within templates. However, they must be careful to pass parameters correctly when doing so.
+---
 
-**Database Statement Simple Syntax**
+## Package Management (Composer Integration)
 
-Razy's WhereSyntax and TableJoinSyntax provide clear and shortened syntax to generate MySQL statements. This is particularly helpful for maintaining complex MySQL queries. These features can generate multiple MySQL JSON_* function combinations using simple operators such as `~=` and `:=`. Moreover, Razy's TableJoinSyntax and WhereSyntax offer more accurate syntax parsing, preventing users from providing invalid syntax formats that could generate incomplete or invalid statements. Additionally, WhereSyntax has been enhanced to parse operands more accurately, detecting the operand type to generate appropriate statements.
+Razy includes a built-in **Composer-compatible package manager** that downloads, extracts, and version-locks third-party packages from Packagist or any private mirror — **scoped per distributor** so each site gets its own isolated dependency tree.
 
+### How It Works
+
+1. **Modules declare prerequisites** in their `package.php` using `vendor/package` notation:
+
+   ```php
+   // vendor/blog/default/package.php
+   return [
+       'module_code'    => 'vendor/blog',
+       'version'        => '1.0.0',
+       'api_name'       => 'blog',
+       'require'        => ['vendor/auth' => '>=1.0.0'],   // Razy module dependency
+       'prerequisite'   => [                                 // Composer package dependency
+           'monolog/monolog'    => '^3.0',
+           'guzzlehttp/guzzle' => '^7.0',
+       ],
+   ];
+   ```
+
+2. **On compose**, the framework collects all `prerequisite` entries across every loaded module, resolves version constraints, and downloads matching packages:
+
+   ```bash
+   php Razy.phar compose mysite
+   # → Fetches metadata from Packagist
+   # → Downloads & extracts monolog/monolog ^3.0
+   # → Downloads & extracts guzzlehttp/guzzle ^7.0
+   # → Writes autoload/lock.json
+   ```
+
+3. **Per-distributor isolation** — packages are extracted into `autoload/{distributor_code}/` with PSR-4/PSR-0 namespace mapping, and a single `autoload/lock.json` tracks installed versions keyed by distributor:
+
+   ```
+   autoload/
+   ├── lock.json                          # Version lock (all distributors)
+   ├── mysite/                            # Packages for "mysite" distributor
+   │   ├── Monolog\
+   │   └── GuzzleHttp\
+   └── admin/                             # Packages for "admin" distributor
+       └── Monolog\
+   ```
+
+### Transport Layer
+
+The package manager is **transport-agnostic**. By default it fetches from Packagist over HTTPS, but you can point it at any mirror using a pluggable transport:
+
+| Transport | Protocol | Use Case |
+|-----------|----------|----------|
+| `HttpTransport` | HTTP/HTTPS | Packagist, Satis, Private Packagist, GitHub |
+| `FtpTransport` | FTP/FTPS | FTP mirrors with optional TLS |
+| `SftpTransport` | SFTP | SSH-based secure transfer |
+| `SmbTransport` | SMB/CIFS | Windows network shares, Samba |
+| `LocalTransport` | File system | Local directory or mounted drive |
+
+All transports implement `PackageTransportInterface`. Set a global default at bootstrap:
+
+```php
+use Razy\PackageManager;
+use Razy\PackageManager\FtpTransport;
+
+PackageManager::setDefaultTransport(new FtpTransport(
+    host: 'mirror.internal',
+    username: 'deploy',
+    password: 'secret',
+    basePath: '/composer',
+));
 ```
-$statement = $database->prepare()->from('u.user-g.group[group_id]')->where('u.user_id=?,!g.auths~=?')->assign([
-    'auths' => 'view',
-    'user_id' => 1,
-]);
-echo $statement->getSyntax();
 
-/**
- * Result:
- * SELECT * FROM `user` AS `u` JOIN `group` AS `g` ON u.group_id = g.group_id WHERE `u`.`user_id` = 1 AND !(JSON_CONTAINS(JSON_EXTRACT(`g`.`auths`, '$.*'), '"view"') = 1)
- */
+### Version Constraints
+
+Supports the same constraint syntax as Composer: `^1.0`, `~2.3`, `>=1.2.0`, `*`, exact versions, and stability flags (`@dev`, `@beta`, `@RC`). Sub-dependencies declared in each package's own `require` block are resolved recursively.
+
+> **Full details:** [Packaging & Distribution wiki](https://github.com/RayFungHK/Razy/wiki/Packaging-Distribution)
+
+---
+
+## Demo Modules
+
+The [`demo_modules/`](demo_modules/) directory contains 22 production-ready reference modules organized by category:
+
+| Category | Modules |
+|----------|---------|
+| **core/** | event_demo, event_receiver, route_demo, template_demo, thread_demo, bridge_provider |
+| **data/** | collection_demo, database_demo, hashmap_demo, yaml_demo |
+| **demo/** | demo_index, hello_world, markdown_consumer |
+| **io/** | api_demo, api_provider, bridge_demo, dom_demo, mailer_demo, message_demo, sse_demo, xhr_demo |
+| **system/** | advanced_features, helper_module, markdown_service, plugin_demo, profiler_demo |
+
+Each module includes inline documentation and can be copied directly into your distributor's module directory. See the [demo README](demo_modules/README.md) for detailed descriptions.
+
+---
+
+## Roadmap
+
+All items for v1.0 are complete. The framework is in **beta** — APIs are stable but may receive minor refinements before the final release.
+
+| Status | Feature |
+|--------|---------|
+| ✅ | Multi-site distributor architecture with domain routing |
+| ✅ | Module system with dependency resolution & 14 lifecycle hooks |
+| ✅ | Template engine with blocks, modifiers, conditionals, iteration |
+| ✅ | Multi-driver database layer (MySQL, PostgreSQL, SQLite) |
+| ✅ | GitHub module installer via CLI |
+| ✅ | Thread system (`ThreadManager`) |
+| ✅ | Cross-distributor bridge system |
+| ✅ | Module repository & publishing system |
+| ✅ | Cache system (PSR-16 SimpleCache with File, Redis, Null adapters) |
+| ✅ | Authenticator (TOTP/HOTP 2FA) |
+| ✅ | FTP/SFTP file transfer clients |
+| ✅ | Database migration system |
+| ✅ | Queue / job dispatching |
+| ✅ | Rate limiting middleware |
+| ✅ | WebSocket server & client |
+| ✅ | Docker image & CI/CD pipeline |
+| ✅ | Comprehensive test suite (4,564 tests, 8,178 assertions) |
+
+---
+
+## Testing
+
+```bash
+# Install dependencies
+composer install
+
+# Run the full test suite
+composer test                  # 4,564 tests, 8,046 assertions (Windows — 87 skipped)
+composer test-coverage         # Generate coverage report
+
+# Code quality
+composer cs-check              # Check PSR-12 compliance
+composer cs-fix                # Auto-fix code style
+composer quality               # Run tests + style checks
 ```
 
-| Operator | Description |
-|----------| --- |
-| =        | Equal |
-| \|=      | Search in list |
-| *=       | Contain string |
-| ^=       | Start with string |
-| $=       | End with string |
-| !=       | Not equal |
-| <        | Less than |
-| \>       | Greater than |
-| <=       | Less than and equal to |
-| \>=      | Greater than and equal to |
-| :=       | Extract the node in specified column with JSON datatype by given path |
-| ~=       | Search the value or a list of value in specified column with JSON datatype |
-| &=       | Search the string in specified column with JSON datatype |
-| @=       | Match multiple keys in specified column with JSON datatype |
+### Full Platform Coverage via Docker
 
-The Razy simple syntax for Table Join and Where statements offers significant advantages when writing complex and lengthy statements. However, it doesn't cover all possible scenarios. In fact, while developing several systems using Razy v0.3, I encountered a critical limitation: the `Database\Statement::update` function is too basic to handle useful simple operations such as incrementing, decrementing, concatenation, or mathematical operations.
+To run all tests with zero skips (including Redis, SSH2, and Linux-only permission tests):
 
-```
-echo $database->update('table_name', ['name', 'count++', 'document_code="doc_"&id', 'path&=?', 'another_count+=4'])->where('id=1')->assign([
-    'name' => 'Razy',
-    'path' => '/node',
-])->getSyntax();
-
-/**
- * Result:
- * UPDATE table_name SET `name` = 'Razy', `count` = `count` + 1, `document_code` = CONCAT("doc_", id), `path` = CONCAT(`path`, '/node'), `another_count` = `another_count` + 4 WHERE `id` = 1;
- */
+```bash
+docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit
+# → 4,564 tests, 8,178 assertions, 0 skipped, 0 errors
 ```
 
-**Autoloader**
+**Test suite covers**: 102 test classes across Authenticator, Cache (File/Redis/Null), Collection, Configuration, Container (DI), Controller, Crypt, Database (drivers, queries, transactions, migrations), DOM, EventDispatcher, FTPClient, HashMap, HttpClient, Logger, Mailer, Middleware, Module system, ORM, Pipeline, Routing, SFTPClient, Session, Template, Validation, WebSocket, Worker lifecycle, YAML, and more.
 
-Razy employs a two-layered autoloading system: the root of the Razy structure and the `Razy.phar` file. The system first searches for class files in the Razy structure's root, then in `Razy.phar`. This approach allows developers to override Razy core classes or create new project-specific classes without modifying the original files.
+---
 
-But wait, there's more! Razy also supports package installation and updates from [packagist.org](http://packagist.org). By integrating with the `composer` repository, Razy simplifies package management for developers, eliminating the hassle of manually loading project classes. Furthermore, classes from [packagist.org](http://packagist.org) are neatly organized by distributor within the `autoload` folder, preventing version conflicts.
+## Documentation
 
-To update or install a Module and composer package, use this command:
+> **New here?** Start with the **[Quick Start (5 min)](https://github.com/RayFungHK/Razy/wiki/Quick-Start)** tutorial — build and run your first module in under 5 minutes.
 
-```
-php Razy.phar validate distCode
-```
+Full documentation is available on the **[GitHub Wiki](https://github.com/RayFungHK/Razy/wiki)** and the **[Documentation Site](https://rayfunghk.github.io/Razy/)**.
 
-Razy supports PSR-0 autoloading and isolates `composer packages`, `custom classes`, and `controller classes` in separate packages.
+| Section | Topics |
+|---------|--------|
+| **Getting Started** | [Quick Start](https://github.com/RayFungHK/Razy/wiki/Quick-Start) · [Installation](https://github.com/RayFungHK/Razy/wiki/Installation) · [Architecture](https://github.com/RayFungHK/Razy/wiki/Architecture) |
+| **Core Concepts** | [Modules](https://github.com/RayFungHK/Razy/wiki/Module-System) · [Controller](https://github.com/RayFungHK/Razy/wiki/Controller) · [Agent](https://github.com/RayFungHK/Razy/wiki/Agent) · [Routing](https://github.com/RayFungHK/Razy/wiki/Routing) · [Events](https://github.com/RayFungHK/Razy/wiki/Event-System) |
+| **Data & Storage** | [Database](https://github.com/RayFungHK/Razy/wiki/Database) · [Collection](https://github.com/RayFungHK/Razy/wiki/Collection) · [Configuration](https://github.com/RayFungHK/Razy/wiki/Configuration) · [HashMap](https://github.com/RayFungHK/Razy/wiki/HashMap) · [YAML](https://github.com/RayFungHK/Razy/wiki/YAML) |
+| **Rendering** | [Template Engine](https://github.com/RayFungHK/Razy/wiki/Template-Engine) · [DOM Builder](https://github.com/RayFungHK/Razy/wiki/DOM-Builder) |
+| **IO & Communication** | [XHR](https://github.com/RayFungHK/Razy/wiki/XHR) · [SSE](https://github.com/RayFungHK/Razy/wiki/SSE) · [Mailer](https://github.com/RayFungHK/Razy/wiki/Mailer) · [FTP/SFTP](https://github.com/RayFungHK/Razy/wiki/FTP-SFTP) · [SimplifiedMessage](https://github.com/RayFungHK/Razy/wiki/SimplifiedMessage) |
+| **Security** | [Crypt](https://github.com/RayFungHK/Razy/wiki/Crypt) · [Authenticator](https://github.com/RayFungHK/Razy/wiki/Authenticator) |
+| **Advanced** | [Plugins](https://github.com/RayFungHK/Razy/wiki/Plugin-System) · [Threads](https://github.com/RayFungHK/Razy/wiki/Thread-ThreadManager) · [Simple Syntax](https://github.com/RayFungHK/Razy/wiki/Simple-Syntax) |
+| **Deployment** | [Sites Config](https://github.com/RayFungHK/Razy/wiki/Sites-Configuration) · [Packaging](https://github.com/RayFungHK/Razy/wiki/Packaging-Distribution) · [CLI](https://github.com/RayFungHK/Razy/wiki/CLI-Commands) · [Caddy Worker](https://github.com/RayFungHK/Razy/wiki/Caddy-Worker-Mode) |
+| **Reference** | [API Reference](https://github.com/RayFungHK/Razy/wiki/API-Reference) · [ModuleInfo](https://github.com/RayFungHK/Razy/wiki/ModuleInfo) · [Utilities](https://github.com/RayFungHK/Razy/wiki/Utility-Functions) · [Testing](https://github.com/RayFungHK/Razy/wiki/Testing) |
 
-## Any documentation for Razy?
+---
 
-I dislike writing documentation! However, it's essential. Before releasing any formal documentation, I plan to record some development cases to demonstrate how Razy works. I hope someone will be willing to help with documentation after watching my videos.
+## Contributing
 
-## Why Am I Dedicating Time to Developing Razy?
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a pull request.
 
-When I started my freelance career in system development, managing several projects simultaneously wasn't a problem—perhaps because I didn't have many jobs at the time ;). Following MVC made my development easier as a full-stack developer. However, after accumulating experience and revamping systems, I found myself struggling to update functions or overhaul subsystems. I needed to backport updates to older systems and access different servers to update them, which became painful. Any changes posed risks and took time, and I had to be cautious about making too many changes that I wanted to reuse in other projects.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Write tests for your changes
+4. Ensure all tests pass (`composer test`)
+5. Submit a pull request
 
-Midway through my career, I realized I needed to develop my own framework instead of using open-source options. This decision stemmed from my desire to continuously improve my development skills and create a fast development environment for future projects. Razy is my biggest project (along with Void0.js, which I use to replace jQuery) and it's really helpful for managing different sites in a single place.
+For bug reports and feature requests, please use [GitHub Issues](https://github.com/RayFungHK/Razy/issues).
 
-Additionally, Razy offers excellent code management and an improved development lifecycle. I can revert to older committed packages when something goes wrong or maintain a stable committed package for projects not yet ready for upgrades. If a client has custom functions in a module, I can easily clone the current version as a new package and begin development without concerns.
+See also: [Code of Conduct](CODE_OF_CONDUCT.md) · [Security Policy](SECURITY.md)
 
-In 2024, despite the abundance of open-source options, I continue working on Razy because it embodies my values and showcases my experience. In today's business climate, developers using open-source frameworks are often seen as interchangeable—employers may choose based on cost rather than skill. Sadly, many developers in the current generation lack a deep understanding of logic and performance optimization, which I view as critical weaknesses.
+---
 
-My message to all developers is this: focus on enhancing your logical thinking, understanding diverse industry workflows, and mastering native programming language skills throughout your career. These fundamentals will enable you to seamlessly transition between programming languages, debug effectively in any framework, and streamline your work process to the point where it feels effortless.
+## Why Razy?
+
+Razy was born from real-world freelance experience managing multiple client projects simultaneously. Traditional frameworks made it painful to share code between projects, backport updates across deployments, and maintain version-specific module sets for different clients.
+
+Razy solves this by treating **modules as versioned, distributable units** — each project (distributor) picks exactly which module versions to load, shared services are available globally, and the entire system packages into a single phar for deployment.
+
+**Design principles:**
+
+- **Multi-tenancy by design** — not bolted on as an afterthought
+- **Version isolation** — different distributors can run different module versions side by side
+- **Zero-conflict autoloading** — Composer packages are scoped per distributor
+- **One binary deployment** — `Razy.phar` contains the entire framework
+
+---
+
+## License
+
+[MIT License](LICENSE) — Copyright (c) Ray Fung

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Razy Framework �X Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="js/docs.js" defer></script>
+</head>
+<body>
+  <!-- �w�w�w Header �w�w�w -->
+  <header class="site-header">
+    <button class="menu-toggle" aria-label="Toggle menu">&#9776;</button>
+    <a href="index.html" class="header-logo">
+      <span class="logo-icon">R</span>
+      Razy <span class="header-version">v1.0-beta</span>
+    </a>
+    <nav class="header-nav">
+      <a href="pages/getting-started.html">Docs</a>
+      <a href="pages/api-reference.html">API</a>
+      <a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a>
+      <button class="theme-toggle" aria-label="Toggle theme">&#x1F319;</button>
+    </nav>
+  </header>
+
+  <!-- �w�w�w Sidebar �w�w�w -->
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">? Start Here</div><a href="pages/quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="pages/getting-started.html" class="sidebar-link">Installation</a><a href="pages/standalone.html" class="sidebar-link">Standalone Mode</a><a href="pages/tutorial.html" class="sidebar-link">Tutorial</a><a href="pages/roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="pages/modules.html" class="sidebar-link">Module System</a><a href="pages/routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="index.html" class="sidebar-link">Introduction</a><a href="pages/architecture.html" class="sidebar-link">Architecture</a><a href="pages/cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="pages/module-structure.html" class="sidebar-link">Module Structure</a><a href="pages/controller.html" class="sidebar-link">Controller</a><a href="pages/agent.html" class="sidebar-link">Agent</a><a href="pages/events.html" class="sidebar-link">Event System</a><a href="pages/cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="pages/plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="pages/middleware.html" class="sidebar-link">Middleware</a><a href="pages/pipeline.html" class="sidebar-link">Pipeline</a><a href="pages/validation.html" class="sidebar-link">Validation</a><a href="pages/container.html" class="sidebar-link">DI Container</a><a href="pages/env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="pages/database.html" class="sidebar-link">Database</a><a href="pages/orm.html" class="sidebar-link">ORM</a><a href="pages/collection.html" class="sidebar-link">Collection</a><a href="pages/configuration.html" class="sidebar-link">Configuration</a><a href="pages/cache.html" class="sidebar-link">Cache</a><a href="pages/hashmap.html" class="sidebar-link">HashMap</a><a href="pages/yaml.html" class="sidebar-link">YAML</a><a href="pages/queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="pages/template.html" class="sidebar-link">Template Engine</a><a href="pages/dom.html" class="sidebar-link">DOM Builder</a><a href="pages/simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="pages/httpclient.html" class="sidebar-link">HTTP Client</a><a href="pages/xhr.html" class="sidebar-link">XHR</a><a href="pages/sse.html" class="sidebar-link">SSE</a><a href="pages/websocket.html" class="sidebar-link">WebSocket</a><a href="pages/mailer.html" class="sidebar-link">Mailer</a><a href="pages/simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="pages/filereader.html" class="sidebar-link">FileReader</a><a href="pages/ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="pages/notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="pages/crypt.html" class="sidebar-link">Crypt</a><a href="pages/csrf.html" class="sidebar-link">CSRF Protection</a><a href="pages/session.html" class="sidebar-link">Session</a><a href="pages/oauth2.html" class="sidebar-link">OAuth2</a><a href="pages/office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="pages/authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="pages/authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="pages/ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="pages/logging.html" class="sidebar-link">Logging</a><a href="pages/profiler.html" class="sidebar-link">Profiler</a><a href="pages/error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="pages/thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="pages/worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="pages/sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="pages/packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="pages/publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="pages/caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="pages/api-reference.html" class="sidebar-link">API Reference</a><a href="pages/moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="pages/utilities.html" class="sidebar-link">Utility Functions</a><a href="pages/testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <!-- �w�w�w Main �w�w�w -->
+  <main class="main-content">
+    <div class="hero">
+      <h1>Razy Framework</h1>
+      <p>A modular PHP framework built for manageable development environments. Multi-site, distributor-based architecture with high performance and flexibility.</p>
+      <div class="hero-badges">
+        <span class="hero-badge">PHP 8.2+</span>
+        <span class="hero-badge">PSR-4 / PSR-12</span>
+        <span class="hero-badge">4564 Tests</span>
+        <span class="hero-badge">~85% Coverage</span>
+        <span class="hero-badge">MIT License</span>
+      </div>
+      <div class="hero-actions">
+        <a href="pages/tutorial.html" class="btn btn-primary">Tutorial &#x2192;</a>
+        <a href="pages/roadmap.html" class="btn btn-outline">Learning Roadmap</a>
+        <a href="pages/getting-started.html" class="btn btn-outline">Installation</a>
+        <a href="https://github.com/rayfunghk/razy" class="btn btn-outline" target="_blank">GitHub</a>
+      </div>
+    </div>
+
+    <h2 id="features">Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="icon">&#x1F9E9;</span>
+        <h3>Modular Architecture</h3>
+        <p>Reusable modules with controllers, views, plugins, and APIs. Vendor/package namespace structure with semantic versioning.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F310;</span>
+        <h3>Multi-Site Distribution</h3>
+        <p>Run multiple sites from one codebase. Distributors manage domains, modules, and configurations independently.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F50C;</span>
+        <h3>Plugin System</h3>
+        <p>Extend Template, Collection, Statement, and Pipeline with custom plugins. Shared plugin trait across subsystems.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F5C4;&#xFE0F;</span>
+        <h3>Database Abstraction</h3>
+        <p>Multi-driver support (MySQL, SQLite, MSSQL) with fluent Statement builder and Simple Syntax for shorthand SQL.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F3A8;</span>
+        <h3>Template Engine</h3>
+        <p>High-performance templating with variable tags, modifiers, function tags, and advanced block types (WRAPPER, RECURSION).</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F4E1;</span>
+        <h3>Event System</h3>
+        <p>Inter-module communication via EventEmitter pattern. Fire events, listen across modules, collect responses.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F517;</span>
+        <h3>Cross-Module API</h3>
+        <p>Provider/Consumer pattern for module-to-module integration. Handshake-based access control.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F4BB;</span>
+        <h3>CLI &amp; PHAR</h3>
+        <p>Full CLI tooling via Razy.phar. Interactive shell, module validation, GitHub installer, and more.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1F9EA;</span>
+        <h3>Testing Suite</h3>
+        <p>PHPUnit 10.5 with 4,564 tests and 8,178 assertions across 102 test classes. PSR-12 linting with PHP CS Fixer. Enterprise-grade quality.</p>
+      </div>
+    </div>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-cmt"># Install via Composer</span>
+composer require rayfunghk/razy
+
+<span class="hl-cmt"># Build Razy environment</span>
+php Razy.phar build
+
+<span class="hl-cmt"># Initialize a new distributor</span>
+php Razy.phar init dist mysite
+
+<span class="hl-cmt"># Generate .htaccess rewrite rules</span>
+php Razy.phar rewrite mysite
+
+<span class="hl-cmt"># Run interactive shell</span>
+php Razy.phar runapp mysite</code></pre>
+
+    <h2 id="architecture-overview">Architecture Overview</h2>
+    <div class="lifecycle">
+      <div class="lifecycle-step">Bootstrap</div>
+      <span class="lifecycle-arrow">&#x2192;</span>
+      <div class="lifecycle-step">Application</div>
+      <span class="lifecycle-arrow">&#x2192;</span>
+      <div class="lifecycle-step">Domain</div>
+      <span class="lifecycle-arrow">&#x2192;</span>
+      <div class="lifecycle-step">Distributor</div>
+      <span class="lifecycle-arrow">&#x2192;</span>
+      <div class="lifecycle-step">Modules</div>
+      <span class="lifecycle-arrow">&#x2192;</span>
+      <div class="lifecycle-step">Routing</div>
+    </div>
+    <p>The framework follows a pipeline from bootstrap to route execution. Each distributor manages its own set of modules, which are loaded in dependency order and go through a well-defined lifecycle.</p>
+    <p><a href="pages/architecture.html">Learn more about the architecture &#x2192;</a></p>
+
+    <h2 id="roadmap">Roadmap to v1.0</h2>
+    <table>
+      <thead><tr><th>Feature</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>GitHub Module Installer</td><td><span class="badge badge-green">Done</span></td></tr>
+        <tr><td>Simplified Application Flow</td><td><span class="badge badge-green">Done</span></td></tr>
+        <tr><td>App Container CLI (runapp)</td><td><span class="badge badge-green">Done</span></td></tr>
+        <tr><td>Revamped Action & Validate</td><td><span class="badge badge-green">Done</span></td></tr>
+        <tr><td>Cache System</td><td><span class="badge badge-orange">Planned</span></td></tr>
+        <tr><td>Thread System</td><td><span class="badge badge-orange">Planned</span></td></tr>
+        <tr><td>Table/Column Class Revamp</td><td><span class="badge badge-orange">Planned</span></td></tr>
+        <tr><td>Cross-Distributor Communication</td><td><span class="badge badge-orange">Planned</span></td></tr>
+      </tbody>
+    </table>
+
+    <!--  Prev/Next  -->
+    <div class="page-nav">
+      <div></div>
+      <a href="pages/getting-started.html" class="next">
+        <span class="label">Next &#x2192;</span>
+        <span class="title">Installation</span>
+      </a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>Razy Framework v1.0-beta &#x2014; Built by <a href="https://github.com/rayfunghk" target="_blank">Ray Fung</a></span>
+    <span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span>
+  </footer>
+</body>
+</html>

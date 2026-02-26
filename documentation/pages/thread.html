@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread &amp; ThreadManager &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Thread &amp; ThreadManager</h1>
+    <p>The <code>Thread</code> and <code>ThreadManager</code> classes provide concurrent execution in PHP via <code>proc_open</code>. <code>ThreadManager</code> manages a pool of threads with configurable maximum concurrency, automatically queuing tasks when the limit is reached. It supports inline (synchronous) execution and process-based (asynchronous) execution of PHP code, PHP files, and arbitrary shell commands.</p>
+
+    <h2 id="threadmanager">ThreadManager</h2>
+
+    <h3 id="tm-constructor">Constructor</h3>
+    <pre><code><span class="hl-var">$tm</span> = <span class="hl-kw">new</span> <span class="hl-cls">ThreadManager</span>();</code></pre>
+    <p>Creates a new thread manager with a default <code>maxConcurrency</code> of <code>4</code>.</p>
+
+    <h3 id="tm-set-max">setMaxConcurrency(int $maxConcurrency)</h3>
+    <p>Set the maximum number of processes that can run simultaneously. Excess tasks are queued and started automatically when a running thread finishes.</p>
+    <pre><code><span class="hl-var">$tm</span>-><span class="hl-fn">setMaxConcurrency</span>(<span class="hl-num">8</span>);</code></pre>
+
+    <h3 id="tm-spawn">spawn(callable $task, array $options = [])</h3>
+    <p>Execute a callable. In <strong>inline mode</strong> (no <code>command</code> option), the callable runs synchronously and returns immediately with the result. If <code>options['command']</code> is provided, it delegates to <code>spawnProcessCommand()</code> for async execution.</p>
+    <pre><code><span class="hl-cmt">// Inline mode &mdash; synchronous</span>
+<span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">spawn</span>(<span class="hl-kw">function</span>() {
+    <span class="hl-kw">return</span> <span class="hl-fn">array_sum</span>(<span class="hl-fn">range</span>(<span class="hl-num">1</span>, <span class="hl-num">100</span>));
+});
+<span class="hl-fn">echo</span> <span class="hl-var">$thread</span>-><span class="hl-fn">getResult</span>(); <span class="hl-cmt">// 5050</span></code></pre>
+
+    <h3 id="tm-spawn-php-code">spawnPHPCode(string $phpCode, ?string $phpPath = null, array $options = [])</h3>
+    <p>Run arbitrary PHP code in a background process. The code is base64-encoded to avoid shell escaping issues (especially on Windows). Auto-detects the PHP binary path if not specified.</p>
+    <pre><code><span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnPHPCode</span>(<span class="hl-str">'echo json_encode(["pid" =&gt; getmypid()]);'</span>);
+<span class="hl-var">$result</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">await</span>(<span class="hl-var">$thread</span>-><span class="hl-fn">getId</span>());
+<span class="hl-fn">echo</span> <span class="hl-var">$result</span>[<span class="hl-str">'stdout'</span>]; <span class="hl-cmt">// {"pid":12345}</span></code></pre>
+
+    <h3 id="tm-spawn-php-file">spawnPHPFile(string $phpCode, ?string $phpPath = null, array $options = [])</h3>
+    <p>Writes PHP code to a temporary file and executes it as a separate process. The temp file is automatically cleaned up on shutdown. Useful for very long scripts where base64 encoding overhead is a concern.</p>
+    <pre><code><span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnPHPFile</span>(<span class="hl-str">'
+    $data = file_get_contents("/data/large-file.json");
+    $parsed = json_decode($data, true);
+    echo count($parsed);
+'</span>);
+<span class="hl-var">$result</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">await</span>(<span class="hl-var">$thread</span>-><span class="hl-fn">getId</span>());</code></pre>
+
+    <h3 id="tm-spawn-process">spawnProcessCommand(string $command, array $args = [], array $options = [])</h3>
+    <p>Spawn an arbitrary process. Arguments are escaped via <code>escapeshellarg()</code>. Supports <code>cwd</code> and <code>env</code> options.</p>
+    <pre><code><span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnProcessCommand</span>(<span class="hl-str">'node'</span>, [<span class="hl-str">'script.js'</span>, <span class="hl-str">'--verbose'</span>], [
+    <span class="hl-str">'cwd'</span> => <span class="hl-str">'/app/scripts'</span>,
+    <span class="hl-str">'env'</span> => [<span class="hl-str">'NODE_ENV'</span> => <span class="hl-str">'production'</span>],
+]);</code></pre>
+
+    <h3 id="tm-await">await(string $id, ?int $timeoutMs = null)</h3>
+    <p>Block until the thread finishes (or times out). Returns the thread result, or <code>null</code> if the thread failed. The timeout is in milliseconds.</p>
+    <pre><code><span class="hl-var">$result</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">await</span>(<span class="hl-var">$thread</span>-><span class="hl-fn">getId</span>(), <span class="hl-num">5000</span>); <span class="hl-cmt">// 5 second timeout</span></code></pre>
+
+    <h3 id="tm-join-all">joinAll(array $threads, ?int $timeoutMs = null)</h3>
+    <p>Wait for multiple threads to complete. Returns an associative array of <code>[id => result]</code>.</p>
+    <pre><code><span class="hl-var">$results</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">joinAll</span>([<span class="hl-var">$thread1</span>, <span class="hl-var">$thread2</span>, <span class="hl-var">$thread3</span>], <span class="hl-num">10000</span>);</code></pre>
+
+    <h3 id="tm-status">status(string $id) / getThread(string $id)</h3>
+    <p><code>status()</code> returns the current status string of a thread (polls process state first). <code>getThread()</code> returns the <code>Thread</code> object or <code>null</code>.</p>
+    <pre><code><span class="hl-var">$status</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">status</span>(<span class="hl-var">$id</span>);      <span class="hl-cmt">// 'pending' | 'running' | 'completed' | 'failed'</span>
+<span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">getThread</span>(<span class="hl-var">$id</span>);  <span class="hl-cmt">// Thread | null</span></code></pre>
+
+    <h2 id="thread">Thread</h2>
+
+    <h3 id="thread-constants">State Constants</h3>
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>STATUS_PENDING</code></td><td><code>'pending'</code></td><td>Thread created but not yet started</td></tr>
+        <tr><td><code>STATUS_RUNNING</code></td><td><code>'running'</code></td><td>Thread is currently executing</td></tr>
+        <tr><td><code>STATUS_COMPLETED</code></td><td><code>'completed'</code></td><td>Thread finished successfully</td></tr>
+        <tr><td><code>STATUS_FAILED</code></td><td><code>'failed'</code></td><td>Thread failed with an error or non-zero exit code</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="thread-mode-constants">Mode Constants</h3>
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>MODE_INLINE</code></td><td><code>'inline'</code></td><td>Synchronous callable execution</td></tr>
+        <tr><td><code>MODE_PROCESS</code></td><td><code>'process'</code></td><td>Asynchronous process execution via <code>proc_open</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="thread-methods">Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getId()</code></td><td><code>string</code></td><td>Unique thread identifier</td></tr>
+        <tr><td><code>getStatus()</code></td><td><code>string</code></td><td>Current status constant</td></tr>
+        <tr><td><code>getResult()</code></td><td><code>mixed</code></td><td>Return value (inline) or result array (process)</td></tr>
+        <tr><td><code>getError()</code></td><td><code>?Throwable</code></td><td>Exception if the thread failed</td></tr>
+        <tr><td><code>getStdout()</code></td><td><code>string</code></td><td>Captured stdout (process mode)</td></tr>
+        <tr><td><code>getStderr()</code></td><td><code>string</code></td><td>Captured stderr (process mode)</td></tr>
+        <tr><td><code>getExitCode()</code></td><td><code>?int</code></td><td>Process exit code (<code>null</code> if timeout or inline)</td></tr>
+        <tr><td><code>isFinished()</code></td><td><code>bool</code></td><td><code>true</code> if completed or failed</td></tr>
+        <tr><td><code>getMode()</code></td><td><code>string</code></td><td><code>'inline'</code> or <code>'process'</code></td></tr>
+        <tr><td><code>getCommand()</code></td><td><code>string</code></td><td>Full command string (process mode)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="examples">Examples</h2>
+
+    <h3>Running PHP Code in Background</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ThreadManager</span>;
+
+<span class="hl-var">$tm</span> = <span class="hl-kw">new</span> <span class="hl-cls">ThreadManager</span>();
+
+<span class="hl-cmt">// Run a heavy computation in the background</span>
+<span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnPHPCode</span>(<span class="hl-str">'
+    $sum = 0;
+    for ($i = 0; $i &lt; 1000000; $i++) {
+        $sum += $i;
+    }
+    echo json_encode(["sum" =&gt; $sum]);
+'</span>);
+
+<span class="hl-cmt">// Do other work while it runs...</span>
+<span class="hl-fn">echo</span> <span class="hl-str">'Working on other tasks...'</span>;
+
+<span class="hl-cmt">// Collect the result</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">await</span>(<span class="hl-var">$thread</span>-><span class="hl-fn">getId</span>());
+<span class="hl-fn">echo</span> <span class="hl-var">$result</span>[<span class="hl-str">'stdout'</span>]; <span class="hl-cmt">// {"sum":499999500000}</span></code></pre>
+
+    <h3>Spawning Shell Commands</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ThreadManager</span>;
+
+<span class="hl-var">$tm</span> = <span class="hl-kw">new</span> <span class="hl-cls">ThreadManager</span>();
+
+<span class="hl-cmt">// Run a shell command</span>
+<span class="hl-var">$thread</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnProcessCommand</span>(<span class="hl-str">'git'</span>, [<span class="hl-str">'log'</span>, <span class="hl-str">'--oneline'</span>, <span class="hl-str">'-5'</span>]);
+<span class="hl-var">$result</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">await</span>(<span class="hl-var">$thread</span>-><span class="hl-fn">getId</span>());
+
+<span class="hl-fn">echo</span> <span class="hl-var">$result</span>[<span class="hl-str">'stdout'</span>];     <span class="hl-cmt">// Last 5 commit messages</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$result</span>[<span class="hl-str">'exit_code'</span>]; <span class="hl-cmt">// 0</span></code></pre>
+
+    <h3>Concurrent Batch Processing with joinAll</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ThreadManager</span>;
+
+<span class="hl-var">$tm</span> = <span class="hl-kw">new</span> <span class="hl-cls">ThreadManager</span>();
+<span class="hl-var">$tm</span>-><span class="hl-fn">setMaxConcurrency</span>(<span class="hl-num">4</span>);
+
+<span class="hl-var">$urls</span> = [
+    <span class="hl-str">'https://api.example.com/users'</span>,
+    <span class="hl-str">'https://api.example.com/orders'</span>,
+    <span class="hl-str">'https://api.example.com/products'</span>,
+    <span class="hl-str">'https://api.example.com/analytics'</span>,
+];
+
+<span class="hl-cmt">// Spawn a thread for each URL</span>
+<span class="hl-var">$threads</span> = [];
+<span class="hl-kw">foreach</span> (<span class="hl-var">$urls</span> <span class="hl-kw">as</span> <span class="hl-var">$url</span>) {
+    <span class="hl-var">$code</span> = <span class="hl-str">'echo file_get_contents("'</span> . <span class="hl-var">$url</span> . <span class="hl-str">'");'</span>;
+    <span class="hl-var">$threads</span>[] = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnPHPCode</span>(<span class="hl-var">$code</span>);
+}
+
+<span class="hl-cmt">// Wait for all to finish (10 second timeout)</span>
+<span class="hl-var">$results</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">joinAll</span>(<span class="hl-var">$threads</span>, <span class="hl-num">10000</span>);
+
+<span class="hl-cmt">// Process results</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$results</span> <span class="hl-kw">as</span> <span class="hl-var">$id</span> => <span class="hl-var">$result</span>) {
+    <span class="hl-kw">if</span> (<span class="hl-var">$result</span> !== <span class="hl-kw">null</span>) {
+        <span class="hl-var">$data</span> = <span class="hl-fn">json_decode</span>(<span class="hl-var">$result</span>[<span class="hl-str">'stdout'</span>], <span class="hl-kw">true</span>);
+        <span class="hl-fn">echo</span> <span class="hl-str">"Thread </span><span class="hl-var">$id</span><span class="hl-str">: "</span> . <span class="hl-fn">count</span>(<span class="hl-var">$data</span>) . <span class="hl-str">" records\n"</span>;
+    }
+}</code></pre>
+
+    <h2 id="concurrency-control">Concurrency Control</h2>
+    <p>The <code>ThreadManager</code> uses a queue system to limit the number of simultaneously running processes. When a new thread is spawned and the running count has reached <code>maxConcurrency</code>, the thread is placed in a pending queue with <code>STATUS_PENDING</code>. As running threads complete and are polled (via <code>await()</code> or <code>joinAll()</code>), the manager drains the queue and starts pending threads automatically.</p>
+    <pre><code><span class="hl-var">$tm</span> = <span class="hl-kw">new</span> <span class="hl-cls">ThreadManager</span>();
+<span class="hl-var">$tm</span>-><span class="hl-fn">setMaxConcurrency</span>(<span class="hl-num">2</span>); <span class="hl-cmt">// Only 2 processes at a time</span>
+
+<span class="hl-cmt">// Spawn 5 tasks &mdash; first 2 start immediately, rest are queued</span>
+<span class="hl-var">$threads</span> = [];
+<span class="hl-kw">for</span> (<span class="hl-var">$i</span> = <span class="hl-num">0</span>; <span class="hl-var">$i</span> < <span class="hl-num">5</span>; <span class="hl-var">$i</span>++) {
+    <span class="hl-var">$threads</span>[] = <span class="hl-var">$tm</span>-><span class="hl-fn">spawnPHPCode</span>(<span class="hl-str">'sleep(1); echo "Task '</span> . <span class="hl-var">$i</span> . <span class="hl-str">' done";'</span>);
+}
+
+<span class="hl-cmt">// joinAll drains the queue as threads complete</span>
+<span class="hl-var">$results</span> = <span class="hl-var">$tm</span>-><span class="hl-fn">joinAll</span>(<span class="hl-var">$threads</span>);</code></pre>
+
+    <div class="page-nav">
+      <a href="plugins.html"><span class="label">&larr; Previous</span><span class="title">Plugin System</span></a>
+      <a href="simple-syntax.html" class="next"><span class="label">Next &rarr;</span><span class="title">Simple Syntax</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

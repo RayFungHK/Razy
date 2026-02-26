@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FileReader &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>FileReader</h1>
+    <p>The <code>FileReader</code> class provides a memory-efficient, line-by-line file reader powered by PHP generators. It supports concatenating multiple files into a single sequential stream.</p>
+
+    <h2 id="methods">Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__construct(string $filePath)</code></td><td></td><td>Open the first file for reading</td></tr>
+        <tr><td><code>append(string $filePath)</code></td><td><code>FileReader</code></td><td>Append another file to the read queue</td></tr>
+        <tr><td><code>prepend(string $filePath)</code></td><td><code>FileReader</code></td><td>Prepend another file before the current queue</td></tr>
+        <tr><td><code>fetch()</code></td><td><code>?string</code></td><td>Return the next line, or <code>null</code> when exhausted</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="basic">Basic Usage</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\FileReader</span>;
+
+<span class="hl-var">$reader</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileReader</span>(<span class="hl-str">'/path/to/data.txt'</span>);
+
+<span class="hl-cmt">// Read line by line</span>
+<span class="hl-kw">while</span> ((<span class="hl-var">$line</span> = <span class="hl-var">$reader</span>-><span class="hl-fn">fetch</span>()) !== <span class="hl-kw">null</span>) {
+    <span class="hl-fn">echo</span> <span class="hl-var">$line</span> . <span class="hl-str">"\n"</span>;
+}</code></pre>
+
+    <h2 id="concatenation">Multi-File Concatenation</h2>
+    <p>Chain multiple files together &mdash; they are read sequentially as a single stream:</p>
+    <pre><code><span class="hl-var">$reader</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileReader</span>(<span class="hl-str">'/logs/app-2026-01.log'</span>);
+<span class="hl-var">$reader</span>-><span class="hl-fn">append</span>(<span class="hl-str">'/logs/app-2026-02.log'</span>)
+       -><span class="hl-fn">append</span>(<span class="hl-str">'/logs/app-2026-03.log'</span>);
+
+<span class="hl-cmt">// Reads all three files in order</span>
+<span class="hl-kw">while</span> ((<span class="hl-var">$line</span> = <span class="hl-var">$reader</span>-><span class="hl-fn">fetch</span>()) !== <span class="hl-kw">null</span>) {
+    <span class="hl-cmt">// Process each line from all files</span>
+}</code></pre>
+
+    <h3>Prepending Files</h3>
+    <pre><code><span class="hl-var">$reader</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileReader</span>(<span class="hl-str">'/data/main.csv'</span>);
+
+<span class="hl-cmt">// Add a header file before the main data</span>
+<span class="hl-var">$reader</span>-><span class="hl-fn">prepend</span>(<span class="hl-str">'/data/header.csv'</span>);
+
+<span class="hl-cmt">// Reads header.csv first, then main.csv</span>
+<span class="hl-kw">while</span> ((<span class="hl-var">$line</span> = <span class="hl-var">$reader</span>-><span class="hl-fn">fetch</span>()) !== <span class="hl-kw">null</span>) {
+    <span class="hl-var">$fields</span> = <span class="hl-fn">str_getcsv</span>(<span class="hl-var">$line</span>);
+    <span class="hl-cmt">// Process CSV row</span>
+}</code></pre>
+
+    <h2 id="csv">Example: Reading CSV Files</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\FileReader</span>;
+
+<span class="hl-var">$reader</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileReader</span>(<span class="hl-str">'/data/users.csv'</span>);
+<span class="hl-var">$headers</span> = <span class="hl-kw">null</span>;
+<span class="hl-var">$users</span>   = [];
+
+<span class="hl-kw">while</span> ((<span class="hl-var">$line</span> = <span class="hl-var">$reader</span>-><span class="hl-fn">fetch</span>()) !== <span class="hl-kw">null</span>) {
+    <span class="hl-var">$row</span> = <span class="hl-fn">str_getcsv</span>(<span class="hl-var">$line</span>);
+    <span class="hl-kw">if</span> (<span class="hl-var">$headers</span> === <span class="hl-kw">null</span>) {
+        <span class="hl-var">$headers</span> = <span class="hl-var">$row</span>;
+        <span class="hl-kw">continue</span>;
+    }
+    <span class="hl-var">$users</span>[] = <span class="hl-fn">array_combine</span>(<span class="hl-var">$headers</span>, <span class="hl-var">$row</span>);
+}</code></pre>
+
+    <h2 id="logs">Example: Processing Large Log Files</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\FileReader</span>;
+
+<span class="hl-var">$reader</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileReader</span>(<span class="hl-str">'/var/log/app/error.log'</span>);
+<span class="hl-var">$errors</span> = [];
+
+<span class="hl-kw">while</span> ((<span class="hl-var">$line</span> = <span class="hl-var">$reader</span>-><span class="hl-fn">fetch</span>()) !== <span class="hl-kw">null</span>) {
+    <span class="hl-kw">if</span> (<span class="hl-fn">str_contains</span>(<span class="hl-var">$line</span>, <span class="hl-str">'[ERROR]'</span>)) {
+        <span class="hl-var">$errors</span>[] = <span class="hl-var">$line</span>;
+    }
+}
+
+<span class="hl-fn">echo</span> <span class="hl-str">'Found '</span> . <span class="hl-fn">count</span>(<span class="hl-var">$errors</span>) . <span class="hl-str">' errors'</span>;</code></pre>
+
+    <h2 id="multi-file">Example: Merging Multiple Data Files</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\FileReader</span>;
+
+<span class="hl-cmt">// Merge daily report files into a single stream</span>
+<span class="hl-var">$reader</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileReader</span>(<span class="hl-str">'/reports/day1.csv'</span>);
+<span class="hl-var">$reader</span>-><span class="hl-fn">append</span>(<span class="hl-str">'/reports/day2.csv'</span>)
+       -><span class="hl-fn">append</span>(<span class="hl-str">'/reports/day3.csv'</span>);
+
+<span class="hl-var">$totalRows</span> = <span class="hl-num">0</span>;
+<span class="hl-kw">while</span> (<span class="hl-var">$reader</span>-><span class="hl-fn">fetch</span>() !== <span class="hl-kw">null</span>) {
+    <span class="hl-var">$totalRows</span>++;
+}
+
+<span class="hl-fn">echo</span> <span class="hl-str">"Processed </span><span class="hl-var">$totalRows</span><span class="hl-str"> lines across 3 files"</span>;</code></pre>
+
+    <div class="page-nav">
+      <a href="simplified-message.html"><span class="label">&larr; Previous</span><span class="title">SimplifiedMessage</span></a>
+      <a href="crypt.html" class="next"><span class="label">Next &rarr;</span><span class="title">Crypt</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

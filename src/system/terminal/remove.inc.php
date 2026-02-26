@@ -1,11 +1,19 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * CLI Command: remove
  *
- * (c) Ray Fung <hello@rayfung.hk>
+ * Removes a site (domain + path binding) from the sites configuration.
+ * After removal, the .htaccess rewrite rules are regenerated.
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * Usage:
+ *   php Razy.phar remove <fqdn/path>
+ *
+ * Arguments:
+ *   fqdn/path  The fully qualified domain name and path to remove
+ *              (e.g., "example.com/mysite")
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
@@ -19,18 +27,19 @@ return function (string $fqdn = '') {
         exit;
     }
 
-    // Load default config setting
+    // Load site configuration
     $app = new Application();
     $config = $app->loadSiteConfig();
 
-    // Extract the domain and the path from the FQDN string
+    // Normalize the FQDN string and extract domain + path components
     $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
     [$domain, $path] = explode('/', $fqdn, 2);
     $path = '/' . $path;
 
-    // Remove the specified domain and path setting
+    // Remove the domain/path binding from the configuration
     unset($config['domains'][$domain][$path]);
 
+    // Write the updated configuration and regenerate rewrite rules
     if ($app->writeSiteConfig($config)) {
         $this->writeLineLogging('{@c:green}Done.', true);
     } else {

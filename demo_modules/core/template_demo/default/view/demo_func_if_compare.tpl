@@ -1,0 +1,1 @@
+Status: {@if $status="active"}Active!{@else}Inactive{/if} | Count: {@if $count}Has items{@else}Empty{/if} | Type: {@if $items->gettype="array"}Array detected{@else}Not array{/if}

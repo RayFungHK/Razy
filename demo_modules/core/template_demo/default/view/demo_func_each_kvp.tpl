@@ -1,0 +1,1 @@
+Settings: {@each $settings}{$kvp.key}: {$kvp.value}; {/each}

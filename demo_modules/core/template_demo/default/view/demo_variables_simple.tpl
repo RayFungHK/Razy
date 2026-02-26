@@ -1,0 +1,1 @@
+{$name} v{$version} — Built with {$language}

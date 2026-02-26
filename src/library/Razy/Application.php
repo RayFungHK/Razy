@@ -9,21 +9,56 @@
  */
 
 namespace Razy;
-
-use Closure;
 use Exception;
+use Razy\Contract\ContainerInterface;
+use Razy\Exception\ConfigurationException;
 use Throwable;
 
+use Razy\Util\NetworkUtil;
+use Razy\Util\StringUtil;
+use Razy\Util\PathUtil;
+/**
+ * Application is the top-level entry point for the Razy framework.
+ *
+ * It manages multisite domain configuration, distributor resolution,
+ * URL routing dispatch, rewrite rule generation, and site config persistence.
+ * Only one unlocked Application instance may exist at a time.
+ *
+ * @class Application
+ * @package Razy
+ * @license MIT
+ */
 class Application
 {
+    /** @var bool Whether the application is locked (prevents config changes) */
     static bool $locked = false;
+
+    /** @var array<string, string> Map of alias FQDN => canonical domain FQDN */
     private array $alias = [];
+
+    /** @var array|null Loaded site configuration (domains + alias) */
     private ?array $config = null;
+
+    /** @var array<string, array> Registered distributors keyed by identifier (code@tag) */
     private array $distributors = [];
+
+    /** @var array<string, array> Multisite domain-to-distributor mappings */
     private array $multisite = [];
+
+    /** @var string Unique identifier (object hash) for this Application instance */
     private string $guid = '';
+
+    /** @var Domain|null The matched Domain instance after host() is called */
     private ?Domain $domain = null;
+
+    /** @var array File integrity checksums for config and rewrite protection */
     private array $protection = [];
+
+    /** @var bool Whether initialize() has been called (lazy deferred from constructor) */
+    private bool $initialized = false;
+
+    /** @var Container The dependency injection container for this request */
+    private Container $container;
 
     /**
      * Container constructor.
@@ -33,13 +68,19 @@ class Application
     public function __construct()
     {
         if (self::$locked) {
-            throw new Error('Application is locked.');
+            throw new ConfigurationException('Application is locked.');
         }
 
         $this->guid = spl_object_hash($this);
 
-        // Start loading the site config
-        $this->initialize();
+        // Initialize the DI container and register core bindings
+        $this->container = new Container();
+        $this->container->instance(self::class, $this);
+        $this->container->instance(Container::class, $this->container);
+        $this->container->alias(ContainerInterface::class, Container::class);
+
+        // Register framework-level services as singletons
+        $this->container->singleton(PluginManager::class, fn() => PluginManager::getInstance());
     }
 
     /**
@@ -52,24 +93,80 @@ class Application
     {
         $fqdn = trim($fqdn);
         if (!empty($fqdn)) {
-            $fqdn = format_fqdn($fqdn);
-            if (!is_fqdn($fqdn, true)) {
-                throw new Error('Invalid domain format, it should be a string in FQDN format.');
+            $fqdn = NetworkUtil::formatFqdn($fqdn);
+            if (!NetworkUtil::isFqdn($fqdn, true)) {
+                throw new ConfigurationException('Invalid domain format, it should be a string in FQDN format.');
             }
         }
 
-        // Register the SPL autoloader
+        // Lazy-initialize config and multisite mappings on first host() call
+        $this->ensureInitialized();
+
+        // Register the SPL autoloader for distributor-managed libraries
         spl_autoload_register(function ($className) {
-            // Try load the library in matched distributor
+            // Delegate autoloading to the matched domain's distributor chain
             return $this->domain && $this->domain->autoload($className);
         });
 
-        // Match the domain by given fqdn
+        // Match the domain by the given FQDN string
         if (($this->domain = $this->matchDomain($fqdn)) === null) {
-            throw new Error('No domain is matched.');
+            throw new ConfigurationException("No domain matched for '{$fqdn}'. Check sites.inc.php configuration.");
         }
 
         return true;
+    }
+
+    /** @var Standalone|null Standalone mode runtime (bypasses Domain/multisite) */
+    private ?Standalone $standaloneDistributor = null;
+
+    /**
+     * Activate standalone/lite mode.
+     *
+     * Bypasses the entire Domain/multisite resolution. Creates a Standalone
+     * runtime that loads one ultra-flat module directly from the standalone
+     * folder, with its own DI container.
+     *
+     * Detection rule (in main.php): standalone/ exists AND 'multiple_site' is not
+     * enabled in config.inc.php (or RAZY_MULTIPLE_SITE env var).
+     *
+     * @param string $standalonePath Absolute path to the standalone folder
+     * @return bool
+     * @throws Throwable
+     */
+    public function standalone(string $standalonePath): bool
+    {
+        // Register autoloader for standalone runtime
+        spl_autoload_register(function ($className) {
+            return $this->standaloneDistributor?->autoload($className);
+        });
+
+        // Create a Standalone runtime with the given path and our container
+        $this->standaloneDistributor = new Standalone($standalonePath, $this->container);
+
+        return true;
+    }
+
+    /**
+     * Route a URL query in standalone mode.
+     *
+     * Initializes the Standalone runtime (loading the single module)
+     * and dispatches the URL query to the route matcher.
+     *
+     * @param string $urlQuery The URL query string
+     * @return bool True if a matching route was found and dispatched
+     * @throws Throwable
+     */
+    public function queryStandalone(string $urlQuery): bool
+    {
+        if (!$this->standaloneDistributor) {
+            throw new ConfigurationException('Standalone mode is not activated. Call standalone() first.');
+        }
+
+        // Set the URL query on the distributor for route matching
+        $this->standaloneDistributor->setUrlQuery($urlQuery);
+        $this->standaloneDistributor->initialize();
+
+        return $this->standaloneDistributor->matchRoute();
     }
 
     /**
@@ -80,6 +177,16 @@ class Application
     public function getGUID(): string
     {
         return $this->guid;
+    }
+
+    /**
+     * Get the DI container for this Application instance.
+     *
+     * @return ContainerInterface The Container instance
+     */
+    public function getContainer(): ContainerInterface
+    {
+        return $this->container;
     }
 
     /**
@@ -117,13 +224,13 @@ class Application
 
         // Match the domain in multisite list that with the wildcard character
         foreach ($this->multisite as $wildcardFqdn => $path) {
-            if (is_fqdn($wildcardFqdn, true)) {
+            if (NetworkUtil::isFqdn($wildcardFqdn, true)) {
                 // If the FQDN string contains * (wildcard)
                 if ('*' !== $wildcardFqdn && str_contains($wildcardFqdn, '*')) {
                     $wildcard = preg_replace('/\\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $wildcardFqdn);
                     if (preg_match('/^' . $wildcard . '$/', $fqdn)) {
                         // Given fqdn becomes the domain's alias
-                        return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$fqdn]);
+                        return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$wildcardFqdn]);
                     }
                 }
             }
@@ -155,15 +262,15 @@ class Application
         $this->alias = [];
         $this->distributors = [];
 
-        // Load extra alias and map to configured domain
+        // Load extra alias mappings and associate them with configured domains
         $aliasMapping = [];
         if (is_array($this->config['alias'])) {
             foreach ($this->config['alias'] as $alias => $domain) {
                 if (is_string($domain)) {
-                    // Standardize domain and alias format
-                    $domain = format_fqdn($domain);
-                    $alias = format_fqdn($alias);
-                    if (is_fqdn($domain, true) && is_fqdn($alias, true)) {
+                    // Normalize both domain and alias to standard FQDN format
+                    $domain = NetworkUtil::formatFqdn($domain);
+                    $alias = NetworkUtil::formatFqdn($alias);
+                    if (NetworkUtil::isFqdn($domain, true) && NetworkUtil::isFqdn($alias, true)) {
                         $aliasMapping[$domain] = $aliasMapping[$domain] ?? [];
                         $aliasMapping[$domain][] = $alias;
                         $this->alias[$alias] = $domain;
@@ -172,24 +279,25 @@ class Application
             }
         }
 
-        // Extract the domain list
+        // Parse the domain list and validate each distributor entry
         if (is_array($this->config['domains'] ?? null)) {
             foreach ($this->config['domains'] as $domain => $distPaths) {
-                // Standardize domain format
-                $domain = format_fqdn($domain);
-                if (is_fqdn($domain, true) && is_array($distPaths)) {
+                $domain = NetworkUtil::formatFqdn($domain);
+                if (NetworkUtil::isFqdn($domain, true) && is_array($distPaths)) {
                     foreach ($distPaths as $relativePath => $distCode) {
-                        // Validate the distributor directory has the configuration file
+                        // Recursively validate distributor identifiers and register them
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
                             if (is_string($distIdentifier)) {
+                                // Validate distributor identifier format: code[@tag]
                                 if (preg_match('/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i', $distIdentifier)) {
                                     if (isset($this->distributors[$distIdentifier])) {
+                                        // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
                                     } else {
                                         [$code, $tag] = explode('@', $distIdentifier . '@', 2);
 
-                                        // Check if the distributor folder is existing
-                                        $distConfigPath = append(SITES_FOLDER, $code, 'dist.php');
+                                        // Verify the distributor's config file (dist.php) exists
+                                        $distConfigPath = PathUtil::append(SITES_FOLDER, $code, 'dist.php');
                                         if (is_file($distConfigPath)) {
                                             $this->multisite[$domain] = $this->multisite[$domain] ?? [];
                                             $this->multisite[$domain][$urlPath] = $distIdentifier;
@@ -206,9 +314,10 @@ class Application
                                     }
                                 }
                             } elseif (is_array($distIdentifier)) {
+                                // Nested distributor definitions: recurse with appended URL path
                                 foreach ($distIdentifier as $subPath => $identifier) {
                                     // Load the list of distributor recursively
-                                    $validate($identifier, append($urlPath, $subPath));
+                                    $validate($identifier, PathUtil::append($urlPath, $subPath));
                                 }
                             }
                         })($distCode, $relativePath);
@@ -219,12 +328,26 @@ class Application
 
         if (count($this->multisite)) {
             foreach ($this->multisite as $domain => &$distPaths) {
-                // Sort the url path for priority match
-                sort_path_level($distPaths);
+                // Sort URL paths by depth so deeper paths are matched before shallower ones
+                StringUtil::sortPathLevel($distPaths);
             }
         }
 
         return $this;
+    }
+
+    /**
+     * Ensure the application is initialized (lazy deferred from constructor).
+     * This loads config and sets up multisite mappings on first call.
+     *
+     * @throws Throwable
+     */
+    private function ensureInitialized(): void
+    {
+        if (!$this->initialized) {
+            $this->initialize();
+            $this->initialized = true;
+        }
     }
 
     /**
@@ -235,7 +358,7 @@ class Application
     private function initialize(): void
     {
         if (!defined('SYSTEM_ROOT')) {
-            throw new Error('SYSTEM_ROOT is not defined, initialize failed.');
+            throw new ConfigurationException('SYSTEM_ROOT is not defined, initialize failed.');
         }
 
         // Load the site configuration file
@@ -252,7 +375,7 @@ class Application
      */
     public function loadSiteConfig(): array
     {
-        $configFilePath = append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
+        $configFilePath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
 
         // Load default config setting
         $this->config = [
@@ -271,7 +394,7 @@ class Application
                     ];
                 }
 
-                $rewriteFilePath = append(SYSTEM_ROOT, '.htaccess');
+                $rewriteFilePath = PathUtil::append(SYSTEM_ROOT, '.htaccess');
                 if (is_file($rewriteFilePath)) {
                     if (!isset($this->protection['rewrite_file'])) {
                         $this->protection['rewrite_file'] = [
@@ -282,7 +405,7 @@ class Application
                 }
             }
         } catch (Exception $e) {
-            exit;
+            throw new ConfigurationException('Failed to load site configuration: ' . $configFilePath, $e);
         }
 
         if (!is_array($this->config['domains'] ?? null)) {
@@ -302,13 +425,13 @@ class Application
      * @param string $urlQuery The URL query string
      * @return bool Return true if Distributor is matched
      *
-     * @throws Error
+     * @throws ConfigurationException
      * @throws Throwable
      */
     public function query(string $urlQuery): bool
     {
         if (!$this->domain) {
-            throw new Error('No domain was matched that no query is allowed.');
+            throw new ConfigurationException('No domain was matched that no query is allowed.');
         }
         $distributor = $this->domain->matchQuery($urlQuery);
         if (null === $distributor) {
@@ -316,7 +439,7 @@ class Application
         }
 
         if (!$distributor->matchRoute()) {
-            Error::Show404();
+            Error::show404();
         }
 
         return true;
@@ -331,82 +454,38 @@ class Application
      */
     public function updateRewriteRules(): bool
     {
+        $this->ensureInitialized();
         if (!self::$locked) {
-            $source = Template::LoadFile(PHAR_PATH . '/asset/setup/htaccess.tpl');
-            $rootBlock = $source->getRoot();
+            $compiler = new Routing\RewriteRuleCompiler();
+            $outputPath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess');
+            return $compiler->compile($this->multisite, $this->alias, $outputPath);
+        }
 
-            foreach ($this->distributors as $info) {
-                $domains = $info['domain'];
-                foreach ($domains as $domain) {
-                    $staticDomain = $domain;
-                    $domain = preg_quote($domain);
+        return true;
+    }
 
-                    try {
-                        $distributor = new Distributor($info['code'], $info['tag']);
-                        $distributor->initialize(true);
-                        $modules = $distributor->getModules();
-
-                        if (!preg_match('/:\d+$/', $domain)) {
-                            $domain .= '(:\d+)?';
-                        }
-                        $domainBlock = $rootBlock->newBlock('domain', $domain)->assign([
-                            'domain' => $domain,
-                            'system_root' => SYSTEM_ROOT,
-                        ]);
-
-                        $dataMapping = $distributor->getDataMapping();
-                        if (!count($dataMapping) || !isset($dataMapping['/'])) {
-                            $domainBlock->newBlock('data_mapping')->assign([
-                                'system_root' => SYSTEM_ROOT,
-                                'distributor_path' => $info['code'],
-                                'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
-                                'data_path' => append('data', $staticDomain . '-' . $distributor->getCode(), '$1'),
-                            ]);
-                        }
-                        foreach ($dataMapping as $path => $site) {
-                            $domainBlock->newBlock('data_mapping')->assign([
-                                'system_root' => SYSTEM_ROOT,
-                                'distributor_path' => $site['dist'],
-                                'route_path' => ltrim((($path === '/') ? $info['url_path'] : $info['url_path'] . '/' . $path) . '/', '/'),
-                                'data_path' => append('data', $site['domain'] . '-' . $site['dist'], '$1'),
-                            ]);
-                        }
-
-                        foreach ($modules as $module) {
-                            $moduleInfo = $module->getModuleInfo();
-                            if (is_dir(append($moduleInfo->getPath(), 'webassets'))) {
-                                $domainBlock->newBlock('webassets')->assign([
-                                    'system_root' => SYSTEM_ROOT,
-                                    'dist_path' => ltrim(tidy(append($moduleInfo->getContainerPath(true), '$1', 'webassets', '$2'), false, '/'), '/'),
-                                    'route_path' => ($info['url_path'] === '/') ? '' : ltrim($info['url_path'] . '/', '/'),
-                                    'mapping' => $moduleInfo->getClassName(),
-                                ]);
-                            }
-                        }
-/*
-                        $routes = $distributor->getRoutes();
-                        foreach ($routes as $routePath => $config) {
-                            $routePath = rtrim(append($info['url_path'], $routePath), '/');
-                            if ($config['type'] === 'standard') {
-                                $routePath = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
-                                    $regex = (strlen($matches[2] ?? '')) > 0 ? $matches[2] : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
-                                    return $regex . ((0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+');
-                                }, $routePath);
-                            }
-                            $domainBlock->newBlock('route')->assign([
-                                'system_root' => SYSTEM_ROOT,
-                                'route_path' => append(SYSTEM_ROOT, $routePath),
-                            ]);
-                        }
-*/
-                    } catch (Exception) {
-                        return false;
-                    }
-                }
-            }
-
-            file_put_contents(append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess'), $source->output());
-            return true;
+    /**
+     * Generate a Caddyfile from the current multisite configuration.
+     *
+     * Produces a Caddy-compatible configuration file with site blocks for each
+     * domain, webasset handlers, data mapping, and FrankenPHP worker mode
+     * directives. This is the Caddy equivalent of updateRewriteRules().
+     *
+     * @param bool   $workerMode   Whether to enable FrankenPHP worker mode (default: true)
+     * @param string $documentRoot The server document root path (default: '/app/public')
+     *
+     * @return bool True on success
+     *
+     * @throws Error
+     * @throws Throwable
+     */
+    public function updateCaddyfile(bool $workerMode = true, string $documentRoot = '/app/public'): bool
+    {
+        $this->ensureInitialized();
+        if (!self::$locked) {
+            $compiler = new Routing\CaddyfileCompiler();
+            $outputPath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'Caddyfile');
+            return $compiler->compile($this->multisite, $this->alias, $outputPath, $workerMode, $documentRoot);
         }
 
         return true;
@@ -423,10 +502,10 @@ class Application
     public function writeSiteConfig(?array $config = null): bool
     {
         if (!self::$locked) {
-            $configFilePath = append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
+            $configFilePath = PathUtil::append(defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'sites.inc.php');
 
             // Write the config file
-            $source = Template::LoadFile(PHAR_PATH . '/asset/setup/sites.inc.php.tpl');
+            $source = Template::loadFile(PHAR_PATH . '/asset/setup/sites.inc.php.tpl');
             $root = $source->getRoot();
 
             $config = $config ?? $this->config;
@@ -482,6 +561,10 @@ class Application
     public function dispose(): static
     {
         $this->domain?->dispose();
+        if ($this->standaloneDistributor) {
+            $this->standaloneDistributor->getRegistry()->dispose();
+            $this->standaloneDistributor = null;
+        }
         self::$locked = false;
         return $this;
     }
@@ -495,6 +578,7 @@ class Application
      */
     public function hasDistributor(string $code): bool
     {
+        $this->ensureInitialized();
         return isset($this->distributors[$code]);
     }
 
@@ -506,17 +590,18 @@ class Application
      *
      * @return bool
      *
-     * @throws Error
+     * @throws ConfigurationException
      * @throws Throwable
      */
     public function compose(string $code, callable $closure): bool
     {
         $code = trim($code);
         if ($this->hasDistributor($code)) {
-            return (new Distributor($code))->initialize(true)->compose($closure(...));
+            $distributor = (new Distributor($code))->initialize(true);
+            return $distributor->getPrerequisites()->compose($closure(...));
         }
 
-        throw new Error('Distributor `' . $code . '` is not found.');
+        throw new ConfigurationException('Distributor `' . $code . '` is not found.');
     }
 
     /**
@@ -527,6 +612,19 @@ class Application
     static public function Lock(): void
     {
         self::$locked = true;
+    }
+
+    /**
+     * Unlock the Application for worker mode (reset state between requests)
+     * Only used in Caddy/FrankenPHP worker mode
+     *
+     * @return void
+     */
+    static public function UnlockForWorker(): void
+    {
+        if (defined('WORKER_MODE') && WORKER_MODE) {
+            self::$locked = false;
+        }
     }
 
     /**

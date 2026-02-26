@@ -9,46 +9,86 @@
  */
 
 namespace Razy\Database;
-
-use Closure;
-use Couchbase\View;
-use Razy\Controller;
 use Razy\Database;
 use Razy\Database\Statement\Builder;
-use Razy\Error;
+use Razy\Database\Statement\DeleteSyntaxBuilder;
+use Razy\Database\Statement\InsertSyntaxBuilder;
+use Razy\Database\Statement\SelectSyntaxBuilder;
+use Razy\Database\Statement\StatementType;
+use Razy\Database\Statement\UpdateSyntaxBuilder;
+use Razy\Exception\QueryException;
 use Razy\PluginTrait;
 use Razy\SimpleSyntax;
-use ReflectionClass;
 use Throwable;
 use function preg_match;
-use function Razy\append;
-use function Razy\tidy;
-
+/**
+ * Class Statement
+ *
+ * Builds and executes SQL statements (SELECT, INSERT, UPDATE, DELETE) using
+ * a fluent interface. Supports Where Simple Syntax, TableJoin Simple Syntax,
+ * Update Simple Syntax, parameterized queries, sub-queries, grouping, ordering,
+ * pagination, and result parsing/collection.
+ *
+ * @package Razy
+ * @license MIT
+ */
 class Statement
 {
     use PluginTrait;
 
+    /** @var string Regex pattern for validating column names (backtick-quoted or alpha-start identifiers) */
     const REGEX_COLUMN = '/^(?:`(?:(?:\\\\.(*SKIP)(*FAIL)|.)+|\\\\[\\\\`])+`|[a-z]\w*)$/';
 
+    /** @var array Column names used in INSERT/DELETE statements */
     private array $columns = [];
-    private array $collects = [];
-    private array $collections = [];
+
+    /** @var int Number of rows to fetch (LIMIT length), 0 for unlimited */
     private int $fetchLength = 0;
+
+    /** @var array GROUP BY column expressions */
     private array $groupby = [];
+
+    /** @var WhereSyntax|null HAVING clause syntax parser */
     private ?WhereSyntax $havingSyntax = null;
-    private bool $once = false;
+
+    /** @var array ORDER BY column expressions with direction */
     private array $orderby = [];
+
+    /** @var array Parameter values bound to the statement for value substitution */
     private array $parameters = [];
-    private ?Closure $parser = null;
+
+    /** @var int Starting position for LIMIT/OFFSET */
     private int $position = 0;
+
+    /** @var array SELECT column expressions (defaults to ['*']) */
     private array $selectColumns;
+
+    /** @var TableJoinSyntax|null FROM clause with table join definitions */
     private ?TableJoinSyntax $tableJoinSyntax = null;
+
+    /** @var string The resolved table name (with prefix) for INSERT/UPDATE/DELETE */
     private string $tableName;
-    private string $type = '';
+
+    /** @var StatementType|null Statement type, null when not yet configured */
+    private ?StatementType $type = null;
+
+    /** @var array Parsed update expressions keyed by column name */
     private array $updateSyntax = [];
+
+    /** @var WhereSyntax|null WHERE clause syntax parser */
     private ?WhereSyntax $whereSyntax = null;
+
+    /** @var array Columns to check for duplicate key in upsert operations */
     private array $onDuplicateKey = [];
+
+    /** @var Builder|null Active statement builder plugin instance */
     private ?Builder $builderPlugin = null;
+
+    /** @var StatementExecutor The executor for running queries */
+    private StatementExecutor $executor;
+
+    /** @var LazyResultSet The result set handler for lazy-loading and result processing */
+    private LazyResultSet $resultSet;
 
     /**
      * Statement constructor.
@@ -60,9 +100,11 @@ class Statement
     {
         $this->sql = trim($this->sql);
         if ($this->sql) {
-            $this->type = 'sql';
+            $this->type = StatementType::Raw;
         }
         $this->selectColumns = ['*'];
+        $this->executor = new StatementExecutor($this->database, $this);
+        $this->resultSet = new LazyResultSet($this->executor);
     }
 
     /**
@@ -74,15 +116,15 @@ class Statement
      * @return string
      * @throws Error
      */
-    public static function GetSearchTextSyntax(string $parameter, array $columns): string
+    public static function getSearchTextSyntax(string $parameter, array $columns): string
     {
         $syntax = [];
         $parameter = trim($parameter);
         if (!$parameter) {
-            throw new Error('The parameter is required');
+            throw new QueryException('The parameter is required');
         }
         foreach ($columns as $column) {
-            $column = self::StandardizeColumn($column);
+            $column = self::standardizeColumn($column);
             if ($column) {
                 $syntax[] = $column . '*=:' . $parameter;
             }
@@ -98,14 +140,18 @@ class Statement
      *
      * @return string
      */
-    public static function StandardizeColumn(string $column): string
+    public static function standardizeColumn(string $column): string
     {
         $column = trim($column);
+        // Match column syntax: optional table alias prefix, column name (backtick-quoted or identifier),
+        // with optional JSON path operator (-> or ->>)
         if (preg_match('/^((`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
             if (isset($matches[3]) && preg_match('/^[a-z]\w*$/', $matches[3])) {
+                // Column with table alias: quote the column part
                 return $matches[2] . '.`' . trim($matches[3]) . '`';
             }
             if (preg_match('/^[a-z]\w*$/', $matches[2])) {
+                // Standalone column name: wrap in backticks
                 return '`' . trim($matches[2]) . '`';
             }
         }
@@ -127,10 +173,14 @@ class Statement
     }
 
     /**
-     * @param string $builderName
-     * @param mixed ...$arguments
-     * @return Builder|null
-     * @throws Error
+     * Instantiate and initialize a Builder plugin by name.
+     * Builders extend statement construction with custom SQL generation logic.
+     *
+     * @param string $builderName The registered builder plugin name
+     * @param mixed ...$arguments Arguments passed to the builder factory
+     *
+     * @return Builder|null The initialized builder instance
+     * @throws Error If the builder cannot be created
      */
     public function builder(string $builderName, ...$arguments): ?Builder
     {
@@ -139,16 +189,17 @@ class Statement
             try {
                 return $this->builderPlugin = $plugin['entity'](...$arguments)->init($this);
             } catch (Throwable) {
-                throw new Error('Failed to create builder: ' . $builderName);
+                throw new QueryException('Failed to create builder: ' . $builderName);
             }
         }
-        throw new Error('Failed to create builder: ' . $builderName);
+        throw new QueryException('Failed to create builder: ' . $builderName);
     }
 
     /**
-     * Assign parameters for generating SQL statement.
+     * Assign parameter values used for SQL generation and value substitution.
+     * These parameters are referenced by :name in Where, Update, and Insert syntax.
      *
-     * @param array $parameters
+     * @param array $parameters Associative array of parameter name => value pairs
      *
      * @return $this
      */
@@ -160,12 +211,14 @@ class Statement
     }
 
     /**
-     * Functional FROM syntax with TableJoin Simple Syntax.
+     * Define the FROM clause using TableJoin Simple Syntax.
+     * Sets the statement type to 'select' and initializes the TableJoinSyntax parser.
+     * Accepts either a syntax string or a callable that returns/modifies the syntax.
      *
-     * @param string|callable $syntax A well formatted TableJoin Simple Syntax
+     * @param string|callable $syntax A well formatted TableJoin Simple Syntax string or callable
      *
      * @return $this
-     * @throws Error
+     * @throws Error If the syntax is invalid
      */
     public function from(string|callable $syntax): Statement
     {
@@ -178,7 +231,7 @@ class Statement
         }
 
         $this->tableJoinSyntax->parseSyntax($syntax);
-        $this->type = 'select';
+        $this->type = StatementType::Select;
 
         return $this;
     }
@@ -194,7 +247,8 @@ class Statement
     {
         $syntax = trim($syntax);
 
-        return SimpleSyntax::ParseSyntax($syntax, '+-*/&');
+        // Delegate to SimpleSyntax parser with arithmetic and concatenation operators
+        return SimpleSyntax::parseSyntax($syntax, '+-*/&');
     }
 
     /**
@@ -208,11 +262,49 @@ class Statement
     }
 
     /**
-     * @return Builder|null
+     * Get the currently active Builder plugin, if any.
+     *
+     * @return Builder|null The active builder or null
      */
     public function getBuilder(): ?Builder
     {
         return $this->builderPlugin;
+    }
+
+    /**
+     * Get the TableJoinSyntax (FROM clause) as a string.
+     * Returns the parsed FROM clause without the SELECT part.
+     *
+     * @return string|null The FROM clause syntax, or null if not set
+     * @throws Throwable
+     */
+    public function getFromSyntax(): ?string
+    {
+        return $this->tableJoinSyntax?->getSyntax();
+    }
+
+    /**
+     * Get the WhereSyntax (WHERE clause) as a string.
+     * Returns the parsed WHERE clause without the WHERE keyword.
+     *
+     * @return string|null The WHERE clause syntax, or null if not set
+     * @throws Throwable
+     */
+    public function getWhereSyntax(): ?string
+    {
+        return $this->whereSyntax?->getSyntax();
+    }
+
+    /**
+     * Get the HavingSyntax (HAVING clause) as a string.
+     * Returns the parsed HAVING clause without the HAVING keyword.
+     *
+     * @return string|null The HAVING clause syntax, or null if not set
+     * @throws Throwable
+     */
+    public function getHavingSyntax(): ?string
+    {
+        return $this->havingSyntax?->getSyntax();
     }
 
     /**
@@ -223,183 +315,144 @@ class Statement
      */
     public function getSyntax(): string
     {
-        if ('select' === $this->type) {
-            if (!$this->tableJoinSyntax) {
-                throw new Error('No Table Join Syntax is provided.');
-            }
-            $tableJoinSyntax = $this->tableJoinSyntax->getSyntax();
-
-            $sql = 'SELECT ' . implode(', ', $this->selectColumns) . ' FROM ' . $tableJoinSyntax;
-            if ($this->whereSyntax) {
-                $syntax = $this->whereSyntax->getSyntax();
-                if ($syntax) {
-                    $sql .= ' WHERE ' . $syntax;
-                }
-            }
-
-            if (count($this->groupby)) {
-                $sql .= ' GROUP BY ' . implode(', ', $this->groupby);
-            }
-
-            if ($this->havingSyntax) {
-                $syntax = $this->havingSyntax->getSyntax();
-                if ($syntax) {
-                    $sql .= ' HAVING ' . $syntax;
-                }
-            }
-
-            if (count($this->orderby)) {
-                foreach ($this->orderby as &$orderby) {
-                    if (is_array($orderby)) {
-                        $orderby = $orderby['syntax']->parseSyntax($orderby['column'])->getSyntax() . ' ' . $orderby['ordering'];
-                    }
-                }
-                $sql .= ' ORDER BY ' . implode(', ', $this->orderby);
-            }
-
-            if ($this->fetchLength == 0 && $this->position > 0) {
-                $sql .= ' LIMIT ' . $this->position;
-            } elseif ($this->fetchLength > 0) {
-                $sql .= ' LIMIT ' . $this->position . ', ' . $this->fetchLength;
-            }
-
-            return $sql;
-        }
-
-        if ('update' == $this->type) {
-            if ($this->tableName && !empty($this->updateSyntax)) {
-                $updateSyntax = [];
-                foreach ($this->updateSyntax as $column => $syntax) {
-                    $updateSyntax[] = '`' . $column . '` = ' . $this->getUpdateSyntax($syntax, $column);
-                }
-
-                $sql = 'UPDATE ' . $this->tableName . ' SET ' . implode(', ', $updateSyntax);
-                if ($this->whereSyntax) {
-                    $syntax = $this->whereSyntax->getSyntax();
-                    if ($syntax) {
-                        $sql .= ' WHERE ' . $syntax;
-                    }
-                }
-
-                return $sql;
-            }
-
-            throw new Error('Missing update syntax.');
-        } elseif ('insert' == $this->type || 'replace' == $this->type) {
-            if ($this->tableName && !empty($this->columns)) {
-                $sql = strtoupper($this->type) . ' INTO ' . $this->tableName . ' (`' . implode('`, `', $this->columns) . '`) VALUES (';
-                $values = [];
-                foreach ($this->columns as $column) {
-                    $values[] = $this->getValueAsStatement($column);
-                }
-                $sql .= implode(', ', $values) . ')';
-
-                if (count($this->onDuplicateKey)) {
-                    $duplicatedKeys = [];
-                    foreach ($this->onDuplicateKey as $column) {
-                        if (is_string($column)) {
-                            $duplicatedKeys[] = '`' . $column . '` = ' . $this->getValueAsStatement($column);
-                        }
-                    }
-
-                    if (count($duplicatedKeys)) {
-                        $sql .= ' ON DUPLICATE KEY UPDATE ' . implode(', ', $duplicatedKeys);
-                    }
-                }
-                return $sql;
-            }
-
-            throw new Error('Invalid insert statement or no columns has provided.');
-        } elseif ('delete' == $this->type) {
-            if ($this->tableName && !empty($this->columns)) {
-                $sql = 'DELETE FROM ' . $this->tableName;
-                if ($this->whereSyntax) {
-                    $syntax = $this->whereSyntax->getSyntax();
-                    if ($syntax) {
-                        $sql .= ' WHERE ' . $syntax;
-                    }
-                }
-                return $sql;
-            }
-
-            throw new Error('Invalid delete statement.');
-        }
-
-        return $this->sql;
-    }
-
-    /**
-     * Generate the UPDATE statement.
-     *
-     * @param array $updateSyntax
-     * @param string $column
-     *
-     * @return string
-     * @throws Error
-     */
-    private function getUpdateSyntax(array $updateSyntax, string $column): string
-    {
-        $parser = function (array &$extracted) use (&$parser, $column) {
-            $parsed = [];
-            $operand = '';
-            while ($clip = array_shift($extracted)) {
-                if (is_array($clip)) {
-                    if ('&' === $operand) {
-                        $merged = implode(', ', $parsed) . ', ';
-                        $parsed = ['CONCAT(' . $merged . $parser($clip) . ')'];
-                    } else {
-                        $parsed[] = '(' . $parser($clip) . ')';
-                    }
-                } else {
-                    if (!preg_match('/^[+\-*\/&]$/', $clip)) {
-                        $matches = null;
-                        if ('?' === $clip || preg_match('/^:(\w+)$/', $clip, $matches)) {
-                            $clip = $this->getValueAsStatement(('?' === $clip) ? $column : $matches[1]);
-                        } else {
-                            $clip = preg_replace_callback('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|:(\w+)/', function ($matches) {
-                                return $this->getValueAsStatement($matches[3]);
-                            }, $clip);
-                        }
-
-                        if ('&' === $operand) {
-                            $merged = implode(', ', $parsed) . ', ';
-                            $parsed = ['CONCAT(' . $merged . $clip . ')'];
-                        } else {
-                            $parsed[] = $clip;
-                        }
-                    } else {
-                        throw new Error('Cannot generate the update statement because the Update Simple Syntax is not correct.');
-                    }
-                }
-
-                $operand = array_shift($extracted);
-                if ($operand) {
-                    if (!is_string($operand) || !preg_match('/^[+\-*\/&]$/', $operand)) {
-                        throw new Error('Cannot generate the update statement because the Update Simple Syntax is not correct.');
-                    }
-
-                    if ('&' !== $operand) {
-                        $parsed[] = $operand;
-                    }
-                }
-            }
-
-            return implode(' ', $parsed);
+        return match ($this->type) {
+            StatementType::Select => (new SelectSyntaxBuilder())->buildSyntax($this),
+            StatementType::Update => (new UpdateSyntaxBuilder())->buildSyntax($this),
+            StatementType::Insert, StatementType::Replace => (new InsertSyntaxBuilder())->buildSyntax($this),
+            StatementType::Delete => (new DeleteSyntaxBuilder())->buildSyntax($this),
+            default => $this->sql,
         };
-
-        $extracted = $updateSyntax;
-
-        return $parser($extracted);
     }
 
     /**
-     * Get the value as a string for statement.
+     * Get the SELECT column expressions array.
      *
-     * @param string $column
+     * @return array
+     *
+     * @internal Used by syntax builders
+     */
+    public function getSelectColumnsArray(): array
+    {
+        return $this->selectColumns;
+    }
+
+    /**
+     * Get the GROUP BY column expressions array.
+     *
+     * @return array
+     *
+     * @internal Used by syntax builders
+     */
+    public function getGroupByArray(): array
+    {
+        return $this->groupby;
+    }
+
+    /**
+     * Get the ORDER BY expressions array.
+     *
+     * @return array
+     *
+     * @internal Used by syntax builders
+     */
+    public function getOrderByArray(): array
+    {
+        return $this->orderby;
+    }
+
+    /**
+     * Get the LIMIT fetch length.
+     *
+     * @return int
+     *
+     * @internal Used by syntax builders
+     */
+    public function getFetchLength(): int
+    {
+        return $this->fetchLength;
+    }
+
+    /**
+     * Get the LIMIT offset position.
+     *
+     * @return int
+     *
+     * @internal Used by syntax builders
+     */
+    public function getPosition(): int
+    {
+        return $this->position;
+    }
+
+    /**
+     * Get the resolved table name (with prefix).
      *
      * @return string
+     *
+     * @internal Used by syntax builders
      */
-    private function getValueAsStatement(string $column): string
+    public function getTableName(): string
+    {
+        return $this->tableName;
+    }
+
+    /**
+     * Get the column names for INSERT/DELETE.
+     *
+     * @return array
+     *
+     * @internal Used by syntax builders
+     */
+    public function getColumnsArray(): array
+    {
+        return $this->columns;
+    }
+
+    /**
+     * Get the parsed update expressions.
+     *
+     * @return array
+     *
+     * @internal Used by syntax builders
+     */
+    public function getUpdateExpressions(): array
+    {
+        return $this->updateSyntax;
+    }
+
+    /**
+     * Get the ON DUPLICATE KEY columns for upsert.
+     *
+     * @return array
+     *
+     * @internal Used by syntax builders
+     */
+    public function getOnDuplicateKey(): array
+    {
+        return $this->onDuplicateKey;
+    }
+
+    /**
+     * Get the raw type string for INSERT vs REPLACE distinction.
+     *
+     * @return string
+     *
+     * @internal Used by InsertSyntaxBuilder
+     */
+    public function getRawType(): string
+    {
+        return $this->type?->value ?? '';
+    }
+
+    /**
+     * Convert a column's assigned parameter value into its SQL literal representation.
+     * Handles NULL, boolean, array (JSON), string, and numeric values.
+     *
+     * @param string $column The parameter/column name to look up
+     *
+     * @return string The SQL literal value
+     */
+    public function getValueAsStatement(string $column): string
     {
         $value = $this->getValue($column);
         if ($value === null) {
@@ -416,7 +469,12 @@ class Statement
         }
 
         if (is_scalar($value)) {
-            return (is_string($value)) ? '\'' . addslashes($value) . '\'' : $value;
+            if (is_string($value)) {
+                // Use PDO::quote() for safe SQL escaping instead of addslashes()
+                $adapter = $this->database->getDBAdapter();
+                return $adapter->quote($value);
+            }
+            return $value;
         }
 
         return '\'\'';
@@ -424,10 +482,11 @@ class Statement
 
     /**
      * Get the assigned parameter value by given name.
+     * Returns null if the parameter doesn't exist or is explicitly null.
      *
-     * @param string $name
+     * @param string $name The parameter name
      *
-     * @return null|mixed
+     * @return null|mixed The parameter value or null
      */
     public function getValue(string $name): mixed
     {
@@ -435,9 +494,43 @@ class Statement
     }
 
     /**
-     * Set the group by syntax.
+     * Merge additional parameters into the existing parameter set.
      *
-     * @param string $syntax
+     * @param array $parameters Parameters to merge
+     *
+     * @return void
+     * @internal Used by StatementExecutor
+     */
+    public function mergeParameters(array $parameters): void
+    {
+        $this->parameters = array_merge($this->parameters, $parameters);
+    }
+
+    /**
+     * Get the StatementExecutor instance for direct execution access.
+     *
+     * @return StatementExecutor
+     */
+    public function getExecutor(): StatementExecutor
+    {
+        return $this->executor;
+    }
+
+    /**
+     * Get the LazyResultSet instance for direct result processing access.
+     *
+     * @return LazyResultSet
+     */
+    public function getResultSet(): LazyResultSet
+    {
+        return $this->resultSet;
+    }
+
+    /**
+     * Set the GROUP BY clause from a comma-separated list of column expressions.
+     * Each column name is standardized (backtick-quoted if bare identifier).
+     *
+     * @param string $syntax Comma-separated column names for grouping
      *
      * @return $this
      */
@@ -445,9 +538,10 @@ class Statement
     {
         $clips = preg_split('/\s*,\s*/', $syntax);
 
+        // Standardize each column name and add to GROUP BY list
         $this->groupby = [];
         foreach ($clips as &$column) {
-            $column = self::StandardizeColumn($column);
+            $column = self::standardizeColumn($column);
             $this->groupby[] = trim($column);
         }
 
@@ -466,13 +560,14 @@ class Statement
      */
     public function insert(string $tableName, array $columns, array $duplicateKeys = []): Statement
     {
-        $this->type = 'insert';
+        $this->type = StatementType::Insert;
         $tableName = trim($tableName);
         if (!$tableName) {
-            throw new Error('The table name cannot be empty.');
+            throw new QueryException('The table name cannot be empty.');
         }
         $this->tableName = $this->getPrefix() . $tableName;
 
+        // Validate and normalize column names, stripping backticks from quoted names
         foreach ($columns as $index => &$column) {
             $column = trim($column);
             if (preg_match('/^(?:`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)$/', $column)) {
@@ -489,9 +584,9 @@ class Statement
     }
 
     /**
-     * Get the table prefix.
+     * Get the database table name prefix from the parent Database instance.
      *
-     * @return string
+     * @return string The configured table prefix, or empty string
      */
     public function getPrefix(): string
     {
@@ -499,182 +594,102 @@ class Statement
     }
 
     /**
-     * Execute the statement and fetch the first result.
+     * Execute the statement, fetch the first row, and optionally apply the parser callback.
+     * If the parser is set to 'once' mode, it will be cleared after this call.
      *
-     * @param array $parameters
+     * @param array $parameters Optional parameters to merge into the statement
      *
-     * @return mixed
+     * @return mixed The first result row (possibly transformed by parser), or false/null
      * @throws Throwable
      */
     public function lazy(array $parameters = []): mixed
     {
-        $result = $this->query($parameters)->fetch();
-        if ($result) {
-            $parser = $this->parser;
-            if (is_callable($parser)) {
-                $parser($result);
-            }
-        }
-
-        // If the parser set only execute once, reset the parser.
-        if ($this->once) {
-            $this->once = false;
-            $this->parser = null;
-        }
-
-        return $result;
+        return $this->resultSet->lazy($parameters);
     }
 
 
     /**
-     * Execute the statement and return the Query instance.
+     * Execute the statement and return the Query instance for row-by-row fetching.
+     * Merges any provided parameters with existing ones before execution.
      *
-     * @param array $parameters
+     * @param array $parameters Optional parameters to merge before execution
      *
-     * @return Query
-     * @throws Throwable
+     * @return Query The query result wrapper for fetching rows
+     * @throws Throwable If execution fails
      */
     public function query(array $parameters = []): Query
     {
-        if (count($parameters)) {
-            $this->parameters = array_merge($this->parameters, $parameters);
-        }
-
-        return $this->database->execute($this);
+        return $this->executor->query($parameters);
     }
 
     /**
-     * @param string $viewTableName
-     * @param array $parameters
-     * @return bool
+     * Create a database view from this SELECT statement.
+     *
+     * @param string $viewTableName The name for the new view
+     * @param array $parameters Optional parameters to merge into the statement
+     *
+     * @return bool True if the view was created successfully
      * @throws Error
      * @throws Throwable
      */
     public function createViewTable(string $viewTableName, array $parameters = []): bool
     {
-        if (count($parameters)) {
-            $this->parameters = array_merge($this->parameters, $parameters);
-        }
-
-        return $this->database->createViewTable($this, $viewTableName);
+        return $this->executor->createViewTable($viewTableName, $parameters);
     }
 
     /**
-     * Get the collection after fetch query
+     * Get the collected values for a specific column after executing a query with collect().
+     * Returns the accumulated values gathered during lazyGroup() execution.
      *
-     * @param string $name
-     * @return array|null
+     * @param string $name The column name that was collected
+     *
+     * @return array|null The collected values, or null if the column was not collected
      */
     public function getCollection(string $name): ?array
     {
-        return $this->collections[$name] ?? null;
+        return $this->resultSet->getCollection($name);
     }
 
     /**
-     * Execute the statement and return the result by group if the column is given.
+     * Execute the statement and return all results, optionally grouped by a column.
+     * Supports stacking (multiple rows per group key) and collecting column values.
      *
-     * @param array $parameters An array contains the parameter
-     * @param string $column The key of the group result
-     * @param bool $stackable Group all result with same column into an array
-     * @param string $stackColumn The key of the stacked result
+     * @param array $parameters An array of parameter values to merge
+     * @param string $column Column name to use as array key for grouping results
+     * @param bool $stackable When true, groups with the same key collect into arrays
+     * @param string $stackColumn When stacking, use this column as the sub-key within each group
      *
-     * @return array
+     * @return array The result set, optionally grouped and keyed
      * @throws Throwable
      */
     public function &lazyGroup(array $parameters = [], string $column = '', bool $stackable = false, string $stackColumn = ''): array
     {
-        $result = [];
-        $query = $this->query($parameters);
-        while ($row = $query->fetch()) {
-            $parser = $this->parser;
-            if (is_callable($parser)) {
-                $parser($row);
-            }
-
-            if (count($this->collects)) {
-                foreach ($this->collects as $name => $isUnique) {
-                    if (array_key_exists($name, $row)) {
-                        $this->collections[$name] = $this->collections[$name] ?? [];
-                        if ($isUnique) {
-                            $this->collections[$name][$row[$name]] = true;
-                        } else {
-                            $this->collections[$name][] = $row[$name];
-                        }
-                    }
-                }
-            }
-
-            if (!$column || !array_key_exists($column, $row)) {
-                $result[] = $row;
-            } else {
-                if ($stackable) {
-                    if (!isset($result[$row[$column]])) {
-                        $result[$row[$column]] = [];
-                    }
-
-                    if (!$stackColumn || !array_key_exists($stackColumn, $row)) {
-                        $result[$row[$column]][] = $row;
-                    } else {
-                        $result[$row[$column]][$row[$stackColumn]] = $row;
-                    }
-                } else {
-                    $result[$row[$column]] = $row;
-                }
-            }
-        }
-
-        // If the parser set only execute once, reset the parser.
-        if ($this->once) {
-            $this->once = false;
-            $this->parser = null;
-        }
-
-        return $result;
+        return $this->resultSet->lazyGroup($parameters, $column, $stackable, $stackColumn);
     }
 
     /**
-     * Execute the statement and group the result as the key value pair.
+     * Execute the statement and build a key-value pair array from two columns.
      *
-     * @param string $keyColumn
-     * @param string $valueColumn
-     * @param array $parameters
+     * @param string $keyColumn The column to use as array keys
+     * @param string $valueColumn The column to use as array values
+     * @param array $parameters Optional parameters to merge
      *
-     * @return array
-     * @throws Error
+     * @return array Associative array of key => value pairs
+     * @throws Error If column names are empty or not found in results
      * @throws Throwable
      */
     public function lazyKeyValuePair(string $keyColumn, string $valueColumn, array $parameters = []): array
     {
-        $keyColumn = trim($keyColumn);
-        $valueColumn = trim($valueColumn);
-        if (!$valueColumn || !$keyColumn) {
-            throw new Error('The key or value column name cannot be empty.');
-        }
-        $result = [];
-        $query = $this->query($parameters);
-        while ($row = $query->fetch()) {
-            $parser = $this->parser;
-            if (is_callable($parser)) {
-                $parser($row);
-            }
-
-            if (!array_key_exists($keyColumn, $row)) {
-                throw new Error('The key column `' . $keyColumn . '` cannot found in fetched result.');
-            }
-            if (!array_key_exists($valueColumn, $row)) {
-                throw new Error('The value column `' . $valueColumn . '` cannot found in fetched result.');
-            }
-            $result[$row[$keyColumn]] = $row[$valueColumn];
-        }
-
-        return $result;
+        return $this->resultSet->lazyKeyValuePair($keyColumn, $valueColumn, $parameters);
     }
 
     /**
-     * Set the fetch count and position.
+     * Set the LIMIT/OFFSET for query result pagination.
+     * When fetchLength is 0, position is treated as the total row limit.
+     * When fetchLength > 0, position is the offset and fetchLength is the count.
      *
-     * @param int $position
-     * @param int $fetchLength
+     * @param int $position The starting offset, or total limit when fetchLength is 0
+     * @param int $fetchLength The number of rows to fetch (0 = use position as limit)
      *
      * @return Statement
      */
@@ -687,16 +702,17 @@ class Statement
     }
 
     /**
-     * Set the order by syntax.
+     * Set the ORDER BY clause using Simple Syntax.
+     * Supports optional direction prefixes: '<' for ASC, '>' for DESC.
      *
-     * @param string $syntax
+     * @param string $syntax Comma-separated column expressions with optional direction prefix
      *
      * @return $this
      * @throws Error|Throwable
      */
     public function order(string $syntax): Statement
     {
-        $clips = SimpleSyntax::ParseSyntax($syntax, ',', '', null, true);
+        $clips = SimpleSyntax::parseSyntax($syntax, ',', '', null, true);
 
         $this->orderby = [];
         foreach ($clips as $column) {
@@ -706,7 +722,7 @@ class Statement
                 $column = $matches[2];
             }
 
-            $standardizedColumn = self::StandardizeColumn($column);
+            $standardizedColumn = self::standardizeColumn($column);
             if ($standardizedColumn) {
                 $standardizedColumn .= ('>' === $ordering) ? ' DESC' : ' ASC';
                 $this->orderby[] = $standardizedColumn;
@@ -724,36 +740,34 @@ class Statement
     }
 
     /**
-     * Collect the data from the query result by column name
+     * Register columns to collect values from during query execution.
+     * During lazyGroup() execution, values from these columns are accumulated
+     * into the collections array, optionally ensuring uniqueness.
      *
-     * @param string|array $columns
-     * @param bool|null $isUnique
+     * @param string|array $columns Column name or array of column => isUnique pairs
+     * @param bool|null $isUnique When true, duplicate values are eliminated (uses array keys)
+     *
      * @return $this
      */
     public function collect(string|array $columns, ?bool $isUnique = false): static
     {
-        if (is_array($columns)) {
-            foreach ($columns as $column => $isUnique) {
-                if (is_string($column) && ($column = trim($column))) {
-                    $this->collect($column, $isUnique);
-                }
-            }
-        } else {
-            $this->collects[$columns] = $isUnique;
-        }
+        $this->resultSet->collect($columns, $isUnique);
 
         return $this;
     }
 
     /**
-     * Functional SELECT syntax.
+     * Set the SELECT column expressions for the query.
+     * Columns are split by commas while preserving quoted strings.
+     * Bare identifiers are automatically wrapped in backticks.
      *
-     * @param string $columns a set of columns to be generated as SELECT expression
+     * @param string $columns Comma-separated column expressions for the SELECT clause
      *
      * @return $this
      */
     public function select(string $columns): Statement
     {
+        // Split by commas while preserving quoted strings (single, double, or backtick-quoted)
         $this->selectColumns = preg_split('/(?:(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $columns);
 
         foreach ($this->selectColumns as &$column) {
@@ -764,49 +778,56 @@ class Statement
     }
 
     /**
-     * Set the parser used to parse the fetching data.
+     * Set a callback to transform each fetched row during lazy() and lazyGroup() execution.
+     * When $once is true, the parser is automatically cleared after the first query execution.
      *
-     * @param callable $closure
-     * @param bool $once
+     * @param callable $closure The row transformation callback, receives row array by reference
+     * @param bool $once When true, the parser is removed after a single use
      *
      * @return Statement
      */
     public function setParser(callable $closure, bool $once = false): Statement
     {
-        $this->parser = $closure(...);
-        $this->once = $once;
+        $this->resultSet->setParser($closure, $once);
 
         return $this;
     }
 
     /**
-     * Create a view table by given table name, only select statement is allowed to create view table.
+     * Set the Statement as a DELETE statement. Automatically builds a WHERE clause
+     * from the parameters if no explicit WHERE syntax is provided.
      *
-     * @param string $tableName
-     * @param array $parameters
-     * @param string $whereSyntax
+     * @param string $tableName The table to delete from
+     * @param array $parameters Column => value pairs for condition building
+     * @param string $whereSyntax Optional explicit Where Simple Syntax
+     *
      * @return $this
      * @throws Error
      */
     public function delete(string $tableName, array $parameters = [], string $whereSyntax = ''): static
     {
-        $this->type = 'delete';
+        $this->type = StatementType::Delete;
         $tableName = trim($tableName);
         if (!$tableName) {
-            throw new Error('The table name cannot be empty.');
+            throw new QueryException('The table name cannot be empty.');
         }
+        $this->tableName = $this->getPrefix() . $tableName;
 
         if (count($parameters)) {
             $this->columns = array_keys($parameters);
             $this->whereSyntax = new WhereSyntax($this);
+
+            // Auto-build WHERE conditions: use |= (IN) for arrays, = for scalars
             if (!$whereSyntax) {
+                $conditions = [];
                 foreach ($parameters as $key => $value) {
                     if (is_array($value)) {
-                        $whereSyntax .= ',' . $key . '|=?';
+                        $conditions[] = $key . '|=?';
                     } else {
-                        $whereSyntax .= ',' . $key . '=?';
+                        $conditions[] = $key . '=?';
                     }
                 }
+                $whereSyntax = implode(',', $conditions);
             }
             $this->whereSyntax->parseSyntax($whereSyntax);
             $this->assign($parameters);
@@ -816,32 +837,37 @@ class Statement
     }
 
     /**
-     * Set the Statement as an update statement.
+     * Set the Statement as an UPDATE statement with Update Simple Syntax.
+     * Parses expressions like "column=value", "column+=value", "column++", etc.
      *
-     * @param string $tableName The table name will be updated record
-     * @param array $updateSyntax A set of Update Simple Syntax
+     * @param string $tableName The table to update
+     * @param array $updateSyntax Array of Update Simple Syntax strings
      *
      * @return $this
-     * @throws Error
+     * @throws Error If no valid update syntax provided
      */
     public function update(string $tableName, array $updateSyntax): Statement
     {
-        $this->type = 'update';
+        $this->type = StatementType::Update;
         $tableName = trim($tableName);
         if (!$tableName) {
-            throw new Error('The table name cannot be empty.');
+            throw new QueryException('The table name cannot be empty.');
         }
         $this->tableName = $this->getPrefix() . $tableName;
 
         $this->updateSyntax = [];
         foreach ($updateSyntax as &$syntax) {
             $syntax = trim($syntax);
+            // Match update syntax: column(++|--), column(op)=value, or bare column name
+            // Handles backtick-quoted columns, shorthand increment/decrement, and compound operators (+= -= *= /= &=)
             if (preg_match('/(?:(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\\.(*SKIP)|[^\[\]])*]|\\\\.)(*SKIP)(*FAIL)|^(`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:(\+\+|--)|\s*([+\-*\/&]?=)\s*(.+))?$/', $syntax, $matches)) {
                 $matches[3] = trim($matches[3], '`');
 
                 if (isset($matches[4]) && $matches[4]) {
+                    // Shorthand increment/decrement: column++ or column--
                     $this->updateSyntax[$matches[3]] = ['`' . $matches[3] . '`', ('++' === $matches[4]) ? '+' : '-', 1];
                 } elseif (isset($matches[6])) {
+                    // Assignment with optional operator: column=value or column+=value
                     $shortenSyntax = [];
                     if (2 === strlen($matches[5])) {
                         $operator = $matches[5][0];
@@ -849,25 +875,28 @@ class Statement
                     }
                     $this->updateSyntax[$matches[3]] = array_merge($shortenSyntax, $this->parseSyntax($matches[6]));
                 } else {
+                    // Simple assignment: column (no operator) defaults to parameter reference :column
                     $this->updateSyntax[$matches[3]] = [':' . $matches[3]];
                 }
             }
         }
 
         if (empty($this->updateSyntax)) {
-            throw new Error('There is no update syntax will be executed.');
+            throw new QueryException('There is no update syntax will be executed.');
         }
 
         return $this;
     }
 
     /**
-     * Functional WHERE syntax with Where Simple Syntax.
+     * Define the WHERE clause using Where Simple Syntax.
+     * Creates or reuses a WhereSyntax instance and parses the provided syntax.
+     * Accepts either a syntax string or a callable that returns/modifies the syntax.
      *
-     * @param string|callable $syntax The well formatted Where Simple Syntax
+     * @param string|callable $syntax The Where Simple Syntax string or callable
      *
      * @return Statement
-     * @throws Error
+     * @throws Error If the syntax is invalid
      */
     public function where(string|callable $syntax): Statement
     {
@@ -887,10 +916,10 @@ class Statement
     /**
      * Get the statement syntax type.
      *
-     * @return string
+     * @return string One of: 'sql', 'select', 'insert', 'replace', 'update', 'delete', or empty string
      */
     public function getType(): string
     {
-        return $this->type;
+        return $this->type?->value ?? '';
     }
 }

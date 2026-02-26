@@ -1,5 +1,19 @@
 <?php
 
+/**
+ * Razy Framework — PHAR Build Script
+ *
+ * Builds Razy.phar from the src/ directory and optionally copies it to
+ * one or more target paths.
+ *
+ * Usage:
+ *   php build.php [path1] [path2] ...
+ *
+ * Examples:
+ *   php build.php                                  # Build Razy.phar in project root
+ *   php build.php /var/www/mysite                  # Build and copy to /var/www/mysite/Razy.phar
+ *   php build.php ./site-a ./site-b ../staging     # Build and copy to multiple locations
+ */
 
 try {
     $pharFile = 'Razy.phar';
@@ -37,9 +51,27 @@ try {
     $phar->compressFiles(Phar::GZ);
 
     # Make the file executable
-    chmod(__DIR__ . '/Razy.phar', 0770);
-    copy(__DIR__ . '/Razy.phar', '../development-razy0.4/Razy.phar');
+    if (PHP_OS_FAMILY !== 'Windows') {
+        chmod(__DIR__ . '/' . $pharFile, 0770);
+    }
+
     echo "$pharFile successfully created" . PHP_EOL;
+
+    // Copy to target paths passed as CLI arguments
+    $targets = array_slice($argv, 1);
+    foreach ($targets as $target) {
+        $target = rtrim($target, '/\\');
+        if (!is_dir($target)) {
+            echo "  [SKIP] Directory does not exist: $target" . PHP_EOL;
+            continue;
+        }
+        $dest = $target . DIRECTORY_SEPARATOR . $pharFile;
+        if (copy(__DIR__ . '/' . $pharFile, $dest)) {
+            echo "  [OK]   Copied to $dest" . PHP_EOL;
+        } else {
+            echo "  [FAIL] Could not copy to $dest" . PHP_EOL;
+        }
+    }
 } catch (Exception $e) {
     echo $e->getMessage();
 }

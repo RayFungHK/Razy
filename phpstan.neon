@@ -1,0 +1,13 @@
+parameters:
+    level: 5
+    paths:
+        - src/library/Razy
+    excludePaths:
+        - src/library/Razy/PackageManager  # Transport layer — uses ext-ftp/ext-ssh2 which may not be installed
+    phpVersion: 80200
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # Allow dynamic method calls via __call / __callStatic
+        - '#Call to an undefined method#'
+        # Allow dynamic property access via __get
+        - '#Access to an undefined property#'

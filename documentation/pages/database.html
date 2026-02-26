@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Database</h1>
+    <p>Razy provides a multi-driver database abstraction supporting <strong>MySQL</strong>, <strong>PostgreSQL</strong>, and <strong>SQLite</strong>. The fluent <code>Statement</code> query builder generates safe, parameterised SQL for all CRUD operations. Advanced features include a powerful <code>WhereSyntax</code> for complex conditions, <code>TableJoinSyntax</code> for flexible joins, and shorthand update operators for concise column mutations.</p>
+
+    <!--  -->
+    <h2 id="connecting">Connecting</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database</span>;
+
+<span class="hl-cmt">// Named singleton</span>
+<span class="hl-var">$db</span> = <span class="hl-kw">new</span> <span class="hl-cls">Database</span>(<span class="hl-str">'main'</span>);
+
+<span class="hl-cmt">// MySQL connection</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-str">DRIVER_MYSQL</span>, [
+    <span class="hl-str">'host'</span>     => <span class="hl-str">'127.0.0.1'</span>,
+    <span class="hl-str">'username'</span> => <span class="hl-str">'root'</span>,
+    <span class="hl-str">'password'</span> => <span class="hl-str">'secret'</span>,
+    <span class="hl-str">'database'</span> => <span class="hl-str">'app_db'</span>,
+    <span class="hl-str">'port'</span>     => <span class="hl-num">3306</span>,
+]);
+
+<span class="hl-cmt">// PostgreSQL connection</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-str">DRIVER_PGSQL</span>, [
+    <span class="hl-str">'host'</span>     => <span class="hl-str">'127.0.0.1'</span>,
+    <span class="hl-str">'username'</span> => <span class="hl-str">'postgres'</span>,
+    <span class="hl-str">'password'</span> => <span class="hl-str">'secret'</span>,
+    <span class="hl-str">'database'</span> => <span class="hl-str">'app_db'</span>,
+    <span class="hl-str">'port'</span>     => <span class="hl-num">5432</span>,
+]);
+
+<span class="hl-cmt">// SQLite connection</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-str">DRIVER_SQLITE</span>, [
+    <span class="hl-str">'path'</span> => <span class="hl-str">'/data/app.sqlite'</span>,
+]);</code></pre>
+    <div class="callout callout-info">
+      <strong>Driver Constants:</strong> <code>Database::DRIVER_MYSQL</code>, <code>Database::DRIVER_PGSQL</code>, <code>Database::DRIVER_SQLITE</code>
+    </div>
+
+    <!--  -->
+    <h2 id="select">SELECT Queries</h2>
+    <pre><code><span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">prepare</span>()
+    -><span class="hl-fn">select</span>(<span class="hl-str">'u.id, u.name, u.email'</span>)
+    -><span class="hl-fn">from</span>(<span class="hl-str">'users u'</span>)
+    -><span class="hl-fn">where</span>(<span class="hl-str">'u.active = :active'</span>)
+    -><span class="hl-fn">order</span>(<span class="hl-str">'&lt;u.name'</span>)  <span class="hl-cmt">// &lt; = ASC, &gt; = DESC</span>
+    -><span class="hl-fn">limit</span>(<span class="hl-num">0</span>, <span class="hl-num">20</span>)
+    -><span class="hl-fn">assign</span>([<span class="hl-str">'active'</span> => <span class="hl-num">1</span>]);
+
+<span class="hl-var">$query</span> = <span class="hl-var">$stmt</span>-><span class="hl-fn">query</span>();
+<span class="hl-kw">foreach</span> (<span class="hl-var">$query</span> <span class="hl-kw">as</span> <span class="hl-var">$row</span>) {
+    <span class="hl-fn">echo</span> <span class="hl-var">$row</span>[<span class="hl-str">'name'</span>];
+}</code></pre>
+
+    <div class="callout callout-warning">
+      <strong>Common Mistakes:</strong>
+      <ul>
+        <li>Use <code>query()</code> not <code>fetch()</code></li>
+        <li>Use <code>order()</code> not <code>orderBy()</code></li>
+        <li><code>select()</code> takes a <strong>single string</strong>, not variadic args</li>
+        <li>ORDER direction: <code>&lt;</code> = ASC, <code>&gt;</code> = DESC (inside the string)</li>
+      </ul>
+    </div>
+
+    <!--  -->
+    <h2 id="insert">INSERT</h2>
+    <pre><code><span class="hl-cmt">// Shortcut method</span>
+<span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">insert</span>(<span class="hl-str">'users'</span>, [
+    <span class="hl-str">'name'</span>  => <span class="hl-str">':name'</span>,
+    <span class="hl-str">'email'</span> => <span class="hl-str">':email'</span>,
+]);
+<span class="hl-var">$stmt</span>-><span class="hl-fn">query</span>([<span class="hl-str">'name'</span> => <span class="hl-str">'Alice'</span>, <span class="hl-str">'email'</span> => <span class="hl-str">'alice@example.com'</span>]);
+<span class="hl-var">$newId</span> = <span class="hl-var">$db</span>-><span class="hl-fn">lastID</span>();</code></pre>
+
+    <!--  -->
+    <h2 id="update">UPDATE</h2>
+    <pre><code><span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'users'</span>, [
+    <span class="hl-str">'name = :name'</span>,
+    <span class="hl-str">'updated_at = NOW()'</span>,
+]);
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'id = :id'</span>)
+    -><span class="hl-fn">query</span>([<span class="hl-str">'name'</span> => <span class="hl-str">'Bob'</span>, <span class="hl-str">'id'</span> => <span class="hl-num">42</span>]);</code></pre>
+
+    <!--  -->
+    <h2 id="delete">DELETE</h2>
+    <pre><code><span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-><span class="hl-fn">delete</span>(<span class="hl-str">'users'</span>, [<span class="hl-str">'id'</span> => <span class="hl-num">42</span>], <span class="hl-str">'id = :id'</span>);
+<span class="hl-var">$stmt</span>-><span class="hl-fn">query</span>();</code></pre>
+
+    <!--  -->
+    <h2 id="joins">JOINs</h2>
+    <pre><code><span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-kw">function</span>(<span class="hl-cls">TableJoin</span> <span class="hl-var">$tj</span>) {
+    <span class="hl-var">$tj</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users'</span>, <span class="hl-str">'u'</span>)
+       -><span class="hl-fn">innerJoin</span>(<span class="hl-str">'orders'</span>, <span class="hl-str">'o'</span>, <span class="hl-str">'u.id = o.user_id'</span>)
+       -><span class="hl-fn">leftJoin</span>(<span class="hl-str">'addresses'</span>, <span class="hl-str">'a'</span>, <span class="hl-str">'u.id = a.user_id'</span>);
+});</code></pre>
+
+    <!--  -->
+    <h2 id="where-syntax">WhereSyntax Operators</h2>
+    <p>The <code>WhereSyntax</code> class provides a rich set of comparison and logical operators for building complex WHERE clauses. You can use it via a closure or a compact string shorthand.</p>
+
+    <h3 id="where-comparison">Comparison Operators</h3>
+    <table>
+      <thead><tr><th>Operator</th><th>SQL Equivalent</th><th>Example Expression</th></tr></thead>
+      <tbody>
+        <tr><td><code>=</code></td><td><code>column = value</code></td><td><code>$ws-&gt;expr('status', '=', ':status')</code></td></tr>
+        <tr><td><code>!=</code></td><td><code>column != value</code></td><td><code>$ws-&gt;expr('role', '!=', ':role')</code></td></tr>
+        <tr><td><code>&gt;</code></td><td><code>column &gt; value</code></td><td><code>$ws-&gt;expr('age', '&gt;', ':min_age')</code></td></tr>
+        <tr><td><code>&gt;=</code></td><td><code>column &gt;= value</code></td><td><code>$ws-&gt;expr('score', '&gt;=', ':threshold')</code></td></tr>
+        <tr><td><code>&lt;</code></td><td><code>column &lt; value</code></td><td><code>$ws-&gt;expr('price', '&lt;', ':max_price')</code></td></tr>
+        <tr><td><code>&lt;=</code></td><td><code>column &lt;= value</code></td><td><code>$ws-&gt;expr('qty', '&lt;=', ':limit')</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="where-pattern">Pattern &amp; Set Operators</h3>
+    <table>
+      <thead><tr><th>Operator</th><th>SQL Equivalent</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>|=</code></td><td><code>IN(...)</code></td><td>Value is in a set of values</td></tr>
+        <tr><td><code>*=</code></td><td><code>LIKE %x%</code></td><td>Contains &mdash; matches anywhere in the string</td></tr>
+        <tr><td><code>^=</code></td><td><code>LIKE %x</code></td><td>Ends with &mdash; matches suffix</td></tr>
+        <tr><td><code>$=</code></td><td><code>LIKE x%</code></td><td>Starts with &mdash; matches prefix</td></tr>
+        <tr><td><code>#=</code></td><td><code>REGEXP</code></td><td>Regular expression match</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="where-json">JSON Operators</h3>
+    <table>
+      <thead><tr><th>Operator</th><th>SQL Equivalent</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>@=</code></td><td>JSON key exists</td><td>Check if a JSON key exists in the column</td></tr>
+        <tr><td><code>:=</code></td><td>JSON path</td><td>Extract and compare a value at a JSON path</td></tr>
+        <tr><td><code>~=</code></td><td>JSON contains</td><td>Check if JSON column contains a value</td></tr>
+        <tr><td><code>&amp;=</code></td><td>JSON deep contains</td><td>Deep containment check within JSON structures</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="where-range">Range Operators</h3>
+    <table>
+      <thead><tr><th>Operator</th><th>SQL Equivalent</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&gt;&lt;</code></td><td><code>BETWEEN min AND max</code></td><td>Value is within range (inclusive)</td></tr>
+        <tr><td><code>&lt;&gt;</code></td><td><code>NOT BETWEEN min AND max</code></td><td>Value is outside range</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="where-combinators">Logical Combinators</h3>
+    <table>
+      <thead><tr><th>Symbol</th><th>SQL Equivalent</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>,</code></td><td><code>AND</code></td><td>Both conditions must be true</td></tr>
+        <tr><td><code>|</code></td><td><code>OR</code></td><td>Either condition can be true</td></tr>
+        <tr><td><code>!</code></td><td><code>NOT</code></td><td>Negate the condition</td></tr>
+        <tr><td><code>()</code></td><td>Grouping</td><td>Group sub-expressions for precedence control</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="where-closure">WhereSyntax Closure Example</h3>
+    <p>Use a closure with <code>WhereSyntax</code> for full programmatic control over WHERE conditions:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\Statement\WhereSyntax</span>;
+
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-kw">function</span>(<span class="hl-cls">WhereSyntax</span> <span class="hl-var">$ws</span>) {
+    <span class="hl-cmt">// Simple equality</span>
+    <span class="hl-var">$ws</span>-><span class="hl-fn">expr</span>(<span class="hl-str">'status'</span>, <span class="hl-str">'='</span>, <span class="hl-str">':status'</span>);
+
+    <span class="hl-cmt">// AND with pattern match</span>
+    <span class="hl-var">$ws</span>-><span class="hl-fn">also</span>()-><span class="hl-fn">expr</span>(<span class="hl-str">'name'</span>, <span class="hl-str">'*='</span>, <span class="hl-str">':search'</span>);
+
+    <span class="hl-cmt">// OR group</span>
+    <span class="hl-var">$ws</span>-><span class="hl-fn">either</span>(<span class="hl-kw">function</span>(<span class="hl-cls">WhereSyntax</span> <span class="hl-var">$sub</span>) {
+        <span class="hl-var">$sub</span>-><span class="hl-fn">expr</span>(<span class="hl-str">'role'</span>, <span class="hl-str">'='</span>, <span class="hl-str">':role'</span>);
+        <span class="hl-var">$sub</span>-><span class="hl-fn">also</span>()-><span class="hl-fn">expr</span>(<span class="hl-str">'is_admin'</span>, <span class="hl-str">'='</span>, <span class="hl-str">':admin'</span>);
+    });
+
+    <span class="hl-cmt">// BETWEEN range</span>
+    <span class="hl-var">$ws</span>-><span class="hl-fn">also</span>()-><span class="hl-fn">expr</span>(<span class="hl-str">'created_at'</span>, <span class="hl-str">'&gt;&lt;'</span>, [<span class="hl-str">':start'</span>, <span class="hl-str">':end'</span>]);
+
+    <span class="hl-cmt">// JSON contains</span>
+    <span class="hl-var">$ws</span>-><span class="hl-fn">also</span>()-><span class="hl-fn">expr</span>(<span class="hl-str">'metadata'</span>, <span class="hl-str">'~='</span>, <span class="hl-str">':tag'</span>);
+});</code></pre>
+
+    <h3 id="where-string">String Shorthand Syntax</h3>
+    <p>For simpler conditions, use the compact string format. Commas are <code>AND</code>, pipes are <code>OR</code>:</p>
+    <pre><code><span class="hl-cmt">// AND: status = :s AND role = :r</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'status=:s,role=:r'</span>);
+
+<span class="hl-cmt">// Mixed AND / OR: status = :s AND (role = :r OR admin = :a)</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'status=:s,(role=:r|admin=:a)'</span>);
+
+<span class="hl-cmt">// LIKE contains</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'name*=:search'</span>);
+
+<span class="hl-cmt">// IN set</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'category|=:cats'</span>);
+
+<span class="hl-cmt">// NOT equals</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">where</span>(<span class="hl-str">'!status=:excluded'</span>);</code></pre>
+
+    <div class="callout callout-info">
+      <strong>Tip:</strong> String shorthand is ideal for straightforward filters. Use closures when you need nested groups, dynamic conditions, or complex logic trees.
+    </div>
+
+    <!--  -->
+    <h2 id="table-join-syntax">TableJoinSyntax</h2>
+    <p>The <code>TableJoinSyntax</code> provides shorthand operators for specifying join types and conditions in the <code>from()</code> clause. You can use either a closure-based API or a compact string syntax.</p>
+
+    <h3 id="join-types">Join Type Operators</h3>
+    <table>
+      <thead><tr><th>Operator</th><th>Join Type</th><th>SQL Equivalent</th></tr></thead>
+      <tbody>
+        <tr><td><code>-</code></td><td>Inner Join</td><td><code>INNER JOIN</code></td></tr>
+        <tr><td><code>&lt;</code></td><td>Left Join</td><td><code>LEFT JOIN</code></td></tr>
+        <tr><td><code>&gt;</code></td><td>Right Join</td><td><code>RIGHT JOIN</code></td></tr>
+        <tr><td><code>&lt;&lt;</code></td><td>Left Outer Join</td><td><code>LEFT OUTER JOIN</code></td></tr>
+        <tr><td><code>&gt;&gt;</code></td><td>Right Outer Join</td><td><code>RIGHT OUTER JOIN</code></td></tr>
+        <tr><td><code>*</code></td><td>Cross Join</td><td><code>CROSS JOIN</code></td></tr>
+        <tr><td><code>+</code></td><td>Sub-query Join</td><td>Join against a sub-query result</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="join-conditions">Condition Formats</h3>
+    <table>
+      <thead><tr><th>Format</th><th>Description</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><code>[col1,col2]</code></td><td>ON condition &mdash; join on matching columns</td><td><code>[u.id,o.user_id]</code></td></tr>
+        <tr><td><code>[?whereSyntax]</code></td><td>ON with WhereSyntax expression</td><td><code>[?u.id=o.user_id,o.active=:active]</code></td></tr>
+        <tr><td><code>[:col1]</code></td><td>USING &mdash; join using a shared column name</td><td><code>[:user_id]</code></td></tr>
+        <tr><td><code>[alias:col1]</code></td><td>Aliased USING condition</td><td><code>[orders:user_id]</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="join-closure">Closure-Based Join</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\Statement\TableJoinSyntax</span>;
+
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-kw">function</span>(<span class="hl-cls">TableJoinSyntax</span> <span class="hl-var">$tj</span>) {
+    <span class="hl-cmt">// Primary table</span>
+    <span class="hl-var">$tj</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users'</span>, <span class="hl-str">'u'</span>);
+
+    <span class="hl-cmt">// Inner join on matching columns</span>
+    <span class="hl-var">$tj</span>-><span class="hl-fn">innerJoin</span>(<span class="hl-str">'orders'</span>, <span class="hl-str">'o'</span>, <span class="hl-str">'u.id = o.user_id'</span>);
+
+    <span class="hl-cmt">// Left join</span>
+    <span class="hl-var">$tj</span>-><span class="hl-fn">leftJoin</span>(<span class="hl-str">'profiles'</span>, <span class="hl-str">'p'</span>, <span class="hl-str">'u.id = p.user_id'</span>);
+
+    <span class="hl-cmt">// Right join</span>
+    <span class="hl-var">$tj</span>-><span class="hl-fn">rightJoin</span>(<span class="hl-str">'departments'</span>, <span class="hl-str">'d'</span>, <span class="hl-str">'u.dept_id = d.id'</span>);
+
+    <span class="hl-cmt">// Cross join (no condition)</span>
+    <span class="hl-var">$tj</span>-><span class="hl-fn">crossJoin</span>(<span class="hl-str">'settings'</span>, <span class="hl-str">'s'</span>);
+});</code></pre>
+
+    <h3 id="join-string">String Shorthand Join</h3>
+    <p>Join syntax can also be written as a compact string. The format is <code>table(alias)&lt;operator&gt;[condition]</code>:</p>
+    <pre><code><span class="hl-cmt">// Inner join with ON condition</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users(u)-orders(o)[u.id,o.user_id]'</span>);
+
+<span class="hl-cmt">// Left join with USING</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users(u)&lt;profiles(p)[:user_id]'</span>);
+
+<span class="hl-cmt">// Right join with WhereSyntax condition</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users(u)&gt;departments(d)[?u.dept_id=d.id]'</span>);
+
+<span class="hl-cmt">// Left outer join</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users(u)&lt;&lt;audit_log(al)[u.id,al.user_id]'</span>);
+
+<span class="hl-cmt">// Cross join (no condition)</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-str">'products(p)*categories(c)'</span>);
+
+<span class="hl-cmt">// Chain multiple joins</span>
+<span class="hl-var">$stmt</span>-><span class="hl-fn">from</span>(<span class="hl-str">'users(u)-orders(o)[u.id,o.user_id]&lt;addresses(a)[u.id,a.user_id]'</span>);</code></pre>
+
+    <div class="callout callout-warning">
+      <strong>Note:</strong> When using the string shorthand, the first table is always the primary (FROM) table. Each subsequent <code>&lt;operator&gt;</code> adds a join.
+    </div>
+
+    <!--  -->
+    <h2 id="update-syntax">Update Syntax Shorthand</h2>
+    <p>The <code>update()</code> method accepts an array of shorthand expressions for concise column mutations. These operators let you increment, decrement, or perform arithmetic on columns without writing full SQL.</p>
+
+    <h3 id="update-operators">Shorthand Operators</h3>
+    <table>
+      <thead><tr><th>Syntax</th><th>SQL Equivalent</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>column</code></td><td><code>SET column = :column</code></td><td>Bind column to a named parameter</td></tr>
+        <tr><td><code>column++</code></td><td><code>SET column = column + 1</code></td><td>Increment by 1</td></tr>
+        <tr><td><code>column--</code></td><td><code>SET column = column - 1</code></td><td>Decrement by 1</td></tr>
+        <tr><td><code>column=value</code></td><td><code>SET column = value</code></td><td>Set to a literal or parameter value</td></tr>
+        <tr><td><code>column+=value</code></td><td><code>SET column = column + value</code></td><td>Add value to column</td></tr>
+        <tr><td><code>column-=value</code></td><td><code>SET column = column - value</code></td><td>Subtract value from column</td></tr>
+        <tr><td><code>column*=value</code></td><td><code>SET column = column * value</code></td><td>Multiply column by value</td></tr>
+        <tr><td><code>column&amp;=value</code></td><td><code>SET column = column &amp; value</code></td><td>Bitwise AND with value</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="update-examples">Usage Examples</h3>
+    <pre><code><span class="hl-cmt">// Simple parameter binding</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'users'</span>, [
+    <span class="hl-str">'name'</span>,         <span class="hl-cmt">// SET name = :name</span>
+    <span class="hl-str">'email'</span>,        <span class="hl-cmt">// SET email = :email</span>
+])-><span class="hl-fn">where</span>(<span class="hl-str">'id=:id'</span>)
+  -><span class="hl-fn">query</span>([<span class="hl-str">'name'</span> => <span class="hl-str">'Alice'</span>, <span class="hl-str">'email'</span> => <span class="hl-str">'alice@example.com'</span>, <span class="hl-str">'id'</span> => <span class="hl-num">1</span>]);
+
+<span class="hl-cmt">// Increment / Decrement</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'products'</span>, [
+    <span class="hl-str">'view_count++'</span>,     <span class="hl-cmt">// SET view_count = view_count + 1</span>
+    <span class="hl-str">'stock--'</span>,           <span class="hl-cmt">// SET stock = stock - 1</span>
+])-><span class="hl-fn">where</span>(<span class="hl-str">'id=:id'</span>)
+  -><span class="hl-fn">query</span>([<span class="hl-str">'id'</span> => <span class="hl-num">99</span>]);
+
+<span class="hl-cmt">// Arithmetic operators</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'accounts'</span>, [
+    <span class="hl-str">'balance+=:amount'</span>,     <span class="hl-cmt">// SET balance = balance + :amount</span>
+    <span class="hl-str">'points-=:cost'</span>,        <span class="hl-cmt">// SET points = points - :cost</span>
+    <span class="hl-str">'multiplier*=:factor'</span>,  <span class="hl-cmt">// SET multiplier = multiplier * :factor</span>
+])-><span class="hl-fn">where</span>(<span class="hl-str">'user_id=:uid'</span>)
+  -><span class="hl-fn">query</span>([<span class="hl-str">'amount'</span> => <span class="hl-num">50.00</span>, <span class="hl-str">'cost'</span> => <span class="hl-num">10</span>, <span class="hl-str">'factor'</span> => <span class="hl-num">1.5</span>, <span class="hl-str">'uid'</span> => <span class="hl-num">7</span>]);
+
+<span class="hl-cmt">// Literal value assignment</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'sessions'</span>, [
+    <span class="hl-str">'last_active=NOW()'</span>,   <span class="hl-cmt">// SET last_active = NOW()</span>
+    <span class="hl-str">'is_online=1'</span>,          <span class="hl-cmt">// SET is_online = 1</span>
+])-><span class="hl-fn">where</span>(<span class="hl-str">'token=:token'</span>)
+  -><span class="hl-fn">query</span>([<span class="hl-str">'token'</span> => <span class="hl-str">'abc123'</span>]);
+
+<span class="hl-cmt">// Bitwise AND</span>
+<span class="hl-var">$db</span>-><span class="hl-fn">update</span>(<span class="hl-str">'permissions'</span>, [
+    <span class="hl-str">'flags&amp;=:mask'</span>,         <span class="hl-cmt">// SET flags = flags &amp; :mask</span>
+])-><span class="hl-fn">where</span>(<span class="hl-str">'user_id=:uid'</span>)
+  -><span class="hl-fn">query</span>([<span class="hl-str">'mask'</span> => <span class="hl-num">0xFF00</span>, <span class="hl-str">'uid'</span> => <span class="hl-num">3</span>]);</code></pre>
+
+    <div class="callout callout-info">
+      <strong>Tip:</strong> The shorthand <code>column</code> (without any operator) auto-binds to <code>:column</code> as a named parameter. This is the most common usage for simple SET clauses.
+    </div>
+
+    <!--  -->
+    <h2 id="lazy-methods">Lazy Fetch Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>lazy()</code></td><td><code>mixed</code></td><td>Execute &amp; return first row</td></tr>
+        <tr><td><code>lazyGroup($params, $col, $stackable, $stackCol)</code></td><td><code>array</code></td><td>Group results by column</td></tr>
+        <tr><td><code>lazyKeyValuePair($keyCol, $valueCol)</code></td><td><code>array</code></td><td>Return key?value map</td></tr>
+        <tr><td><code>query()</code></td><td><code>Query</code></td><td>Full result set (iterable)</td></tr>
+      </tbody>
+    </table>
+
+    <!--  -->
+    <h2 id="table-helper">Table &amp; Column Helpers</h2>
+    <p>Define or alter tables programmatically:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\Table</span>;
+
+<span class="hl-var">$table</span> = <span class="hl-kw">new</span> <span class="hl-cls">Table</span>(<span class="hl-str">'users'</span>);
+<span class="hl-var">$table</span>-><span class="hl-fn">addColumn</span>(<span class="hl-str">'id:auto_id'</span>);
+<span class="hl-var">$table</span>-><span class="hl-fn">addColumn</span>(<span class="hl-str">'name:text(100)'</span>);
+<span class="hl-var">$table</span>-><span class="hl-fn">addColumn</span>(<span class="hl-str">'email:text(255)|unique'</span>);
+<span class="hl-var">$table</span>-><span class="hl-fn">addColumn</span>(<span class="hl-str">'is_active:bool|nullable'</span>);
+<span class="hl-var">$table</span>-><span class="hl-fn">addColumn</span>(<span class="hl-str">'balance:decimal(10,2)|default(0.00)'</span>);
+
+<span class="hl-cmt">// Generate CREATE TABLE SQL</span>
+<span class="hl-var">$sql</span> = <span class="hl-var">$table</span>-><span class="hl-fn">getSyntax</span>();
+
+<span class="hl-cmt">// ALTER operations</span>
+<span class="hl-var">$table</span>-><span class="hl-fn">alterAddColumn</span>(<span class="hl-str">'phone:text(20)|nullable'</span>, <span class="hl-str">'email'</span>);
+<span class="hl-var">$alterSql</span> = <span class="hl-var">$table</span>-><span class="hl-fn">alter</span>();</code></pre>
+
+    <!--  -->
+    <h2 id="column-types">Column Type Aliases</h2>
+    <table>
+      <thead><tr><th>Alias</th><th>SQL Type</th></tr></thead>
+      <tbody>
+        <tr><td><code>auto_id</code> / <code>auto</code></td><td>INT AUTO_INCREMENT PRIMARY KEY</td></tr>
+        <tr><td><code>text</code></td><td>VARCHAR</td></tr>
+        <tr><td><code>full_text</code></td><td>TEXT</td></tr>
+        <tr><td><code>long_text</code></td><td>LONGTEXT</td></tr>
+        <tr><td><code>int</code></td><td>INT</td></tr>
+        <tr><td><code>bool</code></td><td>TINYINT(1)</td></tr>
+        <tr><td><code>decimal</code> / <code>money</code></td><td>DECIMAL</td></tr>
+        <tr><td><code>float</code> / <code>real</code> / <code>double</code></td><td>FLOAT / DOUBLE</td></tr>
+        <tr><td><code>timestamp</code></td><td>TIMESTAMP</td></tr>
+        <tr><td><code>datetime</code></td><td>DATETIME</td></tr>
+        <tr><td><code>date</code></td><td>DATE</td></tr>
+        <tr><td><code>json</code></td><td>JSON</td></tr>
+      </tbody>
+    </table>
+
+    <!--  -->
+    <h2 id="statement-api">Statement Builder API</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>select(string $columns)</code></td><td>Set SELECT columns (comma-separated string)</td></tr>
+        <tr><td><code>from(string|callable $syntax)</code></td><td>Set FROM (string or TableJoinSyntax closure)</td></tr>
+        <tr><td><code>where(string|callable $syntax)</code></td><td>Set WHERE clause (string or WhereSyntax closure)</td></tr>
+        <tr><td><code>group(string $syntax)</code></td><td>GROUP BY columns</td></tr>
+        <tr><td><code>order(string $syntax)</code></td><td>ORDER BY with &lt;ASC / &gt;DESC</td></tr>
+        <tr><td><code>limit(int $pos, int $len)</code></td><td>LIMIT / OFFSET</td></tr>
+        <tr><td><code>assign(array $params)</code></td><td>Bind named parameters</td></tr>
+        <tr><td><code>setParser(callable $fn)</code></td><td>Row-transform callback</td></tr>
+        <tr><td><code>collect(string|array $cols)</code></td><td>Collect column values across results</td></tr>
+        <tr><td><code>getSyntax()</code></td><td>Return raw generated SQL</td></tr>
+      </tbody>
+    </table>
+
+    
+    <h2 id="database-drivers">Database Drivers</h2>
+    <p>Razy ships with three database drivers that extend the abstract <code>Driver</code> class. Each driver normalises SQL dialect differences (identifier quoting, LIMIT syntax, auto-increment, upsert, string concatenation) so your application code stays portable.</p>
+
+    <h3 id="supported-drivers">Supported Drivers</h3>
+    <table>
+      <thead><tr><th>Driver</th><th>DSN Prefix</th><th>Identifier Quote</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>MySQLDriver</code></td><td><code>mysql:</code></td><td><code>`</code> (backtick)</td><td>InnoDB default, <code>ON DUPLICATE KEY UPDATE</code> upsert</td></tr>
+        <tr><td><code>PostgreSQLDriver</code></td><td><code>pgsql:</code></td><td><code>"</code> (double-quote)</td><td><code>ON CONFLICT ... DO UPDATE</code> upsert</td></tr>
+        <tr><td><code>SQLiteDriver</code></td><td><code>sqlite:</code></td><td><code>"</code> (double-quote)</td><td>File-based, <code>ON CONFLICT ... DO UPDATE</code> upsert</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="driver-connecting">Connecting</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database</span>;
+
+<span class="hl-cmt">// Create a named Database instance</span>
+<span class="hl-var">$db</span> = <span class="hl-kw">new</span> <span class="hl-cls">Database</span>(<span class="hl-str">'main'</span>);
+
+<span class="hl-cmt">// MySQL via legacy connect()</span>
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">connect</span>(<span class="hl-str">'127.0.0.1'</span>, <span class="hl-str">'root'</span>, <span class="hl-str">'secret'</span>, <span class="hl-str">'app'</span>);
+
+<span class="hl-cmt">// MySQL via connectWithDriver()</span>
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-var">DRIVER_MYSQL</span>, [
+    <span class="hl-str">'host'</span>     =&gt; <span class="hl-str">'127.0.0.1'</span>,
+    <span class="hl-str">'username'</span> =&gt; <span class="hl-str">'root'</span>,
+    <span class="hl-str">'password'</span> =&gt; <span class="hl-str">'secret'</span>,
+    <span class="hl-str">'database'</span> =&gt; <span class="hl-str">'app'</span>,
+]);
+
+<span class="hl-cmt">// PostgreSQL</span>
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-var">DRIVER_PGSQL</span>, [
+    <span class="hl-str">'host'</span>     =&gt; <span class="hl-str">'127.0.0.1'</span>,
+    <span class="hl-str">'username'</span> =&gt; <span class="hl-str">'postgres'</span>,
+    <span class="hl-str">'password'</span> =&gt; <span class="hl-str">'secret'</span>,
+    <span class="hl-str">'database'</span> =&gt; <span class="hl-str">'app'</span>,
+]);
+
+<span class="hl-cmt">// SQLite (file)</span>
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-var">DRIVER_SQLITE</span>, [
+    <span class="hl-str">'path'</span> =&gt; <span class="hl-str">'/var/data/app.db'</span>,
+]);
+
+<span class="hl-cmt">// SQLite (in-memory, useful for testing)</span>
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">connectWithDriver</span>(<span class="hl-cls">Database</span>::<span class="hl-var">DRIVER_SQLITE</span>, [
+    <span class="hl-str">'path'</span> =&gt; <span class="hl-str">':memory:'</span>,
+]);</code></pre>
+
+    <h3 id="driver-methods">Driver Methods</h3>
+    <pre><code><span class="hl-cmt">// Quote an identifier (table or column name)</span>
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">quoteIdentifier</span>(<span class="hl-str">'user'</span>);
+<span class="hl-cmt">// MySQL:      `user`</span>
+<span class="hl-cmt">// PostgreSQL: "user"</span>
+<span class="hl-cmt">// SQLite:     "user"</span>
+
+<span class="hl-cmt">// LIMIT/OFFSET syntax</span>
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">getLimitSyntax</span>(<span class="hl-num">10</span>, <span class="hl-num">20</span>);
+<span class="hl-cmt">// MySQL:      'LIMIT 20, 10'</span>
+<span class="hl-cmt">// PostgreSQL: 'LIMIT 10 OFFSET 20'</span>
+<span class="hl-cmt">// SQLite:     'LIMIT 10 OFFSET 20'</span>
+
+<span class="hl-cmt">// Auto-increment column definition</span>
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">getAutoIncrementSyntax</span>();
+<span class="hl-cmt">// MySQL:      'AUTO_INCREMENT'</span>
+<span class="hl-cmt">// PostgreSQL: '' (uses SERIAL type)</span>
+<span class="hl-cmt">// SQLite:     'AUTOINCREMENT'</span>
+
+<span class="hl-cmt">// Upsert SQL generation</span>
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">getUpsertSyntax</span>(<span class="hl-str">'users'</span>, [<span class="hl-str">'email'</span>], [<span class="hl-str">'name'</span>, <span class="hl-str">'updated_at'</span>]);
+<span class="hl-cmt">// MySQL:      'INSERT INTO `users` ... ON DUPLICATE KEY UPDATE ...'</span>
+<span class="hl-cmt">// PostgreSQL: 'INSERT INTO "users" ... ON CONFLICT ("email") DO UPDATE SET ...'</span>
+
+<span class="hl-cmt">// String concatenation</span>
+<span class="hl-var">$driver</span>-&gt;<span class="hl-fn">getConcatSyntax</span>([<span class="hl-str">'first_name'</span>, <span class="hl-str">"' '"</span>, <span class="hl-str">'last_name'</span>]);
+<span class="hl-cmt">// MySQL:      "CONCAT(first_name, ' ', last_name)"</span>
+<span class="hl-cmt">// PostgreSQL: "first_name || ' ' || last_name"</span>
+<span class="hl-cmt">// SQLite:     "first_name || ' ' || last_name"</span></code></pre>
+
+    
+    <h2 id="transactions">Transactions</h2>
+    <p>Razy supports nested transactions using <strong>savepoints</strong>. Each nested <code>beginTransaction()</code> creates a savepoint named <code>razy_sp_N</code> (where N is the nesting level).</p>
+
+    <h3 id="basic-transaction">Basic Usage</h3>
+    <pre><code><span class="hl-var">$db</span>-&gt;<span class="hl-fn">beginTransaction</span>();
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">"INSERT INTO users (name) VALUES (:name)"</span>);
+    <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>([<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>]);
+
+    <span class="hl-var">$stmt2</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">"INSERT INTO profiles (user_id, bio) VALUES (:uid, :bio)"</span>);
+    <span class="hl-var">$stmt2</span>-&gt;<span class="hl-fn">query</span>([<span class="hl-str">'uid'</span> =&gt; <span class="hl-var">$db</span>-&gt;<span class="hl-fn">lastInsertId</span>(), <span class="hl-str">'bio'</span> =&gt; <span class="hl-str">'Hello'</span>]);
+
+    <span class="hl-var">$db</span>-&gt;<span class="hl-fn">commit</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">\Throwable</span> <span class="hl-var">$e</span>) {
+    <span class="hl-var">$db</span>-&gt;<span class="hl-fn">rollback</span>();
+    <span class="hl-kw">throw</span> <span class="hl-var">$e</span>;
+}</code></pre>
+
+    <h3 id="closure-transaction">Closure-Based Transaction</h3>
+    <pre><code><span class="hl-var">$result</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">transaction</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Database</span> <span class="hl-var">$db</span>) {
+    <span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">"INSERT INTO orders (user_id, total) VALUES (:uid, :total)"</span>);
+    <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>([<span class="hl-str">'uid'</span> =&gt; <span class="hl-num">1</span>, <span class="hl-str">'total'</span> =&gt; <span class="hl-num">99.99</span>]);
+    <span class="hl-var">$orderId</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">lastInsertId</span>();
+
+    <span class="hl-var">$stmt2</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">"INSERT INTO order_items (order_id, product_id) VALUES (:oid, :pid)"</span>);
+    <span class="hl-var">$stmt2</span>-&gt;<span class="hl-fn">query</span>([<span class="hl-str">'oid'</span> =&gt; <span class="hl-var">$orderId</span>, <span class="hl-str">'pid'</span> =&gt; <span class="hl-num">42</span>]);
+
+    <span class="hl-kw">return</span> <span class="hl-var">$orderId</span>;
+});
+<span class="hl-cmt">// Auto commits on success, auto rolls back on exception</span></code></pre>
+
+    <h3 id="nested-transactions">Nested Transactions</h3>
+    <pre><code><span class="hl-var">$db</span>-&gt;<span class="hl-fn">beginTransaction</span>();  <span class="hl-cmt">// START TRANSACTION</span>
+<span class="hl-cmt">// level = 1</span>
+
+    <span class="hl-var">$db</span>-&gt;<span class="hl-fn">beginTransaction</span>();  <span class="hl-cmt">// SAVEPOINT razy_sp_2</span>
+    <span class="hl-cmt">// level = 2</span>
+
+        <span class="hl-var">$db</span>-&gt;<span class="hl-fn">beginTransaction</span>();  <span class="hl-cmt">// SAVEPOINT razy_sp_3</span>
+        <span class="hl-cmt">// level = 3</span>
+        <span class="hl-var">$db</span>-&gt;<span class="hl-fn">rollback</span>();  <span class="hl-cmt">// ROLLBACK TO SAVEPOINT razy_sp_3</span>
+
+    <span class="hl-var">$db</span>-&gt;<span class="hl-fn">commit</span>();  <span class="hl-cmt">// RELEASE SAVEPOINT razy_sp_2</span>
+
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">commit</span>();  <span class="hl-cmt">// COMMIT</span></code></pre>
+
+    <h3 id="transaction-state">Transaction State</h3>
+    <pre><code><span class="hl-var">$db</span>-&gt;<span class="hl-fn">inTransaction</span>();       <span class="hl-cmt">// bool &mdash; is a transaction active?</span>
+<span class="hl-var">$db</span>-&gt;<span class="hl-fn">getTransactionLevel</span>(); <span class="hl-cmt">// int  &#x2502; current nesting level (0 = no transaction)</span></code></pre>
+
+    
+    <h2 id="migration-system">Migration System</h2>
+    <p>The migration system manages database schema changes with version tracking. Each migration is a PHP class with <code>up()</code> and <code>down()</code> methods.</p>
+
+    <h3 id="creating-migration">Creating a Migration</h3>
+    <p>Files follow the naming convention <code>YYYY_MM_DD_HHMMSS_Name.php</code>:</p>
+    <pre><code><span class="hl-cmt">// migrations/2025_01_15_120000_CreateUsersTable.php</span>
+
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\Migration</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\SchemaBuilder</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">CreateUsersTable</span> <span class="hl-kw">extends</span> <span class="hl-cls">Migration</span>
+{
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">up</span>(<span class="hl-cls">SchemaBuilder</span> <span class="hl-var">$schema</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$schema</span>-&gt;<span class="hl-fn">create</span>(<span class="hl-str">'users'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Table</span> <span class="hl-var">$table</span>) {
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">id</span>();
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">string</span>(<span class="hl-str">'name'</span>, <span class="hl-num">100</span>);
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">string</span>(<span class="hl-str">'email'</span>, <span class="hl-num">255</span>)-&gt;<span class="hl-fn">unique</span>();
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">string</span>(<span class="hl-str">'password'</span>, <span class="hl-num">255</span>);
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">boolean</span>(<span class="hl-str">'is_active'</span>)-&gt;<span class="hl-fn">default</span>(<span class="hl-kw">true</span>);
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">json</span>(<span class="hl-str">'metadata'</span>)-&gt;<span class="hl-fn">nullable</span>();
+            <span class="hl-var">$table</span>-&gt;<span class="hl-fn">timestamps</span>();
+        });
+    }
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">down</span>(<span class="hl-cls">SchemaBuilder</span> <span class="hl-var">$schema</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$schema</span>-&gt;<span class="hl-fn">drop</span>(<span class="hl-str">'users'</span>);
+    }
+}</code></pre>
+
+    <h3 id="migration-manager">MigrationManager</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\MigrationManager</span>;
+
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">MigrationManager</span>(<span class="hl-var">$database</span>);
+
+<span class="hl-cmt">// Add migration directory</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">addPath</span>(<span class="hl-str">__DIR__</span> . <span class="hl-str">'/migrations'</span>);
+
+<span class="hl-cmt">// Discover migration files</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">discover</span>();
+
+<span class="hl-cmt">// Run pending migrations</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">migrate</span>();
+
+<span class="hl-cmt">// Rollback last batch</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">rollback</span>();
+
+<span class="hl-cmt">// Rollback all migrations</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">reset</span>();
+
+<span class="hl-cmt">// Get migration status</span>
+<span class="hl-var">$status</span> = <span class="hl-var">$manager</span>-&gt;<span class="hl-fn">getStatus</span>();
+<span class="hl-cmt">/*
+[
+    ['migration' =&gt; '2025_01_15_120000_CreateUsersTable', 'ran' =&gt; true,  'batch' =&gt; 1],
+    ['migration' =&gt; '2025_01_16_090000_AddRoleColumn',   'ran' =&gt; true,  'batch' =&gt; 1],
+    ['migration' =&gt; '2025_01_17_140000_CreatePostsTable', 'ran' =&gt; false, 'batch' =&gt; null],
+]
+*/</span>
+
+<span class="hl-cmt">// Get specific lists</span>
+<span class="hl-var">$applied</span> = <span class="hl-var">$manager</span>-&gt;<span class="hl-fn">getApplied</span>();  <span class="hl-cmt">// already ran</span>
+<span class="hl-var">$pending</span> = <span class="hl-var">$manager</span>-&gt;<span class="hl-fn">getPending</span>();  <span class="hl-cmt">// not yet ran</span></code></pre>
+    <p>The manager tracks applied migrations in a <strong><code>razy_migrations</code></strong> table, created automatically on first use.</p>
+
+    
+    <h2 id="schemabuilder">SchemaBuilder</h2>
+    <p>The <code>SchemaBuilder</code> provides a fluent API for DDL operations.</p>
+
+    <h3 id="creating-tables">Creating Tables</h3>
+    <pre><code><span class="hl-var">$schema</span>-&gt;<span class="hl-fn">create</span>(<span class="hl-str">'posts'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Table</span> <span class="hl-var">$table</span>) {
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">id</span>();                                    <span class="hl-cmt">// BIGINT AUTO_INCREMENT PRIMARY KEY</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">string</span>(<span class="hl-str">'title'</span>, <span class="hl-num">200</span>);                    <span class="hl-cmt">// VARCHAR(200) NOT NULL</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">text</span>(<span class="hl-str">'body'</span>);                             <span class="hl-cmt">// TEXT NOT NULL</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">string</span>(<span class="hl-str">'slug'</span>, <span class="hl-num">200</span>)-&gt;<span class="hl-fn">unique</span>();            <span class="hl-cmt">// VARCHAR(200) UNIQUE</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">integer</span>(<span class="hl-str">'author_id'</span>)-&gt;<span class="hl-fn">unsigned</span>();         <span class="hl-cmt">// INT UNSIGNED NOT NULL</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">integer</span>(<span class="hl-str">'view_count'</span>)-&gt;<span class="hl-fn">default</span>(<span class="hl-num">0</span>);        <span class="hl-cmt">// INT DEFAULT 0</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">boolean</span>(<span class="hl-str">'is_published'</span>)-&gt;<span class="hl-fn">default</span>(<span class="hl-kw">false</span>);  <span class="hl-cmt">// BOOLEAN DEFAULT FALSE</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">json</span>(<span class="hl-str">'tags'</span>)-&gt;<span class="hl-fn">nullable</span>();                 <span class="hl-cmt">// JSON NULL</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">decimal</span>(<span class="hl-str">'price'</span>, <span class="hl-num">10</span>, <span class="hl-num">2</span>)-&gt;<span class="hl-fn">nullable</span>();      <span class="hl-cmt">// DECIMAL(10,2) NULL</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">timestamp</span>(<span class="hl-str">'published_at'</span>)-&gt;<span class="hl-fn">nullable</span>();    <span class="hl-cmt">// TIMESTAMP NULL</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">timestamps</span>();                             <span class="hl-cmt">// created_at, updated_at</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">softDeletes</span>();                            <span class="hl-cmt">// deleted_at TIMESTAMP NULL</span>
+
+    <span class="hl-cmt">// Index</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">index</span>(<span class="hl-str">'author_id'</span>);
+
+    <span class="hl-cmt">// Foreign key</span>
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">foreign</span>(<span class="hl-str">'author_id'</span>)
+          -&gt;<span class="hl-fn">references</span>(<span class="hl-str">'id'</span>)
+          -&gt;<span class="hl-fn">on</span>(<span class="hl-str">'users'</span>)
+          -&gt;<span class="hl-fn">onDelete</span>(<span class="hl-str">'CASCADE'</span>);
+});</code></pre>
+
+    <h3 id="modifying-tables">Modifying Tables</h3>
+    <pre><code><span class="hl-var">$schema</span>-&gt;<span class="hl-fn">table</span>(<span class="hl-str">'users'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Table</span> <span class="hl-var">$table</span>) {
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">string</span>(<span class="hl-str">'phone'</span>, <span class="hl-num">20</span>)-&gt;<span class="hl-fn">nullable</span>()-&gt;<span class="hl-fn">after</span>(<span class="hl-str">'email'</span>);
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">dropColumn</span>(<span class="hl-str">'legacy_field'</span>);
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">renameColumn</span>(<span class="hl-str">'name'</span>, <span class="hl-str">'full_name'</span>);
+    <span class="hl-var">$table</span>-&gt;<span class="hl-fn">index</span>(<span class="hl-str">'phone'</span>);
+});</code></pre>
+
+    <h3 id="dropping-tables">Dropping Tables</h3>
+    <pre><code><span class="hl-var">$schema</span>-&gt;<span class="hl-fn">drop</span>(<span class="hl-str">'temp_data'</span>);
+<span class="hl-var">$schema</span>-&gt;<span class="hl-fn">dropIfExists</span>(<span class="hl-str">'temp_data'</span>);</code></pre>
+
+    <h3 id="renaming-tables">Renaming Tables</h3>
+    <pre><code><span class="hl-var">$schema</span>-&gt;<span class="hl-fn">rename</span>(<span class="hl-str">'posts'</span>, <span class="hl-str">'articles'</span>);</code></pre>
+
+    <h3 id="checking-existence">Checking Existence</h3>
+    <pre><code><span class="hl-kw">if</span> (<span class="hl-var">$schema</span>-&gt;<span class="hl-fn">hasTable</span>(<span class="hl-str">'users'</span>)) {
+    <span class="hl-cmt">// table exists</span>
+}</code></pre>
+
+    <h3 id="raw-sql">Raw SQL</h3>
+    <pre><code><span class="hl-var">$schema</span>-&gt;<span class="hl-fn">raw</span>(<span class="hl-str">'CREATE INDEX idx_email ON users (email)'</span>);</code></pre>
+
+    <h3 id="column-types">Column Types</h3>
+    <table>
+      <thead><tr><th>Method</th><th>SQL Type</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code></td><td>BIGINT AUTO_INCREMENT PRIMARY KEY</td></tr>
+        <tr><td><code>integer(name)</code></td><td>INT</td></tr>
+        <tr><td><code>bigInteger(name)</code></td><td>BIGINT</td></tr>
+        <tr><td><code>tinyInteger(name)</code></td><td>TINYINT</td></tr>
+        <tr><td><code>smallInteger(name)</code></td><td>SMALLINT</td></tr>
+        <tr><td><code>float(name)</code></td><td>FLOAT</td></tr>
+        <tr><td><code>double(name)</code></td><td>DOUBLE</td></tr>
+        <tr><td><code>decimal(name, precision, scale)</code></td><td>DECIMAL(p,s)</td></tr>
+        <tr><td><code>boolean(name)</code></td><td>BOOLEAN / TINYINT(1)</td></tr>
+        <tr><td><code>string(name, length)</code></td><td>VARCHAR(length)</td></tr>
+        <tr><td><code>text(name)</code></td><td>TEXT</td></tr>
+        <tr><td><code>longText(name)</code></td><td>LONGTEXT</td></tr>
+        <tr><td><code>binary(name)</code></td><td>BLOB</td></tr>
+        <tr><td><code>json(name)</code></td><td>JSON</td></tr>
+        <tr><td><code>date(name)</code></td><td>DATE</td></tr>
+        <tr><td><code>datetime(name)</code></td><td>DATETIME</td></tr>
+        <tr><td><code>timestamp(name)</code></td><td>TIMESTAMP</td></tr>
+        <tr><td><code>timestamps()</code></td><td>created_at + updated_at</td></tr>
+        <tr><td><code>softDeletes()</code></td><td>deleted_at TIMESTAMP NULL</td></tr>
+        <tr><td><code>enum(name, values)</code></td><td>ENUM(...)</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="column-modifiers">Column Modifiers</h3>
+    <table>
+      <thead><tr><th>Modifier</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>-&gt;nullable()</code></td><td>Allow NULL</td></tr>
+        <tr><td><code>-&gt;default($val)</code></td><td>Default value</td></tr>
+        <tr><td><code>-&gt;unsigned()</code></td><td>Unsigned integer</td></tr>
+        <tr><td><code>-&gt;unique()</code></td><td>UNIQUE constraint</td></tr>
+        <tr><td><code>-&gt;primary()</code></td><td>PRIMARY KEY</td></tr>
+        <tr><td><code>-&gt;index()</code></td><td>Create index</td></tr>
+        <tr><td><code>-&gt;after($col)</code></td><td>Position after column (MySQL)</td></tr>
+        <tr><td><code>-&gt;comment($text)</code></td><td>Column comment</td></tr>
+      </tbody>
+    </table>
+
+    
+    <h2 id="statementpool">StatementPool</h2>
+    <p><code>StatementPool</code> provides an LRU (Least Recently Used) cache of prepared PDO statements, avoiding re-preparation of frequently used queries.</p>
+    <pre><code><span class="hl-cmt">// Typically managed internally by the Database class</span>
+<span class="hl-var">$pool</span> = <span class="hl-kw">new</span> <span class="hl-cls">StatementPool</span>(<span class="hl-var">$pdo</span>, maxSize: <span class="hl-num">100</span>);
+
+<span class="hl-cmt">// Get or prepare a statement</span>
+<span class="hl-var">$stmt</span> = <span class="hl-var">$pool</span>-&gt;<span class="hl-fn">getOrPrepare</span>(<span class="hl-str">'SELECT * FROM users WHERE id = :id'</span>);
+<span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">execute</span>([<span class="hl-str">':id'</span> =&gt; <span class="hl-num">42</span>]);
+
+<span class="hl-cmt">// Clear all cached statements</span>
+<span class="hl-var">$pool</span>-&gt;<span class="hl-fn">clear</span>();</code></pre>
+    <p>The <code>Database</code> class uses <code>StatementPool</code> automatically. You rarely interact with it directly, but you can configure the pool size when constructing the database connection.</p>
+
+    
+    <h2 id="lazyresultset">LazyResultSet</h2>
+    <p><code>LazyResultSet</code> provides memory-efficient iteration over large result sets using a generator. Access it via <code>Statement</code> methods:</p>
+    <pre><code><span class="hl-cmt">// Fetch first row (lazy single)</span>
+<span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">'SELECT * FROM users WHERE id = :id'</span>);
+<span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">param</span>(<span class="hl-str">'id'</span>, <span class="hl-num">1</span>);
+<span class="hl-var">$user</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">lazy</span>();
+
+<span class="hl-cmt">// Fetch all rows</span>
+<span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">'SELECT * FROM users'</span>);
+<span class="hl-var">$rows</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>();
+
+<span class="hl-cmt">// Lazy key-value pair: first column is key, second is value</span>
+<span class="hl-var">$map</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">lazyKeyValuePair</span>(<span class="hl-str">'id'</span>, <span class="hl-str">'email'</span>);
+
+<span class="hl-cmt">// Collect specific column values via getResultSet()</span>
+<span class="hl-var">$resultSet</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">getResultSet</span>();
+<span class="hl-var">$resultSet</span>-&gt;<span class="hl-fn">collect</span>(<span class="hl-str">'email'</span>);
+<span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>();
+<span class="hl-var">$emails</span> = <span class="hl-var">$resultSet</span>-&gt;<span class="hl-fn">getCollected</span>(<span class="hl-str">'email'</span>);</code></pre>
+
+    
+    <h2 id="fetchmode">FetchMode</h2>
+    <p>Control how <code>Statement::query()</code> returns result sets. The <code>FetchMode</code> enum is passed to <code>query()</code> or <code>fetchAll()</code>:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database\FetchMode</span>;
+
+<span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>(<span class="hl-str">'SELECT * FROM users'</span>);
+
+<span class="hl-cmt">// Standard fetch (default) &mdash; flat array of associative rows</span>
+<span class="hl-var">$rows</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">fetchAll</span>(<span class="hl-cls">FetchMode</span>::<span class="hl-str">Standard</span>);
+
+<span class="hl-cmt">// Group mode &mdash; first column becomes key, values are arrays of rows</span>
+<span class="hl-var">$grouped</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">fetchAll</span>(<span class="hl-cls">FetchMode</span>::<span class="hl-str">Group</span>);
+
+<span class="hl-cmt">// KeyPair mode &mdash; first column is key, second column is value</span>
+<span class="hl-var">$map</span> = <span class="hl-var">$stmt</span>-&gt;<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">fetchAll</span>(<span class="hl-cls">FetchMode</span>::<span class="hl-str">KeyPair</span>);</code></pre>
+
+    <table>
+      <thead><tr><th>Constant</th><th>Description</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>FetchMode::Standard</code></td><td>Flat associative fetch (default)</td><td>Array of associative arrays</td></tr>
+        <tr><td><code>FetchMode::Group</code></td><td>Group by first column</td><td>Keyed array of row arrays</td></tr>
+        <tr><td><code>FetchMode::KeyPair</code></td><td>Key-value pairs (2 columns)</td><td>Associative array</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td><code>query()</code> returns empty</td><td>Forgot to call <code>prepare()</code> before <code>execute()</code></td><td>Use <code>query()</code> for direct SQL, or chain <code>prepare()-&gt;execute()</code></td></tr>
+        <tr><td>ORDER BY ignored</td><td><code>order()</code> called after <code>query()</code> finished</td><td>Chain <code>order()</code> on the <code>Statement</code> before <code>execute()</code></td></tr>
+        <tr><td>SELECT * performance</td><td>Not specifying columns</td><td>Use <code>select('col1', 'col2')</code> to limit fetched fields</td></tr>
+        <tr><td>Wrong sort direction</td><td>Passing <code>'DSC'</code> instead of <code>'DESC'</code></td><td>Use <code>'ASC'</code> or <code>'DESC'</code> (standard SQL keywords)</td></tr>
+        <tr><td>Transaction not committed</td><td>Exception thrown inside transaction block</td><td>Wrap in try/catch; call <code>commit()</code> or <code>rollBack()</code> explicitly</td></tr>
+        <tr><td>Placeholder mismatch</td><td>Named and positional placeholders mixed</td><td>Use only named (<code>:name</code>) OR only positional (<code>?</code>), never both</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="decision-guide">Decision Guide &mdash; Statement vs ORM</h2>
+    <table>
+      <thead><tr><th>Scenario</th><th>Use</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Complex JOINs / sub-queries</td><td><code>Statement</code> (raw SQL)</td><td>Full SQL control, no abstraction overhead</td></tr>
+        <tr><td>CRUD on a single table</td><td>ORM <code>Model</code></td><td>Automatic mapping, events, casting, relationships</td></tr>
+        <tr><td>Bulk INSERT / UPDATE</td><td><code>Statement</code></td><td>ORM processes one row at a time</td></tr>
+        <tr><td>Need relationships &amp; eager-loading</td><td>ORM <code>ModelQuery</code></td><td><code>with()</code> handles N+1 automatically</td></tr>
+        <tr><td>Reporting / aggregates</td><td><code>Statement</code></td><td><code>GROUP BY</code>, <code>HAVING</code>, window functions</td></tr>
+        <tr><td>Need soft-deletes &amp; timestamps</td><td>ORM <code>Model</code></td><td>Built-in trait support</td></tr>
+      </tbody>
+    </table>
+
+    
+    <div class="page-nav">
+      <a href="cross-module-api.html"><span class="label">&larr; Previous</span><span class="title">Cross-Module API</span></a>
+      <a href="collection.html" class="next"><span class="label">Next &rarr;</span><span class="title">Collection</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

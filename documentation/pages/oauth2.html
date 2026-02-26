@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OAuth2 &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>OAuth2</h1>
+    <p>The <code>OAuth2</code> class provides a generic OAuth 2.0 authorization code flow implementation. It handles authorization URL generation, token exchange, token refresh, JWT parsing, and authenticated API requests via cURL.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>The class is provider-agnostic &mdash; configure it with any OAuth 2.0 provider (Google, GitHub, Microsoft, etc.) by setting the authorization and token endpoint URLs. It uses the <strong>Authorization Code Grant</strong> flow with built-in CSRF protection via state tokens.</p>
+
+    <h2 id="constructor">Constructor</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\OAuth2</span>;
+
+<span class="hl-var">$oauth</span> = <span class="hl-kw">new</span> <span class="hl-cls">OAuth2</span>(
+    <span class="hl-str">'your-client-id'</span>,       <span class="hl-cmt">// OAuth client ID</span>
+    <span class="hl-str">'your-client-secret'</span>,   <span class="hl-cmt">// OAuth client secret</span>
+    <span class="hl-str">'https://example.com/callback'</span>  <span class="hl-cmt">// Redirect URI</span>
+);</code></pre>
+
+    <h2 id="methods">Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>setAuthorizeUrl(string $url)</code></td><td><code>OAuth2</code></td><td>Set the authorization endpoint URL</td></tr>
+        <tr><td><code>setTokenUrl(string $url)</code></td><td><code>OAuth2</code></td><td>Set the token exchange endpoint URL</td></tr>
+        <tr><td><code>setScope(string $scope)</code></td><td><code>OAuth2</code></td><td>Set requested OAuth scopes (space-separated)</td></tr>
+        <tr><td><code>setState(?string $state = null)</code></td><td><code>OAuth2</code></td><td>Set CSRF state token (auto-generated if null)</td></tr>
+        <tr><td><code>getState()</code></td><td><code>?string</code></td><td>Get current state token</td></tr>
+        <tr><td><code>addParam(string $key, string $value)</code></td><td><code>OAuth2</code></td><td>Add extra authorization query parameters</td></tr>
+        <tr><td><code>getAuthorizationUrl()</code></td><td><code>string</code></td><td>Generate the full authorization redirect URL</td></tr>
+        <tr><td><code>getAccessToken(string $code)</code></td><td><code>array</code></td><td>Exchange authorization code for access token</td></tr>
+        <tr><td><code>refreshAccessToken(string $refreshToken)</code></td><td><code>array</code></td><td>Refresh an expired access token</td></tr>
+        <tr><td><code>httpGet(string $url, string $accessToken)</code></td><td><code>array</code></td><td>Make authenticated GET request to an API</td></tr>
+        <tr><td><code>getTokenData()</code></td><td><code>array</code></td><td>Get stored token data from last exchange</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Static Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>OAuth2::validateState(string $received, string $expected)</code></td><td><code>bool</code></td><td>Timing-safe CSRF state validation</td></tr>
+        <tr><td><code>OAuth2::parseJWT(string $jwt)</code></td><td><code>array</code></td><td>Decode JWT payload without signature verification</td></tr>
+        <tr><td><code>OAuth2::isJWTExpired(array $claims)</code></td><td><code>bool</code></td><td>Check if JWT claims have expired</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="setup">Configuration</h2>
+    <p>All setter methods return <code>$this</code> for fluent chaining:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\OAuth2</span>;
+
+<span class="hl-var">$oauth</span> = (<span class="hl-kw">new</span> <span class="hl-cls">OAuth2</span>(<span class="hl-var">$clientId</span>, <span class="hl-var">$clientSecret</span>, <span class="hl-var">$redirectUri</span>))
+    -><span class="hl-fn">setAuthorizeUrl</span>(<span class="hl-str">'https://accounts.google.com/o/oauth2/v2/auth'</span>)
+    -><span class="hl-fn">setTokenUrl</span>(<span class="hl-str">'https://oauth2.googleapis.com/token'</span>)
+    -><span class="hl-fn">setScope</span>(<span class="hl-str">'openid email profile'</span>)
+    -><span class="hl-fn">addParam</span>(<span class="hl-str">'access_type'</span>, <span class="hl-str">'offline'</span>)
+    -><span class="hl-fn">addParam</span>(<span class="hl-str">'prompt'</span>, <span class="hl-str">'consent'</span>);</code></pre>
+
+    <h2 id="authorization">Step 1: Authorization Redirect</h2>
+    <p>Generate the authorization URL and redirect the user. A CSRF state token is automatically generated if not explicitly set.</p>
+    <pre><code><span class="hl-cmt">// Generate authorization URL (state token auto-created)</span>
+<span class="hl-var">$authUrl</span> = <span class="hl-var">$oauth</span>-><span class="hl-fn">getAuthorizationUrl</span>();
+
+<span class="hl-cmt">// Store state in session for CSRF verification</span>
+<span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>] = <span class="hl-var">$oauth</span>-><span class="hl-fn">getState</span>();
+
+<span class="hl-cmt">// Redirect the user</span>
+<span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-var">$authUrl</span>);
+<span class="hl-fn">exit</span>;</code></pre>
+
+    <h2 id="callback">Step 2: Handle Callback</h2>
+    <p>In your callback handler, validate the state token and exchange the authorization code for an access token:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\OAuth2</span>;
+
+<span class="hl-cmt">// Validate CSRF state (timing-safe comparison)</span>
+<span class="hl-kw">if</span> (!<span class="hl-cls">OAuth2</span>::<span class="hl-fn">validateState</span>(<span class="hl-var">$_GET</span>[<span class="hl-str">'state'</span>], <span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>])) {
+    <span class="hl-kw">throw new</span> <span class="hl-cls">Exception</span>(<span class="hl-str">'Invalid state token &mdash; possible CSRF attack'</span>);
+}
+
+<span class="hl-cmt">// Exchange code for token</span>
+<span class="hl-var">$tokenData</span> = <span class="hl-var">$oauth</span>-><span class="hl-fn">getAccessToken</span>(<span class="hl-var">$_GET</span>[<span class="hl-str">'code'</span>]);
+
+<span class="hl-cmt">// $tokenData contains: access_token, refresh_token, expires_in, etc.</span>
+<span class="hl-var">$accessToken</span>  = <span class="hl-var">$tokenData</span>[<span class="hl-str">'access_token'</span>];
+<span class="hl-var">$refreshToken</span> = <span class="hl-var">$tokenData</span>[<span class="hl-str">'refresh_token'</span>] &rarr; <span class="hl-kw">null</span>;</code></pre>
+
+    <h2 id="api-request">Step 3: API Requests</h2>
+    <p>Use the access token to make authenticated requests:</p>
+    <pre><code><span class="hl-cmt">// Fetch user profile from Google</span>
+<span class="hl-var">$profile</span> = <span class="hl-var">$oauth</span>-><span class="hl-fn">httpGet</span>(
+    <span class="hl-str">'https://www.googleapis.com/oauth2/v2/userinfo'</span>,
+    <span class="hl-var">$accessToken</span>
+);
+
+<span class="hl-fn">echo</span> <span class="hl-var">$profile</span>[<span class="hl-str">'email'</span>];   <span class="hl-cmt">// user@example.com</span>
+<span class="hl-fn">echo</span> <span class="hl-var">$profile</span>[<span class="hl-str">'name'</span>];    <span class="hl-cmt">// John Doe</span></code></pre>
+
+    <h2 id="refresh">Refreshing Tokens</h2>
+    <p>When an access token expires, use the refresh token to obtain a new one:</p>
+    <pre><code><span class="hl-var">$newTokenData</span> = <span class="hl-var">$oauth</span>-><span class="hl-fn">refreshAccessToken</span>(<span class="hl-var">$refreshToken</span>);
+<span class="hl-var">$newAccessToken</span> = <span class="hl-var">$newTokenData</span>[<span class="hl-str">'access_token'</span>];</code></pre>
+
+    <h2 id="jwt">JWT Utilities</h2>
+    <p>Parse and inspect JWT tokens returned by OpenID Connect providers:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\OAuth2</span>;
+
+<span class="hl-cmt">// Parse the ID token (no signature verification)</span>
+<span class="hl-var">$claims</span> = <span class="hl-cls">OAuth2</span>::<span class="hl-fn">parseJWT</span>(<span class="hl-var">$tokenData</span>[<span class="hl-str">'id_token'</span>]);
+<span class="hl-cmt">// &rarr; ['sub' => '123', 'email' => 'user@example.com', 'exp' => 1700000000, ...]</span>
+
+<span class="hl-cmt">// Check expiration</span>
+<span class="hl-kw">if</span> (<span class="hl-cls">OAuth2</span>::<span class="hl-fn">isJWTExpired</span>(<span class="hl-var">$claims</span>)) {
+    <span class="hl-cmt">// Token has expired &mdash; refresh or re-authenticate</span>
+}</code></pre>
+    <p><strong>Note:</strong> <code>parseJWT()</code> decodes the payload without verifying the signature. Use it only for extracting claims from tokens already validated by the provider's token endpoint.</p>
+
+    <h2 id="github-example">Example: GitHub Login</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\OAuth2</span>;
+
+<span class="hl-var">$github</span> = (<span class="hl-kw">new</span> <span class="hl-cls">OAuth2</span>(
+    <span class="hl-str">'github-client-id'</span>,
+    <span class="hl-str">'github-client-secret'</span>,
+    <span class="hl-str">'https://myapp.com/auth/github/callback'</span>
+))
+    -><span class="hl-fn">setAuthorizeUrl</span>(<span class="hl-str">'https://github.com/login/oauth/authorize'</span>)
+    -><span class="hl-fn">setTokenUrl</span>(<span class="hl-str">'https://github.com/login/oauth/access_token'</span>)
+    -><span class="hl-fn">setScope</span>(<span class="hl-str">'user:email read:user'</span>);
+
+<span class="hl-cmt">// Redirect to GitHub</span>
+<span class="hl-var">$authUrl</span> = <span class="hl-var">$github</span>-><span class="hl-fn">getAuthorizationUrl</span>();
+<span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>] = <span class="hl-var">$github</span>-><span class="hl-fn">getState</span>();
+
+<span class="hl-cmt">// In callback handler:</span>
+<span class="hl-var">$tokens</span> = <span class="hl-var">$github</span>-><span class="hl-fn">getAccessToken</span>(<span class="hl-var">$_GET</span>[<span class="hl-str">'code'</span>]);
+<span class="hl-var">$user</span>   = <span class="hl-var">$github</span>-><span class="hl-fn">httpGet</span>(<span class="hl-str">'https://api.github.com/user'</span>, <span class="hl-var">$tokens</span>[<span class="hl-str">'access_token'</span>]);
+
+<span class="hl-fn">echo</span> <span class="hl-var">$user</span>[<span class="hl-str">'login'</span>];  <span class="hl-cmt">// GitHub username</span></code></pre>
+
+    <div class="page-nav">
+      <a href="crypt.html"><span class="label">&larr; Previous</span><span class="title">Crypt</span></a>
+      <a href="plugins.html" class="next"><span class="label">Next &rarr;</span><span class="title">Plugin System</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

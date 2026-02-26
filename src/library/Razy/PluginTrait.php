@@ -1,24 +1,37 @@
 <?php
-/*
+/**
  * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * @package Razy
+ * @license MIT
  */
+
 namespace Razy;
 
 use Closure;
-use Throwable;
-
+/**
+ * Trait for loading and caching plugin closures from registered folders.
+ *
+ * Any class using this trait can register plugin directories and dynamically
+ * load plugin closures by name. Plugins are PHP files that return a Closure.
+ *
+ * Since Phase 5, all state is delegated to PluginManager. The trait methods
+ * remain for backward compatibility but are thin wrappers around the
+ * centralized PluginManager singleton.
+ *
+ * @class PluginTrait
+ */
 trait PluginTrait
 {
-    private static array $pluginFolder = [];
-    private static array $pluginsCache = [];
-
     /**
      * Get the plugin closure from the plugin pool.
+     *
+     * Delegates to PluginManager::getInstance()->getPlugin().
      *
      * @param string $pluginName
      * @return array|null
@@ -26,40 +39,31 @@ trait PluginTrait
      */
     static private function GetPlugin(string $pluginName): ?array
     {
-        foreach (self::$pluginFolder as $folder => $args) {
-            $pluginFile = append($folder, $pluginName . '.php');
-            if (is_file($pluginFile)) {
-                try {
-                    $plugin = require $pluginFile;
-                    if ($plugin instanceof Closure) {
-                        return (self::$pluginsCache[$pluginName] = [
-                            'entity' => $plugin,
-                            'args' => $args,
-                        ]);
-                    }
-                    return null;
-                } catch (Throwable $e) {
-                    throw new Error($e);
-                }
-            }
-        }
-
-        return self::$pluginsCache[$pluginName] ?? null;
+        return PluginManager::getInstance()->getPlugin(static::class, $pluginName);
     }
 
     /**
      * Add a plugin folder which the plugin is load
      *
+     * Delegates to PluginManager::getInstance()->addFolder().
+     *
      * @param string $folder
      * @param mixed $args
      * @return void
      */
-    final public static function AddPluginFolder(string $folder, mixed $args = null): void
+    final public static function addPluginFolder(string $folder, mixed $args = null): void
     {
-        // Setup plugin folder
-        $folder = tidy(trim($folder));
-        if ($folder && is_dir($folder)) {
-            self::$pluginFolder[$folder] = $args;
-        }
+        PluginManager::getInstance()->addFolder(static::class, $folder, $args);
+    }
+
+    /**
+     * Reset all registered plugin folders and cached plugins for this class.
+     * Essential for worker mode (FrankenPHP) to prevent state leaking between requests.
+     *
+     * Delegates to PluginManager::getInstance()->reset().
+     */
+    final public static function resetPlugins(): void
+    {
+        PluginManager::getInstance()->reset(static::class);
     }
 }

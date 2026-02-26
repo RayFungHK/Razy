@@ -1,17 +1,34 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * CLI Command: set
  *
- * (c) Ray Fung <hello@rayfung.hk>
+ * Creates or updates a site binding in the sites configuration.
+ * Maps a domain/path combination to a distributor code. Optionally
+ * initializes the distributor directory structure with the -i flag.
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * Usage:
+ *   php Razy.phar set <fqdn[/path]> <distributor_code> [-i]
+ *
+ * Arguments:
+ *   fqdn             The fully qualified domain (optionally with path)
+ *   distributor_code  The distributor code to bind to
+ *
+ * Options:
+ *   -i  Initialize the distributor folder with dist.php if it doesn't exist
+ *
+ * Examples:
+ *   php Razy.phar set localhost mysite -i
+ *   php Razy.phar set example.com/api api_dist
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
 use Exception;
 
+use Razy\Util\PathUtil;
 return function (string $fqdn = '', string $code = '') use (&$parameters) {
     $this->writeLineLogging('{@s:bu}Update the site or create a new sites', true);
 
@@ -30,11 +47,11 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
         exit;
     }
 
-    // Load default config setting
+    // Load the current site configuration
     $app = new Application();
     $config = $app->loadSiteConfig();
 
-    // Extract the domain and the path from the FQDN string
+    // Parse the FQDN into domain and path components
     $fqdn = trim(preg_replace('/[\\\\\/]+/', '/', $fqdn), '/');
     if (!str_contains($fqdn, '/')) {
         $domain = $fqdn;
@@ -48,12 +65,12 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
         $config['domains'][$domain] = [];
     }
 
-    // Put or override the site setting
+    // Register or override the domain/path binding with the distributor code
     $config['domains'][$domain][$path] = $code;
 
-    // If the `i` parameter is given, create the folder including the dist.php
+    // If the -i flag is set, create the distributor folder and dist.php template
     if (isset($parameters['i'])) {
-        $distFolder = fix_path(append(SYSTEM_ROOT, 'sites', $code));
+        $distFolder = PathUtil::fixPath(PathUtil::append(SYSTEM_ROOT, 'sites', $code));
         // If the distributor path is not under Razy location
         if (!str_starts_with($distFolder, SYSTEM_ROOT)) {
             $this->writeLineLogging('{@c:r}[ERROR] The distributor folder ' . $distFolder . ' is not valid.', true);
@@ -62,7 +79,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
         }
         if (!is_dir($distFolder)) {
             if (mkdir($distFolder, 0777, true)) {
-                $source = Template::LoadFile('phar://./' . PHAR_FILE . '/asset/setup/dist.php.tpl');
+                $source = Template::loadFile(PHAR_PATH . '/asset/setup/dist.php.tpl');
                 $root   = $source->getRoot();
                 $root->assign([
                     'dist_code' => $code,
@@ -71,7 +88,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
                 ]);
 
                 try {
-                    file_put_contents(append($distFolder, 'dist.php'), $source->output());
+                    file_put_contents(PathUtil::append($distFolder, 'dist.php'), $source->output());
                 } catch (Exception) {
                     $this->writeLineLogging('{@c:r}[ERROR] Failed to create the distributor config file.', true);
                 }
@@ -83,6 +100,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
         }
     }
 
+    // Write update config and regenerate rewrite rules
     $message = 'Writing File sites.inc.php... ';
     if ($app->writeSiteConfig($config)) {
         $message .= $this->format('{@c:green}Done.');
@@ -91,6 +109,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
     }
     $this->writeLineLogging($message, true);
 
+    // Refresh the sites list and regenerate .htaccess rewrite rules
     $app->updateSites();
     $message = 'Updating rewrite rules... ';
     if ($app->updateRewriteRules()) {

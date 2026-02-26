@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utility Functions &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Utility Functions</h1>
+    <p>Razy provides a set of global helper functions defined in <code>bootstrap.inc.php</code> and used throughout the framework. These are available after framework initialisation.</p>
+
+    <h2 id="path-functions">Path &amp; URL Functions</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>append(string ...$paths)</code></td><td><code>string</code></td><td>Join path segments with <code>/</code> separator, normalising slashes</td></tr>
+        <tr><td><code>tidy(string $path)</code></td><td><code>string</code></td><td>Normalise path separators and remove trailing slashes</td></tr>
+        <tr><td><code>fixPath(string $path)</code></td><td><code>string</code></td><td>Convert backslashes to forward slashes</td></tr>
+        <tr><td><code>relative_path(string $from, string $to)</code></td><td><code>string</code></td><td>Calculate relative path between two absolute paths</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="string-functions">String Functions</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>guid(int $length = 8)</code></td><td><code>string</code></td><td>Generate a random GUID/token string</td></tr>
+        <tr><td><code>format_size(int $bytes)</code></td><td><code>string</code></td><td>Human-readable file size (KB, MB, GB)</td></tr>
+        <tr><td><code>is_cli()</code></td><td><code>bool</code></td><td>Check if running in CLI mode</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="array-functions">Array Functions</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>array_extend(array &$target, array $source)</code></td><td><code>array</code></td><td>Deep merge source into target (recursive)</td></tr>
+        <tr><td><code>array_get(array $array, string $path, mixed $default)</code></td><td><code>mixed</code></td><td>Get value by dot-path with fallback</td></tr>
+        <tr><td><code>array_set(array &$array, string $path, mixed $value)</code></td><td><code>void</code></td><td>Set value by dot-path (creates intermediate keys)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="http-functions">HTTP &amp; Response</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>header_status(int $code)</code></td><td><code>void</code></td><td>Send HTTP status code header</td></tr>
+        <tr><td><code>redirect(string $url, int $code = 302)</code></td><td><code>void</code></td><td>HTTP redirect and exit</td></tr>
+        <tr><td><code>json_response(mixed $data, int $code = 200)</code></td><td><code>void</code></td><td>Send JSON response and exit</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="file-functions">File System</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>get_files(string $dir, string $ext = '')</code></td><td><code>array</code></td><td>List files in directory (optionally filtered by extension)</td></tr>
+        <tr><td><code>ensure_dir(string $path)</code></td><td><code>bool</code></td><td>Create directory recursively if not exists</td></tr>
+        <tr><td><code>copy_dir(string $src, string $dest)</code></td><td><code>bool</code></td><td>Recursively copy directory</td></tr>
+      </tbody>
+    </table>
+
+    
+    <h2 id="pathutil-stringutil">PathUtil &amp; StringUtil</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">PathUtil</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">StringUtil</span>;
+
+<span class="hl-cmt">// Path joining</span>
+<span class="hl-var">$path</span> = <span class="hl-fn">PathUtil</span>::<span class="hl-fn">append</span>(<span class="hl-str">'/var/www'</span>, <span class="hl-str">'sites'</span>, <span class="hl-str">'mysite'</span>);
+<span class="hl-cmt">// &rarr; "/var/www/sites/mysite"</span>
+
+<span class="hl-cmt">// Path normalization</span>
+<span class="hl-var">$clean</span> = <span class="hl-fn">PathUtil</span>::<span class="hl-fn">tidy</span>(<span class="hl-str">'path//to\\file/'</span>);
+<span class="hl-cmt">// &rarr; "path/to/file"</span>
+
+<span class="hl-cmt">// Resolve traversals</span>
+<span class="hl-var">$resolved</span> = <span class="hl-fn">PathUtil</span>::<span class="hl-fn">fixPath</span>(<span class="hl-str">'/var/www/../data/./cache'</span>);
+<span class="hl-cmt">// &rarr; "/data/cache"</span>
+
+<span class="hl-cmt">// Generate GUID</span>
+<span class="hl-var">$id</span> = <span class="hl-fn">StringUtil</span>::<span class="hl-fn">guid</span>(<span class="hl-num">4</span>);
+<span class="hl-cmt">// &rarr; "a1b2-c3d4-e5f6-g7h8"</span>
+
+<span class="hl-cmt">// Validate JSON</span>
+<span class="hl-fn">StringUtil</span>::<span class="hl-fn">isJson</span>(<span class="hl-str">'{"key":"value"}'</span>);  <span class="hl-cmt">// &rarr; true</span>
+
+<span class="hl-cmt">// Format file sizes</span>
+<span class="hl-kw">echo</span> <span class="hl-fn">StringUtil</span>::<span class="hl-fn">getFilesizeString</span>(<span class="hl-num">1536</span>);  <span class="hl-cmt">// &rarr; "1.50kb"</span></code></pre>
+
+    <h2 id="versionutil">VersionUtil</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">VersionUtil</span>;
+
+<span class="hl-cmt">// Standardize to 4-segment format</span>
+<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">standardize</span>(<span class="hl-str">'1.2'</span>);     <span class="hl-cmt">// &rarr; "1.2.0.0"</span>
+
+<span class="hl-cmt">// Compare versions against constraints</span>
+<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">vc</span>(<span class="hl-str">'&gt;=1.0.0'</span>, <span class="hl-str">'1.2.3'</span>);       <span class="hl-cmt">// &rarr; true</span>
+<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">vc</span>(<span class="hl-str">'1.0 - 2.0'</span>, <span class="hl-str">'1.5.0'</span>);    <span class="hl-cmt">// &rarr; true (range)</span>
+<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">vc</span>(<span class="hl-str">'^1.2'</span>, <span class="hl-str">'1.9.0'</span>);          <span class="hl-cmt">// &rarr; true (caret)</span>
+<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">vc</span>(<span class="hl-str">'~1.2'</span>, <span class="hl-str">'1.2.5'</span>);          <span class="hl-cmt">// &rarr; true (tilde)</span></code></pre>
+
+    <h2 id="arrayutil">ArrayUtil</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">ArrayUtil</span>;
+
+<span class="hl-cmt">// Merge arrays following a structure template</span>
+<span class="hl-var">$template</span> = [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">''</span>, <span class="hl-str">'role'</span> =&gt; <span class="hl-str">'user'</span>, <span class="hl-str">'active'</span> =&gt; <span class="hl-kw">true</span>];
+<span class="hl-var">$input</span>    = [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>, <span class="hl-str">'extra'</span> =&gt; <span class="hl-str">'ignored'</span>];
+<span class="hl-var">$result</span>   = <span class="hl-fn">ArrayUtil</span>::<span class="hl-fn">construct</span>(<span class="hl-var">$template</span>, <span class="hl-var">$input</span>);
+<span class="hl-cmt">// &rarr; ['name' =&gt; 'Alice', 'role' =&gt; 'user', 'active' =&gt; true]</span>
+
+<span class="hl-cmt">// Compare values with operators</span>
+<span class="hl-fn">ArrayUtil</span>::<span class="hl-fn">comparison</span>(<span class="hl-num">10</span>, <span class="hl-num">5</span>, <span class="hl-str">'&gt;'</span>);           <span class="hl-cmt">// &rarr; true</span>
+<span class="hl-fn">ArrayUtil</span>::<span class="hl-fn">comparison</span>(<span class="hl-str">'hello'</span>, <span class="hl-str">'he'</span>, <span class="hl-str">'^='</span>);  <span class="hl-cmt">// &rarr; true (starts with)</span>
+<span class="hl-fn">ArrayUtil</span>::<span class="hl-fn">comparison</span>(<span class="hl-str">'world'</span>, <span class="hl-str">'rl'</span>, <span class="hl-str">'*='</span>);  <span class="hl-cmt">// &rarr; true (contains)</span></code></pre>
+
+    <h2 id="dateutil">DateUtil</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">DateUtil</span>;
+
+<span class="hl-cmt">// Get date N business days from a start date (skips weekends)</span>
+<span class="hl-var">$futureDate</span> = <span class="hl-fn">DateUtil</span>::<span class="hl-fn">getFutureWeekday</span>(<span class="hl-str">'2025-01-06'</span>, <span class="hl-num">5</span>);
+<span class="hl-cmt">// &rarr; "2025-01-13"</span>
+
+<span class="hl-cmt">// With holidays excluded</span>
+<span class="hl-var">$holidays</span> = [<span class="hl-str">'2025-01-09'</span>, <span class="hl-str">'2025-01-10'</span>];
+<span class="hl-var">$futureDate</span> = <span class="hl-fn">DateUtil</span>::<span class="hl-fn">getFutureWeekday</span>(<span class="hl-str">'2025-01-06'</span>, <span class="hl-num">5</span>, <span class="hl-var">$holidays</span>);
+
+<span class="hl-cmt">// Weekday difference between two dates</span>
+<span class="hl-var">$diff</span> = <span class="hl-fn">DateUtil</span>::<span class="hl-fn">getWeekdayDiff</span>(<span class="hl-str">'2025-01-06'</span>, <span class="hl-str">'2025-01-17'</span>);
+<span class="hl-cmt">// &rarr; 9 (excludes Sat/Sun)</span></code></pre>
+
+    <h2 id="networkutil">NetworkUtil</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">NetworkUtil</span>;
+
+<span class="hl-cmt">// Validate FQDN</span>
+<span class="hl-fn">NetworkUtil</span>::<span class="hl-fn">isFqdn</span>(<span class="hl-str">'example.com'</span>);        <span class="hl-cmt">// &rarr; true</span>
+<span class="hl-fn">NetworkUtil</span>::<span class="hl-fn">isFqdn</span>(<span class="hl-str">'localhost'</span>);           <span class="hl-cmt">// &rarr; false</span>
+
+<span class="hl-cmt">// Detect SSL</span>
+<span class="hl-var">$isSecure</span> = <span class="hl-fn">NetworkUtil</span>::<span class="hl-fn">isSsl</span>();
+
+<span class="hl-cmt">// Get visitor IP</span>
+<span class="hl-var">$ip</span> = <span class="hl-fn">NetworkUtil</span>::<span class="hl-fn">getIP</span>();
+
+<span class="hl-cmt">// Check IP in CIDR range</span>
+<span class="hl-fn">NetworkUtil</span>::<span class="hl-fn">ipInRange</span>(<span class="hl-str">'192.168.1.50'</span>, <span class="hl-str">'192.168.1.0/24'</span>);  <span class="hl-cmt">// &rarr; true</span></code></pre>
+
+
+    <div class="page-nav">
+      <a href="api-reference.html"><span class="label">&larr; Previous</span><span class="title">API Reference</span></a>
+      <a href="simple-syntax.html" class="next"><span class="label">Next &rarr;</span><span class="title">Simple Syntax</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

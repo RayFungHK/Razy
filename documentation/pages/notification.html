@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification System &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Notification System</h1>
+    <p>Razy provides a <strong>channel-based notification system</strong> for sending notifications through multiple delivery channels (mail, database, etc.). The system supports lifecycle hooks, error handling, audit logging, and pluggable channel architecture.</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#quick-start">Quick Start</a></li>
+        <li><a href="#creating-notifications">Creating Notifications</a></li>
+        <li><a href="#notification-manager">NotificationManager</a></li>
+        <li><a href="#sending-notifications">Sending Notifications</a></li>
+        <li><a href="#channels">Channels</a>
+          <ul>
+            <li><a href="#mail-channel">MailChannel</a></li>
+            <li><a href="#database-channel">DatabaseChannel</a></li>
+            <li><a href="#custom-channels">Custom Channels</a></li>
+          </ul>
+        </li>
+        <li><a href="#lifecycle-hooks">Lifecycle Hooks</a></li>
+        <li><a href="#audit-logging">Audit Logging</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Quick Start -->
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\NotificationManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\Channel\{MailChannel, DatabaseChannel}</span>;
+
+<span class="hl-cmt">// Set up notification manager</span>
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">NotificationManager</span>();
+<span class="hl-var">$manager</span>-><span class="hl-fn">registerChannel</span>(<span class="hl-kw">new</span> <span class="hl-cls">MailChannel</span>(<span class="hl-kw">function</span> (<span class="hl-kw">string</span> <span class="hl-var">$to</span>, <span class="hl-kw">array</span> <span class="hl-var">$data</span>) {
+    <span class="hl-fn">mail</span>(<span class="hl-var">$to</span>, <span class="hl-var">$data</span>[<span class="hl-str">'subject'</span>], <span class="hl-var">$data</span>[<span class="hl-str">'body'</span>]);
+}));
+<span class="hl-var">$manager</span>-><span class="hl-fn">registerChannel</span>(<span class="hl-kw">new</span> <span class="hl-cls">DatabaseChannel</span>());
+
+<span class="hl-cmt">// Create and send a notification</span>
+<span class="hl-var">$notification</span> = <span class="hl-kw">new</span> <span class="hl-cls">WelcomeNotification</span>(<span class="hl-var">$user</span>->name);
+<span class="hl-var">$manager</span>-><span class="hl-fn">send</span>(<span class="hl-var">$user</span>, <span class="hl-var">$notification</span>);</code></pre>
+
+    <!-- Creating Notifications -->
+    <h2 id="creating-notifications">Creating Notifications</h2>
+    <p>Extend the abstract <code>Notification</code> class and define which channels to use:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\Notification</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">OrderShippedNotification</span> <span class="hl-kw">extends</span> <span class="hl-cls">Notification</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(
+        <span class="hl-kw">private readonly string</span> <span class="hl-var">$orderId</span>,
+        <span class="hl-kw">private readonly string</span> <span class="hl-var">$trackingNumber</span>
+    ) {}
+
+    <span class="hl-cmt">// Required: specify delivery channels</span>
+    <span class="hl-kw">public function</span> <span class="hl-fn">via</span>(object <span class="hl-var">$notifiable</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> [<span class="hl-str">'mail'</span>, <span class="hl-str">'database'</span>];
+    }
+
+    <span class="hl-cmt">// Channel-specific data &mdash; method name: to{ChannelName}()</span>
+    <span class="hl-kw">public function</span> <span class="hl-fn">toMail</span>(object <span class="hl-var">$notifiable</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'subject'</span> => <span class="hl-str">"Order #{<span class="hl-var">$this</span>->orderId} Shipped!"</span>,
+            <span class="hl-str">'body'</span>    => <span class="hl-str">"Your tracking number is: {<span class="hl-var">$this</span>->trackingNumber}"</span>,
+        ];
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">toDatabase</span>(object <span class="hl-var">$notifiable</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'order_id'</span>        => <span class="hl-var">$this</span>->orderId,
+            <span class="hl-str">'tracking_number'</span> => <span class="hl-var">$this</span>->trackingNumber,
+            <span class="hl-str">'message'</span>         => <span class="hl-str">'Your order has been shipped.'</span>,
+        ];
+    }
+
+    <span class="hl-cmt">// Fallback for channels without a specific method</span>
+    <span class="hl-kw">public function</span> <span class="hl-fn">toArray</span>(object <span class="hl-var">$notifiable</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'order_id'</span>        => <span class="hl-var">$this</span>->orderId,
+            <span class="hl-str">'tracking_number'</span> => <span class="hl-var">$this</span>->trackingNumber,
+        ];
+    }
+}</code></pre>
+
+    <h3>Convention-Based Dispatch</h3>
+    <p>The <code>getData($channel, $notifiable)</code> method follows this resolution order:</p>
+    <ol>
+      <li>Call <code>to{Channel}($notifiable)</code> &mdash;e.g. <code>toMail()</code>, <code>toDatabase()</code></li>
+      <li>Fall back to <code>toArray($notifiable)</code> if the channel-specific method doesn't exist</li>
+      <li>Return empty array if neither exists</li>
+    </ol>
+
+    <h3>Notification Identity</h3>
+    <p>Each notification automatically receives a unique 32-character hex ID:</p>
+    <pre><code><span class="hl-var">$notification</span> = <span class="hl-kw">new</span> <span class="hl-cls">OrderShippedNotification</span>(<span class="hl-str">'ORD-123'</span>, <span class="hl-str">'TRK-456'</span>);
+echo <span class="hl-var">$notification</span>-><span class="hl-fn">getId</span>();   <span class="hl-cmt">// e.g. 'a1b2c3d4e5f6...'</span>
+echo <span class="hl-var">$notification</span>-><span class="hl-fn">getType</span>(); <span class="hl-cmt">// 'OrderShippedNotification' (class name)</span>
+
+<span class="hl-cmt">// Override ID for idempotency</span>
+<span class="hl-var">$notification</span>-><span class="hl-fn">setId</span>(<span class="hl-str">'custom-unique-id'</span>);</code></pre>
+
+    <!-- NotificationManager -->
+    <h2 id="notification-manager">NotificationManager</h2>
+    <p>The manager routes notifications to the appropriate channels:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\NotificationManager</span>;
+
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">NotificationManager</span>(logging: <span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Register channels</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">registerChannel</span>(<span class="hl-var">$mailChannel</span>);
+<span class="hl-var">$manager</span>-><span class="hl-fn">registerChannel</span>(<span class="hl-var">$databaseChannel</span>);
+
+<span class="hl-cmt">// Inspect channels</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">hasChannel</span>(<span class="hl-str">'mail'</span>);      <span class="hl-cmt">// true</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">getChannelNames</span>();       <span class="hl-cmt">// ['mail', 'database']</span>
+<span class="hl-var">$channel</span> = <span class="hl-var">$manager</span>-><span class="hl-fn">getChannel</span>(<span class="hl-str">'mail'</span>);</code></pre>
+
+    <!-- Sending Notifications -->
+    <h2 id="sending-notifications">Sending Notifications</h2>
+
+    <h3>Single Recipient</h3>
+    <pre><code><span class="hl-var">$user</span> = <span class="hl-kw">new</span> <span class="hl-cls">User</span>([<span class="hl-str">'id'</span> => <span class="hl-num">42</span>, <span class="hl-str">'email'</span> => <span class="hl-str">'john@example.com'</span>]);
+<span class="hl-var">$notification</span> = <span class="hl-kw">new</span> <span class="hl-cls">OrderShippedNotification</span>(<span class="hl-str">'ORD-123'</span>, <span class="hl-str">'TRK-456'</span>);
+
+<span class="hl-var">$manager</span>-><span class="hl-fn">send</span>(<span class="hl-var">$user</span>, <span class="hl-var">$notification</span>);
+<span class="hl-cmt">// Dispatches to 'mail' and 'database' channels (as defined by via())</span></code></pre>
+
+    <h3>Multiple Recipients</h3>
+    <pre><code><span class="hl-var">$users</span> = [<span class="hl-var">$user1</span>, <span class="hl-var">$user2</span>, <span class="hl-var">$user3</span>];
+<span class="hl-var">$notification</span> = <span class="hl-kw">new</span> <span class="hl-cls">SystemMaintenanceNotification</span>(<span class="hl-str">'2026-03-01 02:00 UTC'</span>);
+
+<span class="hl-var">$manager</span>-><span class="hl-fn">sendToMany</span>(<span class="hl-var">$users</span>, <span class="hl-var">$notification</span>);</code></pre>
+
+    <h3>Notifiable Requirements</h3>
+    <p>The notifiable object needs to expose the data each channel requires:</p>
+    <p><strong>For MailChannel:</strong></p>
+    <ul>
+      <li>A <code>getEmail(): string</code> method, or</li>
+      <li>A public <code>$email</code> property</li>
+    </ul>
+    <p><strong>For DatabaseChannel:</strong></p>
+    <ul>
+      <li>A <code>getId(): string|int</code> method, or</li>
+      <li>A public <code>$id</code> property</li>
+      <li>Falls back to <code>spl_object_id()</code> if neither exists</li>
+    </ul>
+
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(
+        <span class="hl-kw">public readonly int</span> <span class="hl-var">$id</span>,
+        <span class="hl-kw">public readonly string</span> <span class="hl-var">$email</span>,
+        <span class="hl-kw">public readonly string</span> <span class="hl-var">$name</span>,
+    ) {}
+
+    <span class="hl-cmt">// Or use methods:</span>
+    <span class="hl-cmt">// public function getId(): int { return $this-&gt;id; }</span>
+    <span class="hl-cmt">// public function getEmail(): string { return $this-&gt;email; }</span>
+}</code></pre>
+
+    <!-- Channels -->
+    <h2 id="channels">Channels</h2>
+
+    <h3 id="mail-channel">MailChannel</h3>
+    <p>Delegates email delivery to a callable you provide:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\Channel\MailChannel</span>;
+
+<span class="hl-cmt">// Simple mailer</span>
+<span class="hl-var">$mailChannel</span> = <span class="hl-kw">new</span> <span class="hl-cls">MailChannel</span>(<span class="hl-kw">function</span> (<span class="hl-kw">string</span> <span class="hl-var">$to</span>, <span class="hl-kw">array</span> <span class="hl-var">$data</span>) {
+    <span class="hl-fn">mail</span>(<span class="hl-var">$to</span>, <span class="hl-var">$data</span>[<span class="hl-str">'subject'</span>] &rarr; <span class="hl-str">'Notification'</span>, <span class="hl-var">$data</span>[<span class="hl-str">'body'</span>] &rarr; <span class="hl-str">''</span>);
+});
+
+<span class="hl-cmt">// With recording (for testing)</span>
+<span class="hl-var">$mailChannel</span> = <span class="hl-kw">new</span> <span class="hl-cls">MailChannel</span>(
+    mailerFn: <span class="hl-kw">function</span> (<span class="hl-kw">string</span> <span class="hl-var">$to</span>, <span class="hl-kw">array</span> <span class="hl-var">$data</span>) { <span class="hl-cmt">/* ... */</span> },
+    recording: <span class="hl-kw">true</span>
+);
+
+<span class="hl-cmt">// After sending</span>
+<span class="hl-var">$sent</span> = <span class="hl-var">$mailChannel</span>-><span class="hl-fn">getSent</span>();
+<span class="hl-cmt">// [['to' =&gt; 'john@example.com', 'data' =&gt; [...]], ...]</span>
+<span class="hl-var">$mailChannel</span>-><span class="hl-fn">clearSent</span>();</code></pre>
+
+    <h3 id="database-channel">DatabaseChannel</h3>
+    <p>Stores notification records in memory, with an optional persistence callback:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\Channel\DatabaseChannel</span>;
+
+<span class="hl-cmt">// In-memory only (for testing)</span>
+<span class="hl-var">$dbChannel</span> = <span class="hl-kw">new</span> <span class="hl-cls">DatabaseChannel</span>();
+
+<span class="hl-cmt">// With persistence callback</span>
+<span class="hl-var">$dbChannel</span> = <span class="hl-kw">new</span> <span class="hl-cls">DatabaseChannel</span>(<span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$record</span>) {
+    <span class="hl-cls">DB</span>::<span class="hl-fn">table</span>(<span class="hl-str">'notifications'</span>)-><span class="hl-fn">insert</span>(<span class="hl-var">$record</span>);
+});
+
+<span class="hl-cmt">// After sending</span>
+<span class="hl-var">$all</span> = <span class="hl-var">$dbChannel</span>-><span class="hl-fn">getRecords</span>();
+<span class="hl-cmt">// Each record: {id, type, notifiable_type, notifiable_id, data, created_at}</span>
+
+<span class="hl-var">$userRecords</span> = <span class="hl-var">$dbChannel</span>-><span class="hl-fn">getRecordsFor</span>(<span class="hl-var">$user</span>);
+<span class="hl-var">$count</span> = <span class="hl-var">$dbChannel</span>-><span class="hl-fn">count</span>();
+<span class="hl-var">$dbChannel</span>-><span class="hl-fn">clearRecords</span>();</code></pre>
+
+    <h3 id="custom-channels">Custom Channels</h3>
+    <p>Implement <code>NotificationChannelInterface</code> for custom delivery:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\NotificationChannelInterface</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Notification\Notification</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">SlackChannel</span> <span class="hl-kw">implements</span> <span class="hl-cls">NotificationChannelInterface</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(
+        <span class="hl-kw">private readonly string</span> <span class="hl-var">$webhookUrl</span>
+    ) {}
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">getName</span>(): <span class="hl-kw">string</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-str">'slack'</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">send</span>(object <span class="hl-var">$notifiable</span>, <span class="hl-cls">Notification</span> <span class="hl-var">$notification</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$data</span> = <span class="hl-var">$notification</span>-><span class="hl-fn">getData</span>(<span class="hl-str">'slack'</span>, <span class="hl-var">$notifiable</span>);
+
+        <span class="hl-cmt">// POST to Slack webhook</span>
+        <span class="hl-var">$payload</span> = <span class="hl-fn">json_encode</span>([
+            <span class="hl-str">'channel'</span> => <span class="hl-var">$data</span>[<span class="hl-str">'channel'</span>] &rarr; <span class="hl-str">'#general'</span>,
+            <span class="hl-str">'text'</span>    => <span class="hl-var">$data</span>[<span class="hl-str">'message'</span>] &rarr; <span class="hl-str">''</span>,
+        ]);
+
+        <span class="hl-var">$ch</span> = <span class="hl-fn">curl_init</span>(<span class="hl-var">$this</span>->webhookUrl);
+        <span class="hl-fn">curl_setopt</span>(<span class="hl-var">$ch</span>, CURLOPT_POSTFIELDS, <span class="hl-var">$payload</span>);
+        <span class="hl-fn">curl_setopt</span>(<span class="hl-var">$ch</span>, CURLOPT_HTTPHEADER, [<span class="hl-str">'Content-Type: application/json'</span>]);
+        <span class="hl-fn">curl_exec</span>(<span class="hl-var">$ch</span>);
+        <span class="hl-fn">curl_close</span>(<span class="hl-var">$ch</span>);
+    }
+}
+
+<span class="hl-cmt">// Register the custom channel</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">registerChannel</span>(<span class="hl-kw">new</span> <span class="hl-cls">SlackChannel</span>(<span class="hl-str">'https://hooks.slack.com/...'</span>));</code></pre>
+
+    <p>Then in your notification:</p>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">DeployNotification</span> <span class="hl-kw">extends</span> <span class="hl-cls">Notification</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">via</span>(object <span class="hl-var">$notifiable</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> [<span class="hl-str">'slack'</span>, <span class="hl-str">'database'</span>];
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">toSlack</span>(object <span class="hl-var">$notifiable</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'channel'</span> => <span class="hl-str">'#deployments'</span>,
+            <span class="hl-str">'message'</span> => <span class="hl-str">"Deployment v{<span class="hl-var">$this</span>->version} completed!"</span>,
+        ];
+    }
+}</code></pre>
+
+    <!-- Lifecycle Hooks -->
+    <h2 id="lifecycle-hooks">Lifecycle Hooks</h2>
+    <p>The <code>NotificationManager</code> provides three lifecycle hooks:</p>
+    <pre><code><span class="hl-cmt">// Before each channel send</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">beforeSend</span>(<span class="hl-kw">function</span> (object <span class="hl-var">$notifiable</span>, <span class="hl-cls">Notification</span> <span class="hl-var">$notification</span>, <span class="hl-kw">string</span> <span class="hl-var">$channel</span>) {
+    echo <span class="hl-str">"Sending {<span class="hl-var">$notification</span>-><span class="hl-fn">getType</span>()} via {<span class="hl-var">$channel</span>}\n"</span>;
+});
+
+<span class="hl-cmt">// After each successful channel send</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">afterSend</span>(<span class="hl-kw">function</span> (object <span class="hl-var">$notifiable</span>, <span class="hl-cls">Notification</span> <span class="hl-var">$notification</span>, <span class="hl-kw">string</span> <span class="hl-var">$channel</span>) {
+    echo <span class="hl-str">"Sent {<span class="hl-var">$notification</span>-><span class="hl-fn">getType</span>()} via {<span class="hl-var">$channel</span>}\n"</span>;
+});
+
+<span class="hl-cmt">// On channel error &mdash; IMPORTANT: swallows exceptions when hook is present</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">onError</span>(<span class="hl-kw">function</span> (object <span class="hl-var">$notifiable</span>, <span class="hl-cls">Notification</span> <span class="hl-var">$notification</span>, <span class="hl-kw">string</span> <span class="hl-var">$channel</span>, <span class="hl-cls">\Throwable</span> <span class="hl-var">$e</span>) {
+    <span class="hl-fn">error_log</span>(<span class="hl-str">"Failed to send via {<span class="hl-var">$channel</span>}: {<span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>()}"</span>);
+    <span class="hl-cmt">// Without this hook, the exception would propagate and stop remaining channels</span>
+});</code></pre>
+
+    <div class="callout callout-info">
+      <strong>Note:</strong> When <code>onError</code> is registered, exceptions from individual channels are caught and passed to the hook instead of propagating. This allows remaining channels to still be processed. Without the hook, exceptions propagate normally.
+    </div>
+
+    <!-- Audit Logging -->
+    <h2 id="audit-logging">Audit Logging</h2>
+    <p>Enable audit logging to track all sent notifications:</p>
+    <pre><code><span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">NotificationManager</span>(logging: <span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// ... send some notifications ...</span>
+
+<span class="hl-var">$log</span> = <span class="hl-var">$manager</span>-><span class="hl-fn">getSentLog</span>();
+<span class="hl-cmt">// [</span>
+<span class="hl-cmt">//   [</span>
+<span class="hl-cmt">//     'notification_id'   =&gt; 'a1b2c3d4...',</span>
+<span class="hl-cmt">//     'notification_type' =&gt; 'OrderShippedNotification',</span>
+<span class="hl-cmt">//     'notifiable_type'   =&gt; 'User',</span>
+<span class="hl-cmt">//     'channel'           =&gt; 'mail',</span>
+<span class="hl-cmt">//     'sent_at'           =&gt; '2026-02-23T14:30:00+00:00',</span>
+<span class="hl-cmt">//   ],</span>
+<span class="hl-cmt">//   ...</span>
+<span class="hl-cmt">// ]</span>
+
+<span class="hl-var">$manager</span>-><span class="hl-fn">clearSentLog</span>();</code></pre>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>Notification (Abstract)</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>via</code> <em>(abstract)</em></td><td><code>(object $notifiable): array</code></td><td>Return channel names</td></tr>
+        <tr><td><code>getId</code></td><td><code>(): string</code></td><td>Auto-generated 32-char hex ID</td></tr>
+        <tr><td><code>setId</code></td><td><code>(string $id): static</code></td><td>Override ID</td></tr>
+        <tr><td><code>getType</code></td><td><code>(): string</code></td><td>Class name</td></tr>
+        <tr><td><code>getData</code></td><td><code>(string $channel, object $notifiable): array</code></td><td>Calls <code>to{Channel}()</code> or <code>toArray()</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>NotificationManager</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(bool $logging = false)</code></td><td>Enable audit logging</td></tr>
+        <tr><td><code>registerChannel</code></td><td><code>(NotificationChannelInterface $channel): static</code></td><td>Add a channel</td></tr>
+        <tr><td><code>getChannel</code></td><td><code>(string $name): ?NotificationChannelInterface</code></td><td>Get channel by name</td></tr>
+        <tr><td><code>getChannelNames</code></td><td><code>(): array</code></td><td>All registered channel names</td></tr>
+        <tr><td><code>hasChannel</code></td><td><code>(string $name): bool</code></td><td>Check channel exists</td></tr>
+        <tr><td><code>send</code></td><td><code>(object $notifiable, Notification $notification): void</code></td><td>Send to one</td></tr>
+        <tr><td><code>sendToMany</code></td><td><code>(iterable $notifiables, Notification $notification): void</code></td><td>Send to many</td></tr>
+        <tr><td><code>beforeSend</code></td><td><code>(callable $callback): static</code></td><td>Pre-send hook</td></tr>
+        <tr><td><code>afterSend</code></td><td><code>(callable $callback): static</code></td><td>Post-send hook</td></tr>
+        <tr><td><code>onError</code></td><td><code>(callable $callback): static</code></td><td>Error hook (swallows exceptions)</td></tr>
+        <tr><td><code>getSentLog</code></td><td><code>(): array</code></td><td>Audit log entries</td></tr>
+        <tr><td><code>clearSentLog</code></td><td><code>(): static</code></td><td>Clear audit log</td></tr>
+      </tbody>
+    </table>
+
+    <h3>NotificationChannelInterface</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>send</code></td><td><code>(object $notifiable, Notification $notification): void</code></td><td>Deliver notification</td></tr>
+        <tr><td><code>getName</code></td><td><code>(): string</code></td><td>Channel identifier</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="ftp-sftp.html"><span class="label">&larr; Previous</span><span class="title">FTP &amp; SFTP</span></a>
+      <a href="crypt.html" class="next"><span class="label">Next &rarr;</span><span class="title">Crypt</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

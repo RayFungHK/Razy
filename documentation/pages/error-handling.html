@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Handling &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Error Handling</h1>
+    <p>Razy provides a structured exception hierarchy rooted in PHP's built-in <code>RuntimeException</code>. Each subsystem throws a domain-specific exception, making it straightforward to catch errors at different granularity levels.</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#exception-hierarchy">Exception Hierarchy</a></li>
+        <li><a href="#base-exceptions">Base Exceptions</a></li>
+        <li><a href="#container-exceptions">Container Exceptions</a></li>
+        <li><a href="#database-exceptions">Database Exceptions</a></li>
+        <li><a href="#http-exceptions">HTTP Exceptions</a></li>
+        <li><a href="#io-network-exceptions">IO &amp; Network Exceptions</a></li>
+        <li><a href="#module-exceptions">Module Exceptions</a></li>
+        <li><a href="#other-exceptions">Other Exceptions</a></li>
+        <li><a href="#usage-patterns">Usage Patterns</a></li>
+        <li><a href="#error-system-internals">Error System Internals</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Exception Hierarchy -->
+    <h2 id="exception-hierarchy">Exception Hierarchy</h2>
+    <pre><code>RuntimeException (PHP built-in)
+&#x251C;&#x2500;&#x2500; CacheException
+&#x251C;&#x2500;&#x2500; ConfigurationException
+&#x251C;&#x2500;&#x2500; ContainerException (PSR-11)
+&#x2502;  &#x251C;&#x2500;&#x2500; ContainerNotFoundException (PSR-11)
+&#x251C;&#x2500;&#x2500; DatabaseException
+&#x2502;  &#x251C;&#x2500;&#x2500; ConnectionException
+&#x2502;  &#x251C;&#x2500;&#x2500; QueryException
+&#x2502;  &#x251C;&#x2500;&#x2500; TransactionException
+&#x251C;&#x2500;&#x2500; FileException
+&#x251C;&#x2500;&#x2500; HttpException
+&#x2502;  &#x251C;&#x2500;&#x2500; NotFoundException (404)
+&#x2502;  &#x251C;&#x2500;&#x2500; RedirectException (301/302)
+&#x251C;&#x2500;&#x2500; MailerException
+&#x251C;&#x2500;&#x2500; ModelNotFoundException
+&#x251C;&#x2500;&#x2500; ModuleException
+&#x2502;  &#x251C;&#x2500;&#x2500; ModuleConfigException
+&#x2502;  &#x251C;&#x2500;&#x2500; ModuleLoadException
+&#x251C;&#x2500;&#x2500; NetworkException
+&#x2502;  &#x251C;&#x2500;&#x2500; FTPException
+&#x2502;  &#x251C;&#x2500;&#x2500; SSHException
+&#x251C;&#x2500;&#x2500; OAuthException
+&#x251C;&#x2500;&#x2500; PipelineException
+&#x251C;&#x2500;&#x2500; QueueException
+&#x251C;&#x2500;&#x2500; RoutingException
+&#x251C;&#x2500;&#x2500; TemplateException</code></pre>
+
+    <!-- Base Exceptions -->
+    <h2 id="base-exceptions">Base Exceptions</h2>
+    <p>All Razy exceptions extend <code>RuntimeException</code>, inheriting:</p>
+    <pre><code><span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();    <span class="hl-cmt">// Human-readable message</span>
+<span class="hl-var">$e</span>-><span class="hl-fn">getCode</span>();       <span class="hl-cmt">// Error code (int)</span>
+<span class="hl-var">$e</span>-><span class="hl-fn">getPrevious</span>();   <span class="hl-cmt">// Wrapped previous exception</span>
+<span class="hl-var">$e</span>-><span class="hl-fn">getFile</span>();       <span class="hl-cmt">// File where thrown</span>
+<span class="hl-var">$e</span>-><span class="hl-fn">getLine</span>();       <span class="hl-cmt">// Line where thrown</span>
+<span class="hl-var">$e</span>-><span class="hl-fn">getTrace</span>();      <span class="hl-cmt">// Stack trace array</span></code></pre>
+
+    <!-- Container Exceptions -->
+    <h2 id="container-exceptions">Container Exceptions</h2>
+
+    <h3>ContainerException</h3>
+    <p>Thrown for DI container resolution failures. Implements PSR-11 <code>Psr\Container\ContainerExceptionInterface</code>.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ContainerException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$service</span> = <span class="hl-var">$container</span>-><span class="hl-fn">get</span>(<span class="hl-cls">SomeService</span>::<span class="hl-kw">class</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ContainerException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Binding misconfiguration, circular dependency, etc.</span>
+    <span class="hl-kw">echo</span> <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>ContainerNotFoundException</h3>
+    <p>Thrown when a requested binding is not found. Implements PSR-11 <code>Psr\Container\NotFoundExceptionInterface</code>.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ContainerNotFoundException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$container</span>-><span class="hl-fn">get</span>(<span class="hl-str">'unregistered.service'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ContainerNotFoundException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Service not registered: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <!-- Database Exceptions -->
+    <h2 id="database-exceptions">Database Exceptions</h2>
+
+    <h3>DatabaseException</h3>
+    <p>Base exception for all database errors.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\DatabaseException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">query</span>(<span class="hl-str">'SELECT * FROM non_existent_table'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">DatabaseException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Catches Connection, Query, and Transaction errors</span>
+}</code></pre>
+
+    <h3>ConnectionException</h3>
+    <p>Failed to connect or lost connection.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ConnectionException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">connect</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ConnectionException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Cannot connect: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+    <span class="hl-cmt">// Maybe retry or fail fast</span>
+}</code></pre>
+
+    <h3>QueryException</h3>
+    <p>SQL query execution failure. Includes query context:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\QueryException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">query</span>(<span class="hl-str">'INSERT INTO users (email) VALUES (?)'</span>, [<span class="hl-str">'duplicate@example.com'</span>]);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">QueryException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Query failed: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+    <span class="hl-cmt">// Message typically includes the SQL and error details</span>
+}</code></pre>
+
+    <h3>TransactionException</h3>
+    <p>Transaction commit/rollback failure:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\TransactionException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">beginTransaction</span>();
+    <span class="hl-cmt">// ... operations ...</span>
+    <span class="hl-var">$db</span>-><span class="hl-fn">commit</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">TransactionException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Transaction error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <!-- HTTP Exceptions -->
+    <h2 id="http-exceptions">HTTP Exceptions</h2>
+
+    <h3>HttpException</h3>
+    <p>Base HTTP error with status code:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\HttpException</span>;
+
+<span class="hl-kw">throw new</span> <span class="hl-cls">HttpException</span>(<span class="hl-str">'Service unavailable'</span>, <span class="hl-num">503</span>);</code></pre>
+
+    <h3>NotFoundException</h3>
+    <p>404 Not Found &mdash; shorthand:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\NotFoundException</span>;
+
+<span class="hl-cmt">// In a controller</span>
+<span class="hl-var">$user</span> = <span class="hl-var">$db</span>-><span class="hl-fn">find</span>(<span class="hl-var">$id</span>);
+<span class="hl-kw">if</span> (!<span class="hl-var">$user</span>) {
+    <span class="hl-kw">throw new</span> <span class="hl-cls">NotFoundException</span>(<span class="hl-str">"User {<span class="hl-var">$id</span>} not found"</span>);
+}</code></pre>
+
+    <h3>RedirectException</h3>
+    <p>Triggers an HTTP redirect rather than rendering a response:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\RedirectException</span>;
+
+<span class="hl-cmt">// 301 Permanent redirect</span>
+<span class="hl-kw">throw new</span> <span class="hl-cls">RedirectException</span>(<span class="hl-str">'/new-url'</span>, <span class="hl-num">301</span>);
+
+<span class="hl-cmt">// 302 Temporary redirect (default)</span>
+<span class="hl-kw">throw new</span> <span class="hl-cls">RedirectException</span>(<span class="hl-str">'/login'</span>);</code></pre>
+    <p>When caught by the framework's error handler, a <code>Location</code> header is sent with the appropriate status code.</p>
+
+    <!-- IO & Network Exceptions -->
+    <h2 id="io-network-exceptions">IO &amp; Network Exceptions</h2>
+
+    <h3>FileException</h3>
+    <p>File system operations (read, write, permissions):</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\FileException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$content</span> = <span class="hl-cls">FileReader</span>::<span class="hl-fn">read</span>(<span class="hl-str">'/path/to/file'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">FileException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"File error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>NetworkException</h3>
+    <p>Base for network I/O failures:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\NetworkException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-cmt">// Any FTP or SFTP operation</span>
+} <span class="hl-kw">catch</span> (<span class="hl-cls">NetworkException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Catches both FTP and SSH errors</span>
+}</code></pre>
+
+    <h3>FTPException</h3>
+    <p>FTP-specific failures (extends <code>NetworkException</code>):</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\FTPException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$ftp</span>-><span class="hl-fn">upload</span>(<span class="hl-str">'/local/file'</span>, <span class="hl-str">'/remote/path'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">FTPException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"FTP error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>SSHException</h3>
+    <p>SFTP/SSH-specific failures (extends <code>NetworkException</code>):</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\SSHException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$sftp</span>-><span class="hl-fn">loginWithPassword</span>(<span class="hl-str">'user'</span>, <span class="hl-str">'wrong-password'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">SSHException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"SSH error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <!-- Module Exceptions -->
+    <h2 id="module-exceptions">Module Exceptions</h2>
+
+    <h3>ModuleException</h3>
+    <p>Base for module system errors:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ModuleException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$module</span>-><span class="hl-fn">load</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ModuleException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Config or load error</span>
+}</code></pre>
+
+    <h3>ModuleConfigException</h3>
+    <p>Module configuration is invalid or missing required fields:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ModuleConfigException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$module</span>-><span class="hl-fn">loadConfig</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ModuleConfigException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Bad module config: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>ModuleLoadException</h3>
+    <p>Module failed to load (missing files, dependency conflicts):</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ModuleLoadException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$distributor</span>-><span class="hl-fn">loadModules</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ModuleLoadException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Module load failed: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <!-- Other Exceptions -->
+    <h2 id="other-exceptions">Other Exceptions</h2>
+
+    <h3>CacheException</h3>
+    <p>Cache adapter failures:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\CacheException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-cls">Cache</span>::<span class="hl-fn">get</span>(<span class="hl-str">'key'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">CacheException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Redis connection lost, file permission denied, etc.</span>
+}</code></pre>
+
+    <h3>ConfigurationException</h3>
+    <p>Framework or application configuration errors:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ConfigurationException</span>;
+
+<span class="hl-cmt">// Thrown during bootstrap if config files are invalid</span></code></pre>
+
+    <h3>MailerException</h3>
+    <p>Email sending failures:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\MailerException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$mailer</span>-><span class="hl-fn">send</span>(<span class="hl-var">$message</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">MailerException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Email failed: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+    <span class="hl-cmt">// SMTP connection error, invalid recipient, etc.</span>
+}</code></pre>
+
+    <h3>ModelNotFoundException</h3>
+    <p>Eloquent-style "find or fail" pattern:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ModelNotFoundException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">findOrFail</span>(<span class="hl-var">$id</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ModelNotFoundException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-var">$model</span> = <span class="hl-var">$e</span>-><span class="hl-fn">getModel</span>();  <span class="hl-cmt">// 'App\Models\User'</span>
+    <span class="hl-var">$ids</span>   = <span class="hl-var">$e</span>-><span class="hl-fn">getIds</span>();    <span class="hl-cmt">// [42]</span>
+    <span class="hl-kw">echo</span> <span class="hl-str">"{<span class="hl-var">$model</span>} not found for IDs: "</span> . <span class="hl-fn">implode</span>(<span class="hl-str">', '</span>, <span class="hl-var">$ids</span>);
+}</code></pre>
+    <p>Methods:</p>
+    <ul>
+      <li><code>setModel(string $model, array $ids = []): static</code></li>
+      <li><code>getModel(): string</code></li>
+      <li><code>getIds(): array</code></li>
+    </ul>
+
+    <h3>OAuthException</h3>
+    <p>OAuth 2.0 flow errors:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\OAuthException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$token</span> = <span class="hl-var">$oauth</span>-><span class="hl-fn">requestAccessToken</span>(<span class="hl-var">$code</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">OAuthException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"OAuth error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>PipelineException</h3>
+    <p>Pipeline execution failures:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\PipelineException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$pipeline</span>-><span class="hl-fn">send</span>(<span class="hl-var">$data</span>)-><span class="hl-fn">thenReturn</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">PipelineException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Pipeline error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>QueueException</h3>
+    <p>Queue dispatch or worker errors:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\QueueException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$queue</span>-><span class="hl-fn">push</span>(<span class="hl-var">$job</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">QueueException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Queue error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>RoutingException</h3>
+    <p>Route resolution or URL generation failures:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\RoutingException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$router</span>-><span class="hl-fn">resolve</span>(<span class="hl-var">$request</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">RoutingException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Routing error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <h3>TemplateException</h3>
+    <p>Template parsing or rendering errors:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\TemplateException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$engine</span>-><span class="hl-fn">render</span>(<span class="hl-str">'template-name'</span>, <span class="hl-var">$data</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">TemplateException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Template error: "</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>();
+}</code></pre>
+
+    <!-- Usage Patterns -->
+    <h2 id="usage-patterns">Usage Patterns</h2>
+
+    <h3>Granular vs. Broad Catching</h3>
+    <pre><code><span class="hl-cmt">// Granular &mdash; catch specific exceptions</span>
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">beginTransaction</span>();
+    <span class="hl-var">$db</span>-><span class="hl-fn">query</span>(<span class="hl-var">$sql</span>, <span class="hl-var">$params</span>);
+    <span class="hl-var">$db</span>-><span class="hl-fn">commit</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">QueryException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-var">$db</span>-><span class="hl-fn">rollBack</span>();
+    <span class="hl-fn">log</span>(<span class="hl-str">"SQL error: {<span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>()}"</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">TransactionException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-fn">log</span>(<span class="hl-str">"TX error: {<span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>()}"</span>);
+}
+
+<span class="hl-cmt">// Broad &mdash; catch by subsystem</span>
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">beginTransaction</span>();
+    <span class="hl-var">$db</span>-><span class="hl-fn">query</span>(<span class="hl-var">$sql</span>, <span class="hl-var">$params</span>);
+    <span class="hl-var">$db</span>-><span class="hl-fn">commit</span>();
+} <span class="hl-kw">catch</span> (<span class="hl-cls">DatabaseException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-var">$db</span>-><span class="hl-fn">rollBack</span>();
+    <span class="hl-fn">log</span>(<span class="hl-str">"DB error: {<span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>()}"</span>);
+}
+
+<span class="hl-cmt">// Broadest &mdash; catch any Razy runtime error</span>
+<span class="hl-kw">try</span> {
+    <span class="hl-cmt">// ...</span>
+} <span class="hl-kw">catch</span> (\<span class="hl-cls">RuntimeException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// All Razy exceptions</span>
+}</code></pre>
+
+    <h3>Converting Exceptions to HTTP Responses</h3>
+    <pre><code><span class="hl-kw">try</span> {
+    <span class="hl-var">$result</span> = <span class="hl-var">$controller</span>-><span class="hl-fn">handle</span>(<span class="hl-var">$request</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">NotFoundException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">return new</span> <span class="hl-cls">Response</span>(<span class="hl-num">404</span>, <span class="hl-str">'Not Found'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">RedirectException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">return new</span> <span class="hl-cls">Response</span>(<span class="hl-var">$e</span>-><span class="hl-fn">getCode</span>(), <span class="hl-str">''</span>, [<span class="hl-str">'Location'</span> => <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>()]);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">HttpException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">return new</span> <span class="hl-cls">Response</span>(<span class="hl-var">$e</span>-><span class="hl-fn">getCode</span>(), <span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>());
+} <span class="hl-kw">catch</span> (\<span class="hl-cls">RuntimeException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">return new</span> <span class="hl-cls">Response</span>(<span class="hl-num">500</span>, <span class="hl-str">'Internal Server Error'</span>);
+}</code></pre>
+
+    <h3>Re-throwing with Context</h3>
+    <pre><code><span class="hl-kw">try</span> {
+    <span class="hl-var">$db</span>-><span class="hl-fn">query</span>(<span class="hl-var">$sql</span>, <span class="hl-var">$params</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">QueryException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">throw new</span> \<span class="hl-cls">RuntimeException</span>(
+        <span class="hl-str">"Failed to process order #{<span class="hl-var">$orderId</span>}"</span>,
+        previous: <span class="hl-var">$e</span>
+    );
+}</code></pre>
+
+    <!-- Error System Internals -->
+    <h2 id="error-system-internals">Error System Internals</h2>
+    <p>Beyond the exception hierarchy, Razy provides three core classes that manage how errors are captured, configured, and rendered.</p>
+
+    <h3>Error Class</h3>
+    <p>The <code>Error</code> class extends <code>\Exception</code> and serves as the primary error object for framework-level errors (404 pages, uncaught exceptions).</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Error</span>;
+
+<span class="hl-cmt">// Create a custom error</span>
+<span class="hl-var">$error</span> = <span class="hl-kw">new</span> <span class="hl-cls">Error</span>(
+    message: <span class="hl-str">'Resource not found'</span>,
+    statusCode: <span class="hl-num">404</span>,
+    heading: <span class="hl-str">'Not Found'</span>,
+    debugMessage: <span class="hl-str">'The requested URL /foo/bar was not found.'</span>,
+);
+
+<span class="hl-var">$error</span>-><span class="hl-fn">getStatusCode</span>();    <span class="hl-cmt">// 404</span>
+<span class="hl-var">$error</span>-><span class="hl-fn">getHeading</span>();       <span class="hl-cmt">// 'Not Found'</span>
+<span class="hl-var">$error</span>-><span class="hl-fn">getDebugMessage</span>();  <span class="hl-cmt">// Visible only in debug mode</span>
+
+<span class="hl-cmt">// Static helpers</span>
+<span class="hl-cls">Error</span>::<span class="hl-fn">show404</span>();            <span class="hl-cmt">// Throw NotFoundException (renders 404 page)</span>
+<span class="hl-cls">Error</span>::<span class="hl-fn">showException</span>(<span class="hl-var">$e</span>);   <span class="hl-cmt">// Render an exception (web or CLI)</span></code></pre>
+
+    <h4>Show404</h4>
+    <pre><code><span class="hl-cmt">// In a controller or routing callback</span>
+<span class="hl-kw">if</span> (!<span class="hl-var">$page</span>) {
+    <span class="hl-cls">Error</span>::<span class="hl-fn">show404</span>();
+    <span class="hl-cmt">// Throws NotFoundException internally</span>
+    <span class="hl-cmt">// Renders the 404 template or JSON response</span>
+}</code></pre>
+
+    <h4>Debug Console</h4>
+    <pre><code><span class="hl-cmt">// Write to the debug console buffer (HTML debug panel)</span>
+<span class="hl-cls">Error</span>::<span class="hl-fn">debugConsoleWrite</span>(<span class="hl-str">'Query took 45ms'</span>, <span class="hl-str">'sql'</span>);
+<span class="hl-cls">Error</span>::<span class="hl-fn">debugConsoleWrite</span>(<span class="hl-str">'Cache miss for key: user:42'</span>, <span class="hl-str">'cache'</span>);</code></pre>
+
+    <h3>ErrorConfig</h3>
+    <p><code>ErrorConfig</code> is a static state manager that controls error behaviour globally.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ErrorConfig</span>;
+
+<span class="hl-cmt">// Enable/disable debug mode</span>
+<span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">setDebug</span>(<span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Check debug state</span>
+<span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">isDebug</span>();  <span class="hl-cmt">// true</span>
+
+<span class="hl-cmt">// Enable cached error pages</span>
+<span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">setCached</span>(<span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Configure all settings at once</span>
+<span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">configure</span>([
+    <span class="hl-str">'debug'</span>        => <span class="hl-kw">true</span>,
+    <span class="hl-str">'cached'</span>       => <span class="hl-kw">false</span>,
+    <span class="hl-str">'display_errors'</span> => <span class="hl-kw">true</span>,
+]);
+
+<span class="hl-cmt">// Get the accumulated debug console output</span>
+<span class="hl-var">$console</span> = <span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">getDebugConsole</span>();
+
+<span class="hl-cmt">// Reset to defaults</span>
+<span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">reset</span>();</code></pre>
+
+    <h3>ErrorRenderer</h3>
+    <p><code>ErrorRenderer</code> handles the visual output of errors. It operates differently in CLI vs web mode and supports debug backtraces in development.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ErrorRenderer</span>;
+
+<span class="hl-cmt">// Render a 404 page</span>
+<span class="hl-cls">ErrorRenderer</span>::<span class="hl-fn">show404</span>();
+<span class="hl-cmt">// In web mode: loads template from asset/exception/404.html</span>
+<span class="hl-cmt">// In CLI mode: prints plain text</span>
+
+<span class="hl-cmt">// Render an exception with full backtrace</span>
+<span class="hl-cls">ErrorRenderer</span>::<span class="hl-fn">showException</span>(<span class="hl-var">$exception</span>);
+<span class="hl-cmt">// In debug mode: full backtrace with source code preview</span>
+<span class="hl-cmt">// In production: generic error page</span>
+
+<span class="hl-cmt">// Template resolution order:</span>
+<span class="hl-cmt">// 1. PHAR_PATH/asset/exception/{statusCode}.html  (e.g., 404.html, 500.html)</span>
+<span class="hl-cmt">// 2. PHAR_PATH/asset/exception/default.html</span>
+<span class="hl-cmt">// 3. Fallback plain HTML</span></code></pre>
+
+    <h4>Debug Backtrace in Development</h4>
+    <p>When <code>ErrorConfig::isDebug()</code> is <code>true</code>, exceptions are rendered with:</p>
+    <ul>
+      <li>Exception class name and message</li>
+      <li>Full stack trace with file paths and line numbers</li>
+      <li>Source code preview around the error line</li>
+      <li>Debug console output (SQL queries, cache operations, etc.)</li>
+    </ul>
+
+    <h4>Production Error Pages</h4>
+    <p>When debug mode is off, errors display a generic user-friendly message without exposing internals:</p>
+    <pre><code><span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">setDebug</span>(<span class="hl-kw">false</span>);
+
+<span class="hl-cmt">// Now exceptions show:</span>
+<span class="hl-cmt">// "An unexpected error occurred. Please try again later."</span>
+<span class="hl-cmt">// No stack trace, no file paths, no SQL queries</span></code></pre>
+
+    <!-- Complete Exception Flow Example -->
+    <h3>Complete Exception Flow Example</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Error</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\ErrorConfig</span>;
+
+<span class="hl-cmt">// Bootstrap</span>
+<span class="hl-cls">ErrorConfig</span>::<span class="hl-fn">setDebug</span>(<span class="hl-fn">getenv</span>(<span class="hl-str">'APP_DEBUG'</span>) === <span class="hl-str">'true'</span>);
+
+<span class="hl-cmt">// Register global exception handler</span>
+<span class="hl-fn">set_exception_handler</span>(<span class="hl-kw">function</span> (\<span class="hl-cls">Throwable</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Log the error</span>
+    <span class="hl-fn">error_log</span>(<span class="hl-var">$e</span>-><span class="hl-fn">getMessage</span>() . <span class="hl-str">"\n"</span> . <span class="hl-var">$e</span>-><span class="hl-fn">getTraceAsString</span>());
+
+    <span class="hl-cmt">// Render appropriate response</span>
+    <span class="hl-kw">if</span> (<span class="hl-var">$e</span> <span class="hl-kw">instanceof</span> <span class="hl-cls">NotFoundException</span>) {
+        <span class="hl-cls">Error</span>::<span class="hl-fn">show404</span>();
+    } <span class="hl-kw">elseif</span> (<span class="hl-var">$e</span> <span class="hl-kw">instanceof</span> <span class="hl-cls">HttpException</span>) {
+        <span class="hl-fn">http_response_code</span>(<span class="hl-var">$e</span>-><span class="hl-fn">getCode</span>());
+        <span class="hl-cls">Error</span>::<span class="hl-fn">showException</span>(<span class="hl-var">$e</span>);
+    } <span class="hl-kw">else</span> {
+        <span class="hl-fn">http_response_code</span>(<span class="hl-num">500</span>);
+        <span class="hl-cls">Error</span>::<span class="hl-fn">showException</span>(<span class="hl-var">$e</span>);
+    }
+});</code></pre>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+    <table>
+      <thead>
+        <tr><th>Exception</th><th>Parent</th><th>HTTP Code</th><th>Key Feature</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>CacheException</code></td><td><code>RuntimeException</code></td><td></td><td>Cache adapter errors</td></tr>
+        <tr><td><code>ConfigurationException</code></td><td><code>RuntimeException</code></td><td></td><td>Config file issues</td></tr>
+        <tr><td><code>ContainerException</code></td><td><code>RuntimeException</code></td><td></td><td>PSR-11 <code>ContainerExceptionInterface</code></td></tr>
+        <tr><td><code>ContainerNotFoundException</code></td><td><code>ContainerException</code></td><td></td><td>PSR-11 <code>NotFoundExceptionInterface</code></td></tr>
+        <tr><td><code>ConnectionException</code></td><td><code>DatabaseException</code></td><td></td><td>Database connection</td></tr>
+        <tr><td><code>DatabaseException</code></td><td><code>RuntimeException</code></td><td></td><td>Base DB error</td></tr>
+        <tr><td><code>FileException</code></td><td><code>RuntimeException</code></td><td></td><td>File I/O</td></tr>
+        <tr><td><code>FTPException</code></td><td><code>NetworkException</code></td><td></td><td>FTP operations</td></tr>
+        <tr><td><code>HttpException</code></td><td><code>RuntimeException</code></td><td>Any</td><td>HTTP status code</td></tr>
+        <tr><td><code>MailerException</code></td><td><code>RuntimeException</code></td><td></td><td>Email sending</td></tr>
+        <tr><td><code>ModelNotFoundException</code></td><td><code>RuntimeException</code></td><td>404</td><td><code>setModel()</code> / <code>getModel()</code> / <code>getIds()</code></td></tr>
+        <tr><td><code>ModuleConfigException</code></td><td><code>ModuleException</code></td><td></td><td>Module config</td></tr>
+        <tr><td><code>ModuleException</code></td><td><code>RuntimeException</code></td><td></td><td>Base module error</td></tr>
+        <tr><td><code>ModuleLoadException</code></td><td><code>ModuleException</code></td><td></td><td>Module loading</td></tr>
+        <tr><td><code>NetworkException</code></td><td><code>RuntimeException</code></td><td></td><td>Base network I/O</td></tr>
+        <tr><td><code>NotFoundException</code></td><td><code>HttpException</code></td><td>404</td><td>Page not found</td></tr>
+        <tr><td><code>OAuthException</code></td><td><code>RuntimeException</code></td><td></td><td>OAuth flow</td></tr>
+        <tr><td><code>PipelineException</code></td><td><code>RuntimeException</code></td><td></td><td>Pipeline execution</td></tr>
+        <tr><td><code>QueryException</code></td><td><code>DatabaseException</code></td><td></td><td>SQL execution</td></tr>
+        <tr><td><code>QueueException</code></td><td><code>RuntimeException</code></td><td></td><td>Job dispatch</td></tr>
+        <tr><td><code>RedirectException</code></td><td><code>HttpException</code></td><td>301/302</td><td>HTTP redirect</td></tr>
+        <tr><td><code>RoutingException</code></td><td><code>RuntimeException</code></td><td></td><td>Route resolution</td></tr>
+        <tr><td><code>SSHException</code></td><td><code>NetworkException</code></td><td></td><td>SFTP/SSH operations</td></tr>
+        <tr><td><code>TemplateException</code></td><td><code>RuntimeException</code></td><td></td><td>Template rendering</td></tr>
+        <tr><td><code>TransactionException</code></td><td><code>DatabaseException</code></td><td></td><td>TX commit/rollback</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="profiler.html"><span class="label">&larr; Previous</span><span class="title">Profiler</span></a>
+      <a href="plugins.html" class="next"><span class="label">Next &rarr;</span><span class="title">Plugin System</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

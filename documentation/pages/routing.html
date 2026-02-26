@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Routing &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Routing</h1>
+    <p>Razy provides multiple types of URL routing and command registration through the <strong>Agent</strong>. This includes <strong>lazy routes</strong> for simple path-based matching, <strong>regex routes</strong> for URL parameter capture, <strong>HTTP method filtering</strong> for RESTful endpoints, <strong>shadow routes</strong> for internal-only endpoints, <strong>API commands</strong> for cross-module communication, <strong>bridge commands</strong> for cross-distributor calls, and <strong>script registration</strong> for CLI-only routes.</p>
+
+    <h2 id="lazy-routes">Lazy Routes</h2>
+    <p>Lazy routes map URL path segments to controller handler files. They start with the module code and combine with the defined path:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addLazyRoute</span>([
+        <span class="hl-str">'/'</span>      => <span class="hl-str">'main'</span>,      <span class="hl-cmt">// &#x2718; controller/module.main.php</span>
+        <span class="hl-str">'action'</span> => <span class="hl-str">'action'</span>,    <span class="hl-cmt">// &#x2718; controller/module.action.php</span>
+        <span class="hl-str">'nested'</span> => [
+            <span class="hl-str">'deep'</span> => <span class="hl-str">'handler'</span>,  <span class="hl-cmt">// &#x2718; controller/nested/deep.php</span>
+        ],
+    ]);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h2 id="method-filtering">HTTP Method Filtering</h2>
+    <p>Both lazy routes and regex routes support HTTP method prefixes for RESTful routing. Prefix the route string with an HTTP method followed by a space to restrict which request methods the route will match.</p>
+
+    <h3>Syntax</h3>
+    <pre><code>METHOD /path</code></pre>
+    <p>If no prefix is given, the route matches <strong>any</strong> HTTP method (wildcard <code>*</code>).</p>
+
+    <h3>Supported Methods</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET</code></td><td>Read / retrieve</td></tr>
+        <tr><td><code>POST</code></td><td>Create / submit</td></tr>
+        <tr><td><code>PUT</code></td><td>Replace entirely</td></tr>
+        <tr><td><code>PATCH</code></td><td>Partial update</td></tr>
+        <tr><td><code>DELETE</code></td><td>Remove</td></tr>
+        <tr><td><code>HEAD</code></td><td>Headers only</td></tr>
+        <tr><td><code>OPTIONS</code></td><td>CORS preflight / capabilities</td></tr>
+        <tr><td><code>*</code></td><td>Any method (default)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>With Lazy Routes</h3>
+    <pre><code><span class="hl-var">$agent</span>-><span class="hl-fn">addLazyRoute</span>([
+    <span class="hl-str">'/'</span>              => <span class="hl-str">'main'</span>,      <span class="hl-cmt">// Any method</span>
+    <span class="hl-str">'GET /users'</span>     => <span class="hl-str">'list'</span>,      <span class="hl-cmt">// GET only</span>
+    <span class="hl-str">'POST /users'</span>    => <span class="hl-str">'create'</span>,    <span class="hl-cmt">// POST only</span>
+    <span class="hl-str">'DELETE /users'</span>  => <span class="hl-str">'remove'</span>,    <span class="hl-cmt">// DELETE only</span>
+]);</code></pre>
+
+    <h3>With Regex Routes</h3>
+    <pre><code><span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'GET /users/(:d)'</span>, <span class="hl-str">'view'</span>);       <span class="hl-cmt">// GET /users/42</span>
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'PUT /users/(:d)'</span>, <span class="hl-str">'update'</span>);      <span class="hl-cmt">// PUT /users/42</span>
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'DELETE /users/(:d)'</span>, <span class="hl-str">'delete'</span>);   <span class="hl-cmt">// DELETE /users/42</span>
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/users/(:d)'</span>, <span class="hl-str">'any_method'</span>);      <span class="hl-cmt">// Any method</span></code></pre>
+
+    <h3>Multi-Method Routes</h3>
+    <p>Use pipe (<code>|</code>) to allow multiple methods on a single route:</p>
+    <pre><code><span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'GET|POST /form'</span>, <span class="hl-str">'handle_form'</span>);
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'PUT|PATCH /users/(:d)'</span>, <span class="hl-str">'update_user'</span>);</code></pre>
+
+    <h3>Using the Route Object</h3>
+    <p>The <code>Route</code> class provides a fluent <code>method()</code> setter for method constraints:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Route</span>;
+
+<span class="hl-var">$route</span> = (<span class="hl-kw">new</span> <span class="hl-cls">Route</span>(<span class="hl-str">'handler'</span>))-><span class="hl-fn">method</span>(<span class="hl-str">'POST'</span>);
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/api/submit'</span>, <span class="hl-var">$route</span>);
+
+<span class="hl-cmt">// Chain with other Route methods</span>
+<span class="hl-var">$route</span> = (<span class="hl-kw">new</span> <span class="hl-cls">Route</span>(<span class="hl-str">'handler'</span>))
+    -><span class="hl-fn">method</span>(<span class="hl-str">'PUT'</span>)
+    -><span class="hl-fn">name</span>(<span class="hl-str">'user.update'</span>)
+    -><span class="hl-fn">middleware</span>(<span class="hl-var">$authMiddleware</span>);
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/users/(:d)'</span>, <span class="hl-var">$route</span>);</code></pre>
+    <div class="callout callout-warning">
+      <strong>Priority:</strong> When both a method prefix and a <code>Route</code> object's <code>method()</code> are set, the Route object's method takes precedence (unless it is wildcard <code>*</code>).
+    </div>
+
+    <h3>How Matching Works</h3>
+    <ol>
+      <li>The method check happens <strong>first</strong>, before any path matching &mdash; efficient early rejection.</li>
+      <li>Routes with method <code>*</code> match any HTTP request method.</li>
+      <li>In CLI mode, <code>$requestMethod</code> is <code>'CLI'</code>, so only wildcard routes match &mdash; HTTP-method-filtered routes are skipped.</li>
+      <li>Method matching is case-insensitive at registration (<code>'post'</code> &mdash;stored as <code>'POST'</code>).</li>
+    </ol>
+
+    <h2 id="regex-routes">Regex Routes (URL Parameter Capture)</h2>
+    <p>Use <code>addRoute()</code> when you need to capture URL parameters like IDs, slugs, or custom patterns:</p>
+    <pre><code><span class="hl-cmt">// MUST have leading slash &mdash; absolute path from site root</span>
+<span class="hl-cmt">// Parentheses for capture &mdash; (:d) captures, :d just matches</span>
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/module/user/(:d)'</span>, <span class="hl-str">'user'</span>);
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/module/article/(:a)'</span>, <span class="hl-str">'article'</span>);
+<span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/module/tag/(:[a-z0-9-]{1,30})'</span>, <span class="hl-str">'tag'</span>);</code></pre>
+
+    <h2 id="pattern-tokens">Pattern Tokens</h2>
+    <table>
+      <thead><tr><th>Token</th><th>Matches</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><code>:a</code></td><td>Any non-slash characters</td><td><code>hello-world_123</code></td></tr>
+        <tr><td><code>:d</code></td><td>Digits 0-9</td><td><code>42</code></td></tr>
+        <tr><td><code>:w</code></td><td>Word characters (a-zA-Z, 0-9, _)</td><td><code>Widget_1</code></td></tr>
+        <tr><td><code>:[regex]</code></td><td>Custom character class</td><td><code>:[a-z0-9-]</code></td></tr>
+        <tr><td><code>{n}</code></td><td>Exactly n characters</td><td><code>:a{6}</code></td></tr>
+        <tr><td><code>{min,max}</code></td><td>Length range</td><td><code>:a{3,10}</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="handler-files">Route Handler Files</h2>
+    <p>Handler files return a closure. Captured URL parameters are passed as arguments:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// controller/module.user.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">string</span> <span class="hl-var">$id</span>): <span class="hl-cls">void</span> {
+    <span class="hl-fn">header</span>(<span class="hl-str">'Content-Type: application/json'</span>);
+    <span class="hl-kw">echo</span> <span class="hl-fn">json_encode</span>([<span class="hl-str">'user_id'</span> => <span class="hl-var">$id</span>]);
+};</code></pre>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Wrong</th><th>Correct</th><th>Issue</th></tr></thead>
+      <tbody>
+        <tr><td><code>'module/user/(:d)'</code></td><td><code>'/module/user/(:d)'</code></td><td>Missing leading slash</td></tr>
+        <tr><td><code>'/module/user/:d'</code></td><td><code>'/module/user/(:d)'</code></td><td>Missing parentheses = no capture</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="shadow-routes">Shadow Routes</h2>
+    <p>Shadow routes delegate URL handling to <strong>another module's</strong> controller closure while keeping the original URL unchanged. The URL is still matched and reachable &mdash; only the <em>executor</em> changes. This is useful for delegating part of your URL space to a different module without the user seeing a redirect.</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Delegate /admin to the admin_panel module's 'dashboard' closure</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addShadowRoute</span>(<span class="hl-str">'/admin'</span>, <span class="hl-str">'vendor/admin_panel'</span>, <span class="hl-str">'dashboard'</span>);
+
+    <span class="hl-cmt">// If $path is omitted, the route name is used as the target path</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addShadowRoute</span>(<span class="hl-str">'/reports'</span>, <span class="hl-str">'vendor/reporting'</span>);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>$route</code></td><td><code>string</code></td><td>The URL path to match (prefixed with the current module's alias)</td></tr>
+        <tr><td><code>$moduleCode</code></td><td><code>string</code></td><td>The target module code to delegate execution to (cannot be self)</td></tr>
+        <tr><td><code>$path</code></td><td><code>string</code></td><td>The closure path in the target module's controller (defaults to <code>$route</code>)</td></tr>
+      </tbody>
+    </table>
+    <p>At dispatch time, the matched route's <code>routedInfo</code> includes <code>'is_shadow' => true</code>, and the target module's closure is executed instead of the registering module's.</p>
+    <div class="callout callout-info">
+      <strong>Tip:</strong> Shadow routes are ideal for delegating URL segments to specialized modules (e.g. admin panels, reporting dashboards) without URL redirects.
+    </div>
+
+    <h2 id="event-system-integration">Event System Integration</h2>
+    <p>Routing works closely with the <a href="events.html">Event System</a>. Modules can listen for events dispatched by other modules during routing, allowing cross-module reactions without tight coupling.</p>
+    <p>In your module's <code>__onInit</code>, use <code>$agent-&gt;listen()</code> to subscribe to events by name and bind them to handler files:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Listen for cross-module events</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'user/login'</span>, <span class="hl-str">'event/on_login'</span>);
+    <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'order/placed'</span>, <span class="hl-str">'event/on_order'</span>);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p>The handler file receives the event data and can act on it:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// controller/event/module.on_login.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> <span class="hl-var">$eventData</span>): <span class="hl-cls">void</span> {
+    <span class="hl-cmt">// React to the user/login event</span>
+    <span class="hl-fn">error_log</span>(<span class="hl-str">'User logged in: '</span> . <span class="hl-var">$eventData</span>[<span class="hl-str">'username'</span>]);
+};</code></pre>
+    <div class="callout callout-info">
+      <strong>See also:</strong> The <a href="events.html">Event System</a> page covers event dispatching, listener priority, and the full event lifecycle.
+    </div>
+
+    <h2 id="api-commands">API Commands</h2>
+    <p>API commands allow modules to expose callable endpoints that other modules can invoke programmatically, without needing URL-based routing. This is the primary mechanism for structured cross-module communication.</p>
+    <p>Register API commands in <code>__onInit</code> using <code>addAPICommand()</code>:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Register API commands for this module</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addAPICommand</span>(<span class="hl-str">'getUser'</span>, <span class="hl-str">'api/get_user'</span>);
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addAPICommand</span>(<span class="hl-str">'listUsers'</span>, <span class="hl-str">'api/list_users'</span>);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p>The handler file for an API command returns a closure:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// controller/api/module.get_user.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> ...<span class="hl-var">$args</span>): <span class="hl-cls">mixed</span> {
+    <span class="hl-var">$userId</span> = <span class="hl-var">$args</span>[<span class="hl-num">0</span>] &rarr; <span class="hl-kw">null</span>;
+    <span class="hl-cmt">// Fetch and return user data</span>
+    <span class="hl-kw">return</span> [<span class="hl-str">'id'</span> => <span class="hl-var">$userId</span>, <span class="hl-str">'name'</span> => <span class="hl-str">'John Doe'</span>];
+};</code></pre>
+    <p>Other modules call API commands using <code>$this-&gt;api()</code>:</p>
+    <pre><code><span class="hl-cmt">// From another module's controller handler</span>
+<span class="hl-var">$user</span> = <span class="hl-var">$this</span>-><span class="hl-fn">api</span>(<span class="hl-str">'user_module'</span>, <span class="hl-str">'getUser'</span>, <span class="hl-num">42</span>);
+<span class="hl-cmt">// Returns: ['id' => 42, 'name' => 'John Doe']</span></code></pre>
+    <div class="callout callout-info">
+      <strong>See also:</strong> The <a href="cross-module-api.html">Cross-Module API</a> page covers the full API command lifecycle, return values, and error handling.
+    </div>
+
+    <h2 id="bridge-commands">Bridge Commands</h2>
+    <p>Bridge commands enable cross-distributor communication. When multiple distributors are configured (e.g., separate sites sharing the same Razy installation), bridge commands allow modules in one distributor to call registered handlers in another via an internal bridge mechanism.</p>
+    <p>Register bridge commands in <code>__onInit</code> using <code>addBridgeCommand()</code>:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Register a bridge command accessible from other distributors</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addBridgeCommand</span>(<span class="hl-str">'syncData'</span>, <span class="hl-str">'bridge/sync'</span>);
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addBridgeCommand</span>(<span class="hl-str">'healthCheck'</span>, <span class="hl-str">'bridge/health'</span>);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p>The handler file returns a closure that processes the bridge request:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// controller/bridge/module.sync.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> ...<span class="hl-var">$args</span>): <span class="hl-cls">mixed</span> {
+    <span class="hl-cmt">// Handle cross-distributor data sync</span>
+    <span class="hl-kw">return</span> [<span class="hl-str">'synced'</span> => <span class="hl-kw">true</span>, <span class="hl-str">'timestamp'</span> => <span class="hl-fn">time</span>()];
+};</code></pre>
+    <div class="callout callout-info">
+      <strong>See also:</strong> The <a href="sites-configuration.html">Sites Configuration</a> page covers how to configure distributors and bridge settings between them.
+    </div>
+
+    <h2 id="script-registration">Script Registration</h2>
+    <p>Script registration allows modules to register CLI-only routes that are accessible exclusively through the Razy command-line interface. These routes are not reachable via HTTP requests.</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Register CLI-only script commands</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addScript</span>(<span class="hl-str">'migrate'</span>, <span class="hl-str">'script/migrate'</span>);
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addScript</span>(<span class="hl-str">'seed'</span>, <span class="hl-str">'script/seed'</span>);
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p>The handler file works like any other route handler:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// controller/script/module.migrate.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> ...<span class="hl-var">$args</span>): <span class="hl-cls">void</span> {
+    <span class="hl-kw">echo</span> <span class="hl-str">"Running database migration...\n"</span>;
+    <span class="hl-cmt">// Perform migration logic</span>
+};</code></pre>
+    <p>CLI scripts are invoked through the Razy CLI tool. See <a href="cli.html">CLI Commands</a> for usage details.</p>
+
+    <h2 id="route-registration-summary">Route Registration Summary</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Purpose</th><th>Accessible Via</th></tr></thead>
+      <tbody>
+        <tr><td><code>addLazyRoute()</code></td><td>Path-segment based URL routing</td><td>HTTP</td></tr>
+        <tr><td><code>addRoute()</code></td><td>Regex URL routing with parameter capture</td><td>HTTP</td></tr>
+        <tr><td>Method prefix (<code>GET /path</code>)</td><td>HTTP method filtering on lazy/regex routes</td><td>HTTP</td></tr>
+        <tr><td><code>Route::method()</code></td><td>Fluent HTTP method constraint on Route objects</td><td>HTTP</td></tr>
+        <tr><td><code>addShadowRoute()</code></td><td>URL delegation to another module</td><td>Internal only</td></tr>
+        <tr><td><code>addAPICommand()</code></td><td>Cross-module callable endpoints</td><td>Internal API</td></tr>
+        <tr><td><code>addBridgeCommand()</code></td><td>Cross-distributor callable endpoints</td><td>Internal bridge</td></tr>
+        <tr><td><code>addScript()</code></td><td>CLI-only route registration</td><td>CLI only</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="agent.html"><span class="label">&larr; Previous</span><span class="title">Agent</span></a>
+      <a href="events.html" class="next"><span class="label">Next &rarr;</span><span class="title">Event System</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

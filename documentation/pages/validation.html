@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Validation &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Validation</h1>
+    <p>Razy provides a comprehensive <strong>validation system</strong> with field validators, nested data support (dot-notation wildcards), form requests, and 14 built-in rules. The system follows a pipeline pattern where rules execute sequentially with bail-on-failure support.</p>
+
+    <h2 id="table-of-contents">Table of Contents</h2>
+    <ul>
+      <li><a href="#quick-start">Quick Start</a></li>
+      <li><a href="#validator">Validator</a></li>
+      <li><a href="#fieldvalidator">FieldValidator</a></li>
+      <li><a href="#validation-rules">Validation Rules</a></li>
+      <li><a href="#custom-rules">Custom Rules</a></li>
+      <li><a href="#validation-result">ValidationResult</a></li>
+      <li><a href="#nested-validator">NestedValidator</a></li>
+      <li><a href="#form-request">FormRequest</a></li>
+      <li><a href="#api-reference">API Reference</a></li>
+    </ul>
+
+    <hr>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Validator</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{Required, Email, MinLength}</span>;
+
+<span class="hl-cmt">// One-shot validation</span>
+<span class="hl-var">$result</span> = <span class="hl-cls">Validator</span>::<span class="hl-fn">make</span>(<span class="hl-var">$_POST</span>, [
+    <span class="hl-str">'name'</span>  =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">2</span>)],
+    <span class="hl-str">'email'</span> =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Email</span>()],
+]);
+
+<span class="hl-kw">if</span> (<span class="hl-var">$result</span>-&gt;<span class="hl-fn">fails</span>()) {
+    <span class="hl-var">$errors</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">errors</span>();
+    <span class="hl-cmt">// ['name' =&gt; ['Name is required.'], 'email' =&gt; [...]]</span>
+}
+
+<span class="hl-var">$validated</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">validated</span>();
+<span class="hl-cmt">// ['name' =&gt; 'John', 'email' =&gt; 'john@example.com']</span></code></pre>
+
+    <hr>
+
+    <h2 id="validator">Validator</h2>
+    <p>The <code>Validator</code> class orchestrates multi-field validation with before/after hooks:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Validator</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{Required, Email, MinLength, Between}</span>;
+
+<span class="hl-var">$validator</span> = <span class="hl-kw">new</span> <span class="hl-cls">Validator</span>(<span class="hl-var">$_POST</span>);
+
+<span class="hl-cmt">// Define fields and their rules</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'username'</span>)
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Required</span>())
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">3</span>));
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'email'</span>)
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Required</span>())
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Email</span>());
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'age'</span>)
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Required</span>())
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Between</span>(<span class="hl-num">18</span>, <span class="hl-num">120</span>));
+
+<span class="hl-cmt">// Set defaults for missing fields</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">defaults</span>([
+    <span class="hl-str">'role'</span> =&gt; <span class="hl-str">'user'</span>,
+    <span class="hl-str">'active'</span> =&gt; <span class="hl-kw">true</span>,
+]);
+
+<span class="hl-cmt">// Stop on first field failure</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">stopOnFirstFailure</span>();
+
+<span class="hl-cmt">// Before hook &mdash; transform data before validation</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">before</span>(<span class="hl-kw">function</span> (<span class="hl-cls">array</span> &amp;<span class="hl-var">$data</span>) {
+    <span class="hl-var">$data</span>[<span class="hl-str">'email'</span>] = <span class="hl-fn">strtolower</span>(<span class="hl-fn">trim</span>(<span class="hl-var">$data</span>[<span class="hl-str">'email'</span>] &rarr; <span class="hl-str">''</span>));
+});
+
+<span class="hl-cmt">// After hook &mdash; post-validation processing</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">after</span>(<span class="hl-kw">function</span> (<span class="hl-cls">array</span> <span class="hl-var">$validated</span>, <span class="hl-cls">array</span> <span class="hl-var">$errors</span>) {
+    <span class="hl-kw">if</span> (<span class="hl-fn">empty</span>(<span class="hl-var">$errors</span>)) {
+        <span class="hl-cmt">// log successful validation</span>
+    }
+});
+
+<span class="hl-var">$result</span> = <span class="hl-var">$validator</span>-&gt;<span class="hl-fn">validate</span>();</code></pre>
+
+    <h3>Bulk Field Definition</h3>
+    <pre><code><span class="hl-var">$validator</span>-&gt;<span class="hl-fn">fields</span>([
+    <span class="hl-str">'name'</span>  =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">2</span>)],
+    <span class="hl-str">'email'</span> =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Email</span>()],
+    <span class="hl-str">'role'</span>  =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">In</span>([<span class="hl-str">'admin'</span>, <span class="hl-str">'user'</span>, <span class="hl-str">'editor'</span>])],
+]);</code></pre>
+
+    <hr>
+
+    <h2 id="fieldvalidator">FieldValidator</h2>
+    <p>Each field gets its own <code>FieldValidator</code> that manages a rule pipeline:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\FieldValidator</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{Required, MinLength, Regex}</span>;
+
+<span class="hl-var">$field</span> = <span class="hl-kw">new</span> <span class="hl-cls">FieldValidator</span>(<span class="hl-str">'username'</span>);
+
+<span class="hl-cmt">// Add rules individually</span>
+<span class="hl-var">$field</span>-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Required</span>());
+<span class="hl-var">$field</span>-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">3</span>));
+<span class="hl-var">$field</span>-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Regex</span>(<span class="hl-str">'/^[a-zA-Z0-9_]+$/'</span>));
+
+<span class="hl-cmt">// Or in bulk</span>
+<span class="hl-var">$field</span>-&gt;<span class="hl-fn">rules</span>([<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">3</span>)]);
+
+<span class="hl-cmt">// Bail on first failure (default: true)</span>
+<span class="hl-var">$field</span>-&gt;<span class="hl-fn">bail</span>(<span class="hl-kw">true</span>);
+
+<span class="hl-cmt">// Conditional rules</span>
+<span class="hl-var">$field</span>-&gt;<span class="hl-fn">when</span>(<span class="hl-var">$isAdmin</span>, <span class="hl-kw">function</span> (<span class="hl-cls">FieldValidator</span> <span class="hl-var">$f</span>) {
+    <span class="hl-var">$f</span>-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">5</span>));
+});
+
+<span class="hl-cmt">// Validate a single value</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$field</span>-&gt;<span class="hl-fn">validate</span>(<span class="hl-str">'john_doe'</span>, <span class="hl-var">$_POST</span>);
+<span class="hl-cmt">// Returns: ['value' =&gt; 'john_doe', 'errors' =&gt; []]</span></code></pre>
+
+    <hr>
+
+    <h2 id="validation-rules">Validation Rules</h2>
+    <p>All 14 built-in rules extend <code>ValidationRule</code> and implement <code>ValidationRuleInterface</code>. Every rule (except <code>Required</code>) <strong>skips validation on null/empty values</strong> &mdash;add <code>Required</code> first if presence is mandatory.</p>
+
+    <h3>Required</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Required</span>;
+
+<span class="hl-cmt">// Fails on null, empty string, empty array</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'name'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Required</span>());</code></pre>
+
+    <h3>Email</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Email</span>;
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'email'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Email</span>());
+<span class="hl-cmt">// Uses FILTER_VALIDATE_EMAIL</span></code></pre>
+
+    <h3>Url</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Url</span>;
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'website'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Url</span>());
+<span class="hl-cmt">// Uses FILTER_VALIDATE_URL</span></code></pre>
+
+    <h3>Numeric</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Numeric</span>;
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'price'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Numeric</span>());
+<span class="hl-cmt">// Uses is_numeric() &#x2502; accepts ints, floats, numeric strings</span></code></pre>
+
+    <h3>MinLength / MaxLength</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{MinLength, MaxLength}</span>;
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'password'</span>)
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">8</span>))     <span class="hl-cmt">// mb_strlen &gt;= 8</span>
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">MaxLength</span>(<span class="hl-num">128</span>));  <span class="hl-cmt">// mb_strlen &lt;= 128</span></code></pre>
+
+    <h3>Between</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Between</span>;
+
+<span class="hl-cmt">// Numeric value must be in [min, max] inclusive</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'age'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Between</span>(<span class="hl-num">18</span>, <span class="hl-num">120</span>));
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'price'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Between</span>(<span class="hl-num">0.01</span>, <span class="hl-num">9999.99</span>));</code></pre>
+
+    <h3>Regex</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Regex</span>;
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'slug'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Regex</span>(<span class="hl-str">'/^[a-z0-9\-]+$/'</span>));</code></pre>
+
+    <h3>In</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\In</span>;
+
+<span class="hl-cmt">// Loose comparison (default)</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'status'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">In</span>([<span class="hl-str">'active'</span>, <span class="hl-str">'inactive'</span>, <span class="hl-str">'pending'</span>]));
+
+<span class="hl-cmt">// Strict comparison</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'type'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">In</span>([<span class="hl-num">1</span>, <span class="hl-num">2</span>, <span class="hl-num">3</span>], strict: <span class="hl-kw">true</span>));</code></pre>
+
+    <h3>IsArray</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\IsArray</span>;
+
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'tags'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">IsArray</span>());</code></pre>
+
+    <h3>Date</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Date</span>;
+
+<span class="hl-cmt">// Any parseable date</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'birthday'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Date</span>());
+
+<span class="hl-cmt">// Specific format</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'invoice_date'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Date</span>(<span class="hl-str">'Y-m-d'</span>));</code></pre>
+
+    <h3>Confirmed</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Confirmed</span>;
+
+<span class="hl-cmt">// Looks for {field}_confirmation in data</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'password'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Confirmed</span>());
+<span class="hl-cmt">// Checks $_POST['password_confirmation'] matches</span>
+
+<span class="hl-cmt">// Custom confirmation field name</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'password'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Confirmed</span>(<span class="hl-str">'password_repeat'</span>));</code></pre>
+
+    <h3>Callback</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\Callback</span>;
+
+<span class="hl-cmt">// Custom validation logic</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'username'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Callback</span>(<span class="hl-kw">function</span> (<span class="hl-cls">mixed</span> <span class="hl-var">$value</span>, <span class="hl-cls">string</span> <span class="hl-var">$field</span>, <span class="hl-cls">array</span> <span class="hl-var">$data</span>) {
+    <span class="hl-cmt">// Return true/false</span>
+    <span class="hl-kw">return</span> !<span class="hl-fn">in_array</span>(<span class="hl-var">$value</span>, [<span class="hl-str">'admin'</span>, <span class="hl-str">'root'</span>, <span class="hl-str">'system'</span>]);
+}));
+
+<span class="hl-cmt">// Can also return transformed value</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'tags'</span>)-&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Callback</span>(<span class="hl-kw">function</span> (<span class="hl-cls">mixed</span> <span class="hl-var">$value</span>) {
+    <span class="hl-kw">if</span> (<span class="hl-fn">is_string</span>(<span class="hl-var">$value</span>)) {
+        <span class="hl-kw">return</span> <span class="hl-fn">explode</span>(<span class="hl-str">','</span>, <span class="hl-var">$value</span>); <span class="hl-cmt">// transform string to array</span>
+    }
+    <span class="hl-kw">return</span> <span class="hl-var">$value</span>;
+}));</code></pre>
+
+    <h3>Each</h3>
+    <p>Validates each element of an array against a set of rules:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{Each, Required, Email}</span>;
+
+<span class="hl-cmt">// Validate that every email in the list is valid</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'emails'</span>)
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">IsArray</span>())
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Each</span>([<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Email</span>()]));
+
+<span class="hl-cmt">// Access per-item errors</span>
+<span class="hl-var">$each</span> = <span class="hl-kw">new</span> <span class="hl-cls">Each</span>([<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">3</span>)]);
+<span class="hl-var">$each</span>-&gt;<span class="hl-fn">validate</span>([<span class="hl-str">'ab'</span>, <span class="hl-str">''</span>, <span class="hl-str">'hello'</span>], <span class="hl-str">'items'</span>, []);
+<span class="hl-var">$itemErrors</span> = <span class="hl-var">$each</span>-&gt;<span class="hl-fn">getItemErrors</span>();
+<span class="hl-cmt">// [0 =&gt; ['items.0 must be at least 3 characters.'], 1 =&gt; ['items.1 is required.']]</span></code></pre>
+
+    <hr>
+
+    <h2 id="custom-rules">Custom Rules</h2>
+    <p>Create custom validation rules by extending <code>ValidationRule</code>:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\ValidationRule</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">UniqueEmail</span> <span class="hl-kw">extends</span> <span class="hl-cls">ValidationRule</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(
+        <span class="hl-kw">private readonly</span> <span class="hl-cls">UserRepository</span> <span class="hl-var">$repo</span>
+    ) {}
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">validate</span>(<span class="hl-cls">mixed</span> <span class="hl-var">$value</span>, <span class="hl-cls">string</span> <span class="hl-var">$field</span>, <span class="hl-cls">array</span> <span class="hl-var">$data</span>): <span class="hl-cls">mixed</span>
+    {
+        <span class="hl-kw">if</span> (<span class="hl-var">$this</span>-&gt;repo-&gt;<span class="hl-fn">emailExists</span>(<span class="hl-var">$value</span>)) {
+            <span class="hl-var">$this</span>-&gt;<span class="hl-fn">fail</span>();
+        }
+        <span class="hl-kw">return</span> <span class="hl-var">$value</span>;
+    }
+
+    <span class="hl-kw">protected function</span> <span class="hl-fn">defaultMessage</span>(): <span class="hl-cls">string</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-str">':field is already taken.'</span>;
+    }
+}
+
+<span class="hl-cmt">// Usage</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'email'</span>)
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Required</span>())
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">Email</span>())
+    -&gt;<span class="hl-fn">rule</span>(<span class="hl-kw">new</span> <span class="hl-cls">UniqueEmail</span>(<span class="hl-var">$userRepo</span>));</code></pre>
+
+    <h3>Custom Error Messages</h3>
+    <p>Override the default message on any rule:</p>
+    <pre><code><span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'email'</span>)
+    -&gt;<span class="hl-fn">rule</span>((<span class="hl-kw">new</span> <span class="hl-cls">Required</span>())-&gt;<span class="hl-fn">withMessage</span>(<span class="hl-str">'Please provide your email address.'</span>))
+    -&gt;<span class="hl-fn">rule</span>((<span class="hl-kw">new</span> <span class="hl-cls">Email</span>())-&gt;<span class="hl-fn">withMessage</span>(<span class="hl-str">'That doesn\'t look like a valid email.'</span>));</code></pre>
+
+    <p>The <code>:field</code> placeholder is automatically replaced with the field name.</p>
+
+    <hr>
+
+    <h2 id="validation-result">ValidationResult</h2>
+    <p>An <strong>immutable</strong> value object containing validation results:</p>
+    <pre><code><span class="hl-var">$result</span> = <span class="hl-var">$validator</span>-&gt;<span class="hl-fn">validate</span>();
+
+<span class="hl-cmt">// Pass/fail checks</span>
+<span class="hl-var">$result</span>-&gt;<span class="hl-fn">passes</span>();  <span class="hl-cmt">// bool</span>
+<span class="hl-var">$result</span>-&gt;<span class="hl-fn">fails</span>();   <span class="hl-cmt">// bool</span>
+
+<span class="hl-cmt">// Get validated data (only fields that passed)</span>
+<span class="hl-var">$data</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">validated</span>();
+<span class="hl-cmt">// ['name' =&gt; 'John', 'email' =&gt; 'john@example.com']</span>
+
+<span class="hl-cmt">// Get a single validated value</span>
+<span class="hl-var">$name</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'name'</span>);
+<span class="hl-var">$role</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'role'</span>, <span class="hl-str">'default'</span>);
+
+<span class="hl-cmt">// Error access</span>
+<span class="hl-var">$allErrors</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">errors</span>();
+<span class="hl-cmt">// ['email' =&gt; ['Email is required.', 'Email is invalid.']]</span>
+
+<span class="hl-var">$emailErrors</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">errorsFor</span>(<span class="hl-str">'email'</span>);
+<span class="hl-cmt">// ['Email is required.', 'Email is invalid.']</span>
+
+<span class="hl-var">$firstEmailError</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">firstError</span>(<span class="hl-str">'email'</span>);
+<span class="hl-cmt">// 'Email is required.'</span>
+
+<span class="hl-var">$firstErrors</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">firstErrors</span>();
+<span class="hl-cmt">// ['email' =&gt; 'Email is required.', 'name' =&gt; 'Name is required.']</span>
+
+<span class="hl-var">$hasEmailError</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">hasError</span>(<span class="hl-str">'email'</span>); <span class="hl-cmt">// bool</span>
+
+<span class="hl-cmt">// Flat list of all error messages</span>
+<span class="hl-var">$flat</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">allErrors</span>();
+<span class="hl-cmt">// ['Email is required.', 'Email is invalid.', 'Name is required.']</span>
+
+<span class="hl-var">$count</span> = <span class="hl-var">$result</span>-&gt;<span class="hl-fn">errorCount</span>(); <span class="hl-cmt">// total number of errors</span></code></pre>
+
+    <hr>
+
+    <h2 id="nested-validator">NestedValidator</h2>
+    <p>Validates deeply nested data structures using <strong>dot-notation paths</strong> and <strong>wildcard expansion</strong> (<code>*</code>):</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\NestedValidator</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{Required, Email, MinLength, Numeric, IsArray}</span>;
+
+<span class="hl-var">$data</span> = [
+    <span class="hl-str">'user'</span> =&gt; [
+        <span class="hl-str">'name'</span> =&gt; <span class="hl-str">'John'</span>,
+        <span class="hl-str">'email'</span> =&gt; <span class="hl-str">'john@example.com'</span>,
+    ],
+    <span class="hl-str">'items'</span> =&gt; [
+        [<span class="hl-str">'sku'</span> =&gt; <span class="hl-str">'ABC'</span>, <span class="hl-str">'qty'</span> =&gt; <span class="hl-num">2</span>, <span class="hl-str">'price'</span> =&gt; <span class="hl-num">19.99</span>],
+        [<span class="hl-str">'sku'</span> =&gt; <span class="hl-str">'DEF'</span>, <span class="hl-str">'qty'</span> =&gt; <span class="hl-num">1</span>, <span class="hl-str">'price'</span> =&gt; <span class="hl-num">49.99</span>],
+    ],
+    <span class="hl-str">'shipping'</span> =&gt; [
+        <span class="hl-str">'address'</span> =&gt; [
+            <span class="hl-str">'city'</span> =&gt; <span class="hl-str">'Taipei'</span>,
+            <span class="hl-str">'zip'</span> =&gt; <span class="hl-str">'100'</span>,
+        ],
+    ],
+];
+
+<span class="hl-var">$validator</span> = <span class="hl-kw">new</span> <span class="hl-cls">NestedValidator</span>(<span class="hl-var">$data</span>);
+
+<span class="hl-cmt">// Dot-notation for nested fields</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'user.name'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">2</span>)]);
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'user.email'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Email</span>()]);
+
+<span class="hl-cmt">// Wildcard (*) expands to each array element</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'items.*.sku'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>()]);
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'items.*.qty'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Numeric</span>()]);
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'items.*.price'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Numeric</span>()]);
+
+<span class="hl-cmt">// Deeply nested</span>
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'shipping.address.city'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>()]);
+<span class="hl-var">$validator</span>-&gt;<span class="hl-fn">field</span>(<span class="hl-str">'shipping.address.zip'</span>, [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>()]);
+
+<span class="hl-var">$result</span> = <span class="hl-var">$validator</span>-&gt;<span class="hl-fn">validate</span>();</code></pre>
+
+    <h3>One-Shot Factory</h3>
+    <pre><code><span class="hl-var">$result</span> = <span class="hl-cls">NestedValidator</span>::<span class="hl-fn">make</span>(<span class="hl-var">$data</span>, [
+    <span class="hl-str">'user.name'</span>      =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">MinLength</span>(<span class="hl-num">2</span>)],
+    <span class="hl-str">'user.email'</span>     =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Email</span>()],
+    <span class="hl-str">'items.*.sku'</span>    =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>()],
+    <span class="hl-str">'items.*.price'</span>  =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Numeric</span>()],
+]);</code></pre>
+
+    <h3>Dot-Notation Utilities</h3>
+    <p>The <code>NestedValidator</code> exposes static utilities for working with nested arrays:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\NestedValidator</span>;
+
+<span class="hl-cmt">// Get value by dot-path</span>
+<span class="hl-var">$city</span> = <span class="hl-cls">NestedValidator</span>::<span class="hl-fn">dataGet</span>(<span class="hl-var">$data</span>, <span class="hl-str">'shipping.address.city'</span>);
+<span class="hl-var">$sku</span>  = <span class="hl-cls">NestedValidator</span>::<span class="hl-fn">dataGet</span>(<span class="hl-var">$data</span>, <span class="hl-str">'items.0.sku'</span>);
+
+<span class="hl-cmt">// Set value by dot-path</span>
+<span class="hl-cls">NestedValidator</span>::<span class="hl-fn">dataSet</span>(<span class="hl-var">$data</span>, <span class="hl-str">'shipping.address.country'</span>, <span class="hl-str">'TW'</span>);
+
+<span class="hl-cmt">// Check existence</span>
+<span class="hl-cls">NestedValidator</span>::<span class="hl-fn">dataHas</span>(<span class="hl-var">$data</span>, <span class="hl-str">'user.email'</span>); <span class="hl-cmt">// true</span>
+<span class="hl-cls">NestedValidator</span>::<span class="hl-fn">dataHas</span>(<span class="hl-var">$data</span>, <span class="hl-str">'user.phone'</span>); <span class="hl-cmt">// false</span></code></pre>
+
+    <hr>
+
+    <h2 id="form-request">FormRequest</h2>
+    <p>An <strong>abstract class</strong> for structured form validation with authorization, auto-population from HTTP input, and lifecycle hooks:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\FormRequest</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Validation\Rule\{Required, Email, MinLength, Numeric, Between}</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">CreateOrderRequest</span> <span class="hl-kw">extends</span> <span class="hl-cls">FormRequest</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">authorize</span>(): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-cmt">// Return false to block with 403</span>
+        <span class="hl-kw">return</span> <span class="hl-kw">true</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">rules</span>(): <span class="hl-cls">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'customer_email'</span> =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Email</span>()],
+            <span class="hl-str">'items'</span>          =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">IsArray</span>()],
+            <span class="hl-str">'total'</span>          =&gt; [<span class="hl-kw">new</span> <span class="hl-cls">Required</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Numeric</span>(), <span class="hl-kw">new</span> <span class="hl-cls">Between</span>(<span class="hl-num">0.01</span>, <span class="hl-num">99999</span>)],
+        ];
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">defaults</span>(): <span class="hl-cls">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-str">'currency'</span> =&gt; <span class="hl-str">'USD'</span>,
+            <span class="hl-str">'status'</span>   =&gt; <span class="hl-str">'pending'</span>,
+        ];
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">messages</span>(): <span class="hl-cls">array</span>
+    {
+        <span class="hl-kw">return</span> [
+            <span class="hl-cmt">// Override default messages per rule</span>
+        ];
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">prepareForValidation</span>(<span class="hl-cls">array</span> <span class="hl-var">$data</span>): <span class="hl-cls">array</span>
+    {
+        <span class="hl-cmt">// Transform data before validation</span>
+        <span class="hl-var">$data</span>[<span class="hl-str">'customer_email'</span>] = <span class="hl-fn">strtolower</span>(<span class="hl-fn">trim</span>(<span class="hl-var">$data</span>[<span class="hl-str">'customer_email'</span>] &rarr; <span class="hl-str">''</span>));
+        <span class="hl-kw">return</span> <span class="hl-var">$data</span>;
+    }
+}</code></pre>
+
+    <h3>Creating FormRequest Instances</h3>
+    <pre><code><span class="hl-cmt">// From $_GET + $_POST</span>
+<span class="hl-var">$request</span> = <span class="hl-cls">CreateOrderRequest</span>::<span class="hl-fn">fromGlobals</span>();
+
+<span class="hl-cmt">// From JSON body (php://input)</span>
+<span class="hl-var">$request</span> = <span class="hl-cls">CreateOrderRequest</span>::<span class="hl-fn">fromJson</span>();
+
+<span class="hl-cmt">// From array</span>
+<span class="hl-var">$request</span> = <span class="hl-cls">CreateOrderRequest</span>::<span class="hl-fn">fromArray</span>(<span class="hl-var">$data</span>);</code></pre>
+
+    <h3>Using FormRequest</h3>
+    <pre><code><span class="hl-var">$request</span> = <span class="hl-cls">CreateOrderRequest</span>::<span class="hl-fn">fromJson</span>();
+
+<span class="hl-cmt">// Check authorization + validation</span>
+<span class="hl-kw">if</span> (<span class="hl-var">$request</span>-&gt;<span class="hl-fn">fails</span>()) {
+    <span class="hl-var">$errors</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">errors</span>();
+    <span class="hl-cmt">// If unauthorized: ['_authorization' =&gt; ['This action is unauthorized.']]</span>
+    <span class="hl-var">$json</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">errorsAsJson</span>(<span class="hl-cls">JSON_PRETTY_PRINT</span>);
+    <span class="hl-kw">return</span>;
+}
+
+<span class="hl-cmt">// Get validated data</span>
+<span class="hl-var">$validated</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">validated</span>();
+<span class="hl-var">$email</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">input</span>(<span class="hl-str">'customer_email'</span>);
+
+<span class="hl-cmt">// Data access helpers</span>
+<span class="hl-var">$all</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">all</span>();                          <span class="hl-cmt">// raw input</span>
+<span class="hl-var">$subset</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">only</span>([<span class="hl-str">'customer_email'</span>, <span class="hl-str">'total'</span>]);
+<span class="hl-var">$without</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">except</span>([<span class="hl-str">'_token'</span>]);
+<span class="hl-var">$exists</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">has</span>(<span class="hl-str">'customer_email'</span>);        <span class="hl-cmt">// bool</span>
+<span class="hl-var">$filled</span> = <span class="hl-var">$request</span>-&gt;<span class="hl-fn">filled</span>(<span class="hl-str">'customer_email'</span>);     <span class="hl-cmt">// present and non-empty</span></code></pre>
+
+    <hr>
+
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>Validator</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(array $data = [])</code></td><td>Create with input data</td></tr>
+        <tr><td><code>setData</code></td><td><code>(array $data): static</code></td><td>Replace input data</td></tr>
+        <tr><td><code>field</code></td><td><code>(string $name): FieldValidator</code></td><td>Get/create field validator</td></tr>
+        <tr><td><code>fields</code></td><td><code>(array $fieldRules): static</code></td><td>Bulk define fields</td></tr>
+        <tr><td><code>defaults</code></td><td><code>(array $defaults): static</code></td><td>Set default values</td></tr>
+        <tr><td><code>stopOnFirstFailure</code></td><td><code>(bool $stop = true): static</code></td><td>Stop at first failed field</td></tr>
+        <tr><td><code>before</code></td><td><code>(callable $callback): static</code></td><td>Pre-validation hook</td></tr>
+        <tr><td><code>after</code></td><td><code>(callable $callback): static</code></td><td>Post-validation hook</td></tr>
+        <tr><td><code>validate</code></td><td><code>(): ValidationResult</code></td><td>Run validation</td></tr>
+        <tr><td><code>make</code> <em>(static)</em></td><td><code>(array $data, array $rules): ValidationResult</code></td><td>One-shot factory</td></tr>
+      </tbody>
+    </table>
+
+    <h3>FieldValidator</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>rule</code></td><td><code>(ValidationRuleInterface $rule): static</code></td><td>Add a rule</td></tr>
+        <tr><td><code>rules</code></td><td><code>(array $rules): static</code></td><td>Add multiple rules</td></tr>
+        <tr><td><code>bail</code></td><td><code>(bool $stop = true): static</code></td><td>Stop on first failure</td></tr>
+        <tr><td><code>when</code></td><td><code>(bool $condition, callable $callback): static</code></td><td>Conditional rules</td></tr>
+        <tr><td><code>validate</code></td><td><code>(mixed $value, array $data = []): array</code></td><td>Returns <code>{value, errors}</code></td></tr>
+        <tr><td><code>getField</code></td><td><code>(): string</code></td><td>Field name</td></tr>
+        <tr><td><code>getRules</code></td><td><code>(): array</code></td><td>Registered rules</td></tr>
+      </tbody>
+    </table>
+
+    <h3>ValidationResult</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>passes</code></td><td><code>(): bool</code></td><td>All passed</td></tr>
+        <tr><td><code>fails</code></td><td><code>(): bool</code></td><td>Any failed</td></tr>
+        <tr><td><code>errors</code></td><td><code>(): array</code></td><td><code>array&lt;field, string[]&gt;</code></td></tr>
+        <tr><td><code>errorsFor</code></td><td><code>(string $field): array</code></td><td>Errors for one field</td></tr>
+        <tr><td><code>firstError</code></td><td><code>(string $field): ?string</code></td><td>First error for field</td></tr>
+        <tr><td><code>firstErrors</code></td><td><code>(): array</code></td><td><code>array&lt;field, string&gt;</code></td></tr>
+        <tr><td><code>hasError</code></td><td><code>(string $field): bool</code></td><td>Check field has errors</td></tr>
+        <tr><td><code>validated</code></td><td><code>(): array</code></td><td>Validated data</td></tr>
+        <tr><td><code>get</code></td><td><code>(string $field, mixed $default = null): mixed</code></td><td>Single value</td></tr>
+        <tr><td><code>allErrors</code></td><td><code>(): array</code></td><td>Flat error list</td></tr>
+        <tr><td><code>errorCount</code></td><td><code>(): int</code></td><td>Total error count</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Built-in Rules</h3>
+    <table>
+      <thead><tr><th>Rule</th><th>Constructor</th><th>Validates</th></tr></thead>
+      <tbody>
+        <tr><td><code>Required</code></td><td><em>(none)</em></td><td>Non-null, non-empty</td></tr>
+        <tr><td><code>Email</code></td><td><em>(none)</em></td><td>Valid email format</td></tr>
+        <tr><td><code>Url</code></td><td><em>(none)</em></td><td>Valid URL format</td></tr>
+        <tr><td><code>Numeric</code></td><td><em>(none)</em></td><td>Numeric value</td></tr>
+        <tr><td><code>IsArray</code></td><td><em>(none)</em></td><td>Array type</td></tr>
+        <tr><td><code>MinLength</code></td><td><code>(int $min)</code></td><td>String length &mdash; min</td></tr>
+        <tr><td><code>MaxLength</code></td><td><code>(int $max)</code></td><td>String length &mdash; max</td></tr>
+        <tr><td><code>Between</code></td><td><code>(float|int $min, float|int $max)</code></td><td>Numeric in [min, max]</td></tr>
+        <tr><td><code>Regex</code></td><td><code>(string $pattern)</code></td><td>Matches regex</td></tr>
+        <tr><td><code>In</code></td><td><code>(array $allowed, bool $strict = false)</code></td><td>Value in allowed list</td></tr>
+        <tr><td><code>Date</code></td><td><code>(?string $format = null)</code></td><td>Valid date / format</td></tr>
+        <tr><td><code>Confirmed</code></td><td><code>(?string $confirmationField = null)</code></td><td>Cross-field match</td></tr>
+        <tr><td><code>Callback</code></td><td><code>(callable $callback)</code></td><td>Custom logic</td></tr>
+        <tr><td><code>Each</code></td><td><code>(array $rules)</code></td><td>Per-element validation</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Required rule ignored</td><td><code>Required</code> placed <em>after</em> other rules</td><td>Always list <code>Required</code> first in the rule chain</td></tr>
+        <tr><td>Validation stops too early</td><td><code>Bail</code> causes first failure to skip remaining rules</td><td>Remove <code>Bail</code> or reorder rules if you need all errors</td></tr>
+        <tr><td>Wildcard path not working</td><td>Using <code>.</code> instead of <code>*</code> for array items</td><td>Use <code>items.*.name</code> for nested array validation</td></tr>
+        <tr><td>Custom callback not called</td><td><code>Callback</code> returns <code>false</code> without a message</td><td>Return a string message on failure, or throw an exception</td></tr>
+        <tr><td><code>Confirmed</code> always fails</td><td>Confirmation field name doesn&rsquo;t match convention</td><td>Ensure <code>password_confirmation</code> field exists for <code>password</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="env.html"><span class="label">&larr; Previous</span><span class="title">Environment (.env)</span></a>
+      <a href="database.html" class="next"><span class="label">Next &rarr;</span><span class="title">Database</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

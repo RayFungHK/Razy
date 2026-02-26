@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModuleInfo &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>ModuleInfo</h1>
+    <p><code>ModuleInfo</code> is a read-only metadata object describing a loaded module. It is obtained via <code>$this-&gt;module</code> inside a Controller and is not instantiated directly &mdash; the framework creates it automatically when a module is loaded.</p>
+
+    <h2 id="module-code-format">Module Code Format</h2>
+    <p>Every module code must follow the vendor/package naming convention and match the regex pattern:</p>
+    <pre><code><span class="hl-str">^[a-z0-9]([_.-]?[a-z0-9]+)*(\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*)+$</span></code></pre>
+    <p>Examples of valid module codes:</p>
+    <pre><code><span class="hl-str">'vendor/my-module'</span>
+<span class="hl-str">'razy/core'</span>
+<span class="hl-str">'my-org/auth.service'</span></code></pre>
+
+    <h2 id="methods">Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getCode()</code></td><td><code>string</code></td><td>Full module code in vendor/package format</td></tr>
+        <tr><td><code>getClassName()</code></td><td><code>string</code></td><td>Class name (last segment of the module code)</td></tr>
+        <tr><td><code>getPath(bool $relative = false)</code></td><td><code>string</code></td><td>Module directory path (absolute or relative)</td></tr>
+        <tr><td><code>getVersion()</code></td><td><code>string</code></td><td>Module version string</td></tr>
+        <tr><td><code>getAuthor()</code></td><td><code>string</code></td><td>Author name</td></tr>
+        <tr><td><code>getDescription()</code></td><td><code>string</code></td><td>Module description</td></tr>
+        <tr><td><code>getAlias()</code></td><td><code>string</code></td><td>Module alias (defaults to the class name if not set)</td></tr>
+        <tr><td><code>getAPIName()</code></td><td><code>string</code></td><td>API name used for cross-module communication</td></tr>
+        <tr><td><code>getPrerequisite()</code></td><td><code>array</code></td><td>Required packages as <code>[package =&gt; version]</code></td></tr>
+        <tr><td><code>getRequire()</code></td><td><code>array</code></td><td>Required modules as <code>[code =&gt; version]</code></td></tr>
+        <tr><td><code>getAssets()</code></td><td><code>array</code></td><td>Asset mapping array</td></tr>
+        <tr><td><code>getMetadata(ModuleInfo $requesterInfo, ?string $key = null)</code></td><td><code>mixed</code></td><td>Metadata for a specific requester module</td></tr>
+        <tr><td><code>isShared()</code></td><td><code>bool</code></td><td>Whether the module is shared across sites</td></tr>
+        <tr><td><code>isPharArchive()</code></td><td><code>bool</code></td><td>Whether the module is loaded from app.phar</td></tr>
+        <tr><td><code>isShadowAsset()</code></td><td><code>bool</code></td><td>Whether shadow asset mode is enabled</td></tr>
+        <tr><td><code>getContainerPath(bool $isRelative = false)</code></td><td><code>string</code></td><td>Container directory path (absolute or relative)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="usage-example">Usage Example</h2>
+    <p>Access module metadata inside a Controller's <code>__onInit</code> method:</p>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">Controller</span> <span class="hl-kw">extends</span> <span class="hl-cls">Razy\Controller</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-cmt">// Access the ModuleInfo object</span>
+        <span class="hl-var">$module</span> = <span class="hl-var">$this</span>-><span class="hl-var">module</span>;
+
+        <span class="hl-cmt">// Get module identity</span>
+        <span class="hl-var">$code</span>    = <span class="hl-var">$module</span>-><span class="hl-fn">getCode</span>();        <span class="hl-cmt">// 'vendor/my-module'</span>
+        <span class="hl-var">$class</span>   = <span class="hl-var">$module</span>-><span class="hl-fn">getClassName</span>();   <span class="hl-cmt">// 'my-module'</span>
+        <span class="hl-var">$version</span> = <span class="hl-var">$module</span>-><span class="hl-fn">getVersion</span>();    <span class="hl-cmt">// '1.0.0'</span>
+        <span class="hl-var">$author</span>  = <span class="hl-var">$module</span>-><span class="hl-fn">getAuthor</span>();     <span class="hl-cmt">// 'Author'</span>
+
+        <span class="hl-cmt">// Get paths</span>
+        <span class="hl-var">$absPath</span> = <span class="hl-var">$module</span>-><span class="hl-fn">getPath</span>();            <span class="hl-cmt">// '/var/www/sites/mysite/vendor/my-module'</span>
+        <span class="hl-var">$relPath</span> = <span class="hl-var">$module</span>-><span class="hl-fn">getPath</span>(<span class="hl-kw">true</span>);       <span class="hl-cmt">// 'sites/mysite/vendor/my-module'</span>
+
+        <span class="hl-cmt">// Check module properties</span>
+        <span class="hl-kw">if</span> (<span class="hl-var">$module</span>-><span class="hl-fn">isShared</span>()) {
+            <span class="hl-cmt">// Shared module logic</span>
+        }
+
+        <span class="hl-cmt">// Get API name for cross-module calls</span>
+        <span class="hl-var">$api</span> = <span class="hl-var">$module</span>-><span class="hl-fn">getAPIName</span>(); <span class="hl-cmt">// 'mymod'</span>
+    }
+}</code></pre>
+
+    <h2 id="package-php">package.php Format</h2>
+    <p>The <code>package.php</code> file in the module root defines the configuration that <code>ModuleInfo</code> reads. It must return an associative array:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'module_code'</span>  => <span class="hl-str">'vendor/my-module'</span>,
+    <span class="hl-str">'name'</span>         => <span class="hl-str">'My Module'</span>,
+    <span class="hl-str">'author'</span>       => <span class="hl-str">'Author'</span>,
+    <span class="hl-str">'description'</span>  => <span class="hl-str">'Description'</span>,
+    <span class="hl-str">'version'</span>      => <span class="hl-str">'1.0.0'</span>,
+    <span class="hl-str">'api_name'</span>     => <span class="hl-str">'mymod'</span>,
+    <span class="hl-str">'require'</span>      => [
+        <span class="hl-str">'vendor/other'</span> => <span class="hl-str">'&gt;=1.0.0'</span>,
+    ],
+];</code></pre>
+
+    <div class="page-nav">
+      <a href="api-reference.html"><span class="label">&larr; Previous</span><span class="title">API Reference</span></a>
+      <a href="utilities.html" class="next"><span class="label">Next &rarr;</span><span class="title">Utility Functions</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

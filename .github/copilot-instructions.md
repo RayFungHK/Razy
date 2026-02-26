@@ -1,0 +1,1 @@
+User the skills.md in the project root as a template for your own framework or project. It provides a structured way to document the architecture, design decisions, and usage patterns of your project. Update the sections as needed to reflect your project's specifics, and ensure to keep it up-to-date with any changes in the architecture or design.

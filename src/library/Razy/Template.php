@@ -1,34 +1,58 @@
 <?php
-/*
+/**
  * This file is part of Razy v0.5.
+ *
+ * Template engine for the Razy framework. Provides a powerful template parsing
+ * system with support for variables, modifiers, functions, and block-based
+ * template composition.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
-
-use Closure;
 use Exception;
 use InvalidArgumentException;
+use Razy\Exception\TemplateException;
 use Razy\Template\Block;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Source;
+use Razy\Contract\TemplateInterface;
 use ReflectionClass;
 use ReflectionException;
 use Throwable;
 
-class Template
+/**
+ * Template engine manager for the Razy framework.
+ *
+ * Handles template loading, parsing, and rendering with support for plugin-based
+ * modifiers and functions, parameter binding, source management, and queue-based
+ * output composition.
+ *
+ * @class Template
+ */
+class Template implements TemplateInterface
 {
     use PluginTrait;
+    use Template\ParameterBagTrait;
+
+    /** @var array<string, mixed> Manager-level template parameters */
     private array $parameters = [];
+
+    /** @var array<string, TModifier|TFunction|TFunctionCustom> Loaded plugin instances indexed by type.name */
     private array $plugins = [];
+
+    /** @var array<string, Source> Queue of Source entities for ordered output */
     private array $queue = [];
+
+    /** @var array<string, Source> Registered Source entities indexed by ID */
     private array $sources = [];
+
+    /** @var array<string, Block> Global template blocks indexed by name */
     private array $templates = [];
 
     /**
@@ -38,7 +62,7 @@ class Template
      */
     public function __construct(string $folder = '')
     {
-        $this->AddPluginFolder($folder);
+        $this->addPluginFolder($folder);
     }
 
     /**
@@ -51,8 +75,11 @@ class Template
      */
     static public function ParseContent(string $content, array $parameters = []): mixed
     {
+        // Match template variable tags like {$var} or {$var|fallback} with optional pipe-separated fallbacks
         return preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) use ($parameters) {
+            // Split the matched expression by pipe '|' to get fallback alternatives
             $clips = preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+            // Try each fallback value until a renderable one is found
             foreach ($clips as $clip) {
                 $value = self::ParseValue($clip, $parameters) ?? '';
                 if (is_scalar($value) || method_exists($value, '__toString')) {
@@ -60,6 +87,7 @@ class Template
                 }
             }
 
+            // No valid fallback found; return empty string
             return '';
         }, $content);
     }
@@ -77,14 +105,15 @@ class Template
             return null;
         }
 
-        // If the content is a parameter tag
-        if (preg_match('/^(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>$/', $content, $matches)) {
+        // Match literal values: booleans, numbers, or quoted strings
+        if (preg_match('/^(?:(true|false)|(-?\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>)$/', $content, $matches)) {
             if ($matches[1]) {
                 return $matches[1] === 'true';
             }
             return $matches[4] ?? $matches[2] ?? null;
         }
 
+        // Match parameter variable references like $varName.path.to.value
         if ('$' == $content[0] && preg_match('/^\$(\w+)((?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*)((?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)$/', $content, $matches)) {
             if (isset($parameters[$matches[1]])) {
                 return self::GetValueByPath($parameters[$matches[1]], $matches[2] ?? '');
@@ -105,14 +134,16 @@ class Template
     {
         if (null !== $value) {
             if (strlen($path) > 0) {
+                // Extract path segments separated by dots, supporting quoted keys
                 preg_match_all('/\.(?:(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)+)\k<q>)/', $path, $matches, PREG_SET_ORDER);
 
+                // Traverse the value by each path segment (array key or object property)
                 foreach ($matches as $clip) {
                     $key = (strlen($clip[3] ?? '') > 0) ? $clip[3] : ($clip[1] ?? '');
                     if (is_iterable($value)) {
                         $value = $value[$key] ?? null;
                     } elseif (is_object($value)) {
-                        if (property_exists($key, $value)) {
+                        if (property_exists($value, $key)) {
                             $value = $value->{$key};
                         } else {
                             $value = null;
@@ -139,9 +170,64 @@ class Template
      * @return Source
      * @throws Throwable
      */
-    public static function LoadFile(string $path, ?ModuleInfo $module = null): Source
+    public static function loadFile(string $path, ?ModuleInfo $module = null): Source
     {
         return (new Template())->load($path, $module);
+    }
+
+    /**
+     * Read and extract comments from a template file.
+     *
+     * Parses template comments in the format {# ... } and returns an array of
+     * comments with their content and line numbers. Used for extracting metadata
+     * like @llm prompt directives from template files.
+     *
+     * Uses regex pattern matching similar to Entity::parseFunctionTag() to detect
+     * comment tags consistently with the template engine's parsing logic.
+     *
+     * @param string $path Template file path
+     * @return array List of comments with 'content' and 'line' keys
+     * @throws Throwable
+     */
+    public static function readComment(string $path): array
+    {
+        if (!is_file($path)) {
+            return [];
+        }
+
+        try {
+            $content = file_get_contents($path);
+            $comments = [];
+            
+            // Use regex pattern similar to Entity::parseFunctionTag() to find all comment tags
+            // Pattern: {# ... } (comment starts with { # and ends with })
+            if (preg_match_all('/\{#[^}]*?\}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+                foreach ($matches[0] as $match) {
+                    $commentText = $match[0];
+                    $offset = $match[1];
+                    
+                    // Count newlines before this match to determine line number
+                    $lineNumber = substr_count($content, "\n", 0, $offset) + 1;
+                    
+                    // Extract and clean comment content
+                    // Remove opening {# and closing }
+                    $cleanContent = preg_replace('/^\{\s*#\s*/', '', $commentText);
+                    $cleanContent = preg_replace('/\s*\}$/', '', $cleanContent);
+                    $cleanContent = trim($cleanContent);
+                    
+                    if ($cleanContent) {
+                        $comments[] = [
+                            'content' => $cleanContent,
+                            'line' => $lineNumber,
+                        ];
+                    }
+                }
+            }
+
+            return $comments;
+        } catch (Throwable $e) {
+            return [];
+        }
     }
 
     /**
@@ -185,49 +271,6 @@ class Template
     }
 
     /**
-     * Assign the manager level parameter value.
-     *
-     * @param mixed $parameter The parameter name or an array of parameters
-     * @param mixed|null $value The parameter value
-     *
-     * @return self Chainable
-     * @throws Throwable
-     */
-    public function assign(mixed $parameter, mixed $value = null): Template
-    {
-        if (is_array($parameter)) {
-            foreach ($parameter as $index => $value) {
-                $this->assign($index, $value);
-            }
-        } elseif (is_string($parameter)) {
-            if ($value instanceof Closure) {
-                // If the value is closure, pass the current value to closure
-                $this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
-            } else {
-                $this->parameters[$parameter] = $value;
-            }
-        } else {
-            throw new Error('Invalid parameter name.');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Bind the reference variable
-     *
-     * @param string $parameter
-     * @param $value
-     * @return $this
-     */
-    public function bind(string $parameter, &$value): Template
-    {
-        $this->parameters[$parameter] = $value;
-
-        return $this;
-    }
-
-    /**
      * Get the template content by given name
      *
      * @param string $name
@@ -239,11 +282,14 @@ class Template
     }
 
     /**
-     * Return the parameter value.
+     * Return a parameter value from the manager (global) scope.
+     *
+     * This is the widest scope — the final fallback when Entity, Block,
+     * and Source scopes do not contain the requested parameter.
      *
      * @param string $parameter The parameter name
      *
-     * @return mixed The parameter value
+     * @return mixed The parameter value, or null if not assigned
      */
     public function getValue(string $parameter): mixed
     {
@@ -283,6 +329,7 @@ class Template
             if ($plugin = self::GetPlugin($identify)) {
                 try {
                     $entity = $plugin['entity']();
+                    // Verify the plugin class extends the expected base class for its type
                     $reflection = new ReflectionClass($entity);
                     $parent = $reflection->getParentClass();
                     if (('function' === $type && ($parent->getName() === 'Razy\Template\Plugin\TFunction' || $parent->getName() === 'Razy\Template\Plugin\TFunctionCustom')) || ('modifier' === $type && $parent->getName() === 'Razy\Template\Plugin\TModifier')) {
@@ -314,13 +361,13 @@ class Template
     {
         if (is_array($name)) {
             foreach ($name as $filepath => $tplName) {
-                $this->loadTemplate($filepath, $tplName);
+                $this->loadTemplate($tplName, $filepath);
             }
             return $this;
         } elseif (is_string($name)) {
             $name = trim($name);
             if (!preg_match('/^\w+$/', $name)) {
-                throw new Error('Invalid template name format.');
+                throw new TemplateException('Invalid template name format.');
             }
 
             $this->templates[$name] = (new Source($path, $this))->getRootBlock();

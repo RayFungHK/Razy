@@ -1,4 +1,13 @@
 <?php
+/**
+ * Console Sub-command: help
+ *
+ * Displays the help page for the interactive console shell,
+ * listing available sub-commands and their descriptions.
+ *
+ * @package Razy
+ * @license MIT
+ */
 
 namespace Razy;
 

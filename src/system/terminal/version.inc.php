@@ -1,15 +1,19 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * CLI Command: version
  *
- * (c) Ray Fung <hello@rayfung.hk>
+ * Displays the current Razy framework version.
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * Usage:
+ *   php Razy.phar version
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
 return function () {
+    // Output the framework version constant
     $this->writeLineLogging('Razy v' . RAZY_VERSION);
 };

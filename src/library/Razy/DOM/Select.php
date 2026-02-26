@@ -6,23 +6,35 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * Defines the Select class for the Razy DOM Builder. Provides a fluent
+ * interface for constructing HTML `<select>` elements with `<option>`
+ * children, supporting bulk option creation and selected value management.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy\DOM;
-
-use Closure;
 use Razy\DOM;
-use Razy\Error;
 
+/**
+ * Represents an HTML `<select>` element in the DOM Builder.
+ *
+ * Extends the base DOM class to provide methods for adding `<option>`
+ * children, applying options from arrays with optional conversion callbacks,
+ * managing selected values, and toggling the `multiple` attribute.
+ *
+ * @class Select
+ */
 class Select extends DOM
 {
     /**
      * Select constructor.
-     * @throws Error
      */
     public function __construct(string $id = '')
     {
-        parent::__construct($id);
+        parent::__construct('', $id);
         $this->setTag('select');
     }
 
@@ -33,7 +45,7 @@ class Select extends DOM
      * @param callable|null $convertor
      *
      * @return $this
-     * @throws Error
+     * @throws \InvalidArgumentException
      */
     public function applyOptions(array $dataset, ?callable $convertor = null): self
     {
@@ -45,7 +57,7 @@ class Select extends DOM
                 if (is_string($value)) {
                     $option->setText($value)->setAttribute('value', $key);
                 } else {
-                    throw new Error('The option value must be a string');
+                    throw new \InvalidArgumentException('The option value must be a string');
                 }
             }
         }
@@ -78,6 +90,7 @@ class Select extends DOM
      */
     public function getValue(): mixed
     {
+        // Scan child option nodes for the one with a 'selected' attribute
         foreach ($this->nodes as $node) {
             if ($node instanceof DOM) {
                 if ($node->hasAttribute('selected')) {
@@ -118,6 +131,7 @@ class Select extends DOM
      */
     public function setValue(string $value): DOM
     {
+        // Mark the matching option as selected and deselect all others
         foreach ($this->nodes as $node) {
             if ($node instanceof DOM) {
                 if ($node->getAttribute('value') == $value) {

@@ -15,10 +15,22 @@ use Closure;
 use Throwable;
 use Razy\Collection\Processor;
 
+/**
+ * Collection extends ArrayObject with advanced filtering, selection, and plugin capabilities.
+ *
+ * Supports a dot-notation filter syntax (invoked via __invoke) to query nested elements,
+ * with chainable filter functions loaded as plugins. Provides serialization support
+ * and recursive array conversion.
+ *
+ * @class Collection
+ * @package Razy
+ * @license MIT
+ */
 class Collection extends ArrayObject
 {
     use PluginTrait;
 
+    /** @var array<string, Closure> Cached plugin closures keyed by "type.name" identifier */
     private array $plugins = [];
 
     /**
@@ -34,11 +46,11 @@ class Collection extends ArrayObject
         $filtered = [];
         $filter = trim($filter);
         if ($filter) {
-            // Extract the selectors separated by comma
-            $clips = preg_split('/(?:\((\\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>\.)(*SKIP)(*FAIL)|\s*,\s*/', $filter);
+            // Split filter string by commas, respecting quoted strings and parenthesized groups
+            $clips = preg_split('/(?:\((\\\\.(\*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(\*SKIP)|(?!\k<q>).)\*\k<q>\.)(*SKIP)(*FAIL)|\s*,\s*/', $filter);
             foreach ($clips as $clip) {
                 $clip = trim($clip);
-                // Extract the paths separated by dot
+                // Split each selector by dots, respecting quoted segments and escaped chars
                 $selectors = preg_split('/(?:(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\./', $clip);
                 if (!empty($selectors)) {
                     // Parse the string of the selector and merge the matched elements
@@ -51,34 +63,37 @@ class Collection extends ArrayObject
     }
 
     /**
-     * Filter the value by the path and the filter functions.
+     * Parse a dot-separated selector path and resolve matching elements from the collection.
      *
-     * @param array $selectors
+     * Each segment can be a key name, wildcard '*', or quoted string, optionally followed
+     * by filter function chains (e.g., :type('string'):gt(5)).
      *
-     * @return array
+     * @param array $selectors Array of selector path segments
+     *
+     * @return array Matched elements keyed by their resolved path
      * @throws Throwable
      */
     private function parseSelector(array $selectors): array
     {
-        // Put the full list into filtered array
+        // Initialize with the root iterator as the starting dataset
         $filtered = ['$' => $this->getIterator()];
 
-        // Shift a node from the selector
+        // Process each selector node sequentially, narrowing the result set
         while ($node = array_shift($selectors)) {
-            // Match the node and extract the parts of name and filter syntax
+            // Regex matches: key (word, wildcard, or quoted string) + optional filter chain
             if (preg_match('/^(?<key>(?:\*|\w+)|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)((?::\w+(?:\((?:(?<value>(?P>key)|\d+(?:.\d+)?)(?:\s*,\s*(?P>value))*)?\))?)*)$/', $node, $matches)) {
                 $_filtered = [];
                 foreach ($filtered as $parent => &$element) {
-                    // If the element is an array or iterable, walk through and filter the matched value
+                    // Only descend into iterable elements (arrays, ArrayObjects, etc.)
                     if (is_iterable($element)) {
-                        // If the key name is a wildcard, put all the values into the list
-                        // Define the value as a reference to prevent lost the pointer on declaring non-object value
+                        // Wildcard '*': include all child elements in the result set
                         if ('*' === $matches['key']) {
+                            // Use reference to preserve pointer for non-object values
                             foreach ($element as $index => &$data) {
                                 $_filtered[$parent . '.' . quotemeta($index)] = &$data;
                             }
                         } else {
-                            // If the key is existing, put the specified value into the list
+                            // Named key: include only the element matching this key
                             if (array_key_exists($matches['key'], (array)$element)) {
                                 $_filtered[$parent . '.' . quotemeta($matches['key'])] = &$element[$matches['key']];
                             }
@@ -86,12 +101,13 @@ class Collection extends ArrayObject
                     }
                 }
 
-                // If there is no value in the list, return an empty array
+                // No matches found at this depth; short-circuit with empty result
                 if (empty($_filtered)) {
                     return [];
                 }
                 $filtered = $_filtered;
 
+                // Apply chained filter functions if present in the selector
                 if ($matches[3] ?? '') {
                     $this->filter($filtered, $matches[3]);
                 }
@@ -102,40 +118,47 @@ class Collection extends ArrayObject
     }
 
     /**
-     * Filter the collection by the filter syntax.
+     * Apply filter function chains to the filtered element set.
      *
-     * @param array $filtered
-     * @param string $filterSyntax
+     * Parses filter syntax like ":type('string'):gt(5)" and invokes the corresponding
+     * plugin closures. Elements for which the filter returns false are removed.
+     *
+     * @param array  $filtered     Reference to the filtered elements array
+     * @param string $filterSyntax The raw filter chain string (e.g., ":name(args)")
      *
      * @throws Throwable
      */
     private function filter(array &$filtered, string $filterSyntax): void
     {
-        // Parse the filter syntax
+        // Extract all filter function invocations from the syntax string
         preg_match_all('/:(\w+)(?:\(((?:(?<value>(?:\*|\w+)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\d+(?:.\d+)?)(?:\s*,\s*(?P>value))*)?)?\))?/', $filterSyntax, $matches, PREG_SET_ORDER);
         if (!empty($matches)) {
             foreach ($matches as $match) {
+                // If all elements already filtered out, return empty Collection
                 if (empty($filtered)) {
                     $filtered = new Collection([]);
 
                     return;
                 }
 
+                // Load the named filter plugin (e.g., 'type', 'gt', 'not_empty')
                 $plugin = $this->loadPlugin('filter', $match[1]);
                 if ($plugin instanceof Closure) {
                     $parameters = [];
+                    // Split filter arguments by commas, respecting quoted strings and nested parens
                     $clips = preg_split('/(?:\((\\\\.(*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $match[2]);
                     // Parse the string of the parameters
                     foreach ($clips as $clip) {
+                        // Extract each parameter value: word, quoted string, or numeric literal
                         if (preg_match('/^(\w+)|(?<q>[\'"])((?:\\.(*SKIP)|(?!\k<q>).)*)\k<q>|(-?\d+(?:\.\d+)?)$/', $clip, $param)) {
                             $parameters[] = $param[4] ?? $param[3] ?? $param[1] ?? '';
                         }
                     }
 
-                    // Walk through all the matched values and pass to the closure
+                    // Apply filter to each element; remove those that don't pass
                     foreach ($filtered as $index => $value) {
                         if (!call_user_func_array($plugin, array_merge([$value], $parameters))) {
-                            // If the closure return false, remove the value
+                            // Filter returned false: exclude this element
                             unset($filtered[$index]);
                             if (empty($filtered)) {
                                 $filtered = new Collection([]);
@@ -145,7 +168,7 @@ class Collection extends ArrayObject
                 }
             }
         } else {
-            // If the syntax is not in correct pattern, empty the matched values list
+            // Invalid filter syntax pattern: reset to empty Collection
             $filtered = new Collection([]);
         }
     }
@@ -172,7 +195,7 @@ class Collection extends ArrayObject
 
                         return $this->plugins[$identify];
                     } catch (Throwable) {
-                        throw new Error('Missing or invalid Closure.');
+                        throw new \InvalidArgumentException('Missing or invalid Closure.');
                     }
                 }
             }
@@ -192,13 +215,13 @@ class Collection extends ArrayObject
     }
 
     /**
-     * Export all collected element into an array. It will also walk through the array and convert the Collection
-     * object into an array too.
+     * Export all elements into a plain array, recursively converting nested Collection objects.
      *
      * @return array
      */
     public function array(): array
     {
+        // Recursively walk the data tree and convert any Collection instances to arrays
         $recursion = function (&$aryData) use (&$recursion) {
             foreach ($aryData as &$data) {
                 if ($data instanceof Collection) {
@@ -235,11 +258,13 @@ class Collection extends ArrayObject
     }
 
     /**
-     * Implement offsetGet method.
+     * Get a value by key from the underlying iterator, returned by reference.
      *
-     * @param mixed $key
+     * Returns null by reference if the key does not exist.
      *
-     * @return mixed
+     * @param mixed $key The array key to retrieve
+     *
+     * @return mixed The value at the given key, or null
      */
     public function &offsetGet(mixed $key): mixed
     {

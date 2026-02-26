@@ -1,0 +1,30 @@
+{
+  "name": "Razy Framework",
+  "dockerComposeFile": ["../.docker/docker-compose.yml"],
+  "service": "php",
+  "workspaceFolder": "/app",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bmewburn.vscode-intelephense-client",
+        "junstyle.php-cs-fixer",
+        "phpstan.phpstan",
+        "ryanluker.vscode-coverage-gutters",
+        "EditorConfig.EditorConfig"
+      ],
+      "settings": {
+        "php.validate.executablePath": "/usr/local/bin/php",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4
+      }
+    }
+  },
+  "postCreateCommand": "composer install --prefer-dist --no-interaction && php build.php",
+  "forwardPorts": [8080],
+  "remoteUser": "root"
+}

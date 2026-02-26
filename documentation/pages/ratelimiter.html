@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Limiter &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Rate Limiter</h1>
+    <p>Razy provides a <strong>fixed-window rate limiting</strong> system with pluggable storage backends, named limiters, middleware support, and HTTP headers. The rate limiter is designed for API protection, brute-force prevention, and request throttling.</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#quick-start">Quick Start</a></li>
+        <li><a href="#basic-rate-limiting">Basic Rate Limiting</a></li>
+        <li><a href="#named-limiters">Named Limiters</a></li>
+        <li><a href="#limit-configuration">Limit Configuration</a></li>
+        <li><a href="#middleware">Middleware</a></li>
+        <li><a href="#storage-backends">Storage Backends</a></li>
+        <li><a href="#testing">Testing</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Quick Start -->
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\RateLimiter</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\Limit</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\Store\ArrayStore</span>;
+
+<span class="hl-var">$limiter</span> = <span class="hl-kw">new</span> <span class="hl-cls">RateLimiter</span>(<span class="hl-kw">new</span> <span class="hl-cls">ArrayStore</span>());
+
+<span class="hl-cmt">// Simple rate check</span>
+<span class="hl-var">$key</span> = <span class="hl-str">'login:'</span> . <span class="hl-var">$_SERVER</span>[<span class="hl-str">'REMOTE_ADDR'</span>];
+<span class="hl-kw">if</span> (!<span class="hl-var">$limiter</span>-><span class="hl-fn">attempt</span>(<span class="hl-var">$key</span>, maxAttempts: <span class="hl-num">5</span>, decaySeconds: <span class="hl-num">60</span>)) {
+    <span class="hl-fn">http_response_code</span>(<span class="hl-num">429</span>);
+    <span class="hl-kw">echo</span> <span class="hl-str">"Too many attempts. Try again in {<span class="hl-var">$limiter</span>-><span class="hl-fn">availableIn</span>(<span class="hl-var">$key</span>)} seconds."</span>;
+    <span class="hl-kw">exit</span>;
+}
+
+<span class="hl-cmt">// Process the request...</span></code></pre>
+
+    <!-- Basic Rate Limiting -->
+    <h2 id="basic-rate-limiting">Basic Rate Limiting</h2>
+
+    <h3>attempt()</h3>
+    <p>The primary method &mdash; checks if an attempt is allowed and records it in one call:</p>
+    <pre><code><span class="hl-var">$key</span> = <span class="hl-str">'api:'</span> . <span class="hl-var">$userId</span>;
+
+<span class="hl-kw">if</span> (<span class="hl-var">$limiter</span>-><span class="hl-fn">attempt</span>(<span class="hl-var">$key</span>, maxAttempts: <span class="hl-num">100</span>, decaySeconds: <span class="hl-num">3600</span>)) {
+    <span class="hl-cmt">// Request is allowed &mdash; proceed</span>
+    <span class="hl-var">$remaining</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">remaining</span>(<span class="hl-var">$key</span>, maxAttempts: <span class="hl-num">100</span>);
+    <span class="hl-kw">echo</span> <span class="hl-str">"You have {<span class="hl-var">$remaining</span>} requests remaining."</span>;
+} <span class="hl-kw">else</span> {
+    <span class="hl-cmt">// Rate limit exceeded</span>
+    <span class="hl-var">$retryIn</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">availableIn</span>(<span class="hl-var">$key</span>);
+    <span class="hl-kw">echo</span> <span class="hl-str">"Rate limit exceeded. Try again in {<span class="hl-var">$retryIn</span>} seconds."</span>;
+}</code></pre>
+
+    <h3>Manual Control</h3>
+    <p>For finer control, use <code>hit()</code> and <code>tooManyAttempts()</code> separately:</p>
+    <pre><code><span class="hl-cmt">// Check without recording (read-only)</span>
+<span class="hl-kw">if</span> (<span class="hl-var">$limiter</span>-><span class="hl-fn">tooManyAttempts</span>(<span class="hl-var">$key</span>, maxAttempts: <span class="hl-num">10</span>)) {
+    <span class="hl-cmt">// Already exceeded &mdash; don't process</span>
+    <span class="hl-kw">return</span>;
+}
+
+<span class="hl-cmt">// Record a hit manually</span>
+<span class="hl-var">$totalHits</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">hit</span>(<span class="hl-var">$key</span>, decaySeconds: <span class="hl-num">60</span>);
+
+<span class="hl-cmt">// Read current state</span>
+<span class="hl-var">$currentAttempts</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">attempts</span>(<span class="hl-var">$key</span>);
+<span class="hl-var">$remaining</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">remaining</span>(<span class="hl-var">$key</span>, <span class="hl-num">10</span>);
+<span class="hl-var">$retryIn</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">availableIn</span>(<span class="hl-var">$key</span>);    <span class="hl-cmt">// seconds until reset</span>
+<span class="hl-var">$resetAt</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">resetAt</span>(<span class="hl-var">$key</span>);         <span class="hl-cmt">// Unix timestamp</span>
+
+<span class="hl-cmt">// Clear all hits for a key</span>
+<span class="hl-var">$limiter</span>-><span class="hl-fn">clear</span>(<span class="hl-var">$key</span>);</code></pre>
+
+    <!-- Named Limiters -->
+    <h2 id="named-limiters">Named Limiters</h2>
+    <p>Define reusable rate limit configurations with named limiters:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\Limit</span>;
+
+<span class="hl-cmt">// Register named limiters</span>
+<span class="hl-var">$limiter</span>-><span class="hl-fn">for</span>(<span class="hl-str">'api'</span>, <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$context</span>) {
+    <span class="hl-var">$user</span> = <span class="hl-var">$context</span>[<span class="hl-str">'user'</span>] &rarr; <span class="hl-kw">null</span>;
+    <span class="hl-kw">if</span> (<span class="hl-var">$user</span> &amp;&amp; <span class="hl-var">$user</span>-><span class="hl-fn">isPremium</span>()) {
+        <span class="hl-kw">return</span> <span class="hl-cls">Limit</span>::<span class="hl-fn">perMinute</span>(<span class="hl-num">120</span>)-><span class="hl-fn">by</span>(<span class="hl-str">"api:{<span class="hl-var">$user</span>->id}"</span>);
+    }
+    <span class="hl-kw">return</span> <span class="hl-cls">Limit</span>::<span class="hl-fn">perMinute</span>(<span class="hl-num">30</span>)-><span class="hl-fn">by</span>(<span class="hl-str">'api:'</span> . (<span class="hl-var">$context</span>[<span class="hl-str">'ip'</span>] &rarr; <span class="hl-str">'unknown'</span>));
+});
+
+<span class="hl-var">$limiter</span>-><span class="hl-fn">for</span>(<span class="hl-str">'login'</span>, <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$context</span>) {
+    <span class="hl-kw">return</span> <span class="hl-cls">Limit</span>::<span class="hl-fn">perMinute</span>(<span class="hl-num">5</span>)-><span class="hl-fn">by</span>(<span class="hl-str">'login:'</span> . (<span class="hl-var">$context</span>[<span class="hl-str">'ip'</span>] &rarr; <span class="hl-str">''</span>));
+});
+
+<span class="hl-var">$limiter</span>-><span class="hl-fn">for</span>(<span class="hl-str">'uploads'</span>, <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$context</span>) {
+    <span class="hl-kw">return</span> <span class="hl-cls">Limit</span>::<span class="hl-fn">perHour</span>(<span class="hl-num">50</span>)-><span class="hl-fn">by</span>(<span class="hl-str">"upload:{<span class="hl-var">$context</span>[<span class="hl-str">'user'</span>]->id}"</span>);
+});
+
+<span class="hl-cmt">// Check if a named limiter exists</span>
+<span class="hl-var">$limiter</span>-><span class="hl-fn">hasLimiter</span>(<span class="hl-str">'api'</span>);     <span class="hl-cmt">// true</span>
+
+<span class="hl-cmt">// Resolve a named limiter to get its Limit config</span>
+<span class="hl-var">$limit</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">resolve</span>(<span class="hl-str">'api'</span>, [<span class="hl-str">'user'</span> => <span class="hl-var">$currentUser</span>, <span class="hl-str">'ip'</span> => <span class="hl-var">$ip</span>]);
+<span class="hl-kw">if</span> (<span class="hl-var">$limit</span> &amp;&amp; !<span class="hl-var">$limit</span>-><span class="hl-fn">isUnlimited</span>()) {
+    <span class="hl-var">$allowed</span> = <span class="hl-var">$limiter</span>-><span class="hl-fn">attempt</span>(
+        <span class="hl-var">$limit</span>-><span class="hl-fn">getKey</span>(),
+        <span class="hl-var">$limit</span>-><span class="hl-fn">getMaxAttempts</span>(),
+        <span class="hl-var">$limit</span>-><span class="hl-fn">getDecaySeconds</span>()
+    );
+}</code></pre>
+
+    <!-- Limit Configuration -->
+    <h2 id="limit-configuration">Limit Configuration</h2>
+    <p>The <code>Limit</code> class configures rate limiting parameters using static factory methods:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\Limit</span>;
+
+<span class="hl-cmt">// Per-minute (60 seconds decay)</span>
+<span class="hl-var">$limit</span> = <span class="hl-cls">Limit</span>::<span class="hl-fn">perMinute</span>(<span class="hl-num">30</span>);
+
+<span class="hl-cmt">// Per-hour (3600 seconds)</span>
+<span class="hl-var">$limit</span> = <span class="hl-cls">Limit</span>::<span class="hl-fn">perHour</span>(<span class="hl-num">1000</span>);
+
+<span class="hl-cmt">// Per-day (86400 seconds)</span>
+<span class="hl-var">$limit</span> = <span class="hl-cls">Limit</span>::<span class="hl-fn">perDay</span>(<span class="hl-num">10000</span>);
+
+<span class="hl-cmt">// Custom interval</span>
+<span class="hl-var">$limit</span> = <span class="hl-cls">Limit</span>::<span class="hl-fn">every</span>(decaySeconds: <span class="hl-num">120</span>, maxAttempts: <span class="hl-num">10</span>);
+
+<span class="hl-cmt">// Unlimited (no rate limiting)</span>
+<span class="hl-var">$limit</span> = <span class="hl-cls">Limit</span>::<span class="hl-fn">none</span>();
+
+<span class="hl-cmt">// Set the bucket key</span>
+<span class="hl-var">$limit</span> = <span class="hl-cls">Limit</span>::<span class="hl-fn">perMinute</span>(<span class="hl-num">30</span>)-><span class="hl-fn">by</span>(<span class="hl-str">'api:user-42'</span>);
+
+<span class="hl-cmt">// Read configuration</span>
+<span class="hl-var">$limit</span>-><span class="hl-fn">getMaxAttempts</span>();    <span class="hl-cmt">// 30</span>
+<span class="hl-var">$limit</span>-><span class="hl-fn">getDecaySeconds</span>();   <span class="hl-cmt">// 60</span>
+<span class="hl-var">$limit</span>-><span class="hl-fn">getKey</span>();            <span class="hl-cmt">// 'api:user-42'</span>
+<span class="hl-var">$limit</span>-><span class="hl-fn">isUnlimited</span>();      <span class="hl-cmt">// false</span></code></pre>
+
+    <!-- Middleware -->
+    <h2 id="middleware">Middleware</h2>
+    <p>The <code>RateLimitMiddleware</code> integrates rate limiting into request pipelines and automatically sets HTTP headers:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\RateLimitMiddleware</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\RateLimitExceededException</span>;
+
+<span class="hl-var">$middleware</span> = <span class="hl-kw">new</span> <span class="hl-cls">RateLimitMiddleware</span>(
+    limiter: <span class="hl-var">$limiter</span>,
+    name: <span class="hl-str">'api'</span>,                          <span class="hl-cmt">// named limiter</span>
+    keyResolver: <span class="hl-kw">function</span> (<span class="hl-kw">array</span> <span class="hl-var">$context</span>) {
+        <span class="hl-kw">return</span> <span class="hl-str">'api:'</span> . <span class="hl-var">$context</span>[<span class="hl-str">'user_id'</span>];
+    },
+    onLimitExceeded: <span class="hl-kw">function</span> (<span class="hl-cls">RateLimitExceededException</span> <span class="hl-var">$e</span>) {
+        <span class="hl-fn">http_response_code</span>(<span class="hl-num">429</span>);
+        <span class="hl-kw">echo</span> <span class="hl-fn">json_encode</span>([
+            <span class="hl-str">'error'</span>       => <span class="hl-str">'Too many requests'</span>,
+            <span class="hl-str">'retry_after'</span> => <span class="hl-var">$e</span>-><span class="hl-fn">getRetryAfter</span>(),
+        ]);
+    },
+    sendHeaders: <span class="hl-kw">true</span>                      <span class="hl-cmt">// send X-RateLimit-* headers</span>
+);
+
+<span class="hl-cmt">// In a pipeline context</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$middleware</span>-><span class="hl-fn">handle</span>(<span class="hl-var">$context</span>, <span class="hl-kw">function</span> (<span class="hl-var">$context</span>) {
+    <span class="hl-kw">return</span> <span class="hl-fn">processRequest</span>(<span class="hl-var">$context</span>);
+});</code></pre>
+
+    <h3>HTTP Headers</h3>
+    <p>When <code>sendHeaders: true</code> (default), the middleware sets:</p>
+    <table>
+      <thead>
+        <tr><th>Header</th><th>Description</th><th>Example</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>X-RateLimit-Limit</code></td><td>Max attempts per window</td><td><code>100</code></td></tr>
+        <tr><td><code>X-RateLimit-Remaining</code></td><td>Remaining attempts</td><td><code>87</code></td></tr>
+        <tr><td><code>X-RateLimit-Reset</code></td><td>Unix timestamp when window resets</td><td><code>1700000060</code></td></tr>
+        <tr><td><code>Retry-After</code></td><td>Seconds until retry (only on 429)</td><td><code>42</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Storage Backends -->
+    <h2 id="storage-backends">Storage Backends</h2>
+
+    <h3>ArrayStore (Testing)</h3>
+    <p>In-memory store &mdash; data is lost between requests:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\Store\ArrayStore</span>;
+
+<span class="hl-var">$store</span> = <span class="hl-kw">new</span> <span class="hl-cls">ArrayStore</span>();
+<span class="hl-var">$limiter</span> = <span class="hl-kw">new</span> <span class="hl-cls">RateLimiter</span>(<span class="hl-var">$store</span>);
+
+<span class="hl-cmt">// Testing helpers</span>
+<span class="hl-var">$store</span>-><span class="hl-fn">getRecords</span>();        <span class="hl-cmt">// all stored records</span>
+<span class="hl-var">$store</span>-><span class="hl-fn">count</span>();             <span class="hl-cmt">// number of active keys</span>
+<span class="hl-var">$store</span>-><span class="hl-fn">flush</span>();             <span class="hl-cmt">// clear all records</span></code></pre>
+
+    <h3>CacheStore (Production)</h3>
+    <p>Uses Razy's PSR-16 Cache interface for persistent storage:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\Store\CacheStore</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Cache\RedisAdapter</span>;
+
+<span class="hl-var">$redis</span> = <span class="hl-kw">new</span> <span class="hl-cls">Redis</span>();
+<span class="hl-var">$redis</span>-><span class="hl-fn">connect</span>(<span class="hl-str">'127.0.0.1'</span>);
+
+<span class="hl-var">$store</span> = <span class="hl-kw">new</span> <span class="hl-cls">CacheStore</span>(
+    cache: <span class="hl-kw">new</span> <span class="hl-cls">RedisAdapter</span>(<span class="hl-var">$redis</span>),
+    prefix: <span class="hl-str">'ratelimit_'</span>
+);
+<span class="hl-var">$limiter</span> = <span class="hl-kw">new</span> <span class="hl-cls">RateLimiter</span>(<span class="hl-var">$store</span>);
+
+<span class="hl-cmt">// Inspect</span>
+<span class="hl-var">$store</span>-><span class="hl-fn">getCache</span>();     <span class="hl-cmt">// the CacheInterface instance</span>
+<span class="hl-var">$store</span>-><span class="hl-fn">getPrefix</span>();    <span class="hl-cmt">// 'ratelimit_'</span></code></pre>
+
+    <h3>Custom Store</h3>
+    <p>Implement <code>RateLimitStoreInterface</code> for custom backends:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Contract\RateLimitStoreInterface</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">DatabaseStore</span> <span class="hl-kw">implements</span> <span class="hl-cls">RateLimitStoreInterface</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">get</span>(<span class="hl-kw">string</span> <span class="hl-var">$key</span>): ?<span class="hl-kw">array</span>
+    {
+        <span class="hl-var">$row</span> = <span class="hl-cls">DB</span>::<span class="hl-fn">table</span>(<span class="hl-str">'rate_limits'</span>)-><span class="hl-fn">where</span>(<span class="hl-str">'key'</span>, <span class="hl-var">$key</span>)-><span class="hl-fn">first</span>();
+        <span class="hl-kw">if</span> (!<span class="hl-var">$row</span>) <span class="hl-kw">return</span> <span class="hl-kw">null</span>;
+        <span class="hl-kw">return</span> [<span class="hl-str">'hits'</span> => <span class="hl-var">$row</span>->hits, <span class="hl-str">'resetAt'</span> => <span class="hl-var">$row</span>->reset_at];
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">set</span>(<span class="hl-kw">string</span> <span class="hl-var">$key</span>, <span class="hl-kw">int</span> <span class="hl-var">$hits</span>, <span class="hl-kw">int</span> <span class="hl-var">$resetAt</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-cls">DB</span>::<span class="hl-fn">table</span>(<span class="hl-str">'rate_limits'</span>)-><span class="hl-fn">upsert</span>(
+            [<span class="hl-str">'key'</span> => <span class="hl-var">$key</span>, <span class="hl-str">'hits'</span> => <span class="hl-var">$hits</span>, <span class="hl-str">'reset_at'</span> => <span class="hl-var">$resetAt</span>],
+            [<span class="hl-str">'key'</span>],
+            [<span class="hl-str">'hits'</span>, <span class="hl-str">'reset_at'</span>]
+        );
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">delete</span>(<span class="hl-kw">string</span> <span class="hl-var">$key</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-cls">DB</span>::<span class="hl-fn">table</span>(<span class="hl-str">'rate_limits'</span>)-><span class="hl-fn">where</span>(<span class="hl-str">'key'</span>, <span class="hl-var">$key</span>)-><span class="hl-fn">delete</span>();
+    }
+}</code></pre>
+
+    <!-- Testing -->
+    <h2 id="testing">Testing</h2>
+
+    <h3>Clock Override</h3>
+    <p>Override the internal clock for deterministic testing:</p>
+    <pre><code><span class="hl-var">$store</span> = <span class="hl-kw">new</span> <span class="hl-cls">ArrayStore</span>();
+<span class="hl-var">$store</span>-><span class="hl-fn">setCurrentTime</span>(<span class="hl-num">1700000000</span>);
+
+<span class="hl-var">$limiter</span> = <span class="hl-kw">new</span> <span class="hl-cls">RateLimiter</span>(<span class="hl-var">$store</span>);
+<span class="hl-var">$limiter</span>-><span class="hl-fn">setCurrentTime</span>(<span class="hl-num">1700000000</span>);
+
+<span class="hl-cmt">// All time-based operations use the override</span>
+<span class="hl-var">$limiter</span>-><span class="hl-fn">attempt</span>(<span class="hl-str">'test'</span>, <span class="hl-num">5</span>, <span class="hl-num">60</span>);
+
+<span class="hl-cmt">// Advance time</span>
+<span class="hl-var">$store</span>-><span class="hl-fn">setCurrentTime</span>(<span class="hl-num">1700000061</span>);  <span class="hl-cmt">// 61 seconds later</span>
+<span class="hl-var">$limiter</span>-><span class="hl-fn">setCurrentTime</span>(<span class="hl-num">1700000061</span>);
+
+<span class="hl-cmt">// Window has expired &mdash; attempts reset</span>
+<span class="hl-var">$limiter</span>-><span class="hl-fn">attempts</span>(<span class="hl-str">'test'</span>); <span class="hl-cmt">// 0</span></code></pre>
+
+    <h3>RateLimitExceededException</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\RateLimit\RateLimitExceededException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-kw">if</span> (!<span class="hl-var">$limiter</span>-><span class="hl-fn">attempt</span>(<span class="hl-var">$key</span>, <span class="hl-num">5</span>, <span class="hl-num">60</span>)) {
+        <span class="hl-kw">throw new</span> <span class="hl-cls">RateLimitExceededException</span>(
+            key: <span class="hl-var">$key</span>,
+            maxAttempts: <span class="hl-num">5</span>,
+            retryAfter: <span class="hl-var">$limiter</span>-><span class="hl-fn">availableIn</span>(<span class="hl-var">$key</span>)
+        );
+    }
+} <span class="hl-kw">catch</span> (<span class="hl-cls">RateLimitExceededException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-var">$e</span>-><span class="hl-fn">getKey</span>();          <span class="hl-cmt">// rate limit key</span>
+    <span class="hl-var">$e</span>-><span class="hl-fn">getMaxAttempts</span>();  <span class="hl-cmt">// 5</span>
+    <span class="hl-var">$e</span>-><span class="hl-fn">getRetryAfter</span>();   <span class="hl-cmt">// seconds to wait</span>
+    <span class="hl-cmt">// HTTP code: 429</span>
+}</code></pre>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>RateLimiter</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(RateLimitStoreInterface $store)</code></td><td>Create with store</td></tr>
+        <tr><td><code>for</code></td><td><code>(string $name, Closure $callback): void</code></td><td>Register named limiter</td></tr>
+        <tr><td><code>limiter</code></td><td><code>(string $name): ?Closure</code></td><td>Get limiter callback</td></tr>
+        <tr><td><code>hasLimiter</code></td><td><code>(string $name): bool</code></td><td>Check limiter exists</td></tr>
+        <tr><td><code>attempt</code></td><td><code>(string $key, int $maxAttempts, int $decaySeconds): bool</code></td><td>Check + record</td></tr>
+        <tr><td><code>tooManyAttempts</code></td><td><code>(string $key, int $maxAttempts): bool</code></td><td>Read-only check</td></tr>
+        <tr><td><code>hit</code></td><td><code>(string $key, int $decaySeconds): int</code></td><td>Record hit, return total</td></tr>
+        <tr><td><code>remaining</code></td><td><code>(string $key, int $maxAttempts): int</code></td><td>Remaining attempts</td></tr>
+        <tr><td><code>availableIn</code></td><td><code>(string $key): int</code></td><td>Seconds until reset</td></tr>
+        <tr><td><code>resetAt</code></td><td><code>(string $key): int</code></td><td>Reset Unix timestamp</td></tr>
+        <tr><td><code>attempts</code></td><td><code>(string $key): int</code></td><td>Current hit count</td></tr>
+        <tr><td><code>clear</code></td><td><code>(string $key): void</code></td><td>Clear all hits</td></tr>
+        <tr><td><code>resolve</code></td><td><code>(string $name, array $context = []): ?Limit</code></td><td>Resolve named limiter</td></tr>
+        <tr><td><code>getStore</code></td><td><code>(): RateLimitStoreInterface</code></td><td>Get store instance</td></tr>
+        <tr><td><code>setCurrentTime</code></td><td><code>(?int $timestamp): void</code></td><td>Testing clock override</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Limit</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>perMinute</code> <em>(static)</em></td><td><code>(int $maxAttempts): static</code></td><td>60s window</td></tr>
+        <tr><td><code>perHour</code> <em>(static)</em></td><td><code>(int $maxAttempts): static</code></td><td>3600s window</td></tr>
+        <tr><td><code>perDay</code> <em>(static)</em></td><td><code>(int $maxAttempts): static</code></td><td>86400s window</td></tr>
+        <tr><td><code>every</code> <em>(static)</em></td><td><code>(int $decaySeconds, int $maxAttempts): static</code></td><td>Custom window</td></tr>
+        <tr><td><code>none</code> <em>(static)</em></td><td><code>(): static</code></td><td>Unlimited</td></tr>
+        <tr><td><code>by</code></td><td><code>(string $key): static</code></td><td>Set bucket key</td></tr>
+        <tr><td><code>getMaxAttempts</code></td><td><code>(): int</code></td><td>Max attempts</td></tr>
+        <tr><td><code>getDecaySeconds</code></td><td><code>(): int</code></td><td>Window duration</td></tr>
+        <tr><td><code>getKey</code></td><td><code>(): string</code></td><td>Bucket key</td></tr>
+        <tr><td><code>isUnlimited</code></td><td><code>(): bool</code></td><td>Is unlimited?</td></tr>
+      </tbody>
+    </table>
+
+    <h3>RateLimitStoreInterface</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>get</code></td><td><code>(string $key): ?array</code></td><td>Returns <code>{hits, resetAt}</code> or null</td></tr>
+        <tr><td><code>set</code></td><td><code>(string $key, int $hits, int $resetAt): void</code></td><td>Store record</td></tr>
+        <tr><td><code>delete</code></td><td><code>(string $key): void</code></td><td>Remove record</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="authmanager.html"><span class="label">&larr; Previous</span><span class="title">Auth Manager</span></a>
+      <a href="logging.html" class="next"><span class="label">Next &rarr;</span><span class="title">Logging</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

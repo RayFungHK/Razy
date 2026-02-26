@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standalone Mode &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">&#x2B50; Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link active">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Standalone Mode <span style="font-size:0.6em;opacity:0.7">(Lite)</span></h1>
+
+    <div class="callout callout-info">
+      <strong>Zero-config, single-module setup.</strong> No package manager, no distributor configuration, no domain restrictions &mdash; just drop a <code>standalone/</code> folder and go.
+    </div>
+
+    <h2 id="overview">Overview</h2>
+    <ul>
+      <li><strong>Default mode</strong> &mdash; Standalone activates automatically when a <code>standalone/</code> folder exists and multisite is not enabled in <code>config.inc.php</code></li>
+      <li><strong>Ultra-flat structure</strong> &mdash; No <code>module.php</code>, no <code>package.php</code>, no version directories &mdash; just controllers and views</li>
+      <li><strong>Full framework access</strong> &mdash; DI container, template engine, routing, and all Razy utilities are available</li>
+      <li><strong>Any domain</strong> &mdash; No domain restrictions &mdash; any incoming connection loads the standalone module</li>
+    </ul>
+
+    <h2 id="quick-start">Quick Start</h2>
+
+    <h3>Option 1: CLI Scaffold</h3>
+    <pre><code>php Razy.phar standalone</code></pre>
+    <p>This creates the following structure:</p>
+    <pre><code>standalone/
+  controller/
+    app.php           <span class="hl-cmt"># Main controller (route registration)</span>
+    app.index.php     <span class="hl-cmt"># Index route handler (/)</span>
+  view/
+    index.tpl         <span class="hl-cmt"># Index page template</span></code></pre>
+
+    <h3>Option 2: Manual Setup</h3>
+    <p>Create the <code>standalone/</code> directory at your project root with at minimum:</p>
+    <pre><code>standalone/
+  controller/
+    app.php           <span class="hl-cmt"># Main controller</span></code></pre>
+
+    <h2 id="folder-structure">Folder Structure</h2>
+    <pre><code>my-project/
+  index.php           <span class="hl-cmt"># Entry point (or router.php)</span>
+  config.inc.php      <span class="hl-cmt"># Framework config</span>
+  Razy.phar           <span class="hl-cmt"># Framework archive</span>
+  standalone/         <span class="hl-cmt"># Your application lives here</span>
+    controller/
+      app.php         <span class="hl-cmt"># Main controller class</span>
+      app.index.php   <span class="hl-cmt"># Handler for '/' route</span>
+      app.about.php   <span class="hl-cmt"># Handler for 'about' route</span>
+      app.api.php     <span class="hl-cmt"># Handler for 'api' route</span>
+    view/
+      index.tpl       <span class="hl-cmt"># Templates</span>
+      about.tpl
+    library/          <span class="hl-cmt"># Optional: custom classes (autoloaded)</span></code></pre>
+
+    <h2 id="detection">How Detection Works</h2>
+    <p>In <code>main.php</code>, before the normal multisite host-matching flow:</p>
+    <ol>
+      <li>Check if <code>standalone/</code> directory exists at <code>SYSTEM_ROOT</code></li>
+      <li>Check that <code>config.inc.php</code> does <strong>not</strong> have <code>'multiple_site' =&gt; true</code></li>
+      <li>Check that <code>RAZY_MULTIPLE_SITE</code> env var is <strong>not</strong> <code>'true'</code></li>
+      <li>If all conditions are met &rarr; standalone mode activates</li>
+    </ol>
+    <pre><code>STANDALONE_MODE = is_dir('standalone/') &amp;&amp; !$razyConfig['multiple_site'] &amp;&amp; getenv('RAZY_MULTIPLE_SITE') !== 'true'</code></pre>
+
+    <h2 id="boot-flow">Boot Flow</h2>
+    <pre><code>index.php &rarr; Razy.phar &rarr; main.php &rarr; bootstrap.inc.php
+  &darr;
+  Standalone detection (standalone/ exists, multisite not enabled)
+  &darr;
+  Application::standalone($standalonePath)
+    &rarr; Creates Standalone instance (no dist.php, no Domain)
+    &rarr; DI Container injected from Application
+  &darr;
+  Application::queryStandalone(URL_QUERY)
+    &rarr; Standalone::initialize() creates one Module
+    &rarr; Module loads controller/app.php
+    &rarr; Standalone::matchRoute() dispatches to matched handler</code></pre>
+
+    <h2 id="comparison">Normal vs Standalone</h2>
+    <table>
+      <thead><tr><th>Normal Mode</th><th>Standalone Mode</th></tr></thead>
+      <tbody>
+        <tr><td><code>sites.inc.php</code> required</td><td>Not needed</td></tr>
+        <tr><td>Domain matching (<code>host()</code>)</td><td>Skipped &mdash; any domain works</td></tr>
+        <tr><td><code>dist.php</code> in <code>sites/</code></td><td>Not needed</td></tr>
+        <tr><td><code>module.php</code> per module</td><td>Synthesized internally</td></tr>
+        <tr><td><code>package.php</code> per version</td><td>Not needed</td></tr>
+        <tr><td>Version directories (<code>default/</code>)</td><td>None &mdash; code at <code>standalone/</code> root</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="controller">Controller</h2>
+    <p>The main controller at <code>standalone/controller/app.php</code> is identical to any Razy controller:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-kw">use</span> Razy\Agent;
+<span class="hl-kw">use</span> Razy\Controller;
+
+<span class="hl-kw">return new class extends</span> Controller {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(Agent <span class="hl-var">$agent</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addLazyRoute</span>([
+            <span class="hl-str">'/'</span> =&gt; <span class="hl-str">'index'</span>,
+            <span class="hl-str">'about'</span> =&gt; <span class="hl-str">'about'</span>,
+            <span class="hl-str">'api/users'</span> =&gt; <span class="hl-str">'api/users'</span>,
+        ]);
+
+        <span class="hl-kw">return true</span>;
+    }
+};</code></pre>
+
+    <h2 id="route-handlers">Route Handlers</h2>
+    <p>Route handlers follow the standard naming convention: <code>app.{route}.php</code></p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// standalone/controller/app.index.php</span>
+<span class="hl-kw">use</span> Razy\Controller;
+
+<span class="hl-kw">return function</span> (): <span class="hl-kw">void</span> {
+    <span class="hl-cmt">/** @var Controller $this */</span>
+    header(<span class="hl-str">'Content-Type: text/html; charset=UTF-8'</span>);
+
+    <span class="hl-var">$template</span> = <span class="hl-var">$this</span>-&gt;<span class="hl-fn">loadTemplate</span>(<span class="hl-str">'index'</span>);
+    echo <span class="hl-var">$template</span>-&gt;<span class="hl-fn">output</span>();
+};</code></pre>
+
+    <h2 id="templates">Templates</h2>
+    <p>Templates in <code>standalone/view/</code> use the standard Razy template engine:</p>
+    <pre><code><span class="hl-cmt">{# standalone/view/index.tpl #}</span>
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;{$title}&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;{$heading}&lt;/h1&gt;
+    <span class="hl-cmt">&lt;!-- BEGIN: content --&gt;</span>
+    &lt;p&gt;{$text}&lt;/p&gt;
+    <span class="hl-cmt">&lt;!-- END: content --&gt;</span>
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+    <h2 id="di-container">DI Container</h2>
+    <p>The standalone module has access to the Application-level DI container:</p>
+    <pre><code><span class="hl-kw">return new class extends</span> Controller {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(Agent <span class="hl-var">$agent</span>): <span class="hl-kw">bool</span>
+    {
+        <span class="hl-cmt">// Access the DI container</span>
+        <span class="hl-var">$container</span> = <span class="hl-var">$this</span>-&gt;module-&gt;<span class="hl-fn">getContainer</span>();
+
+        <span class="hl-cmt">// Resolve services</span>
+        <span class="hl-var">$pluginManager</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">make</span>(\Razy\PluginManager::class);
+
+        <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addLazyRoute</span>([<span class="hl-str">'/'</span> =&gt; <span class="hl-str">'index'</span>]);
+        <span class="hl-kw">return true</span>;
+    }
+};</code></pre>
+
+    <h2 id="switching">Switching to Multisite</h2>
+    <ol>
+      <li>Set <code>'multiple_site' =&gt; true</code> in <code>config.inc.php</code></li>
+      <li>Create <code>sites.inc.php</code> at the project root (use <code>php Razy.phar set</code>)</li>
+      <li>Move your standalone code into a proper module under <code>sites/&lt;dist&gt;/</code></li>
+      <li>Standalone mode deactivates because multisite is enabled</li>
+    </ol>
+
+    <h2 id="cli">CLI Support</h2>
+    <pre><code><span class="hl-cmt"># Scaffold a new standalone app</span>
+php Razy.phar standalone
+
+<span class="hl-cmt"># Scaffold with force-overwrite</span>
+php Razy.phar standalone --force
+
+<span class="hl-cmt"># Scaffold into a specific directory</span>
+php Razy.phar standalone -f /var/www/myapp</code></pre>
+
+    <h2 id="limitations">Limitations</h2>
+    <ul>
+      <li><strong>Single module only</strong> &mdash; Standalone mode loads exactly one module</li>
+      <li><strong>No inter-module API</strong> &mdash; No <code>$this-&gt;api()</code> calls (only one module exists)</li>
+      <li><strong>No package prerequisites</strong> &mdash; No <code>compose</code> or dependency resolution</li>
+      <li><strong>No shared modules</strong> &mdash; Global modules from <code>shared/module/</code> are not scanned</li>
+      <li><strong>No data mapping</strong> &mdash; Cross-site data mapping is not available</li>
+    </ul>
+    <p>For multi-module applications or cross-module communication, use the standard multisite mode with <code>sites.inc.php</code>.</p>
+
+    <div class="page-nav">
+      <a href="getting-started.html" class="prev">&larr; Installation</a>
+      <a href="tutorial.html" class="next">Tutorial &rarr;</a>
+    </div>
+  </main>
+</body>
+</html>

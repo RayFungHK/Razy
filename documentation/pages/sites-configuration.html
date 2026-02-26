@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sites Configuration &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Sites Configuration</h1>
+    <p>Razy maps incoming HTTP requests to distributors through a layered configuration system. The framework reads domain and path mappings from <code>sites.inc.php</code>, applies global settings from <code>config.inc.php</code>, and loads module sets defined in each distributor's <code>dist.php</code>.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>When a request arrives, Razy resolves the target distributor using a three-step process:</p>
+    <ol>
+      <li><strong>Domain matching</strong> &mdash;The request domain is looked up in <code>sites.inc.php</code> (with alias support).</li>
+      <li><strong>Path matching</strong> &mdash;The URL path is matched against registered path prefixes for that domain.</li>
+      <li><strong>Distributor loading</strong> &mdash;The matched distributor code is used to locate and load the corresponding <code>dist.php</code>, which declares which modules to boot.</li>
+    </ol>
+
+    <h2 id="sites-inc">sites.inc.php</h2>
+    <p>The main domain-to-distributor mapping file, located at the project root. It returns an associative array with <code>domains</code> and optional <code>alias</code> keys:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'domains'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'localhost'</span> <span class="hl-op">=></span> [
+            <span class="hl-str">'/'</span> <span class="hl-op">=></span> <span class="hl-str">'testsite'</span>,          <span class="hl-cmt">// Root path &mdash; testsite distributor</span>
+            <span class="hl-str">'/appdemo'</span> <span class="hl-op">=></span> <span class="hl-str">'appdemo'</span>,    <span class="hl-cmt">// Sub-path &mdash; appdemo distributor</span>
+        ],
+        <span class="hl-str">'example.com'</span> <span class="hl-op">=></span> [
+            <span class="hl-str">'/'</span> <span class="hl-op">=></span> <span class="hl-str">'production'</span>,
+            <span class="hl-str">'/api'</span> <span class="hl-op">=></span> <span class="hl-str">'api-server'</span>,
+        ],
+    ],
+    <span class="hl-str">'alias'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'www.example.com'</span> <span class="hl-op">=></span> <span class="hl-str">'example.com'</span>,   <span class="hl-cmt">// Domain alias</span>
+    ],
+];</code></pre>
+    <p>Each domain maps URL path prefixes to distributor codes. The longest matching prefix wins. Aliases redirect one domain to another's configuration without duplication.</p>
+
+    <h2 id="config-inc">config.inc.php</h2>
+    <p>Global framework configuration, also at the project root:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'debug'</span> <span class="hl-op">=></span> <span class="hl-kw">false</span>,
+    <span class="hl-str">'phar_location'</span> <span class="hl-op">=></span> <span class="hl-str">'/path/to/razy'</span>,
+    <span class="hl-str">'timezone'</span> <span class="hl-op">=></span> <span class="hl-str">'UTC'</span>,
+];</code></pre>
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>debug</code></td><td><code>bool</code></td><td>Enable debug mode (verbose errors, stack traces)</td></tr>
+        <tr><td><code>phar_location</code></td><td><code>string</code></td><td>Absolute path to the Razy PHAR file or source directory</td></tr>
+        <tr><td><code>timezone</code></td><td><code>string</code></td><td>Default timezone for the framework</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="dist-php">dist.php</h2>
+    <p>The distributor configuration file &mdash; the most important config in any Razy project. Located inside the distributor's directory (e.g., <code>sites/testsite/dist.php</code>), it defines which modules to load and how:</p>
+    <pre><code><span class="hl-kw">return</span> [
+    <span class="hl-str">'dist'</span> <span class="hl-op">=></span> <span class="hl-str">'mysite'</span>,
+    <span class="hl-str">'modules'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'*'</span> <span class="hl-op">=></span> [                           <span class="hl-cmt">// Default tag (wildcard)</span>
+            <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'*'</span>,      <span class="hl-cmt">// Latest version</span>
+            <span class="hl-str">'vendor/module-b'</span> <span class="hl-op">=></span> <span class="hl-str">'default'</span>, <span class="hl-cmt">// Default version</span>
+            <span class="hl-str">'vendor/module-c'</span> <span class="hl-op">=></span> <span class="hl-str">'1.0.0'</span>,  <span class="hl-cmt">// Specific version</span>
+        ],
+        <span class="hl-str">'v2'</span> <span class="hl-op">=></span> [                          <span class="hl-cmt">// Tagged version</span>
+            <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'2.0.0'</span>,
+        ],
+    ],
+    <span class="hl-str">'global_module'</span> <span class="hl-op">=></span> <span class="hl-kw">false</span>,             <span class="hl-cmt">// Allow global shared modules</span>
+    <span class="hl-str">'autoload_shared'</span> <span class="hl-op">=></span> <span class="hl-kw">false</span>,           <span class="hl-cmt">// Auto-load shared modules</span>
+    <span class="hl-str">'greedy'</span> <span class="hl-op">=></span> <span class="hl-kw">true</span>,                     <span class="hl-cmt">// Load all modules in folder</span>
+    <span class="hl-str">'strict'</span> <span class="hl-op">=></span> <span class="hl-kw">false</span>,                    <span class="hl-cmt">// Strict mode</span>
+    <span class="hl-str">'fallback'</span> <span class="hl-op">=></span> <span class="hl-kw">true</span>,                   <span class="hl-cmt">// Fallback routing to index.php</span>
+    <span class="hl-str">'data_mapping'</span> <span class="hl-op">=></span> [                  <span class="hl-cmt">// Cross-site data folder mapping</span>
+        <span class="hl-str">'/'</span> <span class="hl-op">=></span> <span class="hl-str">'other.com:othersite'</span>,   <span class="hl-cmt">// Serve data from another distributor</span>
+    ],
+    <span class="hl-str">'internal_bridge'</span> <span class="hl-op">=></span> [                 <span class="hl-cmt">// Cross-distributor bridge</span>
+        <span class="hl-str">'enabled'</span> <span class="hl-op">=></span> <span class="hl-kw">true</span>,
+        <span class="hl-str">'allow'</span> <span class="hl-op">=></span> [<span class="hl-str">'siteB'</span> <span class="hl-op">=></span> <span class="hl-kw">true</span>],
+        <span class="hl-str">'secret'</span> <span class="hl-op">=></span> <span class="hl-str">'bridge-secret'</span>,
+        <span class="hl-str">'path'</span> <span class="hl-op">=></span> <span class="hl-str">'/__internal/bridge'</span>,
+    ],
+];</code></pre>
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>dist</code></td><td><code>string</code></td><td>Unique distributor code identifier</td></tr>
+        <tr><td><code>modules</code></td><td><code>array</code></td><td>Tag-to-module version mapping table</td></tr>
+        <tr><td><code>global_module</code></td><td><code>bool</code></td><td>Whether to allow loading modules from the global shared folder</td></tr>
+        <tr><td><code>autoload_shared</code></td><td><code>bool</code></td><td>Automatically load all shared modules</td></tr>
+        <tr><td><code>greedy</code></td><td><code>bool</code></td><td>Load all modules found in the modules folder</td></tr>
+        <tr><td><code>strict</code></td><td><code>bool</code></td><td>Strict mode &mdash; fail on missing modules</td></tr>
+        <tr><td><code>fallback</code></td><td><code>bool</code></td><td>When <code>true</code> (default), unmatched requests are forwarded to <code>index.php</code> for PHP route matching. When <code>false</code>, unmatched requests return 404 at the server level.</td></tr>
+        <tr><td><code>data_mapping</code></td><td><code>array</code></td><td>Cross-site data folder redirection. Maps URL path prefixes to another distributor's data folder. Format: <code>'/path' => 'domain.com:dist_code'</code>. Without this, data URLs resolve to the current distributor's own <code>data/{domain}-{code}/</code> folder.</td></tr>
+        <tr><td><code>internal_bridge</code></td><td><code>array</code></td><td>Cross-distributor communication bridge settings</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="dist-tagging">Dist Tagging</h2>
+    <p>Tags allow switching module version sets per-environment. In <code>sites.inc.php</code>, a distributor code can include a tag suffix using <code>@</code>:</p>
+    <pre><code><span class="hl-cmt">// sites.inc.php</span>
+<span class="hl-str">'localhost'</span> <span class="hl-op">=></span> [
+    <span class="hl-str">'/'</span> <span class="hl-op">=></span> <span class="hl-str">'mysite@v2'</span>,   <span class="hl-cmt">// Use the 'v2' tag</span>
+],</code></pre>
+    <p>The <code>modules</code> table in <code>dist.php</code> maps tags to version sets. The <code>*</code> tag is the default/wildcard &mdash; it is used when no tag is specified or as a fallback. When a tag is specified:</p>
+    <ol>
+      <li>Razy loads the <code>*</code> (default) tag first as the base set.</li>
+      <li>The specified tag's entries override or supplement the defaults.</li>
+    </ol>
+    <p>This enables switching between development and production module versions without changing distributor code.</p>
+
+    <h2 id="cli-management">CLI Management</h2>
+    <p>Use the Razy CLI to manage site mappings without editing files manually:</p>
+    <pre><code><span class="hl-cmt"># Add or update a site mapping</span>
+<span class="hl-fn">php</span> Razy.phar <span class="hl-kw">set</span> <span class="hl-str">localhost</span> <span class="hl-str">/</span> <span class="hl-str">testsite</span>
+
+<span class="hl-cmt"># Remove a site mapping</span>
+<span class="hl-fn">php</span> Razy.phar <span class="hl-kw">remove</span> <span class="hl-str">localhost</span> <span class="hl-str">/</span>
+
+<span class="hl-cmt"># Create a domain alias</span>
+<span class="hl-fn">php</span> Razy.phar <span class="hl-kw">link</span> <span class="hl-str">www.example.com</span> <span class="hl-str">example.com</span>
+
+<span class="hl-cmt"># Remove a domain alias</span>
+<span class="hl-fn">php</span> Razy.phar <span class="hl-kw">unlink</span> <span class="hl-str">www.example.com</span></code></pre>
+    <p>Each command updates <code>sites.inc.php</code> automatically and regenerates rewrite rules if applicable.</p>
+
+    <h2 id="rewrite-rules">Rewrite Rules</h2>
+    <p>After modifying site mappings, regenerate the <code>.htaccess</code> file to match your configuration:</p>
+    <pre><code><span class="hl-fn">php</span> Razy.phar <span class="hl-kw">rewrite</span></code></pre>
+    <p>This command reads the current <code>sites.inc.php</code> and rebuilds <code>.htaccess</code> with domain-aware rewrite rules. The generated file has two phases:</p>
+    <ol>
+      <li><strong>Domain Detection</strong> &mdash;Sets the <code>RAZY_DOMAIN</code> environment variable based on <code>HTTP_HOST</code>, including aliases and wildcard domains.</li>
+      <li><strong>Per-Distributor Rules</strong> &mdash;Generates webassets, data, and fallback rewrite rules scoped to each domain via <code>RAZY_DOMAIN</code>.</li>
+    </ol>
+    <p>When <code>fallback</code> is enabled in <code>dist.php</code> (the default), any request under that distributor's path prefix that doesn't match an existing file or directory is forwarded to <code>index.php</code> for PHP route matching. When disabled, those requests receive a 404 from the web server without invoking PHP &mdash; useful for API-only distributors or static sites that should not accept arbitrary paths.</p>
+
+    <div class="page-nav">
+      <a href="simple-syntax.html"><span class="label">&larr; Previous</span><span class="title">Simple Syntax</span></a>
+      <a href="packaging.html" class="next"><span class="label">Next &rarr;</span><span class="title">Packaging &amp; Distribution</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

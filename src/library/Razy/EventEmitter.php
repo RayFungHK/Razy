@@ -6,31 +6,43 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
 use Throwable;
+use Razy\Contract\DistributorInterface;
 
 /**
- * Class EventEmitter.
+ * Class EventEmitter
  *
- * @method EventEmitter bind(Distributor $distributor)
+ * Facilitates event-driven communication between modules within a Distributor.
+ * When a module emits an event, EventEmitter iterates over all loaded modules
+ * to find listeners for that event, collects their responses, and optionally
+ * invokes a callback for each response.
+ *
+ * @class EventEmitter
+ * @package Razy
+ * @method EventEmitter bind(DistributorInterface $distributor)
  */
 class EventEmitter
 {
+    /** @var array<mixed> Collected responses from event listeners after resolve() */
     private array $responses = [];
 
 	/**
 	 * API constructor.
 	 *
-	 * @param Distributor $distributor
+	 * @param DistributorInterface $distributor
 	 * @param Module $module
 	 * @param string $event
 	 * @param Closure|null $callback
 	 */
-    public function __construct(private readonly Distributor $distributor, private readonly Module $module, private readonly string $event, private readonly ?Closure $callback = null)
+    public function __construct(private readonly DistributorInterface $distributor, private readonly Module $module, private readonly string $event, private readonly ?Closure $callback = null)
     {
 
     }
@@ -56,12 +68,16 @@ class EventEmitter
      */
     public function resolve(...$args): self
     {
-        foreach ($this->distributor->getModules() as $module) {
-            if ($module->isEventListening($this->module->getModuleInfo()->getCode(), $this->event)) {
-                $result = $module->fireEvent($this->module->getModuleInfo()->getCode(), $this->event, $args);
-                $this->callback?->call($this->module, $result, $module->getModuleInfo()->getCode());
-                $this->responses[] = $result;
-            }
+        // O(1) lookup via centralized listener index instead of O(n) full module scan
+        $sourceCode = $this->module->getModuleInfo()->getCode();
+        $listeners = $this->distributor->getRegistry()->getEventListeners($sourceCode, $this->event);
+
+        foreach ($listeners as $module) {
+            // Fire the event on the listening module and collect the result
+            $result = $module->fireEvent($sourceCode, $this->event, $args);
+            // Invoke the optional callback with the result and the responding module code
+            $this->callback?->call($this->module, $result, $module->getModuleInfo()->getCode());
+            $this->responses[] = $result;
         }
 
         return $this;

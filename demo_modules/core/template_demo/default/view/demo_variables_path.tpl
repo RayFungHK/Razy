@@ -1,0 +1,1 @@
+{$user.profile.name} ({$user.profile.email}) — Theme: {$user.settings.theme}

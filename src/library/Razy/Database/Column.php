@@ -6,17 +6,35 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy\Database;
 
-use Razy\Error;
-use function Razy\guid;
-
+use Razy\Exception\DatabaseException;
+use Razy\Util\StringUtil;
+/**
+ * Class Column
+ *
+ * Represents a database table column definition. Handles column type, length,
+ * default values, charset, collation, keys, references (foreign keys), and
+ * auto-increment configuration. Supports parsing column definition syntax
+ * strings and generating SQL fragments for CREATE/ALTER TABLE statements.
+ *
+ * @package Razy
+ * @license MIT
+ */
 class Column
 {
+	/** @var string Unique identifier for this column instance (GUID) */
 	private string $id;
+
+	/** @var array Column configuration parameters (type, length, nullable, default, key, charset, etc.) */
 	private array $parameters = [];
+
+	/** @var string Optional column comment for the SQL COMMENT clause */
 	private string $comment = '';
 
 	/**
@@ -32,10 +50,13 @@ class Column
 	{
 		$this->name = trim($this->name);
 		$this->configSyntax = trim($this->configSyntax);
+
+		// Validate column name: must be a backtick-quoted identifier or a lowercase-alpha-starting word
 		if (!preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $this->name)) {
-			throw new Error('The column name ' . $this->name . ' is not in a correct format,');
+			throw new DatabaseException('The column name ' . $this->name . ' is not in a correct format,');
 		}
 
+		// Initialize default column parameters
 		$this->parameters = [
 			'type' => 'VARCHAR',
 			'length' => 255,
@@ -44,11 +65,14 @@ class Column
 			'insert_after' => '',
 		];
 
+		// Parse and apply config syntax if provided (e.g., "type(text),nullable,default('value')")
 		if ($this->configSyntax) {
 			$parameters = $this->parseSyntax($configSyntax);
 			$this->configure($parameters);
 		}
-		$this->id = guid();
+
+		// Generate a unique ID for tracking this column instance across table operations
+		$this->id = StringUtil::guid();
 	}
 
 	/**
@@ -60,15 +84,20 @@ class Column
 	private function parseSyntax(string $syntax): array
 	{
 		$parameters = [];
+
+		// Split syntax string by commas, respecting parenthesized groups and quoted strings
 		$clips = preg_split('/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*,\s*/', $syntax, -1, PREG_SPLIT_NO_EMPTY);
 		foreach ($clips as $clip) {
+			// Match keyword with optional parenthesized arguments: e.g., "type(text)" or "nullable"
 			if (preg_match('/^(\w+)(?:\(((?:\\.(*SKIP)|[^()])*)\))?/', $clip, $matches)) {
 				if (!isset($parameters[$matches[1]])) {
 					$parameters[$matches[1]] = null;
 				}
 
+				// Parse comma-separated arguments inside parentheses
 				if ($matches[2] ?? '') {
 					$parameters[$matches[1]] = [];
+					// Extract each argument: identifier, number, or quoted string
 					while (preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
 						$parameters[$matches[1]][] = $extracted[4] ?? $extracted[1];
 						$matches[2] = substr($matches[2], strlen($extracted[0]));
@@ -90,6 +119,7 @@ class Column
 	 */
 	public function configure(array $parameters): Column
 	{
+		// Iterate through supported configuration keys and apply each if present
 		foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'create', 'key', 'oncreate', 'onupdate', 'default', 'reference'] as $method) {
 			if (!array_key_exists($method, $parameters)) {
 				continue;
@@ -154,9 +184,10 @@ class Column
 	{
 		$type = strtolower(trim($type));
 		if (!$type) {
-			throw new Error('The column data type cannot be empty.');
+			throw new DatabaseException('The column data type cannot be empty.');
 		}
 
+		// Reset default and map type aliases to actual SQL column types
 		$this->parameters['default'] = '';
 		if ('auto_id' === $type || 'auto' === $type || 'auto_increment' === $type) {
 			$this->parameters['type'] = 'INT';
@@ -270,7 +301,7 @@ class Column
 	{
 		$charset = trim($charset);
 		if ($charset && !preg_match('/^\w+$/', $charset)) {
-			throw new Error($charset . ' is not in a correct character set format.');
+			throw new DatabaseException($charset . ' is not in a correct character set format.');
 		}
 		$this->parameters['charset'] = $charset;
 
@@ -289,7 +320,7 @@ class Column
 	{
 		$charset = trim($collation);
 		if ($charset && !preg_match('/\w+^$', $collation)) {
-			throw new Error($collation . ' is not in a correct character set format.');
+			throw new DatabaseException($collation . ' is not in a correct character set format.');
 		}
 		$this->parameters['collation'] = $collation;
 
@@ -353,16 +384,19 @@ class Column
 	}
 
 	/**
-	 * Generate the alter SQL statement by the different with specified column.
+	 * Generate the ALTER COLUMN SQL fragment by comparing with the original column definition.
+	 * Only generates syntax for properties that have actually changed.
 	 *
-	 * @param Column $column
-	 * @param bool $reordered
+	 * @param Column $column The original column to compare against
+	 * @param bool $reordered Whether the column has been reordered in the table
 	 *
-	 * @return string
+	 * @return string The MODIFY COLUMN SQL fragment, or empty string if no changes
 	 */
 	public function alter(Column $column, bool $reordered = false): string
 	{
 		$changes = '';
+
+		// Check for default value changes
 		if ($this->parameters['default'] !== $column->getDefault()) {
 			$changes .= $this->getDefaultSyntax();
 		}
@@ -402,6 +436,7 @@ class Column
 	 */
 	private function getDefaultSyntax(): string
 	{
+		// Timestamp/Datetime columns support CURRENT_TIMESTAMP and ON UPDATE CURRENT_TIMESTAMP
 		if ('TIMESTAMP' === $this->parameters['type'] || 'DATETIME' === $this->parameters['type']) {
 			$syntax = ' DEFAULT ' . (($this->parameters['default_current_timestamp']) ? 'CURRENT_TIMESTAMP' : 'NULL');
 			if ($this->parameters['auto_update_timestamp']) {
@@ -410,9 +445,12 @@ class Column
 			return $syntax;
 		}
 
+		// Nullable columns or columns with null default get DEFAULT NULL
 		if ($this->parameters['nullable'] || null === $this->parameters['default']) {
 			return ' DEFAULT NULL';
 		}
+
+		// Columns with explicit default values get an escaped string literal
 		if (null !== $this->parameters['default']) {
 			return ' DEFAULT \'' . addslashes($this->parameters['default']) . '\'';
 		}
@@ -448,12 +486,13 @@ class Column
 	private function getCharsetSyntax(): string
 	{
 		$syntax = '';
+		// Charset and collation only apply to text-based column types
 		if (preg_match('/^TEXT|CHAR|VARCHAR$/', $this->parameters['type'])) {
-			if ($this->parameters['charset']) {
+			if ($this->parameters['charset'] ?? '') {
 				$syntax .= ' CHARACTER SET ' . $this->parameters['charset'];
 			}
 
-			if ($this->parameters['collation']) {
+			if ($this->parameters['collation'] ?? '') {
 				$syntax .= ' COLLATE ' . $this->parameters['collation'];
 			}
 		}
@@ -479,11 +518,14 @@ class Column
 	private function getTypeSyntax(): string
 	{
 		$length = '';
+		// Integer, char, and text types use a simple length specifier
 		if (preg_match('/^(?:VAR)?CHAR|(TINY|MEDIUM|LONG)?TEXT|(?:VAR)?BINARY|(SMALL|TINY|MEDIUM|BIG)?INT|BLOB$/', $this->parameters['type'])) {
 			$length = $this->parameters['length'];
 		} elseif (preg_match('/^(REAL|DOUBLE|FLOAT|DEC(IMAL)?|NUMERIC|FIXED)$/i', $this->parameters['type'])) {
+			// Floating-point/decimal types use precision,scale format
 			$length = $this->parameters['length'] . ',' . $this->parameters['decimal_points'];
 		} else {
+			// YEAR type only supports length of 2 or 4, default to 4
 			if ('YEAR' === $this->parameters['type']) {
 				if (2 !== $this->parameters['length'] && 4 !== $this->parameters['length']) {
 					$length = 4;
@@ -536,7 +578,7 @@ class Column
 	{
 		$columnName = trim($columnName);
 		if (!preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
-			throw new Error('The column name ' . $columnName . ' is not in a correct format,');
+			throw new DatabaseException('The column name ' . $columnName . ' is not in a correct format,');
 		}
 		$this->name = $columnName;
 		$this->table?->validate();
@@ -571,6 +613,8 @@ class Column
 	{
 		$config = '`' . $this->name . '`';
 		$parameters = [];
+
+		// Iterate through exportable parameters and build the config syntax string
 		foreach (['type', 'length', 'nullable', 'charset', 'collation', 'zerofill', 'default', 'key', 'comment', 'oncurrent'] as $method) {
 			if ('type' == $method) {
 				switch ($this->parameters['type']) {
@@ -665,9 +709,12 @@ class Column
 	public function getSyntax(): string
 	{
 		$syntax = '`' . $this->name . '`';
+
+		// Auto-increment columns get a fixed INT definition with NOT NULL
 		if ($this->parameters['auto_increment'] ?? false) {
 			$syntax .= ' INT(' . $this->parameters['length'] . ') NOT NULL AUTO_INCREMENT';
 		} else {
+			// Normal columns: compose type, nullable, default, and charset clauses
 			$syntax .= $this->getTypeSyntax() . $this->getNullableSyntax() . $this->getDefaultSyntax() . $this->getCharsetSyntax();
 		}
 
@@ -679,11 +726,14 @@ class Column
 	}
 
 	/**
-	 * @return string
+	 * Generate the FOREIGN KEY constraint SQL syntax for this column.
+	 *
+	 * @return string The FOREIGN KEY clause, with optional CONSTRAINT name when aliased
 	 */
 	public function getForeignKeySyntax(): string
 	{
 		$hasAlias = false;
+		// Determine if the foreign key references a different column name than this column
 		if (!$this->parameters['reference_column'] || $this->parameters['reference_column'] === $this->name) {
 			$foreignKey = $this->name;
 		} else {
@@ -716,7 +766,7 @@ class Column
 	{
 		$columnName = trim($columnName);
 		if ($columnName && !preg_match('/^(`(?:(?:\\\\.(*SKIP)(*FAIL)|.)++|\\\\[\\\\`])+`|[a-z]\w*)$/', $columnName)) {
-			throw new Error('The column name ' . $columnName . ' is not in a correct format,');
+			throw new DatabaseException('The column name ' . $columnName . ' is not in a correct format,');
 		}
 
 		$this->parameters['insert_after'] = $columnName;
@@ -745,11 +795,12 @@ class Column
 	}
 
 	/**
-	 * Set the foreign key.
+	 * Set the foreign key reference to another table and column.
 	 *
-	 * @param string $table
-	 * @param string $column
-	 * @return Column
+	 * @param string $table The referenced table name
+	 * @param string $column The referenced column name (defaults to this column's name)
+	 *
+	 * @return static
 	 */
 	private function setReference(string $table, string $column = ''): static
 	{
@@ -762,7 +813,9 @@ class Column
 	}
 
 	/**
-	 * @return bool
+	 * Check if this column has a foreign key reference defined.
+	 *
+	 * @return bool True if a reference table is set
 	 */
 	public function hasReference(): bool
 	{
@@ -770,7 +823,9 @@ class Column
 	}
 
 	/**
-	 * @return string
+	 * Get the referenced table name for the foreign key.
+	 *
+	 * @return string The reference table name, or empty string if none
 	 */
 	public function getReferenceTable(): string
 	{
@@ -778,7 +833,9 @@ class Column
 	}
 
     /**
-     * @return string
+     * Get the referenced column name for the foreign key.
+     *
+     * @return string The reference column name, or empty string if same as this column
      */
 	public function getReferenceColumn(): string
 	{
@@ -786,8 +843,11 @@ class Column
 	}
 
 	/**
-	 * @param bool $enable
-	 * @return self
+	 * Enable or disable automatic timestamp update on row modification (ON UPDATE CURRENT_TIMESTAMP).
+	 *
+	 * @param bool $enable Whether to enable auto-update timestamp
+	 *
+	 * @return static
 	 */
 	private function updateCurrentTimestamp(bool $enable): static
 	{

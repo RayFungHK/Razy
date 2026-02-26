@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profiler &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Profiler</h1>
+    <p>Razy includes a lightweight <strong>runtime performance profiler</strong> that captures memory, CPU, and timing snapshots at labeled checkpoints. Use it to identify bottlenecks, track memory growth, and measure execution time across code sections.</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#quick-start">Quick Start</a></li>
+        <li><a href="#creating-checkpoints">Creating Checkpoints</a></li>
+        <li><a href="#generating-reports">Generating Reports</a></li>
+        <li><a href="#captured-metrics">Captured Metrics</a></li>
+        <li><a href="#use-cases">Use Cases</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Quick Start -->
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Profiler</span>;
+
+<span class="hl-var">$profiler</span> = <span class="hl-kw">new</span> <span class="hl-cls">Profiler</span>(); <span class="hl-cmt">// captures initial baseline</span>
+
+<span class="hl-cmt">// ... do some work ...</span>
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'db_query'</span>);
+
+<span class="hl-cmt">// ... more work ...</span>
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'template_render'</span>);
+
+<span class="hl-cmt">// ... final work ...</span>
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'response_sent'</span>);
+
+<span class="hl-cmt">// Compare consecutive checkpoints</span>
+<span class="hl-var">$report</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">report</span>();
+<span class="hl-fn">print_r</span>(<span class="hl-var">$report</span>);</code></pre>
+
+    <!-- Creating Checkpoints -->
+    <h2 id="creating-checkpoints">Creating Checkpoints</h2>
+    <p>Each checkpoint captures a snapshot of the runtime state at that moment:</p>
+    <pre><code><span class="hl-var">$profiler</span> = <span class="hl-kw">new</span> <span class="hl-cls">Profiler</span>();
+
+<span class="hl-cmt">// Add labeled checkpoints at key points</span>
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'boot'</span>);
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'routes_loaded'</span>);
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'controller_executed'</span>);
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'view_rendered'</span>);
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'response_sent'</span>);</code></pre>
+
+    <p><strong>Rules:</strong></p>
+    <ul>
+      <li>Labels must be non-empty strings</li>
+      <li>Labels must be unique (throws on duplicates)</li>
+      <li>The constructor captures an initial <code>__init</code> checkpoint automatically</li>
+    </ul>
+
+    <!-- Generating Reports -->
+    <h2 id="generating-reports">Generating Reports</h2>
+
+    <h3>report() &mdash;Consecutive Comparisons</h3>
+    <p>Compare consecutive checkpoints to see deltas between each step:</p>
+    <pre><code><span class="hl-cmt">// Compare all consecutive pairs</span>
+<span class="hl-var">$report</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">report</span>();
+<span class="hl-cmt">// [</span>
+<span class="hl-cmt">//   'boot &mdash; routes_loaded' => [</span>
+<span class="hl-cmt">//     'execution_time' => 0.0042,</span>
+<span class="hl-cmt">//     'memory_usage'   => 524288,</span>
+<span class="hl-cmt">//     ...</span>
+<span class="hl-cmt">//   ],</span>
+<span class="hl-cmt">//   'routes_loaded &mdash; controller_executed' => [</span>
+<span class="hl-cmt">//     'execution_time' => 0.0156,</span>
+<span class="hl-cmt">//     ...</span>
+<span class="hl-cmt">//   ],</span>
+<span class="hl-cmt">// ]</span>
+
+<span class="hl-cmt">// Compare specific checkpoints only</span>
+<span class="hl-var">$report</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">report</span>(<span class="hl-kw">false</span>, <span class="hl-str">'boot'</span>, <span class="hl-str">'controller_executed'</span>, <span class="hl-str">'response_sent'</span>);
+
+<span class="hl-cmt">// Compare each checkpoint against __init (total from start)</span>
+<span class="hl-var">$report</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">report</span>(compareWithInit: <span class="hl-kw">true</span>);
+<span class="hl-cmt">// [</span>
+<span class="hl-cmt">//   '__init &mdash; boot' => [...],</span>
+<span class="hl-cmt">//   '__init &mdash; routes_loaded' => [...],</span>
+<span class="hl-cmt">//   '__init &mdash; controller_executed' => [...],</span>
+<span class="hl-cmt">// ]</span></code></pre>
+
+    <h3>reportTo() &mdash;Single Comparison</h3>
+    <p>Compare a specific checkpoint against the initial baseline:</p>
+    <pre><code><span class="hl-var">$delta</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">reportTo</span>(<span class="hl-str">'controller_executed'</span>);
+<span class="hl-cmt">// [</span>
+<span class="hl-cmt">//   'execution_time'   => 0.0198,    // seconds since __init</span>
+<span class="hl-cmt">//   'memory_usage'     => 1048576,   // bytes change</span>
+<span class="hl-cmt">//   'memory_allocated' => 2097152,   // bytes change</span>
+<span class="hl-cmt">//   'output_buffer'    => 0,         // bytes change</span>
+<span class="hl-cmt">//   'user_mode_time'   => 0.015,     // CPU seconds</span>
+<span class="hl-cmt">//   'system_mode_time' => 0.003,     // CPU seconds</span>
+<span class="hl-cmt">//   'defined_functions' => ['myFunc1', 'myFunc2'],  // new functions</span>
+<span class="hl-cmt">//   'declared_classes'  => ['App\\MyController'],    // new classes</span>
+<span class="hl-cmt">// ]</span></code></pre>
+
+    <!-- Captured Metrics -->
+    <h2 id="captured-metrics">Captured Metrics</h2>
+    <p>Each checkpoint captures the following data:</p>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Type</th><th>Source</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>memory_usage</code></td><td><code>int</code></td><td><code>memory_get_usage()</code></td><td>Heap memory in bytes</td></tr>
+        <tr><td><code>memory_allocated</code></td><td><code>int</code></td><td><code>memory_get_usage(true)</code></td><td>System-allocated memory in bytes</td></tr>
+        <tr><td><code>output_buffer</code></td><td><code>int</code></td><td><code>ob_get_length()</code></td><td>Output buffer size</td></tr>
+        <tr><td><code>user_mode_time</code></td><td><code>float</code></td><td><code>getrusage()</code></td><td>User CPU seconds</td></tr>
+        <tr><td><code>system_mode_time</code></td><td><code>float</code></td><td><code>getrusage()</code></td><td>System CPU seconds</td></tr>
+        <tr><td><code>execution_time</code></td><td><code>float</code></td><td><code>microtime(true)</code></td><td>Wall-clock time in seconds</td></tr>
+        <tr><td><code>defined_functions</code></td><td><code>array</code></td><td><code>get_defined_functions()</code></td><td>User-defined function names</td></tr>
+        <tr><td><code>declared_classes</code></td><td><code>array</code></td><td><code>get_declared_classes()</code></td><td>Declared class names</td></tr>
+      </tbody>
+    </table>
+
+    <h3>How Reports Compute Deltas</h3>
+    <ul>
+      <li><strong>Numeric metrics</strong> (memory, time): arithmetic difference <code>(checkpoint - baseline)</code></li>
+      <li><strong>Array metrics</strong> (functions, classes): <code>array_diff(checkpoint, baseline)</code> &mdash;shows <strong>new</strong> entries only</li>
+    </ul>
+
+    <!-- Use Cases -->
+    <h2 id="use-cases">Use Cases</h2>
+
+    <h3>Measuring Database Query Time</h3>
+    <pre><code><span class="hl-var">$profiler</span> = <span class="hl-kw">new</span> <span class="hl-cls">Profiler</span>();
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'before_query'</span>);
+
+<span class="hl-var">$result</span> = <span class="hl-var">$db</span>-><span class="hl-fn">query</span>(<span class="hl-str">'SELECT * FROM users WHERE active = 1'</span>);
+
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'after_query'</span>);
+<span class="hl-var">$delta</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">reportTo</span>(<span class="hl-str">'after_query'</span>);
+<span class="hl-kw">echo</span> <span class="hl-str">"Query took: "</span> . <span class="hl-fn">round</span>(<span class="hl-var">$delta</span>[<span class="hl-str">'execution_time'</span>] * <span class="hl-num">1000</span>, <span class="hl-num">2</span>) . <span class="hl-str">"ms\n"</span>;
+<span class="hl-kw">echo</span> <span class="hl-str">"Memory delta: "</span> . <span class="hl-fn">number_format</span>(<span class="hl-var">$delta</span>[<span class="hl-str">'memory_usage'</span>]) . <span class="hl-str">" bytes\n"</span>;</code></pre>
+
+    <h3>Profiling an Entire Request</h3>
+    <pre><code><span class="hl-var">$profiler</span> = <span class="hl-kw">new</span> <span class="hl-cls">Profiler</span>();
+
+<span class="hl-cmt">// Phase 1: Bootstrap</span>
+<span class="hl-kw">require</span> <span class="hl-str">'bootstrap.php'</span>;
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'bootstrap'</span>);
+
+<span class="hl-cmt">// Phase 2: Routing</span>
+<span class="hl-var">$route</span> = <span class="hl-var">$router</span>-><span class="hl-fn">match</span>(<span class="hl-var">$request</span>);
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'routing'</span>);
+
+<span class="hl-cmt">// Phase 3: Controller</span>
+<span class="hl-var">$response</span> = <span class="hl-var">$route</span>-><span class="hl-fn">execute</span>();
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'controller'</span>);
+
+<span class="hl-cmt">// Phase 4: Rendering</span>
+<span class="hl-kw">echo</span> <span class="hl-var">$response</span>-><span class="hl-fn">render</span>();
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'render'</span>);
+
+<span class="hl-cmt">// Full report</span>
+<span class="hl-var">$report</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">report</span>(compareWithInit: <span class="hl-kw">true</span>);
+<span class="hl-kw">foreach</span> (<span class="hl-var">$report</span> <span class="hl-kw">as</span> <span class="hl-var">$label</span> => <span class="hl-var">$metrics</span>) {
+    <span class="hl-fn">printf</span>(
+        <span class="hl-str">"%s: %.2fms, %s memory\n"</span>,
+        <span class="hl-var">$label</span>,
+        <span class="hl-var">$metrics</span>[<span class="hl-str">'execution_time'</span>] * <span class="hl-num">1000</span>,
+        <span class="hl-fn">number_format</span>(<span class="hl-var">$metrics</span>[<span class="hl-str">'memory_usage'</span>])
+    );
+}</code></pre>
+
+    <h3>Detecting Class Table Bloat (Worker Mode)</h3>
+    <pre><code><span class="hl-var">$profiler</span> = <span class="hl-kw">new</span> <span class="hl-cls">Profiler</span>();
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'request_start'</span>);
+
+<span class="hl-cmt">// ... handle request ...</span>
+
+<span class="hl-var">$profiler</span>-><span class="hl-fn">checkpoint</span>(<span class="hl-str">'request_end'</span>);
+<span class="hl-var">$delta</span> = <span class="hl-var">$profiler</span>-><span class="hl-fn">reportTo</span>(<span class="hl-str">'request_end'</span>);
+
+<span class="hl-kw">if</span> (<span class="hl-fn">count</span>(<span class="hl-var">$delta</span>[<span class="hl-str">'declared_classes'</span>]) > <span class="hl-num">50</span>) {
+    <span class="hl-fn">error_log</span>(<span class="hl-str">'Warning: '</span> . <span class="hl-fn">count</span>(<span class="hl-var">$delta</span>[<span class="hl-str">'declared_classes'</span>]) . <span class="hl-str">' new classes loaded this request'</span>);
+}</code></pre>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>()</code></td><td>Create profiler with initial <code>__init</code> checkpoint</td></tr>
+        <tr><td><code>checkpoint</code></td><td><code>(string $label): Profiler</code></td><td>Capture snapshot (throws on empty/duplicate)</td></tr>
+        <tr><td><code>report</code></td><td><code>(bool $compareWithInit = false, string ...$labels): array</code></td><td>Consecutive delta report</td></tr>
+        <tr><td><code>reportTo</code></td><td><code>(string $label): array</code></td><td>Compare checkpoint to <code>__init</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="logging.html"><span class="label">&larr; Previous</span><span class="title">Logging</span></a>
+      <a href="error-handling.html" class="next"><span class="label">Next &rarr;</span><span class="title">Error Handling</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

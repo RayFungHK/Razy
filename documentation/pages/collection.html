@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collection &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+    <main class="main-content">
+    <h1>Collection</h1>
+    <p>The <code>Collection</code> class extends PHP's <code>ArrayObject</code> with CSS-like selector queries, a chainable <code>Processor</code> pipeline, deep array conversion, and an extensible plugin system via <code>PluginTrait</code>.</p>
+
+    <h2 id="creating">Creating a Collection</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Collection</span>;
+
+<span class="hl-var">$data</span> = <span class="hl-kw">new</span> <span class="hl-cls">Collection</span>([
+    <span class="hl-str">'users'</span> =&gt; [
+        [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>, <span class="hl-str">'role'</span> =&gt; <span class="hl-str">'admin'</span>, <span class="hl-str">'age'</span> =&gt; <span class="hl-num">30</span>],
+        [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Bob'</span>,   <span class="hl-str">'role'</span> =&gt; <span class="hl-str">'user'</span>,  <span class="hl-str">'age'</span> =&gt; <span class="hl-num">25</span>],
+        [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Carol'</span>, <span class="hl-str">'role'</span> =&gt; <span class="hl-str">'admin'</span>, <span class="hl-str">'age'</span> =&gt; <span class="hl-num">28</span>],
+    ],
+    <span class="hl-str">'meta'</span> =&gt; [<span class="hl-str">'count'</span> =&gt; <span class="hl-num">3</span>],
+]);</code></pre>
+    <p>You can also create a Collection from the static factory method:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ArrayUtil</span>;
+
+<span class="hl-var">$data</span> = <span class="hl-cls">ArrayUtil</span>::<span class="hl-fn">collect</span>([<span class="hl-str">'key'</span> =&gt; <span class="hl-str">'value'</span>]);</code></pre>
+
+    <h2 id="selector">Selector Syntax</h2>
+    <p>Use the invocable <code>$collection($selector)</code> to query with a CSS-like selector string. This returns a <code>Processor</code> object:</p>
+    <pre><code><span class="hl-cmt">// Dot-path traversal</span>
+<span class="hl-var">$processor</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.0.name'</span>);      <span class="hl-cmt">// &rarr; "Alice"</span>
+
+<span class="hl-cmt">// Wildcard &mdash; matches all children at that level</span>
+<span class="hl-var">$names</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.*.name'</span>);          <span class="hl-cmt">// &rarr; ["Alice", "Bob", "Carol"]</span>
+
+<span class="hl-cmt">// Comma-separated multiple selectors (results merged)</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.*.name, meta.count'</span>);
+
+<span class="hl-cmt">// Quoted keys for special characters or spaces</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$data</span>(<span class="hl-str">"'key with spaces'.child"</span>);
+
+<span class="hl-cmt">// Inline filter chains</span>
+<span class="hl-var">$filtered</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.*:istype(array)'</span>);</code></pre>
+
+    <h3 id="selector-reference">Selector Reference</h3>
+    <table>
+      <thead><tr><th>Pattern</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>key1.key2.key3</code></td><td>Dot-separated path traversal</td></tr>
+        <tr><td><code>*</code></td><td>Wildcard &mdash; matches all children at the current level</td></tr>
+        <tr><td><code>:filterName(args)</code></td><td>Apply a filter plugin inline</td></tr>
+        <tr><td><code>path1, path2</code></td><td>Multiple selectors (merged results)</td></tr>
+        <tr><td><code>'key with spaces'</code></td><td>Quoted keys for keys containing dots or special characters</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="methods">Core Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__invoke(string $filter)</code></td><td><code>Processor</code></td><td>Query using selector syntax</td></tr>
+        <tr><td><code>array()</code></td><td><code>array</code></td><td>Deep-convert to a native PHP array (recursively unwraps nested Collections)</td></tr>
+        <tr><td><code>loadPlugin(string $type, string $name)</code></td><td><code>Closure|null</code></td><td>Load a named plugin by type and name</td></tr>
+        <tr><td><code>&amp;offsetGet(mixed $key)</code></td><td><code>mixed</code></td><td>Returns values by reference for in-place modification</td></tr>
+        <tr><td><code>__serialize()</code></td><td><code>array</code></td><td>Custom serialization (stores internal array)</td></tr>
+        <tr><td><code>__unserialize(array $data)</code></td><td><code>void</code></td><td>Custom unserialization (restores from array)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="processor">Processor Class</h2>
+    <p>The <code>Processor</code> is returned by the selector query and provides chainable operations on matched data.</p>
+
+    <h3>How It Works</h3>
+    <ul>
+      <li>Calling any method via <code>__call()</code> modifies the <strong>original</strong> Collection data in place and returns <code>$this</code> for chaining.</li>
+      <li>Use <code>get()</code> to obtain a <strong>new</strong> Collection copy of the current matched data.</li>
+      <li>Use <code>getArray()</code> to obtain a plain PHP array of the current matched data.</li>
+    </ul>
+    <pre><code><span class="hl-cmt">// Chain processor plugins &mdash; modifies original data</span>
+<span class="hl-var">$data</span>(<span class="hl-str">'users.*.age'</span>)-><span class="hl-fn">int</span>();
+
+<span class="hl-cmt">// Get a new Collection from matched data</span>
+<span class="hl-var">$ageCollection</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.*.age'</span>)-><span class="hl-fn">get</span>();
+
+<span class="hl-cmt">// Get a plain array from matched data</span>
+<span class="hl-var">$ages</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.*.age'</span>)-><span class="hl-fn">getArray</span>();</code></pre>
+
+    <h3>Processor API</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__call(string $method, array $args)</code></td><td><code>Processor</code></td><td>Invokes a processor plugin on matched data (chainable, modifies original)</td></tr>
+        <tr><td><code>get()</code></td><td><code>Collection</code></td><td>Returns a new Collection containing the currently matched data</td></tr>
+        <tr><td><code>getArray()</code></td><td><code>array</code></td><td>Returns a plain PHP array of the currently matched data</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Chaining Example</h3>
+    <pre><code><span class="hl-cmt">// Trim all user names, then convert ages to integers</span>
+<span class="hl-var">$data</span>(<span class="hl-str">'users.*.name'</span>)-><span class="hl-fn">trim</span>();
+<span class="hl-var">$data</span>(<span class="hl-str">'users.*.age'</span>)-><span class="hl-fn">int</span>();
+
+<span class="hl-cmt">// Chain multiple processors</span>
+<span class="hl-var">$data</span>(<span class="hl-str">'users.*.name'</span>)-><span class="hl-fn">trim</span>()-><span class="hl-fn">get</span>();</code></pre>
+
+    <h2 id="builtin-plugins">Built-in Plugins</h2>
+    <p>Collection ships with several built-in filter and processor plugins:</p>
+
+    <h3>Filter Plugins</h3>
+    <p>Filters are used in selectors to narrow down matched elements:</p>
+    <table>
+      <thead><tr><th>Plugin</th><th>Usage</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>istype</code></td><td><code>:istype(string)</code></td><td>Keep only values matching the given PHP type (<code>string</code>, <code>array</code>, <code>int</code>, etc.)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Processor Plugins</h3>
+    <p>Processors transform matched values via the <code>Processor</code> chain:</p>
+    <table>
+      <thead><tr><th>Plugin</th><th>Usage</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>int</code></td><td><code>-&gt;int()</code></td><td>Cast matched values to integer</td></tr>
+        <tr><td><code>float</code></td><td><code>-&gt;float()</code></td><td>Cast matched values to float</td></tr>
+        <tr><td><code>trim</code></td><td><code>-&gt;trim()</code></td><td>Trim whitespace from matched string values</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="custom-plugins">Custom Plugins</h2>
+    <p>Create custom plugins by adding PHP files to a plugin folder. Plugin files follow the naming convention <code>{type}.{name}.php</code> and return a <code>Closure</code>.</p>
+
+    <h3>Creating a Filter Plugin</h3>
+    <pre><code><span class="hl-cmt">// plugins/filter.admin_only.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> <span class="hl-var">$value</span>): <span class="hl-cls">bool</span> {
+    <span class="hl-kw">return</span> <span class="hl-fn">is_array</span>(<span class="hl-var">$value</span>) &amp;&amp; (<span class="hl-var">$value</span>[<span class="hl-str">'role'</span>] &rarr; <span class="hl-str">''</span>) === <span class="hl-str">'admin'</span>;
+};
+
+<span class="hl-cmt">// Usage in selector</span>
+<span class="hl-var">$admins</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.*:admin_only'</span>);</code></pre>
+
+    <h3>Creating a Processor Plugin</h3>
+    <pre><code><span class="hl-cmt">// plugins/processor.uppercase.php</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">mixed</span> <span class="hl-var">$value</span>): <span class="hl-cls">mixed</span> {
+    <span class="hl-kw">return</span> <span class="hl-fn">is_string</span>(<span class="hl-var">$value</span>) ? <span class="hl-fn">strtoupper</span>(<span class="hl-var">$value</span>) : <span class="hl-var">$value</span>;
+};
+
+<span class="hl-cmt">// Usage via Processor chain</span>
+<span class="hl-var">$data</span>(<span class="hl-str">'users.*.name'</span>)-><span class="hl-fn">uppercase</span>();</code></pre>
+
+    <h3>Registering Plugin Folders</h3>
+    <pre><code><span class="hl-cls">Collection</span>::<span class="hl-fn">addPluginFolder</span>(<span class="hl-str">'/path/to/plugins'</span>);</code></pre>
+
+    <h2 id="array-access">Array Access</h2>
+    <p>Collection implements <code>ArrayAccess</code>, <code>Countable</code>, and <code>IteratorAggregate</code> through <code>ArrayObject</code>:</p>
+    <pre><code><span class="hl-cmt">// Standard array access</span>
+<span class="hl-var">$data</span>[<span class="hl-str">'users'</span>][<span class="hl-num">0</span>][<span class="hl-str">'name'</span>]; <span class="hl-cmt">// "Alice"</span>
+
+<span class="hl-cmt">// Countable</span>
+<span class="hl-fn">count</span>(<span class="hl-var">$data</span>); <span class="hl-cmt">// 2 (users, meta)</span>
+
+<span class="hl-cmt">// Iterable</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$data</span> <span class="hl-kw">as</span> <span class="hl-var">$key</span> =&gt; <span class="hl-var">$value</span>) { ... }
+
+<span class="hl-cmt">// Serialization</span>
+<span class="hl-var">$serialized</span> = <span class="hl-fn">serialize</span>(<span class="hl-var">$data</span>);
+<span class="hl-var">$restored</span> = <span class="hl-fn">unserialize</span>(<span class="hl-var">$serialized</span>);</code></pre>
+
+    <h2 id="worker-mode">Worker Mode Support</h2>
+    <p>In FrankenPHP worker mode, call <code>resetPlugins()</code> to clear cached plugin closures between requests, preventing stale state:</p>
+    <pre><code><span class="hl-cls">Collection</span>::<span class="hl-fn">resetPlugins</span>();</code></pre>
+
+        <h2 id="patterns">Practical Patterns</h2>
+    <h3>Nested Data Extraction</h3>
+    <pre><code><span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">Collection</span>([
+    <span class="hl-str">'database'</span> =&gt; [
+        <span class="hl-str">'connections'</span> =&gt; [
+            <span class="hl-str">'mysql'</span> =&gt; [<span class="hl-str">'host'</span> =&gt; <span class="hl-str">'localhost'</span>, <span class="hl-str">'port'</span> =&gt; <span class="hl-num">3306</span>],
+            <span class="hl-str">'redis'</span> =&gt; [<span class="hl-str">'host'</span> =&gt; <span class="hl-str">'127.0.0.1'</span>, <span class="hl-str">'port'</span> =&gt; <span class="hl-num">6379</span>],
+        ],
+    ],
+]);
+
+<span class="hl-cmt">// Extract all connection hosts</span>
+<span class="hl-var">$hosts</span> = <span class="hl-var">$config</span>(<span class="hl-str">'database.connections.*.host'</span>)-&gt;<span class="hl-fn">getArray</span>();
+<span class="hl-cmt">// ['localhost', '127.0.0.1']</span></code></pre>
+
+    <h3>Inline Type Casting</h3>
+    <pre><code><span class="hl-var">$form</span> = <span class="hl-kw">new</span> <span class="hl-cls">Collection</span>([<span class="hl-str">'age'</span> =&gt; <span class="hl-str">'25'</span>, <span class="hl-str">'score'</span> =&gt; <span class="hl-str">'98.5'</span>, <span class="hl-str">'name'</span> =&gt; <span class="hl-str">'  Alice  '</span>]);
+
+<span class="hl-var">$form</span>(<span class="hl-str">'age'</span>)-&gt;<span class="hl-fn">int</span>();
+<span class="hl-var">$form</span>(<span class="hl-str">'score'</span>)-&gt;<span class="hl-fn">float</span>();
+<span class="hl-var">$form</span>(<span class="hl-str">'name'</span>)-&gt;<span class="hl-fn">trim</span>();
+
+<span class="hl-var">$form</span>-&gt;<span class="hl-fn">array</span>();
+<span class="hl-cmt">// ['age' =&gt; 25, 'score' =&gt; 98.5, 'name' =&gt; 'Alice']</span></code></pre>
+
+    <div class="page-nav">
+      <a href="database.html"><span class="label">&larr;&nbsp;Previous</span><span class="title">Database</span></a>
+      <a href="template.html" class="next"><span class="label">Next&nbsp;&rarr;</span><span class="title">Template Engine</span></a>
+    </div>
+  </main>
+
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

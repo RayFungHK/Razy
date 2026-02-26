@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Testing &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">�?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Testing</h1>
+    <p>Razy uses <strong>PHPUnit 10.5</strong> for testing with <strong>4,564 tests / 8,178 assertions</strong> across <strong>102 test classes</strong> with <strong>~85% code coverage</strong>. The framework follows <strong>PSR-12</strong> coding standards enforced by PHP CS Fixer.</p>
+
+    <h2 id="running-tests">Running Tests</h2>
+    <pre><code><span class="hl-cmt"># Run all tests</span>
+<span class="hl-var">vendor/bin/phpunit</span>
+
+<span class="hl-cmt"># Run a specific test class</span>
+<span class="hl-var">vendor/bin/phpunit</span> tests/CollectionTest.php
+
+<span class="hl-cmt"># Run with coverage report (HTML)</span>
+<span class="hl-var">vendor/bin/phpunit</span> --coverage-html coverage/
+
+<span class="hl-cmt"># Filter specific test method</span>
+<span class="hl-var">vendor/bin/phpunit</span> --filter testSelectQuery</code></pre>
+
+    <h2 id="test-suites">Test Suite Files</h2>
+    <p>The test suite comprises <strong>102 test classes</strong> organized by component:</p>
+    <table>
+      <thead><tr><th>Category</th><th>Test Classes</th><th>Covers</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Collection &amp; Data</strong></td><td>CollectionTest, ChunkCollectionTest, HashMapTest, ConfigurationTest, ConfigLoaderTest</td><td>Selector, filtering, serialisation, dot-path, lazy-load</td></tr>
+        <tr><td><strong>Database &amp; SQL</strong></td><td>StatementTest, StatementPoolTest, SimpleSyntaxTest, DatabaseDriverTest, DatabaseDriverRegistryTest, DatabaseTransactionTest, DatabaseQueryHistoryTest, TableHelperTest, FetchModeTest, QueryBuilderEnhancedTest, ValueEscapeTest</td><td>SELECT/INSERT/UPDATE/DELETE, JOINs, Simple Syntax, drivers, schema DDL</td></tr>
+        <tr><td><strong>ORM</strong></td><td>ORMTest, EagerLoadingTest, SoftDeletesTest, ModelEventsTest, AttributeSerializationTest, BelongsToManyTest, QueryScopesTest, ConvenienceMethodsTest, PaginatorTest, ControllerLoadModelTest</td><td>Models, relations, scopes, pagination, soft deletes</td></tr>
+        <tr><td><strong>Migration</strong></td><td>MigrationTest, ControllerMigrationTest, ChangeTypeTest</td><td>Schema migrations, column type changes</td></tr>
+        <tr><td><strong>Template</strong></td><td>TemplateTest, BlockNestingTest, CompiledTemplateTest, ParameterBagTraitTest, ExitRemovalTest</td><td>Blocks, modifiers, function tags, compiled output</td></tr>
+        <tr><td><strong>Routing</strong></td><td>RouteTest, RouteGroupTest, RouteDispatcherTest, NamedRoutesTest, HttpMethodRoutingTest, RouteRegexCompileTest</td><td>Pattern matching, groups, named routes, HTTP methods</td></tr>
+        <tr><td><strong>Container &amp; DI</strong></td><td>ContainerTest, ContainerEnhancedTest, ContainerRebindTest, ContextualBindingTest, DIIntegrationTest, InterfaceMockTest, InterfaceUserScenarioTest</td><td>Bindings, auto-wiring, PSR-11, contextual binding</td></tr>
+        <tr><td><strong>Security</strong></td><td>CryptTest, CsrfTest, AuthenticatorTest, AuthTest, SessionTest, SessionDriverTest</td><td>AES-256, CSRF tokens, TOTP/HOTP, sessions</td></tr>
+        <tr><td><strong>Cache</strong></td><td>CacheTest, RedisAdapterTest</td><td>PSR-16, FileAdapter, NullAdapter, Redis</td></tr>
+        <tr><td><strong>Queue &amp; Rate Limit</strong></td><td>JobQueueTest, RateLimitTest</td><td>Job dispatching, token bucket / sliding window</td></tr>
+        <tr><td><strong>HTTP &amp; IO</strong></td><td>HttpClientTest, FTPClientTest, SFTPClientTest, FileReaderTest, SimplifiedMessageTest, NotificationTest</td><td>HTTP client, FTP/SFTP, file reading, notifications</td></tr>
+        <tr><td><strong>Pipeline &amp; Middleware</strong></td><td>PipelineTest, MiddlewareTest, MiddlewareGroupRegistryTest, FormRequestTest</td><td>Pipeline stages, middleware groups, form validation</td></tr>
+        <tr><td><strong>Events</strong></td><td>EventDispatcherTest, PSR14EventTest</td><td>Event emitters, PSR-14 compliance</td></tr>
+        <tr><td><strong>Module System</strong></td><td>ModuleTest, ModuleStatusTest, ModuleChangeDetectorTest, ModuleRegistryListenerTest, AgentTest, PluginManagerTest, DomainTest</td><td>Module lifecycle, status, change detection, plugins</td></tr>
+        <tr><td><strong>CLI &amp; Deployment</strong></td><td>TerminalTest, CaddyfileCompilerTest, WorkerLifecycleManagerTest, WorkerModeResetTest, WorkerStateTest, RestartSignalTest</td><td>CLI commands, Caddyfile generation, worker mode</td></tr>
+        <tr><td><strong>Validation</strong></td><td>ValidationTest, NestedValidationTest</td><td>Rule-based validation, nested data</td></tr>
+        <tr><td><strong>Logging</strong></td><td>LoggerTest, LogChannelTest, ProfilerTest</td><td>Log channels, profiling</td></tr>
+        <tr><td><strong>Error Handling</strong></td><td>ErrorTest, ExceptionTest</td><td>Custom exceptions, error handling</td></tr>
+        <tr><td><strong>YAML</strong></td><td>YAMLTest, YAMLParserTest, YAMLDumperTest</td><td>Parse, encode, decode, edge cases</td></tr>
+        <tr><td><strong>Environment &amp; Utilities</strong></td><td>EnvTest, DOMTest, UtilTest</td><td>.env parsing, DOM builder, utility functions</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="phpunit-config">PHPUnit Configuration</h2>
+    <p>The project's <code>phpunit.xml</code> is in the root directory:</p>
+    <pre><code><span class="hl-cmt">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+&lt;<span class="hl-kw">phpunit</span>
+    <span class="hl-var">bootstrap</span>=<span class="hl-str">"tests/bootstrap.php"</span>
+    <span class="hl-var">colors</span>=<span class="hl-str">"true"</span>
+    <span class="hl-var">stopOnFailure</span>=<span class="hl-str">"false"</span>&gt;
+  &lt;<span class="hl-kw">testsuites</span>&gt;
+    &lt;<span class="hl-kw">testsuite</span> <span class="hl-var">name</span>=<span class="hl-str">"Razy Tests"</span>&gt;
+      &lt;<span class="hl-kw">directory</span>&gt;tests&lt;/<span class="hl-kw">directory</span>&gt;
+    &lt;/<span class="hl-kw">testsuite</span>&gt;
+  &lt;/<span class="hl-kw">testsuites</span>&gt;
+  &lt;<span class="hl-kw">source</span>&gt;
+    &lt;<span class="hl-kw">include</span>&gt;
+      &lt;<span class="hl-kw">directory</span>&gt;src/library&lt;/<span class="hl-kw">directory</span>&gt;
+    &lt;/<span class="hl-kw">include</span>&gt;
+  &lt;/<span class="hl-kw">source</span>&gt;
+&lt;/<span class="hl-kw">phpunit</span>&gt;</code></pre>
+
+    
+    <h2 id="writing-tests">Writing Tests</h2>
+
+    <h3 id="test-basic">Basic Test &mdash; Collection</h3>
+    <pre><code><span class="hl-kw">namespace</span> <span class="hl-fn">Tests</span>;
+
+<span class="hl-kw">use</span> <span class="hl-fn">PHPUnit</span>\<span class="hl-fn">Framework</span>\<span class="hl-fn">TestCase</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Collection</span>;
+
+<span class="hl-kw">class</span> <span class="hl-fn">CollectionTest</span> <span class="hl-kw">extends</span> <span class="hl-fn">TestCase</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">testSelectorAccess</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$data</span> = <span class="hl-kw">new</span> <span class="hl-fn">Collection</span>([
+            <span class="hl-str">'users'</span> =&gt; [
+                [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>],
+            ],
+        ]);
+
+        <span class="hl-var">$result</span> = <span class="hl-var">$data</span>(<span class="hl-str">'users.0.name'</span>);
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertEquals</span>(<span class="hl-str">'Alice'</span>, <span class="hl-var">$result</span>);
+    }
+}</code></pre>
+
+    <h3 id="test-database">Database Statement Tests</h3>
+    <pre><code><span class="hl-kw">namespace</span> <span class="hl-fn">Tests</span>;
+
+<span class="hl-kw">use</span> <span class="hl-fn">PHPUnit</span>\<span class="hl-fn">Framework</span>\<span class="hl-fn">TestCase</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Database</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Database</span>\<span class="hl-fn">Statement</span>;
+
+<span class="hl-kw">class</span> <span class="hl-fn">StatementTest</span> <span class="hl-kw">extends</span> <span class="hl-fn">TestCase</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">testSelectBuilder</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$db</span> = <span class="hl-kw">new</span> <span class="hl-fn">Database</span>(<span class="hl-str">'test'</span>);
+        <span class="hl-var">$stmt</span> = <span class="hl-var">$db</span>-&gt;<span class="hl-fn">prepare</span>()
+            -&gt;<span class="hl-fn">select</span>(<span class="hl-str">'id, name'</span>)
+            -&gt;<span class="hl-fn">from</span>(<span class="hl-str">'users'</span>)
+            -&gt;<span class="hl-fn">where</span>(<span class="hl-str">'active=:active'</span>)
+            -&gt;<span class="hl-fn">order</span>(<span class="hl-str">'&lt;name'</span>)
+            -&gt;<span class="hl-fn">limit</span>(<span class="hl-num">0</span>, <span class="hl-num">10</span>);
+
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertInstanceOf</span>(<span class="hl-fn">Statement</span>::<span class="hl-kw">class</span>, <span class="hl-var">$stmt</span>);
+    }
+}</code></pre>
+
+    <h3 id="test-template">Template Engine Tests</h3>
+    <pre><code><span class="hl-kw">namespace</span> <span class="hl-fn">Tests</span>;
+
+<span class="hl-kw">use</span> <span class="hl-fn">PHPUnit</span>\<span class="hl-fn">Framework</span>\<span class="hl-fn">TestCase</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Template</span>;
+
+<span class="hl-kw">class</span> <span class="hl-fn">TemplateTest</span> <span class="hl-kw">extends</span> <span class="hl-fn">TestCase</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">testVariableAssignment</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$tpl</span> = <span class="hl-kw">new</span> <span class="hl-fn">Template</span>();
+        <span class="hl-var">$source</span> = <span class="hl-var">$tpl</span>-&gt;<span class="hl-fn">loadFromString</span>(<span class="hl-str">'&lt;h1&gt;{$title}&lt;/h1&gt;'</span>);
+        <span class="hl-var">$source</span>-&gt;<span class="hl-fn">assign</span>(<span class="hl-str">'title'</span>, <span class="hl-str">'Hello'</span>);
+
+        <span class="hl-var">$output</span> = <span class="hl-var">$source</span>-&gt;<span class="hl-fn">output</span>();
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertStringContainsString</span>(<span class="hl-str">'Hello'</span>, <span class="hl-var">$output</span>);
+    }
+}</code></pre>
+
+    <h3 id="test-utils">Utility Function Tests</h3>
+    <pre><code><span class="hl-kw">namespace</span> <span class="hl-fn">Tests</span>;
+
+<span class="hl-kw">use</span> <span class="hl-fn">PHPUnit</span>\<span class="hl-fn">Framework</span>\<span class="hl-fn">TestCase</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">PathUtil</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">VersionUtil</span>;
+<span class="hl-kw">use</span> <span class="hl-fn">Razy</span>\<span class="hl-fn">Util</span>\<span class="hl-fn">ArrayUtil</span>;
+
+<span class="hl-kw">class</span> <span class="hl-fn">UtilTest</span> <span class="hl-kw">extends</span> <span class="hl-fn">TestCase</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">testPathAppend</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$result</span> = <span class="hl-fn">PathUtil</span>::<span class="hl-fn">append</span>(<span class="hl-str">'/var/www'</span>, <span class="hl-str">'sites'</span>, <span class="hl-str">'mysite'</span>);
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertStringEndsWith</span>(<span class="hl-str">'mysite'</span>, <span class="hl-var">$result</span>);
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">testVersionCompare</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertTrue</span>(<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">vc</span>(<span class="hl-str">'&gt;=1.0.0'</span>, <span class="hl-str">'1.2.3'</span>));
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertFalse</span>(<span class="hl-fn">VersionUtil</span>::<span class="hl-fn">vc</span>(<span class="hl-str">'&gt;=2.0.0'</span>, <span class="hl-str">'1.2.3'</span>));
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">testArrayComparison</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertTrue</span>(<span class="hl-fn">ArrayUtil</span>::<span class="hl-fn">comparison</span>(<span class="hl-num">10</span>, <span class="hl-num">5</span>, <span class="hl-str">'&gt;'</span>));
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">assertTrue</span>(<span class="hl-fn">ArrayUtil</span>::<span class="hl-fn">comparison</span>(<span class="hl-str">'hello'</span>, <span class="hl-str">'he'</span>, <span class="hl-str">'^='</span>));
+    }
+}</code></pre>
+
+
+    <div class="page-nav">
+      <a href="cli.html"><span class="label">&larr; Previous</span><span class="title">CLI &amp; Terminal</span></a>
+      <a href="api-reference.html" class="next"><span class="label">Next &rarr;</span><span class="title">API Reference</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

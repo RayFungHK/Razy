@@ -1,0 +1,29 @@
+# Razy — Test runner with all extensions + services
+# Covers the 87 tests skipped on Windows:
+#   - 1 × CacheTest (needs Linux /proc)
+#   - 54 × RedisAdapterTest (needs ext-redis + Redis server)
+#   - 32 × SFTPClientTest (needs ext-ssh2)
+#
+# Usage:
+#   docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit
+
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+
+  test:
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.test
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    working_dir: /app

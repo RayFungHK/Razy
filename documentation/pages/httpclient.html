@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP Client &mdash; Razy Framework</title>
+<link rel="stylesheet" href="../css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<script src="../js/docs.js" defer></script>
+</head>
+<body>
+<header class="header"><button class="menu-toggle" aria-label="Toggle navigation">&#9776;</button><a href="../index.html" class="logo"><span class="logo-icon">R</span> Razy <span class="version">v1.0-beta</span></a><nav class="nav"><a href="../index.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/RayFungHK/Razy" target="_blank">GitHub</a><button class="theme-toggle" aria-label="Toggle dark mode">&#x1F319;</button></nav></header>
+<aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+<div class="sidebar-overlay"></div>
+
+<main class="main-content">
+
+<h1>HttpClient</h1>
+<p>Razy's <code>HttpClient</code> provides a fluent, cURL-based HTTP client for making external API requests. It supports JSON/form/multipart encoding, authentication, retries, timeouts, and request/response hooks.</p>
+
+<hr>
+
+<h2 id="quick-start">Quick Start</h2>
+<pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Http\HttpClient</span>;
+
+<span class="hl-var">$response</span> = <span class="hl-cls">HttpClient</span>::<span class="hl-fn">create</span>()
+    -&gt;<span class="hl-fn">baseUrl</span>(<span class="hl-str">'https://api.example.com'</span>)
+    -&gt;<span class="hl-fn">withToken</span>(<span class="hl-str">'my-api-key'</span>)
+    -&gt;<span class="hl-fn">asJson</span>()
+    -&gt;<span class="hl-fn">get</span>(<span class="hl-str">'/users'</span>);
+
+<span class="hl-var">$users</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">json</span>();</code></pre>
+
+<hr>
+
+<h2 id="creating-a-client">Creating a Client</h2>
+<pre><code><span class="hl-cmt">// Static factory</span>
+<span class="hl-var">$client</span> = <span class="hl-cls">HttpClient</span>::<span class="hl-fn">create</span>();
+
+<span class="hl-cmt">// Pre-configured for an API</span>
+<span class="hl-var">$api</span> = <span class="hl-cls">HttpClient</span>::<span class="hl-fn">create</span>()
+    -&gt;<span class="hl-fn">baseUrl</span>(<span class="hl-str">'https://api.example.com/v2'</span>)
+    -&gt;<span class="hl-fn">withToken</span>(<span class="hl-str">'secret-token'</span>)
+    -&gt;<span class="hl-fn">asJson</span>()
+    -&gt;<span class="hl-fn">timeout</span>(<span class="hl-num">10</span>);</code></pre>
+<p>All configuration methods return <code>$this</code> for fluent chaining.</p>
+
+<hr>
+
+<h2 id="configuration">Configuration</h2>
+
+<h3 id="base-url">Base URL</h3>
+<pre><code><span class="hl-var">$client</span>-&gt;<span class="hl-fn">baseUrl</span>(<span class="hl-str">'https://api.example.com/v2'</span>);
+
+<span class="hl-cmt">// Requests use relative paths</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'/users'</span>);     <span class="hl-cmt">// &rarr; https://api.example.com/v2/users</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'/users/42'</span>);  <span class="hl-cmt">// &rarr; https://api.example.com/v2/users/42</span></code></pre>
+
+<h3 id="headers">Headers</h3>
+<pre><code><span class="hl-cmt">// Set multiple headers</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withHeaders</span>([
+    <span class="hl-str">'Accept'</span>       =&gt; <span class="hl-str">'application/json'</span>,
+    <span class="hl-str">'X-Request-Id'</span> =&gt; <span class="hl-str">'abc-123'</span>,
+]);
+
+<span class="hl-cmt">// Set a single header</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withHeader</span>(<span class="hl-str">'X-Custom'</span>, <span class="hl-str">'value'</span>);</code></pre>
+
+<h3 id="authentication">Authentication</h3>
+<pre><code><span class="hl-cmt">// Bearer token</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withToken</span>(<span class="hl-str">'eyJhbGciOiJIUzI1NiIs...'</span>);
+<span class="hl-cmt">// &rarr; Authorization: Bearer eyJhbGciOiJIUzI1NiIs...</span>
+
+<span class="hl-cmt">// Basic auth</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withBasicAuth</span>(<span class="hl-str">'username'</span>, <span class="hl-str">'password'</span>);
+<span class="hl-cmt">// &rarr; Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=</span></code></pre>
+
+<h3 id="timeouts">Timeouts</h3>
+<pre><code><span class="hl-var">$client</span>-&gt;<span class="hl-fn">timeout</span>(<span class="hl-num">30</span>);          <span class="hl-cmt">// Total request timeout (seconds)</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">connectTimeout</span>(<span class="hl-num">5</span>);    <span class="hl-cmt">// Connection timeout (seconds)</span></code></pre>
+
+<h3 id="ssl-verification">SSL Verification</h3>
+<pre><code><span class="hl-cmt">// Disable SSL verification (development only!)</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withoutVerifying</span>();</code></pre>
+
+<h3 id="content-types">Content Types</h3>
+<pre><code><span class="hl-cmt">// JSON (Content-Type: application/json)</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">asJson</span>();
+
+<span class="hl-cmt">// Form URL-encoded (Content-Type: application/x-www-form-urlencoded)</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">asForm</span>();
+
+<span class="hl-cmt">// Multipart (Content-Type: multipart/form-data)</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">asMultipart</span>();</code></pre>
+
+<h3 id="query-parameters">Query Parameters</h3>
+<pre><code><span class="hl-cmt">// Append query parameters to all requests</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withQuery</span>([
+    <span class="hl-str">'api_key'</span> =&gt; <span class="hl-str">'abc123'</span>,
+    <span class="hl-str">'format'</span>  =&gt; <span class="hl-str">'json'</span>,
+]);
+
+<span class="hl-cmt">// Combined with path: /users?api_key=abc123&amp;format=json</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'/users'</span>);</code></pre>
+
+<h3 id="user-agent">User Agent</h3>
+<pre><code><span class="hl-var">$client</span>-&gt;<span class="hl-fn">userAgent</span>(<span class="hl-str">'MyApp/1.0'</span>);</code></pre>
+
+<h3 id="retries">Retries</h3>
+<pre><code><span class="hl-cmt">// Retry up to 3 times with 1000ms delay between attempts</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">retry</span>(<span class="hl-str">times:</span> <span class="hl-num">3</span>, <span class="hl-str">sleepMs:</span> <span class="hl-num">1000</span>);</code></pre>
+<p>Retries are triggered on connection failures and 5xx server errors.</p>
+
+<h3 id="curl-options">cURL Options</h3>
+<pre><code><span class="hl-cmt">// Set arbitrary cURL options</span>
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withCurlOption</span>(<span class="hl-cls">CURLOPT_FOLLOWLOCATION</span>, <span class="hl-kw">true</span>);
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">withCurlOption</span>(<span class="hl-cls">CURLOPT_MAXREDIRS</span>, <span class="hl-num">5</span>);</code></pre>
+
+<hr>
+
+<h2 id="making-requests">Making Requests</h2>
+
+<h3 id="get">GET</h3>
+<pre><code><span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'/users'</span>);
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'/users'</span>, [<span class="hl-str">'role'</span> =&gt; <span class="hl-str">'admin'</span>]);  <span class="hl-cmt">// query params</span></code></pre>
+
+<h3 id="post">POST</h3>
+<pre><code><span class="hl-cmt">// JSON body (if asJson() is set)</span>
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">post</span>(<span class="hl-str">'/users'</span>, [
+    <span class="hl-str">'name'</span>  =&gt; <span class="hl-str">'Alice'</span>,
+    <span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>,
+]);
+
+<span class="hl-cmt">// Form body (if asForm() is set)</span>
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">asForm</span>()-&gt;<span class="hl-fn">post</span>(<span class="hl-str">'/login'</span>, [
+    <span class="hl-str">'username'</span> =&gt; <span class="hl-str">'alice'</span>,
+    <span class="hl-str">'password'</span> =&gt; <span class="hl-str">'secret'</span>,
+]);
+
+<span class="hl-cmt">// Multipart file upload</span>
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">asMultipart</span>()-&gt;<span class="hl-fn">post</span>(<span class="hl-str">'/upload'</span>, [
+    <span class="hl-str">'file'</span> =&gt; <span class="hl-kw">new</span> \<span class="hl-cls">CURLFile</span>(<span class="hl-str">'/path/to/photo.jpg'</span>, <span class="hl-str">'image/jpeg'</span>, <span class="hl-str">'photo.jpg'</span>),
+    <span class="hl-str">'description'</span> =&gt; <span class="hl-str">'Profile photo'</span>,
+]);</code></pre>
+
+<h3 id="put-patch-delete">PUT / PATCH / DELETE</h3>
+<pre><code><span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">put</span>(<span class="hl-str">'/users/42'</span>, [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice Updated'</span>]);
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">patch</span>(<span class="hl-str">'/users/42'</span>, [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice Patched'</span>]);
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">delete</span>(<span class="hl-str">'/users/42'</span>);</code></pre>
+
+<h3 id="head-options">HEAD / OPTIONS</h3>
+<pre><code><span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">head</span>(<span class="hl-str">'/health'</span>);
+<span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">options</span>(<span class="hl-str">'/users'</span>);</code></pre>
+
+<h3 id="generic-send">Generic Send</h3>
+<pre><code><span class="hl-var">$response</span> = <span class="hl-var">$client</span>-&gt;<span class="hl-fn">send</span>(<span class="hl-str">'GET'</span>, <span class="hl-str">'/custom-endpoint'</span>, [
+    <span class="hl-str">'key'</span> =&gt; <span class="hl-str">'value'</span>,
+]);</code></pre>
+
+<hr>
+
+<h2 id="handling-responses">Handling Responses</h2>
+<p>All HTTP methods return an <code>HttpResponse</code> object.</p>
+
+<h3 id="status-checks">Status Checks</h3>
+<pre><code><span class="hl-var">$response</span>-&gt;<span class="hl-fn">status</span>();         <span class="hl-cmt">// 200</span>
+
+<span class="hl-cmt">// Boolean helpers</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">successful</span>();     <span class="hl-cmt">// 2xx</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">ok</span>();             <span class="hl-cmt">// 200</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">failed</span>();         <span class="hl-cmt">// 4xx or 5xx</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">redirect</span>();       <span class="hl-cmt">// 3xx</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">clientError</span>();    <span class="hl-cmt">// 4xx</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">serverError</span>();    <span class="hl-cmt">// 5xx</span></code></pre>
+
+<h3 id="body-json">Body &amp; JSON</h3>
+<pre><code><span class="hl-cmt">// Raw body</span>
+<span class="hl-var">$html</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">body</span>();
+
+<span class="hl-cmt">// Decode JSON</span>
+<span class="hl-var">$data</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">json</span>();
+<span class="hl-cmt">// ['users' =&gt; [['id' =&gt; 1, 'name' =&gt; 'Alice'], ...]]</span>
+
+<span class="hl-cmt">// Dot-notation access into JSON</span>
+<span class="hl-var">$name</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">jsonGet</span>(<span class="hl-str">'users.0.name'</span>);
+<span class="hl-cmt">// 'Alice'</span></code></pre>
+
+<h3 id="response-headers">Response Headers</h3>
+<pre><code><span class="hl-cmt">// All headers</span>
+<span class="hl-var">$headers</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">headers</span>();
+
+<span class="hl-cmt">// Single header</span>
+<span class="hl-var">$type</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">header</span>(<span class="hl-str">'Content-Type'</span>);
+<span class="hl-cmt">// 'application/json; charset=utf-8'</span>
+
+<span class="hl-cmt">// Check if header exists</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">hasHeader</span>(<span class="hl-str">'X-Rate-Limit'</span>);
+
+<span class="hl-cmt">// Content type shorthand</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">contentType</span>();
+<span class="hl-cmt">// 'application/json; charset=utf-8'</span></code></pre>
+
+<h3 id="error-handling">Error Handling</h3>
+<pre><code><span class="hl-cmt">// Throw HttpException on failure (4xx/5xx)</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">throw</span>();
+
+<span class="hl-cmt">// Conditional throw</span>
+<span class="hl-var">$response</span>-&gt;<span class="hl-fn">throwIf</span>(<span class="hl-var">$response</span>-&gt;<span class="hl-fn">status</span>() === <span class="hl-num">422</span>);
+
+<span class="hl-cmt">// The exception wraps the response object</span>
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$response</span>-&gt;<span class="hl-fn">throw</span>();
+} <span class="hl-kw">catch</span> (\<span class="hl-cls">Razy\Http\HttpException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-var">$e</span>-&gt;<span class="hl-fn">getCode</span>();       <span class="hl-cmt">// HTTP status code (e.g., 404)</span>
+    <span class="hl-kw">echo</span> <span class="hl-var">$e</span>-&gt;<span class="hl-fn">getMessage</span>();    <span class="hl-cmt">// Error message</span>
+    <span class="hl-var">$resp</span> = <span class="hl-var">$e</span>-&gt;<span class="hl-var">response</span>;     <span class="hl-cmt">// Original HttpResponse</span>
+    <span class="hl-var">$body</span> = <span class="hl-var">$resp</span>-&gt;<span class="hl-fn">json</span>();    <span class="hl-cmt">// Access response body</span>
+}</code></pre>
+
+<h3 id="serialisation">Serialisation</h3>
+<pre><code><span class="hl-var">$array</span> = <span class="hl-var">$response</span>-&gt;<span class="hl-fn">toArray</span>();
+<span class="hl-cmt">// ['status' =&gt; 200, 'headers' =&gt; [...], 'body' =&gt; '...']</span></code></pre>
+
+<hr>
+
+<h2 id="hooks">Hooks</h2>
+<p>Register callbacks for request/response lifecycle:</p>
+<pre><code><span class="hl-var">$client</span>-&gt;<span class="hl-fn">beforeSending</span>(<span class="hl-kw">function</span> (<span class="hl-kw">array</span> &amp;<span class="hl-var">$options</span>) {
+    <span class="hl-cmt">// Modify cURL options before the request</span>
+    <span class="hl-var">$options</span>[<span class="hl-cls">CURLOPT_VERBOSE</span>] = <span class="hl-kw">true</span>;
+
+    <span class="hl-cmt">// Log outgoing request</span>
+    <span class="hl-cls">Log</span>::<span class="hl-fn">debug</span>(<span class="hl-str">'HTTP Request'</span>, <span class="hl-var">$options</span>);
+});
+
+<span class="hl-var">$client</span>-&gt;<span class="hl-fn">afterResponse</span>(<span class="hl-kw">function</span> (<span class="hl-cls">HttpResponse</span> <span class="hl-var">$response</span>) {
+    <span class="hl-cmt">// Log response</span>
+    <span class="hl-cls">Log</span>::<span class="hl-fn">debug</span>(<span class="hl-str">'HTTP Response'</span>, [
+        <span class="hl-str">'status'</span> =&gt; <span class="hl-var">$response</span>-&gt;<span class="hl-fn">status</span>(),
+        <span class="hl-str">'body'</span>   =&gt; <span class="hl-fn">substr</span>(<span class="hl-var">$response</span>-&gt;<span class="hl-fn">body</span>(), <span class="hl-num">0</span>, <span class="hl-num">500</span>),
+    ]);
+
+    <span class="hl-cmt">// Rate limit tracking</span>
+    <span class="hl-kw">if</span> (<span class="hl-var">$response</span>-&gt;<span class="hl-fn">hasHeader</span>(<span class="hl-str">'X-Rate-Limit-Remaining'</span>)) {
+        <span class="hl-cls">RateTracker</span>::<span class="hl-fn">update</span>((<span class="hl-kw">int</span>) <span class="hl-var">$response</span>-&gt;<span class="hl-fn">header</span>(<span class="hl-str">'X-Rate-Limit-Remaining'</span>));
+    }
+});</code></pre>
+
+<hr>
+
+<h2 id="full-example">Full Example</h2>
+<h3>REST API Client</h3>
+<pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Http\HttpClient</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">GitHubClient</span>
+{
+    <span class="hl-kw">private</span> <span class="hl-cls">HttpClient</span> <span class="hl-var">$http</span>;
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">__construct</span>(<span class="hl-kw">string</span> <span class="hl-var">$token</span>)
+    {
+        <span class="hl-var">$this</span>-&gt;<span class="hl-var">http</span> = <span class="hl-cls">HttpClient</span>::<span class="hl-fn">create</span>()
+            -&gt;<span class="hl-fn">baseUrl</span>(<span class="hl-str">'https://api.github.com'</span>)
+            -&gt;<span class="hl-fn">withToken</span>(<span class="hl-var">$token</span>)
+            -&gt;<span class="hl-fn">asJson</span>()
+            -&gt;<span class="hl-fn">withHeaders</span>([
+                <span class="hl-str">'Accept'</span>               =&gt; <span class="hl-str">'application/vnd.github.v3+json'</span>,
+                <span class="hl-str">'X-GitHub-Api-Version'</span> =&gt; <span class="hl-str">'2022-11-28'</span>,
+            ])
+            -&gt;<span class="hl-fn">timeout</span>(<span class="hl-num">15</span>)
+            -&gt;<span class="hl-fn">retry</span>(<span class="hl-str">times:</span> <span class="hl-num">2</span>, <span class="hl-str">sleepMs:</span> <span class="hl-num">1000</span>);
+    }
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">getUser</span>(<span class="hl-kw">string</span> <span class="hl-var">$username</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-var">http</span>
+            -&gt;<span class="hl-fn">get</span>(<span class="hl-str">"/users/<span class="hl-var">{$username}</span>"</span>)
+            -&gt;<span class="hl-fn">throw</span>()
+            -&gt;<span class="hl-fn">json</span>();
+    }
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">listRepos</span>(<span class="hl-kw">string</span> <span class="hl-var">$username</span>, <span class="hl-kw">int</span> <span class="hl-var">$page</span> = <span class="hl-num">1</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-var">http</span>
+            -&gt;<span class="hl-fn">get</span>(<span class="hl-str">"/users/<span class="hl-var">{$username}</span>/repos"</span>, [
+                <span class="hl-str">'page'</span>     =&gt; <span class="hl-var">$page</span>,
+                <span class="hl-str">'per_page'</span> =&gt; <span class="hl-num">30</span>,
+                <span class="hl-str">'sort'</span>     =&gt; <span class="hl-str">'updated'</span>,
+            ])
+            -&gt;<span class="hl-fn">throw</span>()
+            -&gt;<span class="hl-fn">json</span>();
+    }
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">createIssue</span>(<span class="hl-kw">string</span> <span class="hl-var">$owner</span>, <span class="hl-kw">string</span> <span class="hl-var">$repo</span>, <span class="hl-kw">string</span> <span class="hl-var">$title</span>, <span class="hl-kw">string</span> <span class="hl-var">$body</span>): <span class="hl-kw">array</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-var">http</span>
+            -&gt;<span class="hl-fn">post</span>(<span class="hl-str">"/repos/<span class="hl-var">{$owner}</span>/<span class="hl-var">{$repo}</span>/issues"</span>, [
+                <span class="hl-str">'title'</span> =&gt; <span class="hl-var">$title</span>,
+                <span class="hl-str">'body'</span>  =&gt; <span class="hl-var">$body</span>,
+            ])
+            -&gt;<span class="hl-fn">throw</span>()
+            -&gt;<span class="hl-fn">json</span>();
+    }
+}
+
+<span class="hl-cmt">// Usage</span>
+<span class="hl-var">$github</span> = <span class="hl-kw">new</span> <span class="hl-cls">GitHubClient</span>(<span class="hl-str">'ghp_xxxxxxxxxxxx'</span>);
+<span class="hl-var">$user</span> = <span class="hl-var">$github</span>-&gt;<span class="hl-fn">getUser</span>(<span class="hl-str">'octocat'</span>);
+<span class="hl-var">$repos</span> = <span class="hl-var">$github</span>-&gt;<span class="hl-fn">listRepos</span>(<span class="hl-str">'octocat'</span>);</code></pre>
+
+<hr>
+
+<h2 id="api-reference">API Reference</h2>
+
+<h3>HttpClient</h3>
+<table>
+<thead>
+<tr><th>Method</th><th>Signature</th><th>Returns</th></tr>
+</thead>
+<tbody>
+<tr><td><code>create</code></td><td><code>(): static</code></td><td>New instance</td></tr>
+<tr><td><code>baseUrl</code></td><td><code>(string $url): static</code></td><td>Set base URL</td></tr>
+<tr><td><code>withHeaders</code></td><td><code>(array $headers): static</code></td><td>Set multiple headers</td></tr>
+<tr><td><code>withHeader</code></td><td><code>(string $name, string $value): static</code></td><td>Set single header</td></tr>
+<tr><td><code>withToken</code></td><td><code>(string $token): static</code></td><td>Bearer auth</td></tr>
+<tr><td><code>withBasicAuth</code></td><td><code>(string $user, string $pass): static</code></td><td>Basic auth</td></tr>
+<tr><td><code>timeout</code></td><td><code>(int $seconds): static</code></td><td>Request timeout</td></tr>
+<tr><td><code>connectTimeout</code></td><td><code>(int $seconds): static</code></td><td>Connect timeout</td></tr>
+<tr><td><code>withoutVerifying</code></td><td><code>(): static</code></td><td>Disable SSL verify</td></tr>
+<tr><td><code>asJson</code></td><td><code>(): static</code></td><td>JSON content type</td></tr>
+<tr><td><code>asForm</code></td><td><code>(): static</code></td><td>Form content type</td></tr>
+<tr><td><code>asMultipart</code></td><td><code>(): static</code></td><td>Multipart content type</td></tr>
+<tr><td><code>withQuery</code></td><td><code>(array $params): static</code></td><td>Default query params</td></tr>
+<tr><td><code>userAgent</code></td><td><code>(string $ua): static</code></td><td>User-Agent header</td></tr>
+<tr><td><code>retry</code></td><td><code>(int $times, int $sleepMs): static</code></td><td>Retry config</td></tr>
+<tr><td><code>withCurlOption</code></td><td><code>(int $opt, mixed $val): static</code></td><td>cURL option</td></tr>
+<tr><td><code>beforeSending</code></td><td><code>(Closure $cb): static</code></td><td>Pre-request hook</td></tr>
+<tr><td><code>afterResponse</code></td><td><code>(Closure $cb): static</code></td><td>Post-response hook</td></tr>
+<tr><td><code>get</code></td><td><code>(string $url, array $query = []): HttpResponse</code></td><td>GET request</td></tr>
+<tr><td><code>post</code></td><td><code>(string $url, array $data = []): HttpResponse</code></td><td>POST request</td></tr>
+<tr><td><code>put</code></td><td><code>(string $url, array $data = []): HttpResponse</code></td><td>PUT request</td></tr>
+<tr><td><code>patch</code></td><td><code>(string $url, array $data = []): HttpResponse</code></td><td>PATCH request</td></tr>
+<tr><td><code>delete</code></td><td><code>(string $url, array $data = []): HttpResponse</code></td><td>DELETE request</td></tr>
+<tr><td><code>head</code></td><td><code>(string $url): HttpResponse</code></td><td>HEAD request</td></tr>
+<tr><td><code>options</code></td><td><code>(string $url): HttpResponse</code></td><td>OPTIONS request</td></tr>
+<tr><td><code>send</code></td><td><code>(string $method, string $url, array $data = []): HttpResponse</code></td><td>Generic request</td></tr>
+</tbody>
+</table>
+
+<h3>HttpResponse</h3>
+<table>
+<thead>
+<tr><th>Method</th><th>Signature</th><th>Returns</th></tr>
+</thead>
+<tbody>
+<tr><td><code>status</code></td><td><code>(): int</code></td><td>HTTP status code</td></tr>
+<tr><td><code>successful</code></td><td><code>(): bool</code></td><td>2xx?</td></tr>
+<tr><td><code>ok</code></td><td><code>(): bool</code></td><td>200?</td></tr>
+<tr><td><code>failed</code></td><td><code>(): bool</code></td><td>4xx or 5xx?</td></tr>
+<tr><td><code>redirect</code></td><td><code>(): bool</code></td><td>3xx?</td></tr>
+<tr><td><code>clientError</code></td><td><code>(): bool</code></td><td>4xx?</td></tr>
+<tr><td><code>serverError</code></td><td><code>(): bool</code></td><td>5xx?</td></tr>
+<tr><td><code>body</code></td><td><code>(): string</code></td><td>Raw body</td></tr>
+<tr><td><code>json</code></td><td><code>(): mixed</code></td><td>JSON decoded</td></tr>
+<tr><td><code>jsonGet</code></td><td><code>(string $dotPath): mixed</code></td><td>Dot-notation access</td></tr>
+<tr><td><code>headers</code></td><td><code>(): array</code></td><td>All headers</td></tr>
+<tr><td><code>header</code></td><td><code>(string $name): ?string</code></td><td>Single header</td></tr>
+<tr><td><code>hasHeader</code></td><td><code>(string $name): bool</code></td><td>Header exists?</td></tr>
+<tr><td><code>contentType</code></td><td><code>(): ?string</code></td><td>Content-Type</td></tr>
+<tr><td><code>throw</code></td><td><code>(): static</code></td><td>Throw on failure</td></tr>
+<tr><td><code>throwIf</code></td><td><code>(bool $condition): static</code></td><td>Conditional throw</td></tr>
+<tr><td><code>toArray</code></td><td><code>(): array</code></td><td>Serialise</td></tr>
+</tbody>
+</table>
+
+<h3>HttpException</h3>
+<table>
+<thead>
+<tr><th>Property</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>response</code></td><td><code>HttpResponse</code></td><td>Original response</td></tr>
+<tr><td>Code</td><td><code>int</code></td><td>HTTP status code</td></tr>
+</tbody>
+</table>
+<p>Extends <code>\RuntimeException</code>.</p>
+
+<div class="page-nav">
+  <a href="queue.html"><span class="label">&larr; Previous</span><span class="title">Queue</span></a>
+  <a href="xhr.html" class="next"><span class="label">Next &rarr;</span><span class="title">XHR</span></a>
+</div>
+</main>
+<footer class="footer"><p>Razy Framework v1.0-beta &mdash; <a href="https://github.com/RayFungHK/Razy">GitHub</a></p></footer>
+</body>
+</html>

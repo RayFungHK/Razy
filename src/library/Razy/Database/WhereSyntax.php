@@ -10,20 +10,40 @@
 
 namespace Razy\Database;
 
-use Razy\Error;
+use Razy\Exception\QueryException;
 use Razy\SimpleSyntax;
 use Throwable;
 
+/**
+ * Class WhereSyntax
+ *
+ * Parses and generates SQL WHERE/HAVING clauses from the Where Simple Syntax.
+ * Supports comparison operators (=, !=, >, <, >=, <=), pattern matching
+ * (*=, ^=, $=, #=), JSON operators (~=, &=, @=, :=, |=), range/BETWEEN (><, <>),
+ * NULL checks, array/IN operations, and logical grouping with AND (,) / OR (|).
+ *
+ * @package Razy
+ * @license MIT
+ */
 class WhereSyntax
 {
+    /** @var string Regex to split expressions by comparison/custom operators while respecting quotes and escapes */
     const REGEX_SPLIT_OPERAND = '/(?:\\\\.|\((?:\\\\.(*SKIP)|[^()])*\)|(?<q>[\'"`])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)(*FAIL)|\s*([|*^$!#:@~&]?=|><|<>|(?<![\->])[><]=?)\s*/';
+    /** @var string Regex to validate and parse column references (with optional table alias and JSON path) */
     const REGEX_COLUMN = '/^((?<column>`(?:\\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/';
+    /**
+     * @var array<string, string> Maps syntax separators to SQL logical operators.
+     *   ',' => AND, '|' => OR
+     */
     private const OPERAND_TYPE = [
         ',' => 'AND',
         '|' => 'OR',
     ];
 
+    /** @var array Parsed WHERE expression tokens from SimpleSyntax::parseSyntax */
     private array $extracted = [];
+
+    /** @var string Raw syntax string, preserved for callable re-parsing */
     private string $syntax = '';
 
     /**
@@ -37,19 +57,22 @@ class WhereSyntax
     }
 
     /**
-     * Generate the WHERE statement.
+     * Generate the WHERE/HAVING clause SQL string.
+     * Recursively processes grouped expressions, negation operators,
+     * and individual comparison expressions.
      *
-     * @return string
+     * @return string The generated SQL condition (without WHERE/HAVING keyword)
      * @throws Throwable
-     *
      */
     public function getSyntax(): string
     {
+        // Recursive parser that walks the token tree and builds SQL
         $parser = function (array &$extracted) use (&$parser) {
             $parsed = [];
             $negative = false;
             while ($clip = array_shift($extracted)) {
                 if (is_array($clip)) {
+                    // Parenthesized sub-expression: recurse and optionally negate
                     $parsed[] = (($negative) ? '!' : '') . '(' . $parser($clip) . ')';
                     $negative = false;
                 } else {
@@ -64,7 +87,7 @@ class WhereSyntax
                             $parsed[] = $this->parseExpr($clip, $negative);
                             $negative = false;
                         } else {
-                            throw new Error('Invalid Where syntax');
+                            throw new QueryException('Invalid Where syntax');
                         }
                     }
                 }
@@ -72,7 +95,7 @@ class WhereSyntax
                 $operand = array_shift($extracted);
                 if ($operand) {
                     if (!preg_match('/^[,|]$/', $operand)) {
-                        throw new Error('Invalid Where syntax');
+                        throw new QueryException('Invalid Where syntax');
                     }
                     $parsed[] = self::OPERAND_TYPE[$operand];
                 }
@@ -87,18 +110,22 @@ class WhereSyntax
     }
 
     /**
-     * Parse the expression of the each.
+     * Parse a single comparison expression into SQL.
+     * Handles single-operand expressions, two-operand comparisons,
+     * and all supported operator types.
      *
-     * @param string $clip
-     * @param bool $negative
+     * @param string $clip The expression token to parse
+     * @param bool $negative Whether this expression is negated
      *
-     * @return string
+     * @return string The generated SQL expression
      * @throws Throwable
-     *
      */
     private function parseExpr(string $clip, bool $negative): string
     {
+        // Split expression by operator, preserving quoted strings
         $splits = preg_split(self::REGEX_SPLIT_OPERAND, $clip, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+        // Single operand (no operator): return as boolean or column reference
         if (1 == count($splits)) {
             $expr = $this->parseOperand($clip);
             if ('null' === $expr['type']) {
@@ -115,10 +142,12 @@ class WhereSyntax
             return $expr['expr'];
         }
 
+        // Two-operand comparison: left OPERATOR right
         if (3 == count($splits)) {
+            // Prevent both operands from being auto-references
             if ($splits[0] == $splits[2]) {
                 if ('?' === $splits[0]) {
-                    throw new Error('You cannot set both operand as reference.');
+                    throw new QueryException('You cannot set both operand as reference.');
                 }
             }
 
@@ -126,11 +155,13 @@ class WhereSyntax
             $leftOperand = $this->parseOperand($leftOperand);
             $rightOperand = $this->parseOperand($rightOperand);
 
+            // Normalize: parameter references should always be on the right side
             if ('parameter' === $leftOperand['type']) {
                 [$leftOperand, $rightOperand] = [$rightOperand, $leftOperand];
             }
 
             if ('auto' === $rightOperand['type']) {
+                // Auto-reference '?': resolve value from the left column's parameter
                 if ('column' === $leftOperand['type']) {
                     $value = $this->statement->getValue($leftOperand['column_name']);
                     if (null === $value) {
@@ -149,7 +180,7 @@ class WhereSyntax
                         }
                     }
                 } else {
-                    throw new Error('You cannot refer the non-column operand as a parameter.');
+                    throw new QueryException('You cannot refer the non-column operand as a parameter.');
                 }
             } elseif ('parameter' === $rightOperand['type']) {
                 $value = $this->statement->getValue($rightOperand['name']);
@@ -164,18 +195,21 @@ class WhereSyntax
             return $this->comparison($operator, $leftOperand, $rightOperand, $negative);
         }
 
-        throw new Error('Invalid Where Syntax.');
+        throw new QueryException('Invalid Where Syntax.');
     }
 
     /**
-     * Parse the operand syntax
+     * Parse an operand token into a typed structure.
+     * Recognizes: '?' (auto), column references, :parameter references,
+     * quoted strings, array literals [val1,val2], NULL, and raw expressions.
      *
-     * @param string $expr
+     * @param string $expr The operand string to parse
      *
-     * @return array
+     * @return array Typed operand array with 'type', 'expr', and type-specific keys
      */
     private function parseOperand(string $expr): array
     {
+        // Auto-reference: value will be resolved from the column on the other side
         if ('?' === $expr) {
             return [
                 'type' => 'auto',
@@ -183,6 +217,7 @@ class WhereSyntax
         }
 
         if ('null' !== strtolower($expr)) {
+            // Column reference: optional table_alias.column_name with JSON path
             if (preg_match(self::REGEX_COLUMN, $expr, $matches)) {
                 $table_alias = '';
                 if (isset($matches[3]) && $matches[3]) {
@@ -205,6 +240,7 @@ class WhereSyntax
                     'expr' => '`' . trim($expr, '`') . '`',
                 ];
             }
+            // Named parameter reference :name
             if (preg_match('/^:(\w+)$/', $expr, $matches)) {
                 $value = $this->statement->getValue($matches[1]);
                 if (null === $value) {
@@ -221,11 +257,34 @@ class WhereSyntax
                     'expr' => (is_scalar($value)) ? '"' . addslashes($value) . '"' : null,
                 ];
             }
+            // Quoted string literal (single or double quoted)
             if (preg_match('/^(?<q>[\'"])((?:(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
                 return [
                     'type' => 'text',
                     'text' => $matches[2],
                     'expr' => '\'' . addslashes($matches[2]) . '\'',
+                ];
+            }
+
+            // Array literal: [val1,val2,...] or ["str1","str2",...]
+            if (preg_match('/^\[(.+)\]$/', $expr, $matches)) {
+                $arrayContent = $matches[1];
+                // Try to parse as JSON array first
+                $jsonArray = json_decode('[' . $arrayContent . ']', true);
+                if (is_array($jsonArray)) {
+                    return [
+                        'type' => 'array',
+                        'value' => $jsonArray,
+                        'expr' => $expr,
+                    ];
+                }
+
+                // JSON parsing failed - this is a malformed array literal
+                // Return as invalid_array type to allow operators to handle gracefully
+                return [
+                    'type' => 'invalid_array',
+                    'raw' => $expr,
+                    'expr' => $expr,
                 ];
             }
 
@@ -242,183 +301,371 @@ class WhereSyntax
     }
 
     /**
-     * Generate the operand by given left and right operand with the operator.
+     * Generate the SQL comparison expression for a given operator and operands.
+     * Handles all supported operators including: =, !=, >, <, >=, <=,
+     * |= (IN), *= (LIKE contains), ^= (LIKE starts with), $= (LIKE ends with),
+     * #= (REGEXP), @= (JSON key match), := (JSON_EXTRACT), ~= (JSON_CONTAINS),
+     * &= (JSON_SEARCH), >< / <> (BETWEEN).
      *
-     * @param string $operator
-     * @param array $leftOperand
-     * @param array $rightOperand
-     * @param bool $negative
+     * @param string $operator The comparison operator symbol
+     * @param array $leftOperand Parsed left operand
+     * @param array $rightOperand Parsed right operand
+     * @param bool $negative Whether the comparison is negated
      *
-     * @return string
+     * @return string The generated SQL comparison expression
      * @throws Error
      */
     private function comparison(string $operator, array $leftOperand, array $rightOperand, bool $negative): string
     {
-        $operand = '';
+        // Check for invalid array literals early
+        if ('invalid_array' === $rightOperand['type']) {
+            throw new QueryException('Invalid array syntax: ' . $rightOperand['raw']);
+        }
+
         if ('|=' === $operator) {
-            if ('column' != $leftOperand['type']) {
-                $leftExpr = $this->castAsJSON($leftOperand);
-                $rightExpr = $this->castAsJSON($rightOperand);
-
-                $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ', \'$\') > 0';
-            } else {
-                $rightExpr = $rightOperand['expr'];
-                if ('parameter' === $rightOperand['type']) {
-                    if (is_array($rightOperand['value'])) {
-                        if (count($rightOperand['value'])) {
-                            $rightExpr = '';
-                            foreach ($rightOperand['value'] as $val) {
-                                $val = '\'' . addslashes($val) . '\'';
-                                $rightExpr .= ($rightExpr) ? ', ' . $val : $val;
-                            }
-                        } else {
-                            return $leftOperand['expr'] . ' IS ' . (($negative) ? ' NOT' : '') . ' NULL';
-                        }
-                    }
-                }
-
-                $leftExpr = $leftOperand['expr'];
-
-                return $leftExpr . (($negative) ? ' NOT' : '') . ' IN(' . $rightExpr . ')';
-            }
+            return $this->buildInExpression($leftOperand, $rightOperand, $negative);
         } elseif ('#=' === $operator || '*=' === $operator || '^=' === $operator || '$=' === $operator) {
-            $convertor = function ($operand) {
-                if ('parameter' === $operand['type']) {
-                    if (is_array($operand['value']) || is_scalar($operand['value'])) {
-                        return (is_scalar($operand['value'])) ? addslashes($operand['value']) : json_encode($operand['value']);
-                    }
+            return $this->buildPatternMatch($operator, $leftOperand, $rightOperand, $negative);
+        } elseif ('@=' === $operator) {
+            return $this->buildJsonKeyExists($leftOperand, $rightOperand, $negative);
+        } elseif (':=' === $operator) {
+            return $this->buildJsonPathExists($leftOperand, $rightOperand, $negative);
+        } elseif ('~=' === $operator || '&=' === $operator) {
+            return $this->buildJsonContains($operator, $leftOperand, $rightOperand, $negative);
+        } elseif ('><' === $operator || '<>' === $operator) {
+            return $this->buildBetween($leftOperand, $rightOperand, $negative);
+        }
 
-                    return '';
+        return $this->buildBasicComparison($operator, $leftOperand, $rightOperand, $negative);
+    }
+
+    /**
+     * Build an IN expression or JSON_CONTAINS for non-column left operands.
+     * Handles the |= operator.
+     *
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     */
+    private function buildInExpression(array $left, array $right, bool $negative): string
+    {
+        // IN operator: column IN(val1, val2, ...) or JSON_CONTAINS for non-column values
+        if ('column' != $left['type']) {
+            $leftExpr = $this->castAsJSON($left);
+            $rightExpr = $this->castAsJSON($right);
+
+            $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ', \'$\') > 0';
+
+            return ($negative) ? '!(' . $operand . ')' : $operand;
+        }
+
+        $rightExpr = $right['expr'];
+        // Handle both 'parameter' and 'array' types with array values
+        if (('parameter' === $right['type'] || 'array' === $right['type']) && is_array($right['value'])) {
+            if (count($right['value'])) {
+                $rightExpr = '';
+                foreach ($right['value'] as $val) {
+                    $val = is_numeric($val) ? $val : '\'' . addslashes($val) . '\'';
+                    $rightExpr .= ($rightExpr) ? ', ' . $val : $val;
                 }
+            } else {
+                return $left['expr'] . ' IS ' . (($negative) ? ' NOT' : '') . ' NULL';
+            }
+        }
 
-                if ('text' === $operand['type']) {
-                    return addslashes($operand['text']);
-                }
+        $leftExpr = $left['expr'];
 
-                if ('expr' === $operand['type']) {
-                    return $operand['expr'];
+        return $leftExpr . (($negative) ? ' NOT' : '') . ' IN(' . $rightExpr . ')';
+    }
+
+    /**
+     * Build a pattern matching expression (REGEXP or LIKE).
+     * Handles the #=, *=, ^=, $= operators.
+     *
+     * @param string $operator The pattern operator symbol
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     */
+    private function buildPatternMatch(string $operator, array $left, array $right, bool $negative): string
+    {
+        // Pattern matching operators: #= (REGEXP), *= (LIKE %x%), ^= (LIKE x%), $= (LIKE %x)
+        $convertor = function ($operand) {
+            if ('parameter' === $operand['type']) {
+                if (is_array($operand['value']) || is_scalar($operand['value'])) {
+                    return (is_scalar($operand['value'])) ? addslashes($operand['value']) : $this->jsonEncodeForSQL($operand['value']);
                 }
 
                 return '';
-            };
-
-            $leftExpr = ('column' != $leftOperand['type']) ? $convertor($leftOperand) : $leftOperand['expr'];
-            if ('#=' === $operator) {
-                $comparison = ' REGEXP ';
-                $rightExpr = $rightOperand['expr'];
-            } else {
-                $comparison = 'LIKE';
-                $rightExpr = ('column' != $rightOperand['type']) ? $this->insertWildcard($convertor($rightOperand), $operator) : $rightOperand['expr'];
             }
 
-            return $leftExpr . (($negative) ? ' NOT' : '') . ' ' . $comparison . ' ' . $rightExpr;
-        } elseif ('@=' === $operator) {
-            $leftExpr = $this->castAsJSON($leftOperand, true);
-
-            $rightExpr = '';
-            if ('parameter' === $rightOperand['type']) {
-                if (is_array($rightOperand['value']) || is_scalar($rightOperand['value'])) {
-                    $rightExpr = (is_scalar($rightOperand['value'])) ? addslashes($rightOperand['value']) : json_encode($rightOperand['value']);
-                }
-            } elseif ('text' === $rightOperand['type']) {
-                $rightExpr = addslashes($rightOperand['text']);
-            } else if ('expr' === $rightOperand['type']) {
-                $rightExpr = $rightOperand['expr'];
+            if ('text' === $operand['type']) {
+                return addslashes($operand['text']);
             }
 
-            return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", CAST(' . $rightExpr . ' AS CHAR)) IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
-        } elseif (':=' === $operator) {
-            if ('text' === $rightOperand['type']) {
-                if ('$' !== ($rightOperand['text'][0] ?? '')) {
-                    throw new Error('JSON path should start with $.');
-                }
-                $rightExpr = $rightOperand['expr'];
-            } elseif ('parameter' === $rightOperand['type']) {
-                if (!is_string($rightOperand['value'])) {
-                    throw new Error('The JSON path should be a string.');
-                }
-                if ('$' !== ($rightOperand['value'][0] ?? '')) {
-                    throw new Error('JSON path should start with $.');
-                }
-
-                $rightExpr = $rightOperand['expr'];
-            } else {
-                throw new Error('Invalid value passed to JSON_EXTRACT');
+            if ('expr' === $operand['type']) {
+                return $operand['expr'];
             }
 
-            $leftExpr = $this->castAsJSON($leftOperand, true);
+            return '';
+        };
 
-            return 'JSON_EXTRACT(' . $leftExpr . ', ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
-        } elseif ('~=' === $operator || '&=' === $operator) {
-            $leftExpr = $this->castAsJSON($leftOperand, true);
-            if ('~=' === $operator) {
-                if ('text' == $rightOperand['type'] || ('parameter' == $rightOperand['type'] && is_scalar($rightOperand['value']))) {
-                    $rightExpr = '\'"' . addslashes($rightOperand['text'] ?? $rightOperand['value']) . '"\'';
-                    $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ') = 1';
-                } else {
-                    $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $this->castAsJSON($rightOperand, true) . ') = 1';
-                }
-            } else {
-                return 'JSON_SEARCH(' . $leftExpr . ', \'one\', ' . $this->castAsJSON($rightOperand, true) . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
-            }
+        $leftExpr = ('column' != $left['type']) ? $convertor($left) : $left['expr'];
+        if ('#=' === $operator) {
+            $comparison = ' REGEXP ';
+            $rightExpr = $right['expr'];
+        } else {
+            $comparison = 'LIKE';
+            $rightExpr = ('column' != $right['type']) ? $this->insertWildcard($convertor($right), $operator) : $right['expr'];
         }
 
-        // Basic operator
-        if (!$operand) {
-            if ('!=' === $operator || '=' === $operator) {
-                if ('!=' === $operator) {
-                    $negative = !$negative;
-                }
+        return $leftExpr . (($negative) ? ' NOT' : '') . ' ' . $comparison . ' ' . $rightExpr;
+    }
 
-                if ($leftOperand['type'] === 'null' || $rightOperand['type'] === 'null') {
-                    $operator = ($negative) ? 'IS NOT' : 'IS';
-                } else {
-                    $operator = ($negative) ? '<>' : '=';
-                }
+    /**
+     * Build a JSON key existence check using JSON_KEYS.
+     * Handles the @= operator.
+     *
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     */
+    private function buildJsonKeyExists(array $left, array $right, bool $negative): string
+    {
+        // JSON key existence: check if a key exists in JSON object using JSON_KEYS
+        $leftExpr = $this->castAsJSON($left, true);
 
-                return $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
+        $isArray = false;
+        $rightExpr = '';
+        if ('parameter' === $right['type']) {
+            if (is_array($right['value'])) {
+                $isArray = true;
+                $rightExpr = $this->jsonEncodeForSQL($right['value']);
+            } elseif (is_scalar($right['value'])) {
+                $rightExpr = addslashes($right['value']);
+            }
+        } elseif ('text' === $right['type']) {
+            $rightExpr = addslashes($right['text']);
+        } elseif ('expr' === $right['type']) {
+            $rightExpr = addslashes($right['expr']);
+        } elseif ('array' === $right['type']) {
+            // Handle inline array literals for JSON key matching
+            $isArray = true;
+            $rightExpr = $this->jsonEncodeForSQL($right['value']);
+        }
+
+        if ($isArray) {
+            // Use JSON_OVERLAPS for array matching (MySQL 8.0+)
+            return 'JSON_OVERLAPS(JSON_KEYS(' . $leftExpr . '), CAST(\'' . $rightExpr . '\' AS JSON)) = ' . (($negative) ? '0' : '1');
+        }
+
+        return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", CAST(\'' . $rightExpr . '\' AS CHAR)) IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+    }
+
+    /**
+     * Build a JSON path existence check using JSON_EXTRACT.
+     * Handles the := operator.
+     *
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     * @throws QueryException
+     */
+    private function buildJsonPathExists(array $left, array $right, bool $negative): string
+    {
+        // JSON path existence: check if a path exists using JSON_EXTRACT
+        if ('text' === $right['type']) {
+            if ('$' !== ($right['text'][0] ?? '')) {
+                throw new QueryException('JSON path should start with $.');
+            }
+            $rightExpr = $right['expr'];
+        } elseif ('parameter' === $right['type']) {
+            if (!is_string($right['value'])) {
+                throw new QueryException('The JSON path should be a string.');
+            }
+            if ('$' !== ($right['value'][0] ?? '')) {
+                throw new QueryException('JSON path should start with $.');
             }
 
-            $operand = $leftOperand['expr'] . ' ' . $operator . ' ' . $rightOperand['expr'];
+            $rightExpr = $right['expr'];
+        } else {
+            throw new QueryException('Invalid value passed to JSON_EXTRACT');
         }
+
+        $leftExpr = $this->castAsJSON($left, true);
+
+        return 'JSON_EXTRACT(' . $leftExpr . ', ' . $rightExpr . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+    }
+
+    /**
+     * Build a JSON_CONTAINS or JSON_SEARCH expression.
+     * Handles the ~= and &= operators.
+     *
+     * @param string $operator The JSON operator symbol (~= or &=)
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     */
+    private function buildJsonContains(string $operator, array $left, array $right, bool $negative): string
+    {
+        // ~= : JSON_CONTAINS (check if value exists in JSON array/object)
+        // &= : JSON_SEARCH (search for text value in JSON)
+        $leftExpr = $this->castAsJSON($left, true);
+        if ('~=' === $operator) {
+            if ('text' == $right['type'] || ('parameter' == $right['type'] && is_scalar($right['value']))) {
+                $rightExpr = '\'"' . addslashes($right['text'] ?? $right['value']) . '"\'';
+                $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ') = 1';
+            } else {
+                $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $this->castAsJSON($right, true) . ') = 1';
+            }
+
+            return ($negative) ? '!(' . $operand . ')' : $operand;
+        }
+
+        return 'JSON_SEARCH(' . $leftExpr . ', \'one\', ' . $this->castAsJSON($right, true) . ') IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+    }
+
+    /**
+     * Build a BETWEEN expression.
+     * Handles the >< and <> operators.
+     *
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     */
+    private function buildBetween(array $left, array $right, bool $negative): string
+    {
+        // BETWEEN operator: col><[min,max] or col<>[min,max]
+        $leftExpr = $left['expr'];
+
+        // Right operand should be an array with 2 values (type 'array' or 'parameter' with array value)
+        $arrayValue = null;
+        if ('array' === $right['type'] && is_array($right['value'])) {
+            $arrayValue = $right['value'];
+        } elseif ('parameter' === $right['type'] && is_array($right['value'])) {
+            $arrayValue = $right['value'];
+        }
+
+        if ($arrayValue !== null && count($arrayValue) === 2) {
+            $values = array_values($arrayValue);
+            $min = is_numeric($values[0]) ? $values[0] : "'" . addslashes($values[0]) . "'";
+            $max = is_numeric($values[1]) ? $values[1] : "'" . addslashes($values[1]) . "'";
+
+            return $leftExpr . (($negative) ? ' NOT' : '') . ' BETWEEN ' . $min . ' AND ' . $max;
+        }
+
+        // Fallback: just output as-is (shouldn't happen with proper syntax)
+        return $leftExpr . ' ' . '><' . ' ' . $right['expr'];
+    }
+
+    /**
+     * Build a basic comparison expression (=, !=, >, <, >=, <=).
+     *
+     * @param string $operator The comparison operator symbol
+     * @param array $left Parsed left operand
+     * @param array $right Parsed right operand
+     * @param bool $negative Whether the comparison is negated
+     *
+     * @return string The generated SQL expression
+     */
+    private function buildBasicComparison(string $operator, array $left, array $right, bool $negative): string
+    {
+        // Basic comparison operators (=, !=, >, <, >=, <=)
+        if ('!=' === $operator || '=' === $operator) {
+            if ('!=' === $operator) {
+                $negative = !$negative;
+            }
+
+            // Handle array values -> convert to IN/NOT IN for = and != operators
+            if ('array' === $right['type'] && is_array($right['value'])) {
+                if (count($right['value'])) {
+                    $values = '';
+                    foreach ($right['value'] as $val) {
+                        $val = is_numeric($val) ? $val : '\'' . addslashes($val) . '\'';
+                        $values .= ($values) ? ', ' . $val : $val;
+                    }
+                    return $left['expr'] . (($negative) ? ' NOT' : '') . ' IN(' . $values . ')';
+                }
+                return $left['expr'] . ' IS ' . (($negative) ? 'NOT ' : '') . 'NULL';
+            }
+
+            // NULL comparison uses IS / IS NOT instead of = / <>
+            if ($left['type'] === 'null' || $right['type'] === 'null') {
+                $operator = ($negative) ? 'IS NOT' : 'IS';
+            } else {
+                $operator = ($negative) ? '<>' : '=';
+            }
+
+            return $left['expr'] . ' ' . $operator . ' ' . $right['expr'];
+        }
+
+        $operand = $left['expr'] . ' ' . $operator . ' ' . $right['expr'];
 
         return ($negative) ? '!(' . $operand . ')' : $operand;
     }
 
     /**
-     * Convert the value as cast as JSON
+     * Safely encode value as JSON for use in SQL string literal.
+     * Escapes single quotes to prevent SQL injection.
      *
-     * @param array $operand
-     * @param bool $acceptObject
-     *
+     * @param mixed $value
      * @return string
+     */
+    private function jsonEncodeForSQL(mixed $value): string
+    {
+        // json_encode handles all JSON escaping (double quotes, backslashes, unicode, etc.)
+        // Then we escape single quotes for SQL string literal context
+        return str_replace("'", "\\'", json_encode($value));
+    }
+
+    /**
+     * Cast a parsed operand value to JSON for use in JSON SQL functions.
+     * Wraps the value in CAST(... AS JSON) for SQL compatibility.
+     *
+     * @param array $operand The parsed operand
+     * @param bool $acceptObject When true, preserves associative arrays; otherwise forces indexed arrays
+     *
+     * @return string The SQL expression with JSON casting
      */
     private function castAsJSON(array $operand, bool $acceptObject = false): string
     {
         if ('parameter' === $operand['type']) {
             if (is_array($operand['value'])) {
-                return 'CAST(\'' . json_encode(($acceptObject) ? $operand['value'] : array_values($operand['value'])) . '\' AS JSON)';
+                return 'CAST(\'' . $this->jsonEncodeForSQL(($acceptObject) ? $operand['value'] : array_values($operand['value'])) . '\' AS JSON)';
             }
             if (is_scalar($operand['value'])) {
-                return 'CAST(\'' . json_encode([$operand['value']]) . '\' AS JSON)';
+                return 'CAST(\'' . $this->jsonEncodeForSQL([$operand['value']]) . '\' AS JSON)';
             }
 
             return 'CAST(\'[]\' AS JSON)';
         }
         if ('text' === $operand['type']) {
-            return 'CAST(\'' . json_encode([$operand['text']]) . '\' AS JSON)';
+            return 'CAST(\'' . $this->jsonEncodeForSQL([$operand['text']]) . '\' AS JSON)';
         }
 
         return $operand['expr'];
     }
 
     /**
-     * Insert wildcard into string
+     * Insert SQL LIKE wildcards (%) into a string based on the match operator type.
+     * *= (contains) ??%value%, ^= (starts with) ??%value, $= (ends with) ??value%
      *
-     * @param string $value
-     * @param string $type
+     * @param string $value The search value
+     * @param string $type The operator type (*=, ^=, or $=)
      *
-     * @return string
+     * @return string The wildcarded value wrapped in quotes
      */
     private function insertWildcard(string $value, string $type = '*='): string
     {
@@ -434,9 +681,12 @@ class WhereSyntax
     }
 
     /**
-     * Parse the Where Simple Syntax.
+     * Parse the Where Simple Syntax string into structured tokens.
+     * Supports callable syntax for dynamic syntax generation.
+     * Uses SimpleSyntax::parseSyntax with ',' and '|' as separators
+     * and '=' as the operator delimiter.
      *
-     * @param string|callable $syntax
+     * @param string|callable $syntax The Where syntax string or callable returning one
      *
      * @return $this
      * @throws Error
@@ -448,24 +698,28 @@ class WhereSyntax
         }
 
         if (!is_string($syntax)) {
-            throw new Error('Invalid syntax data type, only string is allowed.');
+            throw new QueryException('Invalid syntax data type, only string is allowed.');
         }
 
         $this->syntax = trim($syntax);
-        $this->extracted = SimpleSyntax::ParseSyntax($this->syntax, ',|', '=');
+        $this->extracted = SimpleSyntax::parseSyntax($this->syntax, ',|', '=');
 
         return $this;
     }
 
     /**
-     * Check if the WHERE statement is valid.
+     * Verify and optionally prefix-qualify a Where Simple Syntax string.
+     * Returns the reconstructed syntax with column references prefixed,
+     * or an empty string if the syntax is invalid.
      *
-     * @param string $syntax
-     * @param string $prefix
-     * @return string
+     * @param string $syntax The Where syntax to verify
+     * @param string $prefix Optional table alias prefix to prepend to column references
+     *
+     * @return string The verified and prefix-qualified syntax, or empty on failure
      */
     static public function VerifySyntax(string $syntax, string $prefix = ''): string
     {
+        // Prepend table alias prefix to unqualified column references in the syntax tree
         $prefix = ($prefix) ? $prefix . '.' : '';
         $parser = function (array &$extracted) use (&$parser, $prefix) {
             $parsed = [];
@@ -525,7 +779,7 @@ class WhereSyntax
             return implode('', $parsed);
         };
 
-        $extracted = SimpleSyntax::ParseSyntax($syntax, ',|', '=');
+        $extracted = SimpleSyntax::parseSyntax($syntax, ',|', '=');
 
         return $parser($extracted);
     }

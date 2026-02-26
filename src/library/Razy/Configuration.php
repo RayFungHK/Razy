@@ -10,13 +10,30 @@
 
 namespace Razy;
 
+use Razy\Exception\ConfigurationException;
+
 use function is_array;
 use const PHP_EOL;
 
+/**
+ * Configuration extends Collection to load, modify, and persist key-value settings
+ * from PHP, JSON, INI, or YAML configuration files.
+ *
+ * Changes are tracked automatically and only written to disk when save() is called.
+ *
+ * @class Configuration
+ * @package Razy
+ * @license MIT
+ */
 class Configuration extends Collection
 {
+    /** @var bool Whether any value has been modified since loading */
     private bool $changed = false;
+
+    /** @var string The file extension (php, json, ini, yaml, yml) */
     private string $extension;
+
+    /** @var string The base filename without extension */
     private string $filename;
 
     /**
@@ -24,24 +41,36 @@ class Configuration extends Collection
      *
      * @param string $path
      *
-     * @throws Error
+     * @throws ConfigurationException
      */
     public function __construct(private readonly string $path)
     {
         $pathInfo = pathinfo($this->path);
         $this->filename = trim($pathInfo['filename']);
-        $this->extension = strtolower($pathInfo['extension']);
+        $this->extension = strtolower($pathInfo['extension'] ?? '');
 
         if (!$this->filename) {
-            throw new Error('Config file name cannot be empty.');
+            throw new ConfigurationException('Config file name cannot be empty.');
         }
 
         if (is_file($this->path)) {
-            // If the config file path is a directory, throw an error
+            // Reject directories masquerading as file paths
             if (is_dir($this->path)) {
-                throw new Error('The config file' . $this->path . ' is not a valid config file.');
+                throw new ConfigurationException('The config file' . $this->path . ' is not a valid config file.');
             }
 
+            // Try to load from cache for JSON, INI, and YAML files (PHP files benefit from OPcache)
+            $realPath = realpath($this->path);
+            if ($realPath !== false && in_array($this->extension, ['json', 'ini', 'yaml', 'yml'], true)) {
+                $cacheKey = 'config.' . md5($realPath);
+                $cached = Cache::getValidated($cacheKey, $realPath);
+                if ($cached !== null) {
+                    parent::__construct($cached);
+                    return;
+                }
+            }
+
+            // Load configuration data based on file extension
             if ('php' === $this->extension) {
                 parent::__construct(require $this->path);
             } elseif ('json' === $this->extension) {
@@ -50,18 +79,30 @@ class Configuration extends Collection
             } elseif ('ini' === $this->extension) {
                 $data = parse_ini_file($this->path, true);
                 parent::__construct($data);
+            } elseif ('yaml' === $this->extension || 'yml' === $this->extension) {
+                $data = YAML::parseFile($this->path);
+                parent::__construct($data);
+            }
+
+            // Cache the loaded data for non-PHP files
+            if (isset($realPath, $cacheKey, $data)) {
+                Cache::setValidated($cacheKey, $realPath, $data);
             }
         }
     }
 
     /**
-     * Overrides offsetSet method from \ArrayObject, pass the value to the rule closure before set the value.
+     * Override offsetSet to track changes for deferred persistence.
      *
-     * @param       $key
-     * @param mixed $value The value to set to the iterator
+     * Marks the configuration as changed if the value is new or differs
+     * from the current value, enabling save() to know whether a write is needed.
+     *
+     * @param mixed $key   The configuration key
+     * @param mixed $value The value to set
      */
     public function offsetSet($key, mixed $value): void
     {
+        // Only flag as changed if the value is actually different
         if (!isset($this[$key]) || $this[$key] !== $value) {
             $this->changed = true;
         }
@@ -69,11 +110,13 @@ class Configuration extends Collection
     }
 
     /**
-     * Save the config into the file.
+     * Persist the configuration to its source file.
      *
-     * @return self Chainable
-     * @throws Error
+     * Dispatches to the appropriate format-specific writer based on the file extension.
+     * No-op if no values have been modified since the last load or save.
      *
+     * @return self Fluent interface
+     * @throws ConfigurationException If the file cannot be written
      */
     public function save(): Configuration
     {
@@ -87,15 +130,17 @@ class Configuration extends Collection
             $this->saveAsINI();
         } elseif ('json' === $this->extension) {
             $this->saveAsJson();
+        } elseif ('yaml' === $this->extension || 'yml' === $this->extension) {
+            $this->saveAsYAML();
         }
 
         return $this;
     }
 
     /**
-     * Save the config file into a PHP file.
+     * Serialize the configuration as a PHP return-array file.
      *
-     * @throws Error
+     * @throws ConfigurationException If writing fails
      */
     private function saveAsPHP(): void
     {
@@ -107,38 +152,35 @@ class Configuration extends Collection
     }
 
     /**
-     * Write the content to the file.
+     * Write content to the configuration file, creating directories if needed.
      *
-     * @param string $content The config file content
+     * @param string $content The full file content to write
      *
-     * @throws Error
+     * @throws ConfigurationException If the target directory path exists but is not a directory
      */
     private function writeFile(string $content): void
     {
-        // Get the config file path info
+        // Resolve the directory portion of the file path
         $pathInfo = pathinfo($this->path);
 
-        // Check the configuration folder does exist
+        // Ensure the parent directory exists
         if (!is_dir($pathInfo['dirname'])) {
-            // Create the directory
-            mkdir($pathInfo['dirname'], 0755, true);
-        } elseif (!is_dir($pathInfo['dirname'])) {
-            // If the path does exist but not a directory, throw an error
-            throw new Error($pathInfo['dirname'] . ' is not a directory.');
+            // Recursively create the directory structure
+            if (!mkdir($pathInfo['dirname'], 0755, true) && !is_dir($pathInfo['dirname'])) {
+                // Path could not be created (e.g., permission issue or a file blocking the path)
+                throw new ConfigurationException($pathInfo['dirname'] . ' could not be created or is not a directory.');
+            }
         }
 
         file_put_contents($this->path, $content);
-        if ($handle = fopen($this->path, 'w')) {
-            fwrite($handle, $content);
-
-            fclose($handle);
-        }
     }
 
     /**
-     * Save the config file into an ini file.
+     * Serialize the configuration as an INI file.
      *
-     * @throws Error
+     * Supports one level of sections (arrays become INI sections).
+     *
+     * @throws ConfigurationException If writing fails
      */
     private function saveAsINI(): void
     {
@@ -149,11 +191,14 @@ class Configuration extends Collection
         $content = [];
         foreach ($this->getArrayCopy() as $key => $val) {
             if (is_array($val)) {
+                // Array values become INI sections: [section_name]
                 $content[] = '[' . $key . ']';
                 foreach ($val as $sKey => $sVal) {
+                    // Numeric values are unquoted; strings are double-quoted
                     $content[] = $sKey . ' = ' . (is_numeric($sVal) ? $sVal : '"' . $sVal . '"');
                 }
             } else {
+                // Top-level scalar values
                 $content[] = $key . ' = ' . (is_numeric($val) ? $val : '"' . $val . '"');
             }
         }
@@ -161,16 +206,31 @@ class Configuration extends Collection
     }
 
     /**
-     * Save the config file into a json file.
+     * Serialize the configuration as a JSON file.
      *
-     * @throws Error
+     * @throws ConfigurationException If writing fails
      */
-    private function saveAsJSON(): void
+    private function saveAsJson(): void
     {
         if (!$this->changed) {
             return;
         }
 
         $this->writeFile(json_encode($this->getArrayCopy()));
+    }
+
+    /**
+     * Serialize the configuration as a YAML file.
+     *
+     * @throws ConfigurationException If writing fails
+     */
+    private function saveAsYAML(): void
+    {
+        if (!$this->changed) {
+            return;
+        }
+
+        $yaml = YAML::dump($this->getArrayCopy());
+        $this->writeFile($yaml);
     }
 }

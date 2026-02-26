@@ -1,0 +1,1 @@
+string: {$string_val|gettype}, int: {$int_val|gettype}, float: {$float_val|gettype}, bool: {$bool_val|gettype}, array: {$array_val|gettype}

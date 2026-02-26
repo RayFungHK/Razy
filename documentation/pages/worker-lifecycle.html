@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Worker Lifecycle &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Worker Lifecycle</h1>
+    <p>Razy includes a <strong>Worker Lifecycle</strong> system for long-running processes (e.g., Caddy worker mode, Swoole, RoadRunner). It monitors file changes, manages request inflight counts, handles drain/restart signalling, and supports hot-swap rebinding &mdash; all without restarting the entire PHP process.</p>
+
+    <nav class="toc">
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#workerstate">WorkerState</a></li>
+        <li><a href="#changetype">ChangeType</a></li>
+        <li><a href="#workerlifecyclemanager">WorkerLifecycleManager</a></li>
+        <li><a href="#restartsignal">RestartSignal</a></li>
+        <li><a href="#modulechangedetector">ModuleChangeDetector</a></li>
+        <li><a href="#integration-example">Integration Example</a></li>
+        <li><a href="#api-reference">API Reference</a></li>
+      </ul>
+    </nav>
+
+    <!-- Overview -->
+    <h2 id="overview">Overview</h2>
+    <p>In worker mode, a single PHP process stays alive between HTTP requests. This means:</p>
+    <ol>
+      <li><strong>Code changes</strong> are not picked up automatically &mdash; the running process still uses the originally loaded classes.</li>
+      <li><strong>Configuration changes</strong> may require a full restart.</li>
+      <li><strong>Container rebindings</strong> (e.g., swapping a service implementation) can be hot-applied.</li>
+    </ol>
+    <p>The Worker Lifecycle system addresses all three scenarios.</p>
+    <pre><code>Boot &mdash; Ready &rarr; [handle requests]
+                    &#x2502;
+              checkForChanges()
+                    &#x2502;
+        &#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x253C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+    ClassFile    Rebindable    Config
+   (restart)   (hot-swap)   (restart)
+        &#x2502;          &#x2502;          &#x2502;
+   beginDrain   rebind      beginDrain
+        &#x2502;      continue        &#x2502;
+   Draining                 Draining
+        &#x2502;                      &#x2502;
+   Terminated               Terminated</code></pre>
+
+    <!-- WorkerState -->
+    <h2 id="workerstate">WorkerState</h2>
+    <p>An enum representing the lifecycle phases:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\WorkerState</span>;
+
+<span class="hl-cls">WorkerState</span>::Booting;     <span class="hl-cmt">// Process is initializing</span>
+<span class="hl-cls">WorkerState</span>::Ready;       <span class="hl-cmt">// Accepting requests</span>
+<span class="hl-cls">WorkerState</span>::Draining;    <span class="hl-cmt">// Finishing in-flight requests, rejecting new ones</span>
+<span class="hl-cls">WorkerState</span>::Swapping;    <span class="hl-cmt">// Hot-swap in progress</span>
+<span class="hl-cls">WorkerState</span>::Terminated;  <span class="hl-cmt">// Process should exit</span></code></pre>
+
+    <h3>Helper Methods</h3>
+    <pre><code><span class="hl-var">$state</span> = <span class="hl-cls">WorkerState</span>::Ready;
+
+<span class="hl-var">$state</span>-><span class="hl-fn">canAcceptRequests</span>();  <span class="hl-cmt">// true  (only Booting and Ready return true)</span>
+<span class="hl-var">$state</span>-><span class="hl-fn">shouldExit</span>();         <span class="hl-cmt">// false (only Draining and Terminated return true)</span></code></pre>
+
+    <!-- ChangeType -->
+    <h2 id="changetype">ChangeType</h2>
+    <p>Classifies detected changes by severity:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\ChangeType</span>;
+
+<span class="hl-cls">ChangeType</span>::None;         <span class="hl-cmt">// No change detected</span>
+<span class="hl-cls">ChangeType</span>::Config;       <span class="hl-cmt">// Configuration file changed &mdash; requires restart</span>
+<span class="hl-cls">ChangeType</span>::Rebindable;   <span class="hl-cmt">// Container binding changed &mdash; can hot-swap</span>
+<span class="hl-cls">ChangeType</span>::ClassFile;    <span class="hl-cmt">// PHP class file changed &mdash; requires restart</span></code></pre>
+
+    <h3>Helper Methods</h3>
+    <pre><code><span class="hl-var">$change</span> = <span class="hl-cls">ChangeType</span>::Rebindable;
+
+<span class="hl-var">$change</span>-><span class="hl-fn">requiresRestart</span>();  <span class="hl-cmt">// false</span>
+<span class="hl-var">$change</span>-><span class="hl-fn">canHotSwap</span>();       <span class="hl-cmt">// true</span>
+<span class="hl-var">$change</span>-><span class="hl-fn">canRebind</span>();        <span class="hl-cmt">// true</span>
+<span class="hl-var">$change</span>-><span class="hl-fn">severity</span>();         <span class="hl-cmt">// 2  (None=0, Rebindable=1, Config=2, ClassFile=3)</span></code></pre>
+
+    <p><strong>Severity order:</strong> <code>None</code> &lt; <code>Rebindable</code> &lt; <code>Config</code> &lt; <code>ClassFile</code></p>
+    <p>When multiple changes are detected, the highest severity wins.</p>
+
+    <!-- WorkerLifecycleManager -->
+    <h2 id="workerlifecyclemanager">WorkerLifecycleManager</h2>
+    <p>The central coordinator. It combines signal checking, file change detection, and container rebinding into a single <code>checkForChanges()</code> call.</p>
+
+    <h3>Booting</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\WorkerLifecycleManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\RestartSignal</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\ModuleChangeDetector</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Container</span>;
+
+<span class="hl-var">$container</span> = <span class="hl-kw">new</span> <span class="hl-cls">Container</span>();
+<span class="hl-var">$detector</span>  = <span class="hl-kw">new</span> <span class="hl-cls">ModuleChangeDetector</span>(<span class="hl-var">$watchPaths</span>);
+<span class="hl-var">$signal</span>    = <span class="hl-kw">new</span> <span class="hl-cls">RestartSignal</span>(<span class="hl-str">'/tmp/razy-worker-signal.json'</span>);
+
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">WorkerLifecycleManager</span>(
+    container: <span class="hl-var">$container</span>,
+    detector: <span class="hl-var">$detector</span>,
+    signal: <span class="hl-var">$signal</span>,
+    drainTimeout: <span class="hl-num">30</span>,      <span class="hl-cmt">// seconds to wait for inflight requests</span>
+    checkInterval: <span class="hl-num">5</span>       <span class="hl-cmt">// seconds between change checks</span>
+);
+
+<span class="hl-var">$manager</span>-><span class="hl-fn">boot</span>();  <span class="hl-cmt">// Snapshots files, transitions to Ready</span></code></pre>
+
+    <h3>Checking for Changes</h3>
+    <p>Call <code>checkForChanges()</code> on each request cycle (or on a timer):</p>
+    <pre><code><span class="hl-var">$result</span> = <span class="hl-var">$manager</span>-><span class="hl-fn">checkForChanges</span>();
+
+<span class="hl-kw">switch</span> (<span class="hl-var">$result</span>) {
+    <span class="hl-kw">case</span> <span class="hl-str">'continue'</span>:
+        <span class="hl-cmt">// No changes, keep serving</span>
+        <span class="hl-kw">break</span>;
+
+    <span class="hl-kw">case</span> <span class="hl-str">'rebound'</span>:
+        <span class="hl-cmt">// Container bindings were hot-swapped, keep serving</span>
+        <span class="hl-kw">break</span>;
+
+    <span class="hl-kw">case</span> <span class="hl-str">'swapped'</span>:
+        <span class="hl-cmt">// A swap was signalled and applied</span>
+        <span class="hl-kw">break</span>;
+
+    <span class="hl-kw">case</span> <span class="hl-str">'restart'</span>:
+        <span class="hl-cmt">// Class/config changes detected, must restart</span>
+        <span class="hl-var">$manager</span>-><span class="hl-fn">beginDrain</span>();
+        <span class="hl-kw">break</span>;
+
+    <span class="hl-kw">case</span> <span class="hl-str">'draining'</span>:
+        <span class="hl-cmt">// Already draining, waiting for inflight to finish</span>
+        <span class="hl-kw">break</span>;
+
+    <span class="hl-kw">case</span> <span class="hl-str">'terminate'</span>:
+        <span class="hl-cmt">// Drain complete or timeout, safe to exit</span>
+        <span class="hl-kw">exit</span>(<span class="hl-num">0</span>);
+        <span class="hl-kw">break</span>;
+}</code></pre>
+
+    <p>The method internally:</p>
+    <ol>
+      <li>Checks <code>RestartSignal</code> for cross-process signals</li>
+      <li>Consults <code>ModuleChangeDetector</code> for file changes</li>
+      <li>If rebindable &mdash; triggers container rebind hooks</li>
+      <li>If class/config change &mdash; recommends restart</li>
+      <li>If draining and inflight = 0 (or timeout) &#x2502; recommends termination</li>
+    </ol>
+
+    <h3>Request Tracking</h3>
+    <p>Track in-flight requests for graceful shutdown:</p>
+    <pre><code><span class="hl-cmt">// At request start</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">requestStarted</span>();
+
+<span class="hl-cmt">// At request end</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">requestFinished</span>();
+
+<span class="hl-cmt">// Check inflight count</span>
+<span class="hl-var">$inflight</span> = <span class="hl-var">$manager</span>-><span class="hl-fn">inflight</span>();  <span class="hl-cmt">// int</span></code></pre>
+
+    <h3>Draining</h3>
+    <p>Begin draining to stop accepting new requests:</p>
+    <pre><code><span class="hl-var">$manager</span>-><span class="hl-fn">beginDrain</span>();
+
+<span class="hl-cmt">// State transitions to Draining</span>
+<span class="hl-cmt">// Once all inflight requests finish (or drain timeout elapses),</span>
+<span class="hl-cmt">// checkForChanges() will return 'terminate'</span></code></pre>
+
+    <h3>State Inspection</h3>
+    <pre><code><span class="hl-var">$state</span> = <span class="hl-var">$manager</span>-><span class="hl-fn">state</span>();           <span class="hl-cmt">// WorkerState enum</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">state</span>()-><span class="hl-fn">canAcceptRequests</span>(); <span class="hl-cmt">// bool</span>
+<span class="hl-var">$manager</span>-><span class="hl-fn">state</span>()-><span class="hl-fn">shouldExit</span>();       <span class="hl-cmt">// bool</span></code></pre>
+
+    <!-- RestartSignal -->
+    <h2 id="restartsignal">RestartSignal</h2>
+    <p>File-based JSON signalling mechanism for cross-process communication. A monitoring process (or CLI command) can write a signal file, and the worker process reads it.</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\RestartSignal</span>;
+
+<span class="hl-var">$signal</span> = <span class="hl-kw">new</span> <span class="hl-cls">RestartSignal</span>(<span class="hl-str">'/tmp/razy-worker-signal.json'</span>);
+
+<span class="hl-cmt">// --- Sender side (CLI or monitoring process) ---</span>
+
+<span class="hl-var">$signal</span>-><span class="hl-fn">send</span>(<span class="hl-cls">RestartSignal</span>::ACTION_RESTART);
+<span class="hl-var">$signal</span>-><span class="hl-fn">send</span>(<span class="hl-cls">RestartSignal</span>::ACTION_SWAP);
+<span class="hl-var">$signal</span>-><span class="hl-fn">send</span>(<span class="hl-cls">RestartSignal</span>::ACTION_TERMINATE);
+
+<span class="hl-cmt">// --- Receiver side (worker process) ---</span>
+
+<span class="hl-var">$action</span> = <span class="hl-var">$signal</span>-><span class="hl-fn">check</span>();
+<span class="hl-cmt">// Returns: 'restart' | 'swap' | 'terminate' | null</span>
+
+<span class="hl-cmt">// Acknowledge and clear</span>
+<span class="hl-var">$signal</span>-><span class="hl-fn">clear</span>();
+
+<span class="hl-cmt">// Check if signal is stale (older than threshold)</span>
+<span class="hl-var">$isStale</span> = <span class="hl-var">$signal</span>-><span class="hl-fn">isStale</span>(seconds: <span class="hl-num">300</span>);</code></pre>
+
+    <h3>Signal File Format</h3>
+    <pre><code>{
+    <span class="hl-str">"action"</span>: <span class="hl-str">"restart"</span>,
+    <span class="hl-str">"timestamp"</span>: <span class="hl-num">1704067200</span>,
+    <span class="hl-str">"pid"</span>: <span class="hl-num">12345</span>
+}</code></pre>
+
+    <h3>Constants</h3>
+    <table>
+      <thead>
+        <tr><th>Constant</th><th>Value</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ACTION_RESTART</code></td><td><code>'restart'</code></td><td>Full process restart</td></tr>
+        <tr><td><code>ACTION_SWAP</code></td><td><code>'swap'</code></td><td>Hot-swap signal</td></tr>
+        <tr><td><code>ACTION_TERMINATE</code></td><td><code>'terminate'</code></td><td>Graceful shutdown</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ModuleChangeDetector -->
+    <h2 id="modulechangedetector">ModuleChangeDetector</h2>
+    <p>Monitors PHP files for changes using MD5 hashing. It uses <code>token_get_all()</code> to classify files as:</p>
+    <ul>
+      <li><strong>Named classes</strong> &mdash;normal class/interface/trait/enum definitions</li>
+      <li><strong>Anonymous classes</strong> &mdash;files containing anonymous classes (closures, factories)</li>
+      <li><strong>Config files</strong> &mdash;non-class PHP files</li>
+    </ul>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\ModuleChangeDetector</span>;
+
+<span class="hl-var">$detector</span> = <span class="hl-kw">new</span> <span class="hl-cls">ModuleChangeDetector</span>([
+    <span class="hl-str">'/var/www/app/src'</span>,
+    <span class="hl-str">'/var/www/app/config'</span>,
+]);
+
+<span class="hl-cmt">// Take initial snapshot (called during boot)</span>
+<span class="hl-var">$detector</span>-><span class="hl-fn">snapshot</span>();
+
+<span class="hl-cmt">// Detect changes in a specific path</span>
+<span class="hl-var">$changeType</span> = <span class="hl-var">$detector</span>-><span class="hl-fn">detect</span>(<span class="hl-str">'/var/www/app/src/Services/PaymentService.php'</span>);
+<span class="hl-cmt">// Returns: ChangeType enum</span>
+
+<span class="hl-cmt">// Detect all changes across all watched paths</span>
+<span class="hl-var">$changes</span> = <span class="hl-var">$detector</span>-><span class="hl-fn">detectAll</span>();
+<span class="hl-cmt">// Returns: array of ['path' => string, 'type' => ChangeType]</span>
+
+<span class="hl-cmt">// Get overall change severity</span>
+<span class="hl-var">$overall</span> = <span class="hl-var">$detector</span>-><span class="hl-fn">detectOverall</span>();
+<span class="hl-cmt">// Returns: ChangeType (highest severity across all changes)</span></code></pre>
+
+    <h3>Classification Logic</h3>
+    <table>
+      <thead>
+        <tr><th>Token Pattern</th><th>Classification</th><th>Change Severity</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>T_CLASS</code>, <code>T_INTERFACE</code>, <code>T_TRAIT</code>, <code>T_ENUM</code> with name</td><td>Named class file</td><td><code>ClassFile</code> (requires restart)</td></tr>
+        <tr><td><code>T_NEW</code> followed by <code>T_CLASS</code></td><td>Anonymous class file</td><td><code>Rebindable</code> (can hot-swap)</td></tr>
+        <tr><td>No class tokens</td><td>Config / script file</td><td><code>Config</code> (requires restart)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Severity Aggregation</h3>
+    <p>When <code>detectOverall()</code> finds multiple changes, it returns the <strong>highest</strong> severity:</p>
+    <pre><code><span class="hl-cmt">// If both a config file and a rebindable file changed:</span>
+<span class="hl-var">$overall</span> = <span class="hl-var">$detector</span>-><span class="hl-fn">detectOverall</span>();
+<span class="hl-cmt">// Returns ChangeType::Config (severity 2 > 1)</span></code></pre>
+
+    <!-- Integration Example -->
+    <h2 id="integration-example">Integration Example</h2>
+    <p>A complete Caddy worker-mode loop:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\WorkerLifecycleManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\RestartSignal</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\ModuleChangeDetector</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Container</span>;
+
+<span class="hl-cmt">// --- Bootstrap (runs once) ---</span>
+<span class="hl-var">$container</span> = <span class="hl-kw">new</span> <span class="hl-cls">Container</span>();
+<span class="hl-cmt">// ... register services ...</span>
+
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">WorkerLifecycleManager</span>(
+    container: <span class="hl-var">$container</span>,
+    detector: <span class="hl-kw">new</span> <span class="hl-cls">ModuleChangeDetector</span>([__DIR__ . <span class="hl-str">'/src'</span>, __DIR__ . <span class="hl-str">'/config'</span>]),
+    signal: <span class="hl-kw">new</span> <span class="hl-cls">RestartSignal</span>(<span class="hl-fn">sys_get_temp_dir</span>() . <span class="hl-str">'/razy-worker.json'</span>),
+    drainTimeout: <span class="hl-num">30</span>,
+    checkInterval: <span class="hl-num">5</span>
+);
+
+<span class="hl-var">$manager</span>-><span class="hl-fn">boot</span>();
+
+<span class="hl-cmt">// --- Request loop ---</span>
+<span class="hl-kw">while</span> (<span class="hl-var">$request</span> = <span class="hl-fn">waitForRequest</span>()) {  <span class="hl-cmt">// framework-specific</span>
+    <span class="hl-cmt">// Pre-flight check</span>
+    <span class="hl-var">$result</span> = <span class="hl-var">$manager</span>-><span class="hl-fn">checkForChanges</span>();
+    <span class="hl-kw">if</span> (<span class="hl-var">$result</span> === <span class="hl-str">'terminate'</span>) {
+        <span class="hl-kw">break</span>;
+    }
+    <span class="hl-kw">if</span> (!<span class="hl-var">$manager</span>-><span class="hl-fn">state</span>()-><span class="hl-fn">canAcceptRequests</span>()) {
+        <span class="hl-fn">respondWith503</span>(<span class="hl-var">$request</span>);
+        <span class="hl-kw">continue</span>;
+    }
+
+    <span class="hl-var">$manager</span>-><span class="hl-fn">requestStarted</span>();
+
+    <span class="hl-kw">try</span> {
+        <span class="hl-var">$response</span> = <span class="hl-fn">handleRequest</span>(<span class="hl-var">$request</span>, <span class="hl-var">$container</span>);
+        <span class="hl-fn">sendResponse</span>(<span class="hl-var">$response</span>);
+    } <span class="hl-kw">finally</span> {
+        <span class="hl-var">$manager</span>-><span class="hl-fn">requestFinished</span>();
+    }
+}
+
+<span class="hl-cmt">// Cleanup</span>
+<span class="hl-kw">exit</span>(<span class="hl-num">0</span>);</code></pre>
+
+    <h3>Monitoring Script (Separate Process)</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Worker\RestartSignal</span>;
+
+<span class="hl-var">$signal</span> = <span class="hl-kw">new</span> <span class="hl-cls">RestartSignal</span>(<span class="hl-fn">sys_get_temp_dir</span>() . <span class="hl-str">'/razy-worker.json'</span>);
+
+<span class="hl-cmt">// After deploying new code:</span>
+<span class="hl-var">$signal</span>-><span class="hl-fn">send</span>(<span class="hl-cls">RestartSignal</span>::ACTION_RESTART);
+<span class="hl-kw">echo</span> <span class="hl-str">"Restart signal sent.\n"</span>;
+
+<span class="hl-cmt">// For hot-swap of container bindings:</span>
+<span class="hl-var">$signal</span>-><span class="hl-fn">send</span>(<span class="hl-cls">RestartSignal</span>::ACTION_SWAP);
+<span class="hl-kw">echo</span> <span class="hl-str">"Swap signal sent.\n"</span>;</code></pre>
+
+    <!-- API Reference -->
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>WorkerState</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>canAcceptRequests()</code></td><td><code>bool</code></td><td><code>true</code> for <code>Booting</code> and <code>Ready</code></td></tr>
+        <tr><td><code>shouldExit()</code></td><td><code>bool</code></td><td><code>true</code> for <code>Draining</code> and <code>Terminated</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>ChangeType</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>requiresRestart()</code></td><td><code>bool</code></td><td><code>true</code> for <code>Config</code> and <code>ClassFile</code></td></tr>
+        <tr><td><code>canHotSwap()</code></td><td><code>bool</code></td><td><code>true</code> for <code>Rebindable</code></td></tr>
+        <tr><td><code>canRebind()</code></td><td><code>bool</code></td><td><code>true</code> for <code>Rebindable</code></td></tr>
+        <tr><td><code>severity()</code></td><td><code>int</code></td><td><code>None=0, Rebindable=1, Config=2, ClassFile=3</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>WorkerLifecycleManager</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(Container, ModuleChangeDetector, RestartSignal, int $drainTimeout = 30, int $checkInterval = 5)</code></td><td>Create manager</td></tr>
+        <tr><td><code>boot</code></td><td><code>(): void</code></td><td>Snapshot files, transition to Ready</td></tr>
+        <tr><td><code>checkForChanges</code></td><td><code>(): string</code></td><td>Returns <code>'continue'|'restart'|'rebound'|'swapped'|'draining'|'terminate'</code></td></tr>
+        <tr><td><code>requestStarted</code></td><td><code>(): void</code></td><td>Increment inflight counter</td></tr>
+        <tr><td><code>requestFinished</code></td><td><code>(): void</code></td><td>Decrement inflight counter</td></tr>
+        <tr><td><code>inflight</code></td><td><code>(): int</code></td><td>Current inflight count</td></tr>
+        <tr><td><code>beginDrain</code></td><td><code>(): void</code></td><td>Transition to Draining state</td></tr>
+        <tr><td><code>state</code></td><td><code>(): WorkerState</code></td><td>Current lifecycle state</td></tr>
+      </tbody>
+    </table>
+
+    <h3>RestartSignal</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(string $filePath)</code></td><td>Signal file path</td></tr>
+        <tr><td><code>check</code></td><td><code>(): ?string</code></td><td>Read signal action or <code>null</code></td></tr>
+        <tr><td><code>send</code></td><td><code>(string $action): void</code></td><td>Write signal file</td></tr>
+        <tr><td><code>clear</code></td><td><code>(): void</code></td><td>Delete signal file</td></tr>
+        <tr><td><code>isStale</code></td><td><code>(int $seconds = 300): bool</code></td><td>Check if signal is outdated</td></tr>
+      </tbody>
+    </table>
+
+    <h3>ModuleChangeDetector</h3>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(array $watchPaths)</code></td><td>Paths to monitor</td></tr>
+        <tr><td><code>snapshot</code></td><td><code>(): void</code></td><td>Record current file hashes</td></tr>
+        <tr><td><code>detect</code></td><td><code>(string $path): ChangeType</code></td><td>Detect change in one file</td></tr>
+        <tr><td><code>detectAll</code></td><td><code>(): array</code></td><td>All changes as <code>[path, type]</code> pairs</td></tr>
+        <tr><td><code>detectOverall</code></td><td><code>(): ChangeType</code></td><td>Highest severity change</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="thread.html"><span class="label">&larr; Previous</span><span class="title">Thread &amp; ThreadManager</span></a>
+      <a href="simple-syntax.html" class="next"><span class="label">Next &rarr;</span><span class="title">Simple Syntax</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

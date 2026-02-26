@@ -1,25 +1,37 @@
 <?php
 /**
- * This file is part of Razy v0.5.
+ * CLI Command: help
  *
- * (c) Ray Fung <hello@rayfung.hk>
+ * Displays the main help page listing all available Razy CLI commands,
+ * their descriptions, and supported global options.
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * Usage:
+ *   php Razy.phar help
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
 return function () {
+    // Output usage synopsis and all available commands with descriptions
     $this->writeLineLogging('Usage: php Razy.phar [options] [args...]' . PHP_EOL);
-    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'build', 'Build the Razy environment in specified location.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'build', 'Build the Razy environment in specified location (e.g., build .).'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'cache', 'Manage the cache system (clear, gc, stats, status).'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'help', 'This help.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'fix', 'Fix the sites configuration and .htaccess routing.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'man', 'Read the command user manual.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'run', 'Run the specified script by the hostname and its path, like route.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'runapp', 'Interactive shell for a distributor (no sites.inc.php needed).'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'version', 'Razy version.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'update', 'Update the Razy.phar to latest stable version.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'compose', 'Compose the specified distributor, install the required library from composer.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'install', 'Download and install modules from GitHub repositories.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'inspect', 'Inspect distributor configuration, domains, and modules.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'scaffold', 'Generate a complete module skeleton from one command.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'standalone', 'Scaffold a standalone (lite) application with ultra-flat structure.'));
+    $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'generate-skills', 'Generate skills.md files for framework and modules.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'query', 'Query the return the result by the FQDN.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'set', 'Create or update the site.'));
     $this->writeLineLogging(sprintf('  {@c:green}%-14s{@reset} %s', 'remove', 'Remove the specified site.'));

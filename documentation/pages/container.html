@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DI Container &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">â­?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>DI Container</h1>
+    <p>Razy includes a full-featured <strong>dependency injection container</strong> with auto-wiring, scoped/contextual bindings, tags, extenders, resolving hooks, rebind support, and PSR-11 compliance. It manages service lifecycles (transient, singleton, scoped, instance) and provides hierarchical parent/child isolation for the module system.</p>
+
+    <h2 id="table-of-contents">Table of Contents</h2>
+    <ul>
+      <li><a href="#psr-11-compliance">PSR-11 Compliance</a></li>
+      <li><a href="#binding-services">Binding Services</a>
+        <ul>
+          <li><a href="#transient-binding">Transient Binding</a></li>
+          <li><a href="#singleton-binding">Singleton Binding</a></li>
+          <li><a href="#scoped-binding">Scoped Binding</a></li>
+          <li><a href="#instance-registration">Instance Registration</a></li>
+          <li><a href="#conditional-binding">Conditional Binding</a></li>
+          <li><a href="#aliases">Aliases</a></li>
+        </ul>
+      </li>
+      <li><a href="#resolving-services">Resolving Services</a></li>
+      <li><a href="#auto-wiring">Auto-Wiring</a></li>
+      <li><a href="#contextual-binding">Contextual Binding</a></li>
+      <li><a href="#tagged-bindings">Tagged Bindings</a></li>
+      <li><a href="#extenders">Extenders (Decorator Pattern)</a></li>
+      <li><a href="#resolving-hooks">Resolving Hooks</a></li>
+      <li><a href="#method-injection">Method Injection (call)</a></li>
+      <li><a href="#factory-closures">Factory Closures</a></li>
+      <li><a href="#rebinding">Rebinding (Hot-Swap)</a></li>
+      <li><a href="#parent-child-container-hierarchy">Parent/Child Container Hierarchy</a></li>
+      <li><a href="#framework-integration">Framework Integration</a></li>
+      <li><a href="#lifecycle-management">Lifecycle Management</a></li>
+      <li><a href="#exception-handling">Exception Handling</a></li>
+      <li><a href="#complete-api-reference">Complete API Reference</a></li>
+    </ul>
+
+    <hr>
+
+    <h2 id="psr-11-compliance">PSR-11 Compliance</h2>
+    <p>The Container implements PSR-11 compatible interfaces without requiring <code>psr/container</code> as a Composer dependency. Razy defines its own matching interfaces:</p>
+    <pre><code>PsrContainerInterface              &#x2502; get(), has()
+  &#x251C;&#x2500;&#x2500;ContainerInterface            &#x2502; bind(), singleton(), scoped(), instance(), make(), tag(), ...
+        &#x251C;&#x2500;&#x2500;Container (concrete)</code></pre>
+
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Contract\Container\PsrContainerInterface</span>;
+
+<span class="hl-cmt">// PsrContainerInterface defines:</span>
+<span class="hl-cmt">//   get(string $id): mixed</span>
+<span class="hl-cmt">//   has(string $id): bool</span>
+
+<span class="hl-cmt">// ContainerInterface extends with:</span>
+<span class="hl-cmt">//   bind(), singleton(), scoped(), instance(), make(),</span>
+<span class="hl-cmt">//   tag(), tagged(), when(), alias(), factory(), ...</span></code></pre>
+
+    <hr>
+
+    <h2 id="binding-services">Binding Services</h2>
+
+    <h3 id="transient-binding">Transient Binding</h3>
+    <p>A <strong>new instance</strong> is created on every <code>make()</code> / <code>get()</code> call:</p>
+    <pre><code><span class="hl-cmt">// Explicit factory</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">bind</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">MyService</span>(<span class="hl-var">$c</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">Config</span>::<span class="hl-kw">class</span>));
+});
+
+<span class="hl-cmt">// Auto-wiring singleton (Container resolves deps automatically)</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Concrete-to-concrete (must satisfy instanceof / LSP)</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">bind</span>(<span class="hl-cls">LoggerInterface</span>::<span class="hl-kw">class</span>, <span class="hl-cls">FileLogger</span>::<span class="hl-kw">class</span>);</code></pre>
+
+    <h3 id="singleton-binding">Singleton Binding</h3>
+    <p>A <strong>shared instance</strong> &mdash;created on first access, reused for all subsequent calls:</p>
+    <pre><code><span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">DatabasePool</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> () {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">DatabasePool</span>([<span class="hl-str">'host'</span> =&gt; <span class="hl-str">'localhost'</span>]);
+});
+
+<span class="hl-cmt">// Auto-wired singleton</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>);</code></pre>
+
+    <h3 id="scoped-binding">Scoped Binding</h3>
+    <p>A <strong>request-scoped singleton</strong> &mdash;shared within a single request scope, cleared between requests via <code>forgetScopedInstances()</code>. Designed for <strong>worker mode</strong> (Caddy, Swoole, RoadRunner):</p>
+    <pre><code><span class="hl-var">$container</span>-&gt;<span class="hl-fn">scoped</span>(<span class="hl-cls">RequestContext</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> () {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">RequestContext</span>(<span class="hl-var">$_SERVER</span>);
+});
+
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">scoped</span>(<span class="hl-cls">UserSession</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Between requests in worker mode:</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">forgetScopedInstances</span>(); <span class="hl-cmt">// clears scoped caches, not definitions</span></code></pre>
+
+    <p><strong>Lifecycle comparison:</strong></p>
+    <pre><code>              PHP-FPM (per-request)        Worker Mode (persistent)
+              ?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?       ?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?ï¿?Transient     New every make()             New every make()
+Singleton     Created once, reused         Created once, lives forever
+Scoped        &#x2502; Singleton (same effect)    Created once per request,
+                                           cleared by forgetScopedInstances()
+Instance      Pre-built object             Pre-built object</code></pre>
+
+    <h3 id="instance-registration">Instance Registration</h3>
+    <p>Register an already-existing object directly:</p>
+    <pre><code><span class="hl-var">$container</span>-&gt;<span class="hl-fn">instance</span>(<span class="hl-cls">ContainerInterface</span>::<span class="hl-kw">class</span>, <span class="hl-var">$container</span>);
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">instance</span>(<span class="hl-str">'config'</span>, <span class="hl-var">$configObject</span>);</code></pre>
+
+    <h3 id="conditional-binding">Conditional Binding</h3>
+    <p>Register only if the abstract is not already bound &#x2502; prevents accidental overrides:</p>
+    <pre><code><span class="hl-var">$container</span>-&gt;<span class="hl-fn">bindIf</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>, <span class="hl-cls">ConcreteImpl</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singletonIf</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">scopedIf</span>(<span class="hl-cls">RequestContext</span>::<span class="hl-kw">class</span>);</code></pre>
+
+    <h3 id="aliases">Aliases</h3>
+    <p>Map a short name to an existing abstract binding. Alias chains are resolved up to 10 levels deep:</p>
+    <pre><code><span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">alias</span>(<span class="hl-str">'cache'</span>, <span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-var">$cache</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'cache'</span>); <span class="hl-cmt">// resolves CacheService singleton</span></code></pre>
+
+    <hr>
+
+    <h2 id="resolving-services">Resolving Services</h2>
+
+    <h3>make() &mdash;Resolve with Parameters</h3>
+    <pre><code><span class="hl-cmt">// Auto-wired resolution</span>
+<span class="hl-var">$service</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">UserRepository</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// With explicit constructor parameters</span>
+<span class="hl-var">$service</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">UserRepository</span>::<span class="hl-kw">class</span>, [
+    <span class="hl-str">'tableName'</span> =&gt; <span class="hl-str">'users'</span>,
+]);</code></pre>
+
+    <p><strong>Resolution order in <code>make()</code>:</strong></p>
+    <pre><code>1. Resolve alias chain (up to 10 levels)
+2. Return cached singleton/scoped instance (if exists)
+3. Delegate to parent container (if no local binding and parent has it)
+4. Circular dependency check (throws ContainerException)
+5. Fire beforeResolving hooks
+6. Build instance (factory closure or auto-wire)
+7. Apply extenders (decorator chain)
+8. Cache instance (if shared: singleton/scoped)
+9. Fire resolving hooks
+10. Fire afterResolving hooks
+11. Return instance</code></pre>
+
+    <h3>get() &mdash;PSR-11 Resolve</h3>
+    <pre><code><span class="hl-var">$service</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-cls">UserRepository</span>::<span class="hl-kw">class</span>);
+<span class="hl-cmt">// Throws ContainerNotFoundException if not bound</span></code></pre>
+
+    <h3>has() &mdash;PSR-11 Check</h3>
+    <pre><code><span class="hl-kw">if</span> (<span class="hl-var">$container</span>-&gt;<span class="hl-fn">has</span>(<span class="hl-cls">UserRepository</span>::<span class="hl-kw">class</span>)) {
+    <span class="hl-var">$repo</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-cls">UserRepository</span>::<span class="hl-kw">class</span>);
+}</code></pre>
+
+    <h3>bound() &mdash;Local Check Only</h3>
+    <pre><code><span class="hl-cmt">// Checks local bindings/instances only (no parent, no auto-wire)</span>
+<span class="hl-kw">if</span> (<span class="hl-var">$container</span>-&gt;<span class="hl-fn">bound</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>)) {
+    <span class="hl-cmt">// ...</span>
+}</code></pre>
+
+    <hr>
+
+    <h2 id="auto-wiring">Auto-Wiring</h2>
+    <p>The Container automatically resolves constructor dependencies using PHP reflection. For each constructor parameter, the resolution order is:</p>
+    <pre><code>1. Explicit $params (by name)
+2. Contextual binding (when/needs/give)
+3. Global make() resolution (type-hint)
+4. Default value
+5. Nullable &#x2502; null
+6. Throw ContainerException</code></pre>
+
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">UserService</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(
+        <span class="hl-kw">private</span> <span class="hl-cls">UserRepository</span> <span class="hl-var">$repo</span>,    <span class="hl-cmt">// Auto-resolved via make()</span>
+        <span class="hl-kw">private</span> <span class="hl-cls">CacheService</span> <span class="hl-var">$cache</span>,     <span class="hl-cmt">// Auto-resolved via make()</span>
+        <span class="hl-kw">private</span> <span class="hl-cls">string</span> <span class="hl-var">$prefix</span> = <span class="hl-str">'usr'</span>   <span class="hl-cmt">// Uses default value</span>
+    ) {}
+}
+
+<span class="hl-cmt">// Container resolves UserRepository and CacheService automatically</span>
+<span class="hl-var">$service</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>);</code></pre>
+
+    <div class="callout callout-warning"><strong>Warning:</strong> Circular dependencies are detected and throw a <code>ContainerException</code>.</div>
+
+    <hr>
+
+    <h2 id="contextual-binding">Contextual Binding</h2>
+    <p>Contextual bindings let you provide <strong>different implementations</strong> of the same interface depending on <strong>which class is consuming it</strong>:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ContextualBindingBuilder</span>;
+
+<span class="hl-cmt">// When UserService needs LoggerInterface, give FileLogger</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">when</span>(<span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>)
+    -&gt;<span class="hl-fn">needs</span>(<span class="hl-cls">LoggerInterface</span>::<span class="hl-kw">class</span>)
+    -&gt;<span class="hl-fn">give</span>(<span class="hl-cls">FileLogger</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// When PaymentService needs LoggerInterface, give DatabaseLogger</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">when</span>(<span class="hl-cls">PaymentService</span>::<span class="hl-kw">class</span>)
+    -&gt;<span class="hl-fn">needs</span>(<span class="hl-cls">LoggerInterface</span>::<span class="hl-kw">class</span>)
+    -&gt;<span class="hl-fn">give</span>(<span class="hl-cls">DatabaseLogger</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// With factory closure</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">when</span>(<span class="hl-cls">ReportService</span>::<span class="hl-kw">class</span>)
+    -&gt;<span class="hl-fn">needs</span>(<span class="hl-cls">LoggerInterface</span>::<span class="hl-kw">class</span>)
+    -&gt;<span class="hl-fn">give</span>(<span class="hl-kw">function</span> (<span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+        <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">FileLogger</span>(<span class="hl-str">'/var/log/reports.log'</span>);
+    });</code></pre>
+
+    <p><strong>How it works:</strong> During auto-wiring, the Container checks <code>contextualBindings[consumer][abstract]</code> before falling back to the global binding. This is resolved per-parameter during constructor injection.</p>
+    <pre><code><span class="hl-cmt">// Direct registration (equivalent to fluent API)</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">addContextualBinding</span>(
+    <span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>,        <span class="hl-cmt">// consumer</span>
+    <span class="hl-cls">LoggerInterface</span>::<span class="hl-kw">class</span>,    <span class="hl-cmt">// abstract needed</span>
+    <span class="hl-cls">FileLogger</span>::<span class="hl-kw">class</span>          <span class="hl-cmt">// concrete to give</span>
+);
+
+<span class="hl-cmt">// Check if a contextual binding exists</span>
+<span class="hl-var">$binding</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">getContextualBinding</span>(
+    <span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>,
+    <span class="hl-cls">LoggerInterface</span>::<span class="hl-kw">class</span>
+); <span class="hl-cmt">// returns FileLogger::class or null</span></code></pre>
+
+    <hr>
+
+    <h2 id="tagged-bindings">Tagged Bindings</h2>
+    <p>Group related services under a tag name and resolve them all at once:</p>
+    <pre><code><span class="hl-cmt">// Register services</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">FileLogger</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">DatabaseLogger</span>::<span class="hl-kw">class</span>);
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">StderrLogger</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Tag them</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">tag</span>([
+    <span class="hl-cls">FileLogger</span>::<span class="hl-kw">class</span>,
+    <span class="hl-cls">DatabaseLogger</span>::<span class="hl-kw">class</span>,
+    <span class="hl-cls">StderrLogger</span>::<span class="hl-kw">class</span>,
+], <span class="hl-str">'loggers'</span>);
+
+<span class="hl-cmt">// Resolve all tagged services</span>
+<span class="hl-var">$loggers</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">tagged</span>(<span class="hl-str">'loggers'</span>);
+<span class="hl-cmt">// Returns [FileLogger, DatabaseLogger, StderrLogger] instances</span>
+
+<span class="hl-cmt">// Use case: aggregate pattern</span>
+<span class="hl-kw">class</span> <span class="hl-cls">LogAggregator</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(<span class="hl-kw">private</span> <span class="hl-cls">array</span> <span class="hl-var">$loggers</span>) {}
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">logToAll</span>(<span class="hl-cls">string</span> <span class="hl-var">$message</span>): <span class="hl-cls">void</span> {
+        <span class="hl-kw">foreach</span> (<span class="hl-var">$this</span>-&gt;loggers <span class="hl-kw">as</span> <span class="hl-var">$logger</span>) {
+            <span class="hl-var">$logger</span>-&gt;<span class="hl-fn">log</span>(<span class="hl-var">$message</span>);
+        }
+    }
+}
+
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">LogAggregator</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">LogAggregator</span>(<span class="hl-var">$c</span>-&gt;<span class="hl-fn">tagged</span>(<span class="hl-str">'loggers'</span>));
+});</code></pre>
+
+    <hr>
+
+    <h2 id="extenders">Extenders (Decorator Pattern)</h2>
+    <p>Extenders wrap resolved instances with additional behavior. Multiple extenders are applied in registration order:</p>
+    <pre><code><span class="hl-cmt">// Add logging decorator to any CacheService resolution</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">extend</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">object</span> <span class="hl-var">$cache</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">LoggingCacheDecorator</span>(<span class="hl-var">$cache</span>, <span class="hl-var">$c</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">Logger</span>::<span class="hl-kw">class</span>));
+});
+
+<span class="hl-cmt">// Add metrics on top</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">extend</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">object</span> <span class="hl-var">$cache</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">MetricsCacheDecorator</span>(<span class="hl-var">$cache</span>);
+});
+
+<span class="hl-cmt">// Resolution: CacheService &#x2502; LoggingCacheDecorator &#x2502; MetricsCacheDecorator</span>
+<span class="hl-var">$cache</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>);</code></pre>
+
+    <div class="callout callout-info"><strong>Note:</strong> If <code>extend()</code> is called on a singleton that's <strong>already cached</strong>, the extender is applied immediately and the cache is updated in-place. Otherwise, the extender is queued for the next resolution.</div>
+
+    <hr>
+
+    <h2 id="resolving-hooks">Resolving Hooks</h2>
+    <p>Three lifecycle hooks fire during resolution. Each supports <strong>type-specific</strong> (by class name) and <strong>global</strong> (wildcard <code>*</code>) callbacks:</p>
+    <pre><code><span class="hl-cmt">// Before resolving &#x2502; fires before the instance is built</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">beforeResolving</span>(<span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">string</span> <span class="hl-var">$abstract</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"About to resolve: {<span class="hl-var">$abstract</span>}\n"</span>;
+});
+
+<span class="hl-cmt">// During resolving &#x2502; fires after build + extenders, before afterResolving</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">resolving</span>(<span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">object</span> <span class="hl-var">$instance</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-cmt">// Inject runtime config, set up listeners, etc.</span>
+    <span class="hl-var">$instance</span>-&gt;<span class="hl-fn">setDebugMode</span>(<span class="hl-kw">true</span>);
+});
+
+<span class="hl-cmt">// After resolving &#x2502; fires last, good for audit or logging</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">afterResolving</span>(<span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">object</span> <span class="hl-var">$instance</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-var">$c</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">Logger</span>::<span class="hl-kw">class</span>)-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Resolved: '</span> . <span class="hl-fn">get_class</span>(<span class="hl-var">$instance</span>));
+});
+
+<span class="hl-cmt">// Global hooks (fire for ALL resolutions)</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">beforeResolving</span>(<span class="hl-kw">function</span> (<span class="hl-cls">string</span> <span class="hl-var">$abstract</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-cmt">// Fires for every make() call</span>
+});
+
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">resolving</span>(<span class="hl-kw">function</span> (<span class="hl-cls">object</span> <span class="hl-var">$instance</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-cmt">// Post-build hook for every instance</span>
+});</code></pre>
+
+    <p><strong>Execution order:</strong></p>
+    <pre><code>beforeResolving (type-specific) &#x2502; beforeResolving (global *)
+    &#x2502; build() &#x2502; extenders
+        &#x2502; resolving (type-specific) &#x2502; resolving (global *)
+            &#x2502; afterResolving (type-specific) &#x2502; afterResolving (global *)</code></pre>
+
+    <hr>
+
+    <h2 id="method-injection">Method Injection</h2>
+    <p>The <code>call()</code> method invokes any callable with auto-resolved parameters:</p>
+    <pre><code><span class="hl-cmt">// Closure</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">call</span>(<span class="hl-kw">function</span> (<span class="hl-cls">UserRepository</span> <span class="hl-var">$repo</span>, <span class="hl-cls">CacheService</span> <span class="hl-var">$cache</span>) {
+    <span class="hl-kw">return</span> <span class="hl-var">$repo</span>-&gt;<span class="hl-fn">findAll</span>();
+});
+
+<span class="hl-cmt">// Instance method</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">call</span>([<span class="hl-var">$controller</span>, <span class="hl-str">'handleRequest'</span>]);
+
+<span class="hl-cmt">// Static method</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">call</span>([<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>, <span class="hl-str">'staticMethod'</span>]);
+
+<span class="hl-cmt">// Invokable object</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">call</span>(<span class="hl-var">$invokable</span>);
+
+<span class="hl-cmt">// With explicit overrides</span>
+<span class="hl-var">$result</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">call</span>(<span class="hl-kw">function</span> (<span class="hl-cls">UserRepository</span> <span class="hl-var">$repo</span>, <span class="hl-cls">string</span> <span class="hl-var">$role</span>) {
+    <span class="hl-kw">return</span> <span class="hl-var">$repo</span>-&gt;<span class="hl-fn">findByRole</span>(<span class="hl-var">$role</span>);
+}, [<span class="hl-str">'role'</span> =&gt; <span class="hl-str">'admin'</span>]);</code></pre>
+
+    <p><strong>Parameter resolution order per argument:</strong></p>
+    <pre><code>1. Explicit $params (by name)
+2. Type-hint resolution via make()
+3. Default value
+4. Nullable &#x2502; null
+5. Throw ContainerException</code></pre>
+
+    <hr>
+
+    <h2 id="factory-closures">Factory Closures</h2>
+    <p>Get a reusable factory closure that produces instances on demand:</p>
+    <pre><code><span class="hl-var">$factory</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">factory</span>(<span class="hl-cls">UserService</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Each call creates (or returns cached) instance</span>
+<span class="hl-var">$service1</span> = <span class="hl-var">$factory</span>();
+<span class="hl-var">$service2</span> = <span class="hl-var">$factory</span>();
+
+<span class="hl-cmt">// Transient binding: $service1 !== $service2</span>
+<span class="hl-cmt">// Singleton binding: $service1 === $service2</span></code></pre>
+
+    <hr>
+
+    <h2 id="rebinding">Rebinding (Hot-Swap)</h2>
+    <p>Atomically replace a binding at runtime and notify interested parties. Designed for <strong>worker mode hot-reload</strong>:</p>
+    <pre><code><span class="hl-cmt">// Register a callback when a binding changes</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">onRebind</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> (<span class="hl-cls">string</span> <span class="hl-var">$abstract</span>, ?<span class="hl-cls">object</span> <span class="hl-var">$old</span>, <span class="hl-cls">Container</span> <span class="hl-var">$c</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-str">"CacheService was replaced!\n"</span>;
+    <span class="hl-cmt">// $old is the previous cached instance (if any)</span>
+});
+
+<span class="hl-cmt">// Replace the binding &#x2502; fires onRebind callbacks, returns old cached instance</span>
+<span class="hl-var">$oldInstance</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">rebind</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>, <span class="hl-kw">function</span> () {
+    <span class="hl-kw">return</span> <span class="hl-kw">new</span> <span class="hl-cls">RedisCacheService</span>();
+});
+
+<span class="hl-cmt">// Track rebind statistics (for worker stability monitoring)</span>
+<span class="hl-var">$count</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">getRebindCount</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>); <span class="hl-cmt">// per-abstract count</span>
+<span class="hl-var">$total</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">getTotalRebindCount</span>();                <span class="hl-cmt">// sum of all</span>
+<span class="hl-var">$shouldRestart</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">exceedsRebindThreshold</span>();     <span class="hl-cmt">// &gt;= 50 by default</span>
+
+<span class="hl-cmt">// Configure threshold (PHP class table bloat detection)</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">setMaxRebindsBeforeRestart</span>(<span class="hl-num">100</span>);</code></pre>
+
+    <div class="callout callout-info"><strong>Note:</strong> Rebind counts intentionally survive <code>reset()</code> to track cumulative class table bloat across the worker process lifetime. When <code>exceedsRebindThreshold()</code> returns <code>true</code>, a graceful worker restart is recommended.</div>
+
+    <hr>
+
+    <h2 id="parent-child-container-hierarchy">Parent/Child Container Hierarchy</h2>
+    <p>Razy uses a hierarchical container architecture. Each module receives its own <strong>child container</strong> that delegates to the <strong>Application container</strong> (parent) for unresolved bindings:</p>
+    <pre><code>&#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+&#x2502;           Application Container              &#x2502; Root: core services
+&#x2502; (ContainerInterface, PluginManager, ...)     &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x252C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x252C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502; Module A &#x2502; Module B &#x2502; Module C             &#x2502; Child containers
+&#x2502; Container&#x2502; Container&#x2502; Container            &#x2502;
+&#x2502;          &#x2502;          &#x2502;                      &#x2502;
+&#x2502; Local    &#x2502; Local    &#x2502; Local bindings       &#x2502;
+&#x2502; bindings &#x2502; bindings &#x2502; (isolated per module)&#x2502;
+&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2534;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2534;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</code></pre>
+
+    <p><strong>Resolution priority chain:</strong></p>
+    <pre><code>1. Instance (pre-built object)
+2. Contextual Binding (when/needs/give for the consumer)
+3. Local Binding (module's own container)
+4. Parent Container (Application container)
+5. Auto-wire (reflection-based construction)</code></pre>
+
+    <p><strong>Creating child containers:</strong></p>
+    <pre><code><span class="hl-cmt">// No createChild() method &#x2502; instantiate directly with parent reference</span>
+<span class="hl-var">$child</span> = <span class="hl-kw">new</span> <span class="hl-cls">Container</span>(<span class="hl-var">$parentContainer</span>);
+
+<span class="hl-cmt">// Child inherits parent bindings but can override locally</span>
+<span class="hl-var">$child</span>-&gt;<span class="hl-fn">singleton</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>, <span class="hl-cls">CustomImpl</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Resolution: child first &#x2502; parent fallback</span>
+<span class="hl-var">$service</span> = <span class="hl-var">$child</span>-&gt;<span class="hl-fn">make</span>(<span class="hl-cls">SomeService</span>::<span class="hl-kw">class</span>);
+<span class="hl-cmt">// If not bound in child, delegates to parent</span></code></pre>
+
+    <p><strong>Module integration</strong> (<code>Module::initializeContainer()</code>):</p>
+    <pre><code><span class="hl-cmt">// Inside Module class (framework-internal)</span>
+<span class="hl-kw">private function</span> <span class="hl-fn">initializeContainer</span>(): <span class="hl-cls">void</span> {
+    <span class="hl-var">$parentContainer</span> = <span class="hl-var">$this</span>-&gt;distributor-&gt;<span class="hl-fn">getContainer</span>();
+    <span class="hl-var">$this</span>-&gt;container = <span class="hl-kw">new</span> <span class="hl-cls">Container</span>(<span class="hl-var">$parentContainer</span>);
+
+    <span class="hl-cmt">// Auto-bind ModuleInfo for this module</span>
+    <span class="hl-var">$this</span>-&gt;container-&gt;<span class="hl-fn">bind</span>(<span class="hl-cls">ModuleInfo</span>::<span class="hl-kw">class</span>, <span class="hl-kw">fn</span>() =&gt; <span class="hl-var">$this</span>-&gt;moduleInfo);
+
+    <span class="hl-cmt">// Load services from package.php 'services' key</span>
+    <span class="hl-kw">foreach</span> (<span class="hl-var">$this</span>-&gt;package[<span class="hl-str">'services'</span>] ?? [] <span class="hl-kw">as</span> <span class="hl-var">$abstract</span> =&gt; <span class="hl-var">$config</span>) {
+        <span class="hl-cmt">// Register each service binding...</span>
+    }
+}</code></pre>
+
+    <hr>
+
+    <h2 id="framework-integration">Framework Integration</h2>
+
+    <h3>Application Level</h3>
+    <p>The Application creates the root Container and registers core framework services:</p>
+    <pre><code><span class="hl-var">$app</span> = <span class="hl-kw">new</span> <span class="hl-cls">Application</span>();
+<span class="hl-var">$container</span> = <span class="hl-var">$app</span>-&gt;<span class="hl-fn">getContainer</span>();
+
+<span class="hl-cmt">// Pre-registered services:</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-cls">ContainerInterface</span>::<span class="hl-kw">class</span>);  <span class="hl-cmt">// Container itself</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-cls">PluginManager</span>::<span class="hl-kw">class</span>);       <span class="hl-cmt">// Singleton</span></code></pre>
+
+    <h3>Distributor Level</h3>
+    <p>Each Distributor receives the Container and registers itself:</p>
+    <pre><code><span class="hl-var">$distributor</span> = <span class="hl-var">$app</span>-&gt;<span class="hl-fn">getDistributor</span>();
+<span class="hl-var">$container</span> = <span class="hl-var">$distributor</span>-&gt;<span class="hl-fn">getContainer</span>();</code></pre>
+
+    <h3>Module Level &#x2502; package.php Services</h3>
+    <p>Define services in your module's <code>package.php</code> to auto-register them in the module's child container:</p>
+    <pre><code><span class="hl-cmt">// package.php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'name'</span> =&gt; <span class="hl-str">'vendor/my-module'</span>,
+    <span class="hl-str">'services'</span> =&gt; [
+        <span class="hl-cls">PaymentGateway</span>::<span class="hl-kw">class</span> =&gt; [
+            <span class="hl-str">'type'</span> =&gt; <span class="hl-str">'singleton'</span>,
+            <span class="hl-str">'concrete'</span> =&gt; <span class="hl-cls">StripeGateway</span>::<span class="hl-kw">class</span>,
+        ],
+        <span class="hl-cls">ReportGenerator</span>::<span class="hl-kw">class</span> =&gt; [
+            <span class="hl-str">'type'</span> =&gt; <span class="hl-str">'transient'</span>,
+        ],
+    ],
+];</code></pre>
+
+    <h3>Controller Level</h3>
+    <p>Controllers access the Container via convenience methods:</p>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">MyController</span> <span class="hl-kw">extends</span> <span class="hl-cls">Controller</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span> {
+        <span class="hl-cmt">// Resolve a service</span>
+        <span class="hl-var">$service</span> = <span class="hl-var">$this</span>-&gt;<span class="hl-fn">resolve</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>);
+
+        <span class="hl-cmt">// Check availability</span>
+        <span class="hl-kw">if</span> (<span class="hl-var">$this</span>-&gt;<span class="hl-fn">hasService</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>)) {
+            <span class="hl-var">$cache</span> = <span class="hl-var">$this</span>-&gt;<span class="hl-fn">resolve</span>(<span class="hl-cls">CacheService</span>::<span class="hl-kw">class</span>);
+        }
+
+        <span class="hl-kw">return</span> <span class="hl-kw">true</span>;
+    }
+}</code></pre>
+
+    <hr>
+
+    <h2 id="lifecycle-management">Lifecycle Management</h2>
+    <pre><code><span class="hl-cmt">// Forget scoped instances between requests (worker mode)</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">forgetScopedInstances</span>();
+
+<span class="hl-cmt">// Forget a specific binding</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">forget</span>(<span class="hl-cls">MyService</span>::<span class="hl-kw">class</span>);
+
+<span class="hl-cmt">// Reset everything (bindings, instances, aliases, tags, hooks, extenders)</span>
+<span class="hl-cmt">// Note: rebindCounts are preserved for class-table bloat detection</span>
+<span class="hl-var">$container</span>-&gt;<span class="hl-fn">reset</span>();
+
+<span class="hl-cmt">// Inspect current bindings</span>
+<span class="hl-var">$bindings</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">getBindings</span>(); <span class="hl-cmt">// string[] of registered abstract names</span></code></pre>
+
+    <hr>
+
+    <h2 id="exception-handling">Exception Handling</h2>
+    <p>The Container uses PSR-11 compliant exceptions:</p>
+
+    <table>
+      <thead><tr><th>Exception</th><th>When</th><th>Interface</th></tr></thead>
+      <tbody>
+        <tr><td><code>ContainerNotFoundException</code></td><td><code>get()</code> called for an unbound service</td><td><code>NotFoundExceptionInterface</code></td></tr>
+        <tr><td><code>ContainerException</code></td><td>Circular dependency, resolution failure, invalid callable</td><td><code>ContainerExceptionInterface</code></td></tr>
+      </tbody>
+    </table>
+
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ContainerException</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Exception\ContainerNotFoundException</span>;
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$service</span> = <span class="hl-var">$container</span>-&gt;<span class="hl-fn">get</span>(<span class="hl-str">'unknown.service'</span>);
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ContainerNotFoundException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Service not found</span>
+} <span class="hl-kw">catch</span> (<span class="hl-cls">ContainerException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-cmt">// Circular dependency or build failure</span>
+}</code></pre>
+
+    <hr>
+
+    <h2 id="complete-api-reference">Complete API Reference</h2>
+
+    <h3>Registration</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>bind(string $abstract, string|Closure $concrete)</code></td><td>Transient binding</td></tr>
+        <tr><td><code>bindIf(string $abstract, string|Closure $concrete)</code></td><td>Bind only if not already bound</td></tr>
+        <tr><td><code>singleton(string $abstract, string|Closure|null $concrete = null)</code></td><td>Shared singleton</td></tr>
+        <tr><td><code>singletonIf(string $abstract, string|Closure|null $concrete = null)</code></td><td>Singleton if not bound</td></tr>
+        <tr><td><code>scoped(string $abstract, string|Closure|null $concrete = null)</code></td><td>Request-scoped singleton</td></tr>
+        <tr><td><code>scopedIf(string $abstract, string|Closure|null $concrete = null)</code></td><td>Scoped if not bound</td></tr>
+        <tr><td><code>instance(string $abstract, object $instance)</code></td><td>Pre-built object</td></tr>
+        <tr><td><code>alias(string $alias, string $abstract)</code></td><td>Alias mapping (chain depth &#x2502; 10)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Resolution</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>make(string $abstract, array $params = []): mixed</code></td><td>Primary resolution with optional params</td></tr>
+        <tr><td><code>get(string $id): mixed</code></td><td>PSR-11 resolve (throws <code>ContainerNotFoundException</code>)</td></tr>
+        <tr><td><code>has(string $id): bool</code></td><td>PSR-11 check (includes parent)</td></tr>
+        <tr><td><code>bound(string $abstract): bool</code></td><td>Local-only check</td></tr>
+        <tr><td><code>factory(string $abstract): Closure</code></td><td>Returns <code>fn() =&gt; $this-&gt;make($abstract)</code></td></tr>
+        <tr><td><code>call(callable|array $callback, array $params = []): mixed</code></td><td>Method injection</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tags</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>tag(array $abstracts, string $tag)</code></td><td>Assign abstracts to a tag group</td></tr>
+        <tr><td><code>tagged(string $tag): array</code></td><td>Resolve all tagged instances</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Contextual Binding</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>when(string $consumer): ContextualBindingBuilder</code></td><td>Start fluent contextual binding</td></tr>
+        <tr><td><code>addContextualBinding(string $consumer, string $abstract, string|Closure $concrete)</code></td><td>Direct registration</td></tr>
+        <tr><td><code>getContextualBinding(string $consumer, string $abstract): string|Closure|null</code></td><td>Lookup</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Extenders &amp; Hooks</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>extend(string $abstract, Closure $extender)</code></td><td>Decorator: <code>fn(object, Container): object</code></td></tr>
+        <tr><td><code>beforeResolving(string|Closure $abstract, ?Closure $callback = null)</code></td><td>Pre-build hook</td></tr>
+        <tr><td><code>resolving(string|Closure $abstract, ?Closure $callback = null)</code></td><td>Post-build hook</td></tr>
+        <tr><td><code>afterResolving(string|Closure $abstract, ?Closure $callback = null)</code></td><td>Final hook</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Rebinding</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>rebind(string $abstract, string|Closure $concrete): ?object</code></td><td>Atomic replace, returns old instance</td></tr>
+        <tr><td><code>onRebind(string $abstract, Closure $callback)</code></td><td><code>fn(string, ?object, Container): void</code></td></tr>
+        <tr><td><code>getRebindCount(string $abstract): int</code></td><td>Per-abstract rebind count</td></tr>
+        <tr><td><code>getTotalRebindCount(): int</code></td><td>Sum of all rebind counts</td></tr>
+        <tr><td><code>exceedsRebindThreshold(): bool</code></td><td><code>true</code> if total &#x2502; max (default 50)</td></tr>
+        <tr><td><code>setMaxRebindsBeforeRestart(int $max)</code></td><td>Configure threshold (min 1)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Cleanup</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>forgetScopedInstances()</code></td><td>Clear scoped caches (worker mode)</td></tr>
+        <tr><td><code>forget(string $abstract)</code></td><td>Remove specific binding</td></tr>
+        <tr><td><code>reset()</code></td><td>Clear everything except rebind counts</td></tr>
+        <tr><td><code>getBindings(): array</code></td><td>List all bound abstract names</td></tr>
+        <tr><td><code>getParent(): ?ContainerInterface</code></td><td>Get parent container</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Circular dependency</td><td>A requires B and B requires A</td><td>Introduce an interface or lazy factory (<code>$c-&gt;factory(...)</code>)</td></tr>
+        <tr><td>Stale data in worker mode</td><td>Singleton persists across requests</td><td>Use <code>scoped()</code> or call <code>forgetScopedInstances()</code> each cycle</td></tr>
+        <tr><td>Binding works locally but fails elsewhere</td><td>Bound in child container, resolved in parent</td><td>Bind in the root container or pass the correct scope</td></tr>
+        <tr><td>Interface not resolved</td><td>Bound interface has no concrete class</td><td>Call <code>$container-&gt;singleton(Interface::class, Concrete::class)</code></td></tr>
+        <tr><td>Rebind threshold exceeded</td><td>Too many re-bindings trigger restart guard</td><td>Raise <code>setMaxRebindsBeforeRestart()</code> or fix redundant bindings</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="decision-guide">Decision Guide &mdash; Lifecycle Types</h2>
+    <table>
+      <thead><tr><th>Lifecycle</th><th>Registration</th><th>When Resolved</th><th>Best For</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Transient</strong></td><td><code>bind()</code></td><td>New instance every call</td><td>Stateless services, value objects</td></tr>
+        <tr><td><strong>Singleton</strong></td><td><code>singleton()</code></td><td>Same instance forever</td><td>Config, logger, DB connections</td></tr>
+        <tr><td><strong>Scoped</strong></td><td><code>scoped()</code></td><td>Same instance per request cycle; reset via <code>forgetScopedInstances()</code></td><td>Per-request auth, tenant context</td></tr>
+        <tr><td><strong>Instance</strong></td><td><code>instance()</code></td><td>Pre-built object returned as-is</td><td>Test doubles, existing objects</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="agent.html"><span class="label">&larr; Previous</span><span class="title">Agent</span></a>
+      <a href="routing.html" class="next"><span class="label">Next &rarr;</span><span class="title">Routing</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

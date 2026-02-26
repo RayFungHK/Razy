@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office 365 SSO &mdash; Razy Framework</title>
+<link rel="stylesheet" href="../css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<script src="../js/docs.js" defer></script>
+</head>
+<body>
+<header class="header"><button class="menu-toggle" aria-label="Toggle navigation">&#9776;</button><a href="../index.html" class="logo"><span class="logo-icon">R</span> Razy <span class="version">v1.0-beta</span></a><nav class="nav"><a href="../index.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/RayFungHK/Razy" target="_blank">GitHub</a><button class="theme-toggle" aria-label="Toggle dark mode">&#x1F319;</button></nav></header>
+<aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+<div class="sidebar-overlay"></div>
+
+<main class="main-content">
+
+<h1>Office365SSO</h1>
+
+<p><code>Office365SSO</code> extends the base <code>OAuth2</code> class to provide Microsoft Entra ID (formerly Azure AD) Single Sign-On with Microsoft Graph API integration. It handles the full OAuth 2.0 authorisation code flow, ID token parsing, and user profile retrieval.</p>
+
+<hr>
+
+<h2 id="quick-start">Quick Start</h2>
+
+<pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Office365SSO</span>;
+
+<span class="hl-var">$sso</span> = <span class="hl-kw">new</span> <span class="hl-cls">Office365SSO</span>(
+    clientId:     <span class="hl-str">'your-app-client-id'</span>,
+    clientSecret: <span class="hl-str">'your-app-client-secret'</span>,
+    redirectUri:  <span class="hl-str">'https://app.example.com/auth/callback'</span>,
+    tenantId:     <span class="hl-str">'your-tenant-id'</span>,
+);
+
+<span class="hl-cmt">// Step 1: Redirect user to Microsoft login</span>
+<span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAuthorizeUrl</span>());
+<span class="hl-kw">exit</span>;
+
+<span class="hl-cmt">// Step 2: Handle callback (in /auth/callback)</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">requestAccessToken</span>(<span class="hl-var">$_GET</span>[<span class="hl-str">'code'</span>]);
+
+<span class="hl-cmt">// Step 3: Get user info</span>
+<span class="hl-var">$email</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserEmail</span>();
+<span class="hl-var">$name</span>  = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserDisplayName</span>();</code></pre>
+
+<hr>
+
+<h2 id="configuration">Configuration</h2>
+
+<h3 id="constructor">Constructor</h3>
+
+<pre><code><span class="hl-var">$sso</span> = <span class="hl-kw">new</span> <span class="hl-cls">Office365SSO</span>(
+    clientId:     <span class="hl-str">'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'</span>,
+    clientSecret: <span class="hl-str">'your-client-secret-value'</span>,
+    redirectUri:  <span class="hl-str">'https://app.example.com/auth/callback'</span>,
+    tenantId:     <span class="hl-str">'your-tenant-id'</span>,  <span class="hl-cmt">// or 'common' for multi-tenant</span>
+);</code></pre>
+
+<h3 id="microsoft-entra-id-urls">Microsoft Entra ID URLs</h3>
+
+<p>The <code>Office365SSO</code> class automatically builds Microsoft Entra ID endpoints from the tenant ID:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Endpoint</th>
+      <th>URL Pattern</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Authorise</td>
+      <td><code>https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize</code></td>
+    </tr>
+    <tr>
+      <td>Token</td>
+      <td><code>https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token</code></td>
+    </tr>
+    <tr>
+      <td>Sign-out</td>
+      <td><code>https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/logout</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="multi-tenant-support">Multi-Tenant Support</h3>
+
+<pre><code><span class="hl-cmt">// Use 'common' for any Microsoft account or Azure AD account</span>
+<span class="hl-var">$sso</span> = <span class="hl-kw">new</span> <span class="hl-cls">Office365SSO</span>(
+    clientId:     <span class="hl-str">'xxx'</span>,
+    clientSecret: <span class="hl-str">'xxx'</span>,
+    redirectUri:  <span class="hl-str">'https://app.example.com/auth/callback'</span>,
+    tenantId:     <span class="hl-str">'common'</span>,
+);
+
+<span class="hl-cmt">// Use 'consumers' for personal Microsoft accounts only</span>
+<span class="hl-cmt">// Use 'organizations' for Azure AD accounts only</span></code></pre>
+
+<hr>
+
+<h2 id="authentication-flow">Authentication Flow</h2>
+
+<h3 id="authorisation-url">Authorisation URL</h3>
+
+<pre><code><span class="hl-cmt">// Basic</span>
+<span class="hl-var">$url</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAuthorizeUrl</span>();
+
+<span class="hl-cmt">// With state parameter (CSRF protection)</span>
+<span class="hl-var">$state</span> = <span class="hl-fn">bin2hex</span>(<span class="hl-fn">random_bytes</span>(<span class="hl-num">16</span>));
+<span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>] = <span class="hl-var">$state</span>;
+<span class="hl-var">$url</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAuthorizeUrl</span>(state: <span class="hl-var">$state</span>);
+
+<span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-var">$url</span>);
+<span class="hl-kw">exit</span>;</code></pre>
+
+<h3 id="token-exchange">Token Exchange</h3>
+
+<pre><code><span class="hl-cmt">// In the callback handler</span>
+<span class="hl-kw">if</span> (<span class="hl-var">$_GET</span>[<span class="hl-str">'state'</span>] !== <span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>]) {
+    <span class="hl-kw">throw</span> <span class="hl-kw">new</span> \<span class="hl-cls">RuntimeException</span>(<span class="hl-str">'State mismatch'</span>);
+}
+
+<span class="hl-cmt">// Exchange authorisation code for access token</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">requestAccessToken</span>(<span class="hl-var">$_GET</span>[<span class="hl-str">'code'</span>]);
+
+<span class="hl-cmt">// The access token is stored internally</span>
+<span class="hl-cmt">// You can also get the raw token data:</span>
+<span class="hl-var">$token</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAccessToken</span>();         <span class="hl-cmt">// access_token string</span>
+<span class="hl-var">$refresh</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getRefreshToken</span>();      <span class="hl-cmt">// refresh_token (if offline_access scope)</span>
+<span class="hl-var">$expires</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getTokenExpiresAt</span>();    <span class="hl-cmt">// DateTime</span></code></pre>
+
+<h3 id="session-management">Session Management</h3>
+
+<pre><code><span class="hl-cmt">// Create a session from the current token</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">createSession</span>();
+<span class="hl-cmt">// Stores token data in $_SESSION for subsequent requests</span>
+
+<span class="hl-cmt">// Check if session has expired</span>
+<span class="hl-kw">if</span> (<span class="hl-cls">Office365SSO</span>::<span class="hl-fn">isSessionExpired</span>()) {
+    <span class="hl-cmt">// Re-authenticate</span>
+    <span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAuthorizeUrl</span>());
+    <span class="hl-kw">exit</span>;
+}</code></pre>
+
+<hr>
+
+<h2 id="user-profile">User Profile</h2>
+
+<h3 id="graph-api-methods">Graph API Methods</h3>
+
+<p>After authentication, retrieve user profile data from Microsoft Graph:</p>
+
+<pre><code><span class="hl-cmt">// Full user info (all available fields)</span>
+<span class="hl-var">$userInfo</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserInfo</span>();
+<span class="hl-cmt">/*
+[
+    'displayName'    =&gt; 'Alice Smith',
+    'mail'           =&gt; 'alice@example.com',
+    'givenName'      =&gt; 'Alice',
+    'surname'        =&gt; 'Smith',
+    'jobTitle'       =&gt; 'Software Engineer',
+    'userPrincipalName' =&gt; 'alice@example.onmicrosoft.com',
+    ...
+]
+*/</span>
+
+<span class="hl-cmt">// Individual fields</span>
+<span class="hl-var">$email</span>       = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserEmail</span>();
+<span class="hl-var">$displayName</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserDisplayName</span>();
+<span class="hl-var">$firstName</span>   = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserGivenName</span>();
+<span class="hl-var">$lastName</span>    = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserSurname</span>();
+<span class="hl-var">$jobTitle</span>    = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserJobTitle</span>();
+
+<span class="hl-cmt">// Profile photo (binary data)</span>
+<span class="hl-var">$photoData</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserPhoto</span>();
+<span class="hl-kw">if</span> (<span class="hl-var">$photoData</span>) {
+    <span class="hl-fn">file_put_contents</span>(<span class="hl-str">'avatar.jpg'</span>, <span class="hl-var">$photoData</span>);
+}</code></pre>
+
+<h3 id="id-token-parsing">ID Token Parsing</h3>
+
+<p>The ID token returned by Microsoft Entra ID contains user claims. You can parse and validate it:</p>
+
+<pre><code><span class="hl-cmt">// Parse the ID token (JWT)</span>
+<span class="hl-var">$claims</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">parseIdToken</span>();
+<span class="hl-cmt">/*
+[
+    'aud' =&gt; 'client-id',
+    'iss' =&gt; 'https://login.microsoftonline.com/{tenant}/v2.0',
+    'sub' =&gt; 'user-subject-id',
+    'email' =&gt; 'alice@example.com',
+    'name'  =&gt; 'Alice Smith',
+    'preferred_username' =&gt; 'alice@example.com',
+    'tid'   =&gt; 'tenant-id',
+    'iat'   =&gt; 1705350000,
+    'exp'   =&gt; 1705353600,
+    ...
+]
+*/</span>
+
+<span class="hl-cmt">// Validate the ID token signature and claims</span>
+<span class="hl-var">$valid</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">validateIdToken</span>();
+<span class="hl-cmt">// Returns true if token is valid, unexpired, and audience matches</span></code></pre>
+
+<hr>
+
+<h2 id="advanced-configuration">Advanced Configuration</h2>
+
+<h3 id="graph-scope">Graph Scope</h3>
+
+<p>Control which Microsoft Graph permissions are requested:</p>
+
+<pre><code><span class="hl-cmt">// Default scope includes: openid, profile, email, User.Read</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setGraphScope</span>(<span class="hl-str">'openid profile email User.Read Mail.Read'</span>);
+
+<span class="hl-cmt">// Access calendar</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setGraphScope</span>(<span class="hl-str">'openid profile email User.Read Calendars.Read'</span>);
+
+<span class="hl-cmt">// Get current scope</span>
+<span class="hl-var">$scope</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getGraphScope</span>();</code></pre>
+
+<h3 id="login-hints">Login Hints</h3>
+
+<p>Pre-fill the email field on the Microsoft login page:</p>
+
+<pre><code><span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setLoginHint</span>(<span class="hl-str">'alice@example.com'</span>);
+<span class="hl-var">$url</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAuthorizeUrl</span>();
+<span class="hl-cmt">// Login page shows alice@example.com pre-filled</span></code></pre>
+
+<h3 id="prompt-behaviour">Prompt Behaviour</h3>
+
+<p>Control the authentication prompt:</p>
+
+<pre><code><span class="hl-cmt">// Force re-authentication (even if already signed in)</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setPrompt</span>(<span class="hl-str">'login'</span>);
+
+<span class="hl-cmt">// Show consent prompt</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setPrompt</span>(<span class="hl-str">'consent'</span>);
+
+<span class="hl-cmt">// Silent authentication (no UI, fails if interaction needed)</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setPrompt</span>(<span class="hl-str">'none'</span>);
+
+<span class="hl-cmt">// Default (Microsoft decides based on session state)</span>
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setPrompt</span>(<span class="hl-str">'select_account'</span>);</code></pre>
+
+<h3 id="domain-hint">Domain Hint</h3>
+
+<p>Hint the Azure AD tenant for faster login:</p>
+
+<pre><code><span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setDomainHint</span>(<span class="hl-str">'example.com'</span>);
+<span class="hl-cmt">// Skips the "pick an account" screen for users in this domain</span></code></pre>
+
+<hr>
+
+<h2 id="sign-out">Sign-Out</h2>
+
+<pre><code><span class="hl-cmt">// Get the sign-out URL</span>
+<span class="hl-var">$signOutUrl</span> = <span class="hl-cls">Office365SSO</span>::<span class="hl-fn">getSignOutUrl</span>(
+    tenantId: <span class="hl-str">'your-tenant-id'</span>,
+    postLogoutRedirectUri: <span class="hl-str">'https://app.example.com/logged-out'</span>,
+);
+
+<span class="hl-cmt">// Redirect user to sign out</span>
+<span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-var">$signOutUrl</span>);
+<span class="hl-kw">exit</span>;</code></pre>
+
+<p>This signs the user out of both your application and Microsoft's session.</p>
+
+<hr>
+
+<h2 id="full-example">Full Example &mdash; Complete SSO Integration</h2>
+
+<h4>config.php</h4>
+
+<pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Office365SSO</span>;
+
+<span class="hl-var">$sso</span> = <span class="hl-kw">new</span> <span class="hl-cls">Office365SSO</span>(
+    clientId:     <span class="hl-fn">getenv</span>(<span class="hl-str">'AZURE_CLIENT_ID'</span>),
+    clientSecret: <span class="hl-fn">getenv</span>(<span class="hl-str">'AZURE_CLIENT_SECRET'</span>),
+    redirectUri:  <span class="hl-fn">getenv</span>(<span class="hl-str">'AZURE_REDIRECT_URI'</span>),
+    tenantId:     <span class="hl-fn">getenv</span>(<span class="hl-str">'AZURE_TENANT_ID'</span>),
+);</code></pre>
+
+<h4>login.php &mdash; Initiate login</h4>
+
+<pre><code><span class="hl-fn">session_start</span>();
+<span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>] = <span class="hl-fn">bin2hex</span>(<span class="hl-fn">random_bytes</span>(<span class="hl-num">16</span>));
+
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setPrompt</span>(<span class="hl-str">'select_account'</span>);
+<span class="hl-var">$sso</span>-&gt;<span class="hl-fn">setGraphScope</span>(<span class="hl-str">'openid profile email User.Read'</span>);
+
+<span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getAuthorizeUrl</span>(state: <span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>]));
+<span class="hl-kw">exit</span>;</code></pre>
+
+<h4>callback.php &mdash; Handle Microsoft response</h4>
+
+<pre><code><span class="hl-fn">session_start</span>();
+
+<span class="hl-kw">if</span> (<span class="hl-var">$_GET</span>[<span class="hl-str">'state'</span>] !== <span class="hl-var">$_SESSION</span>[<span class="hl-str">'oauth_state'</span>]) {
+    <span class="hl-fn">die</span>(<span class="hl-str">'Invalid state parameter'</span>);
+}
+
+<span class="hl-kw">try</span> {
+    <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">requestAccessToken</span>(<span class="hl-var">$_GET</span>[<span class="hl-str">'code'</span>]);
+    <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">createSession</span>();
+
+    <span class="hl-var">$userInfo</span> = <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserInfo</span>();
+
+    <span class="hl-cmt">// Find or create local user</span>
+    <span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">firstOrCreate</span>(
+        [<span class="hl-str">'email'</span> =&gt; <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserEmail</span>()],
+        [
+            <span class="hl-str">'name'</span>       =&gt; <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserDisplayName</span>(),
+            <span class="hl-str">'first_name'</span> =&gt; <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserGivenName</span>(),
+            <span class="hl-str">'last_name'</span>  =&gt; <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserSurname</span>(),
+            <span class="hl-str">'job_title'</span>  =&gt; <span class="hl-var">$sso</span>-&gt;<span class="hl-fn">getUserJobTitle</span>(),
+        ],
+    );
+
+    <span class="hl-var">$_SESSION</span>[<span class="hl-str">'user_id'</span>] = <span class="hl-var">$user</span>-&gt;id;
+    <span class="hl-fn">header</span>(<span class="hl-str">'Location: /dashboard'</span>);
+} <span class="hl-kw">catch</span> (\<span class="hl-cls">Razy\Exception\OAuthException</span> <span class="hl-var">$e</span>) {
+    <span class="hl-fn">error_log</span>(<span class="hl-str">'SSO failed: '</span> . <span class="hl-var">$e</span>-&gt;<span class="hl-fn">getMessage</span>());
+    <span class="hl-fn">header</span>(<span class="hl-str">'Location: /login?error=sso_failed'</span>);
+}</code></pre>
+
+<h4>logout.php &mdash; Sign out</h4>
+
+<pre><code><span class="hl-fn">session_start</span>();
+<span class="hl-fn">session_destroy</span>();
+
+<span class="hl-fn">header</span>(<span class="hl-str">'Location: '</span> . <span class="hl-cls">Office365SSO</span>::<span class="hl-fn">getSignOutUrl</span>(
+    tenantId: <span class="hl-fn">getenv</span>(<span class="hl-str">'AZURE_TENANT_ID'</span>),
+    postLogoutRedirectUri: <span class="hl-fn">getenv</span>(<span class="hl-str">'APP_URL'</span>) . <span class="hl-str">'/login'</span>,
+));
+<span class="hl-kw">exit</span>;</code></pre>
+
+<h4>Middleware &mdash; Check session on protected routes</h4>
+
+<pre><code><span class="hl-kw">if</span> (<span class="hl-cls">Office365SSO</span>::<span class="hl-fn">isSessionExpired</span>()) {
+    <span class="hl-fn">header</span>(<span class="hl-str">'Location: /login'</span>);
+    <span class="hl-kw">exit</span>;
+}</code></pre>
+
+<hr>
+
+<h2 id="api-reference">API Reference</h2>
+
+<h3>Office365SSO (extends OAuth2)</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Signature</th>
+      <th>Returns</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>__construct</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$clientId</span>, <span class="hl-kw">string</span> <span class="hl-var">$clientSecret</span>, <span class="hl-kw">string</span> <span class="hl-var">$redirectUri</span>, <span class="hl-kw">string</span> <span class="hl-var">$tenantId</span>)</code></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><code>getTenantId</code></td>
+      <td><code>(): <span class="hl-kw">string</span></code></td>
+      <td>Tenant ID</td>
+    </tr>
+    <tr>
+      <td><code>setGraphScope</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$scope</span>): <span class="hl-kw">static</span></code></td>
+      <td>Set Graph API scopes</td>
+    </tr>
+    <tr>
+      <td><code>getGraphScope</code></td>
+      <td><code>(): <span class="hl-kw">string</span></code></td>
+      <td>Current scopes</td>
+    </tr>
+    <tr>
+      <td><code>setPrompt</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$prompt</span>): <span class="hl-kw">static</span></code></td>
+      <td>Auth prompt type</td>
+    </tr>
+    <tr>
+      <td><code>setLoginHint</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$email</span>): <span class="hl-kw">static</span></code></td>
+      <td>Pre-fill email</td>
+    </tr>
+    <tr>
+      <td><code>setDomainHint</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$domain</span>): <span class="hl-kw">static</span></code></td>
+      <td>Domain hint</td>
+    </tr>
+    <tr>
+      <td><code>getUserInfo</code></td>
+      <td><code>(): <span class="hl-kw">array</span></code></td>
+      <td>Full Graph profile</td>
+    </tr>
+    <tr>
+      <td><code>getUserEmail</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Email address</td>
+    </tr>
+    <tr>
+      <td><code>getUserDisplayName</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Display name</td>
+    </tr>
+    <tr>
+      <td><code>getUserGivenName</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>First name</td>
+    </tr>
+    <tr>
+      <td><code>getUserSurname</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Last name</td>
+    </tr>
+    <tr>
+      <td><code>getUserJobTitle</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Job title</td>
+    </tr>
+    <tr>
+      <td><code>getUserPhoto</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Photo binary data</td>
+    </tr>
+    <tr>
+      <td><code>parseIdToken</code></td>
+      <td><code>(): <span class="hl-kw">array</span></code></td>
+      <td>Decode JWT claims</td>
+    </tr>
+    <tr>
+      <td><code>validateIdToken</code></td>
+      <td><code>(): <span class="hl-kw">bool</span></code></td>
+      <td>Verify JWT</td>
+    </tr>
+    <tr>
+      <td><code>createSession</code></td>
+      <td><code>(): <span class="hl-kw">void</span></code></td>
+      <td>Store token in session</td>
+    </tr>
+    <tr>
+      <td><code>httpPost</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$url</span>, <span class="hl-kw">array</span> <span class="hl-var">$data</span>): <span class="hl-kw">array</span></code></td>
+      <td>HTTP POST helper</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Office365SSO (Static Methods)</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Signature</th>
+      <th>Returns</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>isSessionExpired</code></td>
+      <td><code>(): <span class="hl-kw">bool</span></code></td>
+      <td>Token expired?</td>
+    </tr>
+    <tr>
+      <td><code>getSignOutUrl</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$tenantId</span>, ?<span class="hl-kw">string</span> <span class="hl-var">$postLogoutRedirectUri</span>): <span class="hl-kw">string</span></code></td>
+      <td>Sign-out URL</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Inherited from OAuth2</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Signature</th>
+      <th>Returns</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>getAuthorizeUrl</code></td>
+      <td><code>(?<span class="hl-kw">string</span> <span class="hl-var">$state</span> = <span class="hl-kw">null</span>): <span class="hl-kw">string</span></code></td>
+      <td>Auth URL</td>
+    </tr>
+    <tr>
+      <td><code>requestAccessToken</code></td>
+      <td><code>(<span class="hl-kw">string</span> <span class="hl-var">$code</span>): <span class="hl-kw">void</span></code></td>
+      <td>Exchange code</td>
+    </tr>
+    <tr>
+      <td><code>getAccessToken</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Access token</td>
+    </tr>
+    <tr>
+      <td><code>getRefreshToken</code></td>
+      <td><code>(): ?<span class="hl-kw">string</span></code></td>
+      <td>Refresh token</td>
+    </tr>
+    <tr>
+      <td><code>getTokenExpiresAt</code></td>
+      <td><code>(): ?<span class="hl-cls">DateTime</span></code></td>
+      <td>Token expiry</td>
+    </tr>
+    <tr>
+      <td><code>refreshAccessToken</code></td>
+      <td><code>(): <span class="hl-kw">void</span></code></td>
+      <td>Refresh flow</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-nav">
+  <a href="oauth2.html"><span class="label">&larr; Previous</span><span class="title">OAuth2</span></a>
+  <a href="authenticator.html" class="next"><span class="label">Next &rarr;</span><span class="title">Authenticator (TOTP/HOTP)</span></a>
+</div>
+</main>
+<footer class="footer"><p>Razy Framework v1.0-beta &mdash; <a href="https://github.com/RayFungHK/Razy">GitHub</a></p></footer>
+</body>
+</html>

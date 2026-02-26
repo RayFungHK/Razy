@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module System &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">â­?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Module System</h1>
+    <p>Modules are the fundamental building blocks of a Razy application. Each module is a self-contained package with its own controller, views, plugins, API commands, and assets.</p>
+
+    <h2 id="structure">Module Structure</h2>
+    <div class="dir-tree">
+sites/{distributor}/{vendor}/{module}/
+&#x251C;&#x2500;&#x2500; module.php                     <span class="hl-cmt"># REQUIRED: Module metadata</span>
+&#x251C;&#x2500;&#x2500; {version}/                     <span class="hl-cmt"># e.g., &quot;default&quot;, &quot;1.0.0&quot;</span>
+    &#x251C;&#x2500;&#x2500; package.php                <span class="hl-cmt"># REQUIRED: Config &amp; dependencies</span>
+    &#x251C;&#x2500;&#x2500; controller/
+    &#x2502;  &#x251C;&#x2500;&#x2500; {module_code}.php      <span class="hl-cmt"># REQUIRED: Main controller</span>
+    &#x2502;  &#x251C;&#x2500;&#x2500; {module_code}.main.php <span class="hl-cmt"># Route handler</span>
+    &#x2502;  &#x251C;&#x2500;&#x2500; {subfolder}/           <span class="hl-cmt"># Nested route handlers</span>
+    &#x251C;&#x2500;&#x2500; view/                      <span class="hl-cmt"># Template files (.tpl)</span>
+    &#x251C;&#x2500;&#x2500; plugins/                   <span class="hl-cmt"># Custom plugins</span>
+    &#x251C;&#x2500;&#x2500; api/                       <span class="hl-cmt"># API command handlers</span>
+    &#x251C;&#x2500;&#x2500; webassets/                 <span class="hl-cmt"># Client-side assets</span>
+    &#x251C;&#x2500;&#x2500; src/                       <span class="hl-cmt"># Library source code</span>
+    </div>
+
+    <div class="callout callout-danger">
+      <strong>Important:</strong> Modules go directly under <code>sites/{dist}/{vendor}/{module}/</code> &mdash;do NOT create a <code>modules/</code> subfolder.
+    </div>
+
+    <h2 id="module-php">module.php</h2>
+    <p>Every module requires a <code>module.php</code> file at the module root:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'module_code'</span> => <span class="hl-str">'vendor/module_name'</span>,
+    <span class="hl-str">'name'</span>        => <span class="hl-str">'My Module'</span>,
+    <span class="hl-str">'author'</span>      => <span class="hl-str">'Ray Fung'</span>,
+    <span class="hl-str">'description'</span> => <span class="hl-str">'Module description'</span>,
+    <span class="hl-str">'version'</span>     => <span class="hl-str">'1.0.0'</span>,
+];</code></pre>
+
+    <h2 id="package-php">package.php</h2>
+    <p>Each version folder contains a <code>package.php</code> defining dependencies, API name, and prerequisites:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'api_name'</span> => <span class="hl-str">'my_api'</span>,         <span class="hl-cmt">// Optional API alias</span>
+    <span class="hl-str">'require'</span>  => [
+        <span class="hl-str">'vendor/other_module'</span> => <span class="hl-str">'*'</span>,  <span class="hl-cmt">// Version constraint</span>
+    ],
+    <span class="hl-str">'prerequisite'</span> => [
+        <span class="hl-str">'league/commonmark'</span> => <span class="hl-str">'^2.0'</span>,  <span class="hl-cmt">// Composer package</span>
+    ],
+];</code></pre>
+
+    <h2 id="controller">Controller Pattern</h2>
+    <p>Controllers use the anonymous class pattern, extending <code>Razy\Controller</code>:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-kw">namespace</span> <span class="hl-cls">Razy\Module\my_module</span>;
+
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Agent</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\Controller</span>;
+
+<span class="hl-kw">return new class</span> <span class="hl-kw">extends</span> <span class="hl-cls">Controller</span> {
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-cmt">// Register routes</span>
+        <span class="hl-var">$agent</span>-><span class="hl-fn">addLazyRoute</span>([
+            <span class="hl-str">'/'</span>      => <span class="hl-str">'main'</span>,
+            <span class="hl-str">'action'</span> => <span class="hl-str">'action'</span>,
+        ]);
+
+        <span class="hl-cmt">// Register API commands</span>
+        <span class="hl-var">$agent</span>-><span class="hl-fn">addAPICommand</span>(<span class="hl-str">'getData'</span>, <span class="hl-str">'api/get_data'</span>);
+
+        <span class="hl-cmt">// Listen to events</span>
+        <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'vendor/other:event'</span>, <span class="hl-kw">function</span>(<span class="hl-var">$data</span>) {
+            <span class="hl-kw">return</span> [<span class="hl-str">'handled'</span> => <span class="hl-kw">true</span>];
+        });
+
+        <span class="hl-kw">return true</span>;
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onReady</span>(): <span class="hl-cls">void</span>
+    {
+        <span class="hl-cmt">// Safe to access APIs here</span>
+    }
+};</code></pre>
+
+    <h2 id="route-handlers">Route Handlers</h2>
+    <p>Route handler files return a closure that receives captured URL parameters:</p>
+    <pre><code><span class="hl-kw">&lt;?php</span>
+<span class="hl-cmt">// controller/my_module.main.php</span>
+<span class="hl-kw">return function</span> (): <span class="hl-cls">void</span> {
+    <span class="hl-fn">header</span>(<span class="hl-str">'Content-Type: application/json'</span>);
+    <span class="hl-kw">echo</span> <span class="hl-fn">json_encode</span>([
+        <span class="hl-str">'status'</span> => <span class="hl-str">'ok'</span>,
+        <span class="hl-str">'module'</span> => <span class="hl-var">$this</span>-><span class="hl-fn">getModuleInfo</span>()-><span class="hl-fn">getCode</span>(),
+    ]);
+};</code></pre>
+
+    <h2 id="lifecycle">Lifecycle Hooks</h2>
+    <table>
+      <thead><tr><th>Hook</th><th>Return</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>__onInit(Agent)</code></td><td><code>bool</code></td><td>Register routes, APIs, events. Return false to unload module.</td></tr>
+        <tr><td><code>__onLoad(Agent)</code></td><td><code>bool</code></td><td>Preload cross-module data. Return false to remove from queue.</td></tr>
+        <tr><td><code>__onDispatch()</code></td><td><code>bool</code></td><td>Before verifying module requirements. Return false to remove from queue.</td></tr>
+        <tr><td><code>__onRequire()</code></td><td><code>bool</code></td><td>Final validation. Return false to prevent execution.</td></tr>
+        <tr><td><code>__onReady()</code></td><td><code>void</code></td><td>Post-await setup. All APIs are safe to access.</td></tr>
+        <tr><td><code>__onRouted()</code></td><td><code>void</code></td><td>URL query matched this module's route.</td></tr>
+        <tr><td><code>__onEntry()</code></td><td><code>void</code></td><td>Route handler about to execute. Pre-handler logic.</td></tr>
+        <tr><td><code>__onDispose()</code></td><td><code>void</code></td><td>Cleanup after route/script completed.</td></tr>
+        <tr><td><code>__onAPICall()</code></td><td><code>bool</code></td><td>Authorize incoming API call. Return false to deny.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="versioning">Module Versioning</h2>
+    <p>Modules can have multiple version folders. The distributor's <code>dist.php</code> selects which version to load:</p>
+    <pre><code><span class="hl-str">'modules'</span> => [
+    <span class="hl-str">'*'</span>   => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'default'</span>],  <span class="hl-cmt">// Default tag</span>
+    <span class="hl-str">'dev'</span> => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'0.1.0'</span>],    <span class="hl-cmt">// Dev tag</span>
+    <span class="hl-str">'v2'</span>  => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'2.0.0'</span>],    <span class="hl-cmt">// v2 tag</span>
+],</code></pre>
+
+    <h2 id="shared-modules">Shared Modules</h2>
+    <p>Shared modules live in <code>shared/module/</code> and are accessible to all distributors:</p>
+    <pre><code><span class="hl-cmt">// dist.php &mdash; enable shared modules</span>
+<span class="hl-str">'autoload_shared'</span> => <span class="hl-kw">true</span>,
+<span class="hl-str">'modules'</span> => [
+    <span class="hl-str">'*'</span> => [
+        <span class="hl-str">'shared/api-service'</span> => <span class="hl-str">'default'</span>,
+    ],
+],</code></pre>
+
+    <h2 id="module-lifecycle-flow">Module Lifecycle Flow</h2>
+    <pre><code>?Œâ??€?€?€?€?€?€?€?€?€??   ?Œâ??€?€?€?€?€?€?€?€??   ?Œâ??€?€?€?€?€?€?€?€?€?€?€??   ?Œâ??€?€?€?€?€?€?€?€?€?€?€??   ?Œâ??€?€?€?€?€?€?€?€??   ?Œâ??€?€?€?€?€?€?€??
+??Unloaded ?‚â??€?€?¶â? Pending ?‚â??€?€?¶â? Initialing ?‚â??€?€?¶â? Processing ?‚â??€?€?¶â? InQueue ?‚â??€?€?¶â? Loaded ??
+?”â??€?€?€?€?€?€?€?€?€??   ?”â??€?€?€?¬â??€?€?€??   ?”â??€?€?€?€?¬â??€?€?€?€?€??   ?”â??€?€?€?€?¬â??€?€?€?€?€??   ?”â??€?€?€?€?€?€?€?€??   ?”â??€?€?€?€?€?€?€??
+                     ??              ??                ??
+                     ??              ??                ??
+                ?Œâ??€?€?€?€?€?€?€?€??   ?Œâ??€?€?€?€?€?€?€?€??      ?Œâ??€?€?€?€?€?€?€?€??
+                ??Failed  ??   ??Failed  ??      ??Failed  ??
+                ?”â??€?€?€?€?€?€?€?€??   ?”â??€?€?€?€?€?€?€?€??      ?”â??€?€?€?€?€?€?€?€??/code></pre>
+    <div class="callout callout-info">
+      <strong>Initialing</strong> &mdash; <code>__onInit()</code> is called.<br>
+      <strong>Processing</strong> &mdash; routes and event listeners are registered.<br>
+      <strong>Loaded</strong> &mdash; module is ready to handle requests.
+    </div>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Module not found</td><td><code>module_code</code> in <code>module.php</code> doesn&rsquo;t match folder path</td><td>Align <code>module_code</code> to <code>vendor/module_name</code> exactly</td></tr>
+        <tr><td><code>__onInit</code> not called</td><td>Module status stuck at <code>Pending</code></td><td>Ensure <code>module.php</code> returns a valid config array</td></tr>
+        <tr><td>Route never matches</td><td>Module loaded after routing phase</td><td>Check module status &mdash; must reach <code>Loaded</code> before requests</td></tr>
+        <tr><td>Shared module not visible</td><td><code>autoload_shared</code> is <code>false</code> in <code>dist.php</code></td><td>Set <code>'autoload_shared' =&gt; true</code> or list the module explicitly</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="architecture.html"><span class="label">&larr; Previous</span><span class="title">Architecture</span></a>
+      <a href="routing.html" class="next"><span class="label">Next &rarr;</span><span class="title">Routing</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta  Built by <a href="https://github.com/rayfunghk" target="_blank">Ray Fung</a></span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

@@ -6,31 +6,74 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
-use Closure;
-use Exception;
 use Throwable;
+use Razy\Config\ConfigLoader;
+use Razy\Contract\ContainerInterface;
+use Razy\Contract\DistributorInterface;
+use Razy\Exception\ConfigurationException;
+use Razy\Distributor\ModuleRegistry;
+use Razy\Distributor\ModuleScanner;
+use Razy\Distributor\PrerequisiteResolver;
+use Razy\Distributor\RouteDispatcher;
+use Razy\Module\ModuleStatus;
 
-class Distributor
+use Razy\Util\NetworkUtil;
+use Razy\Util\PathUtil;
+/**
+ * Class Distributor
+ *
+ * Core routing and module management engine for a Razy site. A Distributor represents
+ * a single site distribution (identified by code + tag), responsible for:
+ * - Scanning, loading, and initializing modules from the configured source path
+ * - Managing module lifecycle (pending -> processing -> loaded) with dependency resolution
+ * - Route registration, matching, and dispatching (standard, lazy, shadow, CLI scripts)
+ * - Cross-module API communication and event emission
+ * - Session management, data path resolution, and package prerequisite validation
+ *
+ * @class Distributor
+ * @package Razy
+ */
+class Distributor implements DistributorInterface
 {
+    /** @var string The distribution code from dist.php configuration */
     private string $code = '';
+    /** @var array<string, string|null> Required module codes mapped to their version constraints */
     private array $requires = [];
-    private array $modules = [];
-    private array $queue = [];
-    private array $APIModules = [];
-    private array $CLIScripts = [];
-    private array $awaitList = [];
-    private array $routedInfo = [];
-    private bool $autoload = false;
+    /** @var bool Whether to also scan the shared/module folder for global modules */
     private bool $globalModule = false;
+    /** @var bool Strict mode: throw errors for missing closure/route files */
+    private bool $strict = false;
+    /** @var string Filesystem path to the distributor's configuration folder (sites/) */
     private string $folderPath = '';
-    private array $routes = [];
-    private array $prerequisites = [];
+    /** @var string Filesystem path where modules are loaded from (may differ from folderPath) */
+    private string $moduleSourcePath = '';
+    /** @var Template|null Lazy-initialized global Template instance shared across modules */
     private ?Template $globalTemplate = null;
+    /** @var array<string, array{domain: string, dist: string}> Cross-site data mapping configuration */
     private array $dataMapping = [];
+    /** @var bool Whether unmatched requests fall back to index.php for route matching */
+    private bool $fallback = true;
+
+    // --- Extracted sub-objects (Phase 2 refactoring) ---
+
+    /** @var ModuleRegistry Module tracking, lookup, API registration, and lifecycle management */
+    private ModuleRegistry $registry;
+    /** @var ModuleScanner Filesystem scanning, manifest caching, module autoloading */
+    private ModuleScanner $scanner;
+    /** @var RouteDispatcher Route registration, matching, and dispatching */
+    private RouteDispatcher $router;
+    /** @var PrerequisiteResolver Package prerequisite tracking and conflict detection */
+    private PrerequisiteResolver $prerequisites;
+
+    /** @var ConfigLoader Configuration file loader (injectable for testing) */
+    private ConfigLoader $configLoader;
 
     /**
      * Distributor constructor.
@@ -40,33 +83,66 @@ class Distributor
      * @param null|Domain $domain The Domain Instance
      * @param string $urlPath The URL path of the distributor
      * @param string $urlQuery The URL Query string
+     * @param ConfigLoader|null $configLoader Optional config loader (defaults to new ConfigLoader)
      *
      * @throws Throwable
      */
-    public function __construct(private string $distCode, private readonly string $tag = '*', private readonly ?Domain $domain = null, private readonly string $urlPath = '', private string $urlQuery = '/')
+    public function __construct(private string $distCode, private readonly string $tag = '*', private readonly ?Domain $domain = null, private readonly string $urlPath = '', private string $urlQuery = '/', ?ConfigLoader $configLoader = null)
     {
-        $this->folderPath = append(SITES_FOLDER, $distCode);
-        $this->urlQuery = tidy($this->urlQuery, false, '/');
+        $this->configLoader = $configLoader ?? new ConfigLoader();
+
+        $this->folderPath = PathUtil::append(SITES_FOLDER, $distCode);
+        $this->urlQuery = PathUtil::tidy($this->urlQuery, false, '/');
 
         if (!$this->urlQuery) {
             $this->urlQuery = '/';
         }
 
-        if (!$configFile = realpath(append($this->folderPath, 'dist.php'))) {
-            throw new Error('Missing distributor configuration file (dist.php).');
+        $config = $this->loadAndValidateConfig();
+        $this->parseModuleRequirements($config);
+        $this->parseDataMappings($config);
+        $this->resolveModuleSourcePath($config);
+
+        $this->globalModule = (bool)($config['global_module'] ?? false);
+        $this->strict = (bool)($config['strict'] ?? false);
+        $this->fallback = (bool)($config['fallback'] ?? true);
+
+        $this->initializeSubComponents((bool)($config['autoload'] ?? false));
+    }
+
+    /**
+     * Load dist.php, validate the dist code format, and return the config array.
+     *
+     * @return array The validated distributor configuration
+     * @throws ConfigurationException
+     */
+    private function loadAndValidateConfig(): array
+    {
+        if (!$configFile = realpath(PathUtil::append($this->folderPath, 'dist.php'))) {
+            throw new ConfigurationException("Missing distributor configuration file: '{$this->folderPath}/dist.php'.");
         }
 
-        $config = require $configFile;
+        $config = $this->configLoader->load($configFile);
 
         if (!($config['dist'] = $config['dist'] ?? '')) {
-            throw new Error('The distributor code is empty.');
+            throw new ConfigurationException('The distributor code is empty.');
         }
 
         if (!preg_match('/^[a-z][\w\-]*$/i', $config['dist'])) {
-            throw new Error('Invalid distribution code.');
+            throw new ConfigurationException("Invalid distribution code '{$config['dist']}' in '{$configFile}'. Must match pattern /^[a-z][\w\-]*$/i.");
         }
         $this->code = $config['dist'];
 
+        return $config;
+    }
+
+    /**
+     * Extract module requirements from config for the current tag.
+     *
+     * @param array $config The distributor configuration
+     */
+    private function parseModuleRequirements(array $config): void
+    {
         $config['modules'] = $config['modules'] ?? [];
         if (is_array($config['modules'])) {
             if (isset($config['modules'][$this->tag])) {
@@ -79,19 +155,21 @@ class Distributor
                 }
             }
         }
+    }
 
-        $config['global_module'] = (bool)($config['global_module'] ?? false);
-        $this->globalModule = $config['global_module'];
-
-        $config['autoload'] = (bool)($config['autoload'] ?? false);
-        $this->autoload = $config['autoload'];
-
+    /**
+     * Parse cross-site data_mapping config into $this->dataMapping.
+     *
+     * @param array $config The distributor configuration
+     */
+    private function parseDataMappings(array $config): void
+    {
         $config['data_mapping'] = $config['data_mapping'] ?? [];
         if (is_array($config['data_mapping'])) {
             foreach ($config['data_mapping'] as $path => $site) {
                 if (is_string($site)) {
                     [$domain, $dist] = explode(':', $site . ':');
-                    if (is_fqdn($domain) && preg_match('/^[a-z][\w\-]*$/i', $dist)) {
+                    if (NetworkUtil::isFqdn($domain) && preg_match('/^[a-z][\w\-]*$/i', $dist)) {
                         $this->dataMapping[$path] = [
                             'domain' => $domain,
                             'dist' => $dist,
@@ -99,6 +177,52 @@ class Distributor
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Validate and resolve module_path from config, or fall back to the distributor folder.
+     *
+     * @param array $config The distributor configuration
+     * @throws ConfigurationException
+     */
+    private function resolveModuleSourcePath(array $config): void
+    {
+        $customModulePath = $config['module_path'] ?? '';
+        if (is_string($customModulePath) && strlen(trim($customModulePath)) > 0) {
+            $customModulePath = PathUtil::fixPath($customModulePath);
+            if (!is_dir($customModulePath)) {
+                throw new ConfigurationException('The custom module_path does not exist: ' . $customModulePath);
+            }
+
+            // Validate that the path is within SYSTEM_ROOT
+            $realCustomPath = realpath($customModulePath);
+            $realSystemRoot = realpath(SYSTEM_ROOT);
+            if ($realCustomPath === false || $realSystemRoot === false || !str_starts_with($realCustomPath, $realSystemRoot)) {
+                throw new ConfigurationException('The module_path must be inside the Razy project folder (SYSTEM_ROOT): ' . $customModulePath);
+            }
+
+            $this->moduleSourcePath = $customModulePath;
+        } else {
+            $this->moduleSourcePath = $this->folderPath;
+        }
+    }
+
+    /**
+     * Create ModuleRegistry, ModuleScanner, RouteDispatcher, PrerequisiteResolver
+     * and register this Distributor in the DI container.
+     *
+     * @param bool $autoload Whether module autoloading is enabled
+     */
+    private function initializeSubComponents(bool $autoload): void
+    {
+        $this->registry = new ModuleRegistry($this, $autoload);
+        $this->scanner = new ModuleScanner($this);
+        $this->router = new RouteDispatcher();
+        $this->prerequisites = new PrerequisiteResolver($this->distCode, $this);
+
+        if ($container = $this->getContainer()) {
+            $container->instance(self::class, $this);
         }
     }
 
@@ -111,14 +235,16 @@ class Distributor
      */
     public function initialize(bool $initialOnly = false): static
     {
-        // Load all modules into the pending list
-        $this->scanModule($this->folderPath);
+        // Load all modules into the pending list from the configured module source path
+        $modules = &$this->registry->getModulesRef();
+
+        $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules);
         if ($this->globalModule) {
-            $this->scanModule(append(SHARED_FOLDER, 'module'), true);
+            $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
         }
 
         // Put all modules into queue by priority with its require module.
-        foreach ($this->modules as $module) {
+        foreach ($this->registry->getModules() as $module) {
             $this->require($module);
         }
 
@@ -128,211 +254,25 @@ class Distributor
         }
 
         // Preparation Stage, __onLoad event
-        $this->queue = array_filter($this->queue, function (Module $module) {
+        $this->registry->setQueue(array_filter($this->registry->getQueue(), function (Module $module) {
+            // Remove modules that fail the preparation/load phase
             if (!$module->prepare()) {
                 return false;
             }
             return true;
-        });
+        }));
 
         // Validation Stage, __onRequire event
-        $this->queue = array_filter($this->queue, function (Module $module) {
+        $this->registry->setQueue(array_filter($this->registry->getQueue(), function (Module $module) {
+            // Remove modules that fail validation (e.g., missing dependencies)
             if (!$module->validate()) {
                 return false;
             }
 
             return true;
-        });
+        }));
 
         return $this;
-    }
-
-    /**
-     * @param Module $module
-     * @param string $route
-     * @param string $moduleCode
-     * @param string $path
-     * @return $this
-     */
-    public function setShadowRoute(Module $module, string $route, string $moduleCode, string $path): self
-    {
-        $targetModule = $this->getLoadedModule($moduleCode);
-        if ($targetModule) {
-            $this->routes['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
-                'module' => $module,
-                'target' => $targetModule,
-                'path' => $path,
-                'route' => $route,
-                'type' => 'lazy',
-            ];
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set up the standard route.
-     *
-     * @param Module $module
-     * @param string $route
-     * @param string $path
-     *
-     * @return $this
-     */
-    public function setRoute(Module $module, string $route, mixed $path): static
-    {
-        $route = tidy($route, true, '/');
-        $this->routes[$route] = [
-            'module' => $module,
-            'path' => $path,
-            'route' => $route,
-            'type' => 'standard',
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Handshake with specified module.
-     *
-     * @param string $targetModuleCode
-     * @param ModuleInfo $requestedBy
-     * @param string $version
-     * @param string $message
-     *
-     * @return bool
-     */
-    public function handshakeTo(string $targetModuleCode, ModuleInfo $requestedBy, string $version, string $message): bool
-    {
-        if (!isset($this->modules[$targetModuleCode])) {
-            return false;
-        }
-
-        return $this->modules[$targetModuleCode]->touch($requestedBy, $version, $message);
-    }
-
-    /**
-     * Put the callable into the list to wait for executing until other specified modules has ready.
-     *
-     * @param string $moduleCode
-     * @param callable $caller
-     *
-     * @return $this
-     */
-    public function addAwait(string $moduleCode, callable $caller): Distributor
-    {
-        $entity = [
-            'required' => [],
-            'caller' => $caller(...),
-        ];
-
-        $clips = explode(',', $moduleCode);
-        foreach ($clips as $code) {
-            if (preg_match(ModuleInfo::REGEX_MODULE_CODE, $code)) {
-                $entity['required'][$code] = true;
-                if (!isset($this->awaitList[$code])) {
-                    $this->awaitList[$code] = [];
-                }
-                $this->awaitList[$code][] = &$entity;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Register module's API.
-     *
-     * @param Module $module The module instance
-     *
-     * @return $this
-     */
-    public function registerAPI(Module $module): static
-    {
-        if (strlen($module->getModuleInfo()->getAPIName()) > 0) {
-            $this->APIModules[$module->getModuleInfo()->getAPIName()] = $module;
-        }
-
-        return $this;
-    }
-
-    /**
-     * Check if the module is loadable
-     *
-     * @param Module $module
-     * @return bool
-     */
-    private function isLoadable(Module $module): bool
-    {
-        return $this->autoload || array_key_exists($module->getModuleInfo()->getCode(), $this->modules);
-    }
-
-    /**
-     * Scan and find available modules under the distributor folder.
-     *
-     * @param string $path The path of the module folder
-     * @param bool $globally Set true to define the module is loaded globally
-     *
-     * @return void
-     * @throws Error
-     * @throws Throwable
-     */
-    private function scanModule(string $path, bool $globally = false): void
-    {
-        $path = tidy($path, true);
-        if (!is_dir($path)) {
-            return;
-        }
-
-        foreach (scandir($path) as $vendor) {
-            if ('.' === $vendor || '..' === $vendor) {
-                continue;
-            }
-
-            $moduleFolder = append($path, $vendor);
-            if (is_dir($moduleFolder)) {
-                foreach (scandir($moduleFolder) as $packageName) {
-                    if ('.' === $packageName || '..' === $packageName) {
-                        continue;
-                    }
-
-                    $packageFolder = append($moduleFolder, $packageName);
-                    if (is_dir($packageFolder)) {
-                        $moduleConfigPath = append($packageFolder, 'module.php');
-                        if (is_file($moduleConfigPath)) {
-                            try {
-                                $config = require $moduleConfigPath;
-
-                                $config['module_code'] = $config['module_code'] ?? '';
-                                if (!preg_match(ModuleInfo::REGEX_MODULE_CODE, $config['module_code'])) {
-                                    throw new Error('Incorrect module code format.');
-                                }
-                                $config['author'] = $config['author'] ?? '';
-                                $config['description'] = $config['description'] ?? '';
-                            } catch (Exception) {
-                                throw new Error('Unable to read the module config.');
-                            }
-
-                            $version = (isset($this->requires[$config['module_code']])) ? $this->requires[$config['module_code']] : 'default';
-
-                            if (is_file(append($packageFolder, $version, 'package.php'))) {
-                                try {
-                                    $module = new Module($this, $packageFolder, $config, $version, $globally);
-
-                                    if (!isset($this->modules[$config['module_code']])) {
-                                        $this->modules[$config['module_code']] = $module;
-                                    } else {
-                                        throw new Error('Duplicated module loaded, module load abort.');
-                                    }
-                                } catch (Exception) {
-                                    throw new Error('Unable to load the module.');
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -344,42 +284,7 @@ class Distributor
      */
     public function autoload(string $className): bool
     {
-        $moduleClassName = str_replace('\\', '/', $className);
-        if (preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleClassName, $matches)) {
-            $namespaces = explode('/', $moduleClassName);
-            $moduleClassName = array_pop($namespaces);
-            $moduleCode = implode('/', $namespaces);
-
-            // Try to load the class from the module library
-            if (isset($this->modules[$moduleCode])) {
-                $module = $this->modules[$moduleCode];
-                if ($module->getStatus() === Module::STATUS_LOADED) {
-                    $moduleInfo = $module->getModuleInfo();
-                    $path = append($moduleInfo->getPath(), 'library');
-                    if (is_dir($path)) {
-                        $libraryPath = append($path, $moduleClassName);
-                        if (is_file($libraryPath . '.php')) {
-                            $libraryPath .= '.php';
-                        } elseif (is_dir($libraryPath) && is_file(append($libraryPath, $moduleClassName . '.php'))) {
-                            $libraryPath = append($libraryPath, $moduleClassName . '.php');
-                        }
-
-                        if (is_file($libraryPath)) {
-                            try {
-                                include $libraryPath;
-
-                                return class_exists($moduleClassName);
-                            } catch (Exception) {
-                                return false;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        $libraryPath = append(SYSTEM_ROOT, 'autoload', $this->code);
-        return autoload($className, $libraryPath);
+        return $this->scanner->autoload($className, $this->registry->getModules(), $this->code);
     }
 
     /**
@@ -392,9 +297,9 @@ class Distributor
     public function getDataPath(string $module = '', bool $isURL = false): string
     {
         if ($isURL) {
-            return append($this->getSiteURL(), 'data', $module);
+            return PathUtil::append($this->getSiteURL(), 'data', $module);
         } else {
-            return append(DATA_FOLDER, $this->getIdentity(), $module);
+            return PathUtil::append(DATA_FOLDER, $this->getIdentity(), $module);
         }
     }
 
@@ -405,6 +310,9 @@ class Distributor
      */
     public function getIdentity(): string
     {
+        if (!$this->domain) {
+            return $this->code;
+        }
         return $this->domain->getDomainName() . '-' . $this->code;
     }
 
@@ -418,37 +326,38 @@ class Distributor
      */
     private function require(Module $module): bool
     {
-        if ($this->isLoadable($module)) {
-            if ($module->getStatus() === Module::STATUS_PENDING) {
+        if ($this->registry->isLoadable($module)) {
+            if ($module->getStatus() === ModuleStatus::Pending) {
                 $module->standby();
             }
 
+            // Recursively resolve all required dependencies before initializing this module
             $requireModules = $module->getModuleInfo()->getRequire();
             foreach ($requireModules as $moduleCode => $version) {
-                $reqModule = $this->modules[$moduleCode] ?? null;
+                $reqModule = $this->registry->get($moduleCode);
                 if (!$reqModule) {
                     return false;
                 }
 
-                if ($reqModule->getStatus() === Module::STATUS_PENDING) {
+                if ($reqModule->getStatus() === ModuleStatus::Pending) {
                     if (!$this->require($reqModule)) {
                         return false;
                     }
-                } elseif ($reqModule->getStatus() === Module::STATUS_FAILED) {
+                } elseif ($reqModule->getStatus() === ModuleStatus::Failed) {
                     return false;
                 }
             }
 
-            if ($module->getStatus() === Module::STATUS_PROCESSING) {
+            if ($module->getStatus() === ModuleStatus::Processing) {
                 if (!$module->initialize()) {
                     $module->unload();
                     return false;
                 }
-                $this->queue[$module->getModuleInfo()->getCode()] = $module;
+                $this->registry->enqueue($module->getModuleInfo()->getCode(), $module);
             }
         }
 
-        return ($module->getStatus() === Module::STATUS_IN_QUEUE);
+        return ($module->getStatus() === ModuleStatus::InQueue);
     }
 
     /**
@@ -475,230 +384,85 @@ class Distributor
      */
     public function matchRoute(): bool
     {
-        // If no domain is matched, stop process ready stage.
         if (!$this->domain) {
             return false;
         }
 
         $this->setSession();
-        // Execute all await function
-        foreach ($this->queue as $module) {
-            $moduleCode = $module->getModuleInfo()->getCode();
-            if (isset($this->awaitList[$moduleCode])) {
-                foreach ($this->awaitList[$moduleCode] as $index => &$await) {
-                    unset($await['required'][$moduleCode]);
-                    if (count($await['required']) === 0) {
-                        // If all required modules have ready, execute the await function immediately
-                        $await['caller']();
-                        unset($this->awaitList[$moduleCode][$index]);
-                    }
-                }
-            }
+
+        // Execute all await functions and notify ready
+        $this->registry->processAwaits();
+        $this->registry->notifyReady();
+
+        return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+    }
+
+    /**
+     * Execute an internal API call via CLI process.
+     * Uses Razy.phar bridge command for isolated execution to avoid class namespace conflicts.
+     *
+     * @param string $moduleCode The target module code
+     * @param string $command The API command to execute
+     * @param array $args Arguments to pass to the command
+     *
+     * @return mixed The result from the module's API command, or null if proc_open is unavailable
+     *
+     * @throws ConfigurationException If the module is not available or the CLI bridge process fails
+     */
+    public function executeInternalAPI(string $moduleCode, string $command, array $args = []): mixed
+    {
+        $module = $this->registry->getLoadedAPIModule($moduleCode);
+        if (!$module) {
+            throw new ConfigurationException("Module '$moduleCode' not available.");
         }
 
-        // Ready Stage, __onReady event
-        foreach ($this->queue as $module) {
-            $module->notify();
+        // Check if proc_open is available for CLI process isolation
+        if (!function_exists('proc_open') || in_array('proc_open', explode(',', ini_get('disable_functions')), true)) {
+            return null;
         }
 
-        $list = (CLI_MODE) ? $this->CLIScripts : $this->routes;
-        $urlQuery = $this->urlQuery;
-        sort_path_level($list);
+        // Execute via CLI bridge for process isolation
+        $pharFile = SYSTEM_ROOT . DIRECTORY_SEPARATOR . PHAR_FILE;
 
-        foreach ($list as $route => $data) {
-            if (Module::STATUS_LOADED === $data['module']->getStatus()) {
-                if ($data['type'] === 'standard') {
-                    $route = preg_replace_callback('/\\\\.(*SKIP)(*FAIL)|:(?:([awdWD])|(\[[^\\[\\]]+]))({\d+,?\d*})?/', function ($matches) {
-                        $regex = (strlen($matches[2] ?? '')) > 0 ? $matches[2] : (('a' === $matches[1]) ? '[^/]' : '\\' . $matches[1]);
-                        return $regex . ((0 !== strlen($matches[3] ?? '')) ? $matches[3] : $regex .= '+');
-                    }, $route);
-                    $route = '/^(' . preg_replace('/\\\\.(*SKIP)(*FAIL)|\//', '\\/', $route) . ')((?:.+)?)/';
+        // Serialize API call data and spawn an isolated CLI bridge process
+        $payload = json_encode([
+            'dist' => $this->code,
+            'module' => $module->getModuleInfo()->getCode(),
+            'command' => $command,
+            'args' => $args,
+        ]);
 
-                    if (!preg_match($route, $this->urlQuery, $matches)) {
-                        continue;
-                    } else {
-                        array_shift($matches);
-                        $route = array_shift($matches);
-                        $urlQuery = array_pop($matches);
-                        $args = $matches;
-                        $args += explode('/', trim($urlQuery, '/'));
-                    }
-                } else {
-                    if (!str_starts_with($urlQuery, $route)) {
-                        continue;
-                    } else {
-                        $urlQuery = rtrim(substr($urlQuery, strlen($route)), '/');
-                        $args = explode('/', $urlQuery);
-                    }
-                }
+        // Open process with stdout and stderr pipes for capturing output
+        $process = proc_open(
+            [PHP_BINARY, $pharFile, 'bridge', $payload],
+            [
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ],
+            $pipes
+        );
 
-                $path = (is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
-                $path = tidy($path, false, '/');
-
-                if (preg_match('/^r(@?):(.+)/', $path, $matches)) {
-                    $path = $matches[2];
-                    header('Location: ' . append($matches[1] ? $this->getSiteURL() : $data['module']->getModuleURL(), $path));
-                    exit;
-                }
-
-                $executor = (isset($data['target'])) ? $data['target'] : $data['module'];
-                if (!$path || !($closure = $executor->getClosure($path))) {
-                    return false;
-                }
-
-                if ($executor->getStatus() === Module::STATUS_LOADED) {
-                    $this->routedInfo = [
-                        'url_query' => $this->urlQuery,
-                        'base_url' => append($this->getSiteURL(), rtrim($route, '/')),
-                        'route' => tidy('/' . $data['route'], false, '/'),
-                        'module' => $data['module']->getModuleInfo()->getCode(),
-                        'closure_path' => $path,
-                        'arguments' => $args,
-                        'type' => $data['type'],
-                        'is_shadow' => isset($data['target']),
-                    ];
-
-                    if (!is_string($data['path'])) {
-                        $this->routedInfo['contains'] = $data['path']->getData();
-                    }
-
-                    $this->announce($data['module']);
-
-                    if ($data['type'] !== 'script') {
-                        $data['module']->entry($this->routedInfo);
-                    }
-                    call_user_func_array($closure, $args);
-                }
-
-                return true;
-            }
+        if (!is_resource($process)) {
+            throw new ConfigurationException('Failed to spawn CLI bridge process');
         }
 
-        return false;
-    }
+        // Read process output, close pipes, and parse the JSON response
+        $output = stream_get_contents($pipes[1]);
+        $error = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($process);
 
-    /**
-     * Get the routed information after the route is matched.
-     *
-     * @return array
-     */
-    public function getRoutedInfo(): array
-    {
-        return $this->routedInfo;
-    }
-
-    /**
-     * Return the routes
-     *
-     * @return array
-     */
-    public function getRoutes(): array
-    {
-        return $this->routes;
-    }
-
-    /**
-     * Set the lazy route.
-     *
-     * @param Module $module The module entity
-     * @param string $route The route path string
-     * @param string $path The closure path of method
-     *
-     * @return $this
-     */
-    public function setLazyRoute(Module $module, string $route, string $path): static
-    {
-        $this->routes['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
-            'module' => $module,
-            'path' => $path,
-            'route' => $route,
-            'type' => 'lazy',
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Set the script route
-     *
-     * @param Module $module
-     * @param string $route
-     * @param string $path
-     * @return $this
-     */
-    public function setScript(Module $module, string $route, string $path): static
-    {
-        $this->CLIScripts['/' . tidy(append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
-            'module' => $module,
-            'path' => $path,
-            'route' => $route,
-            'type' => 'script',
-        ];
-        return $this;
-    }
-
-    /**
-     * Create the API instance.
-     *
-     * @param Module $module The module that calling
-     * @return API
-     */
-    public function createAPI(Module $module): API
-    {
-        return new API($this, $module);
-    }
-
-    /**
-     * Get the loaded API module by given module code.
-     *
-     * @param string $apiModule
-     *
-     * @return Module|null
-     */
-    public function getLoadedAPIModule(string $apiModule): ?Module
-    {
-        $module = $this->modules[$apiModule] ?? $this->APIModules[$apiModule] ?? null;
-        return ($module && $module->getStatus() === Module::STATUS_LOADED) ? $module : null;
-    }
-
-    /**
-     * Get the loaded module by given module code.
-     *
-     * @param string $moduleCode
-     * @return Module|null
-     */
-    public function getLoadedModule(string $moduleCode): ?Module
-    {
-        $module = $this->modules[$moduleCode] ?? null;
-        return ($module && $module->getStatus() === Module::STATUS_LOADED) ? $module : null;
-    }
-
-    /**
-     * Execute dispose event.
-     *
-     * @return $this
-     */
-    public function dispose(): static
-    {
-        foreach ($this->queue as $module) {
-            $module->dispose();
+        $response = json_decode($output, true);
+        if (!is_array($response)) {
+            throw new ConfigurationException('Invalid CLI bridge response: ' . ($error ?: $output));
         }
 
-        return $this;
-    }
-
-    /**
-     * Trigger all module __onRouted event that Application announced the routed module.
-     *
-     * @param Module $matchedModule
-     */
-    private function announce(Module $matchedModule): void
-    {
-        foreach ($this->queue as $module) {
-            if ($matchedModule->getModuleInfo()->getCode() !== $module->getModuleInfo()->getCode()) {
-                $module->announce($matchedModule->getModuleInfo());
-            }
+        if (!($response['ok'] ?? false)) {
+            throw new ConfigurationException($response['error'] ?? 'Unknown CLI bridge error');
         }
+
+        return $response['data'] ?? null;
     }
 
     /**
@@ -712,23 +476,149 @@ class Distributor
     }
 
     /**
+     * Get the Domain instance that owns this Distributor.
+     *
+     * @return Domain|null
+     */
+    public function getDomain(): ?Domain
+    {
+        return $this->domain;
+    }
+
+    /**
+     * Get the DI container from the Application via the Domain chain.
+     *
+     * @return ContainerInterface|null The Container instance, or null if no Domain is set
+     */
+    public function getContainer(): ?ContainerInterface
+    {
+        return $this->domain?->getApplication()->getContainer();
+    }
+
+    /**
+     * Get the ModuleRegistry sub-object for direct module management access.
+     *
+     * @return ModuleRegistry
+     */
+    public function getRegistry(): ModuleRegistry
+    {
+        return $this->registry;
+    }
+
+    /**
+     * Get the RouteDispatcher sub-object for direct route management access.
+     *
+     * @return RouteDispatcher
+     */
+    public function getRouter(): RouteDispatcher
+    {
+        return $this->router;
+    }
+
+    /**
+     * Get the PrerequisiteResolver sub-object for package prerequisite management.
+     *
+     * @return PrerequisiteResolver
+     */
+    public function getPrerequisites(): PrerequisiteResolver
+    {
+        return $this->prerequisites;
+    }
+
+    /**
+     * Get the ModuleScanner sub-object for filesystem scanning access.
+     *
+     * @return ModuleScanner
+     */
+    public function getScanner(): ModuleScanner
+    {
+        return $this->scanner;
+    }
+
+    /**
+     * Get the distributor tag (e.g., 'dev', '1.0.0', 'default', '*')
+     * The tag can be a label (dev, prod), a version (1.0.0), or 'default'.
+     *
+     * @return string
+     */
+    public function getTag(): string
+    {
+        return $this->tag;
+    }
+
+    /**
+     * Get the full distributor identifier in format "code@tag"
+     * For cross-distributor communication, this uniquely identifies
+     * the specific distributor instance.
+     *
+     * Examples:
+     * - "siteB@dev" - dev tag
+     * - "siteA@1.0.0" - version as tag
+     * - "siteC@default" - default tag
+     *
+     * @param bool $shorthand If true, omit @default suffix (returns "siteB" instead of "siteB@default")
+     * @return string
+     */
+    public function getIdentifier(bool $shorthand = false): string
+    {
+        if ($shorthand && $this->tag === 'default') {
+            return $this->code;
+        }
+        return $this->code . '@' . $this->tag;
+    }
+
+    /**
+     * Get the distributor configuration folder path (where dist.php is located).
+     * This is always in the sites/ directory.
+     *
+     * @return string
+     */
+    public function getFolderPath(): string
+    {
+        return $this->folderPath;
+    }
+
+    /**
+     * Get the module source path (where modules are loaded from).
+     * This can be different from folderPath when module_path is configured in dist.php.
+     * Useful for organizing modules in a shared location within the project.
+     *
+     * @return string
+     */
+    public function getModuleSourcePath(): string
+    {
+        return $this->moduleSourcePath;
+    }
+
+    /**
+     * Check if a custom module source path is configured.
+     *
+     * @return bool
+     */
+    public function hasCustomModuleSourcePath(): bool
+    {
+        return $this->moduleSourcePath !== $this->folderPath;
+    }
+
+    /**
+     * Check if strict mode is enabled.
+     * In strict mode, missing closure/route files throw errors instead of returning null.
+     *
+     * @return bool
+     */
+    public function isStrict(): bool
+    {
+        return $this->strict;
+    }
+
+    /**
      * Get the distributor URL path.
      *
      * @return string
      */
     public function getSiteURL(): string
     {
-        return (defined('RAZY_URL_ROOT')) ? append(RAZY_URL_ROOT, $this->urlPath) : '';
-    }
-
-    /**
-     * Get all module instances.
-     *
-     * @return array
-     */
-    public function getModules(): array
-    {
-        return $this->modules;
+        return (defined('RAZY_URL_ROOT')) ? PathUtil::append(RAZY_URL_ROOT, $this->urlPath) : '';
     }
 
     /**
@@ -739,6 +629,20 @@ class Distributor
     public function getDataMapping(): array
     {
         return $this->dataMapping;
+    }
+
+    /**
+     * Check if fallback routing to index.php is enabled.
+     *
+     * When enabled, unmatched requests under this distributor's path prefix are forwarded
+     * to index.php for PHP route matching. When disabled, unmatched requests that do not
+     * correspond to an existing file or directory will return 404 at the server level.
+     *
+     * @return bool
+     */
+    public function getFallback(): bool
+    {
+        return $this->fallback;
     }
 
     /**
@@ -753,65 +657,5 @@ class Distributor
         }
 
         return $this->globalTemplate;
-    }
-
-    /**
-     * Create an EventEmitter.
-     *
-     * @param Module $module The module instance
-     * @param string $event The event name
-     * @param callable|null $callback The callback will be executed when the event is resolved
-     *
-     * @return EventEmitter
-     */
-    public function createEmitter(Module $module, string $event, ?callable $callback = null): EventEmitter
-    {
-        return new EventEmitter($this, $module, $event, !$callback ? null : $callback(...));
-    }
-
-    /**
-     * Get the prerequisite list from all modules.
-     *
-     * @param string $package
-     * @param string $version
-     *
-     * @return $this
-     */
-    public function prerequisite(string $package, string $version): Distributor
-    {
-        $package = trim($package);
-        $version = trim($version);
-        if (isset($this->prerequisites[$package])) {
-            if ('*' !== $version) {
-                $this->prerequisites[$package] .= ',' . $version;
-            }
-        } else {
-            $this->prerequisites[$package] = $version;
-        }
-
-        return $this;
-    }
-
-    /**
-     * Compose all modules
-     *
-     * @param Closure $closure
-     *
-     * @return bool
-     * @throws Error
-     *
-     */
-    public function compose(Closure $closure): bool
-    {
-        $validated = true;
-        foreach ($this->prerequisites as $package => $versionRequired) {
-            $packageManager = new PackageManager($this, $package, $versionRequired, $closure);
-            if (!$packageManager->fetch() || !$packageManager->validate()) {
-                $validated = false;
-            }
-        }
-        PackageManager::UpdateLock();
-
-        return $validated;
     }
 }

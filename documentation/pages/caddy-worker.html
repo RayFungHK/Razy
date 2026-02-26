@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caddy Worker Mode &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Caddy Worker Mode</h1>
+    <p>Razy supports FrankenPHP worker mode for dramatic performance improvements. In worker mode, the framework boots once and handles requests in a persistent loop &mdash; achieving 3&mdash;0x throughput over traditional PHP-FPM.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>FrankenPHP is a modern PHP application server built on Caddy. Its worker mode keeps the PHP process alive between requests, eliminating the boot-teardown cycle that dominates traditional PHP performance. Razy integrates natively with this model &mdash; no code changes required.</p>
+
+    <h2 id="how-it-works">How It Works</h2>
+    <p>Traditional PHP-FPM processes each request as an independent lifecycle:</p>
+    <pre><code><span class="hl-cmt">// Traditional PHP-FPM (per request)</span>
+Boot &mdash; Load PHAR &mdash; Bootstrap &mdash; Autoloaders &mdash; Handle Request &mdash; Teardown
+
+<span class="hl-cmt">// FrankenPHP Worker Mode</span>
+Boot &mdash; Load PHAR &mdash; Bootstrap &mdash; Autoloaders  <span class="hl-cmt">// One-time</span>
+  &#x2500;&#x2500;&rarr; Handle Request &mdash; Reset &mdash; Handle Request &mdash; Reset &hellip;  <span class="hl-cmt">// Loop</span></code></pre>
+    <p>The boot phase happens once. Each subsequent request enters the handler loop, skipping all initialization overhead.</p>
+
+    <h2 id="auto-detection">Auto-Detection</h2>
+    <p>Razy automatically detects worker mode &mdash; no manual configuration or code changes needed:</p>
+    <pre><code><span class="hl-cmt">// Detection methods (checked automatically)</span>
+<span class="hl-fn">function_exists</span>(<span class="hl-str">'frankenphp_handle_request'</span>)  <span class="hl-cmt">// Native detection</span>
+<span class="hl-fn">getenv</span>(<span class="hl-str">'CADDY_WORKER_MODE'</span>) <span class="hl-op">===</span> <span class="hl-str">'true'</span>       <span class="hl-cmt">// Environment variable</span></code></pre>
+    <p>If either condition is true, the framework switches to worker mode automatically. Your controllers, modules, and routing logic work identically in both modes.</p>
+
+    <h2 id="architecture">Architecture</h2>
+    <p>The worker mode architecture separates one-time boot from per-request handling:</p>
+    <table>
+      <thead><tr><th>Phase</th><th>What Happens</th><th>Frequency</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Boot</strong></td><td>Load PHAR, bootstrap framework, register autoloaders</td><td>Once</td></tr>
+        <tr><td><strong>Request Loop</strong></td><td>Create Application &mdash; match domain &mdash; load distributor &mdash; handle route</td><td>Per request</td></tr>
+        <tr><td><strong>Dispose</strong></td><td>Clear request state, reset event bindings, garbage collect</td><td>Per request</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="state-management">State Management</h2>
+    <p>Understanding what persists and what resets between requests is critical for correct behavior in worker mode:</p>
+    <table>
+      <thead><tr><th>Category</th><th>Behavior</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Persists</strong></td><td>Shared across all requests</td><td>Controller class definitions, framework code, autoloader registry, module metadata</td></tr>
+        <tr><td><strong>Resets</strong></td><td>Cleared per request</td><td>Routing tables, event bindings, closures, Agent state</td></tr>
+      </tbody>
+    </table>
+    <p>The framework automatically handles resetting request-scoped state. Class definitions and autoloaders persist because they are immutable and expensive to rebuild.</p>
+
+    <h2 id="best-practices">Best Practices</h2>
+    <ul>
+      <li><strong>Use request-scoped data</strong> &mdash;Store request-specific data in controller instance variables, not static properties.</li>
+      <li><strong>Reset in <code>__onInit()</code></strong> &mdash;Always reset instance variables in your controller's <code>__onInit()</code> method. This runs at the start of each request.</li>
+      <li><strong>Avoid persistent state in controllers</strong> &mdash;Don't rely on controller state surviving between requests. Treat each request as isolated.</li>
+      <li><strong>No static variables for request data</strong> &mdash;Static variables persist across requests in worker mode. Use them only for truly global, immutable data.</li>
+      <li><strong>Close resources explicitly</strong> &mdash;Database connections, file handles, and streams should be closed at the end of each request cycle.</li>
+    </ul>
+    <pre><code><span class="hl-cmt">// &#x2718; Correct: Reset state in __onInit()</span>
+<span class="hl-kw">class</span> <span class="hl-cls">MyController</span> <span class="hl-kw">extends</span> <span class="hl-cls">Controller</span>
+{
+    <span class="hl-kw">private</span> <span class="hl-var">$requestData</span> = [];
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+    {
+        <span class="hl-var">$this</span>-><span class="hl-var">requestData</span> = [];  <span class="hl-cmt">// Reset per request</span>
+    }
+}
+
+<span class="hl-cmt">// &#x2718; Wrong: Static variable leaks across requests</span>
+<span class="hl-kw">class</span> <span class="hl-cls">BadController</span> <span class="hl-kw">extends</span> <span class="hl-cls">Controller</span>
+{
+    <span class="hl-kw">private static</span> <span class="hl-var">$cache</span> = [];  <span class="hl-cmt">// Persists! Leaks data between requests</span>
+}</code></pre>
+
+    <h2 id="performance">Performance</h2>
+    <p>Benchmark results comparing traditional PHP-FPM with FrankenPHP worker mode:</p>
+    <table>
+      <thead><tr><th>Metric</th><th>PHP-FPM</th><th>FrankenPHP Worker</th><th>Improvement</th></tr></thead>
+      <tbody>
+        <tr><td>Requests/sec</td><td>~450</td><td>~3,200</td><td><strong>7.1x faster</strong></td></tr>
+        <tr><td>Response time</td><td>~22ms</td><td>~3ms</td><td><strong>7.3x faster</strong></td></tr>
+        <tr><td>Memory per request</td><td>~2.1 MB</td><td>~1.45 MB</td><td><strong>31% less</strong></td></tr>
+      </tbody>
+    </table>
+    <p>These gains come from eliminating per-request PHAR loading, autoloader registration, and framework bootstrapping.</p>
+
+    <h2 id="caddyfile-generation">Caddyfile Generation (CLI)</h2>
+    <p>Razy can automatically generate a production-ready Caddyfile from your <code>sites.inc.php</code> multisite configuration. This is the Caddy equivalent of <code>php Razy.phar rewrite</code> which generates <code>.htaccess</code> for Apache.</p>
+
+    <h3>Basic Usage</h3>
+    <pre><code><span class="hl-cmt"># Generate Caddyfile (FrankenPHP worker mode, default)</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span>
+
+<span class="hl-cmt"># Generate .htaccess (Apache, default without --caddy)</span>
+php Razy.phar <span class="hl-fn">rewrite</span></code></pre>
+
+    <h3>Options</h3>
+    <table>
+      <thead><tr><th>Option</th><th>Description</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><code>--caddy</code></td><td>Generate Caddyfile instead of .htaccess</td><td>Off (Apache)</td></tr>
+        <tr><td><code>--no-worker</code></td><td>Use standard <code>php_server</code> instead of FrankenPHP worker mode</td><td>Worker mode on</td></tr>
+        <tr><td><code>--document-root=PATH</code></td><td>Set the server document root path</td><td><code>/app/public</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="hl-cmt"># Worker mode with default document root</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span>
+
+<span class="hl-cmt"># Standard mode (no worker) for development</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span> <span class="hl-str">--no-worker</span>
+
+<span class="hl-cmt"># Custom document root</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span> <span class="hl-str">--document-root=/var/www/html</span></code></pre>
+
+    <h3>What Gets Generated</h3>
+    <p>The generated Caddyfile includes:</p>
+    <ul>
+      <li><strong>Global options</strong> &rarr; <code>frankenphp</code> directive and <code>order php_server before file_server</code></li>
+      <li><strong>Per-domain site blocks</strong> &mdash;One block per domain in <code>sites.inc.php</code>, including domain aliases as additional addresses</li>
+      <li><strong>Webasset handlers</strong> &mdash;Named matchers (<code>@webasset_*</code>) with <code>uri strip_prefix</code> + <code>file_server</code> for each module's <code>webassets/</code> directory</li>
+      <li><strong>Data mapping handlers</strong> &mdash;Named matchers (<code>@data_*</code>) for distributor data directories</li>
+      <li><strong>Shared module paths</strong> &mdash;Handler for <code>/*/shared/*</code> paths</li>
+      <li><strong>PHP execution</strong> &mdash;Either <code>worker /app/public/index.php</code> (worker mode) or plain <code>php_server</code> (standard mode)</li>
+    </ul>
+
+    <h3>Generated Output Example</h3>
+    <p>For a multisite configuration with <code>example.com</code> and alias <code>www.example.com</code>:</p>
+    <pre><code>{
+    <span class="hl-kw">frankenphp</span>
+    <span class="hl-kw">order</span> php_server <span class="hl-kw">before</span> file_server
+}
+
+<span class="hl-str">example.com, www.example.com</span> {
+    <span class="hl-kw">root</span> * <span class="hl-str">/app/public</span>
+
+    <span class="hl-cmt"># Webassets: mymodule</span>
+    <span class="hl-var">@webasset_mymodule_</span> <span class="hl-kw">path</span> <span class="hl-str">/webassets/mymodule/*</span>
+    <span class="hl-kw">handle</span> <span class="hl-var">@webasset_mymodule_</span> {
+        <span class="hl-kw">uri</span> strip_prefix <span class="hl-str">/webassets/mymodule</span>
+        <span class="hl-kw">root</span> * <span class="hl-str">sites/example.com/vendor/mymodule/1.0.0</span>
+        <span class="hl-fn">file_server</span>
+    }
+
+    <span class="hl-cmt"># Shared modules</span>
+    <span class="hl-var">@shared</span> <span class="hl-kw">path</span> <span class="hl-str">/*/shared/*</span>
+    <span class="hl-kw">handle</span> <span class="hl-var">@shared</span> {
+        <span class="hl-kw">root</span> * <span class="hl-str">/app/public</span>
+        <span class="hl-fn">file_server</span>
+    }
+
+    <span class="hl-fn">php_server</span> {
+        <span class="hl-kw">worker</span> <span class="hl-str">/app/public/index.php</span>
+    }
+}</code></pre>
+
+    <h3>Architecture</h3>
+    <table>
+      <thead><tr><th>Component</th><th>File</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>CaddyfileCompiler</code></td><td><code>src/library/Razy/Routing/CaddyfileCompiler.php</code></td><td>Compiles multisite config into Caddyfile output</td></tr>
+        <tr><td><code>caddyfile.tpl</code></td><td><code>src/asset/setup/caddyfile.tpl</code></td><td>Razy template for Caddyfile structure</td></tr>
+        <tr><td><code>Application::updateCaddyfile()</code></td><td><code>src/library/Razy/Application.php</code></td><td>Entry point, writes <code>Caddyfile</code> to project root</td></tr>
+        <tr><td><code>rewrite</code> CLI command</td><td><code>src/system/terminal/rewrite.inc.php</code></td><td>CLI interface with <code>--caddy</code> flag</td></tr>
+      </tbody>
+    </table>
+    <p>This mirrors the existing Apache pipeline (<code>RewriteRuleCompiler</code> &rarr; <code>htaccess.tpl</code> &rarr; <code>Application::updateRewriteRules()</code>).</p>
+
+    <h2 id="configuration">Configuration</h2>
+    <p>Docker Compose setup for FrankenPHP worker mode:</p>
+    <pre><code><span class="hl-cmt"># docker-compose.yml</span>
+<span class="hl-kw">services</span>:
+  <span class="hl-kw">php</span>:
+    <span class="hl-kw">image</span>: <span class="hl-str">dunglas/frankenphp</span>
+    <span class="hl-kw">volumes</span>:
+      - <span class="hl-str">.:/app/public</span>
+    <span class="hl-kw">environment</span>:
+      - <span class="hl-var">CADDY_WORKER_MODE</span>=<span class="hl-kw">true</span></code></pre>
+    <p>Caddyfile configuration (manual example &mdash; or generate with <code>php Razy.phar rewrite --caddy</code>):</p>
+    <pre><code><span class="hl-cmt"># Caddyfile</span>
+{
+    <span class="hl-kw">frankenphp</span>
+    <span class="hl-kw">order</span> php_server <span class="hl-kw">before</span> file_server
+}
+
+<span class="hl-str">localhost</span> {
+    <span class="hl-kw">root</span> * <span class="hl-str">/app/public</span>
+    <span class="hl-fn">php_server</span> {
+        <span class="hl-kw">worker</span> <span class="hl-str">/app/public/index.php</span>
+    }
+}</code></pre>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+    <table>
+      <thead><tr><th>Issue</th><th>Cause</th><th>Solution</th></tr></thead>
+      <tbody>
+        <tr><td>State leaking between requests</td><td>Static variables or global state persisting</td><td>Move to instance variables; reset in <code>__onInit()</code></td></tr>
+        <tr><td>Memory growing over time</td><td>Objects not being garbage collected</td><td>Unset large variables; check for circular references</td></tr>
+        <tr><td>Session data from wrong user</td><td>Session not properly reset</td><td>Ensure <code>session_write_close()</code> is called; let the framework handle session lifecycle</td></tr>
+        <tr><td>Database connection errors</td><td>Connections exceeding max lifetime</td><td>Use connection pooling or reconnect logic; don't store connections in static variables</td></tr>
+        <tr><td>Stale configuration</td><td>Config cached from boot phase</td><td>Reload config per-request if it changes; use <code>config.inc.php</code> for static-only settings</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="migration-checklist">Migration Checklist</h2>
+    <p>Before deploying with worker mode, verify each item:</p>
+    <ul>
+      <li><strong>Review static variables</strong> &mdash;Audit all <code>static</code> properties in controllers and modules. Ensure they hold immutable data only.</li>
+      <li><strong>Reset instance variables</strong> &mdash;Add or verify <code>__onInit()</code> resets in all controllers.</li>
+      <li><strong>Test sessions</strong> &mdash;Confirm session data isolates correctly between concurrent requests.</li>
+      <li><strong>Check database lifecycle</strong> &mdash;Ensure connections are created per-request or use connection pooling.</li>
+      <li><strong>Load test</strong> &mdash;Run concurrent load tests (e.g., with <code>wrk</code> or <code>ab</code>) and verify correct responses under load.</li>
+      <li><strong>Monitor memory</strong> &mdash;Watch memory usage over sustained load to detect leaks. Use <code>memory_get_usage()</code> logging if needed.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="publishing.html"><span class="label">&larr; Previous</span><span class="title">Repository &amp; Publishing</span></a>
+      <a href="cli.html" class="next"><span class="label">Next &rarr;</span><span class="title">CLI Commands</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

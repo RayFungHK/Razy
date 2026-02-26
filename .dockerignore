@@ -1,0 +1,13 @@
+.git
+.github
+.devcontainer
+.docker
+vendor
+node_modules
+data/cache
+*.phar
+*.phar.gz
+coverage.xml
+phpunit-output.txt
+playground/debug_output.html
+playground/nested-error.html

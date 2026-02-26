@@ -6,23 +6,50 @@
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * Defines the Entity class for the Razy Template Engine. An Entity is a
+ * runtime instance of a Block, holding assigned parameter values and child
+ * entity collections. Entities handle template rendering by processing
+ * parameter tags, function tags, and modifier chains.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy\Template;
-
-use Closure;
-use Razy\Error;
+use Razy\Exception\TemplateException;
 use Razy\ModuleInfo;
 use Razy\Template;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
+use Razy\Template\CompiledTemplate;
 use Throwable;
 
+/**
+ * Runtime instance of a template Block, used for rendering.
+ *
+ * An Entity holds parameter values and child entity collections for a specific
+ * Block. During rendering, it processes parameter tags (`{$var}`), function tags
+ * (`{@func ...}`), modifier chains (`{$var->modifier}`), and inline comments
+ * (`{#...}`). Entities support hierarchical value resolution, linked wrapper
+ * entities, and path-based entity lookup.
+ *
+ * @class Entity
+ */
 class Entity
 {
+	use ParameterBagTrait;
+
+	/** @var array<string, array<string, mixed>> Cached parsed parameter values keyed by name and path */
 	private array $caches = [];
+
+	/** @var array<string, array<string, Entity>> Child entities indexed by block name and entity ID */
 	private array $entities = [];
+
+	/** @var array<string, mixed> Entity-level template parameters */
 	private array $parameters = [];
+
+    /** @var Entity|null Linked wrapper entity for delegating block creation */
     private ?Entity $linkedEntity = null;
 
     /**
@@ -36,39 +63,20 @@ class Entity
 	public function __construct(private readonly Block $block, private string $id = '', private readonly ?self $parent = null)
 	{
 		$this->id = trim($this->id);
+		// Generate a random hex ID if none was provided
 		if (!$this->id) {
 			$this->id = sprintf('%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff));
 		}
 	}
 
 	/**
-	 * Assign the entity level parameter value.
+	 * Invalidate cached value when a parameter is reassigned.
 	 *
-	 * @param mixed $parameter The parameter name or an array of parameters
-	 * @param mixed|null $value The parameter value
-	 *
-	 * @return self Chainable
-	 * @throws Throwable
+	 * @param string $parameter The parameter name that was assigned
 	 */
-	public function assign(mixed $parameter, mixed $value = null): Entity
+	protected function onParameterAssigned(string $parameter): void
 	{
-		if (is_array($parameter)) {
-			foreach ($parameter as $index => $value) {
-				$this->assign($index, $value);
-			}
-		} elseif (is_string($parameter)) {
-			if ($value instanceof Closure) {
-				// If the value is closure, pass the current value to closure
-				$this->parameters[$parameter] = $value($this->parameters[$parameter] ?? null);
-			} else {
-				$this->parameters[$parameter] = $value;
-			}
-			unset($this->caches[$parameter]);
-		} else {
-			throw new Error('Invalid parameter name');
-		}
-
-		return $this;
+		unset($this->caches[$parameter]);
 	}
 
 	/**
@@ -79,21 +87,6 @@ class Entity
 	public function getModule(): ?ModuleInfo
 	{
 		return $this->block->getModule();
-	}
-
-	/**
-	 * Bind reference parameter
-	 *
-	 * @param null $value
-	 *
-	 * @return $this
-	 * @throws Throwable
-	 */
-	public function bind(string $parameter, mixed &$value): Entity
-	{
-		$this->parameters[$parameter] = &$value;
-
-		return $this;
 	}
 
 	/**
@@ -146,24 +139,27 @@ class Entity
 			return [];
 		}
 
+		// Walk through each path segment to drill down into nested entities
 		foreach ($paths as $blockName) {
 			$blockName = trim($blockName);
 			if (!preg_match('/^(\w+)(?:\[(?:(\d+)|(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>)\])?$/', $blockName, $matches)) {
-				throw new Error('The path of `' . $blockName . '` is not in valid format.');
+				throw new TemplateException('The path of `' . $blockName . '` is not in valid format.');
 			}
 
 			$entityMatched = [];
+			// Match entities by block name, optionally filtered by ID or index
 			foreach ($entities as $entity) {
 				if (!$entity->hasBlock($matches[1])) {
 					continue;
 				}
 
 				if ($matches[4] ?? '') {
-					// Specified ID
+					// Lookup by specific entity ID
 					$entityMatched[] = $entity->getEntity($matches[1], $matches[4]);
 				} else {
 					$entityList = $this->getEntities($matches[1]);
 					if (null !== $matches[2]) {
+						// Lookup by numeric index
 						if ($matches[2] < count($entityList)) {
 							$entityMatched[] = $entityList[$matches[2]];
 						}
@@ -323,6 +319,7 @@ class Entity
 			$id = sprintf('%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff));
 		}
 
+		// Return existing entity if one already exists with this block name and ID
 		if (isset($this->entities[$blockName][$id])) {
 			return $this->entities[$blockName][$id];
 		}
@@ -333,6 +330,7 @@ class Entity
 			$this->entities[$blockName] = [];
 		}
 
+        // Delegate to linked wrapper entity if one exists
         if ($this->linkedEntity) {
             return $this->linkedEntity->newBlock($blockName, $id);
         } else {
@@ -357,16 +355,51 @@ class Entity
 	{
 		$content = '';
 		$structure = $this->block->getStructure();
+		// Iterate through structure: text segments are parsed, Block references trigger entity processing
 		foreach ($structure as $index => $entity) {
 			if ($entity instanceof Block) {
 				$content .= $this->processEntity($index);
 			} else {
-				$clip = $entity;
-				$content .= $this->parseText($clip);
+				// Use pre-compiled tokens when available (segments without function tags),
+				// avoiding both parseFunctionTag() and parseText() regex overhead
+				$compiled = $this->block->getCompiledSegment($index);
+				if ($compiled) {
+					$content .= $this->processCompiledSegment($compiled);
+				} else {
+					$clip = $entity;
+					$content .= $this->parseText($clip);
+				}
 			}
 		}
 
 		return $content;
+	}
+
+	/**
+	 * Process a pre-compiled template segment using tokenized variable references.
+	 * Skips regex matching entirely — iterates pre-parsed tokens and resolves values directly.
+	 *
+	 * @param CompiledTemplate $compiled The pre-compiled segment tokens
+	 * @return string Rendered content with variables resolved
+	 */
+	private function processCompiledSegment(CompiledTemplate $compiled): string
+	{
+		$result = '';
+		foreach ($compiled->segments as $segment) {
+			if (is_string($segment)) {
+				$result .= $segment;
+			} else {
+				// Resolve pipe-delimited variable alternatives (pre-split during compilation)
+				foreach ($segment['clips'] as $clip) {
+					$value = $this->parseValue($clip) ?? '';
+					if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
+						$result .= $value;
+						break;
+					}
+				}
+			}
+		}
+		return $result;
 	}
 
 	/**
@@ -409,8 +442,10 @@ class Entity
 	{
 		$content = $this->parseFunctionTag($content);
 
+		// Replace parameter tags {$var} with resolved values, supporting dot-path access and modifier chains
 		return preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
 			$clips = preg_split('/(?<quote>[\'"])(\\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+			// Try each pipe-delimited alternative until a renderable value is found
 			foreach ($clips as $clip) {
 				$value = $this->parseValue($clip) ?? '';
 				if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
@@ -433,13 +468,16 @@ class Entity
 	 */
 	private function parseFunctionTag(string &$content, TFunction|TFunctionCustom|null $enclosure = null): string
 	{
+		// Stack to track nested enclosure function tags during parsing
 		$stacking = [];
 		$result = '';
-		while (preg_match('/\\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\\.|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+))}/', $content, $matches, PREG_OFFSET_CAPTURE)) {
+		// Match function tags {@name...}, closing tags {/name}, and comment tags {#...}
+		while (preg_match('/\\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\\.|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+)|#[^}]*?)}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
 			$offset = (int)$matches[0][1];
 
 			$isClosingTag = isset($matches[4][0]);
-			$functionName = $matches[4][0] ?? $matches[1][0];
+			$isCommentTag = str_starts_with($matches[0][0], '{#');
+			$functionName = $matches[4][0] ?? $matches[1][0] ?? '';
 
 			// Append the content before the matched tag into result
 			$result .= substr($content, 0, $offset);
@@ -447,7 +485,13 @@ class Entity
 			// Crop the content after the matched element
 			$content = substr($content, $offset + strlen($matches[0][0]));
 
+			// Handle inline comment blocks {#...} - skip entire block
+			if ($isCommentTag) {
+				continue;
+			}
+
 			if (null !== $enclosure) {
+				// Enclosure mode: collect content until matching closing tag is found
 				if ($isClosingTag) {
 					if (empty($stacking) && $enclosure->getName() === $functionName) {
 						return $result;
@@ -464,6 +508,7 @@ class Entity
 					array_pop($stacking);
 				}
 			} else {
+				// Normal mode: load and invoke plugin, replace tag with output
 				$plugin = $this->block->loadPlugin('function', $functionName);
 
 				if ($plugin) {
@@ -540,7 +585,7 @@ class Entity
 			$value = $this->caches[$name][$path];
 		}
 
-		// Modifier
+		// Apply modifier chain (e.g., ->uppercase, ->truncate:50)
 		if (strlen($modifier) > 0) {
 			preg_match_all('/->(\w+)((?::(?:\w+|(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>|-?\d+(?:\.\d+)?))*)/', $modifier, $matches, PREG_SET_ORDER);
 			foreach ($matches as $clip) {
@@ -555,12 +600,15 @@ class Entity
 	}
 
 	/**
-	 * Return the parameter value.
+	 * Return a parameter value from the entity scope.
+	 *
+	 * When $recursion is true and the parameter is not assigned at this
+	 * scope, resolution continues upward: Entity → Block → Source → Template.
 	 *
 	 * @param string $parameter The parameter name
-	 * @param bool $recursion Enable to get the value recursively
+	 * @param bool $recursion If true, walk up through Block, Source, and Template scopes when not found here
 	 *
-	 * @return mixed The parameter value
+	 * @return mixed The parameter value, or null if not found at any resolved scope
 	 */
 	public function getValue(string $parameter, bool $recursion = false): mixed
 	{

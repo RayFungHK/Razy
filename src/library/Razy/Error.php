@@ -1,26 +1,41 @@
 <?php
 
-/*
+/**
  * This file is part of Razy v0.5.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *
  * This source file is subject to the MIT license that is bundled
  * with this source code in the file LICENSE.
+ *
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
 use Exception;
+use Razy\Error\ErrorConfig;
+use Razy\Error\ErrorRenderer;
 use Throwable;
 
+/**
+ * Class Error
+ *
+ * Custom exception class for the Razy framework. Extends PHP's built-in Exception
+ * to provide enhanced error display with debug backtraces, custom exception pages
+ * using the Template engine, and CLI-mode error output via Terminal.
+ *
+ * Static configuration and rendering methods delegate to ErrorConfig and ErrorRenderer
+ * respectively. The proxy methods on this class are retained for backward compatibility.
+ *
+ * @class Error
+ * @package Razy
+ */
 class Error extends Exception
 {
+    /** @var string Default heading text for exception pages */
     public const DEFAULT_HEADING = 'There seems to is something wrong...';
-
-    private static string $cached = '';
-    private static bool $debug = false;
-    private static array $debugConsole = [];
 
     /**
      * Error constructor.
@@ -33,31 +48,48 @@ class Error extends Exception
      */
     public function __construct(string $message, int $statusCode = 400, private readonly string $heading = self::DEFAULT_HEADING, private readonly string $debugMessage = '', Throwable $exception = null)
     {
-        if (CLI_MODE) {
+        parent::__construct(nl2br($message), $statusCode, $exception);
+        if (CLI_MODE && !defined('PHPUNIT_RUNNING')) {
             Terminal::WriteLine('{@c:red}' . $message, true);
-        } else {
-            parent::__construct(nl2br($message), $statusCode, $exception);
         }
     }
 
     /**
-     * Get the cached buffer content
+     * Get the cached buffer content.
      *
      * @return string
      */
-    public static function GetCached(): string
+    public static function getCached(): string
     {
-        return self::$cached;
+        return ErrorConfig::getCached();
     }
 
     /**
-     * Enable debug to display the detail backtrack.
+     * Configure Error behavior from a config array.
      *
-     * @param bool $enable
+     * @param array<string, mixed> $config Configuration array (e.g. from site config)
      */
-    public static function SetDebug(bool $enable): void
+    public static function configure(array $config): void
     {
-        self::$debug = $enable;
+        ErrorConfig::configure($config);
+    }
+
+    /**
+     * Check if debug mode is currently enabled.
+     *
+     * @return bool
+     */
+    public static function isDebug(): bool
+    {
+        return ErrorConfig::isDebug();
+    }
+
+    /**
+     * Reset static state between requests. Essential for worker mode.
+     */
+    public static function reset(): void
+    {
+        ErrorConfig::reset();
     }
 
     /**
@@ -65,25 +97,20 @@ class Error extends Exception
      *
      * @return void
      */
-    public static function Show404(): void
+    public static function show404(): void
     {
-        ob_clean();
-        header('HTTP/1.0 404 Not Found');
-
-        if (WEB_MODE) {
-            echo '<h1>404 Not Found</h1>';
-            echo 'The requested URL was not found on this server.';
-        } else {
-            Terminal::WriteLine('{@c:red}404 Not Found', true);
-            Terminal::WriteLine('The requested URL was not found on this server', true);
-        }
-
-        exit();
+        ErrorRenderer::show404();
     }
 
-    public static function DebugConsoleWrite(string $message): void
+    /**
+     * Write a message to the debug console log.
+     *
+     * @param string $message The debug message to record
+     * @return void
+     */
+    public static function debugConsoleWrite(string $message): void
     {
-        self::$debugConsole[] = $message;
+        ErrorConfig::debugConsoleWrite($message);
     }
 
     /**
@@ -93,63 +120,9 @@ class Error extends Exception
      *
      * @throws Throwable
      */
-    public static function ShowException(Throwable $exception): void
+    public static function showException(Throwable $exception): void
     {
-        if (WEB_MODE) {
-            $tplFolder = append(PHAR_PATH, 'asset', 'exception');
-            if (is_file(append($tplFolder, $exception->getCode() . '.html'))) {
-                $tplFile = append($tplFolder, $exception->getCode() . '.html');
-            } else {
-                $tplFile = append($tplFolder, 'any.html');
-            }
-
-            $template = new Template();
-            $source = $template->load($tplFile);
-            $root = $source->getRoot();
-
-            $root->assign([
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'message' => $exception->getMessage(),
-                'heading' => ($exception instanceof self) ? $exception->getHeading() : 'There seems to is something wrong...',
-            ]);
-
-            if (self::$debug) {
-                $debugBlock = $root->newBlock('debug');
-                if ($exception instanceof self && $debugMessage = $exception->getDebugMessage()) {
-                    $debugBlock->assign([
-                        'debug_message' => $debugMessage,
-                    ]);
-                }
-                if (count(self::$debugConsole)) {
-                    $debugBlock->newBlock('console')->assign([
-                        'console' => implode("\n", self::$debugConsole),
-                    ]);
-                }
-
-                $stacktrace = explode("\n", $exception->getTraceAsString());
-                array_pop($stacktrace);
-
-                $index = 0;
-                foreach ($stacktrace as $trace) {
-                    preg_match('/^#\d+ (.+)$/', $trace, $matches);
-                    $debugBlock->newBlock('backtrace')->assign([
-                        'index' => $index++,
-                        'stack' => htmlspecialchars($matches[1]),
-                    ]);
-                }
-            }
-
-            self::$cached = ob_get_contents();
-            ob_clean();
-            echo $source->output();
-            // Set the status code
-            http_response_code(is_numeric($exception->getCode()) ? $exception->getCode() : 400);
-        } else {
-            echo $exception;
-        }
-
-        exit;
+        ErrorRenderer::showException($exception);
     }
 
     /**

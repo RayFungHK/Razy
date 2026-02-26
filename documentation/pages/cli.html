@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLI Commands &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">�?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>CLI Commands</h1>
+    <p>Razy provides a comprehensive command-line interface through <code>Razy.phar</code>. All commands follow the pattern <code>php Razy.phar &lt;command&gt; [arguments] [options]</code>.</p>
+
+    <!-- ============================== -->
+    <!-- 1. Setup & Environment         -->
+    <!-- ============================== -->
+    <h2 id="setup-environment">Setup &amp; Environment</h2>
+    <p>Commands for initializing and inspecting the Razy environment.</p>
+
+    <h3 id="build"><code>build</code></h3>
+    <p>Set up the Razy environment in the specified directory. Creates <code>config/</code>, <code>plugins/</code>, <code>sites/</code>, <code>shared/</code> directories and writes <code>sites.inc.php</code>, <code>index.php</code>, <code>repository.inc.php</code>, and <code>.htaccess</code>.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">build</span> [path]</code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>path</code></td><td>No</td><td>Target directory. Defaults to current working directory.</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Initialize Razy in the current directory</span>
+php Razy.phar <span class="hl-fn">build</span>
+
+<span class="hl-cmt"># Initialize in a specific directory</span>
+php Razy.phar <span class="hl-fn">build</span> <span class="hl-str">/var/www/myproject</span></code></pre>
+
+    <h3 id="version"><code>version</code></h3>
+    <p>Display the current Razy version.</p>
+    <pre><code>php Razy.phar <span class="hl-fn">version</span></code></pre>
+    <pre><code><span class="hl-cmt"># Output</span>
+<span class="hl-str">Razy v1.0-beta</span></code></pre>
+
+    <h3 id="help"><code>help</code></h3>
+    <p>Show all available CLI commands and their descriptions.</p>
+    <pre><code>php Razy.phar <span class="hl-fn">help</span></code></pre>
+
+    <!-- ============================== -->
+    <!-- 2. Site Management             -->
+    <!-- ============================== -->
+    <h2 id="site-management">Site Management</h2>
+    <p>Commands for managing site mappings, domain aliases, and rewrite rules.</p>
+
+    <h3 id="set"><code>set</code></h3>
+    <p>Create or update a site mapping. Maps a fully-qualified domain name (with optional path) to a distributor code. The <code>-i</code> flag initializes the distributor folder with <code>dist.php</code>.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">set</span> <span class="hl-var">&lt;fqdn&gt;</span> <span class="hl-var">&lt;distcode&gt;</span> [<span class="hl-op">-i</span>]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;fqdn&gt;</code></td><td>Yes</td><td>Domain and optional path (e.g., <code>example.com</code>, <code>example.com/api</code>)</td></tr>
+        <tr><td><code>&lt;distcode&gt;</code></td><td>Yes</td><td>Distributor code to map the domain to</td></tr>
+        <tr><td><code>-i</code></td><td>No</td><td>Initialize the distributor folder with <code>dist.php</code></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Map example.com to the "main" distributor</span>
+php Razy.phar <span class="hl-fn">set</span> <span class="hl-str">example.com</span> <span class="hl-str">main</span>
+
+<span class="hl-cmt"># Map with path and initialize distributor folder</span>
+php Razy.phar <span class="hl-fn">set</span> <span class="hl-str">example.com/api</span> <span class="hl-str">api_dist</span> <span class="hl-op">-i</span></code></pre>
+
+    <h3 id="remove"><code>remove</code></h3>
+    <p>Remove a site mapping from <code>sites.inc.php</code>.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">remove</span> <span class="hl-var">&lt;fqdn&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;fqdn&gt;</code></td><td>Yes</td><td>The domain/path mapping to remove</td></tr>
+      </tbody>
+    </table>
+    <pre><code>php Razy.phar <span class="hl-fn">remove</span> <span class="hl-str">example.com/api</span></code></pre>
+
+    <h3 id="link"><code>link</code></h3>
+    <p>Create a domain alias so that one domain points to another (e.g., <code>www.example.com</code> &rarr; <code>example.com</code>).</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">link</span> <span class="hl-var">&lt;alias&gt;</span> <span class="hl-var">&lt;domain&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;alias&gt;</code></td><td>Yes</td><td>The alias domain name</td></tr>
+        <tr><td><code>&lt;domain&gt;</code></td><td>Yes</td><td>The target domain to point to</td></tr>
+      </tbody>
+    </table>
+    <pre><code>php Razy.phar <span class="hl-fn">link</span> <span class="hl-str">www.example.com</span> <span class="hl-str">example.com</span></code></pre>
+
+    <h3 id="unlink"><code>unlink</code></h3>
+    <p>Remove a domain alias.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">unlink</span> <span class="hl-var">&lt;alias&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;alias&gt;</code></td><td>Yes</td><td>The alias domain name to remove</td></tr>
+      </tbody>
+    </table>
+    <pre><code>php Razy.phar <span class="hl-fn">unlink</span> <span class="hl-str">www.example.com</span></code></pre>
+
+    <h3 id="rewrite"><code>rewrite</code></h3>
+    <p>Rebuild server routing configuration from the current sites configuration in <code>sites.inc.php</code>. Supports Apache <code>.htaccess</code> (default) and Caddy/FrankenPHP <code>Caddyfile</code> output.</p>
+    <pre><code>php Razy.phar <span class="hl-fn">rewrite</span> [<span class="hl-str">--caddy</span>] [<span class="hl-str">--no-worker</span>] [<span class="hl-str">--document-root=PATH</span>]</code></pre>
+    <table>
+      <thead><tr><th>Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>--caddy</code></td><td>No</td><td>Generate <code>Caddyfile</code> instead of <code>.htaccess</code></td></tr>
+        <tr><td><code>--no-worker</code></td><td>No</td><td>Disable FrankenPHP worker mode (Caddy only)</td></tr>
+        <tr><td><code>--document-root=PATH</code></td><td>No</td><td>Set server document root (Caddy only, default: <code>/app/public</code>)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Rebuild Apache .htaccess (default)</span>
+php Razy.phar <span class="hl-fn">rewrite</span>
+
+<span class="hl-cmt"># Generate Caddyfile with FrankenPHP worker mode</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span>
+
+<span class="hl-cmt"># Caddyfile in standard mode (no worker)</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span> <span class="hl-str">--no-worker</span>
+
+<span class="hl-cmt"># Caddyfile with custom document root</span>
+php Razy.phar <span class="hl-fn">rewrite</span> <span class="hl-str">--caddy</span> <span class="hl-str">--document-root=/var/www/html</span></code></pre>
+    <p>See <a href="caddy-worker.html">Caddy Worker Mode</a> for details on the generated Caddyfile structure.</p>
+
+    <!-- ============================== -->
+    <!-- 3. Module Management           -->
+    <!-- ============================== -->
+    <h2 id="module-management">Module Management</h2>
+    <p>Commands for installing, searching, syncing, and validating modules.</p>
+
+    <h3 id="install"><code>install</code></h3>
+    <p>Download and install modules from a GitHub repository. Supports multiple repository formats and version selection options.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">install</span> <span class="hl-var">&lt;repository&gt;</span> [target_path] [options]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;repository&gt;</code></td><td>Yes</td><td>Repository reference: <code>owner/repo</code>, <code>owner/repo@version</code>, or full URL</td></tr>
+        <tr><td><code>[target_path]</code></td><td>No</td><td>Installation directory. Defaults to current distributor path.</td></tr>
+        <tr><td><code>--latest</code>, <code>-l</code></td><td>No</td><td>Install the latest release version</td></tr>
+        <tr><td><code>--stable</code>, <code>-s</code></td><td>No</td><td>Install the latest stable release</td></tr>
+        <tr><td><code>--version=VER</code>, <code>-v=VER</code></td><td>No</td><td>Install a specific version</td></tr>
+        <tr><td><code>--branch=NAME</code>, <code>-b=NAME</code></td><td>No</td><td>Install from a specific branch</td></tr>
+        <tr><td><code>--from-repo</code>, <code>-r</code></td><td>No</td><td>Install from configured repository source</td></tr>
+        <tr><td><code>--name=NAME</code>, <code>-n=NAME</code></td><td>No</td><td>Override the module folder name</td></tr>
+        <tr><td><code>--dist=CODE</code>, <code>-d=CODE</code></td><td>No</td><td>Target distributor code for installation</td></tr>
+        <tr><td><code>--token=TOKEN</code></td><td>No</td><td>GitHub personal access token for private repos</td></tr>
+        <tr><td><code>--yes</code>, <code>-y</code></td><td>No</td><td>Skip confirmation prompts</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Install from GitHub shorthand</span>
+php Razy.phar <span class="hl-fn">install</span> <span class="hl-str">rayfunghk/my-module</span>
+
+<span class="hl-cmt"># Install a specific version</span>
+php Razy.phar <span class="hl-fn">install</span> <span class="hl-str">rayfunghk/my-module@1.2.0</span>
+
+<span class="hl-cmt"># Install latest stable into a specific distributor</span>
+php Razy.phar <span class="hl-fn">install</span> <span class="hl-str">rayfunghk/auth-module</span> <span class="hl-op">--stable</span> <span class="hl-op">--dist=main</span></code></pre>
+
+    <h3 id="search"><code>search</code></h3>
+    <p>Search for modules in configured repositories.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">search</span> <span class="hl-var">&lt;query&gt;</span> [<span class="hl-op">--verbose</span>] [<span class="hl-op">--refresh</span>]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;query&gt;</code></td><td>Yes</td><td>Search keyword or module name pattern</td></tr>
+        <tr><td><code>--verbose</code></td><td>No</td><td>Show detailed module information</td></tr>
+        <tr><td><code>--refresh</code></td><td>No</td><td>Force refresh the repository index cache</td></tr>
+      </tbody>
+    </table>
+    <pre><code>php Razy.phar <span class="hl-fn">search</span> <span class="hl-str">auth</span> <span class="hl-op">--verbose</span></code></pre>
+
+    <h3 id="sync"><code>sync</code></h3>
+    <p>Sync modules from a distributor's <code>repository.inc.php</code> configuration. Downloads and updates modules to match the declared versions.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">sync</span> <span class="hl-var">&lt;distributor&gt;</span> [<span class="hl-op">--dry-run</span>] [<span class="hl-op">--yes</span>] [<span class="hl-op">-v</span>]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;distributor&gt;</code></td><td>Yes</td><td>Distributor code to sync</td></tr>
+        <tr><td><code>--dry-run</code></td><td>No</td><td>Preview changes without installing</td></tr>
+        <tr><td><code>--yes</code></td><td>No</td><td>Skip confirmation prompts</td></tr>
+        <tr><td><code>-v</code></td><td>No</td><td>Verbose output</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Preview what would be synced</span>
+php Razy.phar <span class="hl-fn">sync</span> <span class="hl-str">main</span> <span class="hl-op">--dry-run</span>
+
+<span class="hl-cmt"># Sync and auto-confirm</span>
+php Razy.phar <span class="hl-fn">sync</span> <span class="hl-str">main</span> <span class="hl-op">--yes</span></code></pre>
+
+    <h3 id="compose"><code>compose</code></h3>
+    <p>Install required Composer-compatible libraries and dependencies for a distributor. The command collects all <code>prerequisite</code> entries from every loaded module's <code>package.php</code>, resolves version constraints, downloads packages from Packagist (or a configured transport), and extracts them into the distributor's isolated autoload directory.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">compose</span> <span class="hl-var">&lt;distcode&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;distcode&gt;</code></td><td>Yes</td><td>Distributor code to install dependencies for</td></tr>
+      </tbody>
+    </table>
+    <p><strong>What happens when you run <code>compose</code>:</strong></p>
+    <ol>
+      <li>The <code>PrerequisiteResolver</code> scans every module loaded by the target distributor and collects all <code>prerequisite</code> entries.</li>
+      <li>Version constraints from multiple modules are merged. Conflicts (incompatible constraints for the same package) are reported as errors.</li>
+      <li>The <code>PackageManager</code> fetches package metadata and downloads distribution archives.</li>
+      <li>Packages are extracted into <code>autoload/{distcode}/</code> with PSR-4/PSR-0 namespace mapping.</li>
+      <li>Installed versions are recorded in <code>autoload/lock.json</code>, scoped by distributor code.</li>
+    </ol>
+    <pre><code>php Razy.phar <span class="hl-fn">compose</span> <span class="hl-str">main</span>
+<span class="hl-cmt"># &rarr; Collects prerequisites from all 'main' modules</span>
+<span class="hl-cmt"># &rarr; Downloads &amp; extracts packages</span>
+<span class="hl-cmt"># &rarr; Writes autoload/lock.json</span></code></pre>
+    <p>See <a href="packaging.html#compose-workflow">Compose Workflow &amp; Per-Distributor Isolation</a> for full details on the autoload directory structure and lock file.</p>
+
+    <h3 id="inspect"><code>inspect</code></h3>
+    <p>Inspect a distributor's configuration, mapped domains, and installed modules.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">inspect</span> <span class="hl-var">&lt;distcode&gt;</span> [<span class="hl-op">--details</span>] [<span class="hl-op">--modules-only</span>] [<span class="hl-op">--domains-only</span>]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;distcode&gt;</code></td><td>Yes</td><td>Distributor code to inspect</td></tr>
+        <tr><td><code>--details</code>, <code>-d</code></td><td>No</td><td>Show detailed configuration</td></tr>
+        <tr><td><code>--modules-only</code>, <code>-m</code></td><td>No</td><td>Show only installed modules</td></tr>
+        <tr><td><code>--domains-only</code></td><td>No</td><td>Show only mapped domains</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Full inspection</span>
+php Razy.phar <span class="hl-fn">inspect</span> <span class="hl-str">main</span> <span class="hl-op">--details</span>
+
+<span class="hl-cmt"># List modules only</span>
+php Razy.phar <span class="hl-fn">inspect</span> <span class="hl-str">main</span> <span class="hl-op">-m</span></code></pre>
+
+    <h3 id="validate"><code>validate</code></h3>
+    <p>Validate module files and registered routes. Checks that <code>package.php</code>, <code>module.php</code>, and route closures are properly configured. The <code>--generate</code> flag creates dummy files for any missing closures.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">validate</span> <span class="hl-var">&lt;distcode&gt;</span> [module_code] [options]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;distcode&gt;</code></td><td>Yes</td><td>Distributor code containing the module(s)</td></tr>
+        <tr><td><code>[module_code]</code></td><td>No</td><td>Specific module code to validate (defaults to all)</td></tr>
+        <tr><td><code>-g</code>, <code>--generate</code></td><td>No</td><td>Generate dummy files for missing closures</td></tr>
+        <tr><td><code>-v</code></td><td>No</td><td>Verbose output</td></tr>
+        <tr><td><code>--domain=NAME</code></td><td>No</td><td>Validate routes for a specific domain context</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Validate all modules in distributor</span>
+php Razy.phar <span class="hl-fn">validate</span> <span class="hl-str">main</span>
+
+<span class="hl-cmt"># Validate a specific module and generate missing files</span>
+php Razy.phar <span class="hl-fn">validate</span> <span class="hl-str">main</span> <span class="hl-str">vendor/auth</span> <span class="hl-op">--generate</span></code></pre>
+
+    <h3 id="scaffold"><code>scaffold</code></h3>
+    <p>Generate a complete module skeleton from one command. Creates <code>module.php</code>, <code>package.php</code>, a controller, and a default route handler -- everything needed to start coding immediately.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">scaffold</span> <span class="hl-var">&lt;module_code&gt;</span> [options]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;module_code&gt;</code></td><td>Yes</td><td>Module code in <code>vendor/module</code> format</td></tr>
+        <tr><td><code>-d &lt;dist&gt;</code></td><td>No</td><td>Target distributor name (writes into <code>sites/&lt;dist&gt;/modules/</code>)</td></tr>
+        <tr><td><code>-s</code></td><td>No</td><td>Place module in <code>shared/module/</code> instead</td></tr>
+        <tr><td><code>-n &lt;name&gt;</code></td><td>No</td><td>Module display name (default: derived from module code)</td></tr>
+        <tr><td><code>-a &lt;author&gt;</code></td><td>No</td><td>Author name (default: <code>Author</code>)</td></tr>
+        <tr><td><code>-desc &lt;text&gt;</code></td><td>No</td><td>Module description (default: auto-generated)</td></tr>
+        <tr><td><code>-v &lt;version&gt;</code></td><td>No</td><td>Initial version (default: <code>1.0.0</code>)</td></tr>
+        <tr><td><code>--with-api</code></td><td>No</td><td>Include an API route handler stub</td></tr>
+        <tr><td><code>--with-template</code></td><td>No</td><td>Include a <code>view/index.tpl</code> template</td></tr>
+        <tr><td><code>--with-event</code></td><td>No</td><td>Include event listener stubs in controller</td></tr>
+        <tr><td><code>--full</code></td><td>No</td><td>Enable all optional stubs (API + template + events)</td></tr>
+      </tbody>
+    </table>
+    <h4>Examples</h4>
+    <pre><code><span class="hl-cmt"># Minimal scaffold into distributor "main"</span>
+php Razy.phar <span class="hl-fn">scaffold</span> <span class="hl-str">acme/blog</span> <span class="hl-op">-d</span> <span class="hl-str">main</span>
+
+<span class="hl-cmt"># Full scaffold with all stubs in shared/</span>
+php Razy.phar <span class="hl-fn">scaffold</span> <span class="hl-str">acme/blog</span> <span class="hl-op">-s</span> <span class="hl-op">--full</span>
+
+<span class="hl-cmt"># Custom metadata with API handler</span>
+php Razy.phar <span class="hl-fn">scaffold</span> <span class="hl-str">acme/blog</span> <span class="hl-op">-d</span> <span class="hl-str">main</span> <span class="hl-op">-n</span> <span class="hl-str">"Blog Engine"</span> <span class="hl-op">-a</span> <span class="hl-str">"Acme Inc"</span> <span class="hl-op">--with-api</span>
+
+<span class="hl-cmt"># Interactive mode (prompts for location)</span>
+php Razy.phar <span class="hl-fn">scaffold</span> <span class="hl-str">acme/blog</span></code></pre>
+
+    <h4>Generated Structure</h4>
+    <p><strong>Minimal</strong> (default):</p>
+    <pre><code>acme/blog/
++-- module.php
++-- default/
+    +-- package.php
+    +-- controller/
+        +-- Blog.php
+        +-- Blog.index.php</code></pre>
+    <p><strong>Full</strong> (<code>--full</code>):</p>
+    <pre><code>acme/blog/
++-- module.php
++-- default/
+    +-- package.php
+    +-- controller/
+    |   +-- Blog.php
+    |   +-- Blog.index.php
+    |   +-- Blog.api_hello.php
+    +-- view/
+        +-- index.tpl</code></pre>
+
+    <div class="callout tip">
+      <strong>Tip:</strong> After scaffolding, test your module immediately with <code>php Razy.phar runapp &lt;dist&gt;</code> to verify the generated routes.
+    </div>
+
+    <!-- ============================== -->
+    <!-- 4. Packaging & Publishing      -->
+    <!-- ============================== -->
+    <h2 id="packaging-publishing">Packaging &amp; Publishing</h2>
+    <p>Commands for creating distributable packages and publishing to repositories.</p>
+
+    <h3 id="pack"><code>pack</code></h3>
+    <p>Package a module as a <code>.phar</code> archive for distribution. The module code format is <code>vendor/module</code> or <code>dist@vendor/module</code>.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">pack</span> <span class="hl-var">&lt;module_code&gt;</span> <span class="hl-var">&lt;version&gt;</span> [output_path] [options]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;module_code&gt;</code></td><td>Yes</td><td>Module code: <code>vendor/module</code> or <code>dist@vendor/module</code></td></tr>
+        <tr><td><code>&lt;version&gt;</code></td><td>Yes</td><td>Version string for the package (e.g., <code>1.0.0</code>)</td></tr>
+        <tr><td><code>[output_path]</code></td><td>No</td><td>Output directory for the <code>.phar</code> file</td></tr>
+        <tr><td><code>--no-compress</code></td><td>No</td><td>Skip compression of the archive</td></tr>
+        <tr><td><code>--no-assets</code></td><td>No</td><td>Exclude asset files from the package</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Package a module</span>
+php Razy.phar <span class="hl-fn">pack</span> <span class="hl-str">rayfung/auth</span> <span class="hl-str">1.0.0</span>
+
+<span class="hl-cmt"># Package from a specific distributor with custom output</span>
+php Razy.phar <span class="hl-fn">pack</span> <span class="hl-str">main@rayfung/auth</span> <span class="hl-str">2.1.0</span> <span class="hl-str">./packages</span> <span class="hl-op">--no-compress</span></code></pre>
+
+    <h3 id="publish"><code>publish</code></h3>
+    <p>Generate the repository index from packaged modules and optionally push to GitHub.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">publish</span> [packages_path] [options]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>[packages_path]</code></td><td>No</td><td>Path to the packages directory</td></tr>
+        <tr><td><code>--push</code></td><td>No</td><td>Push generated index to the configured GitHub repository</td></tr>
+        <tr><td><code>--branch=NAME</code></td><td>No</td><td>Target branch for the push</td></tr>
+        <tr><td><code>--dist=CODE</code></td><td>No</td><td>Limit publishing to a specific distributor</td></tr>
+        <tr><td><code>--include-shared</code></td><td>No</td><td>Include shared modules in the index</td></tr>
+        <tr><td><code>--scan</code></td><td>No</td><td>Scan for new packages before publishing</td></tr>
+        <tr><td><code>--cleanup</code></td><td>No</td><td>Remove orphaned entries from the index</td></tr>
+        <tr><td><code>--dry-run</code></td><td>No</td><td>Preview changes without writing or pushing</td></tr>
+        <tr><td><code>--force</code></td><td>No</td><td>Force overwrite existing index entries</td></tr>
+        <tr><td><code>-v</code></td><td>No</td><td>Verbose output</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Generate index and push</span>
+php Razy.phar <span class="hl-fn">publish</span> <span class="hl-op">--push</span>
+
+<span class="hl-cmt"># Dry-run with scanning and verbose output</span>
+php Razy.phar <span class="hl-fn">publish</span> <span class="hl-str">./packages</span> <span class="hl-op">--scan</span> <span class="hl-op">--dry-run</span> <span class="hl-op">-v</span></code></pre>
+
+    <!-- ============================== -->
+    <!-- 5. Runtime & Debugging         -->
+    <!-- ============================== -->
+    <h2 id="runtime-debugging">Runtime &amp; Debugging</h2>
+    <p>Commands for running routes, interactive debugging, and inter-distributor communication.</p>
+
+    <h3 id="run"><code>run</code></h3>
+    <p>Execute a route as if it were an HTTP request. Useful for testing route handlers from the command line.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">run</span> <span class="hl-var">&lt;hostname/path&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;hostname/path&gt;</code></td><td>Yes</td><td>The hostname and path to simulate (e.g., <code>example.com/api/users</code>)</td></tr>
+      </tbody>
+    </table>
+    <pre><code>php Razy.phar <span class="hl-fn">run</span> <span class="hl-str">example.com/api/users</span></code></pre>
+
+    <h3 id="runapp"><code>runapp</code></h3>
+    <p>Launch an interactive shell for a distributor. Provides a REPL-like interface for testing routes, listing modules, and exploring the application.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">runapp</span> <span class="hl-var">&lt;dist_code[@tag]&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;dist_code[@tag]&gt;</code></td><td>Yes</td><td>Distributor code, optionally with a tag (e.g., <code>main</code>, <code>main@dev</code>)</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Built-in commands</strong> available inside the interactive shell:</p>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>help</code></td><td>Show available shell commands</td></tr>
+        <tr><td><code>routes</code></td><td>List all registered routes</td></tr>
+        <tr><td><code>modules</code></td><td>List loaded modules</td></tr>
+        <tr><td><code>api</code></td><td>List available cross-module API endpoints</td></tr>
+        <tr><td><code>run &lt;path&gt;</code></td><td>Execute a route within the shell</td></tr>
+        <tr><td><code>exit</code></td><td>Exit the interactive shell</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># Launch interactive shell for the "main" distributor</span>
+php Razy.phar <span class="hl-fn">runapp</span> <span class="hl-str">main</span>
+
+<span class="hl-cmt"># Example session</span>
+<span class="hl-str">Razy v1.0-beta Interactive Shell [main]</span>
+<span class="hl-str">&gt;</span> <span class="hl-var">modules</span>
+<span class="hl-str">&gt;</span> <span class="hl-var">run /api/users</span>
+<span class="hl-str">&gt;</span> <span class="hl-var">exit</span></code></pre>
+
+    <h3 id="routes"><code>routes</code></h3>
+    <p>List all registered routes and their associated closures for a distributor.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">routes</span> <span class="hl-var">&lt;distcode&gt;</span> [module_code] [options]</code></pre>
+    <table>
+      <thead><tr><th>Argument / Option</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;distcode&gt;</code></td><td>Yes</td><td>Distributor code</td></tr>
+        <tr><td><code>[module_code]</code></td><td>No</td><td>Filter routes by specific module</td></tr>
+        <tr><td><code>-v</code></td><td>No</td><td>Verbose output with closure details</td></tr>
+        <tr><td><code>-r</code>, <code>--regex</code></td><td>No</td><td>Show route regex patterns</td></tr>
+        <tr><td><code>-a</code>, <code>--api</code></td><td>No</td><td>Show only API routes</td></tr>
+        <tr><td><code>--domain=NAME</code></td><td>No</td><td>Filter routes for a specific domain</td></tr>
+        <tr><td><code>--module=CODE</code></td><td>No</td><td>Filter routes by module code</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="hl-cmt"># List all routes</span>
+php Razy.phar <span class="hl-fn">routes</span> <span class="hl-str">main</span>
+
+<span class="hl-cmt"># Show regex patterns for API routes</span>
+php Razy.phar <span class="hl-fn">routes</span> <span class="hl-str">main</span> <span class="hl-op">--regex</span> <span class="hl-op">--api</span></code></pre>
+
+    <h3 id="bridge"><code>bridge</code></h3>
+    <p>Execute internal API commands across distributors via a JSON payload. Used for inter-distributor communication.</p>
+    <pre><code><span class="hl-cmt"># Usage</span>
+php Razy.phar <span class="hl-fn">bridge</span> <span class="hl-var">&lt;json_payload&gt;</span></code></pre>
+    <table>
+      <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;json_payload&gt;</code></td><td>Yes</td><td>JSON string containing the API command and parameters</td></tr>
+      </tbody>
+    </table>
+    <pre><code>php Razy.phar <span class="hl-fn">bridge</span> <span class="hl-str">'{"dist":"main","command":"user.list","params":{"page":1}}'</span></code></pre>
+
+    <!-- ============================== -->
+    <!-- 6. Utilities                   -->
+    <!-- ============================== -->
+    <h2 id="utilities">Utilities</h2>
+    <p>Miscellaneous utility commands.</p>
+
+    <h3 id="generate-skills"><code>generate-skills</code></h3>
+    <p>Generate <code>skills.md</code> documentation files from the current project structure. Creates a comprehensive architecture summary for LLM-assisted development.</p>
+    <pre><code>php Razy.phar <span class="hl-fn">generate-skills</span></code></pre>
+
+    <!-- ============================== -->
+    <!-- Quick Reference                -->
+    <!-- ============================== -->
+    <h2 id="quick-reference">Quick Reference</h2>
+    <table>
+      <thead><tr><th>Category</th><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Setup</strong></td><td><code>build [path]</code></td><td>Initialize Razy environment</td></tr>
+        <tr><td></td><td><code>version</code></td><td>Show version</td></tr>
+        <tr><td></td><td><code>help</code></td><td>List all commands</td></tr>
+        <tr><td><strong>Sites</strong></td><td><code>set &lt;fqdn&gt; &lt;dist&gt; [-i]</code></td><td>Map domain to distributor</td></tr>
+        <tr><td></td><td><code>remove &lt;fqdn&gt;</code></td><td>Remove site mapping</td></tr>
+        <tr><td></td><td><code>link &lt;alias&gt; &lt;domain&gt;</code></td><td>Create domain alias</td></tr>
+        <tr><td></td><td><code>unlink &lt;alias&gt;</code></td><td>Remove domain alias</td></tr>
+        <tr><td></td><td><code>rewrite [--caddy] [--no-worker]</code></td><td>Rebuild .htaccess or Caddyfile</td></tr>
+        <tr><td><strong>Modules</strong></td><td><code>install &lt;repo&gt; [path] [opts]</code></td><td>Install module from GitHub</td></tr>
+        <tr><td></td><td><code>search &lt;query&gt;</code></td><td>Search repositories</td></tr>
+        <tr><td></td><td><code>sync &lt;dist&gt;</code></td><td>Sync modules from config</td></tr>
+        <tr><td></td><td><code>compose &lt;dist&gt;</code></td><td>Install Composer package prerequisites</td></tr>
+        <tr><td></td><td><code>inspect &lt;dist&gt;</code></td><td>Inspect distributor</td></tr>
+        <tr><td></td><td><code>validate &lt;dist&gt; [module]</code></td><td>Validate module files</td></tr>
+        <tr><td></td><td><code>scaffold &lt;module_code&gt; [opts]</code></td><td>Generate module skeleton</td></tr>
+        <tr><td><strong>Packaging</strong></td><td><code>pack &lt;module&gt; &lt;ver&gt;</code></td><td>Create .phar package</td></tr>
+        <tr><td></td><td><code>publish [path] [opts]</code></td><td>Publish repository index</td></tr>
+        <tr><td><strong>Runtime</strong></td><td><code>run &lt;host/path&gt;</code></td><td>Execute a route</td></tr>
+        <tr><td></td><td><code>runapp &lt;dist&gt;</code></td><td>Interactive shell</td></tr>
+        <tr><td></td><td><code>routes &lt;dist&gt;</code></td><td>List routes</td></tr>
+        <tr><td></td><td><code>bridge &lt;json&gt;</code></td><td>Cross-distributor API call</td></tr>
+        <tr><td><strong>Utilities</strong></td><td><code>generate-skills</code></td><td>Generate skills.md</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="caddy-worker.html"><span class="label">&larr; Previous</span><span class="title">Caddy Worker Mode</span></a>
+      <a href="api-reference.html" class="next"><span class="label">Next &rarr;</span><span class="title">API Reference</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

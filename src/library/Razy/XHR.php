@@ -2,27 +2,57 @@
 /**
  * This file is part of Razy v0.5.
  *
+ * XHR (XMLHttpRequest) response handler for the Razy framework.
+ * Provides a fluent API for building and sending JSON API responses
+ * with CORS and CORP header support.
+ *
  * (c) Ray Fung <hello@rayfung.hk>
  *
- * This source file is subject to the MIT license that is bundled
- * with this source code in the file LICENSE.
+ * @package Razy
+ * @license MIT
  */
 
 namespace Razy;
 
 use Closure;
 
+use Razy\Util\StringUtil;
+/**
+ * XHR response builder and sender for the Razy framework.
+ *
+ * Constructs JSON responses with configurable CORS (Access-Control-Allow-Origin)
+ * and CORP (Cross-Origin-Resource-Policy) headers. Supports response data parsing,
+ * additional parameter injection, and optional completion callbacks.
+ *
+ * @class XHR
+ */
 class XHR
 {
+    /** @var string CORP policy: same-site */
     public const CORP_SAME_SITE = 'same-site';
+
+    /** @var string CORP policy: same-origin */
     public const CORP_SAME_ORIGIN = 'same-origin';
+
+    /** @var string CORP policy: cross-origin (most permissive) */
     public const CORP_CROSS_ORIGIN = 'cross-origin';
 
+    /** @var string Allowed origin(s) for CORS header */
     private string $allowOrigin = SITE_URL_ROOT;
+
+    /** @var mixed The response body content */
     private mixed $content = '';
+
+    /** @var string Cross-Origin Resource Policy header value */
     private string $corp = self::CORP_CROSS_ORIGIN;
+
+    /** @var string Unique response hash for request tracking */
     private string $hash;
+
+    /** @var array<string, mixed> Additional response parameters */
     private array $parameters = [];
+
+    /** @var Closure|null Optional callback invoked after response output */
     private ?Closure $closure = null;
 
     /**
@@ -32,7 +62,7 @@ class XHR
      */
     public function __construct(private readonly bool $returnAsArray = false)
     {
-        $this->hash = guid(1);
+        $this->hash = StringUtil::guid(1);
     }
 
     /**
@@ -46,10 +76,13 @@ class XHR
     {
         $origin = trim($origin);
         if ('*' == $origin) {
+            // Wildcard: allow all origins
             $this->allowOrigin = $origin;
         } else {
+            // Validate each comma-separated origin against URL pattern
             $clips = explode(',', $origin);
             foreach ($clips as $index => $clip) {
+                // Remove origins that don't match a valid protocol://domain[:port] pattern
                 if (!preg_match('/(?<protocol>\w*)\:\/\/(?:(?<thld>[\w\-]*)(?:\.(?<sld>[\w\-]*))*\.(?<tld>\w*)(?:\:(?<port>\d*))?)/', $clip)) {
                     unset($clips[$index]);
                 }
@@ -105,10 +138,12 @@ class XHR
             return null;
         }
 
+        // Scalar values (string, int, float, bool) are returned as-is
         if (is_scalar($dataset)) {
             return $dataset;
         }
 
+        // Recursively parse iterable datasets (arrays, collections)
         if (is_iterable($dataset)) {
             foreach ($dataset as &$data) {
                 $data = $this->parse($data);
@@ -117,6 +152,7 @@ class XHR
             return $dataset;
         }
 
+        // Objects with __toString can be coerced to string
         if (method_exists($dataset, '__toString')) {
             return strval($dataset);
         }
@@ -133,6 +169,7 @@ class XHR
      */
     public function send(bool $success = true, string $message = ''): mixed
     {
+        // Build the standard response envelope
         $response = [
             'result' => $success,
             'hash' => $this->hash,
@@ -157,9 +194,14 @@ class XHR
     }
 
     /**
-     * Output the response to the screen.
+     * Output the JSON response with appropriate headers and terminate.
      *
-     * @param array $data
+     * Sets Content-Type, CORS, and CORP headers, sends the JSON-encoded
+     * response, invokes the completion callback if set, then exits.
+     *
+     * @param array $data The response data to encode and output
+     *
+     * @return void
      */
     private function output(array $data): void
     {
@@ -174,7 +216,7 @@ class XHR
             call_user_func($this->closure);
         }
 
-        exit;
+        throw new Exception\HttpException(200, 'XHR response sent');
     }
 
     /**
@@ -199,8 +241,13 @@ class XHR
     }
 
     /**
-     * @param callable $closure
-     * @return $this
+     * Register a closure to be called after the response is sent.
+     *
+     * Useful for cleanup tasks or post-response processing.
+     *
+     * @param callable $closure The callback to invoke after output
+     *
+     * @return static Chainable
      */
     public function onComplete(callable $closure): static
     {

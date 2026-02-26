@@ -1,0 +1,12 @@
+# Razy Framework — Caddy reverse proxy
+# Proxies HTTP :8080 → PHP built-in server :9000
+
+:8080 {
+	reverse_proxy php:9000
+	encode gzip
+
+	log {
+		output stderr
+		format console
+	}
+}

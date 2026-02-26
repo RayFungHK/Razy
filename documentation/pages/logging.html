@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logging &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Logging</h1>
+    <p>Razy provides a <strong>PSR-3 compatible</strong> logging system with two main classes: <strong><code>Logger</code></strong> (standalone file-based logging) and <strong><code>LogManager</code></strong> (multi-channel logging with pluggable handlers).</p>
+
+    <h2 id="table-of-contents">Table of Contents</h2>
+    <ul>
+      <li><a href="#quick-start">Quick Start</a></li>
+      <li><a href="#logger">Logger (Standalone)</a></li>
+      <li><a href="#logmanager">LogManager (Multi-Channel)</a></li>
+      <li><a href="#log-handlers">Log Handlers</a></li>
+      <li><a href="#log-levels">Log Levels</a></li>
+      <li><a href="#message-interpolation">Message Interpolation</a></li>
+      <li><a href="#buffer-mode">Buffer Mode</a></li>
+      <li><a href="#api-reference">API Reference</a></li>
+    </ul>
+
+    <hr>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Logger</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\LogManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\FileHandler</span>;
+
+<span class="hl-cmt">// Simple file-based Logger</span>
+<span class="hl-var">$logger</span> = <span class="hl-kw">new</span> <span class="hl-cls">Logger</span>(<span class="hl-str">'/var/log/app'</span>);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'User logged in'</span>, [<span class="hl-str">'user_id'</span> =&gt; <span class="hl-num">42</span>]);
+
+<span class="hl-cmt">// Multi-channel LogManager</span>
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">LogManager</span>();
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'app'</span>, <span class="hl-kw">new</span> <span class="hl-cls">FileHandler</span>(<span class="hl-str">'/var/log/app'</span>));
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Application started'</span>);</code></pre>
+
+    <hr>
+
+    <h2 id="logger">Logger (Standalone)</h2>
+    <p>The <code>Logger</code> class writes log entries to files, organized by date.</p>
+
+    <h3>File-Based Logging</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Logger</span>;
+
+<span class="hl-cmt">// Log directory &mdash; creates date-based filenames</span>
+<span class="hl-var">$logger</span> = <span class="hl-kw">new</span> <span class="hl-cls">Logger</span>(<span class="hl-str">'/var/log/app'</span>);
+<span class="hl-cmt">// Creates: /var/log/app/2025-01-15.log</span>
+
+<span class="hl-cmt">// PSR-3 level methods</span>
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">emergency</span>(<span class="hl-str">'System is down'</span>);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">alert</span>(<span class="hl-str">'Action required immediately'</span>);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">critical</span>(<span class="hl-str">'Critical failure in {component}'</span>, [<span class="hl-str">'component'</span> =&gt; <span class="hl-str">'auth'</span>]);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">error</span>(<span class="hl-str">'Failed to process request'</span>);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">warning</span>(<span class="hl-str">'Deprecated method called'</span>);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">notice</span>(<span class="hl-str">'User {user} changed settings'</span>, [<span class="hl-str">'user'</span> =&gt; <span class="hl-str">'alice'</span>]);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Processing order #{id}'</span>, [<span class="hl-str">'id'</span> =&gt; <span class="hl-num">1234</span>]);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">debug</span>(<span class="hl-str">'Query executed in {time}ms'</span>, [<span class="hl-str">'time'</span> =&gt; <span class="hl-num">42</span>]);</code></pre>
+
+    <h3>Date-Based Filenames</h3>
+    <p>Log files are automatically named by date:</p>
+    <pre><code>/var/log/app/2025-01-15.log
+/var/log/app/2025-01-16.log</code></pre>
+
+    <p>Log entry format:</p>
+    <pre><code>[2025-01-15 14:30:00] INFO: Processing order #1234</code></pre>
+
+    <h3>Null-Logger Mode</h3>
+    <p>Pass an empty string to create a no-op logger:</p>
+    <pre><code><span class="hl-var">$logger</span> = <span class="hl-kw">new</span> <span class="hl-cls">Logger</span>(<span class="hl-str">''</span>);
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'This goes nowhere'</span>); <span class="hl-cmt">// silently ignored</span></code></pre>
+
+    <hr>
+
+    <h2 id="logmanager">LogManager (Multi-Channel)</h2>
+    <p>The <code>LogManager</code> dispatches log messages to multiple named channels, each backed by a handler.</p>
+
+    <h3>Named Channels</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\LogManager</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\FileHandler</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\StderrHandler</span>;
+
+<span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">LogManager</span>();
+
+<span class="hl-cmt">// Register channels with handlers</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'app'</span>,    <span class="hl-kw">new</span> <span class="hl-cls">FileHandler</span>(<span class="hl-str">'/var/log/app'</span>));
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'access'</span>, <span class="hl-kw">new</span> <span class="hl-cls">FileHandler</span>(<span class="hl-str">'/var/log/access'</span>));
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'error'</span>,  <span class="hl-kw">new</span> <span class="hl-cls">StderrHandler</span>());
+
+<span class="hl-cmt">// Log to all channels</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Request received'</span>);     <span class="hl-cmt">// writes to app, access, error</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">error</span>(<span class="hl-str">'Something went wrong'</span>); <span class="hl-cmt">// writes to app, access, error</span></code></pre>
+
+    <h3>Channel Override</h3>
+    <p>Register a channel with the same name to replace its handler:</p>
+    <pre><code><span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'app'</span>, <span class="hl-kw">new</span> <span class="hl-cls">FileHandler</span>(<span class="hl-str">'/var/log/app-v2'</span>)); <span class="hl-cmt">// replaces previous</span></code></pre>
+
+    <h3>Inspection</h3>
+    <pre><code><span class="hl-cmt">// Check if a channel exists</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">hasChannel</span>(<span class="hl-str">'app'</span>);   <span class="hl-cmt">// true</span>
+
+<span class="hl-cmt">// List all channel names</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">getChannels</span>();       <span class="hl-cmt">// ['app', 'access', 'error']</span></code></pre>
+
+    <hr>
+
+    <h2 id="log-handlers">Log Handlers</h2>
+    <p>Handlers implement <code>LogHandlerInterface</code> and determine <em>where</em> log entries go.</p>
+
+    <h3>Built-In Handlers</h3>
+
+    <h4>FileHandler</h4>
+    <p>Writes to date-based log files:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\FileHandler</span>;
+
+<span class="hl-var">$handler</span> = <span class="hl-kw">new</span> <span class="hl-cls">FileHandler</span>(<span class="hl-str">'/var/log/app'</span>);
+<span class="hl-cmt">// Creates: /var/log/app/2025-01-15.log</span></code></pre>
+
+    <h4>StderrHandler</h4>
+    <p>Writes to <code>php://stderr</code>:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\StderrHandler</span>;
+
+<span class="hl-var">$handler</span> = <span class="hl-kw">new</span> <span class="hl-cls">StderrHandler</span>();</code></pre>
+
+    <h4>NullHandler</h4>
+    <p>Discards all log entries:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\NullHandler</span>;
+
+<span class="hl-var">$handler</span> = <span class="hl-kw">new</span> <span class="hl-cls">NullHandler</span>();</code></pre>
+
+    <h3>Custom Handlers</h3>
+    <p>Create a handler by implementing <code>LogHandlerInterface</code>:</p>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\LogHandler\LogHandlerInterface</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">SlackHandler</span> <span class="hl-kw">implements</span> <span class="hl-cls">LogHandlerInterface</span>
+{
+    <span class="hl-kw">public function</span> <span class="hl-fn">__construct</span>(
+        <span class="hl-kw">private readonly</span> <span class="hl-kw">string</span> <span class="hl-var">$webhookUrl</span>,
+    ) {}
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">handle</span>(<span class="hl-kw">string</span> <span class="hl-var">$level</span>, <span class="hl-kw">string</span> <span class="hl-var">$message</span>, <span class="hl-kw">array</span> <span class="hl-var">$context</span> = []): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$payload</span> = <span class="hl-fn">json_encode</span>([
+            <span class="hl-str">'text'</span> =&gt; <span class="hl-str">"[{</span><span class="hl-var">$level</span><span class="hl-str">}] {</span><span class="hl-var">$message</span><span class="hl-str">}"</span>,
+        ]);
+        <span class="hl-cmt">// Send to Slack webhook...</span>
+    }
+
+    <span class="hl-kw">public function</span> <span class="hl-fn">flush</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-cmt">// No-op for immediate sends</span>
+    }
+}
+
+<span class="hl-cmt">// Register the custom handler</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'slack'</span>, <span class="hl-kw">new</span> <span class="hl-cls">SlackHandler</span>(<span class="hl-str">'https://hooks.slack.com/...'</span>));</code></pre>
+
+    <hr>
+
+    <h2 id="log-levels">Log Levels</h2>
+    <p>Follows PSR-3 / RFC 5424 severity levels:</p>
+    <table>
+      <thead><tr><th>Level</th><th>Priority</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>debug</code></td><td>0</td><td>Detailed debug information</td></tr>
+        <tr><td><code>info</code></td><td>1</td><td>Interesting events</td></tr>
+        <tr><td><code>notice</code></td><td>2</td><td>Normal but significant events</td></tr>
+        <tr><td><code>warning</code></td><td>3</td><td>Exceptional occurrences that are not errors</td></tr>
+        <tr><td><code>error</code></td><td>4</td><td>Runtime errors</td></tr>
+        <tr><td><code>critical</code></td><td>5</td><td>Critical conditions</td></tr>
+        <tr><td><code>alert</code></td><td>6</td><td>Action must be taken immediately</td></tr>
+        <tr><td><code>emergency</code></td><td>7</td><td>System is unusable</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h2 id="message-interpolation">Message Interpolation</h2>
+    <p>Use <code>{placeholder}</code> syntax with context arrays:</p>
+    <pre><code><span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'User {user} purchased {item}'</span>, [
+    <span class="hl-str">'user'</span> =&gt; <span class="hl-str">'alice'</span>,
+    <span class="hl-str">'item'</span> =&gt; <span class="hl-str">'Widget'</span>,
+]);
+<span class="hl-cmt">// Output: [2025-01-15 14:30:00] INFO: User alice purchased Widget</span></code></pre>
+
+    <hr>
+
+    <h2 id="buffer-mode">Buffer Mode</h2>
+    <p>Buffer mode collects log entries in memory and writes them all at once when flushed. This is useful for batching I/O operations.</p>
+
+    <h3>Logger Buffer Mode</h3>
+    <pre><code><span class="hl-var">$logger</span> = <span class="hl-kw">new</span> <span class="hl-cls">Logger</span>(<span class="hl-str">'/var/log/app'</span>);
+
+<span class="hl-cmt">// Enable buffer mode</span>
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">enableBuffer</span>();
+
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Step 1'</span>);  <span class="hl-cmt">// buffered</span>
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Step 2'</span>);  <span class="hl-cmt">// buffered</span>
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Step 3'</span>);  <span class="hl-cmt">// buffered</span>
+
+<span class="hl-cmt">// Write all buffered entries at once</span>
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">flush</span>();
+
+<span class="hl-cmt">// Disable buffer mode</span>
+<span class="hl-var">$logger</span>-&gt;<span class="hl-fn">disableBuffer</span>();</code></pre>
+
+    <h3>LogManager Buffer Mode</h3>
+    <pre><code><span class="hl-var">$manager</span> = <span class="hl-kw">new</span> <span class="hl-cls">LogManager</span>();
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">channel</span>(<span class="hl-str">'app'</span>, <span class="hl-kw">new</span> <span class="hl-cls">FileHandler</span>(<span class="hl-str">'/var/log/app'</span>));
+
+<span class="hl-cmt">// Enable buffer across all channels</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">enableBuffer</span>();
+
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Batch operation start'</span>);
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Processing...'</span>);
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">info</span>(<span class="hl-str">'Batch operation end'</span>);
+
+<span class="hl-cmt">// Flush all channels</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">flush</span>();
+
+<span class="hl-cmt">// Disable buffer mode</span>
+<span class="hl-var">$manager</span>-&gt;<span class="hl-fn">disableBuffer</span>();</code></pre>
+
+    <hr>
+
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>Logger</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__construct</code></td><td><code>(string $logPath)</code></td><td>Create logger; empty string = null logger</td></tr>
+        <tr><td><code>emergency</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log emergency level</td></tr>
+        <tr><td><code>alert</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log alert level</td></tr>
+        <tr><td><code>critical</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log critical level</td></tr>
+        <tr><td><code>error</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log error level</td></tr>
+        <tr><td><code>warning</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log warning level</td></tr>
+        <tr><td><code>notice</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log notice level</td></tr>
+        <tr><td><code>info</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log info level</td></tr>
+        <tr><td><code>debug</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log debug level</td></tr>
+        <tr><td><code>log</code></td><td><code>(string $level, string $message, array $context = []): void</code></td><td>Log with arbitrary level</td></tr>
+        <tr><td><code>enableBuffer</code></td><td><code>(): self</code></td><td>Enable buffer mode</td></tr>
+        <tr><td><code>disableBuffer</code></td><td><code>(): self</code></td><td>Disable buffer mode</td></tr>
+        <tr><td><code>flush</code></td><td><code>(): void</code></td><td>Write buffered entries to file</td></tr>
+      </tbody>
+    </table>
+
+    <h3>LogManager</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>channel</code></td><td><code>(string $name, LogHandlerInterface $handler): self</code></td><td>Register or replace a channel</td></tr>
+        <tr><td><code>hasChannel</code></td><td><code>(string $name): bool</code></td><td>Check channel existence</td></tr>
+        <tr><td><code>getChannels</code></td><td><code>(): array</code></td><td>List channel names</td></tr>
+        <tr><td><code>emergency</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>alert</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>critical</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>error</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>warning</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>notice</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>info</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>debug</code></td><td><code>(string $message, array $context = []): void</code></td><td>Log to all channels</td></tr>
+        <tr><td><code>log</code></td><td><code>(string $level, string $message, array $context = []): void</code></td><td>Log with arbitrary level</td></tr>
+        <tr><td><code>enableBuffer</code></td><td><code>(): self</code></td><td>Enable buffer across channels</td></tr>
+        <tr><td><code>disableBuffer</code></td><td><code>(): self</code></td><td>Disable buffer across channels</td></tr>
+        <tr><td><code>flush</code></td><td><code>(): void</code></td><td>Flush buffered entries to all handlers</td></tr>
+      </tbody>
+    </table>
+
+    <h3>LogHandlerInterface</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>handle</code></td><td><code>(string $level, string $message, array $context = []): void</code></td><td>Process a log entry</td></tr>
+        <tr><td><code>flush</code></td><td><code>(): void</code></td><td>Flush any buffered entries</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="profiler.html"><span class="label">&larr; Previous</span><span class="title">Profiler</span></a>
+      <a href="error-handling.html" class="next"><span class="label">Next &rarr;</span><span class="title">Error Handling</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

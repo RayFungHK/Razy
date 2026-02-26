@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Configuration</h1>
+    <p>The <code>Configuration</code> class extends <code>Collection</code> (which extends PHP's <code>ArrayObject</code>), adding file-backed persistence with automatic format detection. Load a config file once and access, modify, or save it using familiar array syntax and Collection query features.</p>
+
+    <h2 id="inheritance">Inheritance Chain</h2>
+    <pre><code><span class="hl-cls">ArrayObject</span>
+  &#x251C;&#x2500;&#x2500; <span class="hl-cls">Razy\Collection</span>
+       &#x251C;&#x2500;&#x2500; <span class="hl-cls">Razy\Configuration</span></code></pre>
+    <p>Because <code>Configuration</code> extends <code>Collection</code>, every method available on Collection &mdash; selector queries, array access, iteration, counting, serialization &mdash; works identically on a Configuration instance.</p>
+
+    <h2 id="constructor">Constructor</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Configuration</span>;
+
+<span class="hl-cmt">// Auto-detects format from file extension</span>
+<span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">Configuration</span>(<span class="hl-str">'/path/to/config.json'</span>);
+<span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">Configuration</span>(<span class="hl-str">'/path/to/settings.yaml'</span>);
+<span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">Configuration</span>(<span class="hl-str">'/path/to/app.ini'</span>);
+<span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">Configuration</span>(<span class="hl-str">'/path/to/database.php'</span>);</code></pre>
+    <p>The constructor accepts a single <code>string $path</code> argument. The file extension determines the parser:</p>
+
+    <h2 id="formats">Supported Formats</h2>
+    <table>
+      <thead><tr><th>Extension</th><th>Format</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>.php</code></td><td>PHP array</td><td>File must return an array</td></tr>
+        <tr><td><code>.json</code></td><td>JSON</td><td>Standard JSON object/array</td></tr>
+        <tr><td><code>.ini</code></td><td>INI</td><td>Parsed with sections support</td></tr>
+        <tr><td><code>.yaml</code> / <code>.yml</code></td><td>YAML</td><td>Uses Razy's built-in YAML parser</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PHP Format</h3>
+    <pre><code><span class="hl-cmt">// config/database.php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'driver'</span>   => <span class="hl-str">'mysql'</span>,
+    <span class="hl-str">'host'</span>     => <span class="hl-str">'127.0.0.1'</span>,
+    <span class="hl-str">'port'</span>     => <span class="hl-num">3306</span>,
+    <span class="hl-str">'database'</span> => <span class="hl-str">'myapp'</span>,
+    <span class="hl-str">'username'</span> => <span class="hl-str">'root'</span>,
+    <span class="hl-str">'password'</span> => <span class="hl-str">'secret'</span>,
+];</code></pre>
+
+    <h3>JSON Format</h3>
+    <pre><code><span class="hl-cmt">// config/app.json</span>
+{
+    <span class="hl-str">"name"</span>: <span class="hl-str">"MyApp"</span>,
+    <span class="hl-str">"debug"</span>: <span class="hl-kw">true</span>,
+    <span class="hl-str">"version"</span>: <span class="hl-str">"1.0.0"</span>
+}</code></pre>
+
+    <h3>YAML Format</h3>
+    <pre><code><span class="hl-cmt"># config/routes.yaml</span>
+<span class="hl-str">name</span>: MyApp
+<span class="hl-str">debug</span>: <span class="hl-kw">true</span>
+<span class="hl-str">database</span>:
+  <span class="hl-str">driver</span>: mysql
+  <span class="hl-str">host</span>: 127.0.0.1</code></pre>
+
+    <h3>INI Format</h3>
+    <pre><code><span class="hl-cmt">; config/settings.ini</span>
+[general]
+app_name = MyApp
+debug = true
+
+[database]
+driver = mysql
+host = 127.0.0.1</code></pre>
+
+    <h2 id="accessing">Accessing Values</h2>
+    <pre><code><span class="hl-var">$config</span> = <span class="hl-kw">new</span> <span class="hl-cls">Configuration</span>(<span class="hl-str">'config/database.php'</span>);
+
+<span class="hl-cmt">// Array access (inherited from ArrayObject)</span>
+<span class="hl-var">$driver</span> = <span class="hl-var">$config</span>[<span class="hl-str">'driver'</span>];      <span class="hl-cmt">// "mysql"</span>
+<span class="hl-var">$host</span>   = <span class="hl-var">$config</span>[<span class="hl-str">'host'</span>];        <span class="hl-cmt">// "127.0.0.1"</span>
+
+<span class="hl-cmt">// Collection selector query</span>
+<span class="hl-var">$port</span> = <span class="hl-var">$config</span>(<span class="hl-str">'port'</span>);          <span class="hl-cmt">// 3306</span>
+
+<span class="hl-cmt">// Iteration</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$config</span> <span class="hl-kw">as</span> <span class="hl-var">$key</span> => <span class="hl-var">$value</span>) {
+    <span class="hl-fn">echo</span> <span class="hl-str">"</span><span class="hl-var">$key</span><span class="hl-str">: </span><span class="hl-var">$value</span><span class="hl-str">"</span>;
+}</code></pre>
+
+    <h2 id="modifying">Modifying &amp; Saving</h2>
+    <pre><code><span class="hl-cmt">// Modify values</span>
+<span class="hl-var">$config</span>[<span class="hl-str">'host'</span>] = <span class="hl-str">'192.168.1.100'</span>;
+<span class="hl-var">$config</span>[<span class="hl-str">'port'</span>] = <span class="hl-num">3307</span>;
+
+<span class="hl-cmt">// Save back to the same file</span>
+<span class="hl-var">$config</span>-><span class="hl-fn">save</span>();</code></pre>
+    <p>The <code>save()</code> method writes the current data back to the original file path in its detected format. It returns the <code>Configuration</code> instance for chaining.</p>
+
+    <h2 id="methods">Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>__construct(string $path)</code></td><td></td><td>Load config file; format auto-detected from extension</td></tr>
+        <tr><td><code>save()</code></td><td><code>Configuration</code></td><td>Save current data back to the file</td></tr>
+      </tbody>
+    </table>
+    <p>All other methods are inherited from <code>Collection</code> and <code>ArrayObject</code> &mdash;see the <a href="collection.html">Collection</a> documentation for the full API.</p>
+
+    <h2 id="example">Practical Example</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Configuration</span>;
+
+<span class="hl-cmt">// Load application settings</span>
+<span class="hl-var">$settings</span> = <span class="hl-kw">new</span> <span class="hl-cls">Configuration</span>(<span class="hl-str">'config/app.json'</span>);
+
+<span class="hl-cmt">// Read nested values via Collection selectors</span>
+<span class="hl-var">$dbHost</span> = <span class="hl-var">$settings</span>(<span class="hl-str">'database.host'</span>);
+
+<span class="hl-cmt">// Toggle debug mode and save</span>
+<span class="hl-var">$settings</span>[<span class="hl-str">'debug'</span>] = <span class="hl-kw">false</span>;
+<span class="hl-var">$settings</span>-><span class="hl-fn">save</span>();
+
+<span class="hl-cmt">// Convert to plain array for passing to other systems</span>
+<span class="hl-var">$array</span> = <span class="hl-var">$settings</span>-><span class="hl-fn">array</span>();</code></pre>
+
+    <div class="page-nav">
+      <a href="collection.html"><span class="label">&larr; Previous</span><span class="title">Collection</span></a>
+      <a href="hashmap.html" class="next"><span class="label">Next &rarr;</span><span class="title">HashMap</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>

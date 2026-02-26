@@ -1,0 +1,204 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controller &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head><body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">тн?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>Controller</h1>
+    <p class="subtitle">Every module's main class extends <code>Razy\Controller</code>. It provides lifecycle hooks for responding to framework events and utility methods for templates, routing, APIs, and more.</p>
+
+    <h2 id="lifecycle">Module Lifecycle</h2>
+    <p>When the framework boots, each module goes through a well-defined lifecycle. Override the hooks below to plug into each stage.</p>
+
+    <div class="lifecycle">
+      <div class="lifecycle-step">__onInit</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onLoad</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onDispatch</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onRequire</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onReady</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onRouted / __onScriptReady</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onEntry</div>
+      <div class="lifecycle-arrow">??/div>
+      <div class="lifecycle-step">__onDispose</div>
+    </div>
+
+    <h2 id="hooks">Lifecycle Hooks</h2>
+    <p>All hooks are optional. Override only the ones you need.</p>
+
+    <h3 id="oninit"><code>__onInit(Agent $agent): bool</code></h3>
+    <p>Called when the module is first scanned. This is where you register routes, listen for events, add API commands, and configure plugins. Return <code>false</code> to abort loading.</p>
+    <div class="callout callout-info"><strong>This is the most important hook.</strong> Every module uses it to set up its routes, event listeners, and API commands during bootstrap.</div>
+<pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Register URL routes</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/'</span>, <span class="hl-str">'index'</span>);
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addRoute</span>(<span class="hl-str">'/user/:d'</span>, <span class="hl-str">'showUser'</span>);
+
+    <span class="hl-cmt">// Listen for events from other modules</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">listen</span>(<span class="hl-str">'user.login'</span>, <span class="hl-str">'onUserLogin'</span>);
+
+    <span class="hl-cmt">// Register API commands for cross-module calls</span>
+    <span class="hl-var">$agent</span>-><span class="hl-fn">addAPICommand</span>(<span class="hl-str">'getUsers'</span>, <span class="hl-str">'apiGetUsers'</span>);
+
+    <span class="hl-cmt">// Register plugin loaders</span>
+    <span class="hl-var">$this</span>-><span class="hl-fn">registerPluginLoader</span>(<span class="hl-kw">self</span>::<span class="hl-var">PLUGIN_TEMPLATE</span>);
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h3 id="onload"><code>__onLoad(Agent $agent): bool</code></h3>
+    <p>Called after all modules have been queued. Use for setup that depends on other modules being registered. Return <code>false</code> to abort.</p>
+    <div class="callout callout-tip"><strong>Typical use:</strong> Check if required modules exist via <code>handshake()</code>, perform database migrations, or verify prerequisites.</div>
+<pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onLoad</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Verify that the auth module is available</span>
+    <span class="hl-kw">if</span> (!<span class="hl-var">$this</span>-><span class="hl-fn">handshake</span>(<span class="hl-str">'auth_module'</span>, <span class="hl-str">'Request access'</span>)) {
+        <span class="hl-kw">return false</span>; <span class="hl-cmt">// Cannot run without auth</span>
+    }
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h3 id="onready"><code>__onReady(): void</code></h3>
+    <p>Called when <strong>all</strong> modules are fully loaded. Safe to make cross-module API calls here.</p>
+<pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onReady</span>(): <span class="hl-cls">void</span>
+{
+    <span class="hl-cmt">// Safe to call other module APIs now</span>
+    <span class="hl-var">$nav</span> = <span class="hl-var">$this</span>-><span class="hl-fn">api</span>(<span class="hl-str">'navigation'</span>)-><span class="hl-fn">getMenu</span>(<span class="hl-str">'main'</span>);
+    <span class="hl-var">$this</span>-><span class="hl-fn">getTemplate</span>()-><span class="hl-fn">assign</span>(<span class="hl-str">'mainNav'</span>, <span class="hl-var">$nav</span>);
+}</code></pre>
+
+    <h3 id="ondispatch"><code>__onDispatch(): bool</code></h3>
+    <p>Called before route dispatch verification. Return <code>false</code> to remove this module from the dispatch queue.</p>
+    <div class="callout callout-tip"><strong>Scenario:</strong> Conditionally disable a module based on feature flags, license validation, or maintenance mode.</div>
+
+    <h3 id="onentry"><code>__onEntry(array $routedInfo): void</code></h3>
+    <p>Called when this module's route is matched. The <code>$routedInfo</code> array contains the matched route details. Use it to set up page-level variables.</p>
+<pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onEntry</span>(<span class="hl-cls">array</span> <span class="hl-var">$routedInfo</span>): <span class="hl-cls">void</span>
+{
+    <span class="hl-var">$tpl</span> = <span class="hl-var">$this</span>-><span class="hl-fn">getTemplate</span>();
+    <span class="hl-var">$tpl</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'pageTitle'</span>, <span class="hl-str">'My Module'</span>);
+    <span class="hl-var">$tpl</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'currentUser'</span>, <span class="hl-var">$_SESSION</span>[<span class="hl-str">'user'</span>] &rarr; <span class="hl-kw">null</span>);
+}</code></pre>
+
+    <h3 id="onrouted"><code>__onRouted(ModuleInfo $moduleInfo): void</code></h3>
+    <p>Called when <strong>another</strong> module has been matched for the current route. Useful for tracking which module handles the request or injecting shared assets.</p>
+
+    <h3 id="onscriptready"><code>__onScriptReady(ModuleInfo $module): void</code></h3>
+    <p>Called when another module's script is ready to execute.</p>
+
+    <h3 id="onapicall"><code>__onAPICall(ModuleInfo $module, string $method, string $fqdn): bool</code></h3>
+    <p>Guard for incoming API calls. Return <code>false</code> to deny access. Use this to implement access control for your API commands.</p>
+<pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onAPICall</span>(<span class="hl-cls">ModuleInfo</span> <span class="hl-var">$module</span>, <span class="hl-cls">string</span> <span class="hl-var">$method</span>, <span class="hl-cls">string</span> <span class="hl-var">$fqdn</span> = <span class="hl-str">''</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-cmt">// Only allow admin module to call 'deleteUser'</span>
+    <span class="hl-kw">if</span> (<span class="hl-var">$method</span> === <span class="hl-str">'deleteUser'</span> &amp;&amp; <span class="hl-var">$module</span>-><span class="hl-fn">getCode</span>() !== <span class="hl-str">'admin_module'</span>) {
+        <span class="hl-kw">return false</span>;
+    }
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+
+    <h3 id="onbridgecall"><code>__onBridgeCall(string $sourceDistributor, string $command): bool</code></h3>
+    <p>Guard for cross-distributor bridge calls. Return <code>false</code> to deny. Called when a different site/distributor invokes a bridge command on this module.</p>
+
+    <h3 id="ontouch"><code>__onTouch(ModuleInfo $module, string $version, string $message): bool</code></h3>
+    <p>Handle handshake touch requests from other modules. Return <code>true</code> to accept, <code>false</code> to reject.</p>
+
+    <h3 id="onrequire"><code>__onRequire(): bool</code></h3>
+    <p>Called when another module declares this one as a prerequisite. Return <code>false</code> if not ready to serve as a dependency.</p>
+
+    <h3 id="onerror"><code>__onError(string $path, Throwable $exception): void</code></h3>
+    <p>Handle errors from route closures. Use for custom error pages, logging, or fallback rendering.</p>
+
+    <h3 id="ondispose"><code>__onDispose(): void</code></h3>
+    <p>Cleanup after route execution and script completion. Close file handles, flush caches, or log metrics.</p>
+
+    <h2 id="plugin-constants">Plugin Constants</h2>
+    <p>Bitflags passed to <code>registerPluginLoader()</code> to tell the framework which plugin types your module provides.</p>
+    <table><thead><tr><th>Constant</th><th>Value</th><th>Registers</th></tr></thead><tbody>
+      <tr><td><code>PLUGIN_ALL</code></td><td><code>0b1111</code></td><td>All plugin types at once</td></tr>
+      <tr><td><code>PLUGIN_TEMPLATE</code></td><td><code>0b0001</code></td><td>Template modifiers &amp; function tags</td></tr>
+      <tr><td><code>PLUGIN_COLLECTION</code></td><td><code>0b0010</code></td><td>Collection processor plugins</td></tr>
+      <tr><td><code>PLUGIN_PIPELINE</code></td><td><code>0b0100</code></td><td>Pipeline action types</td></tr>
+      <tr><td><code>PLUGIN_STATEMENT</code></td><td><code>0b1000</code></td><td>Statement builder presets</td></tr>
+    </tbody></table>
+
+    <h2 id="utility-methods">Utility Methods</h2>
+    <p>All <code>final public</code> &mdash;available in every controller.</p>
+
+    <h3 id="loadtemplate"><code>loadTemplate(string $path): Source</code></h3>
+    <p>Load a template file relative to your module's <code>view/</code> directory. Returns a <code>Source</code> object.</p>
+<pre><code><span class="hl-kw">public function</span> <span class="hl-fn">showDashboard</span>(): <span class="hl-cls">void</span>
+{
+    <span class="hl-var">$source</span> = <span class="hl-var">$this</span>-><span class="hl-fn">loadTemplate</span>(<span class="hl-str">'dashboard.html'</span>);
+    <span class="hl-var">$source</span>-><span class="hl-fn">assign</span>(<span class="hl-str">'title'</span>, <span class="hl-str">'Dashboard'</span>);
+    <span class="hl-var">$this</span>-><span class="hl-fn">view</span>([<span class="hl-var">$source</span>]);
+}</code></pre>
+
+    <h3 id="xhr"><code>xhr(bool $returnAsArray = false): XHR</code></h3>
+    <p>Create an XHR response builder for JSON API endpoints.</p>
+<pre><code><span class="hl-var">$this</span>-><span class="hl-fn">xhr</span>()
+    -><span class="hl-fn">data</span>([<span class="hl-str">'users'</span> => <span class="hl-var">$users</span>])
+    -><span class="hl-fn">send</span>(<span class="hl-kw">true</span>, <span class="hl-str">'Users fetched'</span>);</code></pre>
+
+    <h3 id="trigger"><code>trigger(string $event, ?callable $callback = null): EventEmitter</code></h3>
+    <p>Fire an event. Call <code>resolve()</code> on the returned emitter to dispatch to all listeners.</p>
+<pre><code><span class="hl-var">$emitter</span> = <span class="hl-var">$this</span>-><span class="hl-fn">trigger</span>(<span class="hl-str">'user.registered'</span>);
+<span class="hl-var">$emitter</span>-><span class="hl-fn">resolve</span>(<span class="hl-var">$userData</span>);</code></pre>
+
+    <h3 id="api"><code>api(string $moduleCode): Emitter</code></h3>
+    <p>Get an API proxy for another module. Call methods on the emitter to execute the target module's API commands.</p>
+<pre><code><span class="hl-var">$user</span> = <span class="hl-var">$this</span>-><span class="hl-fn">api</span>(<span class="hl-str">'user_module'</span>)-><span class="hl-fn">getUser</span>(<span class="hl-var">$userId</span>);</code></pre>
+
+    <h3 id="view"><code>view(array $sources): void</code></h3>
+    <p>Output rendered template content from an array of <code>Source</code> objects.</p>
+
+    <h3 id="goto"><code>goto(string $path, array $query = []): void</code></h3>
+    <p>HTTP redirect within the module. Appends query parameters if provided.</p>
+<pre><code><span class="hl-var">$this</span>-><span class="hl-fn">goto</span>(<span class="hl-str">'/dashboard'</span>);
+<span class="hl-var">$this</span>-><span class="hl-fn">goto</span>(<span class="hl-str">'/search'</span>, [<span class="hl-str">'q'</span> => <span class="hl-str">'hello'</span>, <span class="hl-str">'page'</span> => <span class="hl-num">1</span>]);</code></pre>
+
+    <h3 id="fork"><code>fork(string $path, array ...$args): mixed</code></h3>
+    <p>Execute an internal controller method by dot-path.</p>
+
+    <h3 id="handshake"><code>handshake(string $modules, string $message = ''): bool</code></h3>
+    <p>Send a handshake to verify module availability or request access.</p>
+
+    <h3 id="registerpluginloader"><code>registerPluginLoader(int $flag = 0): self</code></h3>
+    <p>Register this module as a plugin provider using <code>PLUGIN_*</code> bitflags. The framework looks in the module's <code>plugins/</code> directory for matching files.</p>
+
+    <h3 id="other-methods">Other Utility Methods</h3>
+    <table><thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead><tbody>
+      <tr><td><code>getAssetPath()</code></td><td><code>string</code></td><td>Module's webassets URL base path (e.g. <code>{siteURL}/webassets/{alias}/{version}/</code>)</td></tr>
+      <tr><td><code>getDataPath(string $module = '')</code></td><td><code>string</code></td><td>Per-distributor writable data directory. Filesystem path: <code>data/{domain}-{dist}/{module}</code>. Pass a module code to get that module's sub-folder, or empty for the distributor root.</td></tr>
+      <tr><td><code>getDataPathURL(string $module = '')</code></td><td><code>string</code></td><td>URL to the data path: <code>{siteURL}/data/{module}</code>. Served via Apache rewrite rules that map to the filesystem data folder.</td></tr>
+      <tr><td><code>getModuleConfig()</code></td><td><code>Configuration</code></td><td>Module's config file as Configuration</td></tr>
+      <tr><td><code>getModuleURL()</code></td><td><code>string</code></td><td>Module's root URL</td></tr>
+      <tr><td><code>getModuleInfo()</code></td><td><code>ModuleInfo</code></td><td>Module metadata</td></tr>
+      <tr><td><code>getModuleVersion()</code></td><td><code>string</code></td><td>Version string</td></tr>
+      <tr><td><code>getModuleCode()</code></td><td><code>string</code></td><td>Module code identifier</td></tr>
+      <tr><td><code>getModuleSystemPath()</code></td><td><code>string</code></td><td>Absolute path to module</td></tr>
+      <tr><td><code>getSiteURL()</code></td><td><code>string</code></td><td>Site base URL</td></tr>
+      <tr><td><code>getTemplate()</code></td><td><code>Template</code></td><td>Global Template engine instance</td></tr>
+      <tr><td><code>getRoutedInfo()</code></td><td><code>array</code></td><td>Current matched route metadata</td></tr>
+      <tr><td><code>getTemplateFilePath(string $path)</code></td><td><code>string</code></td><td>Absolute path to a template file</td></tr>
+    </tbody></table>
+
+    <div class="page-nav">
+      <a href="module-structure.html"><span class="label">&larr; Previous</span><span class="title">Module Structure</span></a>
+      <a href="agent.html" class="next"><span class="label">Next &rarr;</span><span class="title">Agent</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body></html>

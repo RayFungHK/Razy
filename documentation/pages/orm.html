@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORM &mdash; Razy Framework</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../js/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><button class="menu-toggle">&#9776;</button><a href="../index.html" class="header-logo"><span class="logo-icon">R</span> Razy <span class="header-version">v1.0-beta</span></a><nav class="header-nav"><a href="getting-started.html">Docs</a><a href="api-reference.html">API</a><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a><button class="theme-toggle">&#x1F319;</button></nav></header>
+  <aside class="sidebar"><div class="sidebar-group start-here"><div class="sidebar-group-title">â­?Start Here</div><a href="quick-start.html" class="sidebar-link">Quick Start (5 min)</a><a href="getting-started.html" class="sidebar-link">Installation</a><a href="standalone.html" class="sidebar-link">Standalone Mode</a><a href="tutorial.html" class="sidebar-link">Tutorial</a><a href="roadmap.html" class="sidebar-link">Learning Roadmap</a><a href="modules.html" class="sidebar-link">Module System</a><a href="routing.html" class="sidebar-link">Routing</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Overview</div><a href="../index.html" class="sidebar-link">Introduction</a><a href="architecture.html" class="sidebar-link">Architecture</a><a href="cli.html" class="sidebar-link">CLI Commands</a></div><div class="sidebar-group"><div class="sidebar-group-title">Module Development</div><a href="module-structure.html" class="sidebar-link">Module Structure</a><a href="controller.html" class="sidebar-link">Controller</a><a href="agent.html" class="sidebar-link">Agent</a><a href="events.html" class="sidebar-link">Event System</a><a href="cross-module-api.html" class="sidebar-link">Cross-Module API</a><a href="plugins.html" class="sidebar-link">Plugin System</a></div><div class="sidebar-group"><div class="sidebar-group-title">Routing &amp; Flow</div><a href="middleware.html" class="sidebar-link">Middleware</a><a href="pipeline.html" class="sidebar-link">Pipeline</a><a href="validation.html" class="sidebar-link">Validation</a><a href="container.html" class="sidebar-link">DI Container</a><a href="env.html" class="sidebar-link">Environment (.env)</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Data &amp; Storage</div><a href="database.html" class="sidebar-link">Database</a><a href="orm.html" class="sidebar-link">ORM</a><a href="collection.html" class="sidebar-link">Collection</a><a href="configuration.html" class="sidebar-link">Configuration</a><a href="cache.html" class="sidebar-link">Cache</a><a href="hashmap.html" class="sidebar-link">HashMap</a><a href="yaml.html" class="sidebar-link">YAML</a><a href="queue.html" class="sidebar-link">Queue</a></div><div class="sidebar-group"><div class="sidebar-group-title">Rendering</div><a href="template.html" class="sidebar-link">Template Engine</a><a href="dom.html" class="sidebar-link">DOM Builder</a><a href="simple-syntax.html" class="sidebar-link">Simple Syntax</a></div><div class="sidebar-group"><div class="sidebar-group-title">IO &amp; Communication</div><a href="httpclient.html" class="sidebar-link">HTTP Client</a><a href="xhr.html" class="sidebar-link">XHR</a><a href="sse.html" class="sidebar-link">SSE</a><a href="websocket.html" class="sidebar-link">WebSocket</a><a href="mailer.html" class="sidebar-link">Mailer</a><a href="simplified-message.html" class="sidebar-link">SimplifiedMessage</a><a href="filereader.html" class="sidebar-link">FileReader</a><a href="ftp-sftp.html" class="sidebar-link">FTP &amp; SFTP</a><a href="notification.html" class="sidebar-link">Notification</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Security</div><a href="crypt.html" class="sidebar-link">Crypt</a><a href="csrf.html" class="sidebar-link">CSRF Protection</a><a href="session.html" class="sidebar-link">Session</a><a href="oauth2.html" class="sidebar-link">OAuth2</a><a href="office365sso.html" class="sidebar-link">Office 365 SSO</a><a href="authenticator.html" class="sidebar-link">Authenticator (TOTP/HOTP)</a><a href="authmanager.html" class="sidebar-link">Auth Manager &amp; Gate</a><a href="ratelimiter.html" class="sidebar-link">Rate Limiter</a></div><div class="sidebar-group"><div class="sidebar-group-title">Observability</div><a href="logging.html" class="sidebar-link">Logging</a><a href="profiler.html" class="sidebar-link">Profiler</a><a href="error-handling.html" class="sidebar-link">Error Handling</a></div><div class="sidebar-group"><div class="sidebar-group-title">Advanced</div><a href="thread.html" class="sidebar-link">Thread &amp; ThreadManager</a><a href="worker-lifecycle.html" class="sidebar-link">Worker Lifecycle</a></div><hr class="sidebar-divider"><div class="sidebar-group"><div class="sidebar-group-title">Deployment</div><a href="sites-configuration.html" class="sidebar-link">Sites Configuration</a><a href="packaging.html" class="sidebar-link">Packaging &amp; Distribution</a><a href="publishing.html" class="sidebar-link">Repository &amp; Publishing</a><a href="caddy-worker.html" class="sidebar-link">Caddy Worker Mode</a></div><div class="sidebar-group"><div class="sidebar-group-title">Reference</div><a href="api-reference.html" class="sidebar-link">API Reference</a><a href="moduleinfo.html" class="sidebar-link">ModuleInfo</a><a href="utilities.html" class="sidebar-link">Utility Functions</a><a href="testing.html" class="sidebar-link">Testing</a></div></aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <h1>ORM</h1>
+    <p>Razy's ORM provides an Active Record implementation with models, relationships, eager loading, pagination, soft deletes, and query scopes.</p>
+
+    <!-- ?â? Quick Start ?â? -->
+    <h2 id="quick-start">Quick Start</h2>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Database</span>;
+<span class="hl-kw">use</span> <span class="hl-cls">Razy\ORM\Model</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">string</span> <span class="hl-var">$table</span> = <span class="hl-str">'users'</span>;
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">array</span> <span class="hl-var">$fillable</span> = [<span class="hl-str">'name'</span>, <span class="hl-str">'email'</span>, <span class="hl-str">'role'</span>];
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">array</span> <span class="hl-var">$casts</span> = [<span class="hl-str">'is_active'</span> =&gt; <span class="hl-str">'bool'</span>];
+}
+
+<span class="hl-var">$db</span> = <span class="hl-kw">new</span> <span class="hl-cls">Database</span>(<span class="hl-str">'mysql:host=127.0.0.1;dbname=app'</span>, <span class="hl-str">'root'</span>, <span class="hl-str">'secret'</span>);
+<span class="hl-cls"><span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">create</span>(<span class="hl-var">$db</span>, [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>, <span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>]);
+<span class="hl-var">$admins</span> = <span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'role=:role'</span>, [<span class="hl-str">'role'</span> =&gt; <span class="hl-str">'admin'</span>])-&gt;<span class="hl-fn">get</span>();
+<span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">find</span>(<span class="hl-num">1</span>);
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">name</span> = <span class="hl-str">'Alice Smith'</span>;
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">save</span>();
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">delete</span>();</code></pre>
+
+    <!-- ?â? Model ?â? -->
+    <h2 id="model">Model</h2>
+
+    <!-- Table & Key Convention -->
+    <h3 id="table-key-convention">Table &amp; Key Convention</h3>
+    <table>
+      <thead><tr><th>Class Name</th><th>Inferred Table</th></tr></thead>
+      <tbody>
+        <tr><td><code>User</code></td><td><code>users</code></td></tr>
+        <tr><td><code>BlogPost</code></td><td><code>blog_posts</code></td></tr>
+        <tr><td><code>OrderItem</code></td><td><code>order_items</code></td></tr>
+      </tbody>
+    </table>
+    <p>Override:</p>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">string</span> <span class="hl-var">$table</span> = <span class="hl-str">'app_users'</span>;
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">string</span> <span class="hl-var">$primaryKey</span> = <span class="hl-str">'user_id'</span>;
+}</code></pre>
+
+    <!-- Mass Assignment -->
+    <h3 id="mass-assignment">Mass Assignment</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">Post</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">array</span> <span class="hl-var">$fillable</span> = [<span class="hl-str">'title'</span>, <span class="hl-str">'body'</span>, <span class="hl-str">'category_id'</span>];
+    <span class="hl-cmt">// OR: protected static array $guarded = ['id', 'is_published'];</span>
+}</code></pre>
+
+    <!-- Attribute Casting -->
+    <h3 id="attribute-casting">Attribute Casting</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">Settings</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">array</span> <span class="hl-var">$casts</span> = [
+        <span class="hl-str">'is_active'</span>  =&gt; <span class="hl-str">'bool'</span>,
+        <span class="hl-str">'count'</span>      =&gt; <span class="hl-str">'int'</span>,
+        <span class="hl-str">'rate'</span>       =&gt; <span class="hl-str">'float'</span>,
+        <span class="hl-str">'metadata'</span>   =&gt; <span class="hl-str">'array'</span>,
+        <span class="hl-str">'config'</span>     =&gt; <span class="hl-str">'json'</span>,
+        <span class="hl-str">'created_at'</span> =&gt; <span class="hl-str">'datetime'</span>,
+    ];
+}</code></pre>
+    <table>
+      <thead><tr><th>Cast Type</th><th>PHP Type</th></tr></thead>
+      <tbody>
+        <tr><td><code>int</code></td><td><code>int</code></td></tr>
+        <tr><td><code>float</code></td><td><code>float</code></td></tr>
+        <tr><td><code>bool</code></td><td><code>bool</code></td></tr>
+        <tr><td><code>string</code></td><td><code>string</code></td></tr>
+        <tr><td><code>array</code> / <code>json</code></td><td><code>array</code></td></tr>
+        <tr><td><code>datetime</code></td><td><code>DateTime</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Accessors & Mutators -->
+    <h3 id="accessors-mutators">Accessors &amp; Mutators</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">getFullNameAttribute</span>(): <span class="hl-kw">string</span>
+    {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-fn">first_name</span> . <span class="hl-str">' '</span> . <span class="hl-var">$this</span>-&gt;<span class="hl-fn">last_name</span>;
+    }
+
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">setPasswordAttribute</span>(<span class="hl-kw">string</span> <span class="hl-var">$value</span>): <span class="hl-kw">void</span>
+    {
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">attributes</span>[<span class="hl-str">'password'</span>] = <span class="hl-fn">password_hash</span>(<span class="hl-var">$value</span>, PASSWORD_ARGON2ID);
+    }
+}</code></pre>
+
+    <!-- Timestamps -->
+    <h3 id="timestamps">Timestamps</h3>
+    <p>Models manage <code>created_at</code> and <code>updated_at</code> automatically:</p>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">Post</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">bool</span> <span class="hl-var">$timestamps</span> = <span class="hl-kw">true</span>; <span class="hl-cmt">// default</span>
+}
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">touch</span>(); <span class="hl-cmt">// Update updated_at without changing attributes</span></code></pre>
+
+    <!-- Hidden & Visible -->
+    <h3 id="hidden-visible">Hidden &amp; Visible</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">array</span> <span class="hl-var">$hidden</span> = [<span class="hl-str">'password'</span>, <span class="hl-str">'remember_token'</span>];
+}
+<span class="hl-var">$data</span> = <span class="hl-var">$user</span>-&gt;<span class="hl-fn">toArray</span>(); <span class="hl-cmt">// No password</span></code></pre>
+
+    <!-- CRUD Operations -->
+    <h3 id="crud-operations">CRUD Operations</h3>
+    <p><strong>Create:</strong></p>
+    <pre><code><span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">create</span>(<span class="hl-var">$db</span>, [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>, <span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>]);
+<span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">firstOrCreate</span>([<span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>], [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>]);
+
+<span class="hl-cmt">// First-or-new (like firstOrCreate but does NOT save)</span>
+<span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">firstOrNew</span>(
+    [<span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>],
+    [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice'</span>],
+);
+<span class="hl-kw">if</span> (!<span class="hl-var">$user</span>-&gt;<span class="hl-fn">exists</span>) {
+    <span class="hl-var">$user</span>-&gt;<span class="hl-fn">role</span> = <span class="hl-str">'member'</span>;
+    <span class="hl-var">$user</span>-&gt;<span class="hl-fn">save</span>();
+}
+
+<span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">updateOrCreate</span>([<span class="hl-str">'email'</span> =&gt; <span class="hl-str">'alice@example.com'</span>], [<span class="hl-str">'name'</span> =&gt; <span class="hl-str">'Alice Updated'</span>]);</code></pre>
+    <p><strong>Read:</strong></p>
+    <pre><code><span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">find</span>(<span class="hl-num">1</span>);
+<span class="hl-var">$user</span> = <span class="hl-cls">User</span>::<span class="hl-fn">findOrFail</span>(<span class="hl-num">1</span>);
+<span class="hl-var">$users</span> = <span class="hl-cls">User</span>::<span class="hl-fn">all</span>();</code></pre>
+    <p><strong>Update:</strong></p>
+    <pre><code><span class="hl-var">$user</span>-&gt;<span class="hl-fn">name</span> = <span class="hl-str">'Updated'</span>;
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">save</span>();
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">increment</span>(<span class="hl-str">'login_count'</span>);
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">decrement</span>(<span class="hl-str">'credits'</span>, <span class="hl-num">10</span>);</code></pre>
+    <p><strong>Delete:</strong></p>
+    <pre><code><span class="hl-var">$user</span>-&gt;<span class="hl-fn">delete</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">destroy</span>(<span class="hl-num">1</span>, <span class="hl-num">2</span>, <span class="hl-num">3</span>);
+<span class="hl-var">$clone</span> = <span class="hl-var">$user</span>-&gt;<span class="hl-fn">replicate</span>();</code></pre>
+
+    <!-- Dirty Tracking -->
+    <h3 id="dirty-tracking">Dirty Tracking</h3>
+    <pre><code><span class="hl-var">$user</span>-&gt;<span class="hl-fn">isDirty</span>();
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">getDirty</span>();
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">getOriginal</span>(<span class="hl-str">'name'</span>);
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">refresh</span>();</code></pre>
+
+    <!-- Model Events -->
+    <h3 id="model-events">Model Events</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">protected</span> <span class="hl-kw">static</span> <span class="hl-kw">function</span> <span class="hl-fn">booted</span>(): <span class="hl-kw">void</span>
+    {
+        <span class="hl-kw">static</span>::<span class="hl-fn">creating</span>(<span class="hl-kw">function</span> (<span class="hl-cls">User</span> <span class="hl-var">$user</span>) {
+            <span class="hl-var">$user</span>-&gt;<span class="hl-fn">uuid</span> = <span class="hl-fn">bin2hex</span>(<span class="hl-fn">random_bytes</span>(<span class="hl-num">16</span>));
+        });
+        <span class="hl-kw">static</span>::<span class="hl-fn">deleting</span>(<span class="hl-kw">function</span> (<span class="hl-cls">User</span> <span class="hl-var">$user</span>) {
+            <span class="hl-kw">if</span> (<span class="hl-var">$user</span>-&gt;<span class="hl-fn">is_admin</span>) <span class="hl-kw">return</span> <span class="hl-kw">false</span>; <span class="hl-cmt">// cancel</span>
+        });
+    }
+}</code></pre>
+    <p>Events: <code>creating</code>/<code>created</code>, <code>updating</code>/<code>updated</code>, <code>saving</code>/<code>saved</code>, <code>deleting</code>/<code>deleted</code>, <code>restoring</code>/<code>restored</code>.</p>
+
+    <!-- Global Scopes -->
+    <h3 id="global-scopes">Global Scopes</h3>
+    <pre><code><span class="hl-kw">static</span>::<span class="hl-fn">addGlobalScope</span>(<span class="hl-str">'active'</span>, <span class="hl-kw">function</span> (<span class="hl-cls">ModelQuery</span> <span class="hl-var">$query</span>) {
+    <span class="hl-var">$query</span>-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'is_active=:_gs_active'</span>, [<span class="hl-str">'_gs_active'</span> =&gt; <span class="hl-num">1</span>]);
+});
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">withoutGlobalScope</span>(<span class="hl-str">'active'</span>)-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">withoutGlobalScopes</span>()-&gt;<span class="hl-fn">get</span>();</code></pre>
+
+    <!-- ?â? ModelQuery ?â? -->
+    <h2 id="model-query">ModelQuery</h2>
+
+    <!-- Where Clauses -->
+    <h3 id="where-clauses">Where Clauses</h3>
+    <p><code>where()</code> and <code>orWhere()</code> accept a <a href="simple-syntax.html">Simple Syntax</a> expression string and an optional parameter array.</p>
+    <pre><code><span class="hl-cmt">// Simple Syntax operators: = &gt;= &lt;= &gt; &lt; |= (IN) &gt;&lt; (BETWEEN) ! (NOT)</span>
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'age&gt;=:age'</span>, [<span class="hl-str">'age'</span> =&gt; <span class="hl-num">18</span>])-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'country=:country'</span>, [<span class="hl-str">'country'</span> =&gt; <span class="hl-str">'US'</span>])-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'role=:role'</span>, [<span class="hl-str">'role'</span> =&gt; <span class="hl-str">'admin'</span>])-&gt;<span class="hl-fn">orWhere</span>(<span class="hl-str">'role=:r2'</span>, [<span class="hl-str">'r2'</span> =&gt; <span class="hl-str">'superadmin'</span>])-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">whereIn</span>(<span class="hl-str">'status'</span>, [<span class="hl-str">'active'</span>, <span class="hl-str">'pending'</span>])-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">whereNotIn</span>(<span class="hl-str">'role'</span>, [<span class="hl-str">'banned'</span>])-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">whereBetween</span>(<span class="hl-str">'age'</span>, <span class="hl-num">18</span>, <span class="hl-num">65</span>)-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">whereNull</span>(<span class="hl-str">'deleted_at'</span>)-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">whereNotNull</span>(<span class="hl-str">'email_verified_at'</span>)-&gt;<span class="hl-fn">get</span>();</code></pre>
+
+    <!-- Ordering & Limiting -->
+    <h3 id="ordering-limiting">Ordering &amp; Limiting</h3>
+    <pre><code><span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">orderBy</span>(<span class="hl-str">'created_at'</span>, <span class="hl-str">'DESC'</span>)-&gt;<span class="hl-fn">limit</span>(<span class="hl-num">25</span>)-&gt;<span class="hl-fn">offset</span>(<span class="hl-num">50</span>)-&gt;<span class="hl-fn">get</span>();</code></pre>
+
+    <!-- Selecting Columns -->
+    <h3 id="selecting-columns">Selecting Columns</h3>
+    <pre><code><span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">select</span>(<span class="hl-str">'id, name, email'</span>)-&gt;<span class="hl-fn">get</span>();</code></pre>
+
+    <!-- Scopes -->
+    <h3 id="scopes">Scopes</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">Post</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span> {
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">scopePublished</span>(<span class="hl-cls">ModelQuery</span> <span class="hl-var">$query</span>): <span class="hl-cls">ModelQuery</span> {
+        <span class="hl-kw">return</span> <span class="hl-var">$query</span>-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'status=:_s_status'</span>, [<span class="hl-str">'_s_status'</span> =&gt; <span class="hl-str">'published'</span>]);
+    }
+}
+<span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">published</span>()-&gt;<span class="hl-fn">get</span>();</code></pre>
+
+    <!-- Eager Loading -->
+    <h3 id="eager-loading">Eager Loading</h3>
+    <pre><code><span class="hl-var">$posts</span> = <span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">with</span>(<span class="hl-str">'author'</span>, <span class="hl-str">'comments'</span>)-&gt;<span class="hl-fn">get</span>();</code></pre>
+
+    <!-- Bulk Operations -->
+    <h3 id="bulk-operations">Bulk Operations</h3>
+    <pre><code><span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'status=:s'</span>, [<span class="hl-str">'s'</span> =&gt; <span class="hl-str">'draft'</span>])-&gt;<span class="hl-fn">bulkUpdate</span>([<span class="hl-str">'status'</span> =&gt; <span class="hl-str">'archived'</span>]);
+<span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">where</span>(<span class="hl-str">'created_at&lt;:before'</span>, [<span class="hl-str">'before'</span> =&gt; <span class="hl-str">'2024-01-01'</span>])-&gt;<span class="hl-fn">bulkDelete</span>();</code></pre>
+
+    <!-- Chunked Processing -->
+    <h3 id="chunked-processing">Chunked Processing</h3>
+    <pre><code><span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">chunk</span>(<span class="hl-num">200</span>, <span class="hl-kw">function</span> (<span class="hl-cls">ModelCollection</span> <span class="hl-var">$users</span>) {
+    <span class="hl-kw">foreach</span> (<span class="hl-var">$users</span> <span class="hl-kw">as</span> <span class="hl-var">$user</span>) { <span class="hl-var">$user</span>-&gt;<span class="hl-fn">sendNewsletter</span>(); }
+});
+<span class="hl-kw">foreach</span> (<span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">cursor</span>() <span class="hl-kw">as</span> <span class="hl-var">$user</span>) { <span class="hl-var">$user</span>-&gt;<span class="hl-fn">recalculateScore</span>(); }</code></pre>
+
+    <!-- ModelCollection -->
+    <h2 id="model-collection">ModelCollection</h2>
+    <p><code>ModelCollection</code> wraps an array of models with collection-style operations. Implements <code>ArrayAccess</code>, <code>Countable</code>, and <code>IteratorAggregate</code>.</p>
+
+    <h3 id="iteration-access">Iteration &amp; Access</h3>
+    <pre><code><span class="hl-var">$users</span> = <span class="hl-cls">User</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">get</span>();
+
+<span class="hl-cmt">// Count</span>
+<span class="hl-fn">count</span>(<span class="hl-var">$users</span>);       <span class="hl-cmt">// 42</span>
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">count</span>();     <span class="hl-cmt">// 42</span>
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">isEmpty</span>();   <span class="hl-cmt">// false</span>
+
+<span class="hl-cmt">// Access</span>
+<span class="hl-var">$first</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">first</span>();
+<span class="hl-var">$last</span>  = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">last</span>();
+<span class="hl-var">$third</span> = <span class="hl-var">$users</span>[<span class="hl-num">2</span>];   <span class="hl-cmt">// ArrayAccess</span>
+
+<span class="hl-cmt">// Contains</span>
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">contains</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">User</span> <span class="hl-var">$u</span>) =&gt; <span class="hl-var">$u</span>-&gt;<span class="hl-fn">role</span> === <span class="hl-str">'admin'</span>);
+
+<span class="hl-cmt">// Iteration</span>
+<span class="hl-kw">foreach</span> (<span class="hl-var">$users</span> <span class="hl-kw">as</span> <span class="hl-var">$user</span>) {
+    <span class="hl-kw">echo</span> <span class="hl-var">$user</span>-&gt;<span class="hl-fn">name</span>;
+}
+
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">each</span>(<span class="hl-kw">function</span> (<span class="hl-cls">User</span> <span class="hl-var">$user</span>) {
+    <span class="hl-var">$user</span>-&gt;<span class="hl-fn">notify</span>();
+});</code></pre>
+
+    <h3 id="transformation-methods">Transformation Methods</h3>
+    <pre><code><span class="hl-cmt">// Extract single attribute</span>
+<span class="hl-var">$emails</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">pluck</span>(<span class="hl-str">'email'</span>);
+<span class="hl-cmt">// ['alice@example.com', 'bob@example.com', ...]</span>
+
+<span class="hl-cmt">// Map to new values</span>
+<span class="hl-var">$names</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">map</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">User</span> <span class="hl-var">$u</span>) =&gt; <span class="hl-fn">strtoupper</span>(<span class="hl-var">$u</span>-&gt;<span class="hl-fn">name</span>));
+
+<span class="hl-cmt">// Filter</span>
+<span class="hl-var">$admins</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">filter</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">User</span> <span class="hl-var">$u</span>) =&gt; <span class="hl-var">$u</span>-&gt;<span class="hl-fn">role</span> === <span class="hl-str">'admin'</span>);
+
+<span class="hl-cmt">// FlatMap</span>
+<span class="hl-var">$tags</span> = <span class="hl-var">$posts</span>-&gt;<span class="hl-fn">flatMap</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">Post</span> <span class="hl-var">$p</span>) =&gt; <span class="hl-var">$p</span>-&gt;<span class="hl-fn">tags</span>);
+
+<span class="hl-cmt">// First matching condition</span>
+<span class="hl-var">$alice</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">firstWhere</span>(<span class="hl-str">'name'</span>, <span class="hl-str">'Alice'</span>);
+
+<span class="hl-cmt">// Chunk into sub-collections</span>
+<span class="hl-var">$batches</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">chunk</span>(<span class="hl-num">10</span>);
+
+<span class="hl-cmt">// Sort</span>
+<span class="hl-var">$sorted</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">sortBy</span>(<span class="hl-str">'name'</span>);
+<span class="hl-var">$sorted</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">sortBy</span>(<span class="hl-kw">fn</span>(<span class="hl-cls">User</span> <span class="hl-var">$u</span>) =&gt; <span class="hl-var">$u</span>-&gt;<span class="hl-fn">created_at</span>);
+
+<span class="hl-cmt">// Unique</span>
+<span class="hl-var">$unique</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">unique</span>(<span class="hl-str">'role'</span>);
+
+<span class="hl-cmt">// Group / key</span>
+<span class="hl-var">$byRole</span>   = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">groupBy</span>(<span class="hl-str">'role'</span>);
+<span class="hl-cmt">// ['admin' =&gt; ModelCollection [...], 'member' =&gt; ModelCollection [...]]</span>
+<span class="hl-var">$byId</span>     = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">keyBy</span>(<span class="hl-str">'id'</span>);
+<span class="hl-cmt">// [1 =&gt; User, 2 =&gt; User, ...]</span>
+
+<span class="hl-cmt">// Reduce</span>
+<span class="hl-var">$totalAge</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">reduce</span>(<span class="hl-kw">fn</span>(<span class="hl-kw">int</span> <span class="hl-var">$carry</span>, <span class="hl-cls">User</span> <span class="hl-var">$u</span>) =&gt; <span class="hl-var">$carry</span> + <span class="hl-var">$u</span>-&gt;<span class="hl-fn">age</span>, <span class="hl-num">0</span>);</code></pre>
+
+    <h3 id="aggregation-methods">Aggregation Methods</h3>
+    <pre><code><span class="hl-var">$users</span>-&gt;<span class="hl-fn">sum</span>(<span class="hl-str">'balance'</span>);
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">avg</span>(<span class="hl-str">'age'</span>);
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">min</span>(<span class="hl-str">'score'</span>);
+<span class="hl-var">$users</span>-&gt;<span class="hl-fn">max</span>(<span class="hl-str">'score'</span>);</code></pre>
+
+    <h3 id="serialisation">Serialisation</h3>
+    <pre><code><span class="hl-var">$array</span> = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">toArray</span>();  <span class="hl-cmt">// array of model arrays</span>
+<span class="hl-var">$json</span>  = <span class="hl-var">$users</span>-&gt;<span class="hl-fn">toJson</span>();   <span class="hl-cmt">// JSON string</span></code></pre>
+
+    <!-- Paginator -->
+    <h2 id="paginator">Paginator</h2>
+    <p><code>Paginator</code> wraps a page of results with metadata for building pagination UI. Implements <code>ArrayAccess</code>, <code>Countable</code>, <code>IteratorAggregate</code>, and <code>JsonSerializable</code>.</p>
+
+    <h3 id="creating-paginators">Creating Paginators</h3>
+    <pre><code><span class="hl-cmt">// Full pagination (with total count)</span>
+<span class="hl-var">$page</span> = <span class="hl-cls">User</span>::<span class="hl-fn">query</span>()
+    -&gt;<span class="hl-fn">where</span>(<span class="hl-str">'role=:role'</span>, [<span class="hl-str">'role'</span> =&gt; <span class="hl-str">'member'</span>])
+    -&gt;<span class="hl-fn">orderBy</span>(<span class="hl-str">'name'</span>)
+    -&gt;<span class="hl-fn">paginate</span>(<span class="hl-num">2</span>, <span class="hl-num">15</span>);
+
+<span class="hl-cmt">// Simple pagination (no total count  faster)</span>
+<span class="hl-var">$page</span> = <span class="hl-cls">User</span>::<span class="hl-fn">query</span>()
+    -&gt;<span class="hl-fn">orderBy</span>(<span class="hl-str">'created_at'</span>, <span class="hl-str">'DESC'</span>)
+    -&gt;<span class="hl-fn">simplePaginate</span>(<span class="hl-num">1</span>, <span class="hl-num">25</span>);</code></pre>
+
+    <h3 id="navigation">Navigation</h3>
+    <pre><code><span class="hl-var">$page</span>-&gt;<span class="hl-fn">items</span>();        <span class="hl-cmt">// ModelCollection of current page</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">total</span>();        <span class="hl-cmt">// Total records (null for simplePaginate)</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">currentPage</span>();  <span class="hl-cmt">// 2</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">perPage</span>();      <span class="hl-cmt">// 15</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">lastPage</span>();     <span class="hl-cmt">// 7 (null for simplePaginate)</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">count</span>();        <span class="hl-cmt">// Items on this page ( perPage)</span>
+
+<span class="hl-cmt">// Boolean helpers</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">hasPages</span>();      <span class="hl-cmt">// total &gt; perPage?</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">hasMorePages</span>();  <span class="hl-cmt">// currentPage &lt; lastPage?</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">onFirstPage</span>();   <span class="hl-cmt">// currentPage === 1?</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">onLastPage</span>();    <span class="hl-cmt">// currentPage === lastPage?</span></code></pre>
+
+    <h3 id="url-generation">URL Generation</h3>
+    <pre><code><span class="hl-var">$page</span>-&gt;<span class="hl-fn">setPath</span>(<span class="hl-str">'/users'</span>);  <span class="hl-cmt">// base URL path</span>
+
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">url</span>(<span class="hl-num">3</span>);             <span class="hl-cmt">// '/users?page=3'</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">firstPageUrl</span>();     <span class="hl-cmt">// '/users?page=1'</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">lastPageUrl</span>();      <span class="hl-cmt">// '/users?page=7'</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">previousPageUrl</span>();  <span class="hl-cmt">// '/users?page=1' (null on first page)</span>
+<span class="hl-var">$page</span>-&gt;<span class="hl-fn">nextPageUrl</span>();      <span class="hl-cmt">// '/users?page=3' (null on last page)</span></code></pre>
+
+    <h3 id="rendering-links">Rendering Links</h3>
+    <pre><code><span class="hl-cmt">// Get a range of page numbers for navigation</span>
+<span class="hl-var">$range</span> = <span class="hl-var">$page</span>-&gt;<span class="hl-fn">getPageRange</span>(<span class="hl-fn">window</span>: <span class="hl-num">3</span>);
+<span class="hl-cmt">// [1, 2, 3, 4, 5] (centered on current page)</span>
+
+<span class="hl-cmt">// Build links for template rendering</span>
+<span class="hl-var">$links</span> = <span class="hl-var">$page</span>-&gt;<span class="hl-fn">links</span>(<span class="hl-fn">window</span>: <span class="hl-num">3</span>);
+<span class="hl-cmt">/*</span>
+<span class="hl-cmt">[</span>
+<span class="hl-cmt">    ['url' =&gt; '/users?page=1', 'label' =&gt; '1', 'active' =&gt; false],</span>
+<span class="hl-cmt">    ['url' =&gt; '/users?page=2', 'label' =&gt; '2', 'active' =&gt; true],</span>
+<span class="hl-cmt">    ['url' =&gt; '/users?page=3', 'label' =&gt; '3', 'active' =&gt; false],</span>
+<span class="hl-cmt">    ...</span>
+<span class="hl-cmt">]</span>
+<span class="hl-cmt">*/</span>
+
+<span class="hl-cmt">// Serialise to JSON (useful for API responses)</span>
+<span class="hl-kw">echo</span> <span class="hl-fn">json_encode</span>(<span class="hl-var">$page</span>);
+<span class="hl-cmt">/*</span>
+<span class="hl-cmt">{</span>
+<span class="hl-cmt">    "data": [...],</span>
+<span class="hl-cmt">    "current_page": 2,</span>
+<span class="hl-cmt">    "per_page": 15,</span>
+<span class="hl-cmt">    "total": 100,</span>
+<span class="hl-cmt">    "last_page": 7,</span>
+<span class="hl-cmt">    "first_page_url": "/users?page=1",</span>
+<span class="hl-cmt">    "last_page_url": "/users?page=7",</span>
+<span class="hl-cmt">    "prev_page_url": "/users?page=1",</span>
+<span class="hl-cmt">    "next_page_url": "/users?page=3"</span>
+<span class="hl-cmt">}</span>
+<span class="hl-cmt">*/</span></code></pre>
+
+
+    <!-- ?â? Relationships ?â? -->
+    <h2 id="relationships">Relationships</h2>
+
+    <!-- HasOne -->
+    <h3 id="has-one">HasOne</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span> {
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">profile</span>(): <span class="hl-cls">HasOne</span> {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-fn">hasOne</span>(<span class="hl-cls">Profile</span>::<span class="hl-kw">class</span>, <span class="hl-str">'user_id'</span>);
+    }
+}
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">profile</span>; <span class="hl-cmt">// SELECT * FROM profiles WHERE user_id = 1 LIMIT 1</span></code></pre>
+
+    <!-- HasMany -->
+    <h3 id="has-many">HasMany</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span> {
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">posts</span>(): <span class="hl-cls">HasMany</span> {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-fn">hasMany</span>(<span class="hl-cls">Post</span>::<span class="hl-kw">class</span>, <span class="hl-str">'author_id'</span>);
+    }
+}
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">posts</span>; <span class="hl-cmt">// ModelCollection of Post</span></code></pre>
+
+    <!-- BelongsTo -->
+    <h3 id="belongs-to">BelongsTo</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">Post</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span> {
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">author</span>(): <span class="hl-cls">BelongsTo</span> {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-fn">belongsTo</span>(<span class="hl-cls">User</span>::<span class="hl-kw">class</span>, <span class="hl-str">'author_id'</span>);
+    }
+}
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">author</span>; <span class="hl-cmt">// User model</span></code></pre>
+
+    <!-- BelongsToMany -->
+    <h3 id="belongs-to-many">BelongsToMany</h3>
+    <pre><code><span class="hl-kw">class</span> <span class="hl-cls">User</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span> {
+    <span class="hl-kw">public</span> <span class="hl-kw">function</span> <span class="hl-fn">roles</span>(): <span class="hl-cls">BelongsToMany</span> {
+        <span class="hl-kw">return</span> <span class="hl-var">$this</span>-&gt;<span class="hl-fn">belongsToMany</span>(<span class="hl-cls">Role</span>::<span class="hl-kw">class</span>, <span class="hl-str">'role_user'</span>, <span class="hl-str">'user_id'</span>, <span class="hl-str">'role_id'</span>);
+    }
+}
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">roles</span>()-&gt;<span class="hl-fn">attach</span>([<span class="hl-num">1</span>, <span class="hl-num">2</span>]);
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">roles</span>()-&gt;<span class="hl-fn">detach</span>(<span class="hl-num">1</span>);
+<span class="hl-var">$user</span>-&gt;<span class="hl-fn">roles</span>()-&gt;<span class="hl-fn">sync</span>([<span class="hl-num">1</span>, <span class="hl-num">3</span>, <span class="hl-num">5</span>]);</code></pre>
+    <p><strong>Resolve mechanism:</strong> <code>BelongsToMany::resolve()</code> executes two queries:</p>
+    <ol>
+      <li><code>SELECT role_id FROM role_user WHERE user_id = ?</code> &mdash; get related IDs from pivot</li>
+      <li><code>SELECT * FROM roles WHERE id IN (?, ?, ?)</code> &mdash; fetch related models</li>
+    </ol>
+    <!-- SoftDeletes -->
+    <h2 id="soft-deletes">SoftDeletes</h2>
+    <p>The <code>SoftDeletes</code> trait adds "trash" functionality. Deleted records get a <code>deleted_at</code> timestamp instead of being removed from the database.</p>
+
+    <h3 id="soft-deletes-setup">Setup</h3>
+    <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\ORM\SoftDeletes</span>;
+
+<span class="hl-kw">class</span> <span class="hl-cls">Post</span> <span class="hl-kw">extends</span> <span class="hl-cls">Model</span>
+{
+    <span class="hl-kw">use</span> <span class="hl-cls">SoftDeletes</span>;
+
+    <span class="hl-cmt">// Customise the column name (default: 'deleted_at')</span>
+    <span class="hl-cmt">// public function getDeletedAtColumn(): string</span>
+    <span class="hl-cmt">// {</span>
+    <span class="hl-cmt">//     return 'removed_at';</span>
+    <span class="hl-cmt">// }</span>
+}</code></pre>
+    <p>The <code>SoftDeletes</code> trait registers a <strong>global scope</strong> via <code>bootSoftDeletes()</code> that adds <code>WHERE deleted_at IS NULL</code> to every query automatically.</p>
+
+    <h3 id="soft-deletes-usage">Usage</h3>
+    <pre><code><span class="hl-var">$post</span> = <span class="hl-cls">Post</span>::<span class="hl-fn">find</span>(<span class="hl-num">1</span>);
+
+<span class="hl-cmt">// Soft delete (sets deleted_at)</span>
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">delete</span>();
+
+<span class="hl-cmt">// Check if trashed</span>
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">trashed</span>();  <span class="hl-cmt">// true</span>
+
+<span class="hl-cmt">// Restore</span>
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">restore</span>();
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">trashed</span>();  <span class="hl-cmt">// false</span>
+
+<span class="hl-cmt">// Permanently delete (bypass soft delete)</span>
+<span class="hl-var">$post</span>-&gt;<span class="hl-fn">forceDelete</span>();</code></pre>
+
+    <h3 id="querying-soft-deleted">Querying Soft-Deleted Records</h3>
+    <pre><code><span class="hl-cmt">// Default: only non-deleted records</span>
+<span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cmt">// WHERE deleted_at IS NULL</span>
+
+<span class="hl-cmt">// Include trashed records</span>
+<span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">withTrashed</span>()-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cmt">// No deleted_at constraint</span>
+
+<span class="hl-cmt">// Only trashed records</span>
+<span class="hl-cls">Post</span>::<span class="hl-fn">query</span>()-&gt;<span class="hl-fn">onlyTrashed</span>()-&gt;<span class="hl-fn">get</span>();
+<span class="hl-cmt">// WHERE deleted_at IS NOT NULL</span></code></pre>
+    <p>These are implemented as local scopes (<code>scopeWithTrashed</code>, <code>scopeOnlyTrashed</code>) that remove or modify the global scope.</p>
+    <!-- ?â? API Reference &mdash; Model (Static) ?â? -->
+    <h2 id="api-model-static">API Reference &mdash; Model (Static)</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>query(Database $db): ModelQuery</code></td><td>New builder</td></tr>
+        <tr><td><code>find(Database $db, int|string $id): ?static</code></td><td>By PK</td></tr>
+        <tr><td><code>findOrFail(Database $db, int|string $id): static</code></td><td>Or throw</td></tr>
+        <tr><td><code>all(Database $db): ModelCollection</code></td><td>All records</td></tr>
+        <tr><td><code>create(Database $db, array $attrs): static</code></td><td>Mass-assign + save</td></tr>
+        <tr><td><code>destroy(Database $db, int|string ...$ids): int</code></td><td>Delete by PKs</td></tr>
+        <tr><td><code>firstOrCreate(Database $db, array $search, array $extra = []): static</code></td><td>Find or create</td></tr>
+        <tr><td><code>firstOrNew(Database $db, array $search, array $extra = []): static</code></td><td>Find or new (unsaved)</td></tr>
+        <tr><td><code>updateOrCreate(Database $db, array $search, array $update): static</code></td><td>Upsert</td></tr>
+        <tr><td><code>addGlobalScope(string, Closure): void</code></td><td>Register scope</td></tr>
+        <tr><td><code>removeGlobalScope(string): void</code></td><td>Unregister</td></tr>
+        <tr><td><code>clearBootedModels(): void</code></td><td>Reset boot state</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ?â? API Reference &mdash; Model (Instance) ?â? -->
+    <h2 id="api-model-instance">API Reference &mdash; Model (Instance)</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>fill(array $attrs): static</code></td><td>Mass-assign</td></tr>
+        <tr><td><code>save(): bool</code></td><td>INSERT or UPDATE</td></tr>
+        <tr><td><code>delete(): bool</code></td><td>DELETE</td></tr>
+        <tr><td><code>refresh(): static</code></td><td>Reload from DB</td></tr>
+        <tr><td><code>isDirty(?string): bool</code></td><td>Has changes?</td></tr>
+        <tr><td><code>getDirty(): array</code></td><td>Changed attrs</td></tr>
+        <tr><td><code>getOriginal(?string): mixed</code></td><td>Original values</td></tr>
+        <tr><td><code>increment(string $column, int|float $amount = 1, array $extra = []): bool</code></td><td>Increment col</td></tr>
+        <tr><td><code>decrement(string $column, int|float $amount = 1, array $extra = []): bool</code></td><td>Decrement col</td></tr>
+        <tr><td><code>replicate(): static</code></td><td>Clone without PK</td></tr>
+        <tr><td><code>touch(): bool</code></td><td>Update updated_at</td></tr>
+        <tr><td><code>toArray(): array</code></td><td>Serialise</td></tr>
+        <tr><td><code>toJson(): string</code></td><td>JSON output</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ?â? API Reference &mdash; ModelQuery ?â? -->
+    <h2 id="api-model-query">API Reference &mdash; ModelQuery</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>where(string $syntax, array $params = []): static</code></td><td>AND condition (Simple Syntax)</td></tr>
+        <tr><td><code>orWhere(string $syntax, array $params = []): static</code></td><td>OR condition (Simple Syntax)</td></tr>
+        <tr><td><code>whereIn(string, array): static</code></td><td>IN clause</td></tr>
+        <tr><td><code>whereNotIn(string, array): static</code></td><td>NOT IN</td></tr>
+        <tr><td><code>whereBetween(string, mixed, mixed): static</code></td><td>BETWEEN</td></tr>
+        <tr><td><code>whereNotBetween(string, mixed, mixed): static</code></td><td>NOT BETWEEN</td></tr>
+        <tr><td><code>whereNull(string): static</code></td><td>IS NULL</td></tr>
+        <tr><td><code>whereNotNull(string): static</code></td><td>IS NOT NULL</td></tr>
+        <tr><td><code>orderBy(string, string): static</code></td><td>Sort</td></tr>
+        <tr><td><code>limit(int): static</code></td><td>Limit rows</td></tr>
+        <tr><td><code>offset(int): static</code></td><td>Skip rows</td></tr>
+        <tr><td><code>select(string $columns): static</code></td><td>Columns (comma-separated)</td></tr>
+        <tr><td><code>with(string ...): static</code></td><td>Eager load</td></tr>
+        <tr><td><code>withoutGlobalScope(string ...$names): static</code></td><td>Remove named scope(s)</td></tr>
+        <tr><td><code>withoutGlobalScopes(): static</code></td><td>Remove all scopes</td></tr>
+        <tr><td><code>get(): ModelCollection</code></td><td>Execute</td></tr>
+        <tr><td><code>first(): ?Model</code></td><td>First result</td></tr>
+        <tr><td><code>find(mixed): ?Model</code></td><td>By PK</td></tr>
+        <tr><td><code>count(): int</code></td><td>Count rows</td></tr>
+        <tr><td><code>paginate(int $page = 1, int $perPage = 15): Paginator</code></td><td>Full pagination</td></tr>
+        <tr><td><code>simplePaginate(int $page = 1, int $perPage = 15): Paginator</code></td><td>No count</td></tr>
+        <tr><td><code>chunk(int $size, callable $callback): bool</code></td><td>Batch (return false to stop)</td></tr>
+        <tr><td><code>cursor(): Generator</code></td><td>Lazy iteration</td></tr>
+        <tr><td><code>bulkUpdate(array): int</code></td><td>Mass UPDATE</td></tr>
+        <tr><td><code>bulkDelete(): int</code></td><td>Mass DELETE</td></tr>
+        <tr><td><code>create(array $attributes): Model</code></td><td>Insert row, return hydrated Model</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ?â? API Reference &mdash; Relationships ?â? -->
+    <h2 id="api-relationships">API Reference &mdash; Relationships</h2>
+    <table>
+      <thead><tr><th>Class</th><th>resolve() Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>HasOne</code></td><td><code>?Model</code></td></tr>
+        <tr><td><code>HasMany</code></td><td><code>ModelCollection</code></td></tr>
+        <tr><td><code>BelongsTo</code></td><td><code>?Model</code></td></tr>
+        <tr><td><code>BelongsToMany</code></td><td><code>ModelCollection</code></td></tr>
+      </tbody>
+    </table>
+    <p><code>BelongsToMany</code> extras: <code>attach(int|array)</code>, <code>detach(int|array)</code>, <code>sync(array)</code></p>
+
+    <!-- API Reference ??Model Events (Static) -->
+    <h2 id="api-model-events">API Reference &mdash; Model Events (Static)</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Callback Signature</th></tr></thead>
+      <tbody>
+        <tr><td><code>creating(Closure)</code></td><td><code>fn(Model $m): ?bool</code></td></tr>
+        <tr><td><code>created(Closure)</code></td><td><code>fn(Model $m): void</code></td></tr>
+        <tr><td><code>updating(Closure)</code></td><td><code>fn(Model $m): ?bool</code></td></tr>
+        <tr><td><code>updated(Closure)</code></td><td><code>fn(Model $m): void</code></td></tr>
+        <tr><td><code>saving(Closure)</code></td><td><code>fn(Model $m): ?bool</code></td></tr>
+        <tr><td><code>saved(Closure)</code></td><td><code>fn(Model $m): void</code></td></tr>
+        <tr><td><code>deleting(Closure)</code></td><td><code>fn(Model $m): ?bool</code></td></tr>
+        <tr><td><code>deleted(Closure)</code></td><td><code>fn(Model $m): void</code></td></tr>
+        <tr><td><code>restoring(Closure)</code></td><td><code>fn(Model $m): ?bool</code></td></tr>
+        <tr><td><code>restored(Closure)</code></td><td><code>fn(Model $m): void</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- API Reference ??ModelCollection -->
+    <h2 id="api-model-collection">API Reference &mdash; ModelCollection</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>first</code></td><td><code>(): ?Model</code></td><td>First item</td></tr>
+        <tr><td><code>last</code></td><td><code>(): ?Model</code></td><td>Last item</td></tr>
+        <tr><td><code>isEmpty</code></td><td><code>(): bool</code></td><td>Empty?</td></tr>
+        <tr><td><code>count</code></td><td><code>(): int</code></td><td>Item count</td></tr>
+        <tr><td><code>pluck</code></td><td><code>(string $key): array</code></td><td>Extract column</td></tr>
+        <tr><td><code>map</code></td><td><code>(Closure $fn): array</code></td><td>Transform</td></tr>
+        <tr><td><code>filter</code></td><td><code>(Closure $fn): static</code></td><td>Filter items</td></tr>
+        <tr><td><code>each</code></td><td><code>(Closure $fn): static</code></td><td>Iterate</td></tr>
+        <tr><td><code>contains</code></td><td><code>(Closure $fn): bool</code></td><td>Any match?</td></tr>
+        <tr><td><code>flatMap</code></td><td><code>(Closure $fn): array</code></td><td>Map + flatten</td></tr>
+        <tr><td><code>firstWhere</code></td><td><code>(string $key, mixed $val): ?Model</code></td><td>Find by attr</td></tr>
+        <tr><td><code>chunk</code></td><td><code>(int $size): array</code></td><td>Sub-collections</td></tr>
+        <tr><td><code>reduce</code></td><td><code>(Closure $fn, mixed $init): mixed</code></td><td>Accumulate</td></tr>
+        <tr><td><code>sum</code></td><td><code>(string $key): int|float</code></td><td>Sum column</td></tr>
+        <tr><td><code>avg</code></td><td><code>(string $key): float</code></td><td>Average</td></tr>
+        <tr><td><code>min</code></td><td><code>(string $key): mixed</code></td><td>Minimum</td></tr>
+        <tr><td><code>max</code></td><td><code>(string $key): mixed</code></td><td>Maximum</td></tr>
+        <tr><td><code>sortBy</code></td><td><code>(string|Closure $key): static</code></td><td>Sort</td></tr>
+        <tr><td><code>unique</code></td><td><code>(string $key): static</code></td><td>Deduplicate</td></tr>
+        <tr><td><code>groupBy</code></td><td><code>(string $key): array</code></td><td>Group into map</td></tr>
+        <tr><td><code>keyBy</code></td><td><code>(string $key): array</code></td><td>Key by column</td></tr>
+        <tr><td><code>toArray</code></td><td><code>(): array</code></td><td>Array of arrays</td></tr>
+        <tr><td><code>toJson</code></td><td><code>(): string</code></td><td>JSON string</td></tr>
+      </tbody>
+    </table>
+
+    <!-- API Reference ??Paginator -->
+    <h2 id="api-paginator">API Reference &mdash; Paginator</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Signature</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>items</code></td><td><code>(): ModelCollection</code></td><td>Page data</td></tr>
+        <tr><td><code>total</code></td><td><code>(): ?int</code></td><td>Total rows</td></tr>
+        <tr><td><code>currentPage</code></td><td><code>(): int</code></td><td>Current page</td></tr>
+        <tr><td><code>perPage</code></td><td><code>(): int</code></td><td>Items per page</td></tr>
+        <tr><td><code>lastPage</code></td><td><code>(): ?int</code></td><td>Last page number</td></tr>
+        <tr><td><code>hasPages</code></td><td><code>(): bool</code></td><td>Multiple pages?</td></tr>
+        <tr><td><code>hasMorePages</code></td><td><code>(): bool</code></td><td>Not on last?</td></tr>
+        <tr><td><code>onFirstPage</code></td><td><code>(): bool</code></td><td>On page 1?</td></tr>
+        <tr><td><code>onLastPage</code></td><td><code>(): bool</code></td><td>On last page?</td></tr>
+        <tr><td><code>setPath</code></td><td><code>(string $path): static</code></td><td>Set base URL</td></tr>
+        <tr><td><code>url</code></td><td><code>(int $page): string</code></td><td>URL for page</td></tr>
+        <tr><td><code>firstPageUrl</code></td><td><code>(): string</code></td><td>First page URL</td></tr>
+        <tr><td><code>lastPageUrl</code></td><td><code>(): ?string</code></td><td>Last page URL</td></tr>
+        <tr><td><code>previousPageUrl</code></td><td><code>(): ?string</code></td><td>Previous URL</td></tr>
+        <tr><td><code>nextPageUrl</code></td><td><code>(): ?string</code></td><td>Next URL</td></tr>
+        <tr><td><code>getPageRange</code></td><td><code>(int $window): array</code></td><td>Page numbers</td></tr>
+        <tr><td><code>links</code></td><td><code>(int $window): array</code></td><td>Link data</td></tr>
+        <tr><td><code>toArray</code></td><td><code>(): array</code></td><td>Serialise</td></tr>
+        <tr><td><code>toJson</code></td><td><code>(): string</code></td><td>JSON</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="common-mistakes">Common Mistakes</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>N+1 query performance</td><td>Looping <code>$model-&gt;relation</code> without eager-loading</td><td>Use <code>::with('relation')</code> or <code>query()-&gt;with(...)</code></td></tr>
+        <tr><td>Mass-assignment blocked</td><td><code>$fillable</code> not defined on Model</td><td>Add <code>protected array $fillable = [...]</code></td></tr>
+        <tr><td><code>save()</code> silently fails</td><td>Forgot to pass <code>$db</code> to <code>save()</code></td><td>Always call <code>$model-&gt;save($db)</code></td></tr>
+        <tr><td>Wrong cast output</td><td>Using <code>'int'</code> for a decimal column</td><td>Choose the correct <code>$casts</code> type (<code>'float'</code>, <code>'decimal:2'</code>)</td></tr>
+        <tr><td>Soft-deleted rows returned</td><td>Querying without <code>SoftDeletes</code> trait awareness</td><td>Use <code>withTrashed()</code> / <code>onlyTrashed()</code> to control scope</td></tr>
+        <tr><td>Relationship returns <code>null</code></td><td>Foreign key column name doesn&rsquo;t match convention</td><td>Pass explicit column names to <code>hasOne()</code> / <code>belongsTo()</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="decision-guide">Decision Guide</h2>
+    <table>
+      <thead><tr><th>Scenario</th><th>Use</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Find or insert in one step</td><td><code>firstOrCreate()</code></td><td>Writes immediately if not found</td></tr>
+        <tr><td>Find or prepare (no auto-save)</td><td><code>firstOrNew()</code></td><td>Returns unsaved instance for further edits</td></tr>
+        <tr><td>Paginated HTML pages</td><td><code>paginate()</code></td><td>Generates full page count + links</td></tr>
+        <tr><td>Infinite scroll / API</td><td><code>simplePaginate()</code></td><td>Cheaper &mdash; only checks <code>hasMorePages()</code></td></tr>
+        <tr><td>Fetch by primary key</td><td><code>Model::find($db, $id)</code></td><td>Returns single Model or <code>null</code></td></tr>
+        <tr><td>Complex WHERE filters</td><td><code>Model::query($db)-&gt;where(...)</code></td><td>Builds full SQL via <code>ModelQuery</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Page Navigation -->
+    <div class="page-nav">
+      <a href="database.html"><span class="label">&larr; Previous</span><span class="title">Database</span></a>
+      <a href="collection.html" class="next"><span class="label">Next &rarr;</span><span class="title">Collection</span></a>
+    </div>
+  </main>
+  <footer class="site-footer"><span>Razy Framework v1.0-beta</span><span><a href="https://github.com/rayfunghk/razy" target="_blank">GitHub</a></span></footer>
+</body>
+</html>
