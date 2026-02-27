@@ -62,6 +62,10 @@
 !LLM-CAS.md
 !skills.md
 
+# Architecture & design docs
+!docs/
+!docs/**
+
 # Git hooks (pre-commit quality gates)
 !.githooks/
 !.githooks/**
