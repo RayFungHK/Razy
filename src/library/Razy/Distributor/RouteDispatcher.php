@@ -169,13 +169,33 @@ class RouteDispatcher
         if ($path instanceof Route && $path->getMethod() !== '*') {
             $method = $path->getMethod();
         }
+        // Pre-compute path metadata at registration time (avoids per-request overhead)
+        $isRedirect = false;
+        $redirectAbsolute = false;
+        $redirectTarget = '';
+        $tidiedPath = null;
+        if (\is_string($path)) {
+            $tidiedPath = PathUtil::tidy($path, false, '/');
+            if (\preg_match('/^r(@?):(.+)/', $tidiedPath, $rmatches)) {
+                $isRedirect = true;
+                $redirectAbsolute = ($rmatches[1] === '@');
+                $redirectTarget = $rmatches[2];
+            }
+        }
+
         $this->routes[$route] = [
             'module' => $module,
+            'module_code' => $module->getModuleInfo()->getCode(),
             'path' => $path,
             'route' => $route,
             'type' => 'standard',
             'method' => \strtoupper($method),
             'compiled_regex' => self::compileRouteRegex($route),
+            'is_redirect' => $isRedirect,
+            'redirect_absolute' => $redirectAbsolute,
+            'redirect_target' => $redirectTarget,
+            'tidied_path' => $tidiedPath,
+            'tidied_route' => PathUtil::tidy('/' . $route, false, '/'),
         ];
         $this->routesDirty = true;
 
@@ -354,6 +374,17 @@ class RouteDispatcher
     }
 
     /**
+     * Reset the routed info metadata.
+     *
+     * Must be called at the start of each worker request to prevent stale
+     * route data from a previous request leaking into 404 error handlers.
+     */
+    public function resetRoutedInfo(): void
+    {
+        $this->routedInfo = [];
+    }
+
+    /**
      * Match the registered route and execute the matched path.
      *
      * @param string $urlQuery The URL query to match
@@ -413,13 +444,29 @@ class RouteDispatcher
                     $args = \explode('/', $remainingQuery);
                 }
 
-                $path = (\is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
-                $path = PathUtil::tidy($path, false, '/');
+                // Use pre-computed tidied path and redirect flag from registration time
+                // when available (standard routes with string paths). Avoids PathUtil::tidy()
+                // regex and redirect preg_match() on every request.
+                if (isset($data['tidied_path'])) {
+                    $path = $data['tidied_path'];
+                } else {
+                    $path = (\is_string($data['path'])) ? $data['path'] : $data['path']->getClosurePath();
+                    $path = PathUtil::tidy($path, false, '/');
+                }
 
-                // Handle redirect routes: paths starting with "r:" or "r@:" trigger HTTP redirect
-                if (\preg_match('/^r(@?):(.+)/', $path, $matches)) {
-                    $path = $matches[2];
-                    $redirectUrl = PathUtil::append($matches[1] ? $siteURL : $data['module']->getModuleURL(), $path);
+                // Handle redirect routes: use pre-computed flag for standard routes
+                $isRedirect = $data['is_redirect'] ?? false;
+                if (!$isRedirect && !isset($data['tidied_path'])) {
+                    // Lazy/shadow routes: fallback to runtime check
+                    $isRedirect = (bool) \preg_match('/^r(@?):(.+)/', $path, $matches);
+                    if ($isRedirect) {
+                        $data['redirect_absolute'] = ($matches[1] === '@');
+                        $data['redirect_target'] = $matches[2];
+                    }
+                }
+                if ($isRedirect) {
+                    $redirectPath = $data['redirect_target'];
+                    $redirectUrl = PathUtil::append($data['redirect_absolute'] ? $siteURL : $data['module']->getModuleURL(), $redirectPath);
                     \header('Location: ' . $redirectUrl);
                     throw new RedirectException($redirectUrl, 302);
                 }
@@ -435,8 +482,8 @@ class RouteDispatcher
                     $this->routedInfo = [
                         'url_query' => $urlQuery,
                         'base_url' => PathUtil::append($siteURL, \rtrim($route, '/')),
-                        'route' => PathUtil::tidy('/' . $data['route'], false, '/'),
-                        'module' => $data['module']->getModuleInfo()->getCode(),
+                        'route' => $data['tidied_route'] ?? PathUtil::tidy('/' . $data['route'], false, '/'),
+                        'module' => $data['module_code'] ?? $data['module']->getModuleInfo()->getCode(),
                         'closure_path' => $path,
                         'arguments' => $args,
                         'type' => $data['type'],
@@ -454,29 +501,37 @@ class RouteDispatcher
                         $data['module']->entry($this->routedInfo);
                     }
 
-                    // Build middleware pipeline: global → module → route-level
-                    $pipeline = new MiddlewarePipeline();
-                    $pipeline->pipeMany($this->globalMiddleware);
+                    // Check if any middleware exists before allocating a pipeline object.
+                    // In the common case (no middleware), this skips the MiddlewarePipeline
+                    // allocation, 3× pipeMany() calls, and isEmpty() check entirely.
+                    $moduleCode = $data['module_code'] ?? $data['module']->getModuleInfo()->getCode();
+                    $hasRouteMiddleware = !\is_string($data['path']) && $data['path'] instanceof Route && $data['path']->hasMiddleware();
+                    $hasModuleMiddleware = isset($this->moduleMiddleware[$moduleCode]) && !empty($this->moduleMiddleware[$moduleCode]);
+                    $hasAnyMiddleware = !empty($this->globalMiddleware) || $hasModuleMiddleware || $hasRouteMiddleware;
 
-                    $moduleCode = $data['module']->getModuleInfo()->getCode();
-                    if (isset($this->moduleMiddleware[$moduleCode])) {
-                        $pipeline->pipeMany($this->moduleMiddleware[$moduleCode]);
-                    }
+                    if ($hasAnyMiddleware) {
+                        // Build middleware pipeline: global → module → route-level
+                        $pipeline = new MiddlewarePipeline();
+                        $pipeline->pipeMany($this->globalMiddleware);
 
-                    // Route-level middleware from Route objects
-                    if (!\is_string($data['path']) && $data['path'] instanceof Route && $data['path']->hasMiddleware()) {
-                        $pipeline->pipeMany($data['path']->getMiddleware());
-                    }
+                        if ($hasModuleMiddleware) {
+                            $pipeline->pipeMany($this->moduleMiddleware[$moduleCode]);
+                        }
 
-                    if (!$pipeline->isEmpty()) {
+                        if ($hasRouteMiddleware) {
+                            $pipeline->pipeMany($data['path']->getMiddleware());
+                        }
+
                         $finalClosure = $closure;
                         $finalArgs = $args;
                         $pipeline->process($this->routedInfo, static function (array $context) use ($finalClosure, $finalArgs): mixed {
-                            \call_user_func_array($finalClosure, $finalArgs);
+                            $finalClosure(...$finalArgs);
                             return null;
                         });
                     } else {
-                        \call_user_func_array($closure, $args);
+                        // Fast path: no middleware — direct invocation with spread operator
+                        // (faster than call_user_func_array)
+                        $closure(...$args);
                     }
                 }
 

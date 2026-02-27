@@ -92,13 +92,24 @@ class ClosureLoader
      */
     public function getClosure(string $path, Controller $controller): ?Closure
     {
+        // Fast-path: check closure cache FIRST using the raw path as key.
+        // For controller methods (the most common hot-path case), the closure
+        // was cached on the first request and subsequent lookups skip all the
+        // PathUtil::tidy / substr_count / method_exists overhead entirely.
+        if (isset($this->closures[$path])) {
+            return $this->closures[$path];
+        }
+
         $originalPath = $path;
         $path = PathUtil::tidy($path, false, '/');
 
-        if (0 === \substr_count($path, '/')) {
+        if (!\str_contains($path, '/')) {
             // No directory separator — check if it's a direct controller method
             if (\method_exists($controller, $path)) {
-                return $controller->$path(...);
+                $closure = $controller->$path(...);
+                // Cache under the original (raw) path for next-request fast-path
+                $this->closures[$originalPath] = $closure;
+                return $closure;
             }
             // Standalone closure files are prefixed with the module class name
             $path = $this->moduleInfo->getClassName() . '.' . $path;
@@ -127,7 +138,12 @@ class ClosureLoader
             }
         }
 
-        return $this->closures[$fullPath] ?? null;
+        $result = $this->closures[$fullPath] ?? null;
+        // Also cache under the original raw path for fast-path lookup next time
+        if ($result !== null) {
+            $this->closures[$originalPath] = $result;
+        }
+        return $result;
     }
 
     /**

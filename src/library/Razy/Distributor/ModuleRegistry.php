@@ -296,12 +296,22 @@ class ModuleRegistry
     /**
      * Trigger all module __onRouted event to announce the routed module.
      *
+     * Optimised: when there is only one module in the queue (typical for
+     * standalone mode), the loop body always skips itself, producing zero
+     * useful work.  The count check avoids entering the loop entirely.
+     *
      * @param ModuleInterface $matchedModule
      */
     public function announce(ModuleInterface $matchedModule): void
     {
+        // Fast path: single-module standalone — nothing to announce
+        if (\count($this->queue) <= 1) {
+            return;
+        }
+
+        $matchedCode = $matchedModule->getModuleInfo()->getCode();
         foreach ($this->queue as $module) {
-            if ($matchedModule->getModuleInfo()->getCode() !== $module->getModuleInfo()->getCode()) {
+            if ($matchedCode !== $module->getModuleInfo()->getCode()) {
                 $module->announce($matchedModule->getModuleInfo());
             }
         }

@@ -114,7 +114,7 @@ class MiddlewarePipeline
      */
     public function isEmpty(): bool
     {
-        return \count($this->middleware) === 0;
+        return empty($this->middleware);
     }
 
     /**
