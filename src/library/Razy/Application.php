@@ -222,13 +222,13 @@ class Application
         // lifecycle (queryStandalone) which would allow route/module injection.
         if (!\defined('WORKER_MODE') || !WORKER_MODE) {
             throw new ConfigurationException(
-                'dispatchStandalone() is restricted to worker mode. Use queryStandalone() for standard requests.'
+                'dispatchStandalone() is restricted to worker mode. Use queryStandalone() for standard requests.',
             );
         }
 
         if (!self::$locked) {
             throw new ConfigurationException(
-                'Application must be locked before worker dispatch. Complete the boot phase first.'
+                'Application must be locked before worker dispatch. Complete the boot phase first.',
             );
         }
 
@@ -456,13 +456,13 @@ class Application
         // distributor lifecycle (query) which would allow module injection.
         if (!\defined('WORKER_MODE') || !WORKER_MODE) {
             throw new ConfigurationException(
-                'dispatch() is restricted to worker mode. Use query() for standard requests.'
+                'dispatch() is restricted to worker mode. Use query() for standard requests.',
             );
         }
 
         if (!self::$locked) {
             throw new ConfigurationException(
-                'Application must be locked before worker dispatch. Complete the boot phase first.'
+                'Application must be locked before worker dispatch. Complete the boot phase first.',
             );
         }
 

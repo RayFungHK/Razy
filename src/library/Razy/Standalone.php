@@ -176,13 +176,13 @@ class Standalone implements DistributorInterface
         // to inject routes or hijack module closures.
         if (!\defined('WORKER_MODE') || !WORKER_MODE) {
             throw new ConfigurationException(
-                'Standalone::dispatch() is restricted to worker mode. Use matchRoute() for standard requests.'
+                'Standalone::dispatch() is restricted to worker mode. Use matchRoute() for standard requests.',
             );
         }
 
         if (!$this->coreInitialized) {
             throw new ConfigurationException(
-                'Core not initialized. The full module lifecycle (matchRoute) must complete before worker dispatch.'
+                'Core not initialized. The full module lifecycle (matchRoute) must complete before worker dispatch.',
             );
         }
 

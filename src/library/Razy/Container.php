@@ -164,7 +164,7 @@ class Container implements ContainerInterface
     {
         if ($this->parentTraversalBlocked) {
             throw new SecurityException(
-                'Container parent traversal is blocked. Module code cannot access the application-level container.'
+                'Container parent traversal is blocked. Module code cannot access the application-level container.',
             );
         }
 
@@ -636,7 +636,7 @@ class Container implements ContainerInterface
         // Security: block resolution of protected system classes
         if (isset($this->blockedAbstracts[$abstract])) {
             throw new SecurityException(
-                "Resolution of '{$abstract}' is blocked. Module code cannot access internal system objects."
+                "Resolution of '{$abstract}' is blocked. Module code cannot access internal system objects.",
             );
         }
 

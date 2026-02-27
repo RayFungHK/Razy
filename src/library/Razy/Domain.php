@@ -170,13 +170,13 @@ class Domain
         // which wires up module dependencies, routes, and middleware.
         if (!\defined('WORKER_MODE') || !WORKER_MODE) {
             throw new ConfigurationException(
-                'Domain::dispatchQuery() is restricted to worker mode. Use matchQuery() for standard requests.'
+                'Domain::dispatchQuery() is restricted to worker mode. Use matchQuery() for standard requests.',
             );
         }
 
         if (!Application::$locked) {
             throw new ConfigurationException(
-                'Application must be locked before worker dispatch. Complete the boot phase first.'
+                'Application must be locked before worker dispatch. Complete the boot phase first.',
             );
         }
 
@@ -223,7 +223,7 @@ class Domain
                             $tag,
                             $urlPath,
                             $remainingQuery,
-                            $cacheKey
+                            $cacheKey,
                         );
                     }
                 }
@@ -238,7 +238,7 @@ class Domain
                 $tag,
                 $urlPath,
                 $remainingQuery,
-                $cacheKey
+                $cacheKey,
             );
         }
 
@@ -298,7 +298,7 @@ class Domain
         string $tag,
         string $urlPath,
         string $urlQuery,
-        string $cacheKey
+        string $cacheKey,
     ): bool {
         $this->distributor = new Distributor($distCode, $tag, $this, $urlPath, $urlQuery);
         $this->distributor->initialize();
