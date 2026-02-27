@@ -1,6 +1,6 @@
 {
   "name": "rayfunghk/razy",
-  "version": "1.0.0-beta",
+  "version": "1.0.1-beta",
   "description": "A PHP framework for web development, high performance and flexibility. Perfect for team development and code maintenance.",
   "keywords": ["framework", "php", "psr-12", "psr-4", "modular", "mvc", "composer"],
   "minimum-stability": "stable",

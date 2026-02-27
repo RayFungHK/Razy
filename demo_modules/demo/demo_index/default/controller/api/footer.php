@@ -16,7 +16,7 @@ return function (): string {
     return <<<HTML
     </div>
     <footer class="footer">
-        <p>Razy Framework v1.0-beta · <a href="{$siteUrl}/">Back to Demo Index</a></p>
+        <p>Razy Framework v1.0.1-beta · <a href="{$siteUrl}/">Back to Demo Index</a></p>
     </footer>
 </body>
 </html>

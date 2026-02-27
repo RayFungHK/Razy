@@ -30,7 +30,7 @@ use Throwable;
 require_once PHAR_PATH . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR . 'Razy' . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'PathUtil.php';
 
 // Define core framework constants for versioning and directory paths
-\define('RAZY_VERSION', '1.0-beta');
+\define('RAZY_VERSION', '1.0.1-beta');
 \define('PLUGIN_FOLDER', PathUtil::append(SYSTEM_ROOT, 'plugins'));
 \define('PHAR_PLUGIN_FOLDER', PathUtil::append(PHAR_PATH, 'plugins'));
 \define('SITES_FOLDER', PathUtil::append(SYSTEM_ROOT, 'sites'));

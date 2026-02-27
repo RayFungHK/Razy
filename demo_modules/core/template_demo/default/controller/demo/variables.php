@@ -19,16 +19,16 @@ return function (): void {
     $source = $this->loadTemplate('demo_variables_simple');
     $source->assign([
         'name' => 'Razy Framework',
-        'version' => '1.0-beta',
+        'version' => '1.0.1-beta',
         'language' => 'PHP',
     ]);
 
     $results['simple_variables'] = [
         'description' => 'Basic variable tags: {$name}, {$version}',
         'template' => '{$name} v{$version} — Built with {$language}',
-        'data' => ['name' => 'Razy Framework', 'version' => '1.0-beta', 'language' => 'PHP'],
+        'data' => ['name' => 'Razy Framework', 'version' => '1.0.1-beta', 'language' => 'PHP'],
         'output' => trim($source->output()),
-        'code' => '$source->assign([\'name\' => \'Razy Framework\', \'version\' => \'1.0-beta\']);',
+        'code' => '$source->assign([\'name\' => \'Razy Framework\', \'version\' => \'1.0.1-beta\']);',
     ];
 
     // === Dot-Path Access ===

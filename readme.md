@@ -3,7 +3,7 @@
 **A modular PHP framework for multi-site, multi-distributor application development.**
 
 [![CI](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml/badge.svg)](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0--beta-blue.svg)](https://github.com/RayFungHK/Razy/releases)
+[![Version](https://img.shields.io/badge/version-1.0.1--beta-blue.svg)](https://github.com/RayFungHK/Razy/releases)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-4564_passing-success.svg)](#testing)

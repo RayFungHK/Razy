@@ -58,6 +58,10 @@
 !CODE_OF_CONDUCT.md
 !.editorconfig
 
+# LLM navigation files
+!LLM-CAS.md
+!skills.md
+
 # Benchmark suite (reproducible performance tests)
 !benchmark/
 !benchmark/**

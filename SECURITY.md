@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.0-beta | ✅ Current |
+| 1.0.1-beta | ✅ Current |
 | 0.5.x   | ⚠️ Maintenance only |
 | < 0.5   | ❌ No longer supported |
 
