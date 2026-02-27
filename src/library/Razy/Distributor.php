@@ -69,6 +69,9 @@ class Distributor implements DistributorInterface
     /** @var bool Whether unmatched requests fall back to index.php for route matching */
     private bool $fallback = true;
 
+    /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
+    private bool $coreInitialized = false;
+
     // --- Extracted sub-objects (Phase 2 refactoring) ---
 
     /** @var ModuleRegistry Module tracking, lookup, API registration, and lifecycle management */
@@ -247,7 +250,111 @@ class Distributor implements DistributorInterface
         $this->registry->processAwaits();
         $this->registry->notifyReady();
 
+        $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+
+        // Mark core as initialized — the full module lifecycle has completed.
+        // This flag gates access to the lightweight dispatch() fast path.
+        $this->coreInitialized = true;
+
+        return $result;
+    }
+
+    /**
+     * Lightweight route dispatch for worker mode (skips lifecycle overhead).
+     *
+     * Bypasses session_start(), processAwaits(), and notifyReady() — all of
+     * which are only needed on the first request when the module graph is
+     * being assembled. On subsequent worker requests the object graph is
+     * already fully initialised, so we go straight to route matching.
+     *
+     * @param string $urlQuery The URL query to dispatch
+     *
+     * @return bool True if a matching route was found and executed
+     *
+     * @throws Throwable
+     */
+    public function dispatch(string $urlQuery): bool
+    {
+        if (!$this->domain) {
+            return false;
+        }
+
+        // Guard: worker-only fast path — prevents bypassing the full module
+        // lifecycle (initialize → matchRoute) which registers routes and
+        // middleware. Without this, an attacker could call dispatch() directly
+        // to inject routes or hijack module closures.
+        if (!\defined('WORKER_MODE') || !WORKER_MODE) {
+            throw new ConfigurationException(
+                'Distributor::dispatch() is restricted to worker mode. Use matchRoute() for standard requests.'
+            );
+        }
+
+        if (!$this->coreInitialized) {
+            throw new ConfigurationException(
+                'Core not initialized. The full module lifecycle (matchRoute) must complete before worker dispatch.'
+            );
+        }
+
+        $this->urlQuery = PathUtil::tidy($urlQuery, false, '/');
+        if (!$this->urlQuery) {
+            $this->urlQuery = '/';
+        }
+
+        // Reset stale route metadata from previous request
+        $this->router->resetRoutedInfo();
+
         return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+    }
+
+    /**
+     * Compute a fingerprint of the distributor's configuration state.
+     *
+     * Used by Domain's distributor cache to detect whether the dist.php config
+     * or module files have changed on disk since the distributor was built.
+     * When the fingerprint changes, the cached distributor is invalidated and
+     * rebuilt from scratch (hot-reload).
+     *
+     * The fingerprint covers:
+     * - dist.php file modification time
+     * - Module source directory modification time
+     * - Shared module directory modification time (if global_module is enabled)
+     *
+     * @return string MD5 hash representing current config state
+     */
+    public function getConfigFingerprint(): string
+    {
+        $parts = [];
+
+        // dist.php mtime
+        $distFile = PathUtil::append($this->folderPath, 'dist.php');
+        if (\is_file($distFile)) {
+            $parts[] = (string) \filemtime($distFile);
+        }
+
+        // Module source directory mtime (catches added/removed module folders)
+        if (\is_dir($this->moduleSourcePath)) {
+            $parts[] = (string) \filemtime($this->moduleSourcePath);
+        }
+
+        // Shared module directory mtime (if global modules enabled)
+        if ($this->globalModule && \defined('SHARED_FOLDER')) {
+            $sharedModulePath = PathUtil::append(SHARED_FOLDER, 'module');
+            if (\is_dir($sharedModulePath)) {
+                $parts[] = (string) \filemtime($sharedModulePath);
+            }
+        }
+
+        return \md5(\implode('|', $parts));
+    }
+
+    /**
+     * Check if global module loading is enabled for this distributor.
+     *
+     * @return bool
+     */
+    public function isGlobalModule(): bool
+    {
+        return $this->globalModule;
     }
 
     /**

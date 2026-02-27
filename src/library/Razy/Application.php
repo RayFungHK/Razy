@@ -198,6 +198,44 @@ class Application
     }
 
     /**
+     * Lightweight route dispatch for worker mode (skips full module lifecycle).
+     *
+     * Requires that queryStandalone() has already been called at least once
+     * to set up the module graph. Subsequent requests use this fast path
+     * which goes directly to route matching without re-initialising modules,
+     * re-registering routes, or starting sessions.
+     *
+     * @param string $urlQuery The URL query to dispatch
+     *
+     * @return bool True if a matching route was found and dispatched
+     *
+     * @throws ConfigurationException If standalone mode is not activated
+     * @throws Throwable
+     */
+    public function dispatchStandalone(string $urlQuery): bool
+    {
+        if (!$this->standaloneDistributor) {
+            throw new ConfigurationException('Standalone mode is not activated. Call standalone() first.');
+        }
+
+        // Guard: worker-only fast path — prevents bypass of the full module
+        // lifecycle (queryStandalone) which would allow route/module injection.
+        if (!\defined('WORKER_MODE') || !WORKER_MODE) {
+            throw new ConfigurationException(
+                'dispatchStandalone() is restricted to worker mode. Use queryStandalone() for standard requests.'
+            );
+        }
+
+        if (!self::$locked) {
+            throw new ConfigurationException(
+                'Application must be locked before worker dispatch. Complete the boot phase first.'
+            );
+        }
+
+        return $this->standaloneDistributor->dispatch($urlQuery);
+    }
+
+    /**
      * Get the Application GUID.
      *
      * @return string The GUID of the Application Instance
@@ -386,6 +424,49 @@ class Application
         }
 
         return true;
+    }
+
+    /**
+     * Lightweight route dispatch for worker mode (multisite).
+     *
+     * Uses Domain::dispatchQuery() which caches fully-initialised Distributors
+     * across requests. On the first request for a given URL prefix, the full
+     * Distributor lifecycle runs (config load → module scan → __onInit →
+     * __onLoad → __onRequire → matchRoute). Subsequent requests reuse the
+     * cached Distributor and skip directly to route matching.
+     *
+     * Periodically checks config fingerprints (controlled by the
+     * WORKER_CONFIG_CHECK_INTERVAL env var, default 100) and hot-reloads
+     * when dist.php or module folder mtimes change.
+     *
+     * @param string $urlQuery The URL query to dispatch
+     *
+     * @return bool True if a matching route was found and dispatched
+     *
+     * @throws ConfigurationException If no domain was matched
+     * @throws Throwable
+     */
+    public function dispatch(string $urlQuery): bool
+    {
+        if (!$this->domain) {
+            throw new ConfigurationException('No domain was matched that no query is allowed.');
+        }
+
+        // Guard: worker-only fast path — prevents bypass of the full
+        // distributor lifecycle (query) which would allow module injection.
+        if (!\defined('WORKER_MODE') || !WORKER_MODE) {
+            throw new ConfigurationException(
+                'dispatch() is restricted to worker mode. Use query() for standard requests.'
+            );
+        }
+
+        if (!self::$locked) {
+            throw new ConfigurationException(
+                'Application must be locked before worker dispatch. Complete the boot phase first.'
+            );
+        }
+
+        return $this->domain->dispatchQuery($urlQuery);
     }
 
     /**

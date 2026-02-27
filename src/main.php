@@ -26,7 +26,6 @@
 namespace Razy;
 
 use Phar;
-use Razy\Database\Statement;
 use Razy\Exception\HttpException;
 use Razy\Template\CompiledTemplate;
 use Razy\Util\PathUtil;
@@ -113,40 +112,89 @@ if (WEB_MODE) {
     // In worker mode the PHP process stays alive across requests, so we wrap
     // each request in a closure passed to frankenphp_handle_request().
     if (WORKER_MODE && \function_exists('frankenphp_handle_request')) {
+        // Cache RELATIVE_ROOT for per-request URL query computation
+        $relativeRoot = \defined('RELATIVE_ROOT') ? RELATIVE_ROOT : '';
+
+        // ===============================================================
+        // BOOT PHASE — runs once per worker process, NOT per request.
+        // Build the Application/Module/Route object graph so that incoming
+        // requests only pay the cost of URL parsing + route dispatch.
+        // ===============================================================
+        $app = new Application();
+        $firstRequestHandled = false;
+
+        if ($isStandaloneMode) {
+            $app->standalone($standalonePath);
+        } else {
+            $app->host(HOSTNAME . ':' . PORT);
+        }
+
+        Application::Lock();
+
         // Build a request handler closure that will be invoked for every incoming HTTP request
-        $handler = function () use ($razyConfig, $isStandaloneMode, $standalonePath) {
+        $handler = function () use ($razyConfig, $isStandaloneMode, $relativeRoot, $app, &$firstRequestHandled) {
             try {
-                $app = new Application();
+                // --- Per-request state reset (prevent cross-request leaks) ---
+                \http_response_code(200);
+                \header_remove();           // Clear headers from previous request
+                // Note: Error::reset() is only called in the finally block below
+                // to avoid redundant double-reset per request.
 
-                if ($isStandaloneMode) {
-                    // Standalone mode: bypass Domain/multisite, load single module
-                    $app->standalone($standalonePath);
-                } else {
-                    // Normal multisite mode: resolve domain and match distributor
-                    $app->host(HOSTNAME . ':' . PORT);
+                // Drain any leftover output buffers from a previous request
+                // that threw before flushing (e.g. ob_start in XHR/SSE).
+                while (\ob_get_level() > 0) {
+                    \ob_end_clean();
                 }
 
-                // Lock the Application singleton so no additional instances can be created
-                Application::Lock();
-
-                // Schedule post-request validation (output buffering, header checks, etc.)
-                \register_shutdown_function(function () use ($app) {
-                    $app->validation();
-                });
-
-                // Route the URL query; if no route matches, show a 404 error page
-                if ($isStandaloneMode) {
-                    if (!$app->queryStandalone(URL_QUERY)) {
-                        Error::show404();
-                    }
+                // Recompute URL query per-request: constants like URL_QUERY are stale
+                // in worker mode because they were defined once at script startup before
+                // any real HTTP request arrived. $_SERVER is refreshed per-request by FrankenPHP.
+                if ($relativeRoot) {
+                    \preg_match('/^' . \preg_quote($relativeRoot, '/') . '(.+)$/', $_SERVER['REQUEST_URI'] ?? '', $urlMatches);
+                    $rawUrlQuery = $urlMatches[1] ?? '';
                 } else {
-                    if (!$app->query(URL_QUERY)) {
-                        Error::show404();
-                    }
+                    $rawUrlQuery = $_SERVER['REQUEST_URI'] ?? '/';
+                }
+                $urlQuery = PathUtil::tidy(\strtok($rawUrlQuery, '?'), true, '/');
+                if (!$urlQuery) {
+                    $urlQuery = '/';
                 }
 
-                // Release resources held by the Application for this request
-                $app->dispose();
+                if (!$firstRequestHandled) {
+                    // ── First request: full module lifecycle ──────────────
+                    // Run the complete init chain (Module::initialize → __onInit
+                    // → prepare → validate → matchRoute) so that routes, middleware,
+                    // and lifecycle hooks are all wired up.
+                    if ($isStandaloneMode) {
+                        if (!$app->queryStandalone($urlQuery)) {
+                            Error::show404();
+                        }
+                    } else {
+                        if (!$app->query($urlQuery)) {
+                            Error::show404();
+                        }
+                    }
+                    $firstRequestHandled = true;
+                } else {
+                    // ── Subsequent requests: lightweight fast dispatch ────
+                    // The object graph (Application → Standalone → Module →
+                    // RouteDispatcher) persists from the boot phase. No module
+                    // re-init, no route re-registration, no session_start(),
+                    // no gc_collect_cycles() — just URL match and execute.
+                    //
+                    // Multisite: Domain::dispatchQuery() caches Distributors
+                    // keyed by distCode@tag, with periodic config fingerprint
+                    // checks for hot-reload when dist.php or modules change.
+                    if ($isStandaloneMode) {
+                        if (!$app->dispatchStandalone($urlQuery)) {
+                            Error::show404();
+                        }
+                    } else {
+                        if (!$app->dispatch($urlQuery)) {
+                            Error::show404();
+                        }
+                    }
+                }
             } catch (HttpException $e) {
                 // HTTP-level exceptions (404, redirect, XHR response sent) —
                 // response was already sent, request ends gracefully.
@@ -158,37 +206,33 @@ if (WEB_MODE) {
                     echo $e;
                 }
             } finally {
-                // --- Worker mode cleanup (runs after every request) ---
-                // Reset the Application lock so the next request can create a new instance
-                Application::UnlockForWorker();
-                unset($app);
-
-                // Reset static state to prevent cross-request pollution in worker mode
+                // --- Per-request cleanup ---
+                // Reset error state and close any session that user code may
+                // have opened (prevents session file-lock deadlocks).
                 Error::reset();
-                Database::resetInstances();
-                PluginManager::getInstance()->resetAll();
-
-                // Re-register default plugin folders after resetAll() cleared them.
-                // bootstrap.inc.php only runs once; without this, plugins fail on the 2nd+ request.
-                Collection::addPluginFolder(PathUtil::append(PLUGIN_FOLDER, 'Collection'));
-                Collection::addPluginFolder(PathUtil::append(PHAR_PLUGIN_FOLDER, 'Collection'));
-                Template::addPluginFolder(PathUtil::append(PLUGIN_FOLDER, 'Template'));
-                Template::addPluginFolder(PathUtil::append(PHAR_PLUGIN_FOLDER, 'Template'));
-                Statement::addPluginFolder(PathUtil::append(PLUGIN_FOLDER, 'Statement'));
-                Statement::addPluginFolder(PathUtil::append(PHAR_PLUGIN_FOLDER, 'Statement'));
-                Pipeline::addPluginFolder(PathUtil::append(PLUGIN_FOLDER, 'Pipeline'));
-                Pipeline::addPluginFolder(PathUtil::append(PHAR_PLUGIN_FOLDER, 'Pipeline'));
-
-                // Clear compiled template cache to prevent unbounded memory growth
-                CompiledTemplate::clearCache();
-
-                // Reclaim cyclic-reference memory between requests
-                \gc_collect_cycles();
+                if (\session_status() === PHP_SESSION_ACTIVE) {
+                    \session_write_close();
+                }
             }
         };
 
-        // Hand the closure to FrankenPHP which will call it for each HTTP request
-        \frankenphp_handle_request($handler);
+        // Hand the closure to FrankenPHP which will call it for each HTTP request.
+        // Loop until the worker is told to stop (frankenphp_handle_request returns false).
+        // Each iteration blocks until a new request arrives, calls $handler with the
+        // superglobals populated, and then returns true to keep the loop alive.
+        $maxRequests = (int) (\getenv('WORKER_MAX_REQUESTS') ?: 0);  // 0 = unlimited
+        $requestCount = 0;
+        $gcInterval = (int) (\getenv('WORKER_GC_INTERVAL') ?: 500); // GC every N requests
+        do {
+            $running = \frankenphp_handle_request($handler);
+            ++$requestCount;
+            // Periodic GC instead of per-request — avoids the ~5% overhead of
+            // gc_collect_cycles() on every single request.
+            if ($gcInterval > 0 && $requestCount % $gcInterval === 0) {
+                \gc_collect_cycles();
+                CompiledTemplate::clearCache(); // Prevent unbounded template cache growth
+            }
+        } while ($running && ($maxRequests <= 0 || $requestCount < $maxRequests));
     } else {
         // --- Standard (non-worker) request handling ---
         try {

@@ -15,6 +15,7 @@ use Closure;
 use Razy\Contract\ContainerInterface;
 use Razy\Exception\ContainerException;
 use Razy\Exception\ContainerNotFoundException;
+use Razy\Exception\SecurityException;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
@@ -123,6 +124,23 @@ class Container implements ContainerInterface
     private array $contextualBindings = [];
 
     /**
+     * @var array<string, true> Set of abstract class/interface names that this
+     * container is forbidden from resolving. Used to prevent module-level child
+     * containers from accessing internal system objects (Application, Distributor,
+     * Domain, etc.) via parent-container delegation.
+     *
+     * Set via blockAbstracts() during module container initialisation.
+     */
+    private array $blockedAbstracts = [];
+
+    /**
+     * @var bool When true, getParent() returns null even if a parent exists.
+     * Prevents module code from traversing the container hierarchy to reach
+     * the Application-level container and its registered system instances.
+     */
+    private bool $parentTraversalBlocked = false;
+
+    /**
      * Create a new Container, optionally with a parent for hierarchical resolution.
      *
      * @param ContainerInterface|null $parent Parent container to delegate to when local lookup fails
@@ -134,11 +152,51 @@ class Container implements ContainerInterface
     /**
      * Get the parent container, if any.
      *
+     * Returns null when parent traversal is blocked (e.g., module-level
+     * containers) to prevent user code from reaching the Application
+     * container and its system-level instances.
+     *
      * @return ContainerInterface|null
+     *
+     * @throws SecurityException If parent traversal is blocked
      */
     public function getParent(): ?ContainerInterface
     {
+        if ($this->parentTraversalBlocked) {
+            throw new SecurityException(
+                'Container parent traversal is blocked. Module code cannot access the application-level container.'
+            );
+        }
+
         return $this->parent;
+    }
+
+    /**
+     * Block specific abstract types from being resolved by this container.
+     *
+     * When a blocked abstract is requested via make()/get()/has(), the
+     * container throws a SecurityException. This prevents module code
+     * from resolving internal system objects (Application, Distributor,
+     * Domain, Container, etc.) that are registered in the parent container.
+     *
+     * @param string[] $abstracts Fully-qualified class/interface names to block
+     */
+    public function blockAbstracts(array $abstracts): void
+    {
+        foreach ($abstracts as $abstract) {
+            $this->blockedAbstracts[$abstract] = true;
+        }
+    }
+
+    /**
+     * Block getParent() from returning the parent container.
+     *
+     * Call this on module-level child containers to prevent user code
+     * from traversing the container hierarchy.
+     */
+    public function blockParentTraversal(): void
+    {
+        $this->parentTraversalBlocked = true;
     }
 
     // ── Contextual Binding ─────────────────────────────────
@@ -574,6 +632,13 @@ class Container implements ContainerInterface
         // Resolve aliases
         $abstract = $this->getAlias($abstract);
 
+        // Security: block resolution of protected system classes
+        if (isset($this->blockedAbstracts[$abstract])) {
+            throw new SecurityException(
+                "Resolution of '{$abstract}' is blocked. Module code cannot access internal system objects."
+            );
+        }
+
         // Return existing singleton instance
         if (isset($this->instances[$abstract])) {
             return $this->instances[$abstract];
@@ -660,6 +725,10 @@ class Container implements ContainerInterface
                 try {
                     $dependencies[] = $this->make($typeName);
                     continue;
+                } catch (SecurityException $e) {
+                    // Always propagate security violations — module code must
+                    // not silently receive null for blocked system classes
+                    throw $e;
                 } catch (Throwable) {
                     // Fall through to default/null checks
                 }
@@ -716,6 +785,11 @@ class Container implements ContainerInterface
     {
         $id = $this->getAlias($id);
 
+        // Security: blocked abstracts are reported as not available
+        if (isset($this->blockedAbstracts[$id])) {
+            return false;
+        }
+
         if (isset($this->bindings[$id]) || isset($this->instances[$id])) {
             return true;
         }
@@ -763,11 +837,18 @@ class Container implements ContainerInterface
     /**
      * Get all registered binding keys.
      *
+     * Blocked abstracts are excluded from the returned list so module code
+     * cannot enumerate protected system classes.
+     *
      * @return string[]
      */
     public function getBindings(): array
     {
-        return \array_keys($this->bindings);
+        if (empty($this->blockedAbstracts)) {
+            return \array_keys($this->bindings);
+        }
+
+        return \array_values(\array_diff(\array_keys($this->bindings), \array_keys($this->blockedAbstracts)));
     }
 
     /**
@@ -883,6 +964,10 @@ class Container implements ContainerInterface
                 try {
                     $dependencies[] = $this->make($typeName);
                     continue;
+                } catch (SecurityException $e) {
+                    // Always propagate security violations — module code must
+                    // not silently receive null for blocked system classes
+                    throw $e;
                 } catch (ContainerException $e) {
                     // Always propagate circular dependency errors
                     if (\str_contains($e->getMessage(), 'Circular dependency')) {

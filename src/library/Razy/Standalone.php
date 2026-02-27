@@ -20,6 +20,7 @@ use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\ModuleScanner;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
+use Razy\Exception\ConfigurationException;
 use Razy\Module\ModuleStatus;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -55,6 +56,9 @@ class Standalone implements DistributorInterface
 
     /** @var Template|null Lazy-initialized global Template instance */
     private ?Template $globalTemplate = null;
+
+    /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
+    private bool $coreInitialized = false;
 
     // --- Sub-components ---
 
@@ -140,6 +144,57 @@ class Standalone implements DistributorInterface
 
         $this->registry->processAwaits();
         $this->registry->notifyReady();
+
+        $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+
+        // Mark core as initialized — the full module lifecycle has completed.
+        // This flag gates access to the lightweight dispatch() fast path.
+        $this->coreInitialized = true;
+
+        return $result;
+    }
+
+    /**
+     * Lightweight route dispatch for worker mode (skips lifecycle overhead).
+     *
+     * Bypasses session_start(), processAwaits(), and notifyReady() — all of
+     * which are only needed on the first request when the module graph is
+     * being assembled. On subsequent worker requests the object graph is
+     * already fully initialised, so we go straight to route matching.
+     *
+     * @param string $urlQuery The URL query to dispatch
+     *
+     * @return bool True if a matching route was found and executed
+     *
+     * @throws Throwable
+     */
+    public function dispatch(string $urlQuery): bool
+    {
+        // Guard: worker-only fast path — prevents bypassing the full module
+        // lifecycle (initialize → matchRoute) which registers routes and
+        // middleware. Without this, an attacker could call dispatch() directly
+        // to inject routes or hijack module closures.
+        if (!\defined('WORKER_MODE') || !WORKER_MODE) {
+            throw new ConfigurationException(
+                'Standalone::dispatch() is restricted to worker mode. Use matchRoute() for standard requests.'
+            );
+        }
+
+        if (!$this->coreInitialized) {
+            throw new ConfigurationException(
+                'Core not initialized. The full module lifecycle (matchRoute) must complete before worker dispatch.'
+            );
+        }
+
+        // URL is already tidied by the worker handler in main.php — skip
+        // redundant PathUtil::tidy() regex call. The caller guarantees a
+        // non-empty, forward-slash-normalised path (defaults to '/').
+        $this->urlQuery = $urlQuery;
+
+        // Reset stale route metadata from previous request to prevent
+        // information leaking on 404 (routedInfo would otherwise retain
+        // the previous request's URL, arguments, and module code).
+        $this->router->resetRoutedInfo();
 
         return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
     }

@@ -733,10 +733,17 @@ class Module implements ModuleInterface
      * Get the module-level DI container. Falls back to the Distributor chain
      * (Application container) if no module container was created.
      *
+     * When a module container exists (the normal case), it has a security
+     * blocklist that prevents resolution of internal system classes and
+     * blocks parent traversal.
+     *
      * @return ContainerInterface|null The Container instance, or null if unavailable
      */
     public function getContainer(): ?ContainerInterface
     {
+        // Always prefer the module child container (which has the security blocklist).
+        // Only fall back to the raw distributor container when no child was created,
+        // which should only happen in edge cases where no Application container exists.
         return $this->container ?? $this->distributor->getContainer();
     }
 
@@ -955,6 +962,11 @@ class Module implements ModuleInterface
      * allowing module-specific bindings to override or extend application services.
      * Module metadata bindings (from package.php 'services' key) are registered
      * automatically if present.
+     *
+     * Security: The child container blocks resolution of internal system classes
+     * (Application, Distributor, Standalone, Domain, Container, Module, and
+     * internal sub-components) and blocks parent traversal to prevent module
+     * code from navigating to the Application-level container.
      */
     private function initializeContainer(): void
     {
@@ -970,6 +982,32 @@ class Module implements ModuleInterface
         // Register module-specific service bindings from ModuleInfo
         // These come from the 'services' key in the module's package.php
         if ($this->container !== null) {
+            // ── Security: block resolution of internal system classes ──
+            // Module code must not be able to resolve framework internals
+            // from the DI container. These classes are registered in the
+            // Application-level (parent) container and would otherwise be
+            // accessible via parent-container delegation.
+            $this->container->blockAbstracts([
+                Application::class,
+                Container::class,
+                Standalone::class,
+                Domain::class,
+                Distributor::class,
+                Module::class,
+                Controller::class,
+                Distributor\ModuleRegistry::class,
+                Distributor\ModuleScanner::class,
+                Distributor\RouteDispatcher::class,
+                Distributor\PrerequisiteResolver::class,
+                Distributor\MiddlewarePipeline::class,
+                Distributor\MiddlewareGroupRegistry::class,
+                PluginManager::class,
+            ]);
+
+            // Block parent traversal so module code cannot reach the
+            // Application container via $container->getParent()
+            $this->container->blockParentTraversal();
+
             // Bind this module's ModuleInfo so child-container resolves get the local instance
             $this->container->bind(ModuleInfo::class, fn () => $this->moduleInfo);
 
