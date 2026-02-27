@@ -31,6 +31,7 @@ Razy lets you manage multiple websites, APIs, and services from a single codebas
 - [Testing](#testing)
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
+- [Version Milestone Summary](#version-milestone-summary)
 - [Contributing](#contributing)
 - [Development Journey](#development-journey)
 - [License](#license)
@@ -389,6 +390,33 @@ All items for v1.0 are complete. The framework is in **beta** — APIs are stabl
 | ✅ | WebSocket server & client |
 | ✅ | Docker image & CI/CD pipeline |
 | ✅ | Comprehensive test suite (4,564 tests, 8,178 assertions) |
+
+---
+
+## Version Milestone Summary
+
+### v1.0-beta — First Public Beta (Feb 2026)
+
+The foundation release. Razy shipped as an open-source project with full governance (MIT license, contributing guide, security policy), Docker infrastructure, a Composer-compatible package manager, and a comprehensive test suite of 4,564 tests with zero skips. This milestone established the framework's public contract — stable APIs, reproducible builds, and CI/CD from day one.
+
+### v1.0.1-beta — Worker Optimization & Tenant Isolation (Feb 2026)
+
+Two problems drove this release:
+
+**1. Performance under persistent workers.**  
+The original FrankenPHP worker loop rebuilt the entire object graph (Application, Container, Standalone, Module, RouteDispatcher) on every single request — the same work a traditional CGI process does, but inside a persistent worker where it should only happen once. Fixing this was straightforward in concept (boot once, dispatch many) but required rethinking how state flows through the framework. The result was a **37× throughput improvement** (171 → 6,311 RPS) and **5× faster than Laravel Octane (Swoole)** on read-heavy workloads, with an additional round of 8 hot-path micro-optimizations shaving another 4.6% off tail latency.
+
+**2. Cross-vendor module identity collisions.**  
+Razy's module system uses a two-part `vendor/package` code (e.g., `acme/logger`), but several internal paths — config files, asset URLs, API registration, closure prefixes, rewrite rules — were keyed on only the short class name or alias (the last segment). In a single-vendor setup this worked fine. But in multi-tenant and multi-vendor deployments — the exact use case Razy was designed for — two modules from different vendors with the same package name (e.g., `acme/logger` and `beta/logger`) would silently collide: one module could read another's config, hijack its API, shadow its assets, or cause rewrite rules to be silently dropped.
+
+This is not an edge case. In enterprise SaaS environments, module vendors operate independently and cannot coordinate naming. A platform hosting modules from multiple vendors **must** guarantee vendor-scoped isolation by default. Five collision vectors were identified and fixed, API registration now throws on duplicates instead of silently overwriting, and all identity keys now use the full `vendor/package` module code.
+
+| Version | Key Changes |
+|---------|------------|
+| **v1.0-beta** | Open-source readiness, Docker, Composer package management, 4,564 tests |
+| **v1.0.1-beta** | 37× worker throughput, 5× vs Laravel, cross-vendor module isolation (5 collision fixes), DI security hardening, pre-commit hook, 4,794 tests |
+
+> Full per-version changelogs: [`changelog/`](changelog/) directory.
 
 ---
 
