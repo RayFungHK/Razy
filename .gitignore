@@ -63,8 +63,8 @@
 !skills.md
 
 # Architecture & design docs
-!docs/
-!docs/**
+!architecture/
+!architecture/**
 
 # Git hooks (pre-commit quality gates)
 !.githooks/

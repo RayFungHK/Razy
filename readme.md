@@ -448,7 +448,7 @@ Phase 1 (isolation core) ─────┐
                                └──► Phase 3 (L4 + Data) ─────┘──► Phase 5 (Whitelist)
 ```
 
-> Architecture deep-dive: [`docs/ENTERPRISE-TENANT-ISOLATION.md`](docs/ENTERPRISE-TENANT-ISOLATION.md)
+> Architecture deep-dive: [`architecture/ENTERPRISE-TENANT-ISOLATION.md`](architecture/ENTERPRISE-TENANT-ISOLATION.md)
 
 ---
 
