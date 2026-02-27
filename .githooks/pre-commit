@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# Git pre-commit hook for Razy framework.
+# Runs PHP CS Fixer (dry-run) and PHPStan before each commit.
+# Install: git config core.hooksPath .githooks
+#
+
+set -e
+
+echo "=== Pre-commit: PHP CS Fixer ==="
+php vendor/bin/php-cs-fixer fix --dry-run --diff
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: PHP CS Fixer found violations."
+    echo "Run 'php vendor/bin/php-cs-fixer fix' to auto-fix, then re-commit."
+    exit 1
+fi
+
+echo ""
+echo "=== Pre-commit: PHPStan ==="
+php vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: PHPStan found errors. Fix them before committing."
+    exit 1
+fi
+
+echo ""
+echo "=== Pre-commit checks passed ==="

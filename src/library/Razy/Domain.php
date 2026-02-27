@@ -36,9 +36,9 @@ class Domain
 
     /**
      * @var array<string, array{distributor: Distributor, fingerprint: string, urlPath: string}>
-     * Cached distributors keyed by "distCode@tag". Each entry stores the fully
-     * initialised Distributor, its config fingerprint at construction time, and
-     * the URL path prefix it was mounted on.
+     *                                                                                           Cached distributors keyed by "distCode@tag". Each entry stores the fully
+     *                                                                                           initialised Distributor, its config fingerprint at construction time, and
+     *                                                                                           the URL path prefix it was mounted on.
      *
      * Worker mode reuses cached distributors across requests to avoid
      * re-reading dist.php, re-scanning modules, and re-running the full
@@ -48,8 +48,8 @@ class Domain
 
     /**
      * @var int How often (in dispatch calls) to check whether the on-disk
-     * configuration has changed. 0 = check every request (safest),
-     * configurable via WORKER_CONFIG_CHECK_INTERVAL env var.
+     *          configuration has changed. 0 = check every request (safest),
+     *          configurable via WORKER_CONFIG_CHECK_INTERVAL env var.
      */
     private int $configCheckInterval;
 
@@ -219,7 +219,11 @@ class Domain
                         // Config or modules changed on disk — rebuild distributor
                         unset($this->distributorCache[$cacheKey]);
                         return $this->buildAndCacheDistributor(
-                            $distCode, $tag, $urlPath, $remainingQuery, $cacheKey
+                            $distCode,
+                            $tag,
+                            $urlPath,
+                            $remainingQuery,
+                            $cacheKey
                         );
                     }
                 }
@@ -230,48 +234,15 @@ class Domain
 
             // First time seeing this distCode@tag — full build + cache
             return $this->buildAndCacheDistributor(
-                $distCode, $tag, $urlPath, $remainingQuery, $cacheKey
+                $distCode,
+                $tag,
+                $urlPath,
+                $remainingQuery,
+                $cacheKey
             );
         }
 
         return false;
-    }
-
-    /**
-     * Build a new Distributor, run full lifecycle, cache it, and dispatch.
-     *
-     * @param string $distCode  Distributor code
-     * @param string $tag       Distributor tag
-     * @param string $urlPath   URL path prefix
-     * @param string $urlQuery  Remaining URL query after prefix
-     * @param string $cacheKey  Cache key (distCode@tag)
-     *
-     * @return bool True if route was matched and dispatched
-     *
-     * @throws Throwable
-     */
-    private function buildAndCacheDistributor(
-        string $distCode,
-        string $tag,
-        string $urlPath,
-        string $urlQuery,
-        string $cacheKey
-    ): bool {
-        $this->distributor = new Distributor($distCode, $tag, $this, $urlPath, $urlQuery);
-        $this->distributor->initialize();
-
-        // Cache with fingerprint for future change detection
-        $this->distributorCache[$cacheKey] = [
-            'distributor' => $this->distributor,
-            'fingerprint' => $this->distributor->getConfigFingerprint(),
-            'urlPath' => $urlPath,
-        ];
-
-        // First request for this distributor uses full matchRoute() (with session, awaits, etc.)
-        if (!$this->distributor->matchRoute()) {
-            Error::show404();
-        }
-        return true;
     }
 
     /**
@@ -307,5 +278,42 @@ class Domain
             $this->distributor->getRegistry()->dispose();
         }
         return $this;
+    }
+
+    /**
+     * Build a new Distributor, run full lifecycle, cache it, and dispatch.
+     *
+     * @param string $distCode Distributor code
+     * @param string $tag Distributor tag
+     * @param string $urlPath URL path prefix
+     * @param string $urlQuery Remaining URL query after prefix
+     * @param string $cacheKey Cache key (distCode@tag)
+     *
+     * @return bool True if route was matched and dispatched
+     *
+     * @throws Throwable
+     */
+    private function buildAndCacheDistributor(
+        string $distCode,
+        string $tag,
+        string $urlPath,
+        string $urlQuery,
+        string $cacheKey
+    ): bool {
+        $this->distributor = new Distributor($distCode, $tag, $this, $urlPath, $urlQuery);
+        $this->distributor->initialize();
+
+        // Cache with fingerprint for future change detection
+        $this->distributorCache[$cacheKey] = [
+            'distributor' => $this->distributor,
+            'fingerprint' => $this->distributor->getConfigFingerprint(),
+            'urlPath' => $urlPath,
+        ];
+
+        // First request for this distributor uses full matchRoute() (with session, awaits, etc.)
+        if (!$this->distributor->matchRoute()) {
+            Error::show404();
+        }
+        return true;
     }
 }

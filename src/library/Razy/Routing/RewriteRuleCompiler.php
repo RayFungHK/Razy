@@ -237,7 +237,10 @@ class RewriteRuleCompiler
                 $webassetPath = PathUtil::append($modulePath, 'webassets');
 
                 if (\is_dir($webassetPath)) {
-                    $webAssetKey = $domain . '::' . $code . '::' . $moduleInfo->getAlias();
+                    $moduleCode = $moduleInfo->getCode();
+                    // Use full module code as dedup key to prevent collisions
+                    // between modules with the same alias but different vendors.
+                    $webAssetKey = $domain . '::' . $code . '::' . $moduleCode;
 
                     if (!isset($addedWebAssets[$webAssetKey])) {
                         $addedWebAssets[$webAssetKey] = true;
@@ -250,7 +253,7 @@ class RewriteRuleCompiler
                             'domain' => $domain,
                             'dist_path' => $distPath,
                             'route_path' => $routePath,
-                            'mapping' => $moduleInfo->getAlias(),
+                            'mapping' => $moduleCode,
                         ]);
                     }
                 }

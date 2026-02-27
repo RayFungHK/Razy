@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [v1.0.1-beta](changelog/v1.0.1-beta.md) — 2026-02-27
+
+**Worker Optimization & Tenant Isolation** — Performance and multi-vendor safety.
+
+- 37x throughput improvement in FrankenPHP worker mode via boot-once architecture
+- 5x faster than Laravel Octane (Swoole) on static route, template render, and DB read
+- Multisite worker mode with distributor caching and config fingerprint hot-reload
+- Cross-vendor module namespace isolation: 5 collision vectors fixed (config path, asset URL, API registration, closure prefix, rewrite dedup)
+- DI container security hardening with `@throws SecurityException` on `make()`
+- Git pre-commit hook (CS Fixer + PHPStan) to prevent CI failures
+- 4,794 tests, 8,509 assertions, 0 failures, 87 skipped
+
 ## [v1.0-beta](changelog/v1.0-beta.md) — 2026-02-26
 
 **First Public Beta** — Open-source readiness release.

@@ -111,8 +111,9 @@ class ClosureLoader
                 $this->closures[$originalPath] = $closure;
                 return $closure;
             }
-            // Standalone closure files are prefixed with the module class name
-            $path = $this->moduleInfo->getClassName() . '.' . $path;
+            // Standalone closure files are prefixed with the full module code
+            // (vendor.package) to avoid collisions across different vendors.
+            $path = \str_replace('/', '.', $this->moduleInfo->getCode()) . '.' . $path;
         }
 
         // Resolve full filesystem path to the closure PHP file

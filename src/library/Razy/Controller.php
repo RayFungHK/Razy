@@ -262,11 +262,12 @@ class Controller
      */
     final public function getAssetPath(): string
     {
-        // Build URL: {siteURL}/webassets/{moduleAlias}/{moduleVersion}/
+        // Build URL: {siteURL}/webassets/{vendor}/{package}/{version}/
+        // Uses full module code to prevent alias collisions across vendors.
         return PathUtil::append(
             $this->module->getSiteURL(),
             'webassets',
-            $this->module->getModuleInfo()->getAlias(),
+            $this->module->getModuleInfo()->getCode(),
             $this->module->getModuleInfo()->getVersion(),
         ) . '/';
     }

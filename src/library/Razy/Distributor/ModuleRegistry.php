@@ -17,6 +17,7 @@ namespace Razy\Distributor;
 use Razy\API;
 use Razy\Contract\ModuleInterface;
 use Razy\EventEmitter;
+use Razy\Exception\ModuleLoadException;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
@@ -160,8 +161,16 @@ class ModuleRegistry
      */
     public function registerAPI(Module $module): static
     {
-        if (\strlen($module->getModuleInfo()->getAPIName()) > 0) {
-            $this->APIModules[$module->getModuleInfo()->getAPIName()] = $module;
+        $apiName = $module->getModuleInfo()->getAPIName();
+        if (\strlen($apiName) > 0) {
+            if (isset($this->APIModules[$apiName])) {
+                $existingCode = $this->APIModules[$apiName]->getModuleInfo()->getCode();
+                $newCode = $module->getModuleInfo()->getCode();
+                throw new ModuleLoadException(
+                    "API name '{$apiName}' conflict: module '{$newCode}' and already-registered module '{$existingCode}' both declare the same api_name.",
+                );
+            }
+            $this->APIModules[$apiName] = $module;
         }
 
         return $this;

@@ -521,14 +521,14 @@ class ModuleInfo
     /**
      * Get the webasset URL path segment for this module.
      *
-     * Returns the relative path "webassets/{alias}/{version}/" used to
-     * build the full asset URL when combined with the site URL.
+     * Uses the full module code (vendor/package) to build the path, preventing
+     * collisions between modules with the same alias but different vendors.
      *
-     * @return string The webasset URL path (e.g. "webassets/MyModule/1.0.0/")
+     * @return string The webasset URL path (e.g. "webassets/acme/logger/1.0.0/")
      */
     public function getAssetPath(): string
     {
-        return PathUtil::append('webassets', $this->alias, $this->version) . '/';
+        return PathUtil::append('webassets', $this->code, $this->version) . '/';
     }
 
     /**

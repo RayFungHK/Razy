@@ -125,9 +125,9 @@ class Container implements ContainerInterface
 
     /**
      * @var array<string, true> Set of abstract class/interface names that this
-     * container is forbidden from resolving. Used to prevent module-level child
-     * containers from accessing internal system objects (Application, Distributor,
-     * Domain, etc.) via parent-container delegation.
+     *                          container is forbidden from resolving. Used to prevent module-level child
+     *                          containers from accessing internal system objects (Application, Distributor,
+     *                          Domain, etc.) via parent-container delegation.
      *
      * Set via blockAbstracts() during module container initialisation.
      */
@@ -135,8 +135,8 @@ class Container implements ContainerInterface
 
     /**
      * @var bool When true, getParent() returns null even if a parent exists.
-     * Prevents module code from traversing the container hierarchy to reach
-     * the Application-level container and its registered system instances.
+     *           Prevents module code from traversing the container hierarchy to reach
+     *           the Application-level container and its registered system instances.
      */
     private bool $parentTraversalBlocked = false;
 
@@ -626,6 +626,7 @@ class Container implements ContainerInterface
      * @return mixed The resolved instance
      *
      * @throws ContainerException If the type cannot be resolved or a circular dependency is detected
+     * @throws SecurityException If the abstract is blocked by security policy
      */
     public function make(string $abstract, array $params = []): mixed
     {

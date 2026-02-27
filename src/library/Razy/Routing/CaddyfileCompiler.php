@@ -210,8 +210,10 @@ class CaddyfileCompiler
                 $webassetPath = PathUtil::append($modulePath, 'webassets');
 
                 if (\is_dir($webassetPath)) {
-                    $alias = $moduleInfo->getAlias();
-                    $webAssetKey = $alias . '::' . $routePath;
+                    $moduleCode = $moduleInfo->getCode();
+                    // Use full module code as dedup key to prevent collisions
+                    // between modules with the same alias but different vendors.
+                    $webAssetKey = $moduleCode . '::' . $routePath;
 
                     if (!isset($addedWebAssets[$webAssetKey])) {
                         $addedWebAssets[$webAssetKey] = true;
@@ -220,10 +222,10 @@ class CaddyfileCompiler
                         $containerPathRel = \ltrim(\str_replace('\\', '/', $containerPathRel), '/');
 
                         // Create a safe identifier for Caddy named matcher
-                        $mappingId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $alias . '_' . $routePath);
+                        $mappingId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $moduleCode . '_' . $routePath);
 
                         $siteBlock->newBlock('webassets')->assign([
-                            'mapping' => $alias,
+                            'mapping' => $moduleCode,
                             'mapping_id' => $mappingId,
                             'route_path' => $routePath,
                             'container_path' => $containerPathRel,

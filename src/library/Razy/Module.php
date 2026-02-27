@@ -875,7 +875,11 @@ class Module implements ModuleInterface
      */
     public function loadConfig(): Configuration
     {
-        $path = PathUtil::append(SYSTEM_ROOT, 'config', $this->distributor->getCode(), $this->moduleInfo->getClassName() . '.php');
+        // Use full module code (vendor/package → vendor_package) to avoid
+        // config file collisions between modules with the same class name
+        // but different vendors (e.g. acme/logger vs vendor-b/logger).
+        $safeCode = \str_replace('/', '_', $this->moduleInfo->getCode());
+        $path = PathUtil::append(SYSTEM_ROOT, 'config', $this->distributor->getCode(), $safeCode . '.php');
         return new Configuration($path);
     }
 
@@ -993,11 +997,11 @@ class Module implements ModuleInterface
                 Standalone::class,
                 Domain::class,
                 Distributor::class,
-                Module::class,
+                self::class,
                 Controller::class,
                 Distributor\ModuleRegistry::class,
                 Distributor\ModuleScanner::class,
-                Distributor\RouteDispatcher::class,
+                RouteDispatcher::class,
                 Distributor\PrerequisiteResolver::class,
                 Distributor\MiddlewarePipeline::class,
                 Distributor\MiddlewareGroupRegistry::class,
