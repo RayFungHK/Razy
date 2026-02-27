@@ -1,0 +1,97 @@
+# ============================================================
+# Benchmark Docker Compose — Razy vs Laravel + Octane
+# ============================================================
+#
+# Usage:
+#   cd benchmark
+#   docker compose up -d                    # Start all services
+#   docker compose --profile laravel up -d  # Include Laravel
+#
+# Architecture:
+#   ┌──────────┐     ┌──────────────┐     ┌─────────┐
+#   │ k6 client│────►│ razy (:8081) │────►│  mysql   │
+#   │ (host)   │     │ FrankenPHP   │     │ (:3306)  │
+#   │          │────►│ laravel(:8082│────►│          │
+#   └──────────┘     └──────────────┘     └─────────┘
+
+services:
+  # ── Shared MySQL Database ──────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: bench-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: benchmark
+      MYSQL_USER: benchmark
+      MYSQL_PASSWORD: benchmark
+    ports:
+      - "13306:3306"
+    volumes:
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - bench_mysql_data:/var/lib/mysql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --max-connections=500
+      --innodb-buffer-pool-size=512M
+      --innodb-log-file-size=128M
+      --innodb-flush-log-at-trx-commit=2
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "benchmark", "-pbenchmark"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # ── Razy (FrankenPHP / Caddy Worker Mode) ──────────────────
+  razy:
+    build:
+      context: ..
+      dockerfile: benchmark/docker/Dockerfile.razy
+    container_name: bench-razy
+    ports:
+      - "8081:8080"
+    environment:
+      BENCH_DB_DSN:  "mysql:host=mysql;port=3306;dbname=benchmark"
+      BENCH_DB_USER: "benchmark"
+      BENCH_DB_PASS: "benchmark"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  # ── Laravel + Octane (Swoole) ──────────────────────────────
+  #    Activate with: docker compose --profile laravel up -d
+  laravel:
+    build:
+      context: ..
+      dockerfile: benchmark/docker/Dockerfile.laravel
+    container_name: bench-laravel
+    profiles:
+      - laravel
+    ports:
+      - "8082:8080"
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: benchmark
+      DB_USERNAME: benchmark
+      DB_PASSWORD: benchmark
+      APP_ENV: production
+      APP_DEBUG: "false"
+      OCTANE_SERVER: swoole
+      LOG_CHANNEL: stderr
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+volumes:
+  bench_mysql_data:

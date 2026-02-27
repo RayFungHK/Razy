@@ -1,0 +1,12 @@
+# Large summary JSONs (>100MB, exceed GitHub limit)
+# These are generated from k6 with full metrics — too large for git
+results/01_static_route.json
+results/02_template_render.json
+results/03_db_read.json
+results/04_db_write.json
+results/05_composite.json
+
+# Compressed and log files
+*.json.gz
+*.log
+REPORT.md

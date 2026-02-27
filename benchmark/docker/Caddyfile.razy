@@ -1,0 +1,23 @@
+# Caddyfile — Razy Benchmark (FrankenPHP Worker Mode)
+#
+# Runs PHP in persistent worker mode for maximum throughput.
+# Workers keep the PHP process alive between requests.
+
+{
+	frankenphp {
+		worker /app/site/index.php
+	}
+	order php_server before file_server
+}
+
+:8080 {
+	root * /app/site
+
+	php_server
+
+	log {
+		output stderr
+		format console
+		level WARN
+	}
+}

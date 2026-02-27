@@ -1,0 +1,72 @@
+# Laravel + Octane (Swoole) Benchmark Image
+#
+# Creates a fresh Laravel 11 project with Octane (Swoole) during build,
+# wires in the benchmark routes and views, and starts the Octane server.
+# PHP 8.3 with Swoole, OPcache tuned identically to Razy for fair comparison.
+
+FROM php:8.3-cli
+
+# Install system deps + Swoole
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev libzip-dev libcurl4-openssl-dev unzip git \
+    && docker-php-ext-install pdo_mysql opcache pcntl zip \
+    && pecl install swoole \
+    && docker-php-ext-enable swoole \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# OPcache tuning (same as Razy for fairness)
+RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.enable_cli=1" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.interned_strings_buffer=32" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.validate_timestamps=0" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.jit_buffer_size=128M" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "opcache.jit=1255" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "realpath_cache_size=4096K" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "realpath_cache_ttl=600" >> /usr/local/etc/php/conf.d/benchmark.ini && \
+    echo "memory_limit=256M" >> /usr/local/etc/php/conf.d/benchmark.ini
+
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+# Create fresh Laravel project (no interaction, prefer-dist for speed)
+RUN composer create-project laravel/laravel /app --prefer-dist --no-interaction --no-dev
+
+# Install Octane with Swoole (already installed as PHP extension above)
+RUN composer require laravel/octane --no-interaction \
+    && php artisan octane:install --server=swoole --no-interaction
+
+# Set production environment and configure MySQL connection BEFORE caching config
+RUN sed -i 's/APP_ENV=local/APP_ENV=production/' /app/.env \
+    && sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' /app/.env \
+    && sed -i 's/^DB_CONNECTION=sqlite/DB_CONNECTION=mysql/' /app/.env \
+    && sed -i 's/^# DB_HOST=127.0.0.1/DB_HOST=mysql/' /app/.env \
+    && sed -i 's/^# DB_PORT=3306/DB_PORT=3306/' /app/.env \
+    && sed -i 's/^# DB_DATABASE=laravel/DB_DATABASE=benchmark/' /app/.env \
+    && sed -i 's/^# DB_USERNAME=root/DB_USERNAME=benchmark/' /app/.env \
+    && sed -i 's/^# DB_PASSWORD=/DB_PASSWORD=benchmark/' /app/.env \
+    && sed -i 's/^SESSION_DRIVER=database/SESSION_DRIVER=array/' /app/.env \
+    && sed -i 's/^CACHE_STORE=database/CACHE_STORE=array/' /app/.env
+
+# Copy benchmark routes and views into the Laravel project
+COPY benchmark/laravel/routes/benchmark.php /app/routes/benchmark.php
+COPY benchmark/laravel/views/benchmark /app/resources/views/benchmark
+
+# Append benchmark routes to web.php so they are registered
+RUN echo "\nrequire __DIR__.'/benchmark.php';" >> /app/routes/web.php
+
+# Disable CSRF verification for benchmark routes (POST /benchmark/db-write)
+RUN sed -i "s/->withMiddleware(function (Middleware \$middleware): void {/->withMiddleware(function (Middleware \$middleware): void {\n        \$middleware->validateCsrfTokens(except: ['benchmark\/*']);/" /app/bootstrap/app.php
+
+# Cache everything (config, routes, views) after all changes are in place
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
+
+EXPOSE 8080
+
+# Start Octane with Swoole
+CMD ["php", "artisan", "octane:start", "--server=swoole", "--host=0.0.0.0", "--port=8080", "--workers=auto"]
