@@ -65,7 +65,3 @@
 # Benchmark suite (reproducible performance tests)
 !benchmark/
 !benchmark/**
-
-# Documentation
-!docs/
-!docs/**
