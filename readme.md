@@ -418,6 +418,38 @@ This is not an edge case. In enterprise SaaS environments, module vendors operat
 
 > Full per-version changelogs: [`changelog/`](changelog/) directory.
 
+### Cross-Tenant Architecture — Why and What's Next
+
+Razy was designed from the start as a **multi-site, multi-distributor** framework: one codebase, many projects. But as the architecture matured — especially with FrankenPHP worker mode keeping the entire Application graph alive in memory — a deeper problem surfaced.
+
+**The problem: shared-process trust boundaries.**
+
+In a traditional CGI model, each request starts a fresh PHP process. Isolation is free — one request can't reach into another's memory. But in a persistent worker, all distributors and modules share the same process. A malicious or buggy module in one distributor can theoretically access another distributor's data, configs, or API registrations. The v1.0.1-beta cross-vendor collision fixes addressed the **naming** side of this problem, but the **runtime isolation** side remains.
+
+The real-world scenario is straightforward: a SaaS platform hosts multiple tenants (clients), each with their own distributors, modules, domains, and data. Today, they all run inside the same PHP process, share the same filesystem, and trust each other implicitly. For internal tooling this is acceptable. For enterprise multi-tenant SaaS — where tenants are separate legal entities with separate data obligations — it is not.
+
+**The solution: 1 Tenant = 1 Razy Application environment.**
+
+Each tenant runs as a complete, isolated Razy instance — its own container, its own filesystem, its own `open_basedir`. The local host becomes just another tenant (the "Host Tenant"). Cross-tenant communication uses an explicit HTTP bridge with HMAC authentication, not shared memory. Module code requires **zero changes** — isolation is enforced at the framework and OS layers.
+
+| Phase | Version | What It Delivers |
+|-------|---------|-----------------|
+| Phase 0 — Foundation | **v1.0.1-beta** ✅ | DI security blocklist, worker dispatch guards, boot-once, distributor caching, module change detection |
+| Phase 1 — Tenant Isolation Core | v1.1.0-beta | Bootstrap tenant constants, data path isolation guards, in-memory hotplug (`plugTenant`/`unplugTenant`), worker signal integration |
+| Phase 2 — Docker Multi-Tenant | v1.1.0 | Hardened tenant Dockerfile (`open_basedir` + `disable_functions`), Compose templates, per-tenant config generator |
+| Phase 3 — Communication Layers | v1.2.0 | `TenantEmitter` (HTTP bridge + HMAC), `DataRequest`/`DataResponse` (file I/O), `__onTenantCall` permission gates, CLI `razy tenant` commands |
+| Phase 4 — Kubernetes + Lifecycle | v1.3.0 | K8s namespace/PVC/NetworkPolicy templates, Helm chart, WorkerLifecycleManager integration |
+| Phase 5 — Whitelist + Admin UI | v2.0.0 | `TenantAccessPolicy`, fine-grained cross-tenant data sharing, admin dashboard |
+
+```
+Phase 1 (isolation core) ─────┐
+                               ├──► Phase 2 (Docker)  ──► Phase 4 (K8s)
+                               │                              │
+                               └──► Phase 3 (L4 + Data) ─────┘──► Phase 5 (Whitelist)
+```
+
+> Architecture deep-dive: [`docs/ENTERPRISE-TENANT-ISOLATION.md`](docs/ENTERPRISE-TENANT-ISOLATION.md)
+
 ---
 
 ## Performance: Razy vs Laravel
