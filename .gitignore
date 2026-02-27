@@ -57,3 +57,11 @@
 !SECURITY.md
 !CODE_OF_CONDUCT.md
 !.editorconfig
+
+# Benchmark suite (reproducible performance tests)
+!benchmark/
+!benchmark/**
+
+# Documentation
+!docs/
+!docs/**

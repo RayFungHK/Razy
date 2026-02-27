@@ -27,10 +27,12 @@ Razy lets you manage multiple websites, APIs, and services from a single codebas
 - [Core Concepts](#core-concepts)
 - [Package Management (Composer Integration)](#package-management-composer-integration)
 - [Demo Modules](#demo-modules)
+- [Performance: Razy vs Laravel](#performance-razy-vs-laravel)
 - [Testing](#testing)
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
+- [Development Journey](#development-journey)
 - [License](#license)
 
 ---
@@ -390,6 +392,85 @@ All items for v1.0 are complete. The framework is in **beta** — APIs are stabl
 
 ---
 
+## Performance: Razy vs Laravel
+
+Benchmarked against **Laravel 12 + Octane (Swoole)** under identical conditions — same host, same MySQL, same container resources (2 CPUs / 4 GB RAM), same k6 load profiles.
+
+### Head-to-Head Results
+
+| Scenario | Razy RPS | Laravel RPS | Razy Advantage | Razy p95 | Laravel p95 |
+|----------|----------|-------------|---------------|----------|-------------|
+| **Static Route** | **6,331** | 1,254 | **5.0×** faster | 18.6ms | 186ms |
+| **Template Render** | **6,264** | 1,137 | **5.5×** faster | 19.0ms | 189ms |
+| **DB Read** (SELECT) | **3,763** | 952 | **4.0×** faster | 38.5ms | 191ms |
+| **DB Write** (INSERT) | 754 | **842** | Laravel 1.1× | 182ms | 186ms |
+| **Composite** (DB + Template) | **4,528** | 958 | **4.7×** faster | 72.4ms | 395ms |
+| **Heavy CPU** (500K MD5) | 144 | **325** | Laravel 2.3× | 595ms | 1,590ms |
+
+> Razy outperforms Laravel Octane in **4 of 6 scenarios** — all throughput-dominant workloads.
+> Laravel leads in DB Write (MySQL INSERT is the bottleneck, not framework overhead) and CPU-bound fast-request throughput (Swoole's coroutine isolation).
+> Even in the Heavy CPU scenario, Razy achieves **2.7× lower tail latency** (p95: 595ms vs 1,590ms).
+
+### Runtime Configuration
+
+| | Razy | Laravel |
+|---|---|---|
+| **Runtime** | FrankenPHP (Caddy, PHP 8.3.7, Alpine) | PHP 8.3-cli + Swoole (Octane) |
+| **Worker Mode** | Persistent worker, boot-once dispatch | Octane Swoole (`--workers=auto`) |
+| **OPcache** | JIT 1255, 128 MB buffer | JIT 1255, 128 MB buffer |
+| **Config Cache** | N/A (standalone Phar) | `config:cache`, `route:cache`, `view:cache` |
+
+### Why Is Razy Faster?
+
+The difference is **architectural**, not just runtime tuning:
+
+| | Razy | Laravel |
+|---|---|---|
+| **Per-request overhead** | ~0.05ms (dispatch only) | ~0.8ms (service container resolution, middleware pipeline, route matching) |
+| **Object graph** | Boot once, reuse across all requests | Rebuilt partially per request even with Octane |
+| **Template engine** | Native PHP blocks, zero compilation | Blade compiles to PHP, then executes |
+| **Route matching** | Direct hash lookup from pre-compiled table | Regex matching through middleware stack |
+| **Deployment** | Single `Razy.phar` — nothing to cache | Requires `config:cache`, `route:cache`, `view:cache`, `event:cache` for production |
+
+### Conceptual Differences
+
+Razy and Laravel solve different problems with fundamentally different philosophies:
+
+| Aspect | Razy | Laravel |
+|--------|------|----------|
+| **Design goal** | Multi-project, multi-tenant module platform | Full-featured web application framework |
+| **Unit of work** | Module (reusable, versioned, distributable) | Application (monolithic, project-bound) |
+| **Multi-site** | First-class — distributors share modules | Bolted on via tenancy packages |
+| **Team boundary** | Distributor per team, modules per sub-team, API/Event contracts | Package per team, service classes, facades |
+| **Upgrade model** | Update shared module → all projects benefit | Update per project via `composer update` |
+| **Code sharing** | Shared Modules (reference, not clone) | Composer packages (vendor lock per project) |
+| **Configuration** | `dist.php` + `package.php` (minimal, flat) | `.env` + `config/*.php` + service providers (layered, ceremonial) |
+| **Learning curve** | Steep upfront (module lifecycle), low ongoing | Low entry (conventions), steep at scale (deep service container knowledge) |
+| **Ecosystem** | Purpose-built, self-contained | Massive third-party ecosystem (Forge, Vapor, Nova, Livewire, etc.) |
+
+### When to Choose Razy
+
+**Razy is ideal for:**
+
+- **Multi-client platforms** — agencies or SaaS providers maintaining many client projects on a single codebase
+- **Module-driven SaaS** — products where each customer gets a different combination of features (modules)
+- **Subscription-based services** — where continuous upgrades across all clients is a core business requirement
+- **High-throughput APIs** — services where 5× throughput and 10× lower latency matter (real-time, IoT, fintech)
+- **Small teams managing many projects** — one module update benefits every project simultaneously
+- **Microservice backends** — lightweight, fast startup, single-binary deployment
+
+**Laravel is ideal for:**
+
+- **Standalone web applications** — CMS, e-commerce, admin panels with rich UI needs
+- **Teams that value convention over configuration** — developers familiar with Rails/Django patterns
+- **Projects that rely heavily on third-party packages** — authentication, billing, notifications, queues
+- **Prototyping and MVPs** — rapid scaffolding with Artisan generators
+- **CPU-bound workloads** — Swoole's coroutine model handles mixed I/O + CPU better
+
+> Full benchmark methodology, raw data, and reproduction steps: [`benchmark/`](benchmark/) directory.
+
+---
+
 ## Testing
 
 ```bash
@@ -467,6 +548,64 @@ Razy solves this by treating **modules as versioned, distributable units** — e
 - **Version isolation** — different distributors can run different module versions side by side
 - **Zero-conflict autoloading** — Composer packages are scoped per distributor
 - **One binary deployment** — `Razy.phar` contains the entire framework
+
+---
+
+## Development Journey
+
+Razy didn't start as a framework. It grew out of years of real-world project delivery, each stage solving a pain that the previous one exposed.
+
+### Phase 1 — The Template Problem
+
+In the early days of web development, PHP and HTML were tangled together. MVC was a good idea in theory, but in practice, frontend designers and backend developers constantly stepped on each other's toes. To reduce friction between the two roles, the first generation of Razy's **template engine** was born — inspired by phpBB's template architecture rather than Smarty, because Smarty's syntax was something a frontend person couldn't read at a glance. The goal was simple: **give designers markup they can understand without learning a programming language.**
+
+### Phase 2 — The Copy-Paste Trap
+
+When freelance projects started coming in, a painful pattern emerged. Every new project meant creating a new folder, copying in the template engine, configuring everything from scratch, and dragging over whatever libraries were useful from the last project. Each copy diverged the moment it was created. Changes were large, setup was slow, and nothing was truly reusable.
+
+### Phase 3 — The Version Drift Crisis
+
+The natural next step was to consolidate common code into a shared library. But as that library grew, maintaining it became its own problem. Updating a feature in one project didn't transfer cleanly to another — it wasn't just copy-and-paste. Worse, working with other vendors' systems revealed a deeper structural issue: **the earlier a client was onboarded, the more outdated their system became.** Debugging old versions was expensive, shipping new features to legacy clients was impractical, and the business incentive for building new functionality dropped because only the newest clients would benefit.
+
+### Phase 4 — Rethinking the Development Model
+
+This led to a fundamental rethink. Instead of treating each project as a standalone codebase, **what if code management and project management were the same thing?** What if every client's system was part of one unified development environment — different configurations of the same modules, not different copies? The concept of a module-driven, version-aware architecture started taking shape.
+
+### Phase 5 — From Project Fees to Subscription Services
+
+The business model evolved alongside the architecture. Rather than charging one-time project fees and walking away, the shift was toward **monthly subscription services** — maintaining a long-term relationship with each client. This meant every client, old and new, could receive continuous upgrades on a shared foundation. The economic incentive aligned perfectly with the architectural vision: invest once in a feature, roll it out across all subscribers.
+
+### Phase 6 — Razy Takes Shape
+
+Razy's first real prototype emerged with a clear mission: **minimize the cost of developing and maintaining modules.** Modules became reusable across projects. Multiple projects shared a single development environment. Module functionality was broken into small, focused fragments. URL-path-to-controller mapping made code navigation intuitive. **Shared Modules** could be referenced rather than cloned — one update propagated everywhere.
+
+### Phase 7 — Team Boundaries via API & Event
+
+As projects grew, multiple teams began working on the same system. To prevent teams from interfering with each other's codebases, Razy introduced **Module API** and **Event** systems. Each team declared what data they needed via requirement requests, and the providing team exposed it through formal APIs and events. Cross-module communication became **explicit and permissioned** rather than implicit and fragile.
+
+### Phase 8 — From Module-Base to Distributor-Base
+
+The unit of team ownership expanded. A team no longer managed just a single module — they managed an entire **distributor**, with sub-teams responsible for individual modules within it. This matched real organizational structures: one team owns the shop, another owns the admin panel, another owns the API gateway — each a distributor with its own routing, modules, and release cycle.
+
+### Phase 9 — Security & Isolation Hardening
+
+With multiple teams and multiple distributors sharing infrastructure, security became a priority. Razy went through continuous refinement to ensure **modules couldn't reach across distributor boundaries** and tamper with core logic. The architecture evolved to enforce isolation by default — not as a policy, but as a structural impossibility.
+
+### Phase 10 — Developer Experience Refinement
+
+Through years of real project delivery, Razy was continuously refined. Features like **Simple Syntax** (a shorthand for complex SQL joins and JSON operations) were added to make everyday development faster and more intuitive. Each pain point encountered in production fed back into the framework's design.
+
+### Phase 11 — Modern Stack & v1.0-Beta
+
+The modern development environment demanded more. **FrankenPHP Worker Mode** was integrated for persistent-process performance. Mainstream deployment patterns (Docker, Caddy, CI/CD) were supported natively. AI tooling was adopted to accelerate documentation, code auditing, and architectural analysis — turning months of manual work into days. After **three years of development** plus **six months of AI-assisted refinement**, Razy v1.0-Beta shipped. Benchmarks showed **higher throughput, lower latency, and better resource efficiency** than mainstream frameworks like Laravel.
+
+### Phase 12 — Container Architecture for Zero-Downtime Updates
+
+To minimize the impact of hotfixes and upgrades on running systems, Razy introduced **Core Container** and **Module Container** concepts. As long as a worker process was serving requests, hotplugged updates could be staged and transitioned using configurable strategies — from graceful drain to immediate swap — enabling **zero-downtime version transitions** in production.
+
+### Phase 13 — Tenant Isolation for Enterprise & SaaS
+
+The latest evolution brings **enterprise-grade tenant isolation**. Each tenant runs as an isolated pod with its own filesystem, data, and configuration — supporting both Docker Compose and Kubernetes deployments. Staging environments are cleaner, SaaS onboarding is streamlined, and microservice architectures can leverage Razy's module system without sacrificing security boundaries. The framework now supports the full spectrum from single-developer side projects to **multi-team, multi-tenant enterprise platforms**.
 
 ---
 
