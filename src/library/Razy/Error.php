@@ -47,7 +47,7 @@ class Error extends Exception
      */
     public function __construct(string $message, int $statusCode = 400, private readonly string $heading = self::DEFAULT_HEADING, private readonly string $debugMessage = '', Throwable $exception = null)
     {
-        parent::__construct(\nl2br($message), $statusCode, $exception);
+        parent::__construct(\nl2br(\htmlspecialchars($message, ENT_QUOTES, 'UTF-8')), $statusCode, $exception);
         if (CLI_MODE && !\defined('PHPUNIT_RUNNING')) {
             Terminal::WriteLine('{@c:red}' . $message, true);
         }

@@ -232,11 +232,12 @@ class Office365SSO extends OAuth2
 
             $ch = \curl_init($url);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+            \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+            \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Authorization: Bearer ' . $accessToken,
             ]);
-            // Enable binary transfer for raw image data
-            \curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 
             $response = \curl_exec($ch);
             $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -296,7 +297,7 @@ class Office365SSO extends OAuth2
 
         // Validate the 'iss' (issuer) claim originates from Microsoft's identity platform
         $issuer = $claims['iss'] ?? null;
-        if (!\str_contains($issuer, 'microsoftonline.com') && !\str_contains($issuer, 'login.microsoftonline.com')) {
+        if (!\preg_match('#^https://(?:login\.microsoftonline\.com|sts\.windows\.net)/[a-f0-9\-]+/?(?:v2\.0)?$#i', $issuer ?? '')) {
             return false;
         }
 
@@ -383,6 +384,9 @@ class Office365SSO extends OAuth2
         // Send authenticated JSON POST to Microsoft Graph API
         $ch = \curl_init($url);
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         \curl_setopt($ch, CURLOPT_POST, true);
         \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
         \curl_setopt($ch, CURLOPT_HTTPHEADER, [

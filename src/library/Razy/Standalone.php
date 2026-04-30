@@ -87,6 +87,69 @@ class Standalone implements DistributorInterface
     }
 
     /**
+     * Register an additional standalone module into this runtime.
+     *
+     * Used by the PackageRunner to inject dependency packages (on_depend
+     * with wait="load") as co-modules before initialize() is called.
+     * Co-modules participate fully in the module lifecycle (__onInit,
+     * __onLoad, __onReady) and can expose APIs, listen to events, register
+     * routes, and communicate with the main package via handshake/api/trigger.
+     *
+     * Must be called BEFORE initialize(). Calling after initialize() will
+     * throw because the module lifecycle has already been resolved.
+     *
+     * @param string $standalonePath Absolute filesystem path to the module's standalone/ folder
+     * @param string|null $moduleCode Explicit module code (e.g. 'vendor/dep'). When null,
+     *                                the code is read from module.php inside the folder.
+     *
+     * @return $this
+     *
+     * @throws ConfigurationException If called after initialize()
+     */
+    public function loadModule(string $standalonePath, ?string $moduleCode = null): static
+    {
+        if ($this->coreInitialized) {
+            throw new ConfigurationException(
+                'Cannot load additional modules after the module lifecycle has completed. Call loadModule() before initialize().',
+            );
+        }
+
+        $modules = &$this->registry->getModulesRef();
+
+        // If no explicit code, try reading module.php from the standalone folder
+        if ($moduleCode === null) {
+            $modulePhp = PathUtil::append($standalonePath, 'module.php');
+            if (\is_file($modulePhp)) {
+                $config = require $modulePhp;
+                if (\is_array($config) && !empty($config['module_code'])) {
+                    $moduleCode = $config['module_code'];
+                }
+            }
+        }
+
+        // Fallback: derive from folder name
+        if ($moduleCode === null) {
+            $moduleCode = 'package/' . \basename(\dirname($standalonePath)) . '/' . \basename($standalonePath);
+        }
+
+        // Skip if already registered
+        if (isset($modules[$moduleCode])) {
+            return $this;
+        }
+
+        $moduleConfig = [
+            'module_code' => $moduleCode,
+            'author' => 'package',
+            'description' => 'Package dependency module (' . $moduleCode . ')',
+        ];
+
+        $module = new Module($this, $standalonePath, $moduleConfig, 'default', false, true);
+        $modules[$moduleCode] = $module;
+
+        return $this;
+    }
+
+    /**
      * Load the single standalone module and resolve its lifecycle.
      *
      * @param bool $initialOnly When true, only trigger __onInit (skip __onLoad/__onRequire)
@@ -143,6 +206,16 @@ class Standalone implements DistributorInterface
         $this->setSession();
 
         $this->registry->processAwaits();
+
+        // Warn about unresolved await callbacks so developers know a dependency is missing
+        foreach ($this->registry->getUnresolvedAwaits() as $entry) {
+            \trigger_error(
+                'Razy: Unresolved await — the following module(s) were never loaded: '
+                . \implode(', ', $entry['missing']),
+                E_USER_WARNING,
+            );
+        }
+
         $this->registry->notifyReady();
 
         $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
@@ -232,7 +305,14 @@ class Standalone implements DistributorInterface
     public function setSession(): static
     {
         if (WEB_MODE) {
-            \session_set_cookie_params(0, '/', HOSTNAME);
+            \session_set_cookie_params([
+                'lifetime' => 0,
+                'path' => '/',
+                'domain' => HOSTNAME,
+                'secure' => !empty($_SERVER['HTTPS']),
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
             \session_name($this->code);
             \session_start();
         }
@@ -353,13 +433,19 @@ class Standalone implements DistributorInterface
      * Recursively resolve and initialize a module and its dependencies.
      *
      * @param Module $module
+     * @param int $depth Current recursion depth for circular dependency protection
      *
      * @return bool
      *
      * @throws Throwable
      */
-    private function require(Module $module): bool
+    private function require(Module $module, int $depth = 0): bool
     {
+        if ($depth > 32) {
+            // Prevent infinite recursion from circular dependencies
+            return false;
+        }
+
         if ($this->registry->isLoadable($module)) {
             if ($module->getStatus() === ModuleStatus::Pending) {
                 $module->standby();
@@ -373,7 +459,7 @@ class Standalone implements DistributorInterface
                 }
 
                 if ($reqModule->getStatus() === ModuleStatus::Pending) {
-                    if (!$this->require($reqModule)) {
+                    if (!$this->require($reqModule, $depth + 1)) {
                         return false;
                     }
                 } elseif ($reqModule->getStatus() === ModuleStatus::Failed) {

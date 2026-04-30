@@ -35,7 +35,7 @@ return function (string ...$args) use (&$parameters) {
     // Helper: write a file and log the result
     $writeFile = function (string $path, string $content): bool {
         $dir = \dirname($path);
-        if (!\is_dir($dir) && !\mkdir($dir, 0777, true)) {
+        if (!\is_dir($dir) && !\mkdir($dir, 0755, true)) {
             $this->writeLineLogging('{@c:red}  [FAIL]{@reset} ' . $path . ' - failed to create directory', true);
             return false;
         }

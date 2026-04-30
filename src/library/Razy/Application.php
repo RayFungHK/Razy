@@ -236,6 +236,19 @@ class Application
     }
 
     /**
+     * Get the Standalone distributor instance.
+     *
+     * Used by PackageRunner to inject "load"-mode dependency modules
+     * into the Standalone runtime before queryStandalone() is called.
+     *
+     * @return Standalone|null The Standalone instance, or null if not in standalone mode
+     */
+    public function getStandaloneDistributor(): ?Standalone
+    {
+        return $this->standaloneDistributor;
+    }
+
+    /**
      * Get the Application GUID.
      *
      * @return string The GUID of the Application Instance
@@ -422,7 +435,6 @@ class Application
         if (!$distributor->matchRoute()) {
             Error::show404();
         }
-
         return true;
     }
 
@@ -570,6 +582,8 @@ class Application
                     \flock($file, LOCK_UN);
                 }
 
+                \fclose($file);
+
                 $this->config = $config;
                 return true;
             } catch (Exception) {
@@ -691,7 +705,8 @@ class Application
             if (NetworkUtil::isFqdn($wildcardFqdn, true)) {
                 // If the FQDN string contains * (wildcard)
                 if ('*' !== $wildcardFqdn && \str_contains($wildcardFqdn, '*')) {
-                    $wildcard = \preg_replace('/\\\.(*SKIP)(*FAIL)|\*/', '[^.]+', $wildcardFqdn);
+                    $wildcard = \preg_quote($wildcardFqdn, '/');
+                    $wildcard = \str_replace('\*', '[^.]+', $wildcard);
                     if (\preg_match('/^' . $wildcard . '$/', $fqdn)) {
                         // Given fqdn becomes the domain's alias
                         return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$wildcardFqdn]);

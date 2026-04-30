@@ -40,8 +40,13 @@ class FileReader
      */
     public function __construct(string $filepath)
     {
+        // Reject null bytes which could truncate file paths and bypass validation
+        if (\str_contains($filepath, "\0")) {
+            throw new FileException('Invalid file path: null bytes are not allowed.');
+        }
+
         if (!\is_file($filepath)) {
-            throw new FileException('The file ' . $filepath . ' does not exists.');
+            throw new FileException('The file does not exist.');
         }
 
         $this->generator[] = new SplFileObject($filepath);
@@ -58,8 +63,12 @@ class FileReader
      */
     public function append(string $filepath): self
     {
+        if (\str_contains($filepath, "\0")) {
+            throw new FileException('Invalid file path: null bytes are not allowed.');
+        }
+
         if (!\is_file($filepath)) {
-            throw new FileException('The file ' . $filepath . ' does not exists.');
+            throw new FileException('The file does not exist.');
         }
 
         $this->generator[] = new SplFileObject($filepath);
@@ -97,8 +106,12 @@ class FileReader
      */
     public function prepend(string $filepath): self
     {
+        if (\str_contains($filepath, "\0")) {
+            throw new FileException('Invalid file path: null bytes are not allowed.');
+        }
+
         if (!\is_file($filepath)) {
-            throw new FileException('The file ' . $filepath . ' does not exists.');
+            throw new FileException('The file does not exist.');
         }
 
         \array_unshift($this->generator, new SplFileObject($filepath));

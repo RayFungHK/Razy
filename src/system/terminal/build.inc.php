@@ -60,7 +60,7 @@ return function (string $installPath = '') use (&$parameters) {
                 $message .= '{@c:green}Checked';
             } else {
                 if (\mkdir($dirPath)) {
-                    \chmod($dirPath, 0777);
+                    \chmod($dirPath, 0755);
                     $message .= '{@c:green}Success';
                 } else {
                     $message .= '{@:red}Failed';

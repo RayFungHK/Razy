@@ -16,7 +16,7 @@ use Razy\SimpleSyntax;
 #[CoversClass(SimpleSyntax::class)]
 class SimpleSyntaxTest extends TestCase
 {
-    // ?�?�?� ParseParens ??basic grouping ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- ParseParens ??basic grouping ---------------------
 
     #[Test]
     public function parseParensReturnsArrayForEmptyString(): void
@@ -151,7 +151,7 @@ class SimpleSyntaxTest extends TestCase
         $this->assertSame([[['a']]], $result);
     }
 
-    // ?�?�?� ParseSyntax ??delimiter splitting ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- ParseSyntax ??delimiter splitting ----------------
 
     #[Test]
     public function parseSyntaxEmptyStringReturnsEmptyArray(): void

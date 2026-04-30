@@ -81,17 +81,17 @@ class DOM
         // Start building the opening tag with name and id attributes
         $control = '<' . $this->tag;
         if ($this->name) {
-            $control .= ' name="' . $this->name . '"';
+            $control .= ' name="' . \htmlspecialchars($this->name, ENT_QUOTES, 'UTF-8') . '"';
         }
 
         if ($this->id) {
-            $control .= ' id="' . $this->id . '"';
+            $control .= ' id="' . \htmlspecialchars($this->id, ENT_QUOTES, 'UTF-8') . '"';
         }
 
         // Append custom attributes; null values create boolean attributes (no ="...")
         if (\count($this->attribute)) {
             foreach ($this->attribute as $attr => $value) {
-                $control .= ' ' . $attr;
+                $control .= ' ' . \htmlspecialchars($attr, ENT_QUOTES, 'UTF-8');
                 if (null !== $value) {
                     $control .= '="' . $this->getHTMLValue($value) . '"';
                 }
@@ -106,14 +106,14 @@ class DOM
         }
 
         if (\count($this->className)) {
-            $control .= ' class="' . \implode(' ', \array_keys($this->className)) . '"';
+            $control .= ' class="' . \htmlspecialchars(\implode(' ', \array_keys($this->className)), ENT_QUOTES, 'UTF-8') . '"';
         }
 
         // For non-void elements, recursively render child nodes and close the tag
         if (!$this->isVoid) {
             $control .= '>';
             foreach ($this->nodes as $node) {
-                $control .= (\is_string($node)) ? $node : $node->saveHTML();
+                $control .= (\is_string($node)) ? \htmlspecialchars($node, ENT_QUOTES, 'UTF-8') : $node->saveHTML();
             }
             $control .= '</' . $this->tag . '>';
         } else {
@@ -133,11 +133,11 @@ class DOM
     final public function getHTMLValue(mixed $value): string
     {
         if (\is_scalar($value)) {
-            return \htmlspecialchars((string) $value);
+            return \htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
         }
 
         if (!\is_resource($value)) {
-            return \htmlspecialchars(\json_encode($value));
+            return \htmlspecialchars(\json_encode($value), ENT_QUOTES, 'UTF-8');
         }
 
         return '';

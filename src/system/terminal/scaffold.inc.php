@@ -42,7 +42,7 @@ return function (string $moduleCode = '', ...$args) use (&$parameters) {
     // Helper: write a file and log the result
     $writeFile = function (string $path, string $content): bool {
         $dir = \dirname($path);
-        if (!\is_dir($dir) && !\mkdir($dir, 0777, true)) {
+        if (!\is_dir($dir) && !\mkdir($dir, 0755, true)) {
             $this->writeLineLogging('{@c:red}  [FAIL]{@reset} ' . \basename($path) . ' - failed to create directory', true);
 
             return false;
@@ -199,7 +199,7 @@ return function (string $moduleCode = '', ...$args) use (&$parameters) {
     }
 
     foreach ($dirs as $dir) {
-        if (!\is_dir($dir) && !\mkdir($dir, 0777, true)) {
+        if (!\is_dir($dir) && !\mkdir($dir, 0755, true)) {
             $this->writeLineLogging('{@c:red}[ERROR]{@reset} Failed to create directory: ' . $dir, true);
 
             return;

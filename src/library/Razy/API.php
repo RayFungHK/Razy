@@ -50,7 +50,7 @@ class API
             // Return an emitter bound to both the requesting and target modules
             return new Emitter($this->requestedBy, $module);
         }
-        // Return an unbound emitter (calls will fail gracefully) if module not found
-        return new Emitter($this->requestedBy);
+        // Return null when the target module is not found
+        return null;
     }
 }

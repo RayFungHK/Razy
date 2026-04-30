@@ -132,9 +132,10 @@ class PostgreSQL extends Driver
             $collation = &$this->charset[$charset]['collation'];
             if (!\count($collation)) {
                 // collencoding = -1 matches collations valid for any encoding
-                $stmt = $this->adapter->query(
-                    "SELECT collname FROM pg_collation WHERE collencoding = -1 OR collencoding = pg_char_to_encoding('{$charset}')",
+                $stmt = $this->adapter->prepare(
+                    'SELECT collname FROM pg_collation WHERE collencoding = -1 OR collencoding = pg_char_to_encoding(:charset)',
                 );
+                $stmt->execute(['charset' => $charset]);
                 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $collation[$result['collname']] = $charset;
                 }
@@ -150,7 +151,10 @@ class PostgreSQL extends Driver
     public function setTimezone(string $timezone): void
     {
         // PostgreSQL accepts both offset format and named timezones
-        $this->adapter->exec("SET TIME ZONE '{$timezone}'");
+        if (!\preg_match('/^[a-zA-Z_\/\+\-\d:]+$/', $timezone)) {
+            return;
+        }
+        $this->adapter->exec("SET TIME ZONE '" . \str_replace("'", "''", $timezone) . "'");
     }
 
     /**

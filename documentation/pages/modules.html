@@ -124,6 +124,21 @@ sites/{distributor}/{vendor}/{module}/
       </tbody>
     </table>
 
+    <h2 id="communication-timing">Cross-Module Communication Timing</h2>
+    <p>Understanding <strong>when</strong> to use each communication mechanism is critical:</p>
+    <table>
+      <thead><tr><th>Pattern</th><th>Where to Call</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>$this-&gt;module-&gt;await('code', fn)</code></td><td><code>__onInit</code></td><td>Defer setup until target module loads</td></tr>
+        <tr><td><code>$this-&gt;handshake('code')</code></td><td><code>__onLoad</code></td><td>Verify availability, request permission</td></tr>
+        <tr><td><code>$this-&gt;api('code')</code></td><td><code>__onReady</code>, route handlers</td><td>Execute cross-module API commands</td></tr>
+        <tr><td><code>$this-&gt;hasModule('code')</code></td><td><code>__onReady</code>, await callback</td><td>Check if optional module is loaded</td></tr>
+      </tbody>
+    </table>
+    <div class="callout callout-warning">
+      <strong>Warning:</strong> Never call <code>$this-&gt;api()</code> in <code>__onInit()</code> &mdash; the target module may not be loaded yet. Use <code>await()</code> to defer. After <code>processAwaits()</code> runs, the framework emits <code>E_USER_WARNING</code> for any unresolved awaits whose target modules were never loaded.
+    </div>
+
     <h2 id="versioning">Module Versioning</h2>
     <p>Modules can have multiple version folders. The distributor's <code>dist.php</code> selects which version to load:</p>
     <pre><code><span class="hl-str">'modules'</span> => [

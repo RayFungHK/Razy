@@ -82,11 +82,13 @@ if (WEB_MODE) {
     Error::configure($razyConfig);
 
     // Apply the configured timezone and compute the UTC offset string (e.g. "+8:00")
-    if (isset($razyConfig['timezone'], $razyConfig['timezone']) && $razyConfig['timezone']) {
+    if (isset($razyConfig['timezone']) && $razyConfig['timezone']) {
         try {
             \date_default_timezone_set($razyConfig['timezone']);
         } catch (\Exception $e) {
-            // Silently ignore invalid timezone values
+            // date_default_timezone_set emits a warning rather than throwing;
+            // log the invalid value so the admin notices
+            \error_log('[Razy] Invalid timezone configured: ' . $razyConfig['timezone']);
         }
 
         // Calculate the current UTC offset in seconds, then convert to ±H:MM format
@@ -199,11 +201,12 @@ if (WEB_MODE) {
                 // HTTP-level exceptions (404, redirect, XHR response sent) —
                 // response was already sent, request ends gracefully.
             } catch (Throwable $e) {
-                // Attempt to render a friendly error page; fall back to raw output
+                // Attempt to render a friendly error page; fall back to generic message
                 try {
                     Error::showException($e);
-                } catch (Throwable $e) {
-                    echo $e;
+                } catch (Throwable $inner) {
+                    \error_log('[Razy] Uncaught exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+                    echo 'An internal error occurred. Please check the error log.';
                 }
             } finally {
                 // --- Per-request cleanup ---
@@ -270,11 +273,12 @@ if (WEB_MODE) {
             // HTTP-level exceptions (404, redirect, XHR response sent) —
             // response was already sent, request ends gracefully.
         } catch (Throwable $e) {
-            // Render exception page; if that also fails, dump it as plain text
+            // Render exception page; if that also fails, log and output generic message
             try {
                 Error::showException($e);
-            } catch (Throwable $e) {
-                echo $e;
+            } catch (Throwable $inner) {
+                \error_log('[Razy] Uncaught exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+                echo 'An internal error occurred. Please check the error log.';
             }
         }
     }
@@ -289,12 +293,18 @@ if (WEB_MODE) {
         // The first remaining argument is the command name (e.g. "build", "serve")
         $command = \array_shift($argv);
 
+        // Validate CLI command name — only allow alphanumeric, dash, underscore
+        if (!\preg_match('/^[a-zA-Z][a-zA-Z0-9_-]*$/', $command)) {
+            echo Terminal::COLOR_RED . '[Error] Invalid command name.' . Terminal::COLOR_DEFAULT . PHP_EOL;
+            return false;
+        }
+
         $parameters = [];  // Parsed named parameters (flags and key-value pairs)
         // -f <path>: override the default framework system path
         $systemPath = './';
         foreach ($argv as $index => $arg) {
             // Handle the "-f" flag which specifies an alternative Razy system directory
-            if ('-f' == $arg) {
+            if ('-f' === $arg) {
                 $systemPath = $argv[$index + 1] ?? '';
                 if (!$systemPath || !\is_dir($systemPath)) {
                     echo Terminal::COLOR_RED . '[Error] The location is not a valid directory.' . Terminal::COLOR_DEFAULT . PHP_EOL;
@@ -303,7 +313,7 @@ if (WEB_MODE) {
                 }
                 // Remove -f and its associated value so they are not passed to the command
                 unset($argv[$index], $argv[$index + 1]);
-            } elseif ('-' == $arg[0]) {
+            } elseif (\strlen($arg) > 0 && '-' === $arg[0]) {
                 // Any argument starting with "-" is treated as a named parameter
                 $name = \substr($arg, 1); // Strip the leading dash
 

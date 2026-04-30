@@ -1,6 +1,6 @@
 ﻿# Razy Framework Skills
 
-**Type**: Coder Assistant Skills (LLM Navigation Hub) | **Framework**: Razy v1.0.1-beta | **Updated**: February 27, 2026
+**Type**: Coder Assistant Skills (LLM Navigation Hub) | **Framework**: Razy v1.0.2-beta | **Updated**: March 1, 2026
 
 ---
 
@@ -140,10 +140,11 @@ Domain Resolution (Application.host → matchDomain → Domain)
 Distributor Selection (Domain.matchQuery → Distributor)
   ↓
 Module Loading (dependency-ordered)
-  - __onInit()   (register routes, APIs, events)
-  - __onLoad()   (module-to-module preloading)
-  - __onRequire() (validation)
-  - __onReady()  (post-async setup)
+  - __onInit()       (register routes, APIs, events — self-setup ONLY)
+  - __onLoad()       (module-to-module preloading, handshake)
+  - __onRequire()    (validation)
+  - processAwaits()  (execute deferred await() callbacks)
+  - __onReady()      (all modules loaded — safe for direct api() calls)
   ↓
 Routing (WEB mode) / Script Execution (CLI)
   ↓
@@ -170,6 +171,56 @@ Handler Execution
   ↓
 Shutdown
 ```
+
+### Cross-Module Communication Patterns
+
+Three mechanisms exist for inter-module communication, each suited to different lifecycle stages:
+
+**1. Handshake** (`Controller::handshake()`) — Trust signal, not enforced access control
+```
+Module A: $this->handshake('module_b', 'request access')
+  → Module::handshake() → ModuleRegistry::handshakeTo()
+    → Module B: touch() → Controller::__onTouch()
+      → return true (accept) / false (reject)
+```
+- Use in `__onLoad()` to verify module availability before proceeding
+- Default `__onTouch()` returns `true` — override to gate access
+- Handshake is **independent** from API calls — `api()` does NOT check handshake status
+
+**2. Await** (`$this->module->await()`) — Deferred cross-module setup
+```php
+// In __onInit() — when target module may not be loaded yet
+$this->module->await('target_module', function() {
+    // 'this' is bound to your controller
+    $this->api('target_module')->registerHook($this->getModuleCode());
+});
+```
+- Callbacks execute during `processAwaits()` (after `__onRequire`, before `__onReady`)
+- Supports multi-module await: `await('mod_a,mod_b', fn)` — fires when ALL are loaded
+- **Unresolved await warning**: If target module is never loaded, framework emits `E_USER_WARNING`
+
+**3. Direct API** (`$this->api()`) — Synchronous command execution
+```php
+// In __onReady() — all modules guaranteed loaded
+$result = $this->api('provider_module')->someCommand($args);
+```
+
+**4. hasModule** (`$this->hasModule()`) — Optional integration check
+```php
+// In __onReady() or await callback
+if ($this->hasModule('es_analytics')) {
+    $this->api('es_analytics')->track('module_loaded');
+}
+```
+
+**When to use which:**
+
+| Pattern | Lifecycle Stage | Purpose |
+|---------|----------------|---------|
+| `handshake()` | `__onLoad` | Verify availability, request permission |
+| `await()` | `__onInit` | Defer setup until target module loads |
+| `api()` | `__onReady` / route handlers | Execute cross-module commands |
+| `hasModule()` | `__onReady` / await callback | Conditional optional integration |
 
 ---
 

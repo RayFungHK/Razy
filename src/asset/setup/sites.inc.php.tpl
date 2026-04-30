@@ -25,6 +25,11 @@ return [
 		 * 'domain.name' => (array) [
 		 *   'path' => (string) The module distribution path in sites folder
 		 * ]
+		 *
+		 * Tagging:
+		 * '/path' => 'mysite@v2'   // use the 'v2' tag from dist.php modules
+		 *
+		 * Per-domain config folder mapping is handled via config_mapping in dist.php.
 		 */
 		<!-- START BLOCK: domain -->
 		'{$domain}' => [

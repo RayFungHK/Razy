@@ -275,7 +275,7 @@ class Template implements TemplateInterface
         }
         $name = \trim($name);
         if (!$name) {
-            $name = \sprintf('%04x%04x', \mt_rand(0, 0xffff), \mt_rand(0, 0xffff));
+            $name = \sprintf('%04x%04x', \random_int(0, 0xffff), \random_int(0, 0xffff));
         }
         $this->queue[$name] = $source;
 

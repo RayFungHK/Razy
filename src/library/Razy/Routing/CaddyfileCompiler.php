@@ -65,7 +65,10 @@ class CaddyfileCompiler
         // Build per-domain site blocks
         $this->compileSiteBlocks($rootBlock, $multisite, $domainAliases, $workerMode, $documentRoot);
 
-        \file_put_contents($outputPath, $source->output());
+        // Atomic write: write to temp file, then rename to avoid partial writes
+        $tmpPath = $outputPath . '.' . \uniqid('', true) . '.tmp';
+        \file_put_contents($tmpPath, $source->output());
+        \rename($tmpPath, $outputPath);
 
         return true;
     }
@@ -125,7 +128,7 @@ class CaddyfileCompiler
                 try {
                     [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
                     $distributor = new Distributor($code, $tag ?: '*');
-                    $distributor->initialize(true);
+                    $distributor->scanModules();
                     $modules = $distributor->getRegistry()->getModules();
 
                     $routePath = ($urlPath === '/') ? '' : \trim($urlPath, '/') . '/';
@@ -210,10 +213,8 @@ class CaddyfileCompiler
                 $webassetPath = PathUtil::append($modulePath, 'webassets');
 
                 if (\is_dir($webassetPath)) {
-                    $moduleCode = $moduleInfo->getCode();
-                    // Use full module code as dedup key to prevent collisions
-                    // between modules with the same alias but different vendors.
-                    $webAssetKey = $moduleCode . '::' . $routePath;
+                    $alias = $moduleInfo->getAlias();
+                    $webAssetKey = $alias . '::' . $routePath;
 
                     if (!isset($addedWebAssets[$webAssetKey])) {
                         $addedWebAssets[$webAssetKey] = true;
@@ -222,10 +223,10 @@ class CaddyfileCompiler
                         $containerPathRel = \ltrim(\str_replace('\\', '/', $containerPathRel), '/');
 
                         // Create a safe identifier for Caddy named matcher
-                        $mappingId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $moduleCode . '_' . $routePath);
+                        $mappingId = \preg_replace('/[^a-zA-Z0-9_]/', '_', $alias . '_' . $routePath);
 
                         $siteBlock->newBlock('webassets')->assign([
-                            'mapping' => $moduleCode,
+                            'mapping' => $alias,
                             'mapping_id' => $mappingId,
                             'route_path' => $routePath,
                             'container_path' => $containerPathRel,

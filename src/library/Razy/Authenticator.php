@@ -378,8 +378,9 @@ class Authenticator
      * @param string $fgColor Foreground color (default: '#000000')
      * @param string $bgColor Background color (default: '#ffffff')
      *
-     * @return string Data URI for embedding in an <img> tag (base64 SVG), or
-     *                the provisioning URI itself if QR cannot be generated
+     * @return string The provisioning URI itself. For QR code generation,
+     *                use a local library like chillerlan/php-qrcode.
+     *                NEVER send the TOTP secret to an external service.
      */
     public static function getQrCodeDataUri(
         string $uri,
@@ -387,12 +388,15 @@ class Authenticator
         string $fgColor = '#000000',
         string $bgColor = '#ffffff',
     ): string {
-        // Generate the provisioning URI as a simple data URI
-        // For actual QR code generation, use a library like chillerlan/php-qrcode
-        // or a Google Chart API URL.
-        // Here we provide a Google Chart API fallback:
-        return 'https://chart.googleapis.com/chart?chs=' . $size . 'x' . $size
-            . '&chld=M|0&cht=qr&chl=' . \urlencode($uri);
+        // Return the provisioning URI directly.
+        // To generate an actual QR code image, use a local library such as:
+        //   - chillerlan/php-qrcode
+        //   - endroid/qr-code
+        //
+        // WARNING: Do NOT use external APIs (e.g., Google Charts) as this
+        // would transmit the TOTP secret to a third party, compromising
+        // the security of two-factor authentication.
+        return $uri;
     }
 
     // ==================== BASE32 ENCODING/DECODING ====================

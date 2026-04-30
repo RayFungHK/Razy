@@ -19,7 +19,7 @@ use Razy\SimplifiedMessage;
 #[CoversClass(SimplifiedMessage::class)]
 class SimplifiedMessageTest extends TestCase
 {
-    // ?�?� Constructor ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Constructor ----------------------------------------------
 
     #[Test]
     public function constructorAcceptsValidCommand(): void
@@ -63,7 +63,7 @@ class SimplifiedMessageTest extends TestCase
         new SimplifiedMessage('1234');
     }
 
-    // ?�?� Setters / Getters ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Setters / Getters ----------------------------------------
 
     #[Test]
     public function setBodyReturnsFluentInterface(): void
@@ -136,7 +136,7 @@ class SimplifiedMessageTest extends TestCase
         $msg->setHeader('!@#', 'value');
     }
 
-    // ?�?� getMessage ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- getMessage -----------------------------------------------
 
     #[Test]
     public function getMessageWithCommandOnly(): void
@@ -181,14 +181,13 @@ class SimplifiedMessageTest extends TestCase
         $this->assertStringEndsWith("\r\npayload\0\r\n", $result);
     }
 
-    // ?�?� Encode / Decode ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Encode / Decode ------------------------------------------
 
     #[Test]
     public function encodeEscapesColons(): void
     {
-        // Encode replaces : ??\c then \ ??\\
-        // So 'key:value' ??'key\cvalue' ??'key\\cvalue'
-        $this->assertSame('key\\\cvalue', SimplifiedMessage::encode('key:value'));
+        // strtr encodes : → \c and \ → \\ simultaneously (no double-escape)
+        $this->assertSame('key\cvalue', SimplifiedMessage::encode('key:value'));
     }
 
     #[Test]
@@ -200,10 +199,9 @@ class SimplifiedMessageTest extends TestCase
     #[Test]
     public function encodeEscapesBothColonAndBackslash(): void
     {
-        // Input literal: a:\b
-        // Step 1 (: ??\c): a\c\b
-        // Step 2 (\ ??\\): a\\c\\b
-        $this->assertSame('a\\\c\\\b', SimplifiedMessage::encode('a:\b'));
+        // strtr encodes simultaneously: : → \c, \ → \\
+        // Input: a:\b → a + \c + \\ + b = a\c\\b
+        $this->assertSame('a\c\\\b', SimplifiedMessage::encode('a:\b'));
     }
 
     #[Test]
@@ -245,7 +243,7 @@ class SimplifiedMessageTest extends TestCase
         $this->assertSame('hello world', SimplifiedMessage::decode('hello world'));
     }
 
-    // ?�?� Fetch (parsing) ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Fetch (parsing) ------------------------------------------
 
     #[Test]
     public function fetchParsesFullMessage(): void
@@ -316,7 +314,7 @@ class SimplifiedMessageTest extends TestCase
         $this->assertSame('COMMAND', $msg->getCommand());
     }
 
-    // ?�?� Round-trip: build ??getMessage ??Fetch ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Round-trip: build ??getMessage ??Fetch -------------------
 
     #[Test]
     public function roundTripPreservesFullMessage(): void
@@ -344,7 +342,7 @@ class SimplifiedMessageTest extends TestCase
         $this->assertSame('', $parsed->getBody());
     }
 
-    // ?�?� Edge cases ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Edge cases -----------------------------------------------
 
     #[Test]
     public function headerValueCanContainSpecialCharacters(): void

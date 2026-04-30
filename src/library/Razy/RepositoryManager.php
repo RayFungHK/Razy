@@ -108,6 +108,7 @@ class RepositoryManager
                         $index[$moduleCode] = [
                             'description' => $manifest['description'] ?? '',
                             'author' => $manifest['author'] ?? '',
+                            'type' => $manifest['type'] ?? 'module',
                             'latest' => $manifest['latest'] ?? '',
                             'versions' => $manifest['versions'] ?? [],
                         ];
@@ -222,6 +223,7 @@ class RepositoryManager
                         'module_code' => $moduleCode,
                         'description' => $info['description'] ?? '',
                         'author' => $info['author'] ?? '',
+                        'type' => $info['type'] ?? 'module',
                         'latest' => $info['latest'] ?? '',
                         'versions' => $info['versions'] ?? [],
                         'repository' => $repoUrl,
@@ -253,6 +255,7 @@ class RepositoryManager
                     'module_code' => $moduleCode,
                     'description' => $index[$moduleCode]['description'] ?? '',
                     'author' => $index[$moduleCode]['author'] ?? '',
+                    'type' => $index[$moduleCode]['type'] ?? 'module',
                     'latest' => $index[$moduleCode]['latest'] ?? '',
                     'versions' => $index[$moduleCode]['versions'] ?? [],
                     'repository' => $repoUrl,
@@ -428,6 +431,7 @@ class RepositoryManager
                     'module_code' => $moduleCode,
                     'description' => $info['description'] ?? '',
                     'author' => $info['author'] ?? '',
+                    'type' => $info['type'] ?? 'module',
                     'latest' => $info['latest'] ?? '',
                     'versions' => $info['versions'] ?? [],
                     'repository' => $repoUrl,

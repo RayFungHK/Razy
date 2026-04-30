@@ -100,6 +100,11 @@ class PluginManager
      */
     public function getPlugin(string $owner, string $pluginName): ?array
     {
+        // Reject plugin names containing directory traversal characters
+        if (\str_contains($pluginName, '..') || \str_contains($pluginName, '/') || \str_contains($pluginName, '\\')) {
+            return null;
+        }
+
         // Check cache first
         if (isset($this->registries[$owner]['cache'][$pluginName])) {
             return $this->registries[$owner]['cache'][$pluginName];

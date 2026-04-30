@@ -83,8 +83,8 @@ class XHR
             // Validate each comma-separated origin against URL pattern
             $clips = \explode(',', $origin);
             foreach ($clips as $index => $clip) {
-                // Remove origins that don't match a valid protocol://domain[:port] pattern
-                if (!\preg_match('/(?<protocol>\w*)\:\/\/(?:(?<thld>[\w\-]*)(?:\.(?<sld>[\w\-]*))*\.(?<tld>\w*)(?:\:(?<port>\d*))?)/', $clip)) {
+                // Validate each origin: must be http(s)://domain[:port] with anchored match
+                if (!\preg_match('/^https?:\/\/(?:[\w\-]+\.)*[\w\-]+(?::\d+)?$/', \trim($clip))) {
                     unset($clips[$index]);
                 }
             }
@@ -107,7 +107,9 @@ class XHR
      */
     public function corp(string $type = ''): self
     {
-        $this->corp = $type;
+        // Validate against allowed CORP values to prevent header injection
+        $allowed = ['same-origin', 'same-site', 'cross-origin', ''];
+        $this->corp = \in_array($type, $allowed, true) ? $type : 'same-origin';
 
         return $this;
     }
@@ -245,7 +247,12 @@ class XHR
         \header('Content-Type: application/json');
         \header('Access-Control-Allow-Origin: ' . $this->allowOrigin);
         \header('Cross-Origin-Resource-Policy: ' . $this->corp);
-        \ob_clean();
+        if ($this->allowOrigin !== '*') {
+            \header('Vary: Origin');
+        }
+        if (\ob_get_level() > 0) {
+            \ob_clean();
+        }
         echo \json_encode($data);
 
         if ($this->closure) {

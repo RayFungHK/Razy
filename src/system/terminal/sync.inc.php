@@ -290,7 +290,11 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         $ch = \curl_init($downloadUrl);
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
         \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
 
         $pharContent = \curl_exec($ch);

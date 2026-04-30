@@ -88,6 +88,11 @@ class Logger implements LoggerInterface
     private array $buffer = [];
 
     /**
+     * @var int Maximum number of buffer entries before oldest entries are evicted
+     */
+    private int $maxBufferSize = 10000;
+
+    /**
      * @var bool Whether to keep log entries in the in-memory buffer
      */
     private bool $bufferEnabled;
@@ -113,7 +118,9 @@ class Logger implements LoggerInterface
 
         // Ensure log directory exists if specified
         if ($this->logDirectory !== null && !\is_dir($this->logDirectory)) {
-            \mkdir($this->logDirectory, 0o775, true);
+            if (!@\mkdir($this->logDirectory, 0o750, true) && !\is_dir($this->logDirectory)) {
+                \error_log('[Razy\Logger] Failed to create log directory: ' . $this->logDirectory);
+            }
         }
     }
 
@@ -148,6 +155,11 @@ class Logger implements LoggerInterface
                 'message' => $interpolated,
                 'context' => $context,
             ];
+
+            // Evict oldest entries when buffer exceeds max size
+            if (\count($this->buffer) > $this->maxBufferSize) {
+                $this->buffer = \array_slice($this->buffer, -$this->maxBufferSize);
+            }
         }
 
         // Write to file if log directory is configured
@@ -228,7 +240,9 @@ class Logger implements LoggerInterface
         $filepath = $this->logDirectory . DIRECTORY_SEPARATOR . $filename;
 
         $levelUpper = \strtoupper($level);
-        $line = "[{$timestamp}] [{$levelUpper}] {$message}";
+        // Sanitize message to prevent log injection via embedded newlines
+        $sanitizedMessage = \str_replace(["\r\n", "\r", "\n"], ' ', $message);
+        $line = "[{$timestamp}] [{$levelUpper}] {$sanitizedMessage}";
 
         // Append context data if present (excluding interpolated keys)
         $extra = $this->getExtraContext($context);

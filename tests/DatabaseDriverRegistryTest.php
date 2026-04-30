@@ -20,7 +20,7 @@ use stdClass;
 #[CoversClass(Database::class)]
 class DatabaseDriverRegistryTest extends TestCase
 {
-    // ?�?�?� CreateDriver with built-in types ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- CreateDriver with built-in types -------------------------
 
     public function testCreateDriverMySQL(): void
     {
@@ -80,7 +80,7 @@ class DatabaseDriverRegistryTest extends TestCase
         Database::createDriver('oracle');
     }
 
-    // ?�?�?� RegisterDriver ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- RegisterDriver -------------------------
 
     public function testRegisterCustomDriver(): void
     {
@@ -120,7 +120,7 @@ class DatabaseDriverRegistryTest extends TestCase
         Database::registerDriver('bad', stdClass::class);
     }
 
-    // ?�?�?� Legacy fallback removal (Phase 4.2) ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- Legacy fallback removal (Phase 4.2) -------------------------
 
     public function testSetTimezoneWithoutDriverThrows(): void
     {
@@ -153,7 +153,7 @@ class DatabaseDriverRegistryTest extends TestCase
         $this->assertFalse($db->isTableExists('some_table'));
     }
 
-    // ?�?�?� Database constructor ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- Database constructor -------------------------
 
     public function testConstructorGeneratesNameWhenEmpty(): void
     {
@@ -169,7 +169,7 @@ class DatabaseDriverRegistryTest extends TestCase
         $this->assertSame('my_db', $db->getName());
     }
 
-    // ?�?�?� Driver constants ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- Driver constants -------------------------
 
     public function testDriverConstants(): void
     {
@@ -178,7 +178,7 @@ class DatabaseDriverRegistryTest extends TestCase
         $this->assertSame('sqlite', Database::DRIVER_SQLITE);
     }
 
-    // ?�?�?� ResetInstances ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // --- ResetInstances -------------------------
 
     public function testResetInstancesClearsRegistry(): void
     {

@@ -70,7 +70,7 @@ class InsertSyntaxBuilder implements SyntaxBuilderInterface
                 $duplicatedKeys = [];
                 foreach ($onDuplicateKey as $column) {
                     if (\is_string($column)) {
-                        $duplicatedKeys[] = '`' . $column . '` = ' . $statement->getValueAsStatement($column);
+                        $duplicatedKeys[] = $quote($column) . ' = ' . $statement->getValueAsStatement($column);
                     }
                 }
 

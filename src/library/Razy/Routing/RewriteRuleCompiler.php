@@ -11,7 +11,6 @@
 
 namespace Razy\Routing;
 
-use Exception;
 use Razy\Distributor;
 use Razy\Template;
 use Razy\Util\PathUtil;
@@ -45,8 +44,11 @@ class RewriteRuleCompiler
      */
     public static function domainToPattern(string $domain): string
     {
-        $pattern = \str_replace('.', '\.', $domain);
-        $pattern = \str_replace('*', '.+', $pattern);
+        // Escape all regex metacharacters first, then convert wildcard placeholders
+        $pattern = \preg_quote($domain, '/');
+        // Un-escape colon (preg_quote escapes it, but : is used for ports)
+        $pattern = \str_replace('\:', ':', $pattern);
+        $pattern = \str_replace('\*', '.+', $pattern);
 
         // If the domain does not already specify a port (e.g. "localhost:8888"),
         // append an optional port suffix so the pattern matches HTTP_HOST both
@@ -83,7 +85,11 @@ class RewriteRuleCompiler
         // ── Phase 2: Per-Distributor Rewrite Rules ──
         $this->compileDistributorRules($rootBlock, $multisite);
 
-        \file_put_contents($outputPath, $source->output());
+        // Atomic write: write to temp file, then rename to avoid partial writes
+        $tmpPath = $outputPath . '.' . \uniqid('', true) . '.tmp';
+        \file_put_contents($tmpPath, $source->output());
+        \rename($tmpPath, $outputPath);
+
         return true;
     }
 
@@ -149,7 +155,12 @@ class RewriteRuleCompiler
                 try {
                     [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
                     $distributor = new Distributor($code, $tag ?: '*');
-                    $distributor->initialize(true);
+
+                    // Scan-only: discover modules for webasset paths without
+                    // running __onInit on controllers. Full initialization is
+                    // unnecessary for rewrite rule generation and can fail when
+                    // modules call getEmitter() before targets reach Loaded status.
+                    $distributor->scanModules();
                     $modules = $distributor->getRegistry()->getModules();
 
                     $routePath = ($urlPath === '/') ? '' : \trim($urlPath, '/') . '/';
@@ -173,7 +184,7 @@ class RewriteRuleCompiler
                             'route_path' => $routePath,
                         ]);
                     }
-                } catch (Exception $e) {
+                } catch (Throwable $e) {
                     \error_log('Warning: Failed to process distribution ' . $distIdentifier . ' for domain ' . $domain . ': ' . $e->getMessage());
                     continue;
                 }
@@ -237,10 +248,8 @@ class RewriteRuleCompiler
                 $webassetPath = PathUtil::append($modulePath, 'webassets');
 
                 if (\is_dir($webassetPath)) {
-                    $moduleCode = $moduleInfo->getCode();
-                    // Use full module code as dedup key to prevent collisions
-                    // between modules with the same alias but different vendors.
-                    $webAssetKey = $domain . '::' . $code . '::' . $moduleCode;
+                    $alias = $moduleInfo->getAlias();
+                    $webAssetKey = $domain . '::' . $code . '::' . $alias;
 
                     if (!isset($addedWebAssets[$webAssetKey])) {
                         $addedWebAssets[$webAssetKey] = true;
@@ -253,7 +262,7 @@ class RewriteRuleCompiler
                             'domain' => $domain,
                             'dist_path' => $distPath,
                             'route_path' => $routePath,
-                            'mapping' => $moduleCode,
+                            'mapping' => $alias,
                         ]);
                     }
                 }

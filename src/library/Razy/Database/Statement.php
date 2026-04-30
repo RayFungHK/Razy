@@ -140,22 +140,24 @@ class Statement
      * Standardize the column string.
      *
      * @param string $column
+     * @param callable|null $quote Optional identifier quoting function; defaults to backticks
      *
      * @return string
      */
-    public static function standardizeColumn(string $column): string
+    public static function standardizeColumn(string $column, ?callable $quote = null): string
     {
+        $quote = $quote ?? fn ($c) => '`' . $c . '`';
         $column = \trim($column);
         // Match column syntax: optional table alias prefix, column name (backtick-quoted or identifier),
         // with optional JSON path operator (-> or ->>)
         if (\preg_match('/^((`(?:(?:\\\.(*SKIP)(*FAIL)|.)++|\\\[\\\`])+`|[a-z]\w*)(?:\.((?2)))?)(?:(->>?)([\'"])\$(.+)\5)?$/', $column, $matches)) {
             if (isset($matches[3]) && \preg_match('/^[a-z]\w*$/', $matches[3])) {
                 // Column with table alias: quote the column part
-                return $matches[2] . '.`' . \trim($matches[3]) . '`';
+                return $matches[2] . '.' . $quote(\trim($matches[3]));
             }
             if (\preg_match('/^[a-z]\w*$/', $matches[2])) {
-                // Standalone column name: wrap in backticks
-                return '`' . \trim($matches[2]) . '`';
+                // Standalone column name: wrap with driver-appropriate quotes
+                return $quote(\trim($matches[2]));
             }
         }
 
@@ -530,10 +532,13 @@ class Statement
     {
         $clips = \preg_split('/\s*,\s*/', $syntax);
 
+        $driver = $this->database->getDriver();
+        $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
+
         // Standardize each column name and add to GROUP BY list
         $this->groupby = [];
         foreach ($clips as &$column) {
-            $column = self::standardizeColumn($column);
+            $column = self::standardizeColumn($column, $quote);
             $this->groupby[] = \trim($column);
         }
 
@@ -558,6 +563,12 @@ class Statement
         if (!$tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
+
+        // Validate table name is a safe SQL identifier
+        if (!\preg_match('/^[a-zA-Z_]\w*$/', $tableName)) {
+            throw new QueryException('Invalid table name: only letters, digits and underscores are allowed.');
+        }
+
         $this->tableName = $this->getPrefix() . $tableName;
 
         // Validate and normalize column names, stripping backticks from quoted names
@@ -712,6 +723,9 @@ class Statement
     {
         $clips = SimpleSyntax::parseSyntax($syntax, ',', '', null, true);
 
+        $driver = $this->database->getDriver();
+        $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
+
         $this->orderby = [];
         foreach ($clips as $column) {
             $ordering = '';
@@ -720,7 +734,7 @@ class Statement
                 $column = $matches[2];
             }
 
-            $standardizedColumn = self::standardizeColumn($column);
+            $standardizedColumn = self::standardizeColumn($column, $quote);
             if ($standardizedColumn) {
                 $standardizedColumn .= ('>' === $ordering) ? ' DESC' : ' ASC';
                 $this->orderby[] = $standardizedColumn;
@@ -768,8 +782,10 @@ class Statement
         // Split by commas while preserving quoted strings (single, double, or backtick-quoted)
         $this->selectColumns = \preg_split('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $columns);
 
+        $driver = $this->database->getDriver();
+        $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
         foreach ($this->selectColumns as &$column) {
-            $column = (\preg_match('/^\w+$/', $column)) ? '`' . $column . '`' : $column;
+            $column = (\preg_match('/^\w+$/', $column)) ? $quote($column) : $column;
         }
 
         return $this;
@@ -810,6 +826,12 @@ class Statement
         if (!$tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
+
+        // Validate table name is a safe SQL identifier
+        if (!\preg_match('/^[a-zA-Z_]\w*$/', $tableName)) {
+            throw new QueryException('Invalid table name: only letters, digits and underscores are allowed.');
+        }
+
         $this->tableName = $this->getPrefix() . $tableName;
 
         if (\count($parameters)) {
@@ -853,7 +875,16 @@ class Statement
         if (!$tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
+
+        // Validate table name is a safe SQL identifier
+        if (!\preg_match('/^[a-zA-Z_]\w*$/', $tableName)) {
+            throw new QueryException('Invalid table name: only letters, digits and underscores are allowed.');
+        }
+
         $this->tableName = $this->getPrefix() . $tableName;
+
+        $driver = $this->database->getDriver();
+        $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
 
         $this->updateSyntax = [];
         foreach ($updateSyntax as &$syntax) {
@@ -865,13 +896,13 @@ class Statement
 
                 if (isset($matches[4]) && $matches[4]) {
                     // Shorthand increment/decrement: column++ or column--
-                    $this->updateSyntax[$matches[3]] = ['`' . $matches[3] . '`', ('++' === $matches[4]) ? '+' : '-', 1];
+                    $this->updateSyntax[$matches[3]] = [$quote($matches[3]), ('++' === $matches[4]) ? '+' : '-', 1];
                 } elseif (isset($matches[6])) {
                     // Assignment with optional operator: column=value or column+=value
                     $shortenSyntax = [];
                     if (2 === \strlen($matches[5])) {
                         $operator = $matches[5][0];
-                        $shortenSyntax = ['`' . $matches[3] . '`', $operator];
+                        $shortenSyntax = [$quote($matches[3]), $operator];
                     }
                     $this->updateSyntax[$matches[3]] = \array_merge($shortenSyntax, $this->parseSyntax($matches[6]));
                 } else {

@@ -58,12 +58,12 @@ class SchemaBuilder
      * the table structure. After the callback executes, the CREATE TABLE SQL
      * is generated and executed.
      *
-     * @param string $tableName The table name (prefix is NOT auto-applied)
+     * @param string $tableName The table name (prefix is auto-applied)
      * @param Closure $callback Receives Table instance for configuration
      */
     public function create(string $tableName, Closure $callback): void
     {
-        $table = new Table($tableName);
+        $table = new Table($this->database->getPrefix() . $tableName);
         $callback($table);
         $sql = $table->getSyntax();
         $this->database->execute($this->database->prepare($sql));
@@ -76,12 +76,12 @@ class SchemaBuilder
      * dropping columns, indexes, foreign keys, etc. After the callback,
      * the ALTER TABLE SQL is generated and executed.
      *
-     * @param string $tableName The table name to alter
+     * @param string $tableName The table name to alter (prefix is auto-applied)
      * @param Closure $callback Receives TableHelper instance for configuration
      */
     public function table(string $tableName, Closure $callback): void
     {
-        $table = new Table($tableName);
+        $table = new Table($this->database->getPrefix() . $tableName);
         $helper = $table->createHelper();
         $callback($helper);
         $sql = $helper->getSyntax();
@@ -98,7 +98,7 @@ class SchemaBuilder
     public function drop(string $tableName): void
     {
         $this->database->execute(
-            $this->database->prepare('DROP TABLE `' . \addslashes($tableName) . '`'),
+            $this->database->prepare('DROP TABLE ' . $this->database->getDriver()->quoteIdentifier($this->database->getPrefix() . $tableName)),
         );
     }
 
@@ -110,7 +110,7 @@ class SchemaBuilder
     public function dropIfExists(string $tableName): void
     {
         $this->database->execute(
-            $this->database->prepare('DROP TABLE IF EXISTS `' . \addslashes($tableName) . '`'),
+            $this->database->prepare('DROP TABLE IF EXISTS ' . $this->database->getDriver()->quoteIdentifier($this->database->getPrefix() . $tableName)),
         );
     }
 
@@ -122,9 +122,11 @@ class SchemaBuilder
      */
     public function rename(string $from, string $to): void
     {
+        $prefix = $this->database->getPrefix();
+        $driver = $this->database->getDriver();
         $this->database->execute(
             $this->database->prepare(
-                'ALTER TABLE `' . \addslashes($from) . '` RENAME TO `' . \addslashes($to) . '`',
+                'ALTER TABLE ' . $driver->quoteIdentifier($prefix . $from) . ' RENAME TO ' . $driver->quoteIdentifier($prefix . $to),
             ),
         );
     }

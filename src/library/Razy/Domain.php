@@ -76,7 +76,8 @@ class Domain
         StringUtil::sortPathLevel($this->mapping);
 
         // Config change detection interval (0 = every request, 100 = every 100th dispatch)
-        $this->configCheckInterval = (int) (\getenv('WORKER_CONFIG_CHECK_INTERVAL') ?: 100);
+        // Clamp to prevent excessively large intervals that would delay config change detection
+        $this->configCheckInterval = \max(0, \min(10000, (int) (\getenv('WORKER_CONFIG_CHECK_INTERVAL') ?: 100)));
     }
 
     /**
@@ -124,14 +125,24 @@ class Domain
             $urlQuery = '/';
         }
         $urlQuery = PathUtil::tidy($urlQuery, false, '/');
+
+        // Ensure URL query always starts with '/' for consistent prefix matching
+        if (!\str_starts_with($urlQuery, '/')) {
+            $urlQuery = '/' . $urlQuery;
+        }
         if (!empty($this->mapping)) {
             // Mapping is already pre-sorted by path depth in the constructor
             foreach ($this->mapping as $urlPath => $distIdentifier) {
-                // Parse distributor identifier into code and tag (e.g., "mysite@dev" -> code="mysite", tag="dev")
+                if (!\is_string($distIdentifier)) {
+                    continue;
+                }
+
+                // Parse distributor identifier into code and tag (e.g., "mysite@dev")
                 [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
                 $urlPath = PathUtil::tidy($urlPath, true, '/');
                 if (\str_starts_with($urlQuery, $urlPath)) {
-                    ($this->distributor = new Distributor($distCode, $tag ?: '*', $this, $urlPath, \substr($urlQuery, \strlen($urlPath) - 1)))->initialize();
+                    $this->distributor = new Distributor($distCode, $tag ?: '*', $this, $urlPath, \substr($urlQuery, \strlen($urlPath) - 1));
+                    $this->distributor->initialize();
                     return $this->distributor;
                 }
             }
@@ -185,6 +196,11 @@ class Domain
         }
         $urlQuery = PathUtil::tidy($urlQuery, false, '/');
 
+        // Ensure URL query always starts with '/' for consistent prefix matching
+        if (!\str_starts_with($urlQuery, '/')) {
+            $urlQuery = '/' . $urlQuery;
+        }
+
         if (empty($this->mapping)) {
             return false;
         }
@@ -193,6 +209,10 @@ class Domain
 
         // Find which URL path prefix matches, same logic as matchQuery()
         foreach ($this->mapping as $urlPath => $distIdentifier) {
+            if (!\is_string($distIdentifier)) {
+                continue;
+            }
+
             [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
             $tag = $tag ?: '*';
             $urlPath = PathUtil::tidy($urlPath, true, '/');

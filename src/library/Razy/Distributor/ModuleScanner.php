@@ -112,8 +112,15 @@ class ModuleScanner
                         // Look for module.php configuration file in vendor/package directory
                         $moduleConfigPath = PathUtil::append($packageFolder, 'module.php');
                         if (\is_file($moduleConfigPath)) {
+                            // Ensure the resolved path stays within the package folder (defense-in-depth)
+                            $realConfigPath = \realpath($moduleConfigPath);
+                            $realPackageFolder = \realpath($packageFolder);
+                            if ($realConfigPath === false || $realPackageFolder === false
+                                || !\str_starts_with($realConfigPath, $realPackageFolder . DIRECTORY_SEPARATOR)) {
+                                continue;
+                            }
                             try {
-                                $config = require $moduleConfigPath;
+                                $config = require $realConfigPath;
 
                                 $config['module_code'] ??= '';
                                 if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $config['module_code'])) {
@@ -223,8 +230,15 @@ class ModuleScanner
                         }
 
                         if (\is_file($libraryPath)) {
+                            // Ensure the resolved path stays within the module path (defense-in-depth)
+                            $realLibPath = \realpath($libraryPath);
+                            $realBasePath = \realpath($path);
+                            if ($realLibPath === false || $realBasePath === false
+                                || !\str_starts_with($realLibPath, $realBasePath . DIRECTORY_SEPARATOR)) {
+                                return false;
+                            }
                             try {
-                                include $libraryPath;
+                                include $realLibPath;
 
                                 return \class_exists($moduleClassName);
                             } catch (Exception) {

@@ -20,6 +20,7 @@ use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -866,6 +867,10 @@ class Container implements ContainerInterface
         while (isset($this->aliases[$id]) && $depth < 10) {
             $id = $this->aliases[$id];
             ++$depth;
+        }
+
+        if ($depth >= 10) {
+            throw new RuntimeException("Alias chain depth exceeded for '{$id}'. Check for circular aliases.");
         }
 
         return $id;

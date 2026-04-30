@@ -197,9 +197,15 @@ class Env
      *
      * @param string $name Variable name.
      * @param string $value Variable value.
+     *
+     * @throws RuntimeException If the variable name contains invalid characters.
      */
     public static function set(string $name, string $value): void
     {
+        if (!\preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $name)) {
+            throw new RuntimeException("Invalid environment variable name: '{$name}'");
+        }
+
         self::setVariable($name, $value, true);
     }
 
@@ -250,6 +256,22 @@ class Env
      */
     public static function reset(): void
     {
+        self::$loaded = [];
+        self::$initialized = false;
+    }
+
+    /**
+     * Full reset including process environment (for worker mode).
+     *
+     * Clears the loaded cache, the initialized flag, and also unsets
+     * all loaded variables from `$_ENV`, `$_SERVER`, and `putenv()`.
+     */
+    public static function fullReset(): void
+    {
+        foreach (self::$loaded as $key => $value) {
+            unset($_ENV[$key], $_SERVER[$key]);
+            \putenv($key);
+        }
         self::$loaded = [];
         self::$initialized = false;
     }

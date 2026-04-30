@@ -540,8 +540,9 @@ class AuthenticatorTest extends TestCase
         $provUri = 'otpauth://totp/MyApp:user@example.com?secret=JBSWY3DPEHPK3PXP';
         $qrUri = Authenticator::getQrCodeDataUri($provUri);
 
-        $this->assertStringContainsString('chart.googleapis.com', $qrUri);
-        $this->assertStringContainsString(\urlencode($provUri), $qrUri);
+        // Security fix: no longer sends secret to external service (Google Charts)
+        // Returns the provisioning URI directly for local QR generation
+        $this->assertSame($provUri, $qrUri);
     }
 
     public function testGetQrCodeDataUriCustomSize(): void
@@ -549,7 +550,8 @@ class AuthenticatorTest extends TestCase
         $provUri = 'otpauth://totp/MyApp:user@example.com?secret=JBSWY3DPEHPK3PXP';
         $qrUri = Authenticator::getQrCodeDataUri($provUri, 300);
 
-        $this->assertStringContainsString('300x300', $qrUri);
+        // Returns provisioning URI regardless of size parameter (local QR library needed)
+        $this->assertSame($provUri, $qrUri);
     }
 
     // ==================== BACKUP CODES ====================

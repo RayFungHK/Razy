@@ -137,7 +137,14 @@ class OAuth2
      */
     public function setAuthorizeUrl(string $url): self
     {
-        $this->authorizeUrl = \trim($url);
+        $url = \trim($url);
+
+        // Warn if not HTTPS — OAuth endpoints should use TLS
+        if ($url !== '' && !\str_starts_with($url, 'https://')) {
+            \trigger_error('OAuth2 authorize URL should use HTTPS: ' . $url, E_USER_WARNING);
+        }
+
+        $this->authorizeUrl = $url;
         return $this;
     }
 
@@ -150,7 +157,14 @@ class OAuth2
      */
     public function setTokenUrl(string $url): self
     {
-        $this->tokenUrl = \trim($url);
+        $url = \trim($url);
+
+        // Warn if not HTTPS — OAuth endpoints should use TLS
+        if ($url !== '' && !\str_starts_with($url, 'https://')) {
+            \trigger_error('OAuth2 token URL should use HTTPS: ' . $url, E_USER_WARNING);
+        }
+
+        $this->tokenUrl = $url;
         return $this;
     }
 
@@ -188,6 +202,29 @@ class OAuth2
     public function getState(): ?string
     {
         return $this->state;
+    }
+
+    /**
+     * Verify the state parameter from the OAuth callback against the stored state.
+     * This MUST be called before exchanging the authorization code to prevent CSRF attacks.
+     *
+     * @param string $callbackState The state parameter received in the OAuth callback
+     *
+     * @return bool True if the state matches
+     *
+     * @throws InvalidArgumentException If no state was set or states don't match
+     */
+    public function verifyState(string $callbackState): bool
+    {
+        if ($this->state === null) {
+            throw new InvalidArgumentException('No state token was set. Call setState() or getAuthorizationUrl() first.');
+        }
+
+        if (!\hash_equals($this->state, $callbackState)) {
+            throw new InvalidArgumentException('OAuth2 state mismatch: possible CSRF attack.');
+        }
+
+        return true;
     }
 
     /**
@@ -306,6 +343,9 @@ class OAuth2
         // Initialize cURL with Bearer token authentication
         $ch = \curl_init($url);
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $accessToken,
             'Accept: application/json',
@@ -360,6 +400,9 @@ class OAuth2
         // Initialize cURL for POST with form-encoded parameters (standard OAuth2 token exchange)
         $ch = \curl_init($url);
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         \curl_setopt($ch, CURLOPT_POST, true);
         \curl_setopt($ch, CURLOPT_POSTFIELDS, \http_build_query($params));
         \curl_setopt($ch, CURLOPT_HTTPHEADER, [

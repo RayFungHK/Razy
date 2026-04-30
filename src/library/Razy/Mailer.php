@@ -190,7 +190,8 @@ class Mailer
      */
     public function setHeader(string $key, string $value = ''): self
     {
-        $this->headers[$key] = \trim($value);
+        // Strip CRLF to prevent header injection attacks
+        $this->headers[\str_replace(["\r", "\n"], '', $key)] = \str_replace(["\r", "\n"], '', \trim($value));
 
         return $this;
     }
@@ -310,7 +311,7 @@ class Mailer
         $this->performSmtpHandshake($cryptoMethod);
 
         // Generate a unique MIME boundary for multipart message separation
-        $boundary = \md5(\uniqid((string) \microtime(true), true));
+        $boundary = \bin2hex(\random_bytes(16));
         $body = $this->buildMimeBody($boundary);
         $headers = $this->buildMimeHeaders($boundary);
 
@@ -355,16 +356,16 @@ class Mailer
     public function setProtocol(string $protocol): self
     {
         // Determine the standard SMTP port based on the protocol prefix
-        $protocol = \substr($this->protocol, 0, 3);
-        if ($protocol == 'ssl') {
+        $proto = \substr(\strtolower(\trim($protocol)), 0, 3);
+        if ($proto == 'ssl') {
             $this->port = 465; // SSL uses port 465
-        } elseif ($protocol == 'tls') {
+        } elseif ($proto == 'tls') {
             $this->port = 587; // TLS uses submission port 587
         } else {
             $this->port = 25;  // Plain SMTP uses port 25
         }
 
-        $this->protocol = \strtolower($protocol);
+        $this->protocol = \strtolower(\trim($protocol));
         return $this;
     }
 
@@ -464,7 +465,7 @@ class Mailer
      */
     private function formatAddress(string $address, string $name = ''): string
     {
-        return (!$name) ? $address : '"' . \addslashes($address) . '" <' . $name . '>';
+        return (!$name) ? $address : '"' . \addslashes($name) . '" <' . $address . '>';
     }
 
     /**
@@ -489,15 +490,24 @@ class Mailer
     private function resolveCryptoMethod(): int
     {
         // Map the configured protocol to the PHP stream crypto constant
+        // SSLv2/v3 constants may be unavailable in PHP 8.1+; use TLS instead
         $map = [
-            self::SECURE_SSLv2 => STREAM_CRYPTO_METHOD_SSLv2_CLIENT,
-            self::SECURE_SSLv23 => STREAM_CRYPTO_METHOD_SSLv23_CLIENT,
-            self::SECURE_SSLv3 => STREAM_CRYPTO_METHOD_SSLv3_CLIENT,
             self::SECURE_TLS => STREAM_CRYPTO_METHOD_TLS_CLIENT,
             self::SECURE_TLSv10 => STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT,
             self::SECURE_TLSv11 => STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT,
             self::SECURE_TLSv12 => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
         ];
+
+        // Conditionally include deprecated SSL methods if PHP still defines them
+        if (\defined('STREAM_CRYPTO_METHOD_SSLv2_CLIENT')) {
+            $map[self::SECURE_SSLv2] = STREAM_CRYPTO_METHOD_SSLv2_CLIENT;
+        }
+        if (\defined('STREAM_CRYPTO_METHOD_SSLv23_CLIENT')) {
+            $map[self::SECURE_SSLv23] = STREAM_CRYPTO_METHOD_SSLv23_CLIENT;
+        }
+        if (\defined('STREAM_CRYPTO_METHOD_SSLv3_CLIENT')) {
+            $map[self::SECURE_SSLv3] = STREAM_CRYPTO_METHOD_SSLv3_CLIENT;
+        }
 
         return $map[$this->protocol] ?? 0;
     }
@@ -556,11 +566,11 @@ class Mailer
             $this->setHeader('Reply-To', \implode(', ', $this->replyTo));
         }
 
-        if (!empty($this->cc)) {
+        if (!empty($this->carbonCopy)) {
             $this->setHeader('Cc', \implode(', ', $this->carbonCopy));
         }
 
-        if (!empty($this->bcc)) {
+        if (!empty($this->blindCarbonCopy)) {
             $this->setHeader('Bcc', \implode(', ', $this->blindCarbonCopy));
         }
 
@@ -626,8 +636,10 @@ class Mailer
                 }
 
                 $message .= '--' . $boundary . self::CRLF;
-                $message .= 'Content-Type: ' . $type . '; name="' . $filename . '"' . self::CRLF;
-                $message .= 'Content-Disposition: attachment; filename="' . $filename . '"' . self::CRLF;
+                // Sanitize filename for MIME headers to prevent header injection
+                $safeFilename = \str_replace(['"', "\r", "\n", '\\'], '', $filename);
+                $message .= 'Content-Type: ' . $type . '; name="' . $safeFilename . '"' . self::CRLF;
+                $message .= 'Content-Disposition: attachment; filename="' . $safeFilename . '"' . self::CRLF;
                 $message .= 'Content-Transfer-Encoding: base64' . self::CRLF . self::CRLF;
                 $message .= \chunk_split(\base64_encode($contents)) . self::CRLF;
             }
@@ -748,6 +760,8 @@ class Mailer
         }
 
         \file_put_contents($payloadPath, \json_encode($payload));
+        // Restrict permissions: only owner can read/write (contains credentials)
+        \chmod($payloadPath, 0o600);
         return $payloadPath;
     }
 

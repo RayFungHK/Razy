@@ -555,20 +555,26 @@ class WorkerLifecycleManager
             return null;
         }
 
-        $signal = RestartSignal::check($this->signalPath);
+        // Atomically claim the signal file by renaming it to a PID-specific path
+        // This prevents multiple workers from processing the same signal
+        $claimedPath = $this->signalPath . '.claimed.' . \getmypid();
+        if (!@\rename($this->signalPath, $claimedPath)) {
+            // File doesn't exist or another worker already claimed it
+            return null;
+        }
+
+        $signal = RestartSignal::check($claimedPath);
+        @\unlink($claimedPath);
+
         if ($signal === null) {
             return null;
         }
 
-        // Stale signals are auto-cleared
+        // Stale signals are discarded
         if (RestartSignal::isStale($signal)) {
             $this->log('Stale signal cleared');
-            RestartSignal::clear($this->signalPath);
             return null;
         }
-
-        // Clear the signal so other workers don't process it again
-        RestartSignal::clear($this->signalPath);
 
         $reason = $signal['reason'] ?? 'external signal';
 

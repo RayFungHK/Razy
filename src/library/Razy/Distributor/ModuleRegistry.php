@@ -21,6 +21,7 @@ use Razy\Exception\ModuleLoadException;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
 use Razy\ModuleInfo;
+use SplObjectStorage;
 
 /**
  * Class ModuleRegistry.
@@ -290,6 +291,52 @@ class ModuleRegistry
                 }
             }
         }
+    }
+
+    /**
+     * Return all unresolved await callbacks whose dependencies were never satisfied.
+     *
+     * Each entry is an associative array with:
+     *   - 'missing' => string[] — module codes that were never loaded
+     *
+     * @return array<int, array{missing: string[]}>
+     */
+    public function getUnresolvedAwaits(): array
+    {
+        $unresolved = [];
+        $seen = new SplObjectStorage();
+
+        foreach ($this->awaitList as $awaits) {
+            foreach ($awaits as $await) {
+                // Each await entity is shared by reference across multiple
+                // awaitList keys.  Use SplObjectStorage on the caller closure
+                // to deduplicate (the caller is always a unique Closure).
+                $closure = $await['caller'];
+                if ($seen->contains($closure)) {
+                    continue;
+                }
+                $seen->attach($closure);
+
+                $missing = \array_keys($await['required']);
+                if (\count($missing) > 0) {
+                    $unresolved[] = ['missing' => $missing];
+                }
+            }
+        }
+
+        return $unresolved;
+    }
+
+    /**
+     * Check if a module is in the loaded queue (passed initialization).
+     *
+     * @param string $moduleCode
+     *
+     * @return bool
+     */
+    public function isInQueue(string $moduleCode): bool
+    {
+        return isset($this->queue[$moduleCode]);
     }
 
     /**

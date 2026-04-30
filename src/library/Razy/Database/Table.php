@@ -49,6 +49,9 @@ class Table
     /** @var array<string, string[]> Composite index definitions keyed by index name */
     private array $groupIndexingList = [];
 
+    /** @var bool Whether the table collation has been updated */
+    private bool $collationUpdated = false;
+
     /** @var array{add: array, remove: array, modify: array} Pending ALTER TABLE column operations */
     private array $alterColumn = [
         'add' => [],
@@ -350,7 +353,7 @@ class Table
 
             if (\count($orgReference)) {
                 foreach ($orgReference as $column) {
-                    $name = $column->getReferenceColumn() || $column->getName();
+                    $name = $column->getReferenceColumn() ?: $column->getName();
                     $alterReferenceSyntax .= ', DROP FOREIGN KEY `' . $name . '`';
                 }
             }

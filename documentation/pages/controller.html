@@ -173,13 +173,17 @@
     <p>Execute an internal controller method by dot-path.</p>
 
     <h3 id="handshake"><code>handshake(string $modules, string $message = ''): bool</code></h3>
-    <p>Send a handshake to verify module availability or request access.</p>
+    <p>Send a handshake to verify module availability or request access. Calls <code>__onTouch()</code> on each target module. Returns <code>false</code> if any target rejects.</p>
+    <div class="callout callout-info"><strong>Note:</strong> Handshake is a convention-based trust signal. The <code>api()</code> method does <strong>not</strong> check handshake status &mdash; any module can call <code>api()</code> regardless of whether a handshake was performed. Override <code>__onTouch()</code> in the target module to implement custom access decisions.</div>
 
     <h3 id="registerpluginloader"><code>registerPluginLoader(int $flag = 0): self</code></h3>
     <p>Register this module as a plugin provider using <code>PLUGIN_*</code> bitflags. The framework looks in the module's <code>plugins/</code> directory for matching files.</p>
 
     <h3 id="other-methods">Other Utility Methods</h3>
     <table><thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead><tbody>
+      <tr><td><code>resolve(string $abstract)</code></td><td><code>mixed</code></td><td>Resolve a service from the DI Container</td></tr>
+      <tr><td><code>hasService(string $abstract)</code></td><td><code>bool</code></td><td>Check if a service is registered in the Container</td></tr>
+      <tr><td><code>hasModule(string $moduleCode)</code></td><td><code>bool</code></td><td>Check if a module is loaded and available (via <code>Module::hasModule()</code>). Use for optional integrations.</td></tr>
       <tr><td><code>getAssetPath()</code></td><td><code>string</code></td><td>Module's webassets URL base path (e.g. <code>{siteURL}/webassets/{alias}/{version}/</code>)</td></tr>
       <tr><td><code>getDataPath(string $module = '')</code></td><td><code>string</code></td><td>Per-distributor writable data directory. Filesystem path: <code>data/{domain}-{dist}/{module}</code>. Pass a module code to get that module's sub-folder, or empty for the distributor root.</td></tr>
       <tr><td><code>getDataPathURL(string $module = '')</code></td><td><code>string</code></td><td>URL to the data path: <code>{siteURL}/data/{module}</code>. Served via Apache rewrite rules that map to the filesystem data folder.</td></tr>

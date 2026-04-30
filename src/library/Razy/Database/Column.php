@@ -510,7 +510,7 @@ class Column
                 }
             } elseif ('collation' == $method) {
                 if (isset($this->parameters['collation']) && $this->parameters['collation']) {
-                    $parameters[] = 'collation(' . $this->parameters['charset'] . ')';
+                    $parameters[] = 'collation(' . $this->parameters['collation'] . ')';
                 }
             } elseif ('default' == $method) {
                 if (isset($this->parameters['default'])) {
@@ -702,7 +702,7 @@ class Column
                 }
 
                 // Parse comma-separated arguments inside parentheses
-                if ($matches[2] ?? '') {
+                if (isset($matches[2]) && '' !== $matches[2]) {
                     $parameters[$matches[1]] = [];
                     // Extract each argument: identifier, number, or quoted string
                     while (\preg_match('/^(?:\A|,)(\w+|(\d+(?:\.\d+)?)|(?<q>[\'"])((?:\\\.(*SKIP)|(?!\k<q>).)*)\k<q>)/', $matches[2], $extracted)) {
@@ -735,8 +735,8 @@ class Column
     {
         // Timestamp/Datetime columns support CURRENT_TIMESTAMP and ON UPDATE CURRENT_TIMESTAMP
         if ('TIMESTAMP' === $this->parameters['type'] || 'DATETIME' === $this->parameters['type']) {
-            $syntax = ' DEFAULT ' . (($this->parameters['default_current_timestamp']) ? 'CURRENT_TIMESTAMP' : 'NULL');
-            if ($this->parameters['auto_update_timestamp']) {
+            $syntax = ' DEFAULT ' . (($this->parameters['default_current_timestamp'] ?? false) ? 'CURRENT_TIMESTAMP' : 'NULL');
+            if ($this->parameters['auto_update_timestamp'] ?? false) {
                 $syntax .= ' ON UPDATE CURRENT_TIMESTAMP';
             }
             return $syntax;

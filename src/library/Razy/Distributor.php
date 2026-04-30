@@ -108,11 +108,12 @@ class Distributor implements DistributorInterface
         $this->folderPath = PathUtil::append(SITES_FOLDER, $distCode);
         $this->urlQuery = PathUtil::tidy($this->urlQuery, false, '/');
 
-        if (!$this->urlQuery) {
-            $this->urlQuery = '/';
+        if (!$this->urlQuery || !\str_starts_with($this->urlQuery, '/')) {
+            $this->urlQuery = '/' . \ltrim($this->urlQuery, '/');
         }
 
         $config = $this->loadAndValidateConfig();
+        $config = $this->resolveConfigMapping($config);
         $this->parseModuleRequirements($config);
         $this->parseDataMappings($config);
         $this->resolveModuleSourcePath($config);
@@ -122,6 +123,33 @@ class Distributor implements DistributorInterface
         $this->fallback = (bool) ($config['fallback'] ?? true);
 
         $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
+    }
+
+    /**
+     * Scan module directories without initializing controllers.
+     *
+     * Populates the module registry with scanned modules so their
+     * ModuleInfo (paths, codes, webasset directories) is available,
+     * but does NOT invoke require() or __onInit on any controller.
+     *
+     * Used by the rewrite rule compiler which only needs module metadata
+     * (paths, codes) to generate webasset and data mapping rules.
+     *
+     * @return $this
+     *
+     * @throws Error
+     * @throws Throwable
+     */
+    public function scanModules(): static
+    {
+        $modules = &$this->registry->getModulesRef();
+
+        $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules);
+        if ($this->globalModule) {
+            $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
+        }
+
+        return $this;
     }
 
     /**
@@ -223,7 +251,14 @@ class Distributor implements DistributorInterface
     public function setSession(): static
     {
         if (WEB_MODE) {
-            \session_set_cookie_params(0, '/', HOSTNAME);
+            \session_set_cookie_params([
+                'lifetime' => 0,
+                'path' => '/',
+                'domain' => HOSTNAME,
+                'secure' => !empty($_SERVER['HTTPS']),
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
             \session_name($this->code);
             \session_start();
         }
@@ -248,6 +283,16 @@ class Distributor implements DistributorInterface
 
         // Execute all await functions and notify ready
         $this->registry->processAwaits();
+
+        // Warn about unresolved await callbacks so developers know a dependency is missing
+        foreach ($this->registry->getUnresolvedAwaits() as $entry) {
+            \trigger_error(
+                'Razy: Unresolved await — the following module(s) were never loaded: '
+                . \implode(', ', $entry['missing']),
+                E_USER_WARNING,
+            );
+        }
+
         $this->registry->notifyReady();
 
         $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
@@ -296,8 +341,8 @@ class Distributor implements DistributorInterface
         }
 
         $this->urlQuery = PathUtil::tidy($urlQuery, false, '/');
-        if (!$this->urlQuery) {
-            $this->urlQuery = '/';
+        if (!$this->urlQuery || !\str_starts_with($this->urlQuery, '/')) {
+            $this->urlQuery = '/' . \ltrim($this->urlQuery, '/');
         }
 
         // Reset stale route metadata from previous request
@@ -407,8 +452,8 @@ class Distributor implements DistributorInterface
         }
 
         // Read process output, close pipes, and parse the JSON response
-        $output = \stream_get_contents($pipes[1]);
-        $error = \stream_get_contents($pipes[2]);
+        $output = \stream_get_contents($pipes[1], 10 * 1024 * 1024);
+        $error = \stream_get_contents($pipes[2], 1024 * 1024);
         \fclose($pipes[1]);
         \fclose($pipes[2]);
         \proc_close($process);
@@ -645,6 +690,63 @@ class Distributor implements DistributorInterface
         $this->code = $config['dist'];
 
         return $config;
+    }
+
+    /**
+     * Resolve config_mapping from dist.php to redirect the config folder based on the current domain and tag.
+     *
+     * The config_mapping array in dist.php maps domain (or domain@tag) keys to config folder identifiers:
+     * - 'identifier'       — resolves to SITES_FOLDER/{distCode}:{identifier}
+     * - '!/absolute/path'  — resolves to an absolute folder path
+     *
+     * Matching priority: exact domain@tag first, then domain-only fallback.
+     * If a match is found, folderPath is updated and dist.php is reloaded from the new folder.
+     *
+     * @param array $config The initial distributor configuration
+     *
+     * @return array The final configuration (reloaded from mapped folder, or original if no mapping matched)
+     *
+     * @throws ConfigurationException
+     */
+    private function resolveConfigMapping(array $config): array
+    {
+        $configMapping = $config['config_mapping'] ?? [];
+        if (!\is_array($configMapping) || empty($configMapping) || !$this->domain) {
+            return $config;
+        }
+
+        $domainName = $this->domain->getDomainName();
+        $matchKey = null;
+
+        // Try exact match with domain@tag first, then domain-only fallback
+        if (isset($configMapping[$domainName . '@' . $this->tag])) {
+            $matchKey = $domainName . '@' . $this->tag;
+        } elseif (isset($configMapping[$domainName])) {
+            $matchKey = $domainName;
+        }
+
+        if ($matchKey === null) {
+            return $config;
+        }
+
+        $mappedValue = $configMapping[$matchKey];
+        if (!\is_string($mappedValue) || \strlen(\trim($mappedValue)) === 0) {
+            return $config;
+        }
+
+        $mappedValue = \trim($mappedValue);
+
+        // Resolve the config folder path
+        if (\str_starts_with($mappedValue, '!')) {
+            // Absolute path override
+            $this->folderPath = PathUtil::fixPath(\substr($mappedValue, 1));
+        } else {
+            // Identifier-based: SITES_FOLDER/{distCode}:{identifier}
+            $this->folderPath = PathUtil::append(SITES_FOLDER, $this->distCode . ':' . $mappedValue);
+        }
+
+        // Reload config from the mapped folder
+        return $this->loadAndValidateConfig();
     }
 
     /**

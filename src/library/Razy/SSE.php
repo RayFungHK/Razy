@@ -78,11 +78,11 @@ class SSE
 
         // Optional SSE fields: event ID for client-side last-event tracking
         if ($id !== null) {
-            echo 'id: ' . $id . "\n";
+            echo 'id: ' . \str_replace(["\n", "\r"], '', $id) . "\n";
         }
         // Named event type for addEventListener() on the client
         if ($event !== null) {
-            echo 'event: ' . $event . "\n";
+            echo 'event: ' . \str_replace(["\n", "\r"], '', $event) . "\n";
         }
 
         // SSE requires each data line to be prefixed with 'data: '
@@ -137,6 +137,11 @@ class SSE
         // Configure cURL to stream response chunks directly to the client
         $ch = \curl_init($url);
         $method = \strtoupper(\trim($method));
+
+        // Restrict allowed protocols to prevent SSRF via file://, gopher://, etc.
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         // Disable cURL internal buffering so chunks are forwarded immediately
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);

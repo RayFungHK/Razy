@@ -668,6 +668,10 @@ class HttpClient
             \curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         }
 
+        // Protocol restriction: only allow HTTP and HTTPS to prevent SSRF via file://, gopher://, etc.
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+
         // Follow redirects
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
@@ -683,15 +687,18 @@ class HttpClient
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
         }
 
-        // Authentication
+        // Authentication — merge into $requestHeaders to avoid overwriting
         if ($this->bearerToken !== null) {
-            \curl_setopt($ch, CURLOPT_HTTPHEADER, \array_merge(
-                $requestHeaders,
-                ['Authorization: Bearer ' . $this->bearerToken],
-            ));
+            // Remove any existing Authorization header to prevent duplicates
+            $requestHeaders = \array_filter($requestHeaders, fn (string $h) => !\str_starts_with(\strtolower($h), 'authorization:'));
+            $requestHeaders[] = 'Authorization: Bearer ' . $this->bearerToken;
+            \curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
         }
 
         if ($this->basicAuth !== null) {
+            // Remove any existing Authorization header to prevent duplicates
+            $requestHeaders = \array_filter($requestHeaders, fn (string $h) => !\str_starts_with(\strtolower($h), 'authorization:'));
+            \curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
             \curl_setopt($ch, CURLOPT_USERPWD, $this->basicAuth['username'] . ':' . $this->basicAuth['password']);
         }
 
@@ -700,9 +707,19 @@ class HttpClient
             $this->applyBody($ch, $options['body'], $requestHeaders);
         }
 
-        // Custom cURL options
+        // Custom cURL options (filter out security-sensitive overrides)
+        $blockedOpts = [
+            CURLOPT_PROTOCOLS, CURLOPT_REDIR_PROTOCOLS,
+            CURLOPT_SSL_VERIFYPEER, CURLOPT_SSL_VERIFYHOST,
+            CURLOPT_FOLLOWLOCATION, CURLOPT_MAXREDIRS,
+            CURLOPT_PROXY, CURLOPT_HTTPPROXYTUNNEL,
+            CURLOPT_URL, CURLOPT_RETURNTRANSFER,
+            CURLOPT_RESOLVE,
+        ];
         foreach ($this->curlOptions as $opt => $val) {
-            \curl_setopt($ch, $opt, $val);
+            if (!\in_array($opt, $blockedOpts, true)) {
+                \curl_setopt($ch, $opt, $val);
+            }
         }
 
         // Before callback

@@ -42,6 +42,11 @@ use Razy\Notification\NotificationChannelInterface;
 class DatabaseChannel implements NotificationChannelInterface
 {
     /**
+     * Maximum number of in-memory records before oldest are evicted.
+     */
+    private const MAX_RECORDS = 10000;
+
+    /**
      * @var callable|null Custom store function
      */
     private $storeFn;
@@ -83,6 +88,11 @@ class DatabaseChannel implements NotificationChannelInterface
         ];
 
         $this->records[] = $record;
+
+        // Evict oldest records when cap is exceeded
+        if (\count($this->records) > self::MAX_RECORDS) {
+            $this->records = \array_slice($this->records, -self::MAX_RECORDS);
+        }
 
         if ($this->storeFn !== null) {
             ($this->storeFn)($record);

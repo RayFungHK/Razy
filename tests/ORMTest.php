@@ -1025,7 +1025,7 @@ class ORMTest extends TestCase
         ORM_TestUser::create($db, ['name' => 'Old2', 'email' => 'o2@test.com']);
 
         $affected = ORM_TestUser::query($db)
-            ->where('name*=:pattern', ['pattern' => 'Old%'])
+            ->where('name*=:pattern', ['pattern' => 'Old'])
             ->bulkUpdate(['name' => 'New']);
 
         $this->assertSame(2, $affected);
@@ -1046,7 +1046,7 @@ class ORMTest extends TestCase
         ORM_TestUser::create($db, ['name' => 'Del2', 'email' => 'd2@test.com']);
 
         $affected = ORM_TestUser::query($db)
-            ->where('name*=:pattern', ['pattern' => 'Del%'])
+            ->where('name*=:pattern', ['pattern' => 'Del'])
             ->bulkDelete();
 
         $this->assertSame(2, $affected);

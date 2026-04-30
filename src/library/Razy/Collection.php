@@ -14,6 +14,7 @@ namespace Razy;
 use ArrayObject;
 use Closure;
 use Razy\Collection\Processor;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -132,11 +133,15 @@ class Collection extends ArrayObject
     public function array(): array
     {
         // Recursively walk the data tree and convert any Collection instances to arrays
-        $recursion = function (&$aryData) use (&$recursion) {
+        $maxDepth = 64;
+        $recursion = function (&$aryData, int $depth = 0) use (&$recursion, $maxDepth) {
+            if ($depth >= $maxDepth) {
+                throw new RuntimeException('Collection::array() exceeded maximum recursion depth');
+            }
             foreach ($aryData as &$data) {
                 if ($data instanceof Collection) {
-                    $recursion($data);
-                    $data = $data->array();
+                    $recursion($data, $depth + 1);
+                    $data = (array) $data->getIterator();
                 }
             }
         };

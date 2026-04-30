@@ -400,7 +400,8 @@ class FileReaderTest extends TestCase
             new FileReader($fakePath);
             $this->fail('Expected FileException was not thrown');
         } catch (FileException $e) {
-            $this->assertStringContainsString($fakePath, $e->getMessage());
+            // Security fix: error messages no longer expose full file paths
+            $this->assertStringContainsString('does not exist', $e->getMessage());
         }
     }
 
@@ -419,7 +420,8 @@ class FileReaderTest extends TestCase
             $reader->append($fakePath);
             $this->fail('Expected FileException was not thrown');
         } catch (FileException $e) {
-            $this->assertStringContainsString($fakePath, $e->getMessage());
+            // Security fix: error messages no longer expose full file paths
+            $this->assertStringContainsString('does not exist', $e->getMessage());
         }
     }
 
@@ -438,7 +440,8 @@ class FileReaderTest extends TestCase
             $reader->prepend($fakePath);
             $this->fail('Expected FileException was not thrown');
         } catch (FileException $e) {
-            $this->assertStringContainsString($fakePath, $e->getMessage());
+            // Security fix: error messages no longer expose full file paths
+            $this->assertStringContainsString('does not exist', $e->getMessage());
         }
     }
 

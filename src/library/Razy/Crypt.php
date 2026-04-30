@@ -37,7 +37,7 @@ class Crypt
     public static function decrypt(string $encryptedText, string $key): string
     {
         // Auto-detect hex encoding and convert to raw binary
-        if (\preg_match('/^[a-z\d]+$/', $encryptedText)) {
+        if (\preg_match('/^[a-f\d]+$/i', $encryptedText)) {
             $encryptedText = \hex2bin($encryptedText);
         }
 
@@ -54,6 +54,9 @@ class Crypt
 
         // Decrypt the ciphertext using the extracted IV
         $decryptedText = \openssl_decrypt($cipherText, $cipher, $key, OPENSSL_RAW_DATA, $iv);
+        if ($decryptedText === false) {
+            return '';
+        }
 
         // Recompute HMAC over the ciphertext and verify against the stored HMAC
         $decryptedHmac = \hash_hmac('sha256', $cipherText, $key, true);
@@ -84,6 +87,9 @@ class Crypt
 
         // Encrypt plaintext with AES-256-CBC using raw binary output
         $cipherText = \openssl_encrypt($text, $cipher, $key, OPENSSL_RAW_DATA, $iv);
+        if ($cipherText === false) {
+            return '';
+        }
 
         // Compute HMAC-SHA256 over the ciphertext for integrity verification
         $hmac = \hash_hmac('sha256', $cipherText, $key, true);

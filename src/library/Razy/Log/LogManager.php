@@ -97,6 +97,11 @@ class LogManager implements LoggerInterface
     private array $buffer = [];
 
     /**
+     * @var int Maximum number of buffer entries before oldest entries are evicted
+     */
+    private int $maxBufferSize = 10000;
+
+    /**
      * @var bool Whether to keep entries in memory
      */
     private bool $bufferEnabled;
@@ -236,6 +241,11 @@ class LogManager implements LoggerInterface
                     'context' => $context,
                     'channel' => $channelName,
                 ];
+
+                // Evict oldest entries when buffer exceeds max size
+                if (\count($this->buffer) > $this->maxBufferSize) {
+                    $this->buffer = \array_slice($this->buffer, -$this->maxBufferSize);
+                }
             }
 
             foreach ($handlers as $handler) {

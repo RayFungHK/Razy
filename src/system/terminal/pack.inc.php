@@ -226,7 +226,7 @@ return function (string $moduleCode = '', string $version = '', string $outputPa
 
             if (\is_dir($assetsOutputPath)) {
                 // Remove existing
-                $this->removeDirectory($assetsOutputPath);
+                removeDirectory($assetsOutputPath);
             }
 
             \xcopy($assetsPath, $assetsOutputPath);

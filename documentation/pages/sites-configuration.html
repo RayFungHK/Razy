@@ -87,6 +87,10 @@
         <span class="hl-str">'secret'</span> <span class="hl-op">=></span> <span class="hl-str">'bridge-secret'</span>,
         <span class="hl-str">'path'</span> <span class="hl-op">=></span> <span class="hl-str">'/__internal/bridge'</span>,
     ],
+    <span class="hl-str">'config_mapping'</span> <span class="hl-op">=></span> [                <span class="hl-cmt">// Per-domain config folder override</span>
+        <span class="hl-str">'localhost'</span> <span class="hl-op">=></span> <span class="hl-str">'local'</span>,           <span class="hl-cmt">// sites/mysite:local/dist.php</span>
+        <span class="hl-str">'example.com@v2'</span> <span class="hl-op">=></span> <span class="hl-str">'prod'</span>,     <span class="hl-cmt">// sites/mysite:prod/dist.php</span>
+    ],
 ];</code></pre>
     <table>
       <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
@@ -100,6 +104,7 @@
         <tr><td><code>fallback</code></td><td><code>bool</code></td><td>When <code>true</code> (default), unmatched requests are forwarded to <code>index.php</code> for PHP route matching. When <code>false</code>, unmatched requests return 404 at the server level.</td></tr>
         <tr><td><code>data_mapping</code></td><td><code>array</code></td><td>Cross-site data folder redirection. Maps URL path prefixes to another distributor's data folder. Format: <code>'/path' => 'domain.com:dist_code'</code>. Without this, data URLs resolve to the current distributor's own <code>data/{domain}-{code}/</code> folder.</td></tr>
         <tr><td><code>internal_bridge</code></td><td><code>array</code></td><td>Cross-distributor communication bridge settings</td></tr>
+        <tr><td><code>config_mapping</code></td><td><code>array</code></td><td>Per-domain config folder override. Maps <code>'domain'</code> or <code>'domain@tag'</code> to a config folder identifier (<code>SITES_FOLDER/{dist}:{id}</code>) or an absolute path prefixed with <code>!</code>. When matched, <code>dist.php</code> is reloaded from the mapped folder.</td></tr>
       </tbody>
     </table>
 
@@ -115,6 +120,25 @@
       <li>The specified tag's entries override or supplement the defaults.</li>
     </ol>
     <p>This enables switching between development and production module versions without changing distributor code.</p>
+
+    <h2 id="config-mapping">Config Mapping</h2>
+    <p>When the same distributor code is reused across multiple domains, <code>dist.php</code> can include a <code>config_mapping</code> array to redirect each domain (and optionally tag) to a different configuration folder. This lets you share the same distributor logic while loading domain-specific settings.</p>
+    <pre><code><span class="hl-cmt">// sites/mysite/dist.php</span>
+<span class="hl-kw">return</span> [
+    <span class="hl-str">'dist'</span> <span class="hl-op">=></span> <span class="hl-str">'mysite'</span>,
+    <span class="hl-str">'modules'</span> <span class="hl-op">=></span> [ <span class="hl-cmt">/* ... */</span> ],
+    <span class="hl-str">'config_mapping'</span> <span class="hl-op">=></span> [
+        <span class="hl-str">'localhost'</span> <span class="hl-op">=></span> <span class="hl-str">'local'</span>,             <span class="hl-cmt">// sites/mysite:local/dist.php</span>
+        <span class="hl-str">'example.com@v2'</span> <span class="hl-op">=></span> <span class="hl-str">'prod'</span>,        <span class="hl-cmt">// sites/mysite:prod/dist.php</span>
+        <span class="hl-str">'staging.com'</span> <span class="hl-op">=></span> <span class="hl-str">'!/var/www/cfg'</span>,   <span class="hl-cmt">// absolute path override</span>
+    ],
+];</code></pre>
+    <p>Resolution rules:</p>
+    <ul>
+      <li><code>'identifier'</code> &mdash; resolves to <code>SITES_FOLDER/{dist}:{identifier}/dist.php</code>.</li>
+      <li><code>'!/absolute/path'</code> &mdash; resolves to <code>/absolute/path/dist.php</code>.</li>
+    </ul>
+    <p>Matching priority: <code>domain@tag</code> (exact) is checked first, then <code>domain</code> (any tag) as fallback. If no entry matches, the original <code>dist.php</code> config is used as-is.</p>
 
     <h2 id="cli-management">CLI Management</h2>
     <p>Use the Razy CLI to manage site mappings without editing files manually:</p>

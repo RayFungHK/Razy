@@ -37,6 +37,28 @@ use Phar;
 use Razy\Util\PathUtil;
 
 return function (string $repository = '', string $targetPath = '', ...$options) use (&$parameters) {
+    // Helper: fetch a URL safely with cURL (protocol-restricted, with timeout)
+    $safeFetchUrl = static function (string $url): string|false {
+        if (!\function_exists('curl_init')) {
+            return @\file_get_contents($url);
+        }
+        $ch = \curl_init($url);
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        $result = \curl_exec($ch);
+        $httpCode = (int) \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        \curl_close($ch);
+        if ($result === false || $httpCode !== 200) {
+            return false;
+        }
+        return $result;
+    };
+
     $this->writeLineLogging('{@s:bu}Repository Module Installer', true);
     $this->writeLineLogging('Download and install modules from GitHub or custom repositories', true);
     $this->writeLineLogging('', true);
@@ -261,7 +283,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             if ($repoUrl) {
                 // Fetch and display disclaimer.txt
                 $disclaimerUrl = $repoManager->buildRawUrl($repoUrl, $repoBranch, $moduleCode . '/disclaimer.txt');
-                $disclaimerContent = @\file_get_contents($disclaimerUrl);
+                $disclaimerContent = $safeFetchUrl($disclaimerUrl);
                 if ($disclaimerContent !== false && \trim($disclaimerContent)) {
                     $this->writeLineLogging('{@c:yellow}═══════════════════════════════════════════════════════════════{@reset}', true);
                     $this->writeLineLogging('{@c:yellow}                        DISCLAIMER{@reset}', true);
@@ -277,7 +299,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
                 // Fetch and require acceptance of terms.txt
                 $termsUrl = $repoManager->buildRawUrl($repoUrl, $repoBranch, $moduleCode . '/terms.txt');
-                $termsContent = @\file_get_contents($termsUrl);
+                $termsContent = $safeFetchUrl($termsUrl);
                 if ($termsContent !== false && \trim($termsContent)) {
                     $this->writeLineLogging('{@c:red}═══════════════════════════════════════════════════════════════{@reset}', true);
                     $this->writeLineLogging('{@c:red}                    TERMS AND CONDITIONS{@reset}', true);
@@ -347,7 +369,11 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             $ch = \curl_init($downloadUrl);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+            \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+            \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+            \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
             \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
 
             $pharContent = \curl_exec($ch);

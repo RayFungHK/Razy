@@ -105,7 +105,7 @@ class Database implements DatabaseInterface
         // Generate a random name if none provided
         $this->name = \trim($this->name);
         if (!$this->name) {
-            $this->name = 'Database_' . \sprintf('%04x%04x', \mt_rand(0, 0xffff), \mt_rand(0, 0xffff));
+            $this->name = 'Database_' . \sprintf('%04x%04x', \random_int(0, 0xffff), \random_int(0, 0xffff));
         }
     }
 
@@ -344,6 +344,11 @@ class Database implements DatabaseInterface
             throw new QueryException('View table name cannot be empty.');
         }
 
+        // Validate view table name is a safe SQL identifier (letters, digits, underscores)
+        if (!\preg_match('/^[a-zA-Z_]\w*$/', $viewTableName)) {
+            throw new QueryException('Invalid view table name: only letters, digits and underscores are allowed.');
+        }
+
         if ($statement->getType() !== 'select') {
             throw new QueryException('The type of the statement must be a select syntax');
         }
@@ -377,6 +382,12 @@ class Database implements DatabaseInterface
         if (!$tableName) {
             return false;
         }
+
+        // Validate table name is a safe SQL identifier
+        if (!\preg_match('/^[a-zA-Z_]\w*$/', $tableName)) {
+            return false;
+        }
+
         // Apply the configured table prefix
         $tableName = $this->prefix . $tableName;
 
@@ -436,7 +447,7 @@ class Database implements DatabaseInterface
      *
      * @return PDO The database adapter resource
      */
-    public function getDBAdapter(): PDO
+    public function getDBAdapter(): ?PDO
     {
         return $this->adapter;
     }

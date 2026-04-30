@@ -54,7 +54,7 @@ class FileHandler implements LogHandlerInterface
         private readonly string $filenamePattern = 'Y-m-d',
     ) {
         if (!\is_dir($this->directory)) {
-            \mkdir($this->directory, 0o775, true);
+            \mkdir($this->directory, 0o750, true);
         }
     }
 
@@ -72,7 +72,9 @@ class FileHandler implements LogHandlerInterface
 
         $levelUpper = \strtoupper($level);
         $channelTag = $channel !== '' ? "[{$channel}] " : '';
-        $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$message}";
+        // Sanitize message to prevent log injection via embedded newlines
+        $sanitizedMessage = \str_replace(["\r\n", "\r", "\n"], ' ', $message);
+        $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$sanitizedMessage}";
 
         // Append extra context
         $extra = $this->getExtraContext($context);

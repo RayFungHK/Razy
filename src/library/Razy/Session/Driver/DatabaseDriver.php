@@ -28,6 +28,7 @@
 
 namespace Razy\Session\Driver;
 
+use InvalidArgumentException;
 use PDO;
 use Razy\Contract\SessionDriverInterface;
 use Throwable;
@@ -57,6 +58,10 @@ class DatabaseDriver implements SessionDriverInterface
         private readonly PDO $pdo,
         private readonly string $table = self::DEFAULT_TABLE,
     ) {
+        // Validate table name to prevent SQL injection (only alphanumeric + underscore)
+        if (!\preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $this->table)) {
+            throw new InvalidArgumentException('Invalid session table name: ' . $this->table);
+        }
     }
 
     /**
@@ -93,7 +98,7 @@ class DatabaseDriver implements SessionDriverInterface
                 return [];
             }
 
-            $data = @\unserialize($row['data']);
+            $data = @\unserialize($row['data'], ['allowed_classes' => false]);
 
             return \is_array($data) ? $data : [];
         } catch (Throwable) {

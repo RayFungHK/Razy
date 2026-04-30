@@ -391,7 +391,7 @@ class Terminal
 
             try {
                 // Create directory
-                \mkdir($path, 0o777, true);
+                \mkdir($path, 0o755, true);
             } catch (Exception $e) {
                 return false;
             }

@@ -173,7 +173,7 @@ return function () {
             if ($result) {
                 $this->writeLineLogging('{@c:green}Processed one job successfully.{@reset}');
             } else {
-                $this->writeLineLogging('{@c:yellow}No jobs available in queue [{$queueName}].{@reset}');
+                $this->writeLineLogging("{@c:yellow}No jobs available in queue [{$queueName}].{@reset}");
             }
             break;
 

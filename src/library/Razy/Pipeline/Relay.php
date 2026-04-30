@@ -20,6 +20,7 @@ namespace Razy\Pipeline;
 
 use Exception;
 use Razy\Pipeline;
+use Throwable;
 
 /**
  * Broadcasts method calls to all Actions within a Pipeline.
@@ -54,7 +55,9 @@ class Relay
         foreach ($this->pipeline->getActions() as $action) {
             try {
                 \call_user_func_array([$action, $method], $arguments);
-            } catch (Exception) {
+            } catch (Throwable $e) {
+                // Log the exception instead of silently swallowing it
+                \error_log('[Razy\Pipeline\Relay] Exception in action ' . \get_class($action) . '::' . $method . ': ' . $e->getMessage());
             }
         }
         return $this;

@@ -97,11 +97,13 @@ class ApcuAdapter implements CacheInterface
      */
     public function clear(): bool
     {
+        if ($this->prefix === '') {
+            throw new \InvalidArgumentException('Cannot clear cache without a prefix to avoid wiping all APCu keys.');
+        }
+
         // Only clear keys with our prefix
         $iterator = new APCUIterator('/^' . \preg_quote($this->prefix, '/') . '/');
-        foreach ($iterator as $entry) {
-            \apcu_delete($entry['key']);
-        }
+        \apcu_delete($iterator);
 
         return true;
     }

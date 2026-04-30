@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [v1.0.2-beta](changelog/v1.0.2-beta.md) — 2026-02-28
+
+**Security Hardening & Package System** — Full security audit (44 fixes) and standalone package infrastructure.
+
+- Full codebase security audit: 4 critical, 10 high, 13 medium, 7 low — all resolved
+- SQL injection protection on dynamic table/view names (`Database.php`, `Statement.php`)
+- Unsafe deserialization blocked in `FileAdapter.php` (`allowed_classes => false`)
+- SSRF prevention: `CURLOPT_PROTOCOLS` restricted to HTTP/HTTPS in `HttpClient.php`
+- Secret exfiltration removed from `Authenticator.php` (Google Charts QR API → local `otpauth://` URI)
+- Dashboard token authentication, path traversal protection, CLI proxy hardening
+- Null byte rejection in `FileReader.php`, anchored CORS regex in `XHR.php`, OAuth2 state verification
+- New `PackageManifest`, `PackageRegistry`, `PackageRunner` classes for `.phar`-based standalone packages
+- `pkg` CLI command with `list`, `info`, `stop`, `install`, `publish`, `run` sub-commands
+- Dashboard package: 6-tab web UI, 15+ API endpoints, real-time monitoring
+- Standalone `publish` command removed — consolidated into `pkg publish`
+- Subdirectory URL prefix: `RELATIVE_ROOT` / `RAZY_URL_ROOT` use strict `DOCUMENT_ROOT` prefixing with `dirname(SCRIPT_NAME)` fallback so asset URLs (e.g. `getAssetPath()`) stay under paths like `https://localhost/abc/webassets/…`
+- 4,823 tests, 8,615 assertions, 0 failures, 87 skipped
+
 ## [v1.0.1-beta](changelog/v1.0.1-beta.md) — 2026-02-27
 
 **Worker Optimization & Tenant Isolation** — Performance and multi-vendor safety.

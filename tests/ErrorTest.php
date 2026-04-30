@@ -24,7 +24,7 @@ class ErrorTest extends TestCase
         Error::reset();
     }
 
-    // ?�?� Constructor ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Constructor ----------------------------------------
 
     public function testConstructorSetsMessage(): void
     {
@@ -64,7 +64,7 @@ class ErrorTest extends TestCase
         $this->assertInstanceOf(Exception::class, $e);
     }
 
-    // ?�?� configure debug / Reset ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- configure debug / Reset ----------------------------
 
     public function testConfigureDebugDoesNotThrow(): void
     {
@@ -90,7 +90,7 @@ class ErrorTest extends TestCase
         $this->assertSame('', Error::getCached());
     }
 
-    // ?�?� DebugConsoleWrite ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- DebugConsoleWrite ----------------------------------
 
     public function testDebugConsoleWriteAccumulatesMessages(): void
     {
@@ -104,7 +104,7 @@ class ErrorTest extends TestCase
         $this->assertTrue(true);
     }
 
-    // ?�?� GetCached ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- GetCached ------------------------------------------
 
     public function testGetCachedReturnsString(): void
     {
@@ -112,7 +112,7 @@ class ErrorTest extends TestCase
         $this->assertIsString($cached);
     }
 
-    // ?�?� Show404 ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Show404 --------------------------------------------
 
     public function testShow404ThrowsNotFoundException(): void
     {
@@ -121,14 +121,14 @@ class ErrorTest extends TestCase
         @Error::show404(); // suppress header warnings
     }
 
-    // ?�?� DEFAULT_HEADING constant ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- DEFAULT_HEADING constant ---------------------------
 
     public function testDefaultHeadingConstant(): void
     {
         $this->assertSame('There seems to is something wrong...', Error::DEFAULT_HEADING);
     }
 
-    // ?�?� Multiple resets ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Multiple resets ------------------------------------
 
     public function testMultipleResetsAreIdempotent(): void
     {
@@ -139,7 +139,7 @@ class ErrorTest extends TestCase
         $this->assertSame('', Error::getCached());
     }
 
-    // ?�?� Worker mode simulation ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Worker mode simulation -----------------------------
 
     public function testWorkerModeResetBetweenRequests(): void
     {
@@ -161,7 +161,7 @@ class ErrorTest extends TestCase
         $this->assertTrue(true);
     }
 
-    // ?�?� configure() ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- configure() ----------------------------------------
 
     public function testConfigureEnablesDebug(): void
     {
@@ -200,7 +200,7 @@ class ErrorTest extends TestCase
         $this->assertFalse(Error::isDebug());
     }
 
-    // ?�?� isDebug() ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- isDebug() ------------------------------------------
 
     public function testIsDebugDefaultsFalse(): void
     {
@@ -216,7 +216,7 @@ class ErrorTest extends TestCase
         $this->assertFalse(Error::isDebug());
     }
 
-    // ?�?� Reset clears debug ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+    // -- Reset clears debug ---------------------------------
 
     public function testResetClearsDebugFlag(): void
     {

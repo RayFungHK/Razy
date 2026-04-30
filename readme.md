@@ -3,7 +3,7 @@
 **A modular PHP framework for multi-site, multi-distributor application development.**
 
 [![CI](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml/badge.svg)](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.1--beta-blue.svg)](https://github.com/RayFungHK/Razy/releases)
+[![Version](https://img.shields.io/badge/version-1.0.2--beta-blue.svg)](https://github.com/RayFungHK/Razy/releases)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-4564_passing-success.svg)](#testing)
@@ -26,6 +26,7 @@ Razy lets you manage multiple websites, APIs, and services from a single codebas
 - [Module Lifecycle](#module-lifecycle)
 - [Core Concepts](#core-concepts)
 - [Package Management (Composer Integration)](#package-management-composer-integration)
+- [Standalone Package System](#standalone-package-system)
 - [Demo Modules](#demo-modules)
 - [Performance: Razy vs Laravel](#performance-razy-vs-laravel)
 - [Testing](#testing)
@@ -49,6 +50,7 @@ Razy lets you manage multiple websites, APIs, and services from a single codebas
 | **CLI Tooling** | 20+ commands — build, pack, publish, install from GitHub, interactive shell (`runapp`), bridge calls |
 | **Thread System** | Process-based concurrency via `ThreadManager` with spawn, await, and joinAll |
 | **Package Management** | Version-locked modules, Composer integration, phar distribution, repository publishing |
+| **Standalone Packages** | Run modules as CLI apps (.phar), exec/serve modes, dependency orchestration, inter-package API & events |
 | **Built-in Classes** | SSE, XHR (CORS), Mailer (SMTP), DOM builder, Crypt (AES-256), Collection, HashMap, YAML, OAuth2, Cache (PSR-16), Authenticator (TOTP/HOTP 2FA), FTPClient, SFTPClient, WebSocket |
 
 ---
@@ -83,6 +85,10 @@ composer install
 php build.php
 ```
 
+### Subdirectory installs (`https://host/your-prefix/`)
+
+If the application is not at the web root (for example `https://localhost/abc/` with files under `…/htdocs/abc/`), Razy builds `RAZY_URL_ROOT` and module asset URLs from `RELATIVE_ROOT`. The framework prefers the path of `SYSTEM_ROOT` relative to `DOCUMENT_ROOT`, and falls back to `dirname($_SERVER['SCRIPT_NAME'])` when those paths do not align (symlinks, mounts, or unusual server variables). Ensure your front controller (`index.php`) is invoked with a correct `SCRIPT_NAME` (typical Apache, nginx + PHP-FPM, and Caddy setups do). Rewrite rules should still map `/your-prefix/webassets/…` to the framework as documented.
+
 ## Quick Start
 
 ```bash
@@ -112,6 +118,37 @@ project/
         └── default/
             ├── package.php  # Package config (API name, requires)
             └── controller/  # Route handlers
+```
+
+### sites.inc.php examples
+
+Map domains to distributors in `sites.inc.php`:
+
+```php
+return [
+    'domains' => [
+        'example.com' => [
+            '/' => 'mysite@v2',                // standard mapping with tag
+        ],
+    ],
+];
+```
+
+### config_mapping in dist.php
+
+Reuse the same distributor across domains with different config folders:
+
+```php
+// sites/mysite/dist.php
+return [
+    'dist' => 'mysite',
+    'modules' => [ /* ... */ ],
+    'config_mapping' => [
+        'localhost'       => 'local',         // loads sites/mysite:local/dist.php
+        'example.com@v2'  => 'prod',          // loads sites/mysite:prod/dist.php
+        'staging.com'     => '!/var/www/cfg',  // absolute path override
+    ],
+];
 ```
 
 ---
@@ -351,6 +388,213 @@ Supports the same constraint syntax as Composer: `^1.0`, `~2.3`, `>=1.2.0`, `*`,
 
 ---
 
+## Standalone Package System
+
+Razy modules can run as **standalone CLI applications** — packaged as `.phar` archives and executed outside the web request lifecycle. This turns any module into a self-contained tool, background service, or migration script while retaining full access to Razy's module system, APIs, and events.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│  php Razy.phar pkg vendor/app                        │
+└──────────────────┬───────────────────────────────────┘
+                   │
+         ┌─────────▼──────────┐
+         │   PackageRunner    │  Orchestrates lifecycle
+         └─────────┬──────────┘
+                   │
+    ┌──────────────┼──────────────┐
+    ▼              ▼              ▼
+ Prerequisites  Dependencies   Execution
+ (Composer)     (on_depend)    (Standalone or Distributor)
+    │              │              │
+    │         ┌────┴─────┐       ▼
+    │         │ complete  │    ┌──────────────┐
+    │         │ healthchk │    │   Module +    │
+    │         │ load      │    │  PackageTrait │
+    │         └──────────┘    └───────┬──────┘
+    │                                 │
+    └─────────────────────────────────┘
+                   │
+        ┌──────────┼──────────┐
+        ▼          ▼          ▼
+    __onPackage  __onPackage  __onPackage
+      Start()     Exec()      Stop()
+```
+
+Two execution modes:
+
+| Mode | Behaviour | Hook |
+|------|-----------|------|
+| **exec** | Run-to-completion — exits with a code | `__onPackageExec()` |
+| **serve** | Long-running (HTTP, WebSocket, queue) — blocks until signal | `__onPackageServe()` |
+
+Two runtime modes:
+
+| Runtime | Flag | How modules load |
+|---------|------|------------------|
+| **Standalone** | _(default)_ | Single module + co-modules from `on_depend "load"` |
+| **Distributor** | `-d dist/module` | Full Distributor loads ALL dist modules; target module executes lifecycle |
+
+### razy.pkg.json
+
+Every package has a manifest at the archive root:
+
+```json
+{
+  "package_name": "my-api",
+  "version": "1.0.0",
+  "description": "My standalone package",
+  "mode": "exec",
+  "strict": false,
+  "on_depend": [
+    {"package": "db-setup", "wait": "complete"},
+    {"package": "cache-service", "wait": "healthcheck"},
+    {"package": "shared-lib", "wait": "load"}
+  ],
+  "healthcheck": {
+    "url": "http://localhost:8080/health",
+    "interval": 2,
+    "timeout": 30,
+    "start_period": 5
+  },
+  "prerequisite": {
+    "monolog/monolog": "^3.0"
+  }
+}
+```
+
+| Field | Purpose |
+|-------|---------|
+| `package_name` | Unique identifier (e.g., `my-api`, or `vendor/name` for dist mode) |
+| `version` | SemVer version string |
+| `mode` | `exec` (run-to-completion) or `serve` (long-running) |
+| `strict` | When `true`, serve mode binds to localhost only |
+| `on_depend` | Dependency orchestration — see below |
+| `healthcheck` | HTTP polling config for serve-mode packages |
+| `prerequisite` | Composer packages to auto-install |
+
+### Dependency Orchestration (`on_depend`)
+
+Packages can depend on other packages with three wait strategies:
+
+| Wait Mode | Behaviour |
+|-----------|-----------|
+| `"complete"` | Run the dependency as exec-mode, block until it exits successfully |
+| `"healthcheck"` | Spawn the dependency as serve-mode, poll its healthcheck URL until healthy |
+| `"load"` | Extract the dependency and inject it as a **co-module** into the same Standalone runtime — full API, events, and cross-module access |
+
+### PackageTrait — Lifecycle Hooks
+
+Add `PackageTrait` to any Controller to make it package-aware. All hooks use the reserved `__onPackage*` prefix — no conflict with module closures or routing methods.
+
+```php
+class MyController extends Controller
+{
+    use PackageTrait;
+
+    public function __onPackageStart(array $packageInfo): bool
+    {
+        // Register package API for co-modules to call
+        $this->registerPackageAPI('greet', fn(string $name) => "Hello, {$name}!");
+
+        // Subscribe to package events
+        $this->onPackageEvent('data:ready', fn(array $data) => $this->processData($data));
+
+        return true; // false aborts execution
+    }
+
+    public function __onPackageExec(array $packageInfo): int
+    {
+        // Core logic — return value is the process exit code
+        $this->emitPackageEvent('data:ready', ['key' => 'value']);
+        return 0;
+    }
+
+    public function __onPackageServe(array $packageInfo): void
+    {
+        // Long-running — start HTTP server, event loop, etc.
+        // This method should BLOCK until shutdown.
+    }
+
+    public function __onPackageStop(): void
+    {
+        // Cleanup: close connections, flush buffers
+    }
+
+    public function __onPackageHealthcheck(): bool
+    {
+        return true; // healthy
+    }
+}
+```
+
+| Hook | When | Return |
+|------|------|--------|
+| `__onPackageStart` | After prerequisites + dependencies resolve | `false` aborts execution |
+| `__onPackageExec` | Exec-mode entry point | `int` exit code (0 = success) |
+| `__onPackageServe` | Serve-mode entry point (blocks) | `void` |
+| `__onPackageStop` | On shutdown or stop signal | `void` |
+| `__onPackageHealthcheck` | Polled by dependents or `/_razy/health` | `bool` |
+
+### Package API & Package Events
+
+Separate from the Module API/Event system — these are **inter-package** communication channels for packages running in the same process (e.g., co-modules loaded via `on_depend "load"`).
+
+```php
+// Package A: register an API action
+$this->registerPackageAPI('transform', fn($input) => strtoupper($input));
+
+// Package B: call it
+$result = $this->callPackageAPI('vendor/a', 'transform', 'hello'); // "HELLO"
+
+// Events: pub/sub between packages
+$this->onPackageEvent('config:changed', fn($data) => $this->reload($data));
+$this->emitPackageEvent('config:changed', ['key' => 'timeout']);
+```
+
+### CLI Usage
+
+```bash
+# Run an exec-mode package
+php Razy.phar pkg migrate -- --fresh
+
+# Run a serve-mode package in background
+php Razy.phar pkg my-api --daemon
+
+# Run via Distributor (full module ecosystem)
+php Razy.phar pkg -d mysite/vendor/worker -- --queue=emails
+
+# List installed packages
+php Razy.phar pkg list
+
+# Show package details
+php Razy.phar pkg info my-api
+
+# Stop a running daemon
+php Razy.phar pkg stop my-api
+```
+
+### Dual Mode Detection
+
+A single Controller can serve both web requests and package execution:
+
+```php
+public function __onInit(Agent $agent): bool
+{
+    if (defined('RAZY_PACKAGE_MODE')) {
+        // Running as a standalone package
+        return true;
+    }
+
+    // Normal web mode — register routes, APIs, etc.
+    $agent->addLazyRoute(['dashboard' => 'dashboard']);
+    return true;
+}
+```
+
+---
+
 ## Demo Modules
 
 The [`demo_modules/`](demo_modules/) directory contains 22 production-ready reference modules organized by category:
@@ -389,6 +633,7 @@ All items for v1.0 are complete. The framework is in **beta** — APIs are stabl
 | ✅ | Rate limiting middleware |
 | ✅ | WebSocket server & client |
 | ✅ | Docker image & CI/CD pipeline |
+| ✅ | Standalone Package System (exec/serve, dependency orchestration, Package API/Events) |
 | ✅ | Comprehensive test suite (4,564 tests, 8,178 assertions) |
 
 ---

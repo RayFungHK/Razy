@@ -115,8 +115,10 @@ class ErrorRenderer
             }
 
             // Capture any buffered output before replacing with the error page
-            ErrorConfig::setCached(\ob_get_contents());
-            \ob_clean();
+            if (\ob_get_level() > 0) {
+                ErrorConfig::setCached(\ob_get_contents());
+                \ob_clean();
+            }
             echo $source->output();
             // Set the HTTP status code; default to 400 if code is non-numeric
             \http_response_code(\is_numeric($exception->getCode()) ? $exception->getCode() : 400);

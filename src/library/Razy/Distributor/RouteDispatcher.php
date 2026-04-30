@@ -183,11 +183,14 @@ class RouteDispatcher
             }
         }
 
-        $this->routes[$route] = [
+        // Include HTTP method in key to allow same-path routes with different methods
+        $routeKey = \strtoupper($method) . ':' . $route;
+        $this->routes[$routeKey] = [
             'module' => $module,
             'module_code' => $module->getModuleInfo()->getCode(),
             'path' => $path,
             'route' => $route,
+            'route_path' => $route,
             'type' => 'standard',
             'method' => \strtoupper($method),
             'compiled_regex' => self::compileRouteRegex($route),
@@ -201,7 +204,7 @@ class RouteDispatcher
 
         // Register named route if the path is a Route object with a name
         if ($path instanceof Route && $path->hasName()) {
-            $this->registerNamedRoute($path->getName(), $route);
+            $this->registerNamedRoute($path->getName(), $routeKey);
         }
 
         return $this;
@@ -220,11 +223,14 @@ class RouteDispatcher
     public function setShadowRoute(Module $module, string $route, ?Module $targetModule, string $path, string $method = '*'): static
     {
         if ($targetModule) {
-            $this->routes['/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
+            $routePath = '/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/');
+            $routeKey = \strtoupper($method) . ':' . $routePath;
+            $this->routes[$routeKey] = [
                 'module' => $module,
                 'target' => $targetModule,
                 'path' => $path,
                 'route' => $route,
+                'route_path' => $routePath,
                 'type' => 'lazy',
                 'method' => \strtoupper($method),
             ];
@@ -245,10 +251,13 @@ class RouteDispatcher
      */
     public function setLazyRoute(Module $module, string $route, string $path, string $method = '*'): static
     {
-        $this->routes['/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/')] = [
+        $routePath = '/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/');
+        $routeKey = \strtoupper($method) . ':' . $routePath;
+        $this->routes[$routeKey] = [
             'module' => $module,
             'path' => $path,
             'route' => $route,
+            'route_path' => $routePath,
             'type' => 'lazy',
             'method' => \strtoupper($method),
         ];
@@ -344,7 +353,9 @@ class RouteDispatcher
         }
 
         $routeKey = $this->namedRoutes[$name];
-        $url = self::substituteParams($routeKey, $params);
+        // Extract the URL path from the route key (strip method prefix like "GET:")
+        $routePath = $this->routes[$routeKey]['route_path'] ?? $routeKey;
+        $url = self::substituteParams($routePath, $params);
 
         if (!empty($query)) {
             $url .= '?' . \http_build_query($query);
@@ -415,13 +426,16 @@ class RouteDispatcher
         // Determine the current request method for HTTP method filtering
         $requestMethod = !CLI_MODE ? ($_SERVER['REQUEST_METHOD'] ?? 'GET') : 'CLI';
 
-        foreach ($list as $route => $data) {
+        foreach ($list as $routeKey => $data) {
             if (ModuleStatus::Loaded === $data['module']->getStatus()) {
                 // HTTP method filtering: skip if the route is restricted to a different method
                 $routeMethod = $data['method'] ?? '*';
                 if ($routeMethod !== '*' && $routeMethod !== $requestMethod) {
                     continue;
                 }
+
+                // Use stored route_path for URL matching (key may contain method prefix)
+                $route = $data['route_path'] ?? $routeKey;
 
                 if ($data['type'] === 'standard') {
                     // Use pre-compiled regex from registration time (P4 optimization)

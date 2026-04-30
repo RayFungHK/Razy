@@ -86,6 +86,12 @@ class Thread
     /** @var string The shell command executed (process mode only) */
     private string $command = '';
 
+    /** @var string|null Path to temp file to clean up when thread finishes */
+    private ?string $tempFile = null;
+
+    /** @var int Maximum combined stdout+stderr buffer size in bytes (default 10 MB) */
+    private int $maxOutputSize = 10485760;
+
     /**
      * Thread constructor.
      *
@@ -276,26 +282,44 @@ class Thread
 
     /**
      * Append a chunk of data to the stdout buffer.
+     * Silently truncates if the combined output exceeds maxOutputSize.
      *
      * @param string $chunk The output data to append
      */
     public function appendStdout(string $chunk): void
     {
         if ($chunk !== '') {
-            $this->stdout .= $chunk;
+            $remaining = $this->maxOutputSize - \strlen($this->stdout) - \strlen($this->stderr);
+            if ($remaining > 0) {
+                $this->stdout .= ($remaining >= \strlen($chunk)) ? $chunk : \substr($chunk, 0, $remaining);
+            }
         }
     }
 
     /**
      * Append a chunk of data to the stderr buffer.
+     * Silently truncates if the combined output exceeds maxOutputSize.
      *
      * @param string $chunk The error data to append
      */
     public function appendStderr(string $chunk): void
     {
         if ($chunk !== '') {
-            $this->stderr .= $chunk;
+            $remaining = $this->maxOutputSize - \strlen($this->stdout) - \strlen($this->stderr);
+            if ($remaining > 0) {
+                $this->stderr .= ($remaining >= \strlen($chunk)) ? $chunk : \substr($chunk, 0, $remaining);
+            }
         }
+    }
+
+    /**
+     * Set the maximum combined stdout+stderr buffer size.
+     *
+     * @param int $bytes Maximum size in bytes
+     */
+    public function setMaxOutputSize(int $bytes): void
+    {
+        $this->maxOutputSize = \max(0, $bytes);
     }
 
     /**
@@ -335,5 +359,36 @@ class Thread
     {
         $this->process = null;
         $this->pipes = [];
+    }
+
+    /**
+     * Set the path of a temporary file to clean up when the thread finishes.
+     *
+     * @param string $path Absolute path to the temp file
+     */
+    public function setTempFile(string $path): void
+    {
+        $this->tempFile = $path;
+    }
+
+    /**
+     * Get the temporary file path, if any.
+     *
+     * @return string|null
+     */
+    public function getTempFile(): ?string
+    {
+        return $this->tempFile;
+    }
+
+    /**
+     * Delete the temporary file if one was registered.
+     */
+    public function cleanupTempFile(): void
+    {
+        if ($this->tempFile !== null && \is_file($this->tempFile)) {
+            @\unlink($this->tempFile);
+        }
+        $this->tempFile = null;
     }
 }

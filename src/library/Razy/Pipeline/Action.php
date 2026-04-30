@@ -247,6 +247,15 @@ abstract class Action
     final public function adopt(self $child): static
     {
         if (!$this->children->has($child)) {
+            // Cycle detection: prevent adopting an ancestor as a child
+            $ancestor = $this->owner;
+            while ($ancestor instanceof self) {
+                if ($ancestor === $child) {
+                    return $this; // Would create a cycle
+                }
+                $ancestor = $ancestor->getOwner();
+            }
+
             if ($child->accept($this->actionType)) {
                 $this->children[] = $child;
                 if ($child->getOwner() !== $this) {

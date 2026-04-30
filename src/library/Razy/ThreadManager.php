@@ -16,6 +16,7 @@
 namespace Razy;
 
 use InvalidArgumentException;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -51,6 +52,20 @@ use Throwable;
  */
 class ThreadManager
 {
+    /**
+     * Environment variable names that must not be overridden via $options['env'].
+     * These can alter process/runtime behavior in security-sensitive ways.
+     */
+    private const BLOCKED_ENV_VARS = [
+        'LD_PRELOAD',
+        'LD_LIBRARY_PATH',
+        'DYLD_INSERT_LIBRARIES',
+        'DYLD_LIBRARY_PATH',
+        'PHPRC',
+        'PHP_INI_SCAN_DIR',
+        'PHP_INI_DIR',
+    ];
+
     /**
      * @var array<string, Thread> All managed threads indexed by ID
      */
@@ -146,6 +161,10 @@ class ThreadManager
      * Alternative to spawnPHPCode() that writes code to a temp file and executes it.
      * Useful for very long scripts or when base64 overhead is a concern.
      *
+     * Security: The temp file is created in a private directory with restrictive
+     * permissions (0600) and cleaned up deterministically when the thread finishes.
+     * A shutdown-function fallback ensures cleanup even on unexpected termination.
+     *
      * @param string $phpCode The PHP code to execute (without <?php tag)
      * @param string|null $phpPath Path to PHP executable (auto-detected if null)
      * @param array $options Additional options: cwd, env
@@ -154,20 +173,40 @@ class ThreadManager
      */
     public function spawnPHPFile(string $phpCode, ?string $phpPath = null, array $options = []): Thread
     {
-        // Create temporary PHP file
-        $tempFile = \tempnam(\sys_get_temp_dir(), 'razy_thread_');
-        $tempFile = $tempFile . '.php';
-        \file_put_contents($tempFile, '<?php ' . $phpCode);
+        // Use the provided PHP path or fall back to current binary
+        if ($phpPath === null) {
+            $phpPath = $this->findPHPExecutable();
+        }
 
-        // Store temp file path for cleanup
-        $options['_tempFile'] = $tempFile;
+        // Create a private temp directory to isolate temp files from other users
+        $privateTmpDir = $this->getPrivateTempDir();
 
-        $thread = $this->spawnProcessCommand(PHP_BINARY, [$tempFile], $options);
+        // Generate a cryptographically random filename to prevent prediction
+        $phpFile = $privateTmpDir . DIRECTORY_SEPARATOR . 'razy_' . \bin2hex(\random_bytes(12)) . '.php';
 
-        // Register cleanup callback (will be called when thread finishes)
-        \register_shutdown_function(function () use ($tempFile) {
-            if (\file_exists($tempFile)) {
-                @\unlink($tempFile);
+        // Write to a staging file first, set permissions, then rename atomically
+        $stagingFile = $phpFile . '.staging';
+        if (@\file_put_contents($stagingFile, '<?php ' . $phpCode, LOCK_EX) === false) {
+            @\unlink($stagingFile);
+            throw new RuntimeException('Failed to write temporary PHP file for thread execution.');
+        }
+        \chmod($stagingFile, 0o600);
+
+        // Atomic move to final path — prevents TOCTOU between write and execution
+        if (!@\rename($stagingFile, $phpFile)) {
+            @\unlink($stagingFile);
+            throw new RuntimeException('Failed to finalize temporary PHP file for thread execution.');
+        }
+
+        $thread = $this->spawnProcessCommand($phpPath, [$phpFile], $options);
+
+        // Register temp file on the Thread for deterministic cleanup on finish
+        $thread->setTempFile($phpFile);
+
+        // Fallback: shutdown function cleans up if process is killed unexpectedly
+        \register_shutdown_function(static function () use ($phpFile) {
+            if (\is_file($phpFile)) {
+                @\unlink($phpFile);
             }
         });
 
@@ -195,7 +234,7 @@ class ThreadManager
         $spec = [
             'command' => $this->buildCommand($command, $args),
             'cwd' => $options['cwd'] ?? null,
-            'env' => $options['env'] ?? null,
+            'env' => $this->filterEnv($options['env'] ?? null),
         ];
 
         // If concurrency limit reached, queue the thread for later execution
@@ -233,6 +272,9 @@ class ThreadManager
         if ($thread->getMode() === Thread::MODE_PROCESS) {
             $this->pollProcess($thread, $timeoutMs);
         }
+
+        // Prune completed threads to prevent unbounded memory growth
+        $this->pruneCompleted();
 
         if ($thread->getStatus() === Thread::STATUS_FAILED) {
             return null;
@@ -306,6 +348,30 @@ class ThreadManager
     }
 
     /**
+     * Get or create a private temporary directory for this process.
+     *
+     * Creates a subdirectory under sys_get_temp_dir() with 0700 permissions,
+     * readable only by the current process owner. This prevents other local
+     * users from reading/replacing temporary PHP files (symlink attack defense).
+     *
+     * @return string Absolute path to the private temp directory
+     *
+     * @throws RuntimeException If the directory cannot be created
+     */
+    private function getPrivateTempDir(): string
+    {
+        $dir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_threads_' . \getmypid();
+        if (!\is_dir($dir)) {
+            if (!@\mkdir($dir, 0o700, true) && !\is_dir($dir)) {
+                throw new RuntimeException('Failed to create private temp directory: ' . $dir);
+            }
+            \chmod($dir, 0o700);
+        }
+
+        return $dir;
+    }
+
+    /**
      * Count how many threads are currently running in process mode.
      *
      * @return int
@@ -320,6 +386,20 @@ class ThreadManager
         }
 
         return $count;
+    }
+
+    /**
+     * Remove completed/failed threads from the internal map to prevent unbounded memory growth.
+     * Keeps only threads that are still pending or running.
+     */
+    private function pruneCompleted(): void
+    {
+        foreach ($this->threads as $id => $thread) {
+            $status = $thread->getStatus();
+            if ($status === Thread::STATUS_COMPLETED || $status === Thread::STATUS_FAILED) {
+                unset($this->threads[$id]);
+            }
+        }
     }
 
     /**
@@ -452,7 +532,8 @@ class ThreadManager
     }
 
     /**
-     * Finalize a completed process: collect remaining output, close pipes, and resolve/fail.
+     * Finalize a completed process: collect remaining output, close pipes,
+     * clean up temp files, and resolve/fail.
      *
      * @param Thread $thread The completed thread
      * @param array $status Process status from proc_get_status
@@ -461,6 +542,7 @@ class ThreadManager
     {
         $this->collectProcessOutput($thread);
         $this->closePipes($thread);
+        $thread->cleanupTempFile();
         $exitCode = $status['exitcode'] ?? null;
         $thread->setExitCode($exitCode);
 
@@ -494,6 +576,7 @@ class ThreadManager
 
         $this->collectProcessOutput($thread);
         $this->closePipes($thread);
+        $thread->cleanupTempFile();
         $thread->setExitCode(null);
         $thread->setResult([
             'stdout' => $thread->getStdout(),
@@ -563,5 +646,47 @@ class ThreadManager
         }, $args);
 
         return $command . ' ' . \implode(' ', $escaped);
+    }
+
+    /**
+     * Filter environment variables, removing security-sensitive overrides.
+     *
+     * Blocks env vars that could alter the PHP runtime (PHPRC, PHP_INI_SCAN_DIR)
+     * or inject shared libraries (LD_PRELOAD, DYLD_INSERT_LIBRARIES).
+     *
+     * @param array|null $env User-supplied environment variables
+     *
+     * @return array|null Filtered env, or null if nothing was provided
+     */
+    private function filterEnv(?array $env): ?array
+    {
+        if ($env === null) {
+            return null;
+        }
+
+        foreach (self::BLOCKED_ENV_VARS as $blocked) {
+            unset($env[$blocked]);
+        }
+
+        return $env;
+    }
+
+    /**
+     * Auto-detect the PHP executable path.
+     *
+     * Uses PHP_BINARY (the running PHP binary) as the canonical source.
+     *
+     * @return string Path to the PHP executable
+     *
+     * @throws RuntimeException If the PHP binary cannot be determined
+     */
+    private function findPHPExecutable(): string
+    {
+        $binary = PHP_BINARY;
+        if (!\is_file($binary)) {
+            throw new RuntimeException('Unable to determine PHP executable path.');
+        }
+
+        return $binary;
     }
 }

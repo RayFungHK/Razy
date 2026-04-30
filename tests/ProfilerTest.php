@@ -97,8 +97,8 @@ class ProfilerTest extends TestCase
             'user_mode_time',
             'system_mode_time',
             'execution_time',
-            'defined_functions',
-            'declared_classes',
+            'defined_functions_count',
+            'declared_classes_count',
         ];
         foreach ($expectedKeys as $key) {
             $this->assertArrayHasKey($key, $report, "Missing key: $key");
@@ -226,8 +226,9 @@ class ProfilerTest extends TestCase
         $profiler->checkpoint('after_class');
 
         $report = $profiler->report();
-        $this->assertArrayHasKey('declared_classes', $report);
-        $this->assertIsArray($report['declared_classes']);
+        $this->assertArrayHasKey('declared_classes_count', $report);
+        $this->assertIsInt($report['declared_classes_count']);
+        $this->assertGreaterThanOrEqual(0, $report['declared_classes_count']);
     }
 
     // ─── Multiple independent profilers ────────────────────

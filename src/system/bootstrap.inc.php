@@ -26,11 +26,18 @@ use Throwable;
 // Remove the X-Powered-By header for security
 \header_remove('X-Powered-By');
 
+// Ensure LC_CTYPE is UTF-8 aware so that escapeshellarg() and other C-locale
+// dependent functions do not silently strip non-ASCII bytes (e.g. IDN hostnames,
+// UTF-8 file paths).  Multiple candidates are tried — the first one recognised
+// by the OS wins.  Windows ignores LC_CTYPE for escapeshellarg (uses its own
+// double-quote wrapping), so this is mainly a Linux/macOS safeguard.
+\setlocale(LC_CTYPE, 'C.UTF-8', 'en_US.UTF-8', 'UTF-8', '');
+
 // Pre-load utility classes that are needed before the autoloader is registered
 require_once PHAR_PATH . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR . 'Razy' . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'PathUtil.php';
 
 // Define core framework constants for versioning and directory paths
-\define('RAZY_VERSION', '1.0.1-beta');
+\define('RAZY_VERSION', '1.0.2-beta');
 \define('PLUGIN_FOLDER', PathUtil::append(SYSTEM_ROOT, 'plugins'));
 \define('PHAR_PLUGIN_FOLDER', PathUtil::append(PHAR_PATH, 'plugins'));
 \define('SITES_FOLDER', PathUtil::append(SYSTEM_ROOT, 'sites'));
@@ -76,10 +83,44 @@ if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
 
     // Declare `HOSTNAME`
     // The hostname, if the REQUEST PATH is http://yoursite.com:8080/Razy, the HOSTNAME will declare as yoursite.com
-    \define('HOSTNAME', $_SERVER['SERVER_NAME'] ?? 'UNKNOWN');
+    $rawHost = $_SERVER['SERVER_NAME'] ?? 'UNKNOWN';
+    // Strip any characters that are not valid in a hostname to prevent host-header injection
+    \define('HOSTNAME', \preg_replace('/[^a-zA-Z0-9.\-]/', '', $rawHost));
 
-    // Declare `RELATIVE_ROOT`
-    \define('RELATIVE_ROOT', \preg_replace('/\\\+/', '/', \substr(SYSTEM_ROOT, \strpos(SYSTEM_ROOT, $_SERVER['DOCUMENT_ROOT']) + \strlen($_SERVER['DOCUMENT_ROOT']))));
+    // Declare `RELATIVE_ROOT` — URL path from the web server's document root to
+    // SYSTEM_ROOT (e.g. "/abc" for https://localhost/abc/ when the project lives in
+    // htdocs/abc/). Used for RAZY_URL_ROOT, getAssetPath(), and REQUEST_URI parsing.
+    //
+    // Primary: DOCUMENT_ROOT must be a strict path prefix of SYSTEM_ROOT.
+    // Fallback: dirname(SCRIPT_NAME) when paths do not align (symlinks, bind mounts,
+    // some proxies, or DOCUMENT_ROOT not set) so subdirectory installs still resolve
+    // https://localhost/abc/webassets/... instead of https://localhost/webassets/...
+    $docRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+    $normalizedSystemRoot = \str_replace('\\', '/', SYSTEM_ROOT);
+    $docPrefix = \rtrim(\str_replace('\\', '/', $docRoot), '/');
+
+    $relativeFromFs = '';
+    if ($docPrefix !== '') {
+        $underDoc = $normalizedSystemRoot === $docPrefix
+            || \str_starts_with($normalizedSystemRoot, $docPrefix . '/');
+        if ($underDoc) {
+            $tail = \substr($normalizedSystemRoot, \strlen($docPrefix));
+            $tail = '/' . \trim($tail, '/');
+            $relativeFromFs = ($tail === '/') ? '' : $tail;
+        }
+    }
+
+    $relativeFromScript = '';
+    $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+    if ($scriptName !== '') {
+        $dir = \dirname(\str_replace('\\', '/', $scriptName));
+        if ($dir !== '/' && $dir !== '.' && $dir !== '\\') {
+            $relativeFromScript = '/' . \trim($dir, '/');
+        }
+    }
+
+    $relativeRoot = $relativeFromFs !== '' ? $relativeFromFs : $relativeFromScript;
+    \define('RELATIVE_ROOT', $relativeRoot);
 
     // Declare `PORT`
     // The protocol, if the REQUEST PATH is http://yoursite.com:8080/Razy, the PORT will declare as 8080
@@ -92,7 +133,7 @@ if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
     // Declare `RAZY_URL_ROOT`
     \define('RAZY_URL_ROOT', PathUtil::append(SITE_URL_ROOT, RELATIVE_ROOT));
 
-    // Declare `RAZY_URL_ROOT`
+    // Declare `SCRIPT_URL` (absolute URL of the current request path, without query string)
     \define('SCRIPT_URL', PathUtil::append(SITE_URL_ROOT, \strtok($_SERVER['REQUEST_URI'], '?')));
 
     // Declare `URL_QUERY` & `FULL_URL_QUERY`
@@ -194,7 +235,7 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
     }
 
     if (!\is_dir($dest)) {
-        \mkdir($dest, 0777, true);
+        \mkdir($dest, 0755, true);
     }
 
     if (!$unpacked) {
@@ -213,7 +254,7 @@ function xcopy(string $source, string $dest, string $pattern = '', ?array &$unpa
                         } else {
                             if (!$pattern || \preg_match('/^' . \preg_quote($pattern) . '$/', PathUtil::append($dest, $path))) {
                                 if (!\is_dir(PathUtil::append($dest, $path))) {
-                                    \mkdir(PathUtil::append($dest, $path), 0777, true);
+                                    \mkdir(PathUtil::append($dest, $path), 0755, true);
                                 }
 
                                 $unpacked[PathUtil::append($source, $item)] = PathUtil::append($dest, $path, $item);

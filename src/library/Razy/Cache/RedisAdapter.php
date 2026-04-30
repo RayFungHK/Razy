@@ -122,9 +122,7 @@ class RedisAdapter implements CacheInterface
     public function clear(): bool
     {
         if ($this->prefix === '') {
-            $this->redis->flushDB();
-
-            return true;
+            throw new InvalidArgumentException('Cannot clear cache without a prefix — flushDB is too dangerous.');
         }
 
         // Delete only keys with our prefix
@@ -284,6 +282,8 @@ class RedisAdapter implements CacheInterface
      */
     private function unserializeValue(string $value): mixed
     {
-        return \unserialize($value);
+        $result = @\unserialize($value, ['allowed_classes' => false]);
+
+        return $result !== false ? $result : null;
     }
 }

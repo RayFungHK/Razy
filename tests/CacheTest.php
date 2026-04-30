@@ -8,6 +8,7 @@
 
 namespace Razy\Tests;
 
+use __PHP_Incomplete_Class;
 use DateInterval;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -165,9 +166,9 @@ class CacheTest extends TestCase
         $adapter->set('obj.key', $obj);
         $result = $adapter->get('obj.key');
 
-        $this->assertInstanceOf(stdClass::class, $result);
-        $this->assertSame('test', $result->name);
-        $this->assertSame(123, $result->value);
+        // Security fix: object deserialization is blocked (allowed_classes => false)
+        // Objects are returned as __PHP_Incomplete_Class to prevent deserialization attacks
+        $this->assertInstanceOf(__PHP_Incomplete_Class::class, $result);
     }
 
     // ==================== FILE ADAPTER: TTL ====================

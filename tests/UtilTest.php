@@ -784,8 +784,10 @@ class UtilTest extends TestCase
     public function testGetIPFromClientIp(): void
     {
         $original = $_SERVER;
+        // HTTP_CLIENT_IP is no longer trusted; only REMOTE_ADDR is used
         $_SERVER['HTTP_CLIENT_IP'] = '192.168.1.100';
-        $this->assertSame('192.168.1.100', NetworkUtil::getIP());
+        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        $this->assertSame('127.0.0.1', NetworkUtil::getIP());
         $_SERVER = $original;
     }
 
@@ -793,8 +795,10 @@ class UtilTest extends TestCase
     {
         $original = $_SERVER;
         unset($_SERVER['HTTP_CLIENT_IP']);
+        // HTTP_X_FORWARDED_FOR is no longer trusted; only REMOTE_ADDR is used
         $_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.50';
-        $this->assertSame('203.0.113.50', NetworkUtil::getIP());
+        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        $this->assertSame('127.0.0.1', NetworkUtil::getIP());
         $_SERVER = $original;
     }
 

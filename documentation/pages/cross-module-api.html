@@ -99,6 +99,54 @@
       <li>Keep API commands focused and well-named to serve as a stable contract between modules.</li>
     </ul>
 
+    <h2 id="await">Deferred API Access with <code>await()</code></h2>
+    <p>During <code>__onInit()</code>, other modules may not be loaded yet. Calling <code>$this-&gt;api()</code> at this stage can fail because the target module hasn&rsquo;t reached <code>Loaded</code> status. Use <code>await()</code> to defer cross-module setup:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onInit</span>(<span class="hl-cls">Agent</span> <span class="hl-var">$agent</span>): <span class="hl-cls">bool</span>
+{
+    <span class="hl-var">$agent</span>-&gt;<span class="hl-fn">addRoute</span>(<span class="hl-str">'/'</span>, <span class="hl-str">'index'</span>);
+
+    <span class="hl-cmt">// Defer: target module may not be loaded yet during __onInit</span>
+    <span class="hl-var">$this</span>-&gt;<span class="hl-var">module</span>-&gt;<span class="hl-fn">await</span>(<span class="hl-str">'vendor/target_module'</span>, <span class="hl-kw">function</span>() {
+        <span class="hl-cmt">// 'this' is bound to your controller</span>
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">api</span>(<span class="hl-str">'vendor/target_module'</span>)-&gt;<span class="hl-fn">registerHook</span>(<span class="hl-var">$this</span>-&gt;<span class="hl-fn">getModuleCode</span>());
+    });
+
+    <span class="hl-kw">return true</span>;
+}</code></pre>
+    <p><strong>Multi-module await</strong> &mdash; wait for several modules at once:</p>
+    <pre><code><span class="hl-var">$this</span>-&gt;<span class="hl-var">module</span>-&gt;<span class="hl-fn">await</span>(<span class="hl-str">'mod_a,mod_b'</span>, <span class="hl-kw">function</span>() {
+    <span class="hl-cmt">// Fires only when BOTH mod_a and mod_b are loaded</span>
+    <span class="hl-var">$this</span>-&gt;<span class="hl-fn">api</span>(<span class="hl-str">'mod_a'</span>)-&gt;<span class="hl-fn">connect</span>(<span class="hl-var">$this</span>-&gt;<span class="hl-fn">api</span>(<span class="hl-str">'mod_b'</span>));
+});</code></pre>
+    <p>Await callbacks execute during <code>processAwaits()</code> &mdash; after <code>__onRequire()</code> but before <code>__onReady()</code>.</p>
+    <div class="callout callout-warning">
+      <strong>Unresolved awaits:</strong> If a target module is never loaded, the await callback silently never fires and the framework emits an <code>E_USER_WARNING</code> with the missing module codes. Check your error log for <code>"Razy: Unresolved await"</code> messages.
+    </div>
+
+    <h2 id="has-module">Checking Module Availability with <code>hasModule()</code></h2>
+    <p>For <strong>optional</strong> integrations where you want to enhance functionality if a module exists but not fail if absent:</p>
+    <pre><code><span class="hl-kw">public function</span> <span class="hl-fn">__onReady</span>(): <span class="hl-cls">void</span>
+{
+    <span class="hl-kw">if</span> (<span class="hl-var">$this</span>-&gt;<span class="hl-fn">hasModule</span>(<span class="hl-str">'vendor/analytics'</span>)) {
+        <span class="hl-var">$this</span>-&gt;<span class="hl-fn">api</span>(<span class="hl-str">'vendor/analytics'</span>)-&gt;<span class="hl-fn">track</span>(<span class="hl-str">'page_view'</span>);
+    }
+}</code></pre>
+    <p><code>hasModule()</code> checks if the module is in the loaded queue (passed initialization). It does <strong>not</strong> trigger loading or handshake. Also available as <code>$this-&gt;module-&gt;hasModule()</code> from the Module instance.</p>
+
+    <h2 id="handshake-vs-api">Handshake vs API &mdash; Key Distinction</h2>
+    <p>The framework provides two independent mechanisms:</p>
+    <ul>
+      <li><strong>Handshake</strong> (<code>$this-&gt;handshake()</code>) &mdash; a courtesy notification between modules. The target&rsquo;s <code>__onTouch()</code> decides whether to accept. Default returns <code>true</code>. Use in <code>__onLoad()</code>.</li>
+      <li><strong>API</strong> (<code>$this-&gt;api()</code>) &mdash; the actual command execution. Does <strong>not</strong> check handshake status.</li>
+    </ul>
+    <pre><code>Controller::handshake('module_b', 'msg')
+  &rarr; Module::handshake('module_b', 'msg')
+    &rarr; ModuleRegistry::handshakeTo('module_b', moduleInfo, version, 'msg')
+      &rarr; Module B: touch(moduleInfo, version, 'msg')
+        &rarr; Controller B: __onTouch(moduleInfo, version, 'msg')
+          &rarr; return true/false</code></pre>
+    <p>Handshake is a <strong>convention-based trust signal</strong>, not an enforced access control layer. Module developers are expected to call <code>handshake()</code> first as good practice, but nothing prevents calling <code>api()</code> without it.</p>
+
     <div class="page-nav">
       <a href="events.html"><span class="label">&larr; Previous</span><span class="title">Event System</span></a>
       <a href="database.html" class="next"><span class="label">Next &rarr;</span><span class="title">Database</span></a>

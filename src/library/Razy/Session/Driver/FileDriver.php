@@ -20,6 +20,7 @@
 
 namespace Razy\Session\Driver;
 
+use InvalidArgumentException;
 use Razy\Contract\SessionDriverInterface;
 
 /**
@@ -98,7 +99,7 @@ class FileDriver implements SessionDriverInterface
             return [];
         }
 
-        $data = @\unserialize($contents);
+        $data = @\unserialize($contents, ['allowed_classes' => false]);
 
         return \is_array($data) ? $data : [];
     }
@@ -231,6 +232,11 @@ class FileDriver implements SessionDriverInterface
      */
     private function getFilePath(string $id): string
     {
+        // Validate session ID to prevent path traversal (no slashes, backslashes, dots sequences, or null bytes)
+        if ($id === '' || \preg_match('#[/\\\]|\.\.|\x00#', $id)) {
+            throw new InvalidArgumentException('Invalid session ID format.');
+        }
+
         return $this->savePath . DIRECTORY_SEPARATOR . $this->prefix . $id;
     }
 }

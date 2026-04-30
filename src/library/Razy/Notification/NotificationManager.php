@@ -64,6 +64,11 @@ class NotificationManager
     private array $sentLog = [];
 
     /**
+     * @var int Maximum number of entries in the sent log
+     */
+    private int $maxSentLogSize = 10000;
+
+    /**
      * @var bool Whether to log sent notifications
      */
     private bool $logging;
@@ -153,6 +158,11 @@ class NotificationManager
                         'channel' => $channelName,
                         'id' => $notification->getId(),
                     ];
+
+                    // Evict oldest entries when log exceeds max size
+                    if (\count($this->sentLog) > $this->maxSentLogSize) {
+                        $this->sentLog = \array_slice($this->sentLog, -$this->maxSentLogSize);
+                    }
                 }
 
                 // After hooks

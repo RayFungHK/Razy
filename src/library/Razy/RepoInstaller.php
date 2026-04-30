@@ -177,6 +177,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         $response = \curl_exec($ch);
         $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -218,6 +221,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         $response = \curl_exec($ch);
         $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -259,6 +265,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         $response = \curl_exec($ch);
         $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -305,6 +314,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         $response = \curl_exec($ch);
         $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -497,6 +509,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_NOBODY, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         \curl_exec($ch);
         $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -583,6 +598,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_NOBODY, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
         \curl_exec($ch);
         $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -628,6 +646,9 @@ class RepoInstaller
         \curl_setopt($ch, CURLOPT_FILE, $fp);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
         \curl_setopt($ch, CURLOPT_NOPROGRESS, false);
         // Report download progress percentage to the notification callback
         \curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $downloadSize, $downloaded) {
@@ -678,7 +699,7 @@ class RepoInstaller
         }
 
         // Use a unique temporary directory for extraction
-        $tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_extract_' . \uniqid();
+        $tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_extract_' . \bin2hex(\random_bytes(12));
         if (!\mkdir($tempDir, 0o755, true)) {
             $this->notify(self::TYPE_ERROR, ['Cannot create temp directory', $tempDir]);
             $zip->close();
@@ -755,6 +776,11 @@ class RepoInstaller
             $srcPath = $source . DIRECTORY_SEPARATOR . $file;
             $dstPath = $destination . DIRECTORY_SEPARATOR . $file;
 
+            // Skip symlinks to prevent directory escape attacks
+            if (\is_link($srcPath)) {
+                continue;
+            }
+
             if (\is_dir($srcPath)) {
                 if (!$this->copyDirectory($srcPath, $dstPath)) {
                     \closedir($dir);
@@ -781,6 +807,10 @@ class RepoInstaller
      */
     private function removeDirectory(string $directory): bool
     {
+        if (\is_link($directory)) {
+            return \unlink($directory);
+        }
+
         if (!\is_dir($directory)) {
             return false;
         }
@@ -789,7 +819,9 @@ class RepoInstaller
 
         foreach ($files as $file) {
             $path = $directory . DIRECTORY_SEPARATOR . $file;
-            if (\is_dir($path)) {
+            if (\is_link($path)) {
+                \unlink($path);
+            } elseif (\is_dir($path)) {
                 $this->removeDirectory($path);
             } else {
                 \unlink($path);

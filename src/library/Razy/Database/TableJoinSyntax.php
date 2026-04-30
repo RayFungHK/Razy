@@ -262,11 +262,14 @@ class TableJoinSyntax
             $condition = \trim($matches[3]);
             $type = '';
 
+            $driver = $this->statement->getDatabase()->getDriver();
+            $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
+
             // Determine condition type: '?' for WHERE syntax, ':' for USING/ON column list
             if ($matches[1]) {
                 $type = ($matches[1] == '?') ? '?' : ':';
             }
-            $source = $matches[2] ? '`' . $matches[2] . '`' : $source;
+            $source = $matches[2] ? $quote($matches[2]) : $source;
 
             if (!$condition) {
                 throw new QueryException('Invalid Syntax.');
@@ -293,7 +296,7 @@ class TableJoinSyntax
                 }
 
                 // Generate explicit ON condition: source.column = alias.column
-                $column = $source . '.`' . $column . '` = ' . $alias . '.`' . $column . '`';
+                $column = $source . '.' . $quote($column) . ' = ' . $alias . '.' . $quote($column);
             }
 
             return 'ON ' . \implode(' AND ', $columns);

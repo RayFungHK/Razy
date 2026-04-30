@@ -55,7 +55,9 @@ class StderrHandler implements LogHandlerInterface
 
         $levelUpper = \strtoupper($level);
         $channelTag = $channel !== '' ? "[{$channel}] " : '';
-        $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$message}" . PHP_EOL;
+        // Sanitize message to prevent log injection via embedded newlines
+        $sanitizedMessage = \str_replace(["\r\n", "\r", "\n"], ' ', $message);
+        $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$sanitizedMessage}" . PHP_EOL;
 
         \fwrite(STDERR, $line);
     }

@@ -147,7 +147,12 @@ class Configuration extends Collection
             return;
         }
 
-        $this->writeFile('<?php' . \PHP_EOL . 'return ' . \var_export($this->getArrayCopy(), true) . ';' . \PHP_EOL . '?>');
+        $this->writeFile('<?php' . \PHP_EOL . 'return ' . \var_export($this->getArrayCopy(), true) . ';' . \PHP_EOL);
+
+        // Invalidate OPcache so subsequent require() reads the freshly written file
+        if (\function_exists('opcache_invalidate')) {
+            \opcache_invalidate($this->path, true);
+        }
     }
 
     /**
@@ -171,7 +176,10 @@ class Configuration extends Collection
             }
         }
 
-        \file_put_contents($this->path, $content);
+        $bytes = \file_put_contents($this->path, $content, LOCK_EX);
+        if ($bytes === false) {
+            throw new ConfigurationException('Failed to write configuration file: ' . $this->path);
+        }
     }
 
     /**
@@ -193,12 +201,12 @@ class Configuration extends Collection
                 // Array values become INI sections: [section_name]
                 $content[] = '[' . $key . ']';
                 foreach ($val as $sKey => $sVal) {
-                    // Numeric values are unquoted; strings are double-quoted
-                    $content[] = $sKey . ' = ' . (\is_numeric($sVal) ? $sVal : '"' . $sVal . '"');
+                    // Numeric values are unquoted; strings are double-quoted with escaping
+                    $content[] = $sKey . ' = ' . (\is_numeric($sVal) ? $sVal : '"' . \addcslashes((string) $sVal, '"\\\n\r') . '"');
                 }
             } else {
                 // Top-level scalar values
-                $content[] = $key . ' = ' . (\is_numeric($val) ? $val : '"' . $val . '"');
+                $content[] = $key . ' = ' . (\is_numeric($val) ? $val : '"' . \addcslashes((string) $val, '"\\\n\r') . '"');
             }
         }
         $this->writeFile(\implode(\PHP_EOL, $content));

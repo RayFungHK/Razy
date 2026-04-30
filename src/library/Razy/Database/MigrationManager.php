@@ -193,10 +193,10 @@ class MigrationManager
     {
         $this->ensureTrackingTable();
 
-        $tableName = $this->qualifiedTableName();
+        $quoted = $this->quotedTableName();
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration FROM \"{$tableName}\" ORDER BY id ASC",
+                "SELECT migration FROM {$quoted} ORDER BY id ASC",
             ),
         );
 
@@ -276,12 +276,12 @@ class MigrationManager
             return [];
         }
 
-        $tableName = $this->qualifiedTableName();
+        $quoted = $this->quotedTableName();
 
         // Get the distinct batch numbers to rollback (most recent first)
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT DISTINCT batch FROM \"{$tableName}\" ORDER BY batch DESC",
+                "SELECT DISTINCT batch FROM {$quoted} ORDER BY batch DESC",
             ),
         );
         $batches = \array_column($query->fetchAll(), 'batch');
@@ -296,7 +296,7 @@ class MigrationManager
         foreach ($batchesToRollback as $batch) {
             $query = $this->database->execute(
                 $this->database->prepare(
-                    "SELECT migration FROM \"{$tableName}\" WHERE batch = {$batch} ORDER BY id DESC",
+                    "SELECT migration FROM {$quoted} WHERE batch = {$batch} ORDER BY id DESC",
                 ),
             );
             foreach ($query->fetchAll() as $row) {
@@ -337,12 +337,12 @@ class MigrationManager
     {
         $this->ensureTrackingTable();
 
-        $tableName = $this->qualifiedTableName();
+        $quoted = $this->quotedTableName();
 
         // Get all applied migrations in reverse order
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration FROM \"{$tableName}\" ORDER BY id DESC",
+                "SELECT migration FROM {$quoted} ORDER BY id DESC",
             ),
         );
         $rows = $query->fetchAll();
@@ -390,12 +390,12 @@ class MigrationManager
         $this->ensureTrackingTable();
 
         $all = $this->discover();
-        $tableName = $this->qualifiedTableName();
+        $quoted = $this->quotedTableName();
 
         // Get applied migration details
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration, batch, executed_at FROM \"{$tableName}\" ORDER BY id ASC",
+                "SELECT migration, batch, executed_at FROM {$quoted} ORDER BY id ASC",
             ),
         );
         $appliedRows = $query->fetchAll();
@@ -448,11 +448,11 @@ class MigrationManager
      */
     private function getNextBatchNumber(): int
     {
-        $tableName = $this->qualifiedTableName();
+        $quoted = $this->quotedTableName();
 
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT MAX(batch) as max_batch FROM \"{$tableName}\"",
+                "SELECT MAX(batch) as max_batch FROM {$quoted}",
             ),
         );
         $row = $query->fetch();
@@ -468,12 +468,12 @@ class MigrationManager
      */
     private function recordMigration(string $name, int $batch): void
     {
-        $tableName = $this->qualifiedTableName();
-        $escapedName = \addslashes($name);
+        $quoted = $this->quotedTableName();
+        $quotedName = $this->database->getDBAdapter()->quote($name);
 
         $this->database->execute(
             $this->database->prepare(
-                "INSERT INTO \"{$tableName}\" (migration, batch) VALUES ('{$escapedName}', {$batch})",
+                "INSERT INTO {$quoted} (migration, batch) VALUES ({$quotedName}, {$batch})",
             ),
         );
     }
@@ -485,12 +485,12 @@ class MigrationManager
      */
     private function removeMigrationRecord(string $name): void
     {
-        $tableName = $this->qualifiedTableName();
-        $escapedName = \addslashes($name);
+        $quoted = $this->quotedTableName();
+        $quotedName = $this->database->getDBAdapter()->quote($name);
 
         $this->database->execute(
             $this->database->prepare(
-                "DELETE FROM \"{$tableName}\" WHERE migration = '{$escapedName}'",
+                "DELETE FROM {$quoted} WHERE migration = {$quotedName}",
             ),
         );
     }
@@ -503,6 +503,24 @@ class MigrationManager
     private function qualifiedTableName(): string
     {
         return $this->database->getPrefix() . self::TRACKING_TABLE;
+    }
+
+    /**
+     * Get the fully qualified and driver-quoted tracking table name.
+     *
+     * MySQL/MariaDB use backticks, PostgreSQL/SQLite use double quotes.
+     *
+     * @return string
+     */
+    private function quotedTableName(): string
+    {
+        $name = $this->qualifiedTableName();
+        $driver = $this->database->getDriverType() ?? 'sqlite';
+
+        return match ($driver) {
+            'mysql', 'mariadb' => "`{$name}`",
+            default => '"' . $name . '"',
+        };
     }
 
     /**

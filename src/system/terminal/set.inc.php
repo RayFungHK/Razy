@@ -78,7 +78,7 @@ return function (string $fqdn = '', string $code = '') use (&$parameters) {
             exit;
         }
         if (!\is_dir($distFolder)) {
-            if (\mkdir($distFolder, 0777, true)) {
+            if (\mkdir($distFolder, 0755, true)) {
                 $source = Template::loadFile(PHAR_PATH . '/asset/setup/dist.php.tpl');
                 $root = $source->getRoot();
                 $root->assign([

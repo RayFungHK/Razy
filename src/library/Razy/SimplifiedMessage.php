@@ -47,7 +47,7 @@ class SimplifiedMessage
     {
         // Normalize command to uppercase and validate alphanumeric word format
         $this->command = \trim(\strtoupper($this->command));
-        if (!\preg_match('/[a-z]\w*/i', $this->command)) {
+        if (!\preg_match('/^[a-z]\w*$/i', $this->command)) {
             throw new InvalidArgumentException('Invalid command format.');
         }
     }
@@ -61,8 +61,8 @@ class SimplifiedMessage
      */
     public static function decode(string $text): string
     {
-        // Reverse the encoding: \c → colon, \\ → backslash
-        return \str_replace('\\\\', '\\', \str_replace('\c', ':', $text));
+        // Use strtr for order-independent replacement
+        return \strtr($text, ['\\\\' => '\\', '\c' => ':']);
     }
 
     /**
@@ -74,8 +74,8 @@ class SimplifiedMessage
      */
     public static function encode(string $text): string
     {
-        // Escape colons and backslashes to avoid conflicts with the message format
-        return \str_replace('\\', '\\\\', \str_replace(':', '\c', $text));
+        // Use strtr for order-independent replacement
+        return \strtr($text, ['\\' => '\\\\', ':' => '\c']);
     }
 
     /**
@@ -169,7 +169,7 @@ class SimplifiedMessage
     public function setHeader(string $key, string $value): self
     {
         $key = \trim($key);
-        if (!\preg_match('/\w+/i', $key)) {
+        if (!\preg_match('/^\w+$/i', $key)) {
             throw new InvalidArgumentException('Invalid header key format.');
         }
         $this->header[$key] = $value;

@@ -187,10 +187,10 @@ class ArrayUtil
 
         if ('^=' === $operator) {
             // Beginning with
-            $valueB = '/^.*' . \preg_quote($valueB) . '/';
+            $valueB = '/^' . \preg_quote($valueB) . '/';
         } elseif ('$=' === $operator) {
             // End with
-            $valueB = '/' . \preg_quote($valueB) . '.*$/';
+            $valueB = '/' . \preg_quote($valueB) . '$/';
         } elseif ('*=' === $operator) {
             // Include
             $valueB = '/' . \preg_quote($valueB) . '/';

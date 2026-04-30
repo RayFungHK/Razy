@@ -36,6 +36,7 @@ return function () {
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'set', 'Create or update the site.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'remove', 'Remove the specified site.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'pack', 'Pack the Razy.phar and others modules and plugins into a phar file.'));
+    $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'pkg', 'Run, list, stop phar-packaged standalone applications.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'link', 'Add an alias to specified site.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'unlink', 'Remove an alias.' . PHP_EOL));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'rewrite', 'Update the .htaccess rewrite.'));

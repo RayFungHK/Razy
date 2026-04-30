@@ -22,7 +22,15 @@ class Regex extends ValidationRule
             return $value;
         }
 
-        if (!\preg_match($this->pattern, (string) $value)) {
+        $result = @\preg_match($this->pattern, (string) $value);
+        if ($result === false) {
+            // Invalid regex pattern — treat as failure
+            $this->fail();
+
+            return $value;
+        }
+
+        if (!$result) {
             $this->fail();
 
             return $value;

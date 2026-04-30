@@ -54,7 +54,7 @@ class FileAdapter implements CacheInterface
         $this->directory = \rtrim($directory, '/\\');
 
         if (!\is_dir($this->directory)) {
-            if (!@\mkdir($this->directory, 0o775, true) && !\is_dir($this->directory)) {
+            if (!@\mkdir($this->directory, 0o750, true) && !\is_dir($this->directory)) {
                 throw new InvalidArgumentException("Cache directory '{$this->directory}' could not be created.");
             }
         }
@@ -109,7 +109,7 @@ class FileAdapter implements CacheInterface
         $dir = \dirname($path);
 
         if (!\is_dir($dir)) {
-            if (!@\mkdir($dir, 0o775, true) && !\is_dir($dir)) {
+            if (!@\mkdir($dir, 0o750, true) && !\is_dir($dir)) {
                 return false;
             }
         }
@@ -123,12 +123,22 @@ class FileAdapter implements CacheInterface
             return false;
         }
 
-        // On Windows, rename() fails if destination exists — remove first
-        if (PHP_OS_FAMILY === 'Windows' && \is_file($path)) {
-            @\unlink($path);
+        // On Windows, rename() fails if destination exists — retry with unlink
+        $renamed = false;
+        $maxRetries = 3;
+        for ($i = 0; $i < $maxRetries; ++$i) {
+            if (PHP_OS_FAMILY === 'Windows' && \is_file($path)) {
+                @\unlink($path);
+            }
+            if (@\rename($tmp, $path)) {
+                $renamed = true;
+                break;
+            }
+            // Brief pause before retry to handle concurrent access
+            \usleep(1000 * ($i + 1));
         }
 
-        if (!@\rename($tmp, $path)) {
+        if (!$renamed) {
             @\unlink($tmp);
             return false;
         }
@@ -338,7 +348,7 @@ class FileAdapter implements CacheInterface
             return false;
         }
 
-        $data = @\unserialize($content);
+        $data = @\unserialize($content, ['allowed_classes' => false]);
         if (!\is_array($data) || !\array_key_exists('e', $data) || !\array_key_exists('d', $data)) {
             // Corrupted cache file — remove it
             @\unlink($path);

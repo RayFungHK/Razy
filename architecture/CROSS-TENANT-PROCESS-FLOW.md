@@ -1,4 +1,4 @@
-# Cross-Tenant Process Flow、Injection Analysis & FPM Pool Evaluation
+# Cross-Tenant Process Flow, Injection Analysis & FPM Pool Evaluation
 
 > **Version:** 2.0-draft  
 > **Date:** 2026-02-27  
@@ -18,11 +18,11 @@
 7. [Latency Assessment & Optimization Directions](#7-latency-assessment--optimization-directions)
 8. [htaccess / Caddy Rewrite for Multi-Tenant Routing](#8-htaccess--caddy-rewrite-for-multi-tenant-routing)
 9. [Frontend Access to Tenant Assets](#9-frontend-access-to-tenant-assets)
-10. [Caddy API + PHP Reverse Static Proxy、Container Mesh & Market Comparison](#10-caddy-api--php-reverse-static-proxycontainer-mesh--market-comparison)
+10. [Caddy API + PHP Reverse Static Proxy, Container Mesh & Market Comparison](#10-caddy-api--php-reverse-static-proxycontainer-mesh--market-comparison)
 11. [Core-Delegated Volume + Static File External Access Feasibility](#11-core-delegated-volume--static-file-external-access-feasibility)
 12. [Data Access Rewrite (Module-Controlled) + Webassets Under Load Balancing](#12-data-access-rewrite-module-controlled--webassets-under-load-balancing)
 13. [Webasset Pack — Build-Time Asset Extraction & External Storage](#13-webasset-pack--build-time-asset-extraction--external-storage)
-14. [Best Solution & Unified Upgrade Roadmap](#14-best-solution--unified-upgrade-roadmap-最佳方案--統一升級路線圖)
+14. [Best Solution & Unified Upgrade Roadmap](#14-best-solution--unified-upgrade-roadmap-Best Solution--Unified Upgrade Roadmap)
 
 ---
 
@@ -2055,13 +2055,13 @@ final public function getAssetUrl(): string
 | Phase 5 (Admin) | Signed URL generation for data assets | Phase 3 |
 ---
 
-## 10. Caddy API + PHP Reverse Static Proxy、Container Mesh & Market Comparison
+## 10. Caddy API + PHP Reverse Static Proxy, Container Mesh & Market Comparison
 
-> **涵蓋範圍:** 評估 Caddy Admin API + PHP 動態配置用作反向靜態檔案 proxy；Docker / K8s 的 Load Balance container 行為；同質同版本 container mesh 互聯及 data file structure；對比市場方案之優劣。
+> **Scope:** Evaluate Caddy Admin API + PHP dynamic configuration to act as a reverse static-files proxy; Docker / K8s load-balancing container behavior; homogeneous same-version container mesh interconnectivity and data file structure; compare against market options — pros/cons.
 
 ### 10.1 Architecture Layer Roles
 
-在討論 Caddy API + PHP 方案之前，先釐清 Razy 當前的**三層角色分工**——這直接影響 static file routing 的職責歸屬。
+Before discussing the Caddy API + PHP approach, clarify Razy's current three-layer role separation — this directly affects responsibilities for static file routing.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -2111,30 +2111,30 @@ final public function getAssetUrl(): string
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**關鍵洞察：** 在目前架構中，static file routing 完全由 **web server 層** (Caddy `file_server` / Apache `RewriteRule`) 處理，PHP 層不介入。問題是：在 multi-tenant + multi-container 環境下，能否用 **Caddy Admin API + PHP** 動態管理這些 static file routes？
+**Key Insight:** In the current architecture, static file routing is handled entirely by the web server layer (Caddy `file_server` / Apache `RewriteRule`); PHP does not intervene. The question is: in a multi-tenant + multi-container environment, can we dynamically manage these static file routes using the Caddy Admin API + PHP?
 
 ### 10.2 Caddy Admin API Overview
 
-Caddy 提供 REST Admin API (default `localhost:2019`)，支援：
+Caddy provides a REST Admin API (default `localhost:2019`), supporting:
 
-| Endpoint | Method | 用途 |
+| Endpoint | Method | Purpose |
 |----------|--------|------|
-| `/config/` | GET | 取得完整 JSON 配置 |
-| `/config/apps/http/servers/{name}/routes` | POST | 動態新增 route |
-| `/config/apps/http/servers/{name}/routes/{id}` | PUT/DELETE | 修改/刪除特定 route |
-| `/load` | POST | 一次性載入完整配置（atomic replace） |
-| `/reverse_proxy/upstreams` | GET | 查看 upstream pool 狀態 |
-| `/id/{id}` | GET/PUT/DELETE | 用 `@id` tag 操作命名節點 |
+| `/config/` | GET | retrieve full JSON configuration |
+| `/config/apps/http/servers/{name}/routes` | POST | dynamically add route |
+| `/config/apps/http/servers/{name}/routes/{id}` | PUT/DELETE | modify/delete specific route |
+| `/load` | POST | atomic load of full config (atomic replace) |
+| `/reverse_proxy/upstreams` | GET | inspect upstream pool status |
+| `/id/{id}` | GET/PUT/DELETE | manipulate named nodes using `@id` tag |
 
-**核心特性：**
-- **Zero-downtime reload:** 配置變更不中斷現有連線
-- **Atomic swap:** `/load` 端點整批替換，保證一致性
-- **JSON-native:** 與 PHP 的 `json_encode/decode` 天然相容
-- **每秒可處理 ~5,000 config 更新** (benchmark 數據)
+**Core features:**
+- **Zero-downtime reload:** configuration changes do not interrupt existing connections
+- **Atomic swap:** `/load` endpoint performs a full replace, ensuring consistency
+- **JSON-native:** Naturally compatible with PHP's `json_encode`/`json_decode`
+- **can process ~5,000 config updates per second** (benchmark data)
 
-### 10.3 Caddy API + PHP Reverse Static Proxy 可行性
+### 10.3 Caddy API + PHP Reverse Static Proxy Feasibility
 
-#### 10.3.1 架構方案
+#### 10.3.1 Architecture Option
 
 ```
                    ┌──────────────────────────────────────────────┐
@@ -2169,7 +2169,7 @@ Caddy 提供 REST Admin API (default `localhost:2019`)，支援：
    └──────────────┘  └──────────────┘  └──────────────┘  └────────────┘
 ```
 
-#### 10.3.2 PHP 調用 Caddy API 的實現
+#### 10.3.2 PHP Implementation for Calling the Caddy API
 
 ```php
 /**
@@ -2277,21 +2277,21 @@ class TenantProvisioner
 }
 ```
 
-#### 10.3.3 Caddy API 方案 — 優劣分析
+#### 10.3.3 Caddy API Option — Pros & Cons
 
-| 維度 | 優勢 | 劣勢 |
+| Dimension | Advantages | Disadvantages |
 |------|------|------|
-| **動態性** | 零停機新增/移除 tenant routes，~5ms 生效 | Admin API 是 single-node — 多 Caddy 實例需分別 sync |
-| **靜態檔效能** | Caddy `file_server` 原生效能，零 PHP 介入 | 大量 tenant (>500) 的 route 表可能影響 Caddy 內部 matcher 效能 |
-| **Razy 整合** | PHP 可直接 `curl` → Caddy API，與現有 `CaddyfileCompiler` 互補 | 需維護雙配置來源 (Caddyfile + API)，drift 風險 |
-| **安全性** | Admin API bind `localhost:2019`，Docker network 可限制訪問 | API 無內建 auth — 若暴露外部則任何人可修改 routing |
-| **可觀測性** | Caddy 內建 Prometheus metrics + access logs | 配置變更缺少 audit trail — 需自建 |
-| **Rollback** | `/load` atomic swap — 可保留上一版 config 做 rollback | 無內建 versioned config — 需自行持久化歷史 |
+| **Dynamism** | Add/remove tenant routes with zero downtime (~5ms to take effect) | Admin API is single-node — multiple Caddy instances need separate sync |
+| **Static file performance** | Caddy `file_server` native performance, zero PHP involvement | A large number of tenants (>500) in the route table may impact Caddy's internal matcher performance |
+| **Razy Integration** | PHP can `curl` the Caddy API directly, complementing the existing `CaddyfileCompiler` | Requires maintaining dual configuration sources (Caddyfile + API), risk of drift |
+| **Security** | Admin API bound to `localhost:2019`; Docker network can restrict access | API has no built-in auth — if exposed externally, anyone could modify routing |
+| **Observability** | Caddy includes built-in Prometheus metrics and access logs | Configuration changes lack an audit trail — requires custom audit logging |
+| **Rollback** | `/load` atomic swap — can keep previous config for rollback | No built-in versioned config — must persist history yourself |
 
-#### 10.3.4 與現有 CaddyfileCompiler 的整合策略
+#### 10.3.4 Integration Strategy with Existing CaddyfileCompiler
 
 ```
-方案 A: Caddyfile 為 Source of Truth (RECOMMENDED for ≤50 tenants)
+Option A: Caddyfile as Source of Truth (RECOMMENDED for ≤50 tenants)
 ─────────────────────────────────────────────────────────────────
 
   PHP CLI:  php Razy.phar rewrite --caddy
@@ -2303,7 +2303,7 @@ class TenantProvisioner
   caddy reload --config Caddyfile    ← graceful reload (~50ms)
 
 
-方案 B: Caddy API 為 Source of Truth (RECOMMENDED for >50 tenants)
+Option B: Caddy API as Source of Truth (RECOMMENDED for >50 tenants)
 ─────────────────────────────────────────────────────────────────
 
   PHP:  TenantProvisioner → POST /load (atomic swap)
@@ -2314,10 +2314,10 @@ class TenantProvisioner
       ▼
   Periodic: caddy adapt → dump current config for backup  
 
-  CaddyfileCompiler 退化為 initial bootstrap only.
+  CaddyfileCompiler is reduced to initial bootstrap only.
 
 
-方案 C: Hybrid (Source of Truth = PHP database/config)
+Option C: Hybrid (Source of Truth = PHP database/config)
 ──────────────────────────────────────────────────────
 
   PHP DB:  tenant_routes table (domain, upstream, status)
@@ -2333,22 +2333,22 @@ class TenantProvisioner
   CaddyfileCompiler generates file backup for disaster recovery
 ```
 
-### 10.4 Tenant Layer 在 Static Routing 的角色
+### 10.4 The Tenant Layer's Role in Static Routing
 
-#### 10.4.1 Distributor 的 Static File 職責
+#### 10.4.1 Distributor Responsibilities for Static Files
 
-**Distributor** 是 static file routing 的**數據源頭** (但非執行者)：
+**Distributor** is the **data source** for static file routing (but not the executor):
 
 ```php
-// CaddyfileCompiler 從以下 Distributor 數據生成 Caddy 規則：
+// CaddyfileCompiler generates Caddy rules from the following Distributor data:
 
-// 1. Webasset paths — 來自 ModuleInfo::getContainerPath()
-//    每個 module 的 webassets/ 目錄位置
+// 1. Webasset paths — from ModuleInfo::getContainerPath()
+//    The webassets/ directory location for each module
 $containerPath = $moduleInfo->getContainerPath(true);
 // → "modules/vendor/package/default"
 
-// 2. Data mapping — 來自 Distributor::getDataMapping()  
-//    跨站數據映射 (e.g., tenant A 的 /data/ 指向 tenant B 的存儲)
+// 2. Data mapping — from Distributor::getDataMapping()
+//    Cross-site data mapping (e.g., tenant A's /data/ points to tenant B's storage)
 $dataMapping = $distributor->getDataMapping();
 // → ['/uploads' => ['domain' => 'tenantB.com', 'dist' => 'main']]
 
@@ -2358,19 +2358,19 @@ $version = $moduleInfo->getVersion();  // "1.0.0"
 // → /webassets/Shop/1.0.0/css/style.css
 ```
 
-**在 multi-container 環境下的變化：**
+**Changes in a multi-container environment:**
 
-| 單體 (current) | Multi-Container (target) |
+| Monolith (current) | Multi-Container (target) |
 |----------------|--------------------------|
-| Distributor 與 Caddy 同進程 | Distributor 在 tenant container 內，Caddy 在 front-door |
-| `CaddyfileCompiler` 直接讀 filesystem | 需要 build-time 或 API 同步 webasset 路徑 |
-| Data mapping 指向本地 `data/` | Data mapping 指向 shared volume 或 remote storage |
-| 一個 Caddyfile 管所有 tenant | Front-door Caddy + per-container Caddy (二級) |
+| Distributor and Caddy in the same process | Distributor runs inside the tenant container; Caddy is at the front door |
+| `CaddyfileCompiler` reads the filesystem directly | Requires build-time or API sync for webasset paths |
+| Data mapping points to local `data/` | Data mapping points to a shared volume or remote storage |
+| One Caddyfile manages all tenants | Front-door Caddy + per-container Caddy (second level) |
 
-#### 10.4.2 Tenant Provisioning Flow (Caddy API 整合)
+#### 10.4.2 Tenant Provisioning Flow (Caddy API Integration)
 
 ```
-Tenant Provisioning (新租戶建立):
+Tenant Provisioning (new tenant creation):
 
   1. Admin creates tenant (PHP admin panel / CLI)
      │
@@ -2404,42 +2404,42 @@ Tenant Provisioning (新租戶建立):
   7. PHP reports success to admin
 ```
 
-### 10.5 Core Layer Application Routing 在 Static Proxy 的角色
+### 10.5 The Core Layer's Application Routing Role in the Static Proxy
 
-#### 10.5.1 Application 的 Multi-Tenant Routing 職責
+#### 10.5.1 Application Responsibilities for Multi-Tenant Routing
 
-`Application.php` 目前擁有以下與 static file proxy 相關的職責：
+`Application.php` currently has the following responsibilities related to the static-file proxy:
 
 ```
-Application 責任矩陣:
+Application Responsibility Matrix:
 
   ┌─ Config Management ──────────────────────────────────────────┐
   │  • loadSiteConfig() → sites.inc.php                          │
   │  • updateSites() → parse domains + distributors              │
   │  • writeSiteConfig() → persist changes                       │
-  │  ► 這些 config 是 CaddyfileCompiler 的輸入源                  │
+  │  ► These configs are inputs to CaddyfileCompiler              │
   └──────────────────────────────────────────────────────────────┘
   
   ┌─ Rewrite Generation ─────────────────────────────────────────┐
   │  • updateRewriteRules() → .htaccess (Apache)                 │
   │  • updateCaddyfile() → Caddyfile (Caddy)                     │
-  │  ► 靜態檔 routing 規則的「編譯器」── 只在配置變更時執行         │
+  │  ► The "compiler" for static file routing rules — runs only when config changes │
   └──────────────────────────────────────────────────────────────┘
   
   ┌─ Domain Resolution ──────────────────────────────────────────┐
   │  • host(FQDN) → matchDomain() → Domain                      │
   │  • Wildcard matching, alias resolution                       │
-  │  ► PHP runtime 的 domain matching — static file 不經過此路徑  │
+  │  ► PHP runtime domain matching — static files do not go through this path │
   └──────────────────────────────────────────────────────────────┘
   
   ┌─ Worker Mode Dispatch ───────────────────────────────────────┐
   │  • dispatch(urlQuery) → Domain::dispatchQuery()              │
-  │  • Boot-once: Application + Module graph 只 init 一次        │
-  │  ► 純 dynamic request — Caddy 已攔截 static file             │
+  │  • Boot-once: Application + Module graph initializes only once │
+  │  ► Pure dynamic requests — Caddy already intercepts static files │
   └──────────────────────────────────────────────────────────────┘
 ```
 
-#### 10.5.2 Application 在 Caddy API 模式的新角色
+#### 10.5.2 Application's New Role in Caddy API Mode
 
 ```
                     Current Architecture              Caddy API Architecture
@@ -2471,7 +2471,7 @@ Application 責任矩陣:
 
 ### 10.6 Docker / K8s Load Balancing Container Behaviour
 
-#### 10.6.1 Docker Compose — 同質 Container 水平擴展
+#### 10.6.1 Docker Compose — Horizontal Scaling of Homogeneous Containers
 
 ```yaml
 # docker-compose.yml — Tenant A with 3 replicas
@@ -2509,13 +2509,13 @@ services:
       - razy-external
 ```
 
-**Caddy reverse_proxy 內建 Load Balancing：**
+**Built-in load balancing in Caddy reverse_proxy:**
 
 ```caddyfile
 tenant-a.example.com {
     reverse_proxy tenant-a:8080 {
-        # Docker DNS 自動解析多個 replica IP
-        # Caddy 預設 round-robin LB policy
+        # Docker DNS automatically resolves multiple replica IPs
+        # Caddy default round-robin LB policy
         lb_policy       round_robin
         lb_try_duration 5s
         lb_try_interval 250ms
@@ -2533,7 +2533,7 @@ tenant-a.example.com {
 }
 ```
 
-> **Docker 行為:** 當 `docker-compose up --scale tenant-a=3` 時，Docker 內建 DNS round-robin 會把 `tenant-a` 解析到 3 個 container IP。Caddy 的 `reverse_proxy` 配合 active health check 可自動排除故障 replica。
+> **Docker behavior:** When `docker-compose up --scale tenant-a=3` is used, Docker's built-in DNS round-robin resolves `tenant-a` to 3 container IPs. With active health checks, Caddy's `reverse_proxy` can automatically exclude unhealthy replicas.
 
 #### 10.6.2 Kubernetes — Service + Ingress + Service Mesh
 
@@ -2614,42 +2614,42 @@ spec:
       secretName: tenant-a-tls
 ```
 
-**K8s LB 行為：**
+**K8s Load Balancing Behavior:**
 
-| 層級 | 元件 | LB 策略 | 特性 |
+| Layer | Component | LB Strategy | Characteristics |
 |------|------|---------|------|
 | L7 Ingress | Nginx Ingress / Traefik / Caddy Ingress | Host-based routing | SSL termination, path routing |
-| L4 Service (ClusterIP) | kube-proxy (iptables/IPVS) | Round-robin / session affinity | Pod IP 自動管理 |
+| L4 Service (ClusterIP) | kube-proxy (iptables/IPVS) | Round-robin / session affinity | Pod IPs managed automatically |
 | Sidecar (optional) | Istio Envoy / Linkerd Proxy | Weighted, canary, circuit breaker | mTLS, observability |
 
-#### 10.6.3 FrankenPHP Worker Mode 在 LB 下的特殊考量
+#### 10.6.3 FrankenPHP Worker Mode Considerations Under Load Balancing
 
 ```
-⚠ Worker Mode + Replicas 注意事項:
+⚠ Worker Mode + Replicas notes:
 
-  FrankenPHP worker mode 保持 PHP process 常駐，module graph in-memory.
+  FrankenPHP worker mode keeps the PHP process resident; the module graph stays in memory.
   
-  多 replica 時：
+  With multiple replicas:
   
-  1. 每個 replica 獨立 boot — 各自持有完整 module graph, route table
-     → OK: 同 image 同 code, boot 結果一致
+    1. Each replica boots independently — each holds a complete module graph and route table
+      → OK: Same image, same code → consistent boot results
      
-  2. Session 不共享 — session_start() 寫入 container 本地 /tmp
-     → FIX: 用 Redis/Memcached session handler (Application 層配置)
+    2. Sessions are not shared — session_start() writes to container-local /tmp
+      → FIX: Use a Redis/Memcached session handler (configured at the Application layer)
      
-  3. In-memory cache 不共享 — OpCache, manifest cache 各自獨立  
-     → OK: 不影響正確性，只是各 replica 各自 warm up
+    3. In-memory caches are not shared — OpCache, manifest cache are replica-local
+      → OK: Does not affect correctness; each replica warms up independently
      
-  4. Distributor cache (Domain::$distributorCache) 也各自獨立
-     → OK: configCheckInterval 各自計數，config 變更最終一致
+    4. Distributor cache (Domain::$distributorCache) is also replica-local
+      → OK: configCheckInterval is counted per replica; config changes converge eventually
      
-  5. DI Container (Container.php) singleton 僅 process-local
-     → OK for stateless services; 有狀態服務需使用外部存儲
+    5. DI Container (Container.php) singletons are process-local only
+      → OK for stateless services; stateful services must use external storage
 ```
 
-### 10.7 同質同版本 Container Mesh 互聯
+### 10.7 homogeneous same-version Container Mesh interconnectivity
 
-#### 10.7.1 資料檔結構 (Data File Structure)
+#### 10.7.1 Data File Structure (Layout)
 
 ```
 /app/                              ← Container root
@@ -2677,14 +2677,14 @@ spec:
         ├── cache/
         └── config/
 
-外部掛載 (Docker volumes / K8s PVC):
+External mounts (Docker volumes / K8s PVC):
 ────────────────────────────────────
-  shared_modules  →  /app/shared        (ReadOnly, 所有同版本 container 共享)
+  shared_modules  →  /app/shared        (ReadOnly, shared by all containers of the same version)
   tenant_data     →  /app/data/{tenant} (ReadWrite, per-tenant)
   shared_assets   →  /app/assets        (ReadOnly, CDN origin — §9.3)
 ```
 
-#### 10.7.2 Container Mesh 通訊模式
+#### 10.7.2 Container Mesh Communication Patterns
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -2721,26 +2721,26 @@ spec:
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**同質 replica 間資料同步策略：**
+**Data synchronization strategy between homogeneous replicas:**
 
-| 資料類型 | 方案 | 一致性 | 延遲 |
+| Data types | Option | Consistency | Latency |
 |----------|------|--------|------|
-| **Code / webassets** | Same Docker image → identical filesystem | 強一致 | 0 (build-time) |
-| **Shared modules** | ReadOnly volume mount | 強一致 | 0 (mount) |
-| **User data (uploads)** | Shared PVC / NFS / S3 | 最終一致 | <10ms (NFS), ~50ms (S3) |
-| **Session** | Redis / Memcached | 強一致 | <1ms |
+| **Code / webassets** | Same Docker image → identical filesystem | Strong consistency | 0 (build-time) |
+| **Shared modules** | ReadOnly volume mount | Strong consistency | 0 (mount) |
+| **User data (uploads)** | Shared PVC / NFS / S3 | Eventual consistency | <10ms (NFS), ~50ms (S3) |
+| **Session** | Redis / Memcached | Strong consistency | <1ms |
 | **Cache (OpCache)** | Per-replica (independent) | N/A | 0 |
-| **Module graph** | Per-replica (worker mode) | 最終一致 | configCheckInterval (periodic) |
-| **Database** | External shared DB (MySQL/PgSQL) | 強一致 | <5ms |
+| **Module graph** | Per-replica (worker mode) | Eventual consistency | configCheckInterval (periodic) |
+| **Database** | External shared DB (MySQL/PgSQL) | Strong consistency | <5ms |
 
 #### 10.7.3 Shared Volume Strategies
 
 ```
-方案 1: Docker Named Volumes + NFS (中小規模 ≤20 tenants)
+Option 1: Docker Named Volumes + NFS (Small/medium scale, ≤20 tenants)
 ─────────────────────────────────────────────────────────
   
-  Pro:  簡單、Docker 原生支持
-  Con:  NFS 單點故障、寫入效能受限
+  Pro:  Simple; Docker-native support
+  Con:  NFS single point of failure; write performance is constrained
   
   volumes:
     shared_modules:
@@ -2751,11 +2751,11 @@ spec:
         device: ":/exports/razy-shared"
 
 
-方案 2: K8s PersistentVolumeClaim + CSI Driver (中大規模)
+Option 2: K8s PersistentVolumeClaim + CSI Driver (Medium/large scale)
 ───────────────────────────────────────────────────────
   
-  Pro:  K8s 原生、support ReadWriteMany (RWX)
-  Con:  需要 CSI driver (EFS, Azure Files, GlusterFS)
+  Pro:  K8s-native; supports ReadWriteMany (RWX)
+  Con:  Requires a CSI driver (EFS, Azure Files, GlusterFS)
   
   apiVersion: v1
   kind: PersistentVolumeClaim
@@ -2767,11 +2767,11 @@ spec:
     storageClassName: efs-sc
 
 
-方案 3: Object Storage (S3 / MinIO) + Sidecar Sync (大規模 >100 tenants)
+Option 3: Object Storage (S3 / MinIO) + Sidecar Sync (Large scale, >100 tenants)
 ────────────────────────────────────────────────────────────────────────
   
-  Pro:  無限擴展、CDN 天然整合
-  Con:  延遲較高 (~50ms)、需 sync agent
+  Pro:  Unlimited scalability; natural CDN integration
+  Con:  Higher latency (~50ms); requires a sync agent
   
   ┌──────────┐      ┌─────────┐      ┌──────────────┐
   │ S3/MinIO │ ←──→ │ Sidecar │ ←──→ │ Local Cache  │
@@ -2781,64 +2781,64 @@ spec:
                     └─────────┘
 ```
 
-### 10.8 Market Comparison (市場對比)
+### 10.8 Market Comparison
 
-#### 10.8.1 Static File Reverse Proxy / Dynamic Routing 方案對比
+#### 10.8.1 Static File Reverse Proxy / Dynamic Routing Options Comparison
 
-| 方案 | 動態路由 | 靜態檔效能 | Multi-Tenant 支援 | Docker/K8s 整合 | PHP 整合 | 複雜度 |
+| Option | Dynamic routing | Static file performance | Multi-tenant support | Docker/K8s integration | PHP integration | Complexity |
 |------|---------|-----------|-------------------|----------------|---------|--------|
-| **Caddy + Admin API** | ✅ REST API, ~5ms 生效 | ✅ `file_server` 原生 | ⚠️ 需 custom provisioner | ✅ DNS LB + health check | ✅ curl 即可 | ★★☆ |
-| **Traefik** | ✅ Docker labels 自動發現 | ⚠️ 需 file provider 或 plugin | ✅ 原生 router 概念 | ✅✅ Docker/K8s 原生 | ⚠️ 無直接 API | ★★☆ |
-| **Nginx + lua/njs** | ⚠️ 需 `ngx_http_lua` 模組 | ✅ 靜態檔 benchmark 王者 | ⚠️ 需 custom config 生成 | ⚠️ 無原生動態發現 | ❌ Reload 需信號 | ★★★ |
-| **Envoy** | ✅ xDS API (gRPC) | ✅ 高效能 | ✅ cluster/route 動態 | ✅ Istio sidecar | ❌ 需控制面板 | ★★★★ |
-| **HAProxy** | ⚠️ Runtime API 有限 | ✅ 效能極佳 | ⚠️ 需 template 生成 | ⚠️ 非原生 | ❌ 複雜 config | ★★★ |
-| **Cloudflare Workers** | ✅ Edge function | ✅ 全球 CDN 邊緣 | ✅ Worker Routes | N/A (hosted) | ❌ JS/WASM only | ★★ |
-| **AWS ALB + S3** | ✅ Target Group API | ✅ S3 = 分散式存儲 | ✅ 多 TG 多域名 | ✅ ECS/EKS 整合 | ⚠️ SDK needed | ★★★ |
+| **Caddy + Admin API** | ✅ REST API, takes effect in ~5ms | ✅ native `file_server` | ⚠️ requires a custom provisioner | ✅ DNS LB + health checks | ✅ curl-based | ★★☆ |
+| **Traefik** | ✅ auto-discovery via Docker labels | ⚠️ requires a file provider or plugin | ✅ native router concept | ✅✅ Docker/K8s-native | ⚠️ no direct API | ★★☆ |
+| **Nginx + lua/njs** | ⚠️ requires the `ngx_http_lua` module | ✅ best-in-class static file benchmarks | ⚠️ requires custom config generation | ⚠️ no native dynamic discovery | ❌ reload requires a signal | ★★★ |
+| **Envoy** | ✅ xDS API (gRPC) | ✅ high performance | ✅ dynamic clusters/routes | ✅ Istio sidecar | ❌ requires a control plane | ★★★★ |
+| **HAProxy** | ⚠️ limited runtime API | ✅ excellent performance | ⚠️ requires template generation | ⚠️ not native | ❌ complex config | ★★★ |
+| **Cloudflare Workers** | ✅ edge functions | ✅ global CDN edge | ✅ Worker Routes | N/A (hosted) | ❌ JS/WASM only | ★★ |
+| **AWS ALB + S3** | ✅ Target Group API | ✅ S3 = distributed storage | ✅ multiple target groups + multiple domains | ✅ ECS/EKS integration | ⚠️ SDK needed | ★★★ |
 
-#### 10.8.2 Razy 方案定位分析
+#### 10.8.2 Razy Option Positioning Analysis
 
 ```
-                    動態路由能力
+                    Dynamic routing capability
                     ↑
                     │
          Envoy ●   │        ● Traefik
        (xDS gRPC)  │     (Docker auto-
                     │      discovery)
                     │
-         HAProxy ●  │   ● Caddy API  ←── Razy 最佳選擇
+         HAProxy ●  │   ● Caddy API  ←── Razy best choice
                     │     (REST JSON)
                     │
           Nginx ●   │
         (signal     │
          reload)    │
                     │
-                    └──────────────────────→ 運維簡潔度
+                    └──────────────────────→ Operational simplicity
 ```
 
 #### 10.8.3 Why Caddy API for Razy
 
-| 決策因素 | Caddy 勝出原因 |
+| Decision factor | Why Caddy wins |
 |----------|---------------|
-| **FrankenPHP 一體化** | Caddy 是 FrankenPHP 的底層 — 同一進程，零額外 hop |
-| **PHP 友好** | REST JSON API + curl — 不需 gRPC client (Envoy) 或 Docker socket (Traefik) |
-| **靜態 + 動態統一** | `file_server` + `reverse_proxy` + `php_server` 在同一 config |
-| **Auto HTTPS** | Let's Encrypt 自動證書 — multi-tenant 域名免手動配置 |
-| **已有基礎** | `CaddyfileCompiler` 已存在 — 只需增加 API 模式 |
-| **Worker mode** | FrankenPHP worker 已驗證（37× vs cold boot, §benchmark） |
+| **FrankenPHP integration** | Caddy is the underlying server for FrankenPHP — same process, zero extra hops |
+| **PHP-friendly** | REST JSON API + curl — no gRPC client (Envoy) or Docker socket (Traefik) required |
+| **Unified static + dynamic** | `file_server` + `reverse_proxy` + `php_server` in a single config |
+| **Auto HTTPS** | Let's Encrypt automatic certificates — no manual per-domain setup for multi-tenant |
+| **Existing foundation** | `CaddyfileCompiler` already exists — only needs an API mode |
+| **Worker mode** | FrankenPHP worker mode is validated (37× vs cold boot, §benchmark) |
 
-#### 10.8.4 不選其他方案的原因
+#### 10.8.4 Why Not the Other Options
 
-| 方案 | 不選原因 |
+| Option | Reason not chosen |
 |------|---------|
-| **Traefik** | Docker label 自動發現很方便，但失去 FrankenPHP 一體化 — 需額外 PHP-FPM/Apache container |
-| **Nginx** | 無原生動態路由 API — 要用 nginx-proxy-manager 或 OpenResty lua 腳本，增加運維複雜度 |
-| **Envoy** | 控制面板 (gRPC xDS server) 開發成本太高 — 適合 Istio 生態，不適合 PHP 中小框架 |
-| **Cloudflare Workers** | Edge-only — 不能用於 self-hosted 部署，Razy 核心使用場景是 on-premise |
-| **AWS ALB** | Vendor lock-in — Razy 需保持雲廠商中立 |
+| **Traefik** | Docker label auto-discovery is convenient, but it loses FrankenPHP one-process integration — needs an extra PHP-FPM/Apache container |
+| **Nginx** | No native dynamic routing API — would require nginx-proxy-manager or OpenResty Lua scripts, increasing operational complexity |
+| **Envoy** | Control plane (gRPC xDS server) development cost is too high — fits the Istio ecosystem, not a mid-size PHP framework |
+| **Cloudflare Workers** | Edge-only — not suitable for self-hosted deployments; Razy's core use case is on-premise |
+| **AWS ALB** | Vendor lock-in — Razy should remain cloud-provider neutral |
 
-### 10.9 Recommended Architecture (推薦架構)
+### 10.9 Recommended Architecture (Recommended Architecture)
 
-#### 10.9.1 Phase 2 (Docker) 推薦架構
+#### 10.9.1 Phase 2 (Docker) Recommended Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -2887,7 +2887,7 @@ spec:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 10.9.2 Phase 4 (K8s) 推薦架構
+#### 10.9.2 Phase 4 (K8s) Recommended Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -2934,56 +2934,56 @@ spec:
 
 ### 10.10 Implementation Effort & Priority
 
-| 項目 | 工時 | 優先級 | 依賴 | 說明 |
+| Item | Hours | Priority | Dependencies | Notes |
 |------|------|--------|------|------|
 | `TenantProvisioner` class | 8h | P0 | Phase 1 | Caddy API CRUD + config versioning |
-| `Application::syncCaddyRoutes()` | 4h | P0 | TenantProvisioner | 把 multisite config 推到 Caddy |
-| Docker Compose 多租戶模板 | 4h | P1 | Phase 2 | 含 Caddy front-door + volume mapping |
-| Shared volume 策略 (NFS/PVC) | 3h | P1 | Phase 2 | webassets + data 共享 |
+| `Application::syncCaddyRoutes()` | 4h | P0 | TenantProvisioner | Push multisite config into Caddy |
+| Docker Compose multi-tenant template | 4h | P1 | Phase 2 | Includes Caddy front-door + volume mapping |
+| Shared volume strategy (NFS/PVC) | 3h | P1 | Phase 2 | webassets + data sharing |
 | Health check endpoint | 2h | P1 | Phase 1 | `GET /health` → 200 OK |
 | K8s Deployment/Service YAML | 6h | P2 | Phase 4 | Helm chart + HPA |
 | Tenant Operator (CRD) | 20h | P3 | Phase 4 | K8s custom controller (Go) |
-| S3/MinIO asset sync sidecar | 8h | P3 | Phase 4 | 大規模資產分發 |
+| S3/MinIO asset sync sidecar | 8h | P3 | Phase 4 | Large-scale asset distribution |
 
 **Total: ~55h** (Phase 2: ~21h, Phase 4: ~34h)
 
 ### 10.11 Risk Assessment
 
-| 風險 | 嚴重度 | 緩解措施 |
+| Risk | Severity | Mitigation |
 |------|--------|---------|
-| Caddy Admin API 無 auth | HIGH | Bind `127.0.0.1:2019` + Docker network 隔離 |
-| Config drift (Caddyfile vs API) | MEDIUM | 方案 C hybrid — DB 為 source of truth，定期 dump 備份 |
+| Caddy Admin API has no auth | HIGH | Bind `127.0.0.1:2019` + Docker network isolation |
+| Config drift (Caddyfile vs API) | MEDIUM | Option C hybrid — DB as source of truth, periodic dumps for backup |
 | Shared volume SPOF | MEDIUM | NFS HA / Multi-AZ PVC / S3 multi-region |
-| Worker mode session 不共享 | HIGH | Redis session handler (已有解法) |
-| 大量 tenant (>500) route 效能 | LOW | Caddy 內部 trie 結構，已最佳化 host-matching |
-| FrankenPHP 長期記憶體 | MEDIUM | `max_requests` 配置 + K8s liveness probe 定期重啟 |
+| Worker mode sessions are not shared | HIGH | Redis session handler (known solution) |
+| Many tenants (>500) route performance | LOW | Caddy uses an internal trie; host matching is optimized |
+| FrankenPHP long-running memory usage | MEDIUM | Configure `max_requests` + periodic restarts via K8s liveness probe |
 
 ### 10.12 Summary & Decision Matrix
 
-| 維度 | 推薦 | 理由 |
+| Dimension | Recommended | Rationale |
 |------|------|------|
-| **Static proxy** | Caddy `file_server` on front-door Caddy | 零 PHP 介入、原生效能、與 FrankenPHP 一體 |
-| **Dynamic routing** | Caddy Admin API (`/load`) | ~5ms zero-downtime，PHP curl 即可調用 |
-| **Config management** | Hybrid (DB + periodic file backup) | 避免 drift，保留災難恢復能力 |
-| **Docker LB** | Caddy `reverse_proxy` + Docker DNS | 內建 health check、round-robin、zero config |
-| **K8s LB** | K8s Service + Ingress Controller | 原生 pod 擴縮、HPA auto-scale |
-| **Data sharing** | Phase 2: NFS/Docker volume；Phase 4: CSI/S3 | 漸進式 — 不過度工程 |
-| **Session sharing** | Redis (external) | 已有成熟方案，與所有 container 共享 |
-| **Core layer role** | Application 新增 `syncCaddyRoutes()` — 事件驅動 | 替代原有 CLI-only `updateCaddyfile()` |
-| **Tenant layer role** | Distributor 保持不變 — 數據源角色 | CaddyfileCompiler / TenantProvisioner 消費其數據 |
+| **Static proxy** | Caddy `file_server` on the front-door Caddy | Zero PHP involvement, native performance, unified with FrankenPHP |
+| **Dynamic routing** | Caddy Admin API (`/load`) | ~5ms, zero-downtime; callable via PHP curl |
+| **Config management** | Hybrid (DB + periodic file backup) | Avoids drift; keeps disaster-recovery capability |
+| **Docker LB** | Caddy `reverse_proxy` + Docker DNS | Built-in health checks, round-robin, minimal config |
+| **K8s LB** | K8s Service + Ingress Controller | Native pod scaling; HPA auto-scale |
+| **Data sharing** | Phase 2: NFS/Docker volume; Phase 4: CSI/S3 | Incremental approach — avoid over-engineering |
+| **Session sharing** | Redis (external) | Mature option; shared across all containers |
+| **Core layer role** | Add `syncCaddyRoutes()` to Application — event-driven | Replaces the existing CLI-only `updateCaddyfile()` |
+| **Tenant layer role** | Distributor remains unchanged — data source role | CaddyfileCompiler / TenantProvisioner consume its data |
 
 ---
 
 ## 11. Core-Delegated Volume + Static File External Access Feasibility
 
-> **背景：** Tenant container mount 由 Core 層委派的 volume，可同時解決三個問題：  
-> (1) Module 產生的檔案有持久化寫入點  
-> (2) Container rootfs 保持 immutable (read-only)  
-> (3) 每個 container 只看到自己的 volume — 天然隔離  
->  
-> **唯一難題：** volume 內的靜態檔案 (webassets/, data/) 如何讓外部瀏覽器訪問？
+> **Background:** If the tenant container mounts a volume delegated by the Core layer, it can solve three problems at once:
+> (1) Module-generated files have a persistent write location
+> (2) The container rootfs stays immutable (read-only)
+> (3) Each container sees only its own volume — natural isolation
+>
+> **The only challenge:** How can the static files inside the volume (webassets/, data/) be accessed by external browsers?
 
-### 11.1 問題定義
+### 11.1 Problem Definition
 
 ```
 ┌─ Container (read-only rootfs) ──────────────────────────────────────────┐
@@ -3013,32 +3013,32 @@ spec:
     (only reachable via                    (only reachable via
      Docker/K8s internal)                   Docker/K8s internal)
          │                                      │
-    ─── 外部瀏覽器無法直接觸及 ─────────────────────
+    ─── External browsers cannot access directly ─────────────────────
 ```
 
-**兩類靜態檔：**
+**Two categories of static files:**
 
-| 類型 | 來源 | 位置 | 特性 |
+| Type | Source | Location | Characteristics |
 |------|------|------|------|
-| **Webassets** | Module 開發者打包的 CSS/JS/images | Image 內 `modules/*/webassets/` | Build-time 已知、versioned、可快取 |
-| **Data files** | Module runtime 產生 (uploads, reports) | Volume mount `/app/data/` | Runtime 產生、動態、需權限控制 |
+| **Webassets** | CSS/JS/images packaged by module developers | `modules/*/webassets/` inside the image | Known at build time, versioned, cacheable |
+| **Data files** | Generated at module runtime (uploads, reports) | Volume mount `/app/data/` | Generated at runtime, dynamic, requires access control |
 
-### 11.2 方案總覽
+### 11.2 Overview of options
 
 ```
 ┌───────────────────────────────────────────────────────────────────────┐
-│  方案 A: Proxy-Through (反向代理穿透)                                  │
-│  方案 B: Front-Door Volume Mount (前置服務掛載)                        │  
-│  方案 C: Build-Time Asset Extraction (建置時提取)                      │
-│  方案 D: Sidecar Asset Sync (邊車同步到共享層)                         │
-│  方案 E: Caddy On-Demand Reverse File Server (按需反向檔案服務)         │
-│  方案 F: Object Storage + CDN (物件儲存 + CDN)                        │
+│  Option A: Proxy-Through (Proxy-Through)                                  │
+│  Option B: Front-Door Volume Mount (Front-Door Volume Mount)                        │  
+│  Option C: Build-Time Asset Extraction (Build-Time Extraction)                      │
+│  Option D: Sidecar Asset Sync (Sidecar Sync to Shared Layer)                         │
+│  Option E: Caddy On-Demand Reverse File Server (On-Demand Reverse File Server)         │
+│  Option F: Object Storage + CDN (Object Storage + CDN)                        │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-### 11.3 方案 A: Proxy-Through (反向代理穿透)
+### 11.3 Option A: Proxy-Through (Proxy-Through)
 
-**原理：** Front-door Caddy 把 `/webassets/*` 和 `/data/*` 的請求也 reverse_proxy 到 tenant container，由 container 內的 FrankenPHP/Caddy 用 `file_server` 直接回應。
+**How it works:** Front-door Caddy also reverse-proxies requests for `/webassets/*` and `/data/*` to the tenant container, where the in-container FrankenPHP/Caddy serves them directly via `file_server`.
 
 ```
   Browser → GET /webassets/Shop/1.0.0/css/style.css
@@ -3072,7 +3072,7 @@ tenant-a.example.com {
 }
 ```
 
-**Tenant Container 內 Caddyfile (自動生成):**
+**Tenant Container Caddyfile (auto-generated):**
 ```caddyfile
 :8080 {
     root * /app/site
@@ -3104,18 +3104,18 @@ tenant-a.example.com {
 }
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| **複雜度** | ★☆☆ (LOW) | 零額外基礎設施 — 原有 CaddyfileCompiler 已支持 |
-| **效能** | ★★☆ (MEDIUM) | 多一跳 reverse_proxy hop (~0.1ms)；但 Caddy file_server 仍是直接檔案讀取 |
-| **隔離性** | ★★★ (HIGH) | 每個 container 只 serve 自己的檔案，無需共享 volume |
-| **一致性** | ★★★ (HIGH) | Webassets 來自 image = 與 code 版本嚴格一致 |
-| **擴展性** | ★★☆ (MEDIUM) | 靜態流量佔用 container 資源；高流量需 CDN 前置 |
-| **改動量** | 0h | **現有架構已支持** — 無需任何 code change |
+| **Complexity** | ★☆☆ (LOW) | Zero additional infrastructure — the existing CaddyfileCompiler already supports this |
+| **Performance** | ★★☆ (MEDIUM) | One extra reverse_proxy hop (~0.1ms); but Caddy file_server is still direct file reads |
+| **Isolation** | ★★★ (HIGH) | Each container serves only its own files; no shared volume required |
+| **Consistency** | ★★★ (HIGH) | Webassets come from the image → strictly consistent with the code version |
+| **Scalability** | ★★☆ (MEDIUM) | Static traffic consumes container resources; high traffic requires a CDN/front-door cache |
+| **Change effort** | 0h | **Already supported by the current architecture** — no code changes required |
 
-### 11.4 方案 B: Front-Door Volume Mount (前置服務掛載)
+### 11.4 Option B: Front-Door Volume Mount (Front-Door Volume Mount)
 
-**原理：** Front-door Caddy 同時掛載每個 tenant container 的 webasset directory (read-only)，直接用 `file_server` serve，不經過 tenant container。
+**How it works:** Front-door Caddy mounts each tenant container's webasset directory (read-only) and serves it directly with `file_server`, without going through the tenant container.
 
 ```
   Browser → GET /webassets/Shop/1.0.0/css/style.css
@@ -3124,7 +3124,7 @@ tenant-a.example.com {
   Caddy Front-Door
       │  @webasset_tenant_a path /webassets/Shop/*
       │  handle → file_server (from mounted volume)
-      │  ※ file_server 直接讀取，不經 reverse_proxy
+      │  Note: file_server reads directly; no reverse_proxy hop
       ▼
   Response: 200 OK + CSS file
   
@@ -3190,21 +3190,21 @@ tenant-a.example.com {
 }
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| **複雜度** | ★★☆ (MEDIUM) | 每新增 tenant 需同步掛載 volume 到 front-door |
-| **效能** | ★★★ (HIGH) | 零 proxy hop — Caddy 直讀本地檔案系統 |
-| **隔離性** | ★★☆ (MEDIUM) | Front-door 可看到所有 tenant 的 webassets (read-only) |
-| **一致性** | ★★☆ (MEDIUM) | 需確保 volume 內容與 container image 同步 |
-| **擴展性** | ★☆☆ (LOW) | Volume mount 數隨 tenant 線性增長 — >50 tenants 不可行 |
-| **改動量** | ~6h | Volume provisioning script + CaddyfileCompiler 新模式 |
+| **Complexity** | ★★☆ (MEDIUM) | Each new tenant requires mounting its volume into the front-door |
+| **Performance** | ★★★ (HIGH) | Zero proxy hops — Caddy reads from local filesystem directly |
+| **Isolation** | ★★☆ (MEDIUM) | Front-door can see every tenant's webassets (read-only) |
+| **Consistency** | ★★☆ (MEDIUM) | Must keep volume contents in sync with the container image |
+| **Scalability** | ★☆☆ (LOW) | Volume mounts grow linearly with tenants — not feasible beyond ~50 |
+| **Change effort** | ~6h | Volume provisioning script + a new CaddyfileCompiler mode |
 
-**⚠ 關鍵問題：Webassets 在 Image 內 vs Volume 內**
+**⚠ Key issue: Webassets in image vs in volume**
 
-目前 Razy 的 webassets 是 module code 的一部分，baked in Docker image 內。如果 container rootfs 是 read-only，webassets 也是 read-only — 這正是理想狀態。但 front-door 要透過 volume 讀取它們，有兩種做法：
+Currently, Razy webassets are part of the module code and are baked into the Docker image. If the container rootfs is read-only, webassets are also read-only — which is ideal. But if the front-door must read them via a volume, there are two approaches:
 
 ```
-做法 B1: Shared Volume from Image (Docker named volume + init container)
+Approach B1: Shared Volume from Image (Docker named volume + init container)
 ───────────────────────────────────────────────────────────────────────
   
   # Init container copies webassets from image to volume
@@ -3214,22 +3214,22 @@ tenant-a.example.com {
     volumes:
       - tenant_a_modules:/export
   
-  → 問題: Image 更新時需重新跑 init container
+  → Issue: must re-run the init container when the image is updated
 
-做法 B2: Docker --volumes-from (共享 container filesystem)
+Approach B2: Docker --volumes-from (shared container filesystem)
 ──────────────────────────────────────────────────────────
   
   caddy-front:
     volumes_from:
       - tenant-a:ro
   
-  → 問題: 安全風險 — front-door 看到 tenant container 的整個 filesystem
-  → 已棄用在 Docker Compose v3，不推薦
+  → Issue: security risk — front-door can see the tenant container's entire filesystem
+  → Deprecated in Docker Compose v3; not recommended
 ```
 
-### 11.5 方案 C: Build-Time Asset Extraction (建置時提取)
+### 11.5 Option C: Build-Time Asset Extraction (Build-Time Extraction)
 
-**原理：** 在 Docker image 建置或 CI/CD pipeline 中，把 webassets 提取到一個共享的 assets 目錄 (volume / S3 / CDN origin)。
+**How it works:** During image build or in the CI/CD pipeline, extract webassets into a shared asset store (volume / S3 / CDN origin).
 
 ```
   CI/CD Pipeline:
@@ -3255,7 +3255,7 @@ tenant-a.example.com {
        reverse_proxy s3.internal:9000
 ```
 
-**Dockerfile 多階段建置 (推薦):**
+**Dockerfile multi-stage build (recommended):**
 ```dockerfile
 # ── Stage 1: Build Razy tenant image ──
 FROM dunglas/frankenphp:latest AS runtime
@@ -3279,18 +3279,18 @@ COPY --from=asset-extract /assets /srv/assets
 # This image can be deployed as the asset CDN origin
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| **複雜度** | ★★★ (HIGH) | CI/CD pipeline 改動、webasset 提取腳本、多 image 管理 |
-| **效能** | ★★★ (HIGH) | CDN 邊緣、零 PHP、零 proxy hop |
-| **隔離性** | ★★★ (HIGH) | Webassets 只讀提取，tenant container 不受影響 |
-| **一致性** | ★★★ (HIGH) | Build-time 與 code 版本嚴格繫結 |
-| **擴展性** | ★★★ (HIGH) | CDN/S3 無限擴展、tenant 數量不影響 |
-| **改動量** | ~12h | Dockerfile multi-stage + CI pipeline + CaddyfileCompiler CDN 模式 |
+| **Complexity** | ★★★ (HIGH) | CI/CD changes, extraction script, and multi-image management |
+| **Performance** | ★★★ (HIGH) | CDN edge, zero PHP, zero proxy hops |
+| **Isolation** | ★★★ (HIGH) | Webassets extracted as read-only; tenant containers are unaffected |
+| **Consistency** | ★★★ (HIGH) | Strictly bound to the build-time code version |
+| **Scalability** | ★★★ (HIGH) | Virtually unlimited with CDN/S3; tenant count does not matter |
+| **Change effort** | ~12h | Dockerfile multi-stage + CI pipeline + CDN mode in CaddyfileCompiler |
 
-### 11.6 方案 D: Sidecar Asset Sync (邊車同步)
+### 11.6 Option D: Sidecar Asset Sync (Sidecar Sync)
 
-**原理：** 每個 tenant pod/container 配一個 sidecar，定期或 event-driven 把 webassets/data 同步到共享存儲。
+**How it works:** Each tenant pod/container runs a sidecar that periodically (or event-driven) syncs webassets/data into shared storage.
 
 ```
   ┌─ Tenant Pod ──────────────────────────────────┐
@@ -3325,20 +3325,20 @@ COPY --from=asset-extract /assets /srv/assets
                             └─────────────┘
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| **複雜度** | ★★★ (HIGH) | 額外 sidecar container、fswatch/inotify、sync 邏輯 |
-| **效能** | ★★★ (HIGH) | 一旦同步完成，CDN 直 serve |
-| **隔離性** | ★★★ (HIGH) | Sidecar 只讀 source → 寫 target |
-| **一致性** | ★★☆ (MEDIUM) | 有同步延遲 (秒級)；data files 尤其 |
-| **擴展性** | ★★★ (HIGH) | 同方案 C — 後端是 S3/CDN |
-| **改動量** | ~10h | Sidecar image + sync script + K8s pod spec |
+| **Complexity** | ★★★ (HIGH) | Extra sidecar container, fswatch/inotify, and sync logic |
+| **Performance** | ★★★ (HIGH) | Once synced, CDN serves directly |
+| **Isolation** | ★★★ (HIGH) | Sidecar reads source → writes target |
+| **Consistency** | ★★☆ (MEDIUM) | Sync latency (seconds); especially for data files |
+| **Scalability** | ★★★ (HIGH) | Same as Option C — backed by S3/CDN |
+| **Change effort** | ~10h | Sidecar image + sync script + K8s pod spec |
 
-**適用場景：** Webassets 是 build-time 固定的 (方案 C 更好)，但 **data files (runtime 產生的)** 需要動態同步時，sidecar 方案更合適。
+**Best for:** Webassets are build-time and immutable (Option C is better for that), but when **data files (generated at runtime)** must be synced dynamically, a sidecar is more suitable.
 
-### 11.7 方案 E: Caddy On-Demand Reverse File Server
+### 11.7 Option E: Caddy On-Demand Reverse File Server
 
-**原理：** Front-door Caddy 收到 `/webassets/*` 請求時，動態向 tenant container 發起一次逆向取檔，同時做本地快取。後續同檔案請求直接從快取回應。
+**How it works:** When front-door Caddy receives a `/webassets/*` request, it fetches the file once from the tenant container and stores it in a local cache. Subsequent requests for the same file are served from cache.
 
 ```
   Browser → GET /webassets/Shop/1.0.0/css/style.css
@@ -3392,7 +3392,7 @@ tenant-a.example.com {
 }
 ```
 
-**替代方案 E2 (無需 cache module)：** 利用 Caddy 內建的 `file_server` + `reverse_proxy` fallback：
+**Alternative Option E2 (no cache module):** Use built-in `file_server` with a `reverse_proxy` fallback:
 ```caddyfile
 tenant-a.example.com {
     @webassets path /webassets/*
@@ -3414,18 +3414,18 @@ tenant-a.example.com {
 }
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| **複雜度** | ★★☆ (MEDIUM) | cache module 需 custom Caddy build；或用 E2 fallback 方案 |
-| **效能** | ★★★ (HIGH) | First hit 經 proxy (~0.2ms)，後續 hit 純本地 cache |
-| **隔離性** | ★★★ (HIGH) | 不需共享 volume — 純 network cache |
-| **一致性** | ★★★ (HIGH) | Versioned URL → cache key 永不過期直到版本變更 |
-| **擴展性** | ★★★ (HIGH) | Cache 可水平擴展、CDN 層進一步擴展 |
-| **改動量** | ~4h | Caddy cache module build + CaddyfileCompiler cache 模式 |
+| **Complexity** | ★★☆ (MEDIUM) | Requires a custom Caddy build for cache module; or use the E2 fallback |
+| **Performance** | ★★★ (HIGH) | First hit goes through proxy (~0.2ms); later hits are pure local cache |
+| **Isolation** | ★★★ (HIGH) | No shared volume needed — pure network cache |
+| **Consistency** | ★★★ (HIGH) | Versioned URL → cache key stays valid until the version changes |
+| **Scalability** | ★★★ (HIGH) | Cache scales horizontally; CDN can scale further |
+| **Change effort** | ~4h | Build Caddy with cache module + cache mode in CaddyfileCompiler |
 
-### 11.8 方案 F: Object Storage + CDN
+### 11.8 Option F: Object Storage + CDN
 
-**原理：** 不在 Caddy 層做，而是 module 發佈 webassets 時直接推送到 S3/MinIO，前端透過 CDN URL 訪問。
+**How it works:** Instead of doing this at the Caddy layer, the module publishes webassets directly to S3/MinIO, and the frontend accesses them via a CDN URL.
 
 ```
   Module Deploy:
@@ -3440,18 +3440,18 @@ tenant-a.example.com {
   CDN Edge → S3 Origin → Response (cached at edge)
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| **複雜度** | ★★★ (HIGH) | S3 SDK、CDN 配置、asset publish pipeline |
-| **效能** | ★★★★ (BEST) | CDN 全球邊緣，延遲 <10ms |
-| **隔離性** | ★★★ (HIGH) | S3 bucket policy — per-tenant prefix isolation |
-| **一致性** | ★★★ (HIGH) | 版本化路徑 = 永不衝突 |
-| **擴展性** | ★★★★ (BEST) | 無限 — S3 + CloudFront |
-| **改動量** | ~16h | S3 upload logic + CDN setup + `getAssetUrl()` + env config |
+| **Complexity** | ★★★ (HIGH) | S3 SDK, CDN configuration, asset publish pipeline |
+| **Performance** | ★★★★ (BEST) | Global CDN edge; latency <10ms |
+| **Isolation** | ★★★ (HIGH) | S3 bucket policy — per-tenant prefix isolation |
+| **Consistency** | ★★★ (HIGH) | Versioned paths = no collisions |
+| **Scalability** | ★★★★ (BEST) | Essentially unlimited — S3 + CloudFront |
+| **Change effort** | ~16h | S3 upload logic + CDN setup + `getAssetUrl()` + env config |
 
-### 11.9 方案對比矩陣
+### 11.9 Option comparison matrix
 
-| 方案 | 複雜度 | 效能 | 隔離 | 一致性 | 擴展 | 改動量 | 適用規模 |
+| Option | Complexity | Performance | Isolation | Consistency | Scalability | Change effort | Suitable scale |
 |------|--------|------|------|--------|------|--------|----------|
 | **A. Proxy-Through** | ★☆☆ | ★★☆ | ★★★ | ★★★ | ★★☆ | **0h** | ≤20 tenants |
 | **B. Front-Door Mount** | ★★☆ | ★★★ | ★★☆ | ★★☆ | ★☆☆ | 6h | ≤10 tenants |
@@ -3460,46 +3460,46 @@ tenant-a.example.com {
 | **E. On-Demand Cache** | ★★☆ | ★★★ | ★★★ | ★★★ | ★★★ | **4h** | ≤100 tenants |
 | **F. S3 + CDN** | ★★★ | ★★★★ | ★★★ | ★★★ | ★★★★ | 16h | >100 tenants |
 
-### 11.10 推薦分階段策略
+### 11.10 Recommended phased strategy
 
 ```
 Phase 2 (Docker, ≤20 tenants):
 ────────────────────────────────
 
-  推薦: 方案 A (Proxy-Through) — 零改動
+  Recommended: Option A (Proxy-Through) — zero changes
 
-  理由:
-  • CaddyfileCompiler 已生成 tenant 內的 webasset file_server 規則
-  • Front-door Caddy 只需 reverse_proxy → tenant:8080
-  • 靜態檔由 tenant container 自己的 Caddy file_server 回應
-  • Webasset 來自 image 內 (immutable) — 一致性保證
-  • Data files 來自 volume mount — file_server 同樣可 serve
-  • 唯一「代價」是多一跳 reverse_proxy (~0.1ms) — 可忽略
+  Why:
+  • CaddyfileCompiler already generates webasset file_server rules inside the tenant
+  • Front-door Caddy only needs reverse_proxy → tenant:8080
+  • Static files are served by the tenant container's own Caddy file_server
+  • Webassets come from the image (immutable) — consistency is guaranteed
+  • Data files come from volume mounts — still served by file_server
+  • The only "cost" is one extra reverse_proxy hop (~0.1ms) — negligible
   
-  加入 CDN 前置 (optional):
+  Add a CDN in front (optional):
   
     CloudFlare → Front-Door Caddy → Tenant Container
                                        ↑ file_server
   
-  CloudFlare 會 cache 有 `Cache-Control: immutable` 的回應，
-  第二次訪問同檔案零延遲。
+  CloudFlare caches responses with `Cache-Control: immutable`,
+  so subsequent requests have near-zero latency.
 
 
 Phase 2+ (Docker, 20-100 tenants):
 ──────────────────────────────────
 
-  推薦: 方案 A + 方案 E (On-Demand Cache) 混合
+  Recommended: Option A + Option E (On-Demand Cache) hybrid
 
-  理由:
-  • 方案 A 作為 baseline (已有)
-  • 方案 E 增加 front-door cache 層 — 大幅減少 upstream 靜態請求
-  • Versioned URL → cache 命中率趨近 100%
-  • 只需 4h 改動 (custom Caddy build with cache module)
+  Why:
+  • Option A is the existing baseline
+  • Option E adds a front-door cache layer — greatly reduces upstream static requests
+  • Versioned URLs → cache hit rate approaches 100%
+  • Only ~4h of changes (custom Caddy build with cache module)
   
-  架構:
+  Architecture:
   
     Browser → Caddy Front-Door (cache HIT?) 
-                  ├─ YES → 直接回應 (0 hop)
+                  ├─ YES → respond directly (0 hop)
                   └─ NO  → reverse_proxy → tenant:8080 → file_server
                             → cache store for next time
 
@@ -3507,19 +3507,19 @@ Phase 2+ (Docker, 20-100 tenants):
 Phase 4 (K8s, >100 tenants):
 ─────────────────────────────
 
-  推薦: 方案 C (Build-Time Extract) + 方案 F (S3 + CDN) 
+  Recommended: Option C (Build-Time Extract) + Option F (S3 + CDN) 
 
-  理由:
-  • CI/CD pipeline 已經是標配 — 加一步 webasset 提取成本低
-  • S3/MinIO 提供無限存儲 + 可靠性
-  • CDN 全球邊緣 — 最佳延遲
-  • Controller::getAssetUrl() 使用 RAZY_ASSET_CDN env 切換
-  • Data files 用方案 D (sidecar) 同步到 S3
+  Why:
+  • CI/CD pipelines are standard — adding an extraction step is low-cost
+  • S3/MinIO provides scalable storage + reliability
+  • Global CDN edge — best latency
+  • Controller::getAssetUrl() can switch via the RAZY_ASSET_CDN env var
+  • Use Option D (sidecar) to sync data files to S3
 ```
 
-### 11.11 Volume 掛載設計 (Core-Delegated)
+### 11.11 Volume mount design (Core-delegated)
 
-以下是 Core 層委派 volume 給 tenant 的具體設計：
+Below is a concrete design where Core delegates volumes to tenants:
 
 ```yaml
 # docker-compose.yml — Core-Delegated Volume Architecture
@@ -3545,7 +3545,7 @@ services:
     networks:
       - razy-external
       - razy-internal
-    # NOTE: NO tenant volume mounts needed (方案 A — proxy-through)
+    # NOTE: NO tenant volume mounts needed (Option A — proxy-through)
     # Caddy only does reverse_proxy + bridge blocking
 
   # ── Tenant A (core-delegated volumes) ──
@@ -3608,22 +3608,22 @@ networks:
     internal: true
 ```
 
-**Volume 職責矩陣：**
+**Volume responsibility matrix:**
 
-| Volume | Owner | 掛載對象 | RW 模式 | 內容 |
+| Volume | Owner | Mounted to | Access | Contents |
 |--------|-------|---------|---------|------|
-| `tenant_{id}_data` | Core 委派 | Tenant container only | RW | uploads/, cache/, config/ |
-| `shared_modules` | Core 管理 | All tenant containers | RO | 全局共用 module (e.g., auth, theme) |
+| `tenant_{id}_data` | Delegated by Core | Tenant container only | RW | uploads/, cache/, config/ |
+| `shared_modules` | Managed by Core | All tenant containers | RO | Global shared modules (e.g., auth, theme) |
 | `core_config` | Core only | Core orchestrator | RW | tenant registry, Caddy config history |
 
-**Webassets 不需要額外 volume** — 它們 baked 在 Docker image 內，rootfs read-only 模式下仍可讀取。Container 內的 `file_server` 可正常 serve。
+**Webassets do not require an extra volume** — they are baked into the Docker image and remain readable under a read-only rootfs. The in-container `file_server` can serve them normally.
 
-### 11.12 流量路徑總結
+### 11.12 Traffic path summary
 
 ```
 ═══════════════════════════════════════════════════════════════════════
 
-  Static File (webasset) — Phase 2 (方案 A):
+  Static File (webasset) — Phase 2 (Option A):
   
     Browser
       → CDN (optional — cache immutable assets)
@@ -3631,11 +3631,11 @@ networks:
           → Tenant Container (Caddy file_server)
             → Image Filesystem (read-only) ✅
     
-    延遲: CDN hit 0ms | CDN miss ~0.5ms | 直連 ~0.3ms
+    Latency: CDN hit 0ms | CDN miss ~0.5ms | direct ~0.3ms
 
 ═══════════════════════════════════════════════════════════════════════
 
-  Static File (webasset) — Phase 2+ (方案 A + E):
+  Static File (webasset) — Phase 2+ (Option A + E):
   
     Browser
       → CDN (optional)
@@ -3643,7 +3643,7 @@ networks:
           ├─ HIT → respond immediately ✅
           └─ MISS → reverse_proxy → Tenant → file_server → cache store
     
-    延遲: Cache hit ~0.1ms | Cache miss ~0.3ms (then cached)
+    Latency: Cache hit ~0.1ms | Cache miss ~0.3ms (then cached)
 
 ═══════════════════════════════════════════════════════════════════════
 
@@ -3655,7 +3655,7 @@ networks:
           → Tenant Container (Caddy file_server)
             → Volume Mount (writable) ✅
     
-    延遲: ~0.3ms (always through proxy — data is dynamic)
+    Latency: ~0.3ms (always through proxy — data is dynamic)
 
 ═══════════════════════════════════════════════════════════════════════
 
@@ -3667,27 +3667,27 @@ networks:
           → Razy Application → Distributor → RouteDispatcher
             → Module Controller (PHP logic)
     
-    延遲: ~1-5ms (depends on route complexity)
+    Latency: ~1-5ms (depends on route complexity)
 
 ═══════════════════════════════════════════════════════════════════════
 ```
 
-### 11.13 Key Insight (關鍵洞察)
+### 11.13 Key Insight (Key Insight)
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │                                                                 │
-  │   Webassets 已在 Image 內 → Container file_server 可直接 serve  │
-  │   → Front-door 只需 reverse_proxy → 零額外改動 (方案 A)         │
+  │   Webassets are in the image → container file_server serves directly │
+  │   → Front-door only needs reverse_proxy → zero extra changes (Option A) │
   │                                                                 │
-  │   Data files 在 Volume 內 → 同樣走 file_server                 │
-  │   → 每個 container 只看到自己的 volume                          │
+  │   Data files are on volumes → still served by file_server        │
+  │   → Each container only sees its own volume                      │
   │                                                                 │
-  │   唯一「代價」是 reverse_proxy 多一跳 (~0.1ms)                  │
-  │   → CDN + cache 完全消除此代價                                  │
+  │   The only "cost" is one extra reverse_proxy hop (~0.1ms)        │
+  │   → CDN + cache can eliminate this cost                          │
   │                                                                 │
-  │   ∴ Core-delegated volume 模式 + 方案 A = 零改動解決方案        │
-  │   ∴ 後續加入方案 E (cache) 和方案 F (S3+CDN) 是增量改進        │
+  │   ∴ Core-delegated volumes + Option A = a zero-change solution   │
+  │   ∴ Adding Option E (cache) and Option F (S3+CDN) are incremental improvements │
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 ```
@@ -3696,15 +3696,15 @@ networks:
 
 ## 12. Data Access Rewrite (Module-Controlled) + Webassets Under Load Balancing
 
-> **前提：** §11 已確認 webassets (image 內) 和 data files (volume 內) 可透過 container 內的 `file_server` 直接 serve。本節解決兩個尚未涵蓋的實際問題：
-> 1. **Data Access — Module-Controlled Cross-Dist Rewrite:** 模組如何控制自己的 data folder 允許其他 Distributor 作為 rewrite target
-> 2. **Webassets Under Load Balancing:** 多 Replica 下 `reverse_proxy` + `file_server` 的 rewrite 一致性問題
+> **Assumption:** §11 confirms that webassets (in the image) and data files (in volumes) can be served directly by the in-container `file_server`. This section addresses two remaining practical issues:
+> 1. **Data Access — Module-Controlled Cross-Dist Rewrite:** how a module controls which other Distributors are allowed to rewrite to its data folder
+> 2. **Webassets Under Load Balancing:** rewrite consistency of `reverse_proxy` + `file_server` under multiple replicas
 
-### 12.1 問題背景
+### 12.1 Background
 
-#### 問題 ①: Data Files 的前端 Rewrite — 缺少 Module 級控制
+#### Problem ①: Frontend rewrites for data files — missing module-level control
 
-**現狀：** `dist.php` 中的 `data_mapping` 是 **消費端 (consumer-side)** 配置 — 由「想讀取」的 Distributor 聲明它要掛載哪個其他 Distributor 的 data path：
+**Current state:** `data_mapping` in `dist.php` is a **consumer-side** configuration — the Distributor that wants to read declares which other Distributor's data path it wants to mount:
 
 ```php
 // sites/main/dist.php — Consumer (Main dist wants to access Blog's data)
@@ -3717,7 +3717,7 @@ return [
 ];
 ```
 
-**CaddyfileCompiler 生成的規則：**
+**Rules generated by CaddyfileCompiler:**
 ```caddyfile
 # Data mapping: main
 @data_main__0 path /data/*
@@ -3735,20 +3735,20 @@ handle @data_main_blog__1 {
 }
 ```
 
-**問題：** 目前 **沒有** 機制讓被訪問的模組 (producer) 控制哪些 data 子目錄可以被外部 Distributor 存取。任何 Distributor 只要知道另一個 Distributor 的 domain:code，就可以在 `data_mapping` 中掛載並讀取 **全部** data files。
+**Problem:** There is currently **no** mechanism for the producer module (the one being accessed) to control which data subdirectories can be accessed by external Distributors. Any Distributor that knows another Distributor's `domain:code` can mount it in `data_mapping` and read **all** data files.
 
 ```
   ⚠ Security Gap:
   
-  Module A (uploads/) → 應只允許 public/images/ 子目錄被外部讀取
-  Module A (cache/)   → 不應被外部 Distributor 存取
-  Module A (reports/) → 應限定特定 Distributor 才能存取
+  Module A (uploads/) → should only allow external reads of public/images/
+  Module A (cache/)   → should NOT be accessible to external Distributors
+  Module A (reports/) → should be restricted to specific Distributors
   
-  但目前 data_mapping 掛載的是整個 data/{domain}-{dist}/ 目錄
-  → 所有子目錄對所有 consumer 一視同仁
+  But currently data_mapping mounts the entire data/{domain}-{dist}/ directory
+  → all subdirectories are treated the same for all consumers
 ```
 
-#### 問題 ②: Webassets Under Load Balancing
+#### Problem ②: Webassets Under Load Balancing
 
 ```
   Browser → Caddy Front-Door (reverse_proxy lb_policy round_robin)
@@ -3756,14 +3756,14 @@ handle @data_main_blog__1 {
                ├─→ Replica 2 (tenant-a:8080)  → file_server /webassets/Shop/*
                └─→ Replica 3 (tenant-a:8080)  → file_server /webassets/Shop/*
   
-  Q: Replica 1 生成的 URL 是 /webassets/Shop/1.0.0/css/style.css
-     → 如果下一個請求被 LB 導到 Replica 2，Replica 2 也有同樣的檔案嗎？
-     → Rewrite 規則在每個 Replica 上都一致嗎？
+    Q: Replica 1 returns a URL like /webassets/Shop/1.0.0/css/style.css
+      → If the next request is load-balanced to Replica 2, does Replica 2 have the same file?
+      → Are rewrite rules identical across all replicas?
 ```
 
-### 12.2 現有架構回顧 — Data 層
+### 12.2 Existing architecture recap — Data layer
 
-**Data 檔案的生命週期：**
+**Data file lifecycle:**
 
 ```
   Module Controller
@@ -3777,7 +3777,7 @@ handle @data_main_blog__1 {
                                                   /reports/2024-Q1.pdf
 ```
 
-**URL Access (前端)：**
+**URL Access (frontend):**
 ```
   $this->getDataPathURL('my_module')
       → Distributor::getDataPath('my_module', true)
@@ -3788,27 +3788,27 @@ handle @data_main_blog__1 {
       → Caddy @data matcher → file_server → /app/data/example.com-main/my_module/uploads/image.jpg
 ```
 
-**Cross-Dist Access (目前)：**
+**Cross-Dist Access (current):**
 ```
-  Blog Dist 想讀 Main Dist 的 data:
+  Blog Dist wants to read Main Dist's data:
   
   dist.php: 'data_mapping' => ['/' => 'example.com:main']
-      → CaddyfileCompiler 生成:
+      → CaddyfileCompiler generates:
         @data_blog__0 path /data/*
         handle @data_blog__0 {
-            root * /app/public/data/example.com-main   ← 整個目錄
+            root * /app/public/data/example.com-main   ← entire directory
             file_server
         }
   
-  → Blog 的前端可以讀取 Main 的 **所有** data files
-  → 無粒度控制
+  → Blog's frontend can read **all** Main data files
+  → No fine-grained control
 ```
 
-### 12.3 設計方案: Module-Level Data Export Declaration
+### 12.3 Design option: Module-Level Data Export Declaration
 
-**核心思路：** 在模組的 `package.php` 中新增 `data_exports` 配置，由 **生產端 (producer module)** 聲明哪些 data 子目錄對外可見，以及允許哪些 Distributor 可以作為 rewrite target。
+**Core idea:** Add a `data_exports` config to the module's `package.php`. The **producer module** declares which data subdirectories are externally visible, and which Distributors are allowed as rewrite targets.
 
-#### 12.3.1 package.php 新增 `data_exports` 欄位
+#### 12.3.1 Add `data_exports` field to package.php
 
 ```php
 // modules/vendor/shop/default/package.php
@@ -3822,59 +3822,59 @@ return [
     
     // ── NEW: Data Export Declaration ──
     'data_exports' => [
-        // 子目錄 => 存取規則
+      // Subdirectory => access rules
         'uploads/images' => [
-            'access' => 'public',              // 任何 Dist 都可 rewrite
+        'access' => 'public',              // Any Dist can rewrite
         ],
         'uploads/avatars' => [
             'access' => 'public',
         ],
         'reports' => [
-            'access' => 'restricted',          // 限定 Dist 才可 rewrite
-            'allow'  => ['admin', 'analytics'],// 只允許這些 dist code
+        'access' => 'restricted',          // Only specific Dists can rewrite
+        'allow'  => ['admin', 'analytics'],// Only these dist codes are allowed
         ],
         'cache' => [
-            'access' => 'private',             // 完全不對外 (預設)
+        'access' => 'private',             // Not exposed externally (default)
         ],
     ],
 ];
 ```
 
-**存取等級定義：**
+  **Access level definitions:**
 
-| 等級 | 意義 | Rewrite Target |
+  | Level | Meaning | Rewrite Target |
 |------|------|----------------|
-| `public` | 任何 Distributor 透過 `data_mapping` 掛載後可存取此子目錄 | ✅ 所有 |
-| `restricted` | 只有 `allow` 清單中的 dist code 可存取 | ✅ 限定 |
-| `private` | 不對外暴露 — 即使對方 `data_mapping` 掛載了也拒絕 | ❌ 無 |
-| *(未聲明)* | **預設 `private`** — 未在 `data_exports` 中聲明的子目錄不對外 | ❌ 無 |
+  | `public` | Any Distributor can access this subdir after mounting via `data_mapping` | ✅ All |
+  | `restricted` | Only dist codes listed in `allow` can access | ✅ Restricted |
+  | `private` | Not exposed externally — denied even if mounted via `data_mapping` | ❌ None |
+  | *(undeclared)* | **default `private`** — any subdir not declared in `data_exports` is not exposed | ❌ None |
 
-#### 12.3.2 架構層級 — 誰負責什麼
+  #### 12.3.2 Architecture responsibilities — who does what
 
 ```
                              Build Time (CLI: php Razy.phar rewrite)
   ┌────────────────────────────────────────────────────────────────────┐
   │                                                                    │
   │  ① ModuleInfo::parseDataExports()                                 │
-  │     讀取 package.php['data_exports'] → stored in $this->dataExports│
+  │     Read package.php['data_exports'] → stored in $this->dataExports│
   │                                                                    │
   │  ② Distributor::getDataExports()                                  │
-  │     聚合所有已載入 module 的 data_exports → 合併為 dist-level map  │
+  │     Aggregate all loaded modules' data_exports → merge into a dist-level map │
   │                                                                    │
   │  ③ CaddyfileCompiler::compileDataMappingHandlers()                │
-  │     ← 現在: 直接掛載 data/{domain}-{dist}/ 整個目錄               │
-  │     → 新版: 對每個 consumer 的 data_mapping entry, 查詢 producer  │
-  │             的 data_exports → 只生成 allowed 子目錄的 matcher      │
+  │     ← Current: mount the entire data/{domain}-{dist}/ directory    │
+  │     → New: for each consumer data_mapping entry, query the producer's data_exports
+  │            → only generate matchers for allowed subdirectories      │
   │                                                                    │
   │  ④ RewriteRuleCompiler::compileDataMappingRules()                 │
-  │     同上 — htaccess 版本                                           │
+  │     Same idea — htaccess version                                   │
   │                                                                    │
   └────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 12.3.3 新的 Caddyfile 輸出 (精細化 Data Matcher)
+#### 12.3.3 New Caddyfile output (fine-grained data matchers)
 
-**Before (§11 — 粗粒度)：**
+**Before (§11 — coarse-grained):**
 ```caddyfile
 # Blog dist mounts Main dist's data — ENTIRE directory
 @data_blog__0 path /data/*
@@ -3885,7 +3885,7 @@ handle @data_blog__0 {
 }
 ```
 
-**After (§12 — module-level 粒度)：**
+**After (§12 — module-level granularity):**
 ```caddyfile
 # Blog dist → Main:shop module — only exported sub-dirs
 
@@ -3910,7 +3910,7 @@ handle @data_blog_shop_avatars {
 # Any unlisted subdir → BLOCKED (default private)
 ```
 
-#### 12.3.4 caddyfile.tpl 模板擴展
+#### 12.3.4 Extend caddyfile.tpl template
 
 ```
 <!-- START BLOCK: data_export -->
@@ -3924,7 +3924,7 @@ handle @data_blog_shop_avatars {
 <!-- END BLOCK: data_export -->
 ```
 
-**htaccess.tpl 對應擴展：**
+**Corresponding htaccess.tpl extension:**
 ```
     <!-- START BLOCK: data_export -->
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
@@ -3932,42 +3932,42 @@ handle @data_blog_shop_avatars {
     <!-- END BLOCK: data_export -->
 ```
 
-#### 12.3.5 Self-Dist Data Access (本 Dist 的 Module)
+#### 12.3.5 Self-dist data access (modules within the same dist)
 
-同一個 Distributor 內的 module 存取自己的 data 時，**不受 `data_exports` 限制** — 因為它在同一個 process 內，走的是 `Distributor::getDataPath()` 直接檔案系統存取，不經 rewrite。
+When a module accesses its own data within the same Distributor, it is **not restricted by `data_exports`** — because it runs in the same process and uses `Distributor::getDataPath()` to access the filesystem directly, without rewrites.
 
-但前端（瀏覽器）透過 URL 存取本 Dist 的 data 時，仍需 rewrite。此時 CaddyfileCompiler 需區分兩種場景：
+However, when the frontend (browser) accesses this dist's data via URL, rewrites still apply. CaddyfileCompiler should distinguish two scenarios:
 
 ```
-  A. Self-Access (本 Dist 前端 → 本 Dist data):
-     → 預設全目錄開放 (維持現有行為)
-     → 除非 module 聲明 `self_restrict: true` 才啟用精細控制
+    A. Self access (this dist frontend → this dist data):
+      → default allow the entire directory (keep current behavior)
+      → enable fine-grained control only if the module declares `self_restrict: true`
   
-  B. Cross-Access (其他 Dist 前端 → 本 Dist data via data_mapping):
-     → 受 data_exports 嚴格控制
-     → 未聲明 = private = 拒絕
+    B. Cross access (other dist frontend → this dist data via data_mapping):
+      → strictly controlled by data_exports
+      → undeclared = private = denied
 ```
 
-**self_restrict 選項 (進階)：**
+  **self_restrict option (advanced):**
 ```php
 'data_exports' => [
     'uploads/images' => [
         'access'        => 'public',
-        'self_restrict'  => false,    // 預設 false — 本 Dist 前端不受限
+    'self_restrict'  => false,    // default false — not restricted for the same dist frontend
     ],
     'cache' => [
         'access'        => 'private',
-        'self_restrict'  => true,     // 即使本 Dist 前端也不可經 URL 存取
+    'self_restrict'  => true,     // disallow URL access even for the same dist frontend
     ],
 ],
 ```
 
-### 12.4 實作路徑 — Code Changes
+### 12.4 Implementation path — code changes
 
-#### 12.4.1 ModuleInfo 擴展
+#### 12.4.1 Extend ModuleInfo
 
 ```php
-// src/library/Razy/ModuleInfo.php — 新增屬性 + 方法
+// src/library/Razy/ModuleInfo.php — add property + method
 
 /** @var array<string, array{access: string, allow?: string[], self_restrict?: bool}> */
 private array $dataExports = [];
@@ -4061,10 +4061,10 @@ public function isDataExportAllowed(string $subPath, string $distCode, bool $isS
 }
 ```
 
-#### 12.4.2 Distributor 擴展
+#### 12.4.2 Extend Distributor
 
 ```php
-// src/library/Razy/Distributor.php — 新增方法
+// src/library/Razy/Distributor.php — add method
 
 /**
  * Aggregate data exports from all loaded modules.
@@ -4086,10 +4086,10 @@ public function getDataExports(): array
 }
 ```
 
-#### 12.4.3 CaddyfileCompiler 改動
+#### 12.4.3 CaddyfileCompiler changes
 
 ```php
-// CaddyfileCompiler::compileDataMappingHandlers() — 重構
+// CaddyfileCompiler::compileDataMappingHandlers() — refactor
 
 private function compileDataMappingHandlers(
     mixed       $siteBlock,
@@ -4181,22 +4181,22 @@ private function compileDataMappingHandlers(
 }
 ```
 
-#### 12.4.4 工時估算
+#### 12.4.4 Effort estimate (hours)
 
-| 項目 | 改動 | 工時 |
+| Item | Change | Hours |
 |------|------|------|
-| `ModuleInfo::parseDataExports()` | 新增 `data_exports` parsing + `isDataExportAllowed()` | 2h |
-| `Distributor::getDataExports()` | 聚合所有 module exports | 1h |
-| `CaddyfileCompiler` 重構 | 精細化 data matcher 生成 | 4h |
-| `RewriteRuleCompiler` 對應改動 | htaccess 版本 | 2h |
-| `caddyfile.tpl` + `htaccess.tpl` | 新 `data_export` block | 1h |
-| 單元測試 | parseDataExports, isDataExportAllowed, compiler tests | 4h |
-| 整合測試 | 端對端 rewrite 驗證 (Caddy + Apache) | 2h |
-| **合計** | | **~16h** |
+| `ModuleInfo::parseDataExports()` | Add `data_exports` parsing + `isDataExportAllowed()` | 2h |
+| `Distributor::getDataExports()` | Aggregate all module exports | 1h |
+| `CaddyfileCompiler` refactor | Generate fine-grained data matchers | 4h |
+| `RewriteRuleCompiler` changes | htaccess version | 2h |
+| `caddyfile.tpl` + `htaccess.tpl` | New `data_export` block | 1h |
+| Unit tests | parseDataExports, isDataExportAllowed, compiler tests | 4h |
+| Integration tests | End-to-end rewrite verification (Caddy + Apache) | 2h |
+| **Total** | | **~16h** |
 
-### 12.5 Webassets Under Load Balancing — 問題分析
+### 12.5 Webassets Under Load Balancing — analysis
 
-#### 12.5.1 LB 架構回顧
+#### 12.5.1 LB architecture recap
 
 ```
   ┌─ Front-Door (Caddy) ──────────────────────────────────┐
@@ -4224,9 +4224,9 @@ private function compileDataMappingHandlers(
         Same image    Same image   Same image
 ```
 
-#### 12.5.2 關鍵事實: Image 一致性保證
+#### 12.5.2 Key fact: image consistency guarantee
 
-**Webassets 在 Docker image 內 → 所有 Replica 完全相同**
+**Webassets are inside the Docker image → all replicas are identical**
 
 ```
   Replica 1:
@@ -4234,30 +4234,30 @@ private function compileDataMappingHandlers(
     /app/site/sites/main/modules/vendor/shop/1.0.0/webassets/js/app.js      ← ✅
   
   Replica 2:
-    /app/site/sites/main/modules/vendor/shop/1.0.0/webassets/css/style.css  ← ✅ 完全一致
-    /app/site/sites/main/modules/vendor/shop/1.0.0/webassets/js/app.js      ← ✅ 完全一致
+    /app/site/sites/main/modules/vendor/shop/1.0.0/webassets/css/style.css  ← ✅ identical
+    /app/site/sites/main/modules/vendor/shop/1.0.0/webassets/js/app.js      ← ✅ identical
   
   Replica 3:
-    (同上) ← ✅
+    (same as above) ← ✅
 ```
 
-**原因：**
-1. 所有 Replica 來自同一個 Docker image tag (`razy-tenant:1.0.1-beta`)
-2. Module code (含 webassets) 是 **build-time** baked in image
-3. Image layer 是 content-addressable (SHA256) — 完全一致
-4. Container rootfs 是 read-only — 不可能被 runtime 修改
+**Why:**
+1. All replicas come from the same Docker image tag (`razy-tenant:1.0.1-beta`)
+2. Module code (including webassets) is baked into the image at **build-time**
+3. Image layers are content-addressable (SHA256) — identical
+4. The container rootfs is read-only — cannot be modified at runtime
 
-#### 12.5.3 Rewrite 規則一致性
+#### 12.5.3 Rewrite rule consistency
 
-每個 Replica 內的 Caddy (由 CaddyfileCompiler 產生) 有相同的 `@webasset_*` matchers：
+Each replica's Caddy (generated by CaddyfileCompiler) has the same `@webasset_*` matchers:
 
 ```
-  ┌─ 每個 Replica 內部的 Caddyfile (IDENTICAL) ──────────────┐
+  ┌─ Caddyfile inside each replica (IDENTICAL) ──────────────┐
   │                                                           │
   │  :8080 {                                                  │
   │      root * /app/site                                     │
   │                                                           │
-  │      # Webassets: Shop (所有 Replica 一模一樣)            │
+  │      # Webassets: Shop (identical across all replicas)     │
   │      @webasset_Shop_ path /webassets/Shop/*               │
   │      handle @webasset_Shop_ {                             │
   │          uri strip_prefix /webassets/Shop                  │
@@ -4273,52 +4273,52 @@ private function compileDataMappingHandlers(
   └───────────────────────────────────────────────────────────┘
 ```
 
-**∴ Load Balancer 無論把 webasset 請求導到哪個 Replica，都能正確回應。**
+**∴ No matter which replica the load balancer routes a webasset request to, it will respond correctly.**
 
-#### 12.5.4 為什麼 Webassets 在 LB 下是「非問題」(方案 A)
+#### 12.5.4 Why webassets under LB are a “non-issue” (Option A)
 
-| 維度 | 狀態 | 原因 |
+| Dimension | Status | Reason |
 |------|------|------|
-| **檔案一致性** | ✅ 保證 | 同一 image → 同一 webasset 內容 |
-| **Rewrite 一致性** | ✅ 保證 | CaddyfileCompiler 在 build-time 產生 → baked in image |
-| **URL 一致性** | ✅ 保證 | `Controller::getAssetPath()` 回傳 versioned URL → 版本號來自 `package.php` → baked in image |
-| **Cache 一致性** | ✅ 保證 | 版本化 URL (`/webassets/Shop/1.0.0/...`) → ETag/Last-Modified 在所有 Replica 相同 |
-| **LB Sticky Session** | 不需要 | 檔案內容在所有 Replica 一致 → 無 session affinity 需求 |
+| **File consistency** | ✅ Guaranteed | Same image → same webasset content |
+| **Rewrite consistency** | ✅ Guaranteed | CaddyfileCompiler output is generated at build-time → baked into the image |
+| **URL consistency** | ✅ Guaranteed | `Controller::getAssetPath()` returns a versioned URL → version comes from `package.php` → baked into the image |
+| **Cache consistency** | ✅ Guaranteed | Versioned URL (`/webassets/Shop/1.0.0/...`) → ETag/Last-Modified identical across replicas |
+| **LB sticky session** | Not needed | File content is identical across replicas → no session affinity needed |
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │                                                                 │
-  │   方案 A (Proxy-Through) 下:                                   │
+  │   Under Option A (Proxy-Through):                                 │
   │                                                                 │
-  │   Webassets + LB = 零問題                                      │
+  │   Webassets + LB = non-issue                                     │
   │                                                                 │
-  │   • 所有 Replica 有相同 image → 相同 rewrite 規則 → 相同檔案   │
-  │   • Front-door 只做 reverse_proxy → 不需知道具體內容           │
-  │   • Round-robin 隨機分配 → 每個 Replica 都能回應 → 無差異     │
+  │   • All replicas share the same image → same rewrite rules → same files │
+  │   • Front-door only does reverse_proxy → no need to know file details  │
+  │   • Round-robin distribution → every replica can respond identically  │
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 12.6 Data Files Under Load Balancing — 真正的挑戰
+### 12.6 Data files under load balancing — the real challenge
 
-**Webassets 在 LB 下沒問題，但 Data files 有。**
+**Webassets are fine under LB, but data files are not.**
 
-Data files 是 runtime 產生的 (uploads, reports, cache) → 存在 volume 中 → 如果 Replica 之間不共享 volume，就會有不一致：
+Data files are generated at runtime (uploads, reports, cache) and live on volumes. If replicas do not share volumes, you get inconsistency:
 
 ```
-  ⚠ 場景: User 上傳圖片 → Replica 1 處理 → 存入 Replica 1 的 local volume
+  ⚠ Scenario: user uploads an image → handled by Replica 1 → stored in Replica 1's local volume
   
-  Replica 1: /app/data/tenant-a/shop/uploads/photo.jpg  ← ✅ 存在
-  Replica 2: /app/data/tenant-a/shop/uploads/photo.jpg  ← ❌ 不存在!
-  Replica 3: /app/data/tenant-a/shop/uploads/photo.jpg  ← ❌ 不存在!
+  Replica 1: /app/data/tenant-a/shop/uploads/photo.jpg  ← ✅ exists
+  Replica 2: /app/data/tenant-a/shop/uploads/photo.jpg  ← ❌ missing!
+  Replica 3: /app/data/tenant-a/shop/uploads/photo.jpg  ← ❌ missing!
   
-  → 下一個請求被 LB 導到 Replica 2 → GET /data/shop/uploads/photo.jpg → 404!
+  → Next request is routed to Replica 2 → GET /data/shop/uploads/photo.jpg → 404!
 ```
 
-#### 12.6.1 解決方案: Shared Volume (共享 Volume)
+#### 12.6.1 Solution option: shared volume
 
 ```
-  所有 Replica 掛載同一個 Docker named volume 或 NFS:
+  All replicas mount the same Docker named volume or NFS:
   
   services:
     tenant-a:
@@ -4326,27 +4326,27 @@ Data files 是 runtime 產生的 (uploads, reports, cache) → 存在 volume 中
       deploy:
         replicas: 3
       volumes:
-        - tenant_a_data:/app/data/tenant-a    # ← 共享!
+        - tenant_a_data:/app/data/tenant-a    # ← shared!
   
   volumes:
     tenant_a_data:
-      driver: local        # Docker: 所有 Replica 在同一 host → 共享
-      # 跨 host: 使用 NFS 或 distributed storage
+      driver: local        # Docker: all replicas on the same host → shared
+      # Cross-host: use NFS or distributed storage
 ```
 
-**Docker Swarm / K8s 跨 Host 方案：**
+    **Cross-host options (Docker Swarm / K8s):**
 
-| 方案 | 適用規模 | 延遲 | 一致性 |
+    | Option | Suitable scale | Latency | Consistency |
 |------|---------|-------|--------|
-| **NFS** | ≤50 tenants | ~1-5ms | 強一致 (同步寫入) |
-| **GlusterFS** | ≤200 tenants | ~2-10ms | 最終一致 (可配同步) |
-| **Ceph (RBD/CephFS)** | >200 tenants | ~1-3ms | 強一致 |
-| **EFS (AWS)** | Any | ~5-10ms | 強一致 |
-| **Longhorn (K8s)** | ≤100 tenants | ~1-3ms | 強一致 (ReadWriteMany) |
+    | **NFS** | ≤50 tenants | ~1-5ms | Strong (sync writes) |
+    | **GlusterFS** | ≤200 tenants | ~2-10ms | Eventual (sync optional) |
+    | **Ceph (RBD/CephFS)** | >200 tenants | ~1-3ms | Strong |
+    | **EFS (AWS)** | Any | ~5-10ms | Strong |
+| **Longhorn (K8s)** | ≤100 tenants | ~1-3ms | Strong (ReadWriteMany) |
 
-#### 12.6.2 Docker Compose (Single Host) — 無問題
+    #### 12.6.2 Docker Compose (single host) — no issue
 
-在單機 Docker Compose 下，多個 Replica 掛載同一個 named volume = 完全共享：
+    On a single-host Docker Compose deployment, multiple replicas mounting the same named volume are fully shared:
 
 ```yaml
 services:
@@ -4381,7 +4381,7 @@ metadata:
   name: tenant-a-data
 spec:
   accessModes:
-    - ReadWriteMany          # ← 多 Pod 可同時讀寫
+    - ReadWriteMany          # ← multiple pods can read/write concurrently
   storageClassName: nfs-csi  # or ceph-csi, efs-csi
   resources:
     requests:
@@ -4416,11 +4416,11 @@ spec:
             sizeLimit: 64Mi
 ```
 
-### 12.7 LB 下的 Rewrite 規則生成 — 實際操作
+### 12.7 Rewrite rule generation under LB — practical guidance
 
-#### 12.7.1 Caddy Front-Door 配置 (方案 A — 推薦)
+#### 12.7.1 Caddy front-door configuration (Option A — recommended)
 
-**Front-door 完全不需要知道 module/webasset 細節** — 只做 domain → upstream mapping：
+**Front-door does not need to know module/webasset details** — it only does domain → upstream mapping:
 
 ```caddyfile
 # ── Front-Door Caddyfile (SIMPLE) ──
@@ -4432,11 +4432,11 @@ tenant-a.example.com {
         health_uri /health
         health_interval 5s
 
-        # Webasset 請求也走 reverse_proxy → Replica 內的 file_server 處理
-        # Data 請求也走 reverse_proxy → Replica 內的 file_server 處理 (shared volume)
-        # PHP 請求走 reverse_proxy → Replica 內的 FrankenPHP worker 處理
+        # Webasset requests also go through reverse_proxy → handled by in-replica file_server
+        # Data requests also go through reverse_proxy → handled by in-replica file_server (shared volume)
+        # PHP requests go through reverse_proxy → handled by in-replica FrankenPHP worker
         
-        # ∴ Front-door 不需要任何 @webasset / @data matcher
+        # ∴ Front-door needs no @webasset / @data matchers
     }
 }
 
@@ -4449,12 +4449,12 @@ tenant-b.example.com {
 }
 ```
 
-**∴ Front-door Caddyfile 極簡 — per-domain 一個 `reverse_proxy` block 即可。**
+**∴ The front-door Caddyfile stays minimal — one `reverse_proxy` block per domain is enough.**
 
-#### 12.7.2 Tenant Container 內部 Caddyfile (由 CaddyfileCompiler 生成)
+#### 12.7.2 Tenant container internal Caddyfile (generated by CaddyfileCompiler)
 
 ```caddyfile
-# ── Tenant Container 內部 (每個 Replica 相同) ──
+# ── Inside tenant container (same for each replica) ──
 
 :8080 {
     root * /app/site
@@ -4504,9 +4504,9 @@ tenant-b.example.com {
 }
 ```
 
-#### 12.7.3 htaccess 等效配置 (Apache, 非 LB 場景)
+#### 12.7.3 Equivalent htaccess configuration (Apache, non-LB scenario)
 
-在 Apache 環境下，通常不使用 LB (走 php-fpm 或 mod_php)。htaccess rewrite 與 Caddy 同理，但使用 `RewriteRule` + `RewriteCond`：
+In Apache environments, LB is typically not used (php-fpm or mod_php). The rewrite idea is the same as Caddy, but expressed via `RewriteRule` + `RewriteCond`:
 
 ```apache
 # Cross-dist data export (module-level)
@@ -4517,46 +4517,46 @@ RewriteRule ^blog/data/shop/uploads/images/(.+)$ %{ENV:BASE}data/blog.example.co
 # (shop/cache, shop/reports for non-allowed dists → simply not emitted)
 ```
 
-### 12.8 Rolling Update (滾動更新) — 版本混合期
+### 12.8 Rolling update — mixed-version period
 
-**LB 下的特殊場景：** Rolling update 期間，部分 Replica 跑新版 image，部分跑舊版。
+**Special case under LB:** During a rolling update, some replicas run the new image while others still run the old image.
 
 ```
   ┌────────────────────────────────────────────────────┐
   │ Rolling Update: razy-tenant:1.0.1 → 1.0.2         │
   │                                                    │
-  │ 時間 T1:                                           │
-  │   Replica 1: image 1.0.2 ← 新版 (已更新)         │
-  │   Replica 2: image 1.0.1 ← 舊版 (等待更新)       │
-  │   Replica 3: image 1.0.1 ← 舊版 (等待更新)       │
+  │ Time T1:                                           │
+  │   Replica 1: image 1.0.2 ← new (updated)           │
+  │   Replica 2: image 1.0.1 ← old (pending update)    │
+  │   Replica 3: image 1.0.1 ← old (pending update)    │
   │                                                    │
   │ Webasset URL:                                      │
-  │   新版: /webassets/Shop/1.0.2/css/style.css       │
-  │   舊版: /webassets/Shop/1.0.1/css/style.css       │
+  │   New: /webassets/Shop/1.0.2/css/style.css         │
+  │   Old: /webassets/Shop/1.0.1/css/style.css         │
   └────────────────────────────────────────────────────┘
 ```
 
-**Versioned URL 自動解決版本混合問題：**
+**Do versioned URLs automatically solve the mixed-version period?**
 
 ```
-  1. 用戶 A 在 T1 時刻訪問 → 打到 Replica 1 (新版)
-     → PHP 生成 HTML 包含: /webassets/Shop/1.0.2/css/style.css
-     → Browser 請求 /webassets/Shop/1.0.2/css/style.css
-     → LB 可能導到 Replica 2 (舊版)
-     → Replica 2 的 file_server 匹配 @webasset_Shop_
-     → 但 URI strip 後找的是 sites/main/modules/vendor/shop/1.0.2/webassets/css/style.css
-     → ❌ Replica 2 只有 1.0.1 → 404??
+    1. User A visits at time T1 → hits Replica 1 (new)
+      → PHP generates HTML containing: /webassets/Shop/1.0.2/css/style.css
+      → Browser requests /webassets/Shop/1.0.2/css/style.css
+      → LB may route to Replica 2 (old)
+      → Replica 2 file_server matches @webasset_Shop_
+      → But after stripping the prefix, it looks for sites/main/modules/vendor/shop/1.0.2/webassets/css/style.css
+      → ❌ Replica 2 only has 1.0.1 → 404??
   
-  等等 — 不對！讓我們看看 CaddyfileCompiler 的 rewrite 路徑：
+    Wait — let's check the rewrite path generated by CaddyfileCompiler:
 ```
 
-**修正分析 — CaddyfileCompiler 的 container_path：**
+**Corrected analysis — CaddyfileCompiler container_path:**
 
 ```
-  CaddyfileCompiler 使用 ModuleInfo::getContainerPath(true) 作為 root：
+  CaddyfileCompiler uses ModuleInfo::getContainerPath(true) as the root:
   
   containerPath = sites/main/modules/vendor/shop
-  (不包含版本號 — 版本號在 URL 中由 browser 自帶)
+  (does not include the version — the version comes from the URL)
   
   Caddyfile:
     @webasset_Shop_ path /webassets/Shop/*
@@ -4571,52 +4571,52 @@ RewriteRule ^blog/data/shop/uploads/images/(.+)$ %{ENV:BASE}data/blog.example.co
   Full path: sites/main/modules/vendor/shop/1.0.0/webassets/css/style.css
 ```
 
-**Wait —** `getContainerPath()` returns 容器路徑 (vendor/shop)，再加上版本子目錄 (1.0.0)，最後加 `webassets/file.css`。
+**Wait —** `getContainerPath()` returns the container path (vendor/shop), then appends the version subdirectory (1.0.0), and finally `webassets/file.css`.
 
-在 htaccess template 中可以看到更清楚：
+The htaccess template makes this clearer:
 ```
 RewriteRule ^{route_path}webassets/{mapping}/(.+?)/(.+)$ {dist_path} [END]
 ```
-其中 `dist_path = containerPathRel + /$1/webassets/$2`，`$1` 捕獲版本號，`$2` 捕獲檔案路徑。
+Where `dist_path = containerPathRel + /$1/webassets/$2`, `$1` captures the version, and `$2` captures the file path.
 
-**∴ Rolling Update 問題分析：**
+**∴ Rolling update analysis:**
 
 ```
   Replica 1 (image 1.0.2):
     filesystem: sites/main/modules/vendor/shop/1.0.2/webassets/css/style.css ✅
-    filesystem: sites/main/modules/vendor/shop/1.0.1/webassets/css/style.css ❌ (不存在)
+    filesystem: sites/main/modules/vendor/shop/1.0.1/webassets/css/style.css ❌ (missing)
   
   Replica 2 (image 1.0.1):
     filesystem: sites/main/modules/vendor/shop/1.0.1/webassets/css/style.css ✅
-    filesystem: sites/main/modules/vendor/shop/1.0.2/webassets/css/style.css ❌ (不存在)
+    filesystem: sites/main/modules/vendor/shop/1.0.2/webassets/css/style.css ❌ (missing)
   
-  用戶 A: HTML from Replica 1 → URL /webassets/Shop/1.0.2/...
-          → LB 導到 Replica 2 → 找 1.0.2 → 404 ⚠
+  User A: HTML from Replica 1 → URL /webassets/Shop/1.0.2/...
+          → LB routes to Replica 2 → looks for 1.0.2 → 404 ⚠
   
-  用戶 B: HTML from Replica 2 → URL /webassets/Shop/1.0.1/...
-          → LB 導到 Replica 1 → 找 1.0.1 → 404 ⚠
+  User B: HTML from Replica 2 → URL /webassets/Shop/1.0.1/...
+          → LB routes to Replica 1 → looks for 1.0.1 → 404 ⚠
 ```
 
-**Rolling Update 是唯一會出問題的場景！**
+**Rolling update is the only scenario that can break!**
 
-#### 12.8.1 解決方案
+#### 12.8.1 Solution options
 
-**策略 1: Blue-Green Deployment (推薦)**
+**Strategy 1: Blue-Green Deployment (Recommended)**
 
 ```
-  不做 rolling update → 而是 blue-green:
+  Avoid rolling updates → use blue-green instead:
   
-  1. 啟動全部新 Replica (green) 並行舊 Replica (blue)
-  2. 健康檢查通過後，一次性切換 LB 到 green
-  3. 確認無問題後銷毀 blue
+  1. Start all new replicas (green) alongside old replicas (blue)
+  2. After health checks pass, switch the LB to green atomically
+  3. After validation, tear down blue
   
-  → 不存在版本混合期 → 不會有 404
+  → No mixed-version period → no 404
 ```
 
-**策略 2: Versioned Upstream (多版本共存)**
+**Strategy 2: Versioned upstream (multi-version coexistence)**
 
 ```caddyfile
-# Front-door 配置兩個 upstream (rolling update 期間)
+# Front-door uses two upstream pools (during rolling update)
 tenant-a.example.com {
     # Version-aware routing:
     # 1.0.2 assets → only to new replicas
@@ -4636,43 +4636,43 @@ tenant-a.example.com {
 }
 ```
 
-**複雜度高 — 僅在大規模 K8s 下有意義。**
+**High complexity — only meaningful at larger K8s scale.**
 
-**策略 3: CDN Cache Warming (最實用)**
+**Strategy 3: CDN cache warming (most practical)**
 
 ```
-  Rolling update 前:
-  1. CDN 已 cache 了 1.0.1 版 webassets (immutable, 1yr max-age)
-  2. 部署 1.0.2 → 新 Replica 上線
-  3. 新 HTML 引用 1.0.2 → CDN 尚未有 cache
-  4. CDN → Front-door → 任意 Replica
-     → 如果打到舊 Replica → 404
-     → CDN 不 cache 404
-     → Browser retry (或 CDN retry with next upstream)
-  5. 打到新 Replica → 200 → CDN cache
-  6. 舊 Replica 也更新完成 → 全部一致
+  Before rolling update:
+  1. CDN already cached 1.0.1 webassets (immutable, 1yr max-age)
+  2. Deploy 1.0.2 → new replicas come online
+  3. New HTML references 1.0.2 → CDN cache not yet present
+  4. CDN → front-door → any replica
+     → If routed to an old replica → 404
+     → CDN does not cache 404
+     → Browser retries (or CDN retries another upstream)
+  5. Routed to a new replica → 200 → CDN caches
+  6. Old replicas finish updating → everything becomes consistent
   
-  影響: Rolling update 的幾秒內，少數 webasset 請求可能 404
-  → Browser 會用 cache 版本 (如果之前訪問過)
-  → 新用戶可能看到短暫的 unstyled content
+  Impact: during a few seconds of rolling update, a small number of webasset requests may 404
+  → Browser may still use cached versions (if previously visited)
+  → New users may see brief unstyled content
 ```
 
-**策略 4: Max Surge = 100% (推薦, 最簡單)**
+**Strategy 4: maxSurge = 100% (recommended, simplest)**
 
 ```yaml
-# K8s Deployment 策略
+# K8s Deployment strategy
 spec:
   strategy:
     rollingUpdate:
-      maxSurge: 100%        # 先啟動所有新 Pod
-      maxUnavailable: 0     # 再停舊 Pod
+      maxSurge: 100%        # start all new pods first
+      maxUnavailable: 0     # then stop old pods
   
-  # 效果: 等同 blue-green — 新舊 Pod 短暫共存
-  # 但新 Pod ready 後 LB 會逐步遷移流量
-  # 配合 readiness probe → 確保新 Pod 完全啟動後才接收流量
+  # Effect: equivalent to blue-green — new/old pods briefly coexist
+  # After new pods are ready, LB gradually shifts traffic
+  # With readiness probes → ensure new pods are fully ready before receiving traffic
 ```
 
-### 12.9 完整流量路徑圖 (LB + Data Export)
+### 12.9 Full traffic path diagram (LB + Data Export)
 
 ```
 ═══════════════════════════════════════════════════════════════════════════════
@@ -4689,13 +4689,13 @@ spec:
                 → file_server from image (read-only)
                 → 200 OK + CSS/JS/image
   
-    ✅ 所有 Replica 相同 image → 相同 webassets → LB 透明
-    ✅ Versioned URL → CDN cache 命中率趨近 100%
-    ⚠  Rolling update 時需 blue-green 或 maxSurge=100%
+    ✅ All replicas share the same image → same webassets → LB transparent
+    ✅ Versioned URLs → CDN cache hit rate approaches 100%
+    ⚠  During rolling update, use blue-green or maxSurge=100%
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-  Self-Dist Data Access (本 Dist 前端):
+  Self-Dist Data Access (same dist frontend):
 
     Browser
       → CDN (cache: short, 1hr)
@@ -4707,8 +4707,8 @@ spec:
                 → file_server from shared volume
                 → 200 OK + uploaded file
   
-    ✅ 共享 volume → 所有 Replica 看到相同 data → LB 透明
-    ✅ Self-dist data: 全目錄 file_server (維持現有行為)
+    ✅ Shared volume → all replicas see the same data → LB transparent
+    ✅ Self-dist data: full-directory file_server (keep existing behavior)
 
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -4718,14 +4718,14 @@ spec:
       → CDN
         → Caddy Front-Door
           → reverse_proxy → Replica N:8080
-            → Internal Caddy (§12.3 新規則)
+            → Internal Caddy (§12.3 new rules)
               → @data_blog_shop_images matcher
                 → module 'shop' data_exports: 'uploads/images' = public ✅
                 → file_server from target dist's shared volume
                 → 200 OK
 
-    ✅ Module-level 粒度控制
-    ✅ 未匹配的子目錄 → 無 matcher → 落入 php_server → Razy 404
+    ✅ Module-level granularity control
+    ✅ Unmatched subdirs → no matcher → falls through to php_server → Razy 404
 
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -4737,89 +4737,95 @@ spec:
           → Falls through to php_server
             → Razy RouteDispatcher → no matching route → 404
 
-    ✅ Secure by default — 未聲明 = private
-    ✅ Build-time 決定 → 無 runtime 開銷
+    ✅ Secure by default — undeclared = private
+    ✅ Decided at build-time → no runtime overhead
 
 ═══════════════════════════════════════════════════════════════════════════════
 ```
 
-### 12.10 向後相容性
+### 12.10 Backward compatibility
 
-| 場景 | 行為 |
+| Scenario | Behavior |
 |------|------|
-| Module **沒有** `data_exports` + Self-dist | ✅ 全目錄 file_server (現有行為不變) |
-| Module **沒有** `data_exports` + Cross-dist | ⚠ 預設拒絕 (secure by default) — **行為變更** |
-| Module **有** `data_exports` + Self-dist | ✅ 全目錄 (除非 `self_restrict: true`) |
-| Module **有** `data_exports` + Cross-dist | ✅ 只開放聲明的子目錄 |
+| Module has **no** `data_exports` + self-dist | ✅ Full-directory file_server (existing behavior unchanged) |
+| Module has **no** `data_exports` + cross-dist | ⚠ Deny by default (secure by default) — **behavior change** |
+| Module **has** `data_exports` + self-dist | ✅ Full-directory (unless `self_restrict: true`) |
+| Module **has** `data_exports` + cross-dist | ✅ Only declared subdirectories are allowed |
 
-**Migration 路徑：**
+**Migration Path:**
 
-對於已使用 `data_mapping` 的現有部署，升級後 cross-dist data 會預設 blocked。需在被訪問的 module 的 `package.php` 中加入 `data_exports` 聲明。
+For existing deployments that already use `data_mapping`, after upgrading, cross-dist data will be blocked by default. Add `data_exports` declarations in `package.php` for the modules being accessed.
 
 ```
-  升級步驟:
-  1. 識別哪些 module 的 data 被其他 dist 透過 data_mapping 訪問
-  2. 在這些 module 的 package.php 加入 data_exports
-  3. 重新執行 php Razy.phar rewrite (--caddy 或 --htaccess)
-  4. 驗證 cross-dist data 訪問正常
+  Upgrade steps:
+  1. Identify which modules' data is accessed by other dists via data_mapping
+  2. Add data_exports to those modules' package.php
+  3. Re-run php Razy.phar rewrite (--caddy or --htaccess)
+  4. Verify cross-dist data access works as expected
 ```
 
-可增加 `RAZY_DATA_EXPORT_LEGACY=true` 環境變數在過渡期維持舊行為 (全目錄開放)，並在日誌中記錄 warning 提示需升級。
+You can set `RAZY_DATA_EXPORT_LEGACY=true` as an environment variable to keep legacy behavior during the transition (full-directory open), and log warnings to remind you to migrate.
 
-### 12.11 方案對比 — 整體視角
+### 12.11 Option Comparison — Overall View
 
 ```
   ┌─────────────────────────────────────────────────────────────────────────┐
-  │                  問題 ① Data Access                                    │
+  │                  Problem ① Data Access                                 │
   │                                                                         │
-  │  Before (§8-§11): data_mapping 粗粒度 — 整個目錄對所有 consumer 開放   │
-  │  After  (§12):    data_exports 精細化 — module 控制 sub-dir + ACL       │
+  │  Before (§8-§11): data_mapping is coarse-grained — whole directory open │
+  │                 to all consumers                                        │
+  │  After  (§12):    data_exports is fine-grained — module controls sub-dir│
+  │                 + ACL                                                   │
   │                                                                         │
-  │  改動量: ~16h                                                           │
-  │  安全提升: ★★★★ (從零控制到 public/restricted/private 三級)             │
-  │  向後相容: ⚠ Cross-dist 預設行為從 open → closed (需 migration)         │
+  │  Change effort: ~16h                                                    │
+  │  Security improvement: ★★★★ (from zero control to 3 levels:             │
+  │    public/restricted/private)                                           │
+  │  Backward compatible: ⚠ Cross-dist default changes open → closed        │
+  │    (migration required)                                                 │
   ├─────────────────────────────────────────────────────────────────────────┤
-  │                  問題 ② Webassets Under LB                              │
+  │                  Problem ② Webassets Under LB                           │
   │                                                                         │
-  │  結論: 方案 A (Proxy-Through) 下 webassets LB = 非問題                 │
+  │  Conclusion: Under Option A (Proxy-Through), webassets under LB         │
+  │  is a non-issue                                                         │
   │                                                                         │
-  │  • 所有 Replica 同一 image → 相同 webasset → 相同 Caddyfile           │
-  │  • Front-door 只做 reverse_proxy → 不需知道 module 細節                │
-  │  • 唯一風險: rolling update 版本混合 → blue-green 或 maxSurge=100%     │
+  │  • Same image across replicas → same webassets → same Caddyfile         │
+  │  • Front-door only does reverse_proxy → no module-level knowledge needed│
+  │  • Only risk: rolling update mixed-version period → blue-green or       │
+  │    maxSurge=100%                                                       │
   │                                                                         │
   │  Data files LB:                                                         │
-  │  • 共享 volume (Docker named volume / NFS / CephFS / EFS)              │
-  │  • 所有 Replica 看到相同 data → LB 透明                                │
+  │  • Shared volume (Docker named volume / NFS / CephFS / EFS)             │
+  │  • All replicas see the same data → LB transparent                       │
   │                                                                         │
-  │  改動量: 0h (方案 A — 現有架構已支持)                                   │
-  │         +4h (front-door Caddyfile 配置 + health check)                  │
+  │  Change effort: 0h (Option A — existing architecture already supports it)│
+  │         +4h (front-door Caddyfile config + health check)                 │
   └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 12.12 Key Insight (關鍵洞察)
+### 12.12 Key Insight (Key Insight)
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │                                                                 │
   │   Data Access:                                                  │
-  │   • 現有 data_mapping 是 consumer-side 掛載 → 無 producer      │
-  │     控制 → 安全缺口                                            │
-  │   • 新增 package.php data_exports = producer-side ACL           │
-  │   • 三級控制: public / restricted / private                     │
-  │   • Build-time 寫入 Caddyfile → 零 runtime overhead            │
-  │   • CaddyfileCompiler 精細化: 每 module 每 sub-dir 一條 rule   │
+  │   • Existing data_mapping is a consumer-side mount → no         │
+  │     producer-side control → security gap                        │
+  │   • Add package.php data_exports = producer-side ACL             │
+  │   • 3-level control: public / restricted / private             │
+  │   • Build-time writes Caddyfile → zero runtime overhead        │
+  │   • CaddyfileCompiler granularity: per-module, per-subdir rule │
   │                                                                 │
   │   Webassets Under LB:                                           │
-  │   • Image 一致性 → 所有 Replica 的 webasset 完全相同           │
-  │   • Caddyfile 一致性 → 所有 Replica 的 rewrite 完全相同        │
-  │   • ∴ LB round-robin 對 webassets 完全透明 — 非問題            │
-  │   • 唯一注意: rolling update → blue-green 部署策略              │
+  │   • Image consistency → all replicas have identical webassets  │
+  │   • Caddyfile consistency → identical rewrite rules everywhere │
+  │   • ∴ LB round-robin is transparent for webassets — non-issue   │
+  │   • Only watch-out: rolling update → use a blue-green strategy  │
   │                                                                 │
   │   Data Files Under LB:                                          │
-  │   • 需共享 volume (docker named vol / NFS / CephFS)            │
-  │   • 共享後 → 所有 Replica 看到相同 data → LB 透明              │
-  │   • Docker Compose 單機: named volume 自動共享                  │
-  │   • K8s 跨 host: ReadWriteMany PVC (NFS/CephFS/EFS)           │
+  │   • Need shared volume (docker named vol / NFS / CephFS)       │
+  │   • After sharing → all replicas see same data → LB transparent │
+  │   • Docker Compose (single host): named volumes are shared      │
+  │   • K8s (multi-host): ReadWriteMany PVC (NFS/CephFS/EFS)        │
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 ```
@@ -4828,29 +4834,29 @@ spec:
 
 ## 13. Webasset Pack — Build-Time Asset Extraction & External Storage
 
-> **前提：** §11 方案 C 提出了 Build-Time Asset Extraction 概念，§12 確認 webassets 在 LB 下依靠 image 一致性可運作。本節進一步設計一套完整的 **Webasset Pack** 機制 — 當 tenant 打包指令執行時，webassets 被提取為獨立 PACK，Core 加入 tenant 時找到 PACK 並解壓到指定 storage path (local / S3 / CDN origin)，讓 `Controller::getAssetPath()` 指向正確的外部 URL。
+> **Premise:** §11 Option C introduced the Build-Time Asset Extraction concept; §12 confirmed webassets can work under LB via image consistency. This section designs a complete **Webasset Pack** mechanism — when the tenant packaging command runs, webassets are extracted into an independent pack; when Core joins a tenant, it finds the pack and unpacks it to the target storage path (local / S3 / CDN origin), so `Controller::getAssetPath()` points to the correct external URL.
 
-### 13.1 動機與問題回顧
+### 13.1 Motivation and Problem Recap
 
-**§11-§12 的結論：**
+**Conclusions from §11–§12:**
 
-| 場景 | 現有解法 | 限制 |
+| Scenario | Current solution | Limitation |
 |------|---------|------|
-| 單機 Docker (≤20 tenants) | 方案 A (Proxy-Through) — 零改動 | 靜態流量佔 PHP container 資源 |
-| LB + 多 Replica | 方案 A 仍可用 (image 一致性) | 每個 Replica 都要回應靜態請求 |
-| 高流量 (>100 tenants) | 方案 F (S3 + CDN) | 需額外 publish pipeline |
-| Rolling update | Blue-green 部署 | 版本混合期風險 |
+| Single host Docker (≤20 tenants) | Option A (Proxy-Through) — zero changes | Static traffic consumes PHP container resources |
+| LB + multi-replica | Option A still works (image consistency) | Every replica must serve static requests |
+| High traffic (>100 tenants) | Option F (S3 + CDN) | Requires an additional publish pipeline |
+| Rolling update | Blue-green deployment | Risk during the mixed-version period |
 
-**Webasset Pack 的目標：** 在現有 `pack` (→ `.phar`) + `sync` (→ install) 生命週期中自然插入 webasset 提取步驟，讓 Core 加入 tenant 時自動把 webassets 部署到外部 storage，徹底解除靜態流量對 PHP container 的依賴。
+**Goal of Webasset Pack:** Insert a webasset extraction step naturally into the existing `pack` (→ `.phar`) + `sync` (→ install) lifecycle, so when Core joins a tenant it automatically deploys webassets to external storage, fully removing static traffic dependency from the PHP container.
 
-### 13.2 現有 CLI Pipeline 分析
+### 13.2 Existing CLI Pipeline Analysis
 
 ```
-  現有流程:
+  Existing flow:
   
   ① pack   : php Razy.phar pack vendor/shop 1.0.0
-              → packages/vendor/shop/1.0.0.phar       (module code as .phar)
-              → packages/vendor/shop/1.0.0-assets/     (webassets copy, 已支持!)
+              → packages/vendor/shop/1.0.0.phar        (module code as .phar)
+              → packages/vendor/shop/1.0.0-assets/     (webassets copy, already supported)
               → packages/vendor/shop/manifest.json
               → packages/vendor/shop/latest.json
   
@@ -4866,12 +4872,12 @@ spec:
               → CaddyfileCompiler → @webasset_Shop_ matcher → file_server from module dir
 ```
 
-**關鍵觀察：**
+**Key observations:**
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
   │                                                                     │
-  │  pack.inc.php 已經做了 webasset 提取！ (line 224-234)              │
+  │  pack.inc.php already extracts webassets! (line 224-234)            │
   │                                                                     │
   │    $assetsOutputPath = PathUtil::append($outputPath, $version . '-assets')
   │    xcopy($assetsPath, $assetsOutputPath)                            │
@@ -4881,30 +4887,30 @@ spec:
   │    └── js/app.js                                                    │
   │    └── images/logo.png                                              │
   │                                                                     │
-  │  但 publish + sync 完全忽略這些 asset files！                      │
-  │  → Assets 只停留在 packages/ 目錄，從未被部署到外部 storage        │
+  │  But publish + sync completely ignore these asset files!            │
+  │  → Assets stay under packages/ and are never deployed externally    │
   │                                                                     │
   └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 13.3 設計概覽 — Webasset Pack Lifecycle
+### 13.3 Design Overview — Webasset Pack Lifecycle
 
 ```
 ═══════════════════════════════════════════════════════════════════════════
 
-  PHASE 1: Pack (開發者執行)
+  PHASE 1: Pack (run by developer)
   
   php Razy.phar pack vendor/shop 1.0.0
       │
-      ├─→ 1.0.0.phar           (module code, 現有)
-      ├─→ 1.0.0-assets/        (webassets 目錄, 現有但未利用)
-      ├─→ 1.0.0-assets.tar.gz  (NEW: webasset pack — 壓縮封裝)
-      ├─→ manifest.json         (現有, 新增 assets_checksum 欄位)
-      └─→ latest.json           (現有)
+      ├─→ 1.0.0.phar           (module code, existing)
+      ├─→ 1.0.0-assets/        (webassets directory, existing but unused)
+      ├─→ 1.0.0-assets.tar.gz  (NEW: webasset pack — compressed archive)
+      ├─→ manifest.json         (existing, add assets_checksum field)
+      └─→ latest.json           (existing)
 
 ═══════════════════════════════════════════════════════════════════════════
 
-  PHASE 2: Publish (推送到 Repository)
+  PHASE 2: Publish (push to repository)
   
   php Razy.phar publish --push
       │
@@ -4926,70 +4932,70 @@ spec:
 
 ═══════════════════════════════════════════════════════════════════════════
 
-  PHASE 3: Sync + Deploy (Core 加入 Tenant 時)
+  PHASE 3: Sync + Deploy (when Core joins a tenant)
   
   php Razy.phar sync main
       │
-      ├─→ Download 1.0.0.phar → extract to sites/main/vendor/shop/  (現有)
+      ├─→ Download 1.0.0.phar → extract to sites/main/vendor/shop/  (existing)
       │
       └─→ Download 1.0.0-assets.tar.gz → extract to ASSET_STORAGE   (NEW)
             │
-            │   PACK_ID = 1.0.0-a1b2c3d4 (從 manifest 讀取)
+            │   PACK_ID = 1.0.0-a1b2c3d4 (read from manifest)
             │
             ├── Local:  /app/assets/Shop/1.0.0-a1b2c3d4/css/style.css
             ├── S3:     s3://razy-assets/tenant-a/Shop/1.0.0-a1b2c3d4/css/style.css
             └── CDN:    https://cdn.example.com/tenant-a/Shop/1.0.0-a1b2c3d4/css/style.css
             
-            + 寫入 .asset_pack_id 檔案到 module dir (Runtime 讀取用)
+            + Write .asset_pack_id file to module dir (read by runtime)
 
 ═══════════════════════════════════════════════════════════════════════════
 
-  PHASE 4: Runtime (Module 取得 Asset URL)
+  PHASE 4: Runtime (module gets asset URL)
   
-  Controller::getAssetPath()   — 原始 (self-serve):
+  Controller::getAssetPath()   — original (self-serve):
       → https://example.com/webassets/Shop/1.0.0/
   
-  Controller::getAssetUrl()    — 新增 (external storage + PACK_ID):
-      → 讀取 .asset_pack_id 檔 → 1.0.0-a1b2c3d4
-      → 檢查 RAZY_ASSET_BASE_URL 環境變數
-      → 有: https://cdn.example.com/tenant-a/Shop/1.0.0-a1b2c3d4/
-      → 無: fallback to getAssetPath() (self-serve, 向後相容)
+    Controller::getAssetUrl()    — new (external storage + PACK_ID):
+      → Read .asset_pack_id → 1.0.0-a1b2c3d4
+      → Check RAZY_ASSET_BASE_URL env var
+      → If set: https://cdn.example.com/tenant-a/Shop/1.0.0-a1b2c3d4/
+      → If not: fallback to getAssetPath() (self-serve, backward compatible)
 
 ═══════════════════════════════════════════════════════════════════════════
 
-  PHASE 5: Purge (過渡完成後清理)
+  PHASE 5: Purge (cleanup after transition)
   
   php Razy.phar asset:purge --keep=1
       │
-      ├─→ 列出所有 PACK_ID per alias:
+      ├─→ List all PACK_ID per alias:
       │     Shop: 1.0.0-a1b2c3d4 (OLD), 1.1.0-99aabb00 (CURRENT)
       │
-      ├─→ 保留最新 1 份: 1.1.0-99aabb00
+      ├─→ Keep newest 1 copy: 1.1.0-99aabb00
       │
-      └─→ 刪除: 1.0.0-a1b2c3d4 (釋放 storage)
+      └─→ Delete: 1.0.0-a1b2c3d4 (free storage)
 
 ═══════════════════════════════════════════════════════════════════════════
 ```
 
-### 13.4 Asset Pack 格式設計
+### 13.4 Asset Pack Format Design
 
-#### 13.4.1 壓縮封裝: `.tar.gz`
+#### 13.4.1 Compression Format: `.tar.gz`
 
-**為什麼不用 .phar 或 .zip：**
+**Why not .phar or .zip:**
 
-| 格式 | 優勢 | 劣勢 |
+| Format | Advantages | Disadvantages |
 |------|------|------|
-| `.phar` | PHP 原生 | 專為 PHP 代碼；靜態檔案不需執行；S3/CDN 不認得 |
-| `.zip` | 廣泛支持 | PHP 的 ZipArchive 需 ext-zip；壓縮率不如 gzip |
-| **`.tar.gz`** | 所有 Linux 原生；S3 支持；Caddy 原生解壓 | Windows 需 `tar` (PHP 8+ 自帶 PharData) |
+| `.phar` | Native to PHP | Designed for PHP code; static files don't need execution; S3/CDN won't recognize it |
+| `.zip` | Widely supported | PHP ZipArchive requires ext-zip; compression ratio is worse than gzip |
+| **`.tar.gz`** | Native on Linux; supported by S3; easy to extract | Windows needs `tar` (PHP 8+ includes `PharData`) |
 
-**選擇：** `.tar.gz` — 使用 PHP 內建的 `PharData` 處理，無需額外擴展。
+**Choice:** `.tar.gz` — handled via PHP built-in `PharData`, no extra extension required.
 
-#### 13.4.2 Pack 內部結構 (PACK_ID 隔離)
+#### 13.4.2 Pack Internal Structure (PACK_ID isolation)
 
 ```
   1.0.0-assets.tar.gz
-  └── Shop/                              ← alias (不是 module code)
+  └── Shop/                              ← alias (not module code)
       └── 1.0.0-a1b2c3d4/               ← PACK_ID (version + content hash)
           ├── css/
           │   └── style.css
@@ -4998,100 +5004,101 @@ spec:
           └── images/
               └── logo.png
   
-  解壓後 (在 ASSET_STORAGE):
+  After extraction (in ASSET_STORAGE):
   
   /app/assets/Shop/1.0.0-a1b2c3d4/css/style.css
   /app/assets/Shop/1.0.0-a1b2c3d4/js/app.js
   /app/assets/Shop/1.0.0-a1b2c3d4/images/logo.png
 ```
 
-**使用 alias 而非 module code 的原因：** `Controller::getAssetPath()` 已使用 alias 作為 URL segment (`/webassets/{alias}/{version}/`)。保持一致 → 外部 storage 路徑 = URL 路徑 → 零映射開銷。
+**Why use alias instead of module code:** `Controller::getAssetPath()` already uses alias as the URL segment (`/webassets/{alias}/{version}/`). Keeping it consistent → external storage path = URL path → zero mapping overhead.
 
-**為什麼路徑用 PACK_ID 而非 version：** 見 §13.4.3 — Hot-Plug 版本衝突問題。
+**Why use PACK_ID instead of version in the path:** See §13.4.3 — hot-plug version conflict.
 
-#### 13.4.3 PACK_ID — Hot-Plug Asset 版本隔離
+#### 13.4.3 PACK_ID — Hot-Plug Asset Version Isolation
 
-**問題場景 (FrankenPHP Worker Mode Hot-Plug)：**
+**Problem scenario (FrankenPHP Worker Mode Hot-Plug):**
 
 ```
   ┌─────────────────────────────────────────────────────────────────────────┐
   │                                                                         │
-  │   時間軸:                                                               │
+  │   Timeline:                                                            │
   │   ─────────────────────────────────────────────────────────────────     │
   │   T0          T1                T2              T3                      │
   │   │           │                 │               │                       │
-  │   │  v1.0     │  hot-plug 開始  │  過渡期       │  完全切換             │
+  │   │  v1.0     │  hot-plug start │  transition   │  fully switched       │
   │   │  running  │  v1.1 deploy    │  v1.0 + v1.1  │  only v1.1            │
-  │   │           │                 │  同時在跑     │                       │
+  │   │           │                 │  both running │                       │
   │   ─────────────────────────────────────────────────────────────────     │
   │                                                                         │
-  │   T1: sync 部署 v1.1 asset pack                                        │
+  │   T1: sync deploy v1.1 asset pack                                       │
   │                                                                         │
-  │   ❌ 如果用 {alias}/{version}/ 路徑:                                   │
+  │   ❌ If using {alias}/{version}/ path:                                  │
   │      v1.0 assets → /app/assets/Shop/1.0.0/css/style.css               │
   │      v1.1 assets → /app/assets/Shop/1.1.0/css/style.css               │
-  │      → 版本不同時沒問題… 但如果 v1.0.0 hotfix (same version)?          │
-  │      → 覆蓋! v1.0 workers 取到新 CSS → 不一致!                         │
+  │      → Different versions are fine... but what about a v1.0.0 hotfix    │
+  │        (same version)?                                                 │
+  │      → Overwrite! v1.0 workers read new CSS → inconsistency!           │
   │                                                                         │
-  │   ❌ 同版本 hotfix 場景:                                               │
-  │      開發者修了 CSS bug, re-pack v1.0.0 (不升版號)                     │
-  │      新 v1.0.0 assets 覆蓋舊 v1.0.0 → 舊 workers 拿到新 CSS          │
-  │      → 瀏覽器已快取舊 JS + 拿到新 CSS → 排版炸裂                      │
+  │   ❌ Same-version hotfix scenario:                                     │
+  │      Developer fixes a CSS bug, re-pack v1.0.0 (no version bump)       │
+  │      New v1.0.0 assets overwrite old v1.0.0 → old workers get new CSS  │
+  │      → Browser cached old JS + receives new CSS → layout breaks        │
   │                                                                         │
-  │   ✅ PACK_ID 解法:                                                     │
-  │      每次 pack 產生唯一 PACK_ID = {version}-{content_hash_8}           │
-  │      舊: /app/assets/Shop/1.0.0-a1b2c3d4/css/style.css                │
-  │      新: /app/assets/Shop/1.0.0-e5f6g7h8/css/style.css                │
-  │      → 兩組共存! 零衝突!                                               │
-  │      → 舊 workers 繼續用 a1b2c3d4, 新 workers 用 e5f6g7h8            │
-  │      → T3 完全切換後: `asset:purge --keep=1` 清除舊 pack              │
+  │   ✅ PACK_ID solution:                                                 │
+  │      Every pack generates a unique PACK_ID = {version}-{content_hash_8}│
+  │      Old: /app/assets/Shop/1.0.0-a1b2c3d4/css/style.css               │
+  │      New: /app/assets/Shop/1.0.0-e5f6g7h8/css/style.css               │
+  │      → Both coexist! Zero conflict!                                    │
+  │      → Old workers keep using a1b2c3d4, new workers use e5f6g7h8        │
+  │      → After T3 fully switches: `asset:purge --keep=1` removes old pack│
   │                                                                         │
   └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**PACK_ID 格式：**
+**PACK_ID format:**
 
 ```
   PACK_ID = {version}-{content_hash_8}
   
-  其中:
-    version       = module 版本 (e.g., 1.0.0, 1.1.0)
-    content_hash  = SHA256(tar.gz contents) 前 8 碼
+  where:
+    version       = module version (e.g., 1.0.0, 1.1.0)
+    content_hash  = first 8 chars of SHA256(tar.gz contents)
   
-  範例:
-    1.0.0-a1b2c3d4    ← 初次打包
-    1.0.0-e5f6g7h8    ← 同版本 hotfix (CSS 修改 → hash 不同)
-    1.1.0-99aabb00    ← 新版本
+  examples:
+    1.0.0-a1b2c3d4    ← initial pack
+    1.0.0-e5f6g7h8    ← same-version hotfix (CSS changed → hash differs)
+    1.1.0-99aabb00    ← new version
   
-  特性:
-    • 確定性: 相同內容 → 相同 PACK_ID (idempotent deploy)
-    • 防衝突: 不同內容 → 不同 PACK_ID (即使同版本)
-    • 可讀性: 版本號在前 → 人眼可辨識
-    • 排序性: 按版本排序 → 方便 purge 決策
+  properties:
+    • Deterministic: same content → same PACK_ID (idempotent deploy)
+    • Collision-free: different content → different PACK_ID (even same version)
+    • Readable: version first → human-friendly
+    • Sortable: version-first ordering → easier purge decisions
 ```
 
-**PACK_ID 生命週期：**
+**PACK_ID lifecycle:**
 
 ```
   ┌─────────────────┐        ┌──────────────────┐        ┌────────────────┐
   │  pack (Build)   │───────→│  sync (Deploy)   │───────→│  Runtime       │
   │                 │        │                  │        │                │
-  │  生成 PACK_ID   │        │  解壓到          │        │  getAssetUrl() │
-  │  寫入 manifest  │        │  {alias}/{packId}│        │  用 PACK_ID    │
-  │  嵌入 tar.gz    │        │  目錄下          │        │  解析 URL      │
+    │  generate PACK_ID│       │  extract into    │        │  getAssetUrl() │
+    │  write manifest │        │  {alias}/{packId}│        │  uses PACK_ID  │
+    │  embed tar.gz   │        │  directory       │        │  to resolve URL│
   └─────────────────┘        └──────────────────┘        └────────────────┘
                                                                 │
-                                                                │ 過渡完成後
+                     │ after transition
                                                                 ▼
                                                          ┌────────────────┐
                                                          │ asset:purge    │
                                                          │                │
-                                                         │ 清除舊 PACK_ID │
-                                                         │ 保留 N 份最新  │
+                   │ remove old IDs │
+                   │ keep newest N  │
                                                          └────────────────┘
 ```
 
-#### 13.4.4 manifest.json 擴展
+#### 13.4.4 manifest.json Extension
 
 ```json
 {
@@ -5120,9 +5127,9 @@ spec:
 }
 ```
 
-### 13.5 Phase 1 實作: pack 指令擴展
+### 13.5 Phase 1 Implementation: `pack` Command Extension
 
-**改動: `pack.inc.php` — 新增 `.tar.gz` 封裝**
+**Change: `pack.inc.php` — add `.tar.gz` packaging**
 
 ```php
 // After existing xcopy of webassets (line ~234 of pack.inc.php)
@@ -5206,7 +5213,7 @@ if ($includeAssets && is_dir($assetsPath) && count(glob($assetsPath . '/*')) > 0
 }
 ```
 
-**產出:**
+**Outputs:**
 ```
   packages/vendor/shop/
   ├── 1.0.0.phar              (module code archive)
@@ -5216,9 +5223,9 @@ if ($includeAssets && is_dir($assetsPath) && count(glob($assetsPath . '/*')) > 0
   └── latest.json
 ```
 
-### 13.6 Phase 2 實作: publish 指令擴展
+### 13.6 Phase 2 Implementation: `publish` Command Extension
 
-**改動: `publish.inc.php` — 上傳 asset pack 到 GitHub Release**
+**Change: `publish.inc.php` — upload asset pack to GitHub Release**
 
 ```php
 // In the existing GitHub Release upload loop:
@@ -5232,20 +5239,20 @@ if (is_file($assetTarGz)) {
 }
 ```
 
-**GitHub Release 結果:**
+**GitHub Release result:**
 ```
   Release: v1.0.0 (vendor/shop)
   ├── 1.0.0.phar               (Module download)
   └── 1.0.0-assets.tar.gz      (Webasset pack download)
 ```
 
-### 13.7 Phase 3 實作: sync 指令擴展 — Asset Deploy
+### 13.7 Phase 3 Implementation: `sync` Command Extension — Asset Deploy
 
-**這是最關鍵的改動。** `sync` 指令在安裝 module `.phar` 後，額外下載 asset pack 並部署到指定 storage。
+**This is the most critical change.** After installing the module `.phar`, the `sync` command also downloads the asset pack and deploys it to the configured storage.
 
-#### 13.7.1 Asset Storage 配置
+#### 13.7.1 Asset Storage Configuration
 
-**config.inc.php 新增:**
+**Add to config.inc.php:**
 ```php
 return [
     'install_path' => '/app/site',
@@ -5264,7 +5271,7 @@ return [
 ];
 ```
 
-**環境變數覆蓋 (Docker 優先):**
+**Environment variable overrides (Docker first):**
 ```yaml
 environment:
   - RAZY_ASSET_DRIVER=s3
@@ -5274,7 +5281,7 @@ environment:
   - RAZY_ASSET_BASE_URL=https://cdn.example.com/assets/tenant-a
 ```
 
-#### 13.7.2 sync.inc.php 改動
+#### 13.7.2 sync.inc.php Changes
 
 ```php
 // After existing Phar::extractTo() (line ~310 of sync.inc.php):
@@ -5344,7 +5351,7 @@ if ($assetStorageConfig) {
 }
 ```
 
-#### 13.7.3 AssetDeployer 類別設計
+#### 13.7.3 AssetDeployer Class Design
 
 ```php
 // src/library/Razy/AssetDeployer.php
@@ -5515,12 +5522,12 @@ class AssetDeployer
 }
 ```
 
-### 13.8 Phase 4 實作: Runtime Asset URL Resolution
+### 13.8 Phase 4 Implementation: Runtime Asset URL Resolution
 
-**核心改動: `Controller::getAssetUrl()` 新增方法**
+**Core change: add `Controller::getAssetUrl()`**
 
 ```php
-// src/library/Razy/Controller.php — 新增
+// src/library/Razy/Controller.php — new
 
 /**
  * Get the module's asset URL, preferring external storage if configured.
@@ -5577,29 +5584,29 @@ private function resolvePackId(): string
 }
 ```
 
-**使用方式 (Template/Controller):**
+**Usage (Template/Controller):**
 
 ```php
 // In module controller:
 public function __onReady(): void
 {
-    // 舊方式 (仍可用, self-serve):
+  // Old way (still works, self-serve):
     $cssUrl = $this->getAssetPath() . 'css/style.css';
     
-    // 新方式 (自動選擇最優 URL + PACK_ID 隔離):
+  // New way (auto-select best URL + PACK_ID isolation):
     $cssUrl = $this->getAssetUrl() . 'css/style.css';
-    // → 未設 env: https://example.com/webassets/Shop/1.0.0/css/style.css
-    // → 設了 env: https://cdn.example.com/assets/Shop/1.0.0-a1b2c3d4/css/style.css
-    //   ↑ PACK_ID 確保 hot-plug 過渡期服務的每個 worker 都指向自己的 asset snapshot
+  // → env not set: https://example.com/webassets/Shop/1.0.0/css/style.css
+  // → env set:     https://cdn.example.com/assets/Shop/1.0.0-a1b2c3d4/css/style.css
+  //   ↑ PACK_ID ensures each worker points to its own asset snapshot during hot-plug
 }
 ```
 
-### 13.9 完整流程圖 — 從 Pack 到 Browser
+### 13.9 End-to-End Flow Diagram — From Pack to Browser
 
 ```
 ═══════════════════════════════════════════════════════════════════════════════
 
-  開發者 (Development Phase):
+  Developer (Development Phase):
   
   ① php Razy.phar pack vendor/shop 1.0.0
      │
@@ -5615,7 +5622,7 @@ public function __onReady(): void
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-  部署者 / Core Orchestrator (Deployment Phase):
+  Deployer / Core Orchestrator (Deployment Phase):
   
   ③ php Razy.phar sync main
      │
@@ -5623,8 +5630,8 @@ public function __onReady(): void
      │
      └─→ Download 1.0.0-assets.tar.gz
           │
-          │   PACK_ID = 1.0.0-a1b2c3d4 (從 manifest 讀取)
-          │   → 寫入 .asset_pack_id 到 module dir
+          │   PACK_ID = 1.0.0-a1b2c3d4 (read from manifest)
+          │   → write .asset_pack_id to module dir
           │
           ├── driver=local:
           │   → PharData::extractTo('/app/assets')
@@ -5641,24 +5648,24 @@ public function __onReady(): void
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-  Purge (過渡完成後, 手動執行):
+  Purge (after transition, run manually):
   
   ⑦ php Razy.phar asset:purge --keep=1
      │
-     ├─→ 列出: Shop → [1.0.0-a1b2c3d4 (old), 1.1.0-99aabb00 (current)]
-     ├─→ 保留: 1.1.0-99aabb00
-     └─→ 刪除: 1.0.0-a1b2c3d4
+    ├─→ List: Shop → [1.0.0-a1b2c3d4 (old), 1.1.0-99aabb00 (current)]
+    ├─→ Keep: 1.1.0-99aabb00
+    └─→ Delete: 1.0.0-a1b2c3d4
           → Local: rm -rf /app/assets/Shop/1.0.0-a1b2c3d4/
           → S3:    aws s3 rm --recursive s3://razy-assets/Shop/1.0.0-a1b2c3d4/
   ④ Module Controller::getAssetUrl()
      │
-     ├── 讀取 .asset_pack_id → PACK_ID = 1.0.0-a1b2c3d4
+     ├── Read .asset_pack_id → PACK_ID = 1.0.0-a1b2c3d4
      │
-     ├── RAZY_ASSET_BASE_URL 已設定:
+     ├── RAZY_ASSET_BASE_URL is set:
      │   → https://cdn.example.com/assets/Shop/1.0.0-a1b2c3d4/
      │
-     └── RAZY_ASSET_BASE_URL 未設定:
-         → https://example.com/webassets/Shop/1.0.0/   (自 serve, fallback)
+     └── RAZY_ASSET_BASE_URL is not set:
+       → https://example.com/webassets/Shop/1.0.0/   (self-serve, fallback)
   
   ⑤ Browser:
      GET https://cdn.example.com/assets/Shop/1.0.0-a1b2c3d4/css/style.css
@@ -5666,7 +5673,7 @@ public function __onReady(): void
          ├── CDN Edge HIT → respond immediately (~5ms)
          └── CDN Edge MISS → S3 Origin → respond + cache at edge
 
-  ⑥ Hot-Plug 過渡期 (v1.0 + v1.1 並存):
+  ⑥ Hot-Plug transition (v1.0 + v1.1 coexist):
   
      Worker A (v1.0): .asset_pack_id = 1.0.0-a1b2c3d4
        → getAssetUrl() → .../Shop/1.0.0-a1b2c3d4/css/style.css ✅
@@ -5674,14 +5681,14 @@ public function __onReady(): void
      Worker B (v1.1): .asset_pack_id = 1.1.0-99aabb00
        → getAssetUrl() → .../Shop/1.1.0-99aabb00/css/style.css ✅
      
-     → 兩組 PACK 共存於 storage! 零衝突! 零 downtime!
+    → Both packs coexist in storage! Zero conflicts! Zero downtime!
 
 ═══════════════════════════════════════════════════════════════════════════════
 ```
 
-### 13.10 Local Storage 模式 — Caddy Front-Door file_server
+### 13.10 Local Storage Mode — Caddy Front-Door file_server
 
-**當 `driver=local` 時，** asset pack 解壓到 `/app/assets/`。Front-door Caddy 可直接用 `file_server` serve，不經 tenant container：
+**When `driver=local`,** the asset pack is extracted to `/app/assets/`. The front-door Caddy can serve it directly via `file_server`, without going through the tenant container:
 
 ```caddyfile
 # Front-Door Caddyfile — Local Asset Storage Mode
@@ -5709,7 +5716,7 @@ tenant-a.example.com {
 }
 ```
 
-**Volume 配置:**
+**Volume configuration:**
 ```yaml
 services:
   caddy-front:
@@ -5735,7 +5742,7 @@ volumes:
   tenant_a_data:   # Runtime data (uploads, cache)
 ```
 
-**流量路徑:**
+**Traffic path:**
 ```
   Browser → GET /webassets/Shop/1.0.0-a1b2c3d4/css/style.css
       → Caddy Front-Door @webassets matcher
@@ -5743,12 +5750,12 @@ volumes:
         → root * /app/assets → /app/assets/Shop/1.0.0-a1b2c3d4/css/style.css
         → file_server → 200 OK
   
-  ✅ 零 reverse_proxy hop — 直接本地檔案讀取
-  ✅ Tenant container 不處理靜態請求 → 100% 資源用於 PHP
-  ✅ PACK_ID 在路徑中 → hot-plug 過渡期兩版本共存
+  ✅ Zero reverse_proxy hop — direct local file read
+  ✅ Tenant container does not handle static requests → 100% resources for PHP
+  ✅ PACK_ID in path → two versions can coexist during hot-plug transition
 ```
 
-### 13.11 S3 模式 — CDN + Object Storage
+### 13.11 S3 Mode — CDN + Object Storage
 
 ```
   Browser
@@ -5791,77 +5798,77 @@ volumes:
 }
 ```
 
-### 13.12 Multi-Tenant Asset 路徑策略
+### 13.12 Multi-Tenant Asset Path Strategy
 
-**問題：** 同一個 module (e.g., `vendor/shop`) 可能被多個 tenant 使用。Asset pack 內容相同 → 是否需要每個 tenant 存一份？
+**Question:** The same module (e.g., `vendor/shop`) may be used by multiple tenants. If the asset pack contents are identical, do we need to store one copy per tenant?
 
-**答案：不需要。** PACK_ID 包含 content hash — 同內容 = 同 PACK_ID = 自然去重。
+**Answer: No.** `PACK_ID` includes a content hash — same content = same `PACK_ID` = natural deduplication.
 
-#### 推薦策略: Shared Pool (單一 bucket, module > PACK_ID) ✅
+#### Recommended Strategy: Shared Pool (single bucket, module > PACK_ID) ✅
 
 ```
-  /app/assets/                    ← 單一 storage bucket (LOCAL)
+  /app/assets/                    ← single storage bucket (LOCAL)
     Shop/                         ← module alias
       1.0.0-a1b2c3d4/            ← PACK_ID
         css/style.css
         js/app.js
-      1.1.0-99aabb00/            ← hot-plug 新版共存
+      1.1.0-99aabb00/            ← hot-plug coexistence (new version)
         css/style.css
     Auth/
       2.0.0-ccdd1122/
         css/login.css
 ```
 
-| 維度 | 評分 | 說明 |
+| Dimension | Score | Notes |
 |------|------|------|
-| 隔離性 | ★★★ | PACK_ID content hash 確保不同內容永不衝突 |
-| 存儲效率 | ★★★ | 同內容同 PACK_ID → 天然去重 |
-| 部署簡單 | ★★★ | 無 tenant 前綴 → AssetDeployer 邏輯簡單 |
-| CDN 相容 | ★★★ | PACK_ID 在 URL 中 → CDN cache key 天然獨立 |
+| Isolation | ★★★ | `PACK_ID` content hash ensures different content never collides |
+| Storage efficiency | ★★★ | Same content → same `PACK_ID` → natural dedup |
+| Deployment simplicity | ★★★ | No tenant prefix → `AssetDeployer` logic stays simple |
+| CDN compatibility | ★★★ | `PACK_ID` is in the URL → CDN cache key is naturally isolated |
 
-**為什麼不需要 tenant 前綴：**
+**Why no tenant prefix is needed:**
 
-| 情境 | 結果 |
+| Scenario | Result |
 |------|------|
-| Tenant A/B 同 module 同版本同內容 | 同 PACK_ID → 只存一份 (自然去重) |
-| Tenant A 升級, B 未升級 | 不同版本 → 不同 PACK_ID → 共存 |
-| Tenant A 自定義 (fork/theme) | 同版本不同內容 → 不同 content hash → 不同 PACK_ID → 隔離 |
-| Hot-plug 過渡期 | 新舊 PACK_ID 共存於同一 module 目錄 |
+| Tenant A/B use same module + same version + same content | Same `PACK_ID` → store one copy (dedup) |
+| Tenant A upgrades, Tenant B does not | Different versions → different `PACK_ID` → coexist |
+| Tenant A customizes (fork/theme) | Same version but different content → different content hash → different `PACK_ID` → isolated |
+| Hot-plug transition | Old/new `PACK_ID` coexist under the same module directory |
 
-#### 備選策略 A: Per-Tenant Prefix (不推薦)
+#### Alternative Strategy A: Per-Tenant Prefix (Not recommended)
 
 ```
   /app/assets/
     tenant-a/
       Shop/1.0.0-a1b2c3d4/css/style.css
     tenant-b/
-      Shop/1.0.0-a1b2c3d4/css/style.css    ← 同內容重複存儲
+      Shop/1.0.0-a1b2c3d4/css/style.css    ← duplicate storage for same content
 ```
 
-→ 浪費存儲、增加 deploy 複雜度、CDN purge 需按 tenant prefix。
-PACK_ID 已解決隔離問題 → tenant prefix 無額外價值。
+→ Wastes storage, increases deploy complexity, and CDN purge must be done per tenant prefix.
+`PACK_ID` already solves isolation → tenant prefixes provide no additional value.
 
-#### 備選策略 C: Content-Hash Dedup (進階, Phase 4+)
+#### Alternative Strategy C: Content-Hash Dedup (Advanced, Phase 4+)
 
 ```
   /app/assets/
     _blob/
-      sha256-abc123/css/style.css    ← 按內容哈希存儲
+      sha256-abc123/css/style.css    ← content-hash addressing
     _map/
       Shop/1.0.0 → sha256-abc123
       Shop/1.0.1 → sha256-def456
 ```
 
-太複雜 — Phase 4+ 才考慮。Shared Pool + PACK_ID 已提供足夠去重。
+Too complex — only consider in Phase 4+. Shared Pool + `PACK_ID` already provides sufficient dedup.
 
-**結論：全階段使用 Shared Pool。PACK_ID 的 content hash 同時解決隔離和去重。**
+**Conclusion: Use Shared Pool in all phases. `PACK_ID`'s content hash solves both isolation and dedup.**
 
-### 13.13 環境變數 + 配置覆蓋鏈
+### 13.13 Environment Variables + Config Override Chain
 
 ```
-  解析順序 (高優先 → 低):
+  Resolution order (high priority → low):
   
-  1. RAZY_ASSET_BASE_URL 環境變數
+  1. RAZY_ASSET_BASE_URL env var
        → https://cdn.example.com/assets
   
   2. config.inc.php asset_storage.base_url
@@ -5874,7 +5881,7 @@ PACK_ID 已解決隔離問題 → tenant prefix 無額外價值。
        → https://example.com/webassets/{alias}/{version}/
 ```
 
-**Runtime 解析 (Controller.php):**
+**Runtime resolution (Controller.php):**
 
 ```php
 final public function getAssetUrl(): string
@@ -5906,12 +5913,12 @@ final public function getAssetUrl(): string
 }
 ```
 
-### 13.14 Rewrite 規則互動 — 模式自動切換
+### 13.14 Rewrite Rule Interaction — Automatic Mode Switching
 
-**當啟用外部 asset storage 時，CaddyfileCompiler 可自動跳過 `@webasset_*` matchers：**
+**When external asset storage is enabled, CaddyfileCompiler can automatically skip `@webasset_*` matchers:**
 
 ```
-  模式 A (Self-Serve, 無 RAZY_ASSET_BASE_URL):
+  Mode A (Self-Serve, no RAZY_ASSET_BASE_URL):
   ─────────────────────────────────────────────
   
   Tenant Container Caddyfile:
@@ -5923,54 +5930,54 @@ final public function getAssetUrl(): string
     }
   
   Controller::getAssetUrl() → /webassets/Shop/1.0.0/...
-  → Request 打到 Tenant Container → file_server 回應
+  → Request hits the tenant container → file_server responds
   
-  注意: Self-serve 模式下 URL 仍用 {version} (不用 PACK_ID)
-  → 因為 CaddyfileCompiler 的 @webasset matcher 以 alias 匹配
-  → 版本在 URL path 裡但 file_server 會在 module dir 中找到正確檔案
+  Note: In self-serve mode the URL still uses {version} (no PACK_ID)
+  → because CaddyfileCompiler's @webasset matcher matches by alias
+  → version is in the URL path, and file_server serves from the module dir
 
 
-  模式 B (External Storage, 有 RAZY_ASSET_BASE_URL):
+  Mode B (External Storage, RAZY_ASSET_BASE_URL is set):
   ──────────────────────────────────────────────────
   
   Tenant Container Caddyfile:
-    # @webasset_Shop_ 仍然保留 (fallback 安全網)
-    # 但 Controller::getAssetUrl() 指向 CDN + PACK_ID → 請求不經 Container
+    # Keep @webasset_Shop_ (secure fallback net)
+    # But Controller::getAssetUrl() points to CDN + PACK_ID → bypass container
   
   Controller::getAssetUrl() → https://cdn.example.com/assets/Shop/1.0.0-a1b2c3d4/...
-  → Request 打到 CDN / Front-Door file_server → 不經 Tenant Container
-  → PACK_ID 在 URL 中 → hot-plug 過渡期兩版本 URL 不同 → CDN cache 永不混淆
+  → Request hits CDN / front-door file_server → bypass tenant container
+  → PACK_ID in URL → different URLs during hot-plug transition → CDN cache never mixes
   
-  效果: Tenant Container 靜態流量降至零 → 100% 資源用於 PHP
+  Result: tenant container static traffic drops to zero → 100% resources for PHP
 ```
 
-**重要：即使啟用外部 storage，仍保留 Caddyfile 中的 `@webasset_*` rules 作為安全網。** 萬一 CDN 故障或 S3 不可用，管理員只需移除 `RAZY_ASSET_BASE_URL` env → 即時 fallback 到 self-serve。
+**Important: Even with external storage enabled, keep the `@webasset_*` rules in the Caddyfile as a secure fallback net.** If CDN fails or S3 is unavailable, admins can remove the `RAZY_ASSET_BASE_URL` env var to instantly fall back to self-serve.
 
-### 13.15 Asset Purge / Clean CLI 指令
+### 13.15 Asset Purge / Clean CLI Command
 
-**核心需求：** Hot-plug 過渡完成後，舊 PACK 仍佔佔存儲空間。需要明確指令清除——不能自動刪（因為 framework 無法知道過渡是否完全完成）。
+**Core requirement:** After the hot-plug transition completes, old packs still occupy storage. We need an explicit command to clean them up — it cannot be auto-deleted (the framework cannot know when the transition is truly complete).
 
-#### 13.15.1 指令設計
+#### 13.15.1 Command Design
 
 ```
   php Razy.phar asset:purge [OPTIONS]
   
-  用途: 清除舊版 asset pack，釋放存儲空間
+  Purpose: Remove old asset packs to free storage
   
-  選項:
-    --keep=N         每個 alias 保留最新 N 份 PACK (預設: 1)
-    --alias=ALIAS    只清理指定 alias (預設: 所有)
-    --dry-run        顯示將被刪除的 PACK，不實際執行
-    --force          跳過確認提示
-    --dist=CODE      指定 distributor (預設: 當前)
+  Options:
+    --keep=N         Keep newest N packs per alias (default: 1)
+    --alias=ALIAS    Only purge the specified alias (default: all)
+    --dry-run        Show what would be deleted, do not execute
+    --force          Skip confirmation prompt
+    --dist=CODE      Specify distributor (default: current)
   
-  範例:
-    php Razy.phar asset:purge --keep=1              # 保留每個 alias 最新 1 份
-    php Razy.phar asset:purge --keep=2 --dry-run    # 預覽清理結果
-    php Razy.phar asset:purge --alias=Shop --force   # 強制清理 Shop 的舊 pack
+  Examples:
+    php Razy.phar asset:purge --keep=1               # keep newest 1 pack per alias
+    php Razy.phar asset:purge --keep=2 --dry-run     # preview purge result
+    php Razy.phar asset:purge --alias=Shop --force   # force purge old packs for Shop
 ```
 
-#### 13.15.2 執行流程
+#### 13.15.2 Execution Flow
 
 ```php
 // src/system/terminal/asset_purge.inc.php
@@ -6015,7 +6022,7 @@ if ($dryRun) {
 }
 ```
 
-#### 13.15.3 執行範例
+#### 13.15.3 Execution Examples
 
 ```
   $ php Razy.phar asset:purge --keep=1 --dry-run
@@ -6038,201 +6045,213 @@ if ($dryRun) {
   Run without --dry-run to execute.
 ```
 
-#### 13.15.4 Hot-Plug 完整操作流程
+#### 13.15.4 Hot-Plug End-to-End Operation Flow
 
 ```
   ═════════════════════════════════════════════════════════════════
   
-  Step 1: 打包新版本
+  Step 1: Package the new version
   ──────
   $ php Razy.phar pack vendor/shop 1.1.0
   → PACK_ID: 1.1.0-99aabb00
-  → 1.1.0-assets.tar.gz 已創建
+  → 1.1.0-assets.tar.gz created
   
-  Step 2: 發佈到 Repository
+  Step 2: Publish to the repository
   ──────
   $ php Razy.phar publish --push
   → GitHub Release: v1.1.0 + assets.tar.gz uploaded
   
-  Step 3: 同步到 Tenant (部署新版)
+  Step 3: Sync to tenant (deploy the new version)
   ──────
   $ php Razy.phar sync main
   → Module:  sites/main/vendor/shop/ → v1.1.0 extracted
   → Assets:  /app/assets/Shop/1.1.0-99aabb00/ → deployed
-  → .asset_pack_id → "1.1.0-99aabb00" 寫入
+  → .asset_pack_id → "1.1.0-99aabb00" written
   
-  此時 storage 狀態:
+  Storage state at this point:
     /app/assets/Shop/
-      1.0.0-a1b2c3d4/    ← v1.0 (old workers 仍在用)
-      1.1.0-99aabb00/    ← v1.1 (new workers 開始用)
+      1.0.0-a1b2c3d4/    ← v1.0 (old workers still using it)
+      1.1.0-99aabb00/    ← v1.1 (new workers begin using it)
   
-  Step 4: Hot-Plug 過渡
+  Step 4: Hot-Plug transition
   ──────
-  FrankenPHP worker 熱替換:
-  → Old workers (v1.0) 漸漸 drain…
-  → New workers (v1.1) 接手新請求…
-  → 過渡期: 兩版本同時在跑, 各自 getAssetUrl() 指向自己的 PACK_ID
-  → 零衝突! 零 404! 零 downtime!
+  FrankenPHP worker hot swap:
+  → Old workers (v1.0) gradually drain…
+  → New workers (v1.1) take over new requests…
+  → Transition window: both versions run simultaneously; each getAssetUrl() points to its own PACK_ID
+  → Zero conflicts! Zero 404s! Zero downtime!
   
-  Step 5: 確認過渡完成
+  Step 5: Confirm the transition is complete
   ──────
-  → 所有 workers 已切換到 v1.1
-  → 無 v1.0 請求在飛
-  → CDN cache 已更新 (or PACK_ID 不同所以 cache key 不同)
+  → All workers have switched to v1.1
+  → No v1.0 requests in-flight
+  → CDN cache has refreshed (or different PACK_ID means different cache keys)
   
-  Step 6: 清理舊 Pack
+  Step 6: Purge old packs
   ──────
   $ php Razy.phar asset:purge --keep=1
   
     Shop:
       [KEEP]  1.1.0-99aabb00
-      [PURGE] 1.0.0-a1b2c3d4    → 刪除!
+      [PURGE] 1.0.0-a1b2c3d4    → deleted!
   
   ═════════════════════════════════════════════════════════════════
 ```
 
-#### 13.15.5 CDN Cache 與 PACK_ID 的交互
+#### 13.15.5 CDN Cache and PACK_ID Interaction
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │                                                                 │
-  │  問題: 舊版本 asset 在 CDN 的 cache 會不會影響新版本?             │
+  │  Question: Will cached old-version assets in the CDN affect the  │
+  │  new version?                                                   │
   │                                                                 │
-  │  答案: 不會! 因為 PACK_ID 不同 → URL 不同 → cache key 不同       │
+  │  Answer: No! Different PACK_ID → different URL → different cache │
+  │  keys.                                                          │
   │                                                                 │
   │  v1.0: /Shop/1.0.0-a1b2c3d4/css/style.css  → CDN cache A      │
   │  v1.1: /Shop/1.1.0-99aabb00/css/style.css  → CDN cache B      │
   │                                                                 │
-  │  → 無需 CDN purge! 新版本自然用新 URL                             │
-  │  → 舊 CDN cache 自然過期 (TTL) 或被 LRU 置換                      │
-  │  → 同版本 hotfix: PACK_ID hash 不同 → 也是新 cache key → 安全!  │
+  │  → No CDN purge needed! The new version naturally uses a new URL │
+  │  → Old CDN cache naturally expires (TTL) or is evicted by LRU    │
+  │  → Same-version hotfix: different PACK_ID hash → new cache key   │
+  │    as well → safe                                                │
   │                                                                 │
-  │  這是 PACK_ID 相對於純 version 的最大優勢:                      │
-  │  即使同版本 re-pack, CDN 也不會 serve 舊內容                     │
+  │  Biggest advantage of PACK_ID over pure versioning:              │
+  │  even re-packing the same version won't make the CDN serve stale │
+  │  content.                                                       │
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 13.16 工時估算
+### 13.16 Effort Estimate (Hours)
 
-| 項目 | 改動 | 工時 |
+| Item | Change | Hours |
 |------|------|------|
 | `pack.inc.php` — `.tar.gz` + PACK_ID | PharData archive + content hash + manifest | 4h |
-| `publish.inc.php` — Release asset upload | 上傳 .tar.gz 到 GitHub Release | 2h |
+| `publish.inc.php` — Release asset upload | Upload .tar.gz to GitHub Release | 2h |
 | `sync.inc.php` — Asset pack download + deploy | Download + checksum + extract + .asset_pack_id | 5h |
-| `AssetDeployer.php` — 新類別 | Local + S3 driver + purge + listPacks | 7h |
+| `AssetDeployer.php` — New class | Local + S3 driver + purge + listPacks | 7h |
 | `asset_purge.inc.php` — Purge CLI | List + keep-N + dry-run + force | 3h |
-| `Controller::getAssetUrl()` + `resolvePackId()` | PACK_ID 解析鏈 + .asset_pack_id 讀取 | 3h |
-| `config.inc.php.tpl` — 配置模板 | asset_storage section | 1h |
-| `RepositoryManager` — getDownloadUrl assets | 支持 assets type 下載 | 2h |
-| 單元測試 | Pack / Deploy / PACK_ID / Purge / URL resolution | 8h |
-| 整合測試 | 端對端: pack → publish → sync → hot-plug → purge | 5h |
-| 文檔 | CLI help + Wiki page | 2h |
-| **合計** | | **~42h** |
+| `Controller::getAssetUrl()` + `resolvePackId()` | PACK_ID resolution chain + .asset_pack_id reads | 3h |
+| `config.inc.php.tpl` — Config template | asset_storage section | 1h |
+| `RepositoryManager` — getDownloadUrl assets | Support assets-type downloads | 2h |
+| Unit tests | Pack / Deploy / PACK_ID / Purge / URL resolution | 8h |
+| Integration tests | End-to-end: pack → publish → sync → hot-plug → purge | 5h |
+| Docs | CLI help + Wiki page | 2h |
+| **Total** | | **~42h** |
 
-### 13.17 分階段實施建議
+### 13.17 Phased Implementation Recommendation
 
 ```
   Phase 2 (Docker, ≤20 tenants):
   ─────────────────────────────
   
-  1. pack.inc.php 新增 .tar.gz + PACK_ID      (4h)
+  1. pack.inc.php add .tar.gz + PACK_ID       (4h)
   2. sync.inc.php + AssetDeployer (local)     (7h)
   3. Controller::getAssetUrl() + resolvePackId (3h)
   4. asset:purge CLI                          (3h)
   5. Front-door Caddy file_server for assets  (2h)
   ─────────────────────────────────────────────
-  合計: ~19h
+  Total: ~19h
   
-  效果:
-  • Webassets 從 tenant container 移到 front-door 直 serve
-  • PACK_ID 確保 hot-plug 過渡期零衝突
-  • asset:purge 清除舊 pack 釋放空間
-  • 自動 fallback: 移除 env → self-serve 模式
+  Outcome:
+  • Webassets move from tenant containers to front-door direct serving
+  • PACK_ID ensures zero conflicts during the hot-plug transition window
+  • asset:purge removes old packs to free space
+  • Automatic fallback: remove env → self-serve mode
   
   
   Phase 3 (Multi-Host Docker / K8s, 20-100 tenants):
   ──────────────────────────────────────────────────
   
-  6. publish.inc.php 上傳 .tar.gz             (2h)
+  6. publish.inc.php upload .tar.gz           (2h)
   7. AssetDeployer S3 driver                   (6h)
   8. RepositoryManager asset download support   (2h)
   ─────────────────────────────────────────────
-  合計: ~10h (累計 ~29h)
+  Total: ~10h (cumulative ~29h)
   
-  效果:
-  • Assets 存到 S3/MinIO → CDN 分發
-  • PACK_ID 作為 CDN cache key → 無需 cache purge
-  • 無限擴展 + 全球低延遲
+  Outcome:
+  • Store assets in S3/MinIO → deliver via CDN
+  • Use `PACK_ID` as the CDN cache key → no cache purge needed
+  • Unlimited scaling + low latency globally
   
   
   Phase 4 (Enterprise, >100 tenants):
   ──────────────────────────────────
   
   9. GCS driver + Multi-CDN                    (4h)
-  10. Content-hash dedup (策略 C)              (5h)
+  10. Content-hash dedup (Strategy C)          (5h)
   11. Auto-purge scheduler (cron-based)         (4h)
   ─────────────────────────────────────────────
-  合計: ~13h (累計 ~42h)
+  Total: ~13h (cumulative ~42h)
 ```
 
-### 13.18 向後相容性保證
+### 13.18 Backward Compatibility Guarantee
 
-| 場景 | 行為 |
+| Scenario | Behavior |
 |------|------|
-| 無 `asset_storage` 配置, 無 `RAZY_ASSET_BASE_URL` | ✅ 完全不變 — self-serve via Caddyfile `file_server` |
-| `getAssetPath()` 呼叫 | ✅ 不受影響 — 始終回傳 self-serve URL |
-| `getAssetUrl()` 新呼叫 | ✅ 自動選擇最優 URL (CDN / self-serve) + PACK_ID 隔離 |
-| 舊版 module 未產生 `.tar.gz` | ✅ `sync` 跳過 asset deploy — 用 self-serve |
-| `pack --no-assets` | ✅ 不產生 .tar.gz — 與現有行為一致 |
-| 無 `.asset_pack_id` 檔案 | ✅ `resolvePackId()` fallback 到 version |
-| CDN 故障 | ✅ 移除 `RAZY_ASSET_BASE_URL` env → 即時 fallback |
-| Hot-plug 過渡期 | ✅ 新舊 PACK_ID 共存 → 零 404、零衝突 |
-| 同版本 hotfix (re-pack) | ✅ Content hash 不同 → 新 PACK_ID → 不覆蓋舊版 |
+| No `asset_storage` config, no `RAZY_ASSET_BASE_URL` | ✅ No change — self-serve via Caddyfile `file_server` |
+| `getAssetPath()` calls | ✅ Unchanged — always returns self-serve URL |
+| New `getAssetUrl()` calls | ✅ Automatically chooses the best URL (CDN / self-serve) + PACK_ID isolation |
+| Old modules without `.tar.gz` | ✅ `sync` skips asset deploy — uses self-serve |
+| `pack --no-assets` | ✅ No .tar.gz produced — consistent with current behavior |
+| No `.asset_pack_id` file | ✅ `resolvePackId()` falls back to version |
+| CDN outage | ✅ Remove `RAZY_ASSET_BASE_URL` env → immediate fallback |
+| Hot-plug transition window | ✅ New and old PACK_ID coexist → zero 404s, zero conflicts |
+| Same-version hotfix (re-pack) | ✅ Different content hash → new PACK_ID → does not overwrite old packs |
 
-### 13.19 Key Insight (關鍵洞察)
+### 13.19 Key Insight (Key Insight)
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │                                                                 │
   │   PACK_ID = {version}-{content_hash_8}                         │
-  │   → 每次 pack 產生唯一 PACK_ID (內容不同 → hash 不同)         │
-  │   → 解決 hot-plug 過渡期版本衝突: 新舊 PACK 共存於 storage    │
-  │   → 解決同版本 hotfix: re-pack → 新 PACK_ID → 不覆蓋          │
-  │   → 解決 CDN cache: PACK_ID 在 URL 中 → 天然 cache buster     │
+  │   → Each pack produces a unique PACK_ID (different content →    │
+  │     different hash)                                             │
+  │   → Solves hot-plug transition conflicts: new/old packs coexist  │
+  │     in storage                                                  │
+  │   → Solves same-version hotfix: re-pack → new PACK_ID → no       │
+  │     overwrite                                                   │
+  │   → Solves CDN caching: PACK_ID in the URL → a natural cache     │
+  │     buster                                                      │
   │                                                                 │
-  │   pack.inc.php 已做 webasset 提取 (1.0.0-assets/)             │
-  │   → 補上 .tar.gz 封裝 + PACK_ID 嵌入 = 完整 pipeline         │
+  │   pack.inc.php already extracts webassets (1.0.0-assets/)       │
+  │   → Add .tar.gz packaging + embed PACK_ID = a complete pipeline │
   │                                                                 │
   │   AssetDeployer (local/S3/GCS):                                │
-  │   • 單一 bucket: /{module}/{PACK_ID}/ — 無 tenant 前綴        │
-  │   • deploy 用 PACK_ID 目錄 → 永不覆蓋 → immutable snapshot    │
-  │   • 同內容同 PACK_ID → 天然去重; 不同內容 → 自然隔離          │
-  │   • purge 指令明確清除 → 管理員控制生命週期                    │
+  │   • Single bucket: /{module}/{PACK_ID}/ — no tenant prefix      │
+  │   • Deploy into PACK_ID dirs → never overwrite → immutable      │
+  │     snapshot                                                    │
+  │   • Same content → same PACK_ID → natural dedupe; different     │
+  │     content → naturally isolated                                │
+  │   • Purge explicitly deletes → admin-controlled lifecycle       │
   │                                                                 │
-  │   Controller::getAssetUrl() 自動解析:                          │
-  │   • .asset_pack_id → metadata → version (三層 fallback)        │
-  │   • 每個 worker 讀自己的 PACK_ID → 過渡期零衝突               │
-  │   • 向後 100% 相容 — getAssetPath() 不受影響                  │
+  │   Controller::getAssetUrl() automatic resolution:               │
+  │   • .asset_pack_id → metadata → version (3-level fallback)      │
+  │   • Each worker reads its own PACK_ID → zero conflicts during   │
+  │     the transition window                                       │
+  │   • 100% backward compatible — getAssetPath() unchanged         │
   │                                                                 │
-  │   Phase 2 只需 ~19h → 立刻獲得:                               │
-  │   • Front-door 直 serve 靜態 → container 零靜態負載           │
-  │   • Hot-plug safe (PACK_ID 隔離)                               │
-  │   • asset:purge 清理 + 自動 fallback safety net                │
-  │   • 之後加 S3/CDN 是增量 (+10h)                               │
+  │   Phase 2 only needs ~19h → immediate gains:                    │
+  │   • Front-door serves static directly → containers carry no     │
+  │     static load                                                 │
+  │   • Hot-plug safe (PACK_ID isolation)                           │
+  │   • asset:purge cleanup + automatic fallback safety net         │
+  │   • Adding S3/CDN later is incremental (+10h)                   │
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 14. Best Solution & Unified Upgrade Roadmap (最佳方案 & 統一升級路線圖)
+## 14. Best Solution & Unified Upgrade Roadmap (Best Solution & Unified Upgrade Roadmap)
 
 > **Status:** Synthesis of Sections 1–13 findings  
 > **Scope:** From v1.0.1-beta (current) → v2.0.0 (full enterprise multi-tenant)  
 > **Replaces:** `UPGRADE-ROADMAP.md` original estimate (~105h) with fully reconciled effort
 
-### 14.1 Executive Summary (執行摘要)
+### 14.1 Executive Summary
 
 Sections 1–13 of this document analysed every facet of Razy's multi-tenant architecture:
 communication layers, injection threats, process isolation, cryptography, latency,
@@ -6247,7 +6266,7 @@ effort estimates.
 
 2. **Isolation:** FrankenPHP worker mode (current) is the default. Docker containers per tenant (Phase 2) provide production-grade isolation. Kubernetes (Phase 4) enables enterprise scale. FPM pool mode is optional (~10h) for mid-tier use cases but NOT recommended as default path.
 
-3. **Static Assets:** The zero-change proxy-through (§11 方案 A) works for Phase 2 MVP. The **Webasset Pack + PACK_ID** pipeline (§13) is the long-term solution — front-door Caddy `file_server` serves static assets directly, eliminating container load. PACK_ID (`{version}-{content_hash_8}`) solves hot-plug transitions, CDN cache busting, and same-version hotfixes in one mechanism.
+3. **Static Assets:** The zero-change proxy-through (§11 Option A) works for Phase 2 MVP. The **Webasset Pack + PACK_ID** pipeline (§13) is the long-term solution — front-door Caddy `file_server` serves static assets directly, eliminating container load. PACK_ID (`{version}-{content_hash_8}`) solves hot-plug transitions, CDN cache busting, and same-version hotfixes in one mechanism.
 
 4. **Routing & Rewrite:** `CaddyfileCompiler` extension + Caddy Admin API dynamic config is the dual strategy. Bridge blocking (`/_razy/internal/*`) is a **P0 security requirement**. Multi-container reverse proxy generation slots into the existing compiler pattern.
 
@@ -6257,7 +6276,7 @@ effort estimates.
 
 ---
 
-### 14.2 Architecture Decision Matrix (架構決策矩陣)
+### 14.2 Architecture Decision Matrix
 
 | Domain | Problem | Recommended Solution | Alternative (Rejected / Deferred) | Phase | Effort | Source |
 |--------|---------|---------------------|----------------------------------|-------|--------|--------|
@@ -6278,7 +6297,7 @@ effort estimates.
 
 ---
 
-### 14.3 Best Solution Stack (最佳方案 — 漸進式架構)
+### 14.3 Best Solution Stack (Progressive Architecture)
 
 The recommended architecture follows a **progressive enhancement** model.
 Each tier builds on the previous with zero breaking changes.
@@ -6453,7 +6472,7 @@ Each tier builds on the previous with zero breaking changes.
 
 ---
 
-### 14.4 Unified Upgrade Roadmap (統一升級路線圖)
+### 14.4 Unified Upgrade Roadmap (Unified Upgrade Roadmap)
 
 > **Methodology:** Original `UPGRADE-ROADMAP.md` (105h) served as the skeleton.
 > Sections 8–13 identified additional capabilities not in the original plan.
@@ -6681,7 +6700,7 @@ No remaining work. All prerequisites shipped.
 
 ---
 
-### 14.5 Phase Dependency Diagram (階段依賴圖)
+### 14.5 Phase Dependency Diagram
 
 ```
                               Phase 0 ✅
@@ -6728,7 +6747,7 @@ No remaining work. All prerequisites shipped.
 
 ---
 
-### 14.6 Implementation Priority Matrix (實施優先級矩陣)
+### 14.6 Implementation Priority Matrix
 
 Ranked by **impact ÷ effort** ratio:
 
@@ -6755,7 +6774,7 @@ Ranked by **impact ÷ effort** ratio:
 
 ---
 
-### 14.7 Risk Assessment & Mitigation (風險評估與緩解)
+### 14.7 Risk Assessment & Mitigation
 
 | # | Risk | Probability | Impact | Phase | Mitigation |
 |---|------|-------------|--------|-------|------------|
@@ -6772,7 +6791,7 @@ Ranked by **impact ÷ effort** ratio:
 
 ---
 
-### 14.8 Version Milestone Summary (版本里程碑總覽)
+### 14.8 Version Milestone Summary
 
 ```
 Version      Phase        Ship Criteria                           Weeks*  Effort
@@ -6792,7 +6811,7 @@ With 2 developers (Phase 2 ∥ Phase 3), the critical path drops to ~20-28 weeks
 
 ---
 
-### 14.9 Quick-Start Recommendations (快速啟動建議)
+### 14.9 Quick-Start Recommendations
 
 For teams evaluating which phase to start:
 
@@ -6834,12 +6853,12 @@ Only needed at enterprise scale with SLA and compliance mandates.
 
 ---
 
-### 14.11 Key Insight (關鍵洞察)
+### 14.11 Key Insight (Key Insight)
 
 ```
   ┌─────────────────────────────────────────────────────────────────────────┐
   │                                                                         │
-  │   13 sections、~6,200 lines of analysis → 6 core decisions:            │
+  │   13 sections, ~6,200 lines of analysis → 6 core decisions:            │
   │                                                                         │
   │   1. ISOLATION:  Docker containers (not FPM pools)                     │
   │      → FrankenPHP worker retained, just one per container              │
@@ -6851,8 +6870,9 @@ Only needed at enterprise scale with SLA and compliance mandates.
   │                                                                         │
   │   3. STATIC ASSETS:  PACK_ID pipeline + single-bucket storage          │
   │      → {version}-{content_hash_8} = hot-plug safe + CDN friendly      │
-  │      → 單一 bucket: /{module}/{PACK_ID}/ — 無 tenant 前綴             │
-  │      → 同內容 = 同 PACK_ID = 天然去重; 不同內容 = 自然隔離           │
+  │      → Single bucket: /{module}/{PACK_ID}/ — no tenant prefix         │
+  │      → Same content = same PACK_ID = natural dedupe; different        │
+  │        content = naturally isolated                                   │
   │      → Front-door file_server (Phase 2) → S3+CDN (Phase 3)           │
   │      → AssetDeployer: deploy-once, never overwrite, purge on demand   │
   │                                                                         │

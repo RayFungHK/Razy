@@ -23,63 +23,79 @@
  * @license MIT
  */
 
+namespace Razy;
+
 use Razy\Tool\SkillsGenerator;
+use Throwable;
 
-// Check if --root-only flag was passed on the command line
-$rootOnly = in_array('--root-only', $argv);
+return function (string ...$args) use (&$parameters) {
+    // Check if --root-only flag was passed
+    $rootOnly = \in_array('--root-only', $args, true);
 
-try {
-    echo "🚀 Generating skills documentation...\n\n";
+    try {
+        $this->writeLineLogging('{@s:bu}Skills Documentation Generator', true);
+        $this->writeLineLogging('Generating skills documentation...', true);
+        $this->writeLineLogging('', true);
 
-    // Instantiate the generator and produce all documentation artefacts
-    $generator = new SkillsGenerator();
-    $results = $generator->generate();
+        // Instantiate the generator and produce all documentation artefacts
+        $generator = new SkillsGenerator();
+        $results = $generator->generate();
 
-    // Display per-section generation results
-    echo "─ Root Documentation\n";
-    if ($results['root']) {
-        echo "  ✓ Generated: skills.md\n";
-    } else {
-        echo "  ✗ Failed to generate root documentation\n";
-    }
+        // Display per-section generation results
+        $this->writeLineLogging('{@c:cyan}── Root Documentation{@reset}', true);
+        if ($results['root']) {
+            $this->writeLineLogging('  [{@c:green}✓{@reset}] Generated: skills.md', true);
+        } else {
+            $this->writeLineLogging('  [{@c:red}✗{@reset}] Failed to generate root documentation', true);
+        }
 
-    $distCount = count($results['distributions'] ?? []);
-    if ($distCount > 0) {
-        echo "\n─ Distribution Contexts ($distCount distributions)\n";
-        foreach ($results['distributions'] as $distCode => $status) {
-            if ($status === 'generated') {
-                echo "  ✓ skills/$distCode.md\n";
-            } else {
-                echo "  ✗ $distCode: $status\n";
+        $distCount = \count($results['distributions'] ?? []);
+        if ($distCount > 0) {
+            $this->writeLineLogging('', true);
+            $this->writeLineLogging("{@c:cyan}── Distribution Contexts ({$distCount} distributions){@reset}", true);
+            foreach ($results['distributions'] as $distCode => $status) {
+                if ($status === 'generated') {
+                    $this->writeLineLogging("  [{@c:green}✓{@reset}] skills/{$distCode}.md", true);
+                } else {
+                    $this->writeLineLogging("  [{@c:red}✗{@reset}] {$distCode}: {$status}", true);
+                }
             }
         }
-    }
 
-    $modCount = count($results['modules'] ?? []);
-    if ($modCount > 0) {
-        echo "\n─ Module Contexts ($modCount modules)\n";
-        foreach ($results['modules'] as $moduleKey => $status) {
-            if ($status === 'generated') {
-                echo "  ✓ $moduleKey\n";
-            } else {
-                echo "  ✗ $moduleKey: $status\n";
+        $modCount = \count($results['modules'] ?? []);
+        if ($modCount > 0) {
+            $this->writeLineLogging('', true);
+            $this->writeLineLogging("{@c:cyan}── Module Contexts ({$modCount} modules){@reset}", true);
+            foreach ($results['modules'] as $moduleKey => $status) {
+                if ($status === 'generated') {
+                    $this->writeLineLogging("  [{@c:green}✓{@reset}] {$moduleKey}", true);
+                } else {
+                    $this->writeLineLogging("  [{@c:red}✗{@reset}] {$moduleKey}: {$status}", true);
+                }
             }
         }
+
+        $this->writeLineLogging('', true);
+        $this->writeLineLogging('{@c:green}Documentation generation complete!{@reset}', true);
+        $this->writeLineLogging('', true);
+        $this->writeLineLogging('Next steps:', true);
+        $this->writeLineLogging('  1. Review generated files in skills/ folder', true);
+        $this->writeLineLogging('  2. Share skills.md with your LLM assistant', true);
+        $this->writeLineLogging('  3. For each distribution, share skills/{dist_code}.md', true);
+        $this->writeLineLogging('  4. For specific work, share skills/{dist_code}/{module}.md', true);
+
+        if (isset($results['error'])) {
+            $this->writeLineLogging('', true);
+            $this->writeLineLogging("{@c:yellow}[WARN]{@reset} {$results['error']}", true);
+
+            return false;
+        }
+    } catch (Throwable $e) {
+        $this->writeLineLogging("{@c:red}[ERROR]{@reset} {$e->getMessage()}", true);
+        \error_log('[generate-skills] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+
+        return false;
     }
 
-    echo "\n✅ Documentation generation complete!\n";
-    echo "\nNext steps:\n";
-    echo "  1. Review generated files in skills/ folder\n";
-    echo "  2. Share skills.md with your LLM assistant\n";
-    echo "  3. For each distribution, share skills/{dist_code}.md\n";
-    echo "  4. For specific work, share skills/{dist_code}/{module}.md\n";
-
-    if (isset($results['error'])) {
-        fwrite(STDERR, "\n⚠️  Error: " . $results['error'] . "\n");
-        exit(1);
-    }
-} catch (Throwable $e) {
-    fwrite(STDERR, '❌ Error: ' . $e->getMessage() . "\n");
-    fwrite(STDERR, '   File: ' . $e->getFile() . ':' . $e->getLine() . "\n");
-    exit(1);
-}
+    return true;
+};

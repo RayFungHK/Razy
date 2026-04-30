@@ -203,6 +203,21 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Check if a module is loaded and available in the current distributor.
+     *
+     * Use this to conditionally integrate with optional modules:
+     *   if ($this->module->hasModule('es_analytics')) { ... }
+     *
+     * @param string $moduleCode The module code to check
+     *
+     * @return bool True if the module is in the loaded queue
+     */
+    public function hasModule(string $moduleCode): bool
+    {
+        return $this->distributor->getRegistry()->isInQueue($moduleCode);
+    }
+
+    /**
      * Put the callable into the list to wait for executing until other specified modules has ready.
      *
      * @param string $moduleCode
@@ -719,6 +734,110 @@ class Module implements ModuleInterface
         return $this->controller->__onRequire();
     }
 
+    // ── Package Lifecycle Triggers ────────────────────────────────
+    // These methods delegate to the controller only when it uses
+    // PackageTrait. If the controller does not use PackageTrait,
+    // safe defaults are returned (true/0/void).
+
+    /**
+     * Check whether the controller uses PackageTrait.
+     *
+     * @return bool
+     */
+    public function hasPackageTrait(): bool
+    {
+        if ($this->controller === null) {
+            return false;
+        }
+
+        return \in_array(PackageTrait::class, \class_uses($this->controller) ?: [], true);
+    }
+
+    /**
+     * Trigger __onPackageStart on the controller.
+     *
+     * Called by PackageRunner before the main execution/serve phase.
+     * Returns true (allow) if the controller does not use PackageTrait.
+     *
+     * @param array{package_name: string, version: string, mode: string, args: string[]} $packageInfo
+     *
+     * @return bool False to abort package execution
+     */
+    public function packageStart(array $packageInfo): bool
+    {
+        if (!$this->hasPackageTrait()) {
+            return true;
+        }
+
+        return $this->controller->__onPackageStart($packageInfo);
+    }
+
+    /**
+     * Execute the package's exec-mode entry point.
+     *
+     * Called by PackageRunner for exec-mode packages.
+     * Triggers the __onPackageExec() lifecycle hook on the controller.
+     * Returns 0 if the controller does not use PackageTrait.
+     *
+     * @param array{package_name: string, version: string, mode: string, args: string[]} $packageInfo
+     *
+     * @return int Exit code (0 = success)
+     */
+    public function packageExec(array $packageInfo): int
+    {
+        if (!$this->hasPackageTrait()) {
+            return 0;
+        }
+
+        return (int) $this->controller->__onPackageExec($packageInfo);
+    }
+
+    /**
+     * Trigger __onPackageStop on the controller.
+     *
+     * Called when a package is shutting down (stop signal or exec completed).
+     * No-op if the controller does not use PackageTrait.
+     */
+    public function packageStop(): void
+    {
+        if ($this->hasPackageTrait()) {
+            $this->controller->__onPackageStop();
+        }
+    }
+
+    /**
+     * Trigger __onPackageServe on the controller.
+     *
+     * Called by PackageRunner for serve-mode packages. This method should
+     * BLOCK until the serve is done (e.g., until Ctrl+C / SIGTERM).
+     * No-op if the controller does not use PackageTrait.
+     *
+     * @param array{package_name: string, version: string, mode: string, args: string[]} $packageInfo
+     */
+    public function packageServe(array $packageInfo): void
+    {
+        if ($this->hasPackageTrait()) {
+            $this->controller->__onPackageServe($packageInfo);
+        }
+    }
+
+    /**
+     * Trigger __onPackageHealthcheck on the controller.
+     *
+     * Called when the PackageRunner polls this package's health status.
+     * Returns false if the controller does not use PackageTrait.
+     *
+     * @return bool True if healthy
+     */
+    public function packageHealthcheck(): bool
+    {
+        if (!$this->hasPackageTrait()) {
+            return false;
+        }
+
+        return $this->controller->__onPackageHealthcheck();
+    }
+
     /**
      * Get the global template entity.
      *
@@ -861,9 +980,9 @@ class Module implements ModuleInterface
      *
      * @param string $moduleCode
      *
-     * @return Emitter
+     * @return Emitter|null
      */
-    public function getEmitter(string $moduleCode): Emitter
+    public function getEmitter(string $moduleCode): ?Emitter
     {
         return $this->distributor->getRegistry()->createAPI($this)->request($moduleCode);
     }
@@ -875,11 +994,7 @@ class Module implements ModuleInterface
      */
     public function loadConfig(): Configuration
     {
-        // Use full module code (vendor/package → vendor_package) to avoid
-        // config file collisions between modules with the same class name
-        // but different vendors (e.g. acme/logger vs vendor-b/logger).
-        $safeCode = \str_replace('/', '_', $this->moduleInfo->getCode());
-        $path = PathUtil::append(SYSTEM_ROOT, 'config', $this->distributor->getCode(), $safeCode . '.php');
+        $path = PathUtil::append(SYSTEM_ROOT, 'config', $this->distributor->getCode(), $this->moduleInfo->getClassName() . '.php');
         return new Configuration($path);
     }
 

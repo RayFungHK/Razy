@@ -262,14 +262,12 @@ class Controller
      */
     final public function getAssetPath(): string
     {
-        // Build URL: {siteURL}/webassets/{vendor}/{package}/{version}/
-        // Uses full module code to prevent alias collisions across vendors.
+        // Build URL: {siteURL}/webassets/{alias}/{version}/
+        // Uses alias (defaults to className) to match .htaccess rewrite rules.
         return PathUtil::append(
             $this->module->getSiteURL(),
-            'webassets',
-            $this->module->getModuleInfo()->getCode(),
-            $this->module->getModuleInfo()->getVersion(),
-        ) . '/';
+            $this->module->getModuleInfo()->getAssetPath(),
+        );
     }
 
     /**
@@ -504,9 +502,9 @@ class Controller
      *
      * @param string $moduleCode The module code for which to get the Emitter
      *
-     * @return Emitter The Emitter instance
+     * @return Emitter|null The Emitter instance, or null if the target module is not loaded
      */
-    final public function api(string $moduleCode): Emitter
+    final public function api(string $moduleCode): ?Emitter
     {
         // Cache emitters to avoid re-creating them for repeated API calls
         $this->cachedAPI[$moduleCode] ??= $this->module->getEmitter($moduleCode);
@@ -727,6 +725,21 @@ class Controller
             }
         }
         return true;
+    }
+
+    /**
+     * Check if a module is loaded and available in the current distributor.
+     *
+     * Use for optional integrations where you want to enhance functionality
+     * if a module exists but not fail if absent.
+     *
+     * @param string $moduleCode The module code to check
+     *
+     * @return bool True if the module is in the loaded queue
+     */
+    final public function hasModule(string $moduleCode): bool
+    {
+        return $this->module->hasModule($moduleCode);
     }
 
     /**

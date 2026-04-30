@@ -70,27 +70,21 @@ class NetworkUtil
     /**
      * Get the visitor IP.
      *
+     * Returns REMOTE_ADDR by default. Forwarded headers (X-Forwarded-For,
+     * etc.) are NOT trusted because they can be spoofed by any client.
+     * If you are behind a trusted reverse proxy, extract the real IP from
+     * the forwarded header in your application layer after verifying
+     * REMOTE_ADDR is your proxy.
+     *
      * @return string The IP address
      */
     public static function getIP(): string
     {
-        if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-            $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED'])) {
-            $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
-        } elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
-            $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
-        } elseif (isset($_SERVER['HTTP_FORWARDED'])) {
-            $ipaddress = $_SERVER['HTTP_FORWARDED'];
-        } elseif (isset($_SERVER['REMOTE_ADDR'])) {
-            $ipaddress = $_SERVER['REMOTE_ADDR'];
-        } else {
-            $ipaddress = 'UNKNOWN';
+        if (isset($_SERVER['REMOTE_ADDR'])) {
+            return $_SERVER['REMOTE_ADDR'];
         }
 
-        return $ipaddress;
+        return 'UNKNOWN';
     }
 
     /**

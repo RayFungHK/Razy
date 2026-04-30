@@ -265,6 +265,8 @@ class HashMap implements ArrayAccess, Iterator, Countable
     {
         if (isset($this->hashMap[$offset])) {
             // Remove from both the ordered index and the key-value map
+            // Note: gaps in hashOrder are intentional — they allow safe iteration
+            // during modification (e.g., foreach + remove) since valid() uses isset()
             unset($this->hashOrder[$this->hashMap[$offset]['index']], $this->hashMap[$offset]);
         }
     }
