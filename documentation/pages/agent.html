@@ -97,6 +97,25 @@
     <span class="hl-str">'updateProfile'</span> => <span class="hl-str">'apiUpdateProfile'</span>,
 ]);</code></pre>
 
+    <h3 id="bind"><code>bind(mixed $method, ?string $path = null): static</code></h3>
+    <p>Bind a controller method name to a closure file for <strong>module-internal</strong> calls only. Bound handlers are invoked when a loaded closure calls <code>$this-&gt;method(...)</code>; Razy resolves them through <code>Controller::__call()</code> and the bind registry.</p>
+    <p>Unlike <code>addAPICommand()</code>, bindings are <strong>not</strong> exposed to other modules via <code>$this-&gt;api('module')-&gt;method()</code>. Use <code>bind()</code> for helpers shared between closures inside the same module; use <code>addAPICommand()</code> when other modules must call the handler.</p>
+<pre><code><span class="hl-cmt">// Internal-only helper</span>
+<span class="hl-var">$agent</span>-><span class="hl-fn">bind</span>(<span class="hl-str">'ensureMineSchema'</span>, <span class="hl-str">'api/ensure_mine_schema'</span>);
+
+<span class="hl-cmt">// Array syntax</span>
+<span class="hl-var">$agent</span>-><span class="hl-fn">bind</span>([
+    <span class="hl-str">'ensureCreditSchema'</span>  => <span class="hl-str">'api/ensure_credit_schema'</span>,
+    <span class="hl-str">'ensureStorageSchema'</span> => <span class="hl-str">'api/ensure_storage_schema'</span>,
+]);
+
+<span class="hl-cmt">// Inside api/ensure_tenant_schema.php (bound closure)</span>
+<span class="hl-kw">return function</span> (<span class="hl-cls">\PDO</span> <span class="hl-var">$pdo</span>): <span class="hl-cls">void</span> {
+    <span class="hl-var">$this</span>-><span class="hl-fn">ensureCreditSchema</span>(<span class="hl-var">$pdo</span>);
+    <span class="hl-var">$this</span>-><span class="hl-fn">ensureStorageSchema</span>(<span class="hl-var">$pdo</span>);
+};</code></pre>
+    <div class="callout callout-info"><strong>Dual registration:</strong> When a handler must be both internal (<code>$this</code>) and cross-module (<code>api()</code>), register <code>addAPICommand('ensureCalendarSchema', 'api/ensure_calendar_schema')</code> <em>and</em> <code>bind('ensureCalendarSchema', 'api/ensure_calendar_schema')</code>. The legacy <code>#command</code> prefix on <code>addAPICommand()</code> registers both in one step.</div>
+
     <h3 id="addbridgecommand"><code>addBridgeCommand(mixed $command, ?string $path = null): static</code></h3>
     <p>Register commands for cross-distributor (cross-domain) communication via the internal bridge.</p>
 

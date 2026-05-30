@@ -307,7 +307,7 @@ class Standalone implements DistributorInterface
         if (WEB_MODE) {
             \session_set_cookie_params([
                 'lifetime' => 0,
-                'path' => '/',
+                'path' => \defined('RELATIVE_COOKIE_PATH') ? RELATIVE_COOKIE_PATH : '/',
                 'domain' => HOSTNAME,
                 'secure' => !empty($_SERVER['HTTPS']),
                 'httponly' => true,

@@ -37,7 +37,7 @@ use Throwable;
 require_once PHAR_PATH . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR . 'Razy' . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'PathUtil.php';
 
 // Define core framework constants for versioning and directory paths
-\define('RAZY_VERSION', '1.0.2-beta');
+\define('RAZY_VERSION', '1.0.3-beta');
 \define('PLUGIN_FOLDER', PathUtil::append(SYSTEM_ROOT, 'plugins'));
 \define('PHAR_PLUGIN_FOLDER', PathUtil::append(PHAR_PATH, 'plugins'));
 \define('SITES_FOLDER', PathUtil::append(SYSTEM_ROOT, 'sites'));
@@ -121,6 +121,9 @@ if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
 
     $relativeRoot = $relativeFromFs !== '' ? $relativeFromFs : $relativeFromScript;
     \define('RELATIVE_ROOT', $relativeRoot);
+
+    // Session cookie path — scope cookies to subdirectory installs (e.g. /abc).
+    \define('RELATIVE_COOKIE_PATH', RELATIVE_ROOT !== '' ? RELATIVE_ROOT : '/');
 
     // Declare `PORT`
     // The protocol, if the REQUEST PATH is http://yoursite.com:8080/Razy, the PORT will declare as 8080

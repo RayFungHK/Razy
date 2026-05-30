@@ -215,8 +215,10 @@ class Controller
 
     /**
      * Controller method bridge.
-     * When the method called which is not declared, the Controller will
-     * inject the Closure from the specified path that is configured in __onInit state.
+     *
+     * Resolution order when an undeclared method is called on the controller:
+     * 1. {@see Module::getBinding()} registry ({@see Agent::bind()} in {@code __onInit})
+     * 2. External closure file {@code controller/{ClassName}.{method}.php}
      *
      * @param string $method The string of the method name which is called
      * @param array $arguments The arguments will pass to the method

@@ -37,7 +37,7 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-l
-    RewriteCond $1 !^(index\.php|robots\.txt|sites|system|shared|plugins|library|asset|repository\.inc\.php|config\.inc\.php|sites\.inc\.php)
+    RewriteCond $1 !^(index\.php|robots\.txt|sites|system|shared|plugins|asset|repository\.inc\.php|config\.inc\.php|sites\.inc\.php)
     RewriteRule ^{$route_path}(.*)$ %{ENV:BASE}index.php [L]
     <!-- END BLOCK: fallback -->
 <!-- END BLOCK: rewrite -->

@@ -74,6 +74,47 @@ class Agent
     }
 
     /**
+     * Bind a controller method name to a closure file path for internal {@code $this} calls.
+     *
+     * Unlike {@see addAPICommand()}, bindings are <strong>not</strong> exposed to other modules
+     * via {@code api('module')->method()}. They are resolved only through {@see Controller::__call()}
+     * when a bound closure invokes {@code $this->method(...)} on the same controller.
+     *
+     * Use {@see addAPICommand()} for cross-module API surface; use {@code bind()} for helpers that
+     * should stay module-internal. Register both when a handler must support internal and external
+     * calls (the {@code #command} prefix on {@see addAPICommand()} is shorthand for that pair).
+     *
+     * @param array|string $method Method name, or map of method =&gt; closure path
+     * @param string|null $path Closure path relative to {@code controller/} (required when {@code $method} is string)
+     *
+     * @return $this Fluent interface
+     *
+     * @throws InvalidArgumentException
+     */
+    public function bind(mixed $method, ?string $path = null): static
+    {
+        if (\is_array($method)) {
+            foreach ($method as $_method => $_path) {
+                if (\is_string($_path)) {
+                    $this->bind($_method, $_path);
+                }
+            }
+        } else {
+            $method = \trim($method);
+            if (1 !== \preg_match('/^[a-z]\w*$/i', $method)) {
+                throw new InvalidArgumentException('Invalid bind method name format');
+            }
+            if ($path === null || \trim($path) === '') {
+                throw new InvalidArgumentException('Bind path must be a non-empty string');
+            }
+
+            $this->module->bind($method, $path);
+        }
+
+        return $this;
+    }
+
+    /**
      * Register a bridge command for cross-distributor communication.
      * Bridge commands are separate from API commands - they are exposed to external distributors.
      *

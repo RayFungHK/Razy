@@ -39,10 +39,11 @@ class CommandRegistry
     /**
      * Register an API command.
      *
-     * Commands prefixed with '#' are registered both as API commands
-     * and as internal bindings (accessible via Controller::__call).
+     * Commands prefixed with {@code #} are registered both as cross-module API commands
+     * and as internal bindings ({@see ClosureLoader::bind()}, {@see Controller::__call()}).
+     * Prefer explicit {@code $agent->bind()} when a handler should be internal-only.
      *
-     * @param string $command The API command name (prefix with '#' for dual registration)
+     * @param string $command The API command name (prefix with {@code #} for dual registration)
      * @param string $path The closure file path
      * @param ClosureLoader $closureLoader The closure loader for optional internal binding
      *

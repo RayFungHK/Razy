@@ -316,6 +316,10 @@ class Application
                                     if (isset($this->distributors[$distIdentifier])) {
                                         // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
+                                        // Secondary domain/wildcard keys must still populate multisite[], otherwise
+                                        // Application::matchDomain() never considers them ({@see matchDomain()}).
+                                        $this->multisite[$domain] ??= [];
+                                        $this->multisite[$domain][$urlPath] = $distIdentifier;
                                     } else {
                                         [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
 
@@ -707,7 +711,9 @@ class Application
                 if ('*' !== $wildcardFqdn && \str_contains($wildcardFqdn, '*')) {
                     $wildcard = \preg_quote($wildcardFqdn, '/');
                     $wildcard = \str_replace('\*', '[^.]+', $wildcard);
-                    if (\preg_match('/^' . $wildcard . '$/', $fqdn)) {
+                    // Match hostname only: HTTP_HOST may include an explicit port (e.g. host:80) which must
+                    // not participate in multisite wildcard FQDN patterns (stored without port suffix).
+                    if (\preg_match('/^' . $wildcard . '$/', $domain)) {
                         // Given fqdn becomes the domain's alias
                         return new Domain($this, $wildcardFqdn, $fqdn, $this->multisite[$wildcardFqdn]);
                     }

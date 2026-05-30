@@ -253,7 +253,7 @@ class Distributor implements DistributorInterface
         if (WEB_MODE) {
             \session_set_cookie_params([
                 'lifetime' => 0,
-                'path' => '/',
+                'path' => \defined('RELATIVE_COOKIE_PATH') ? RELATIVE_COOKIE_PATH : '/',
                 'domain' => HOSTNAME,
                 'secure' => !empty($_SERVER['HTTPS']),
                 'httponly' => true,
@@ -624,7 +624,11 @@ class Distributor implements DistributorInterface
      */
     public function getSiteURL(): string
     {
-        return (\defined('RAZY_URL_ROOT')) ? PathUtil::append(RAZY_URL_ROOT, $this->urlPath) : '';
+        if (!\defined('RAZY_URL_ROOT')) {
+            return '';
+        }
+
+        return PathUtil::tidy(PathUtil::append(RAZY_URL_ROOT, $this->urlPath), false, '/');
     }
 
     /**

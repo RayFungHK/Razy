@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [v1.0.3-beta](changelog/v1.0.3-beta.md) — 2026-05-29
+
+**Subdirectory Sessions & Module Routes** — Cookie scoping, site URL tidy, and `/library/*` rewrite fix.
+
+- `RELATIVE_COOKIE_PATH` constant; session cookies scoped to `RELATIVE_ROOT` in Distributor and Standalone
+- `Distributor::getSiteURL()` returns `PathUtil::tidy()`-normalized URLs
+- `htaccess.tpl` skip-list no longer blocks `library` module routes
+- `Application::updateSites()` registers secondary/wildcard domain keys in `multisite[]`
+- `Application::matchDomain()` wildcard match uses hostname without port suffix
+- `Agent::bind()` restores internal-only closure bridge for `$this->method()` (`Controller::__call()` registry)
+
 ## [v1.0.2-beta](changelog/v1.0.2-beta.md) — 2026-02-28
 
 **Security Hardening & Package System** — Full security audit (44 fixes) and standalone package infrastructure.

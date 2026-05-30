@@ -19,6 +19,7 @@ namespace Razy\Module;
 
 use Closure;
 use Razy\Controller;
+use Razy\Exception\ModuleException;
 use Razy\Exception\ModuleLoadException;
 use Razy\ModuleInfo;
 use Razy\Util\PathUtil;
@@ -51,18 +52,28 @@ class ClosureLoader
     }
 
     /**
-     * Bind a method name to a closure file path.
+     * Bind a method name to a closure file path (internal {@code $this} bridge only).
      *
      * @param string $method The method name to bind
-     * @param string $path The closure file path
+     * @param string $path The closure file path relative to {@code controller/}
+     *
+     * @throws ModuleException When the method is already bound to a different path
      */
     public function bind(string $method, string $path): void
     {
+        $method = \trim($method);
         $path = \trim($path);
-        if ($path) {
-            $path = PathUtil::tidy($path);
-            $this->binding[$method] = $path;
+        if ($method === '' || $path === '') {
+            return;
         }
+
+        $path = PathUtil::tidy($path);
+        if (isset($this->binding[$method]) && $this->binding[$method] !== $path) {
+            throw new ModuleException(
+                'The method `' . $method . '` is already bound to `' . $this->binding[$method] . '`.',
+            );
+        }
+        $this->binding[$method] = $path;
     }
 
     /**

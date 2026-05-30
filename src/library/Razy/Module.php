@@ -935,7 +935,9 @@ class Module implements ModuleInterface
     }
 
     /**
-     * Bind the specified closure file to a method.
+     * Bind the specified closure file to a controller method for internal {@code $this} calls.
+     *
+     * Not exposed via {@code api('module')->method()} — use {@see addAPICommand()} for that.
      *
      * @param string $method
      * @param string $path
