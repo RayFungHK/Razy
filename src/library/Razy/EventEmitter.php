@@ -22,9 +22,9 @@ use Throwable;
  * Class EventEmitter.
  *
  * Facilitates event-driven communication between modules within a Distributor.
- * When a module emits an event, EventEmitter iterates over all loaded modules
- * to find listeners for that event, collects their responses, and optionally
- * invokes a callback for each response.
+ * When a module calls {@see Controller::trigger()}, registered <strong>observers</strong> run
+ * immediately (prepare / side effects). {@see resolve()} then dispatches <strong>listeners</strong>
+ * (broadcast), collects responses, and optionally invokes a per-listener callback.
  *
  * @class EventEmitter
  *

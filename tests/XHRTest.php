@@ -228,4 +228,43 @@ class XHRTest extends TestCase
         $result = $xhr->send();
         $this->assertArrayNotHasKey('params', $result);
     }
+
+    #[Test]
+    public function responseCodeReturnsChainable(): void
+    {
+        $xhr = new XHR(true);
+        $this->assertSame($xhr, $xhr->responseCode(401));
+    }
+
+    #[Test]
+    public function sendDataReturnsSuccessDataEnvelope(): void
+    {
+        $xhr = new XHR(true);
+        $result = $xhr->data(['posts' => []])->sendData(true);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(['posts' => []], $result['data']);
+        $this->assertArrayHasKey('hash', $result);
+    }
+
+    #[Test]
+    public function sendDataFailureCanOmitData(): void
+    {
+        $xhr = new XHR(true);
+        $result = $xhr->responseCode(400)->sendData(false, 'Invalid JSON');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('Invalid JSON', $result['message']);
+        $this->assertArrayNotHasKey('data', $result);
+    }
+
+    #[Test]
+    public function sendEnvelopeReturnsFlatBody(): void
+    {
+        $xhr = new XHR(true);
+        $body = ['success' => false, 'message' => 'Not authenticated', 'data' => ['sign_in_path' => '/auth/']];
+        $result = $xhr->responseCode(401)->responseAsBody($body)->sendEnvelope();
+
+        $this->assertSame($body, $result);
+    }
 }

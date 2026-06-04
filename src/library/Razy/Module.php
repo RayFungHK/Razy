@@ -563,6 +563,24 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Register an observer for an emitter event (runs on {@see Controller::trigger()}, before {@see EventEmitter::resolve()}).
+     *
+     * @param string $event Event name in format 'vendor/module:event_name'
+     * @param string|Closure $path Closure or path to closure file
+     *
+     * @return bool True if the emitter module is loaded
+     */
+    public function observe(string $event, string|Closure $path): bool
+    {
+        $this->eventDispatcher->observe($event, $path);
+
+        [$moduleCode, $eventName] = \explode(':', $event);
+        $this->distributor->getRegistry()->registerObserver($moduleCode, $eventName, $this);
+
+        return $this->distributor->getRegistry()->getLoadedModule($moduleCode) !== null;
+    }
+
+    /**
      * Create an EventEmitter instance to fire an event.
      *
      * Creates an EventEmitter that can be used to trigger listeners.
@@ -595,6 +613,11 @@ class Module implements ModuleInterface
         return $this->eventDispatcher->isEventListening($moduleCode, $event);
     }
 
+    public function isEventObserving(string $moduleCode, string $event): bool
+    {
+        return $this->eventDispatcher->isEventObserving($moduleCode, $event);
+    }
+
     /**
      * Trigger the event.
      *
@@ -608,6 +631,11 @@ class Module implements ModuleInterface
     public function fireEvent(string $moduleCode, string $event, array $args): mixed
     {
         return $this->eventDispatcher->fireEvent($moduleCode, $event, $args, $this->controller, $this->closureLoader);
+    }
+
+    public function fireObserver(string $moduleCode, string $event, array $args): mixed
+    {
+        return $this->eventDispatcher->fireObserver($moduleCode, $event, $args, $this->controller, $this->closureLoader);
     }
 
     /**

@@ -108,14 +108,15 @@ class AgentTest extends TestCase
     public static function invalidEventNames(): array
     {
         return [
-            'no colon separator' => ['vendorModule'],
-            'empty event name' => ['vendor/Module:'],
-            'event starts with digit' => ['vendor/Module:1event'],
+            'bare event without module code' => ['eventName'],
+            'empty qualified event' => [''],
+            'missing module code' => [':eventName'],
             'invalid module code' => ['InvalidCode:eventName'],
-            'empty module code' => [':eventName'],
+            'empty event segment' => ['vendor/Module:'],
+            'event starts with digit' => ['vendor/Module:1event'],
             'event with spaces' => ['vendor/Module:my event'],
             'event with special chars' => ['vendor/Module:evt!@#'],
-            'no event name after colon' => ['vendor/Module:'],
+            'extra colon in event segment' => ['vendor/Module:nested:bad'],
         ];
     }
 
@@ -273,22 +274,20 @@ class AgentTest extends TestCase
     {
         $this->mockModule->expects($this->once())
             ->method('listen')
-            ->with('vendor/Module:eventName', $this->anything())
+            ->with('test/AgentModule:eventName', $this->anything())
             ->willReturn(true);
 
-        $result = $this->agent->listen('vendor/Module:eventName', 'handler');
+        $result = $this->agent->listen('test/AgentModule:eventName', 'handler');
         $this->assertTrue($result);
     }
 
     #[Test]
-    public function listenReturnsFalseWhenModuleNotLoaded(): void
+    public function listenRejectsBareEventName(): void
     {
-        $this->mockModule->expects($this->once())
-            ->method('listen')
-            ->willReturn(false);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid event name format');
 
-        $result = $this->agent->listen('vendor/Module:someEvent', 'handler');
-        $this->assertFalse($result);
+        $this->agent->listen('eventName', 'handler');
     }
 
     #[Test]
@@ -298,13 +297,13 @@ class AgentTest extends TestCase
             ->willReturnOnConsecutiveCalls(true, false);
 
         $results = $this->agent->listen([
-            'vendor/ModA:evtA' => 'handlerA',
-            'vendor/ModB:evtB' => 'handlerB',
+            'test/AgentModule:evtA' => 'handlerA',
+            'vendor/Other:evtB' => 'handlerB',
         ]);
 
         $this->assertIsArray($results);
-        $this->assertTrue($results['vendor/ModA:evtA']);
-        $this->assertFalse($results['vendor/ModB:evtB']);
+        $this->assertTrue($results['test/AgentModule:evtA']);
+        $this->assertFalse($results['vendor/Other:evtB']);
     }
 
     #[Test]
@@ -312,12 +311,23 @@ class AgentTest extends TestCase
     {
         $this->mockModule->expects($this->once())
             ->method('listen')
-            ->with('vendor/Module:evt', $this->isInstanceOf(Closure::class))
+            ->with('test/AgentModule:evt', $this->isInstanceOf(Closure::class))
             ->willReturn(true);
 
-        $this->agent->listen('vendor/Module:evt', function () {
+        $this->agent->listen('test/AgentModule:evt', function () {
             return 'test';
         });
+    }
+
+    #[Test]
+    public function listenCrossModuleReturnsFalseWhenEmitterNotLoaded(): void
+    {
+        $this->mockModule->expects($this->once())
+            ->method('listen')
+            ->willReturn(false);
+
+        $result = $this->agent->listen('vendor/Other:someEvent', 'handler');
+        $this->assertFalse($result);
     }
 
     #[Test]
@@ -335,10 +345,10 @@ class AgentTest extends TestCase
     {
         $this->mockModule->expects($this->once())
             ->method('listen')
-            ->with('vendor/Module:some.nested.event', $this->anything())
+            ->with('test/AgentModule:some.nested.event', $this->anything())
             ->willReturn(true);
 
-        $result = $this->agent->listen('vendor/Module:some.nested.event', 'handler');
+        $result = $this->agent->listen('test/AgentModule:some.nested.event', 'handler');
         $this->assertTrue($result);
     }
 
@@ -347,11 +357,32 @@ class AgentTest extends TestCase
     {
         $this->mockModule->expects($this->once())
             ->method('listen')
-            ->with('vendor/Module:some.my-event', $this->anything())
+            ->with('test/AgentModule:some.my-event', $this->anything())
             ->willReturn(true);
 
-        $result = $this->agent->listen('vendor/Module:some.my-event', 'handler');
+        $result = $this->agent->listen('test/AgentModule:some.my-event', 'handler');
         $this->assertTrue($result);
+    }
+
+    #[Test]
+    public function observeWithValidEventDelegatesToModule(): void
+    {
+        $this->mockModule->expects($this->once())
+            ->method('observe')
+            ->with('vendor/Other:boot.collect', $this->anything())
+            ->willReturn(true);
+
+        $result = $this->agent->observe('vendor/Other:boot.collect', 'handler');
+        $this->assertTrue($result);
+    }
+
+    #[Test]
+    public function observeRejectsBareEventName(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid event name format');
+
+        $this->agent->observe('boot.collect', 'handler');
     }
 
     // ==================== addShadowRoute ====================
@@ -735,10 +766,10 @@ class AgentTest extends TestCase
     {
         $this->mockModule->expects($this->once())
             ->method('listen')
-            ->with('vendor/Module:strEvt', 'handlerPath')
+            ->with('test/AgentModule:strEvt', 'handlerPath')
             ->willReturn(true);
 
-        $result = $this->agent->listen('vendor/Module:strEvt', 'handlerPath');
+        $result = $this->agent->listen('test/AgentModule:strEvt', 'handlerPath');
         $this->assertTrue($result);
     }
 
@@ -965,5 +996,34 @@ class AgentTest extends TestCase
 
         $this->assertSame("POST cli{$ds}deploy", $calls[0]['route']);
         $this->assertSame("cli{$ds}deploy", $calls[0]['path']);
+    }
+
+    #[Test]
+    public function reservePrefixesStandardRoutesWithoutModuleAlias(): void
+    {
+        $calls = [];
+        $this->mockModule->expects($this->exactly(2))
+            ->method('addRoute')
+            ->willReturnCallback(function (string $route, string $path) use (&$calls) {
+                $calls[] = ['route' => $route, 'path' => $path];
+                return $this->mockModule;
+            });
+
+        $this->agent->reserve('api')->addRoute([
+            'GET build_info' => 'api/build_info',
+            'POST storage_settings' => 'api/storage_settings',
+        ]);
+
+        $this->assertSame('GET /api/build_info', $calls[0]['route']);
+        $this->assertSame('api/build_info', $calls[0]['path']);
+        $this->assertSame('POST /api/storage_settings', $calls[1]['route']);
+        $this->assertSame('api/storage_settings', $calls[1]['path']);
+    }
+
+    #[Test]
+    public function reserveRejectsInvalidSegment(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->agent->reserve('../api');
     }
 }

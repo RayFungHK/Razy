@@ -211,22 +211,39 @@ class ModuleScanner
         // Convert namespace separators to directory separators for file lookup
         $moduleClassName = \str_replace('\\', '/', $className);
         if (\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleClassName, $matches)) {
-            $namespaces = \explode('/', $moduleClassName);
-            $moduleClassName = \array_pop($namespaces);
-            $moduleCode = \implode('/', $namespaces);
+            $segments = \explode('/', $moduleClassName);
+            if (\count($segments) < 3) {
+                return \Razy\autoload($className, PathUtil::append(SYSTEM_ROOT, 'autoload', $code));
+            }
+
+            // Module code is always vendor/package; remainder is library-relative (supports ChatRegistries/Pipeline).
+            $moduleCode = $segments[0] . '/' . $segments[1];
+            $libraryRelative = \implode('/', \array_slice($segments, 2));
+
+            // Registry keys use package.php module_code (oaaoai/slide-designer); library NS uses api_name (slide_designer).
+            $module = $this->resolveLoadedModule($modules, $segments[0], $segments[1]);
+            if ($module !== null) {
+                $moduleCode = $module->getModuleInfo()->getCode();
+            }
 
             // Try to load the class from the module library
-            if (isset($modules[$moduleCode])) {
-                $module = $modules[$moduleCode];
-                if ($module->getStatus() === ModuleStatus::Loaded) {
+            if ($module !== null) {
+                $status = $module->getStatus();
+                $mayAutoloadLibrary = \in_array($status, [
+                    ModuleStatus::Processing,
+                    ModuleStatus::Initialing,
+                    ModuleStatus::InQueue,
+                    ModuleStatus::Loaded,
+                ], true);
+                if ($mayAutoloadLibrary) {
                     $moduleInfo = $module->getModuleInfo();
                     $path = PathUtil::append($moduleInfo->getPath(), 'library');
                     if (\is_dir($path)) {
-                        $libraryPath = PathUtil::append($path, $moduleClassName);
+                        $libraryPath = PathUtil::append($path, $libraryRelative);
                         if (\is_file($libraryPath . '.php')) {
                             $libraryPath .= '.php';
-                        } elseif (\is_dir($libraryPath) && \is_file(PathUtil::append($libraryPath, $moduleClassName . '.php'))) {
-                            $libraryPath = PathUtil::append($libraryPath, $moduleClassName . '.php');
+                        } elseif (\is_dir($libraryPath) && \is_file(PathUtil::append($libraryPath, \basename($libraryRelative) . '.php'))) {
+                            $libraryPath = PathUtil::append($libraryPath, \basename($libraryRelative) . '.php');
                         }
 
                         if (\is_file($libraryPath)) {
@@ -238,9 +255,9 @@ class ModuleScanner
                                 return false;
                             }
                             try {
-                                include $realLibPath;
+                                include_once $realLibPath;
 
-                                return \class_exists($moduleClassName);
+                                return \trait_exists($className, false) || \class_exists($className, false);
                             } catch (Exception) {
                                 return false;
                             }
@@ -252,5 +269,45 @@ class ModuleScanner
 
         $libraryPath = PathUtil::append(SYSTEM_ROOT, 'autoload', $code);
         return \Razy\autoload($className, $libraryPath);
+    }
+
+    /**
+     * Map library namespace {@code oaaoai\{api_name}\…} to a loaded {@see Module}.
+     *
+     * Registry keys follow {@code package.php} {@code module_code} (e.g. {@code oaaoai/slide-designer});
+     * library namespaces use {@code api_name} with underscores ({@code slide_designer}).
+     */
+    private function resolveLoadedModule(array $modules, string $vendor, string $packageSegment): ?Module
+    {
+        $vendorLower = \strtolower($vendor);
+        $segmentLower = \strtolower($packageSegment);
+        $candidates = [
+            $vendorLower . '/' . $segmentLower,
+            $vendorLower . '/' . \str_replace('_', '-', $segmentLower),
+        ];
+
+        foreach ($candidates as $code) {
+            $module = $modules[$code] ?? null;
+            if ($module instanceof Module) {
+                return $module;
+            }
+        }
+
+        foreach ($modules as $module) {
+            if (!$module instanceof Module) {
+                continue;
+            }
+            $info = $module->getModuleInfo();
+            $code = $info->getCode();
+            $parts = \explode('/', $code, 2);
+            if (\count($parts) !== 2 || \strtolower($parts[0]) !== $vendorLower) {
+                continue;
+            }
+            if (\strtolower($info->getAPIName()) === $segmentLower) {
+                return $module;
+            }
+        }
+
+        return null;
     }
 }

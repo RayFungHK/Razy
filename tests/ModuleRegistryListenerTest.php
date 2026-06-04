@@ -145,6 +145,25 @@ class ModuleRegistryListenerTest extends TestCase
         $this->assertCount(1, $this->registry->getEventListeners('vendor/source', 'onEvent'));
     }
 
+    public function testRegisterObserverAddsToIndex(): void
+    {
+        $module = $this->createModuleMock('vendor/observer');
+        $this->registry->registerObserver('vendor/source', 'onEvent', $module);
+
+        $observers = $this->registry->getEventObservers('vendor/source', 'onEvent');
+        $this->assertCount(1, $observers);
+        $this->assertSame($module, $observers[0]);
+    }
+
+    public function testUnregisterModuleListenersAlsoRemovesObservers(): void
+    {
+        $module = $this->createModuleMock('vendor/observer');
+        $this->registry->registerObserver('vendor/source', 'onEvent', $module);
+        $this->registry->unregisterModuleListeners($module);
+
+        $this->assertSame([], $this->registry->getEventObservers('vendor/source', 'onEvent'));
+    }
+
     private function createModuleMock(string $code = 'vendor/test'): Module
     {
         $moduleInfo = $this->createMock(ModuleInfo::class);

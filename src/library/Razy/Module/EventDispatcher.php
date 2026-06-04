@@ -34,6 +34,9 @@ class EventDispatcher implements EventDispatcherInterface
     /** @var array<string, array<string, string|Closure>> Event listeners grouped by module code */
     private array $events = [];
 
+    /** @var array<string, array<string, string|Closure>> Observers (trigger-phase) grouped by emitter module code */
+    private array $observers = [];
+
     /**
      * Register a listener for an event from another module.
      *
@@ -57,6 +60,27 @@ class EventDispatcher implements EventDispatcherInterface
     }
 
     /**
+     * Register an observer for an emitter event (runs when the emitter calls {@see Controller::trigger()}, before {@see EventEmitter::resolve()}).
+     *
+     * @param string $event Event name in format 'vendor/module:event_name'
+     * @param string|Closure $path Closure or path to closure file
+     *
+     * @throws ModuleException If the observer is already registered
+     */
+    public function observe(string $event, string|Closure $path): void
+    {
+        [$moduleCode, $eventName] = \explode(':', $event);
+        if (!isset($this->observers[$moduleCode])) {
+            $this->observers[$moduleCode] = [];
+        }
+
+        if (\array_key_exists($eventName, $this->observers[$moduleCode])) {
+            throw new ModuleException('The observer `' . $eventName . '` is already registered.');
+        }
+        $this->observers[$moduleCode][$eventName] = $path;
+    }
+
+    /**
      * Check if this module is listening for a specific event.
      *
      * @param string $moduleCode The source module code
@@ -67,6 +91,14 @@ class EventDispatcher implements EventDispatcherInterface
     public function isEventListening(string $moduleCode, string $event): bool
     {
         return isset($this->events[$moduleCode]) && \array_key_exists($event, $this->events[$moduleCode]);
+    }
+
+    /**
+     * Check if this module is observing a specific emitter event.
+     */
+    public function isEventObserving(string $moduleCode, string $event): bool
+    {
+        return isset($this->observers[$moduleCode]) && \array_key_exists($event, $this->observers[$moduleCode]);
     }
 
     /**
@@ -115,10 +147,49 @@ class EventDispatcher implements EventDispatcherInterface
     }
 
     /**
+     * Invoke a registered observer (trigger phase; return value is discarded).
+     *
+     * @param string $moduleCode The source module code
+     * @param string $event The event name
+     * @param array $args Arguments (empty array when announced from {@see Controller::trigger()})
+     *
+     * @return mixed The observer's return value, or null
+     */
+    public function fireObserver(string $moduleCode, string $event, array $args, Controller $controller, ClosureLoader $closureLoader): mixed
+    {
+        $result = null;
+
+        try {
+            if (isset($this->observers[$moduleCode]) && \array_key_exists($event, $this->observers[$moduleCode])) {
+                $path = $this->observers[$moduleCode][$event];
+                if (\is_string($path)) {
+                    $closure = null;
+                    if (!\str_contains($event, '/') && \method_exists($controller, $event)) {
+                        $closure = [$controller, $event];
+                    } elseif (($closure = $closureLoader->getClosure($path, $controller)) !== null) {
+                        $closure = $closure->bindTo($controller);
+                    }
+
+                    if ($closure) {
+                        $result = \call_user_func_array($closure, $args);
+                    }
+                } else {
+                    $result = \call_user_func_array($path, $args);
+                }
+            }
+        } catch (Throwable $exception) {
+            $controller->__onError($event, $exception);
+        }
+
+        return $result;
+    }
+
+    /**
      * Reset all event listeners (used in worker mode between requests).
      */
     public function reset(): void
     {
         $this->events = [];
+        $this->observers = [];
     }
 }

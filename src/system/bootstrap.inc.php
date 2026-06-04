@@ -326,7 +326,7 @@ function autoload(string $className, string $path = ''): bool
 
         if (\is_file($libraryPath)) {
             try {
-                include $libraryPath;
+                include_once $libraryPath;
 
                 return \class_exists($className);
             } catch (Exception) {

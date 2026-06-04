@@ -50,6 +50,9 @@ class ModuleRegistry
     /** @var array<string, Module[]> Centralized listener index: 'moduleCode:eventName' => [listenerModules] */
     private array $listenerIndex = [];
 
+    /** @var array<string, Module[]> Observer index (trigger phase): 'moduleCode:eventName' => [observerModules] */
+    private array $observerIndex = [];
+
     /** @var bool Whether to auto-load all discovered modules (vs. only those in requires) */
     private bool $autoload = false;
 
@@ -412,6 +415,24 @@ class ModuleRegistry
     }
 
     /**
+     * Register a module as an observer for a specific emitter event (trigger phase).
+     */
+    public function registerObserver(string $sourceModuleCode, string $eventName, Module $observer): void
+    {
+        $key = $sourceModuleCode . ':' . $eventName;
+        $this->observerIndex[$key][] = $observer;
+    }
+
+    /**
+     * @return Module[]
+     */
+    public function getEventObservers(string $sourceModuleCode, string $eventName): array
+    {
+        $key = $sourceModuleCode . ':' . $eventName;
+        return $this->observerIndex[$key] ?? [];
+    }
+
+    /**
      * Remove all listener registrations for a specific module from the centralized index.
      * Used during worker mode reset when a module's event dispatcher is cleared.
      *
@@ -426,6 +447,14 @@ class ModuleRegistry
             }
         }
         unset($listeners);
+
+        foreach ($this->observerIndex as $key => &$observers) {
+            $observers = \array_values(\array_filter($observers, fn (Module $m) => $m !== $module));
+            if (empty($observers)) {
+                unset($this->observerIndex[$key]);
+            }
+        }
+        unset($observers);
     }
 
     /**
@@ -435,6 +464,7 @@ class ModuleRegistry
     public function clearListenerIndex(): void
     {
         $this->listenerIndex = [];
+        $this->observerIndex = [];
     }
 
     /**
@@ -460,6 +490,13 @@ class ModuleRegistry
      */
     public function createEmitter(Module $module, string $event, ?callable $callback = null): EventEmitter
     {
-        return new EventEmitter($this->distributor, $module, $event, !$callback ? null : $callback(...));
+        $emitter = new EventEmitter($this->distributor, $module, $event, !$callback ? null : $callback(...));
+
+        $sourceCode = $module->getModuleInfo()->getCode();
+        foreach ($this->getEventObservers($sourceCode, $event) as $observerModule) {
+            $observerModule->fireObserver($sourceCode, $event, []);
+        }
+
+        return $emitter;
     }
 }

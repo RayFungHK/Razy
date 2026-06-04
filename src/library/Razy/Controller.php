@@ -321,7 +321,8 @@ class Controller
      * Create an EventEmitter to fire an event.
      *
      * This is the preferred method for firing events from controllers.
-     * Returns an EventEmitter - call resolve() to dispatch to listeners.
+     * {@see Agent::observe()} handlers run immediately (trigger phase, empty args).
+     * Call {@see EventEmitter::resolve()} to dispatch {@see Agent::listen()} handlers (broadcast).
      *
      * Example:
      * ```php

@@ -15,6 +15,7 @@ use Closure;
 use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Distributor\RouteDispatcher;
+use Razy\Routing\ReservedRouteRegistrar;
 use Razy\Routing\RouteGroup;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -148,16 +149,16 @@ class Agent
     }
 
     /**
-     * Register a listener for an event from another module.
+     * Register a listener for an event ({@code vendor/module:event_name}).
      *
-     * Returns whether the target module(s) are currently loaded:
-     * - For single event: returns bool
-     * - For array of events: returns array of bools keyed by event name
+     * The module code is the <strong>emitter</strong> (who calls {@see Controller::trigger()} with a bare
+     * {@code event_name}). To hear your own module's events, pass your own code (e.g. {@code oaaoai/chat:registry.register}
+     * when {@code trigger('registry.register')} runs on chat).
      *
-     * @param array|string $event An array of events or a single event name
-     * @param string|Closure|null $path The path of the closure or anonymous function
+     * @param array|string $event Emitter {@code module_code:event_name}, or map of qualified event =&gt; handler path
+     * @param string|Closure|null $path Closure file path relative to {@code controller/}
      *
-     * @return bool|array True if target module loaded, false if not (or array for multiple)
+     * @return bool|array True if the emitter module is loaded
      *
      * @throws InvalidArgumentException
      * @throws Throwable
@@ -173,19 +174,51 @@ class Agent
         }
 
         $event = \trim($event);
-        // Split event into "moduleCode:eventName" parts
-        [$moduleCode, $eventName] = \explode(':', $event . ':');
-        // Validate module code format and event name (dot-separated identifiers)
-        if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode) || !\preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
+        [$moduleCode, $eventName] = \explode(':', $event, 2);
+        if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode)
+            || !\preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
             throw new InvalidArgumentException('Invalid event name format');
         }
 
-        // Convert callable to first-class closure for consistent handling
         if (\is_callable($path)) {
             $path = $path(...);
         }
 
         return $this->module->listen($moduleCode . ':' . $eventName, $path);
+    }
+
+    /**
+     * Observe an emitter event ({@code vendor/module:event_name}) — runs when the emitter calls
+     * {@see Controller::trigger()} (before {@see EventEmitter::resolve()}). Use for prepare / warm-up;
+     * use {@see listen()} to participate in the broadcast with payload.
+     *
+     * @param array|string $event Emitter {@code module_code:event_name}, or map of qualified event =&gt; handler path
+     * @param string|Closure|null $path Closure file path relative to {@code controller/}
+     *
+     * @return bool|array True if the emitter module is loaded
+     */
+    public function observe(mixed $event, null|string|callable $path = null): bool|array
+    {
+        if (\is_array($event)) {
+            $results = [];
+            foreach ($event as $_event => $_path) {
+                $results[$_event] = $this->observe($_event, $_path);
+            }
+            return $results;
+        }
+
+        $event = \trim($event);
+        [$moduleCode, $eventName] = \explode(':', $event, 2);
+        if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode)
+            || !\preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
+            throw new InvalidArgumentException('Invalid event name format');
+        }
+
+        if (\is_callable($path)) {
+            $path = $path(...);
+        }
+
+        return $this->module->observe($moduleCode . ':' . $eventName, $path);
     }
 
     /**
@@ -397,6 +430,29 @@ class Agent
     }
 
     /**
+     * Reserve a site-level URL segment for this module (e.g. {@code api} → {@code /api/*}, not {@code /{alias}/api/*}).
+     *
+     * @param string $segment Reserved path segment declared in dist.php {@code reserve} (e.g. {@code api})
+     */
+    public function reserve(string $segment): ReservedRouteRegistrar
+    {
+        $segment = \trim($segment, '/');
+        if ($segment === '' || 1 !== \preg_match('/^[a-z]\w*$/i', $segment)) {
+            throw new InvalidArgumentException('Invalid reserved route segment');
+        }
+
+        return new ReservedRouteRegistrar($this, $segment);
+    }
+
+    /**
+     * @internal Used by {@see ReservedRouteRegistrar}
+     */
+    public function addReservedRoutePath(string $segment, mixed $route, mixed $path = null): static
+    {
+        return $this->addRoutePath('Route', $route, $path, '/' . \trim($segment, '/'));
+    }
+
+    /**
      * Internal helper to register a route, lazy route, or script path.
      *
      * Handles scalar, array, and nested array formats for route definitions.
@@ -411,11 +467,11 @@ class Agent
      *
      * @throws InvalidArgumentException
      */
-    private function addRoutePath(string $type, mixed $route, mixed $path = null): static
+    private function addRoutePath(string $type, mixed $route, mixed $path = null, string $urlPrefix = ''): static
     {
         if (\is_array($route)) {
             foreach ($route as $_route => $_method) {
-                $this->addRoutePath($type, $_route, $_method);
+                $this->addRoutePath($type, $_route, $_method, $urlPrefix);
             }
         } else {
             if (!\is_string($route)) {
@@ -427,7 +483,11 @@ class Agent
                 if (\is_string($path)) {
                     $path = \trim(PathUtil::tidy($path, false, '/'), '/');
                 }
-                \call_user_func_array([$this->module, 'add' . $type], [$route, $path]);
+                $registerRoute = [$this->module, 'add' . $type];
+                \call_user_func_array($registerRoute, [
+                    $this->qualifyRoutePathForRegistration($type, $route, $urlPrefix),
+                    $path,
+                ]);
             } elseif (\is_array($path)) {
                 // Recursively expand nested route arrays into flat route registrations.
                 // '@self' key maps the current level's path to a closure without appending a sub-path.
@@ -436,7 +496,7 @@ class Agent
                 // any nesting level — both directory keys and leaf keys. The method prefix is
                 // stripped before joining path segments and re-prepended to the final route,
                 // so the file-system handler path stays clean.
-                $extendRoute = function (array $routeSet, string $relativePath = '', string $inheritedMethod = '*') use (&$extendRoute, $type) {
+                $extendRoute = function (array $routeSet, string $relativePath = '', string $inheritedMethod = '*') use (&$extendRoute, $type, $urlPrefix) {
                     foreach ($routeSet as $node => $path) {
                         // Detect and strip HTTP method prefix from the key
                         [$nodeMethod, $cleanNode] = RouteDispatcher::parseMethodPrefix((string) $node);
@@ -460,7 +520,11 @@ class Agent
                                     $routePath = $effectiveMethod . ' ' . $routePath;
                                 }
 
-                                \call_user_func_array([$this->module, 'add' . $type], [$routePath, PathUtil::append($relativePath, $path)]);
+                                $registerRoute = [$this->module, 'add' . $type];
+                                \call_user_func_array($registerRoute, [
+                                    $this->qualifyRoutePathForRegistration($type, $routePath, $urlPrefix),
+                                    PathUtil::append($relativePath, $path),
+                                ]);
                             }
                         }
                     }
@@ -474,5 +538,20 @@ class Agent
         }
 
         return $this;
+    }
+
+    /**
+     * Apply a reserved URL prefix ({@code /api}) to standard route keys before registration.
+     */
+    private function qualifyRoutePathForRegistration(string $type, string $routePath, string $urlPrefix): string
+    {
+        if ($type !== 'Route' || $urlPrefix === '') {
+            return $routePath;
+        }
+
+        [$method, $cleanPath] = RouteDispatcher::parseMethodPrefix($routePath);
+        $qualified = PathUtil::tidy(PathUtil::append($urlPrefix, $cleanPath), false, '/');
+
+        return $method !== '*' ? $method . ' ' . $qualified : $qualified;
     }
 }

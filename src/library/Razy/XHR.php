@@ -56,6 +56,12 @@ class XHR
     /** @var Closure|null Optional callback invoked after response output */
     private ?Closure $closure = null;
 
+    /** @var int HTTP status for the next {@see output()} */
+    private int $httpStatus = 200;
+
+    /** @var array<string, mixed>|null Pre-built oaao SPA envelope for {@see sendEnvelope()} */
+    private ?array $envelopeBody = null;
+
     /**
      * XHR constructor.
      *
@@ -126,6 +132,80 @@ class XHR
         $this->content = $this->parse($dataset);
 
         return $this;
+    }
+
+    /**
+     * Set HTTP status for the next terminal output ({@see send()}, {@see sendData()}, {@see sendEnvelope()}).
+     */
+    public function responseCode(int $status): self
+    {
+        $this->httpStatus = \max(100, \min(599, $status));
+
+        return $this;
+    }
+
+    /**
+     * oaao SPA envelope — {@code {success, data?, message?, params?, hash, timestamp}}.
+     *
+     * @return array<string, mixed>|true
+     */
+    public function sendData(bool $success, string $message = ''): mixed
+    {
+        $response = [
+            'success' => $success,
+            'hash' => $this->hash,
+            'timestamp' => \time(),
+        ];
+        $message = \trim($message);
+        if ($message !== '') {
+            $response['message'] = $message;
+        }
+        if ($success) {
+            $parsed = $this->parse($this->content);
+            if ($parsed !== null && $parsed !== '') {
+                $response['data'] = $parsed;
+            }
+        }
+        if (!empty($this->parameters)) {
+            $response['params'] = $this->parameters;
+        }
+        if ($this->returnAsArray) {
+            return $response;
+        }
+        $this->output($response);
+
+        return true;
+    }
+
+    /**
+     * Use a pre-built flat JSON body ({@see ContextHandler::reject()} / {@see resolve()}).
+     *
+     * @param array<string, mixed> $body
+     */
+    public function responseAsBody(array $body): self
+    {
+        $this->envelopeBody = $body;
+
+        return $this;
+    }
+
+    /**
+     * Emit the body set by {@see responseAsBody()} with headers and {@see responseCode()}.
+     *
+     * @return array<string, mixed>|true
+     */
+    public function sendEnvelope(): mixed
+    {
+        if ($this->envelopeBody === null) {
+            throw new Error('XHR envelope body not set — call responseAsBody() first.');
+        }
+        $response = $this->envelopeBody;
+        if ($this->returnAsArray) {
+            return $response;
+        }
+        $this->output($response);
+
+        return true;
     }
 
     /**
@@ -243,7 +323,7 @@ class XHR
      */
     private function output(array $data): void
     {
-        \http_response_code(200);
+        \http_response_code($this->httpStatus);
         \header('Content-Type: application/json');
         \header('Access-Control-Allow-Origin: ' . $this->allowOrigin);
         \header('Cross-Origin-Resource-Policy: ' . $this->corp);
@@ -259,6 +339,6 @@ class XHR
             \call_user_func($this->closure);
         }
 
-        throw new Exception\HttpException(200, 'XHR response sent');
+        throw new Exception\HttpException($this->httpStatus, 'XHR response sent');
     }
 }
