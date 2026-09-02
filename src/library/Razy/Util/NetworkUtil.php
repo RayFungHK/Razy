@@ -26,6 +26,13 @@ namespace Razy\Util;
 class NetworkUtil
 {
     /**
+     * Left-labels that are never a one-label tenant slug.
+     *
+     * @var list<string>
+     */
+    public const RESERVED_LEFT_LABELS = ['www', 'console', 'admin', 'api', 'stage'];
+
+    /**
      * Check if the string is a valid FQDN.
      *
      * @param string $domain The FQDN string to be checked
@@ -39,7 +46,7 @@ class NetworkUtil
     }
 
     /**
-     * Format the FQDN string, trim whitespace and remove any dot (.) at the beginning of the string.
+     * Format the FQDN string: trim whitespace, strip leading dots, lowercase (DNS is case-insensitive).
      *
      * @param string $domain The FQDN string to be formatted
      *
@@ -47,7 +54,79 @@ class NetworkUtil
      */
     public static function formatFqdn(string $domain): string
     {
-        return \trim(\ltrim($domain, '.'));
+        // DNS matching is case-insensitive; lowercase so Console.oaao.ai hits exact keys.
+        return \strtolower(\trim(\ltrim($domain, '.')));
+    }
+
+    /**
+     * Leftmost DNS label of a host (one-label only). Port suffixes are ignored.
+     */
+    public static function leftLabel(string $host): string
+    {
+        $host = self::formatFqdn($host);
+        [$host] = \explode(':', $host . ':', 2);
+
+        [$label] = \explode('.', $host, 2);
+        return $label;
+    }
+
+    /**
+     * Whether the host's leftmost label is reserved (www, console, admin, api, stage).
+     * Only the first label is considered.
+     */
+    public static function isReservedLeftLabel(string $hostOrLabel): bool
+    {
+        return \in_array(self::leftLabel($hostOrLabel), self::RESERVED_LEFT_LABELS, true);
+    }
+
+    /**
+     * A tenant slug is exactly one DNS label and is not a reserved left-label.
+     */
+    public static function isOneLabelSlug(string $label): bool
+    {
+        $label = self::formatFqdn($label);
+        [$label] = \explode(':', $label . ':', 2);
+        if ('' === $label || \str_contains($label, '.') || '*' === $label) {
+            return false;
+        }
+        if (self::isReservedLeftLabel($label)) {
+            return false;
+        }
+
+        return 1 === \preg_match('/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $label);
+    }
+
+    /**
+     * Localhost / loopback / default catch-all hosts (not a public apex).
+     */
+    public static function isLocalOrDefaultHost(string $host): bool
+    {
+        $host = self::formatFqdn($host);
+        [$host] = \explode(':', $host . ':', 2);
+
+        return \in_array($host, ['*', 'localhost', '127.0.0.1', '::1', '0.0.0.0'], true)
+            || \str_ends_with($host, '.localhost')
+            || \str_ends_with($host, '.local');
+    }
+
+    /**
+     * Whether a sites binding of `*.{apex}` may be seeded for this tenant.
+     *
+     * Do not seed *.{apex} onto personal tenants, localhost, or the default `*` catch-all.
+     */
+    public static function allowsApexWildcardSeed(string $apex, bool $personalOrDefaultTenant = false): bool
+    {
+        if ($personalOrDefaultTenant) {
+            return false;
+        }
+
+        $apex = self::formatFqdn($apex);
+        [$apex] = \explode(':', $apex . ':', 2);
+        if ('' === $apex || '*' === $apex || self::isLocalOrDefaultHost($apex)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

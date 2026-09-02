@@ -308,7 +308,8 @@ class Standalone implements DistributorInterface
             \session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => \defined('RELATIVE_COOKIE_PATH') ? RELATIVE_COOKIE_PATH : '/',
-                'domain' => HOSTNAME,
+                // Host-only cookie: omit Domain (empty string). Never Domain=.apex.
+                'domain' => '',
                 'secure' => !empty($_SERVER['HTTPS']),
                 'httponly' => true,
                 'samesite' => 'Lax',

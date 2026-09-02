@@ -19,6 +19,7 @@ namespace Razy\Session;
  *
  * Replaces Razy's hardcoded `session_set_cookie_params(0, '/', HOSTNAME)` with
  * a configurable, type-safe structure.
+ * $domain defaults to '' (omit Domain — host-only cookie; never Domain=.apex).
  */
 class SessionConfig
 {
@@ -26,7 +27,7 @@ class SessionConfig
      * @param string $name Session cookie name
      * @param int $lifetime Cookie lifetime in seconds (0 = browser session)
      * @param string $path Cookie path
-     * @param string $domain Cookie domain
+     * @param string $domain Cookie Domain; empty string omits Domain (host-only; never .apex)
      * @param bool $secure HTTPS-only flag
      * @param bool $httpOnly HTTP-only flag (no JS access)
      * @param string $sameSite SameSite policy: None|Lax|Strict
