@@ -150,3 +150,41 @@ jobs:
 
       - name: Lint shipped demos (blocking — migrated to Golden Rules 2026-07)
         run: php tools/lint-module-discipline.php demo_modules --strict
+
+      - name: Lint first-party modules (blocking — same Golden Rules bar as framework code)
+        run: php tools/lint-module-discipline.php modules --strict
+
+  redis-integration:
+    name: Redis-backed suites (real server)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, redis
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run Redis-backed suites (skips here are FAILURES — the service exists)
+        shell: bash
+        run: |
+          set -o pipefail
+          vendor/bin/phpunit --no-coverage --filter "RedisQueueStoreTest|SessionRedisDriverTest|RedisAdapterTest" 2>&1 | tee redis.log
+          grep -qE 'Skipped: 0' redis.log || { echo "::error::redis-backed suites were skipped — ext-redis or service missing"; exit 1; }

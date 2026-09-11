@@ -74,12 +74,14 @@
 !benchmark/
 !benchmark/**
 
-# === Documentation v2 (2026-07 redesign) ===
+# === Documentation v2 (2026-07 redesign) + first-party modules ===
 !AGENTS.md
 !RAZY-ANALYSIS-REPORT.md
 !manual/
 !manual/**
 !skills/
+!modules/
+!modules/**
 !skills/**
 !demos/
 !demos/**

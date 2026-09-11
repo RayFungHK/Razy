@@ -23,6 +23,7 @@ $finder = Finder::create()
     ->in([
         __DIR__ . '/src',
         __DIR__ . '/tests',
+        __DIR__ . '/modules',   // first-party module sources are product code, same style bar
     ])
     ->exclude([
         'asset',        // Template / scaffold files contain non-PHP syntax

@@ -63,6 +63,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - **Known gap** `Controller::__onDispatch()` is declared but never invoked in `src/` — a
   reserved hook, not wired behavior (tracked as documentation drift).
 
+**Module ecosystem begins** (2026-07 Wave 1, `architecture/PORTING-VALUE.md`)
+
+- **Added** first-party module home `modules/` — new top-level convention (approved
+  2026-07); `modules/` now joins the fixer finder, the discipline-lint CI target,
+  and CI gains a `redis-integration` job (real redis service; skipped Redis-backed
+  suites FAIL there, so "green" can no longer mean "silently skipped").
+- **Added** `razymod/queue-admin` (v1.0.0, unreleased) — headless queue dashboard
+  over `QueueStoreInterface` (works over DatabaseStore and RedisQueueStore with
+  zero store-specific code): status matrix per queue, job lookup, guarded
+  release/bury/delete actions, purge. Published commands (`status/job/act/purge`)
+  gated by an implemented `__onAPICall` allow-list; HTML shell deferred.
+  Store resolution mirrors the `queue` CLI (getSharedInstance); Redis-backed
+  resolution stays unavailable until a framework connection layer exists (stated,
+  not faked). 11 unit tests pin every command's semantics through an in-memory
+  store fake (RZ-014 met from day one).
+
 **Async execution & queue breadth** (2026-07 thread round)
 
 - **Added** `Razy\WorkerPool` — persistent worker-process pool complementing
