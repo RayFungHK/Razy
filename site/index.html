@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Razy — Docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%234a7cff'/%3E%3Ctext x='8' y='12' font-size='10' font-family='Segoe UI,Arial' font-weight='bold' fill='white' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   Tokens — light/dark via [data-theme]; system fonts only.
+   ============================================================ */
+:root[data-theme="light"]{
+  --bg:#ffffff; --bg2:#f6f8fa; --text:#1f2328; --muted:#59636e;
+  --accent:#4a7cff; --accent-soft:#e8effd; --border:#d8dee4;
+  --code-bg:#eef1f5; --pre-bg:#f6f8fa; --mark:#fff1a8; --shadow:rgba(31,35,40,.08);
+}
+:root[data-theme="dark"]{
+  --bg:#0d1117; --bg2:#161b22; --text:#e6edf3; --muted:#9198a1;
+  --accent:#6f97ff; --accent-soft:#1c2a45; --border:#30363d;
+  --code-bg:#1b2330; --pre-bg:#161b22; --mark:#6b5300; --shadow:rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  font-size:15.5px; line-height:1.65;
+}
+code,pre,kbd{font-family:ui-monospace,"Cascadia Code",Consolas,"SF Mono",Menlo,monospace}
+
+/* ============================================================
+   Layout: topbar + fixed sidebar + main pane
+   ============================================================ */
+.topbar{
+  position:fixed; inset:0 0 auto 0; height:54px; z-index:30;
+  display:flex; align-items:center; gap:14px; padding:0 18px;
+  background:var(--bg); border-bottom:1px solid var(--border);
+}
+.brand{font-weight:700; font-size:17px; color:var(--text); text-decoration:none; letter-spacing:.2px; white-space:nowrap}
+.brand b{color:var(--accent)}
+.brand small{color:var(--muted); font-weight:400; margin-left:6px}
+#hamburger{display:none; background:none; border:1px solid var(--border); border-radius:6px; width:34px; height:30px; cursor:pointer; color:var(--text); font-size:15px}
+.searchwrap{flex:1; max-width:520px; margin-left:auto; position:relative}
+#search{
+  width:100%; padding:7px 34px 7px 32px; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg2); color:var(--text); font:inherit; font-size:14px; outline:none;
+}
+#search:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+.searchwrap::before{content:"⌕"; position:absolute; left:10px; top:4px; font-size:18px; color:var(--muted); pointer-events:none}
+#search kbd{position:absolute; right:8px; top:7px; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:1px 5px; background:var(--bg)}
+#search-results{
+  position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:60vh; overflow:auto;
+  background:var(--bg); border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 30px var(--shadow); z-index:40;
+}
+#search-results[hidden]{display:none}
+.sr-item{display:block; padding:9px 14px; border-bottom:1px solid var(--border); cursor:pointer; color:var(--text); text-decoration:none}
+.sr-item:last-child{border-bottom:0}
+.sr-item:hover,.sr-item.sel{background:var(--accent-soft)}
+.sr-title{font-weight:600; font-size:13.5px}
+.sr-title span{color:var(--muted); font-weight:400; margin-left:8px}
+.sr-snippet{font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.5; word-break:break-word}
+.sr-snippet mark{background:var(--mark); color:inherit; border-radius:2px}
+.sr-empty{padding:12px 14px; color:var(--muted); font-size:13.5px}
+#theme-toggle{
+  background:none; border:1px solid var(--border); border-radius:8px; width:34px; height:32px;
+  cursor:pointer; font-size:15px; color:var(--text); flex:none;
+}
+#theme-toggle:hover{border-color:var(--accent)}
+#loadstat{color:var(--muted); font-size:11.5px; white-space:nowrap; min-width:56px; text-align:right}
+
+nav#sidebar{
+  position:fixed; top:54px; bottom:0; left:0; width:280px; overflow-y:auto; z-index:20;
+  border-right:1px solid var(--border); background:var(--bg2); padding:18px 12px 40px;
+}
+.nav-section{margin:18px 10px 6px; font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.nav-section:first-child{margin-top:2px}
+.nav-item{
+  display:block; padding:6px 12px; margin:1px 0; border-radius:7px;
+  color:var(--text); text-decoration:none; font-size:14px; border-left:2px solid transparent;
+}
+.nav-item:hover{background:var(--bg)}
+.nav-item:hover{background:var(--accent-soft)}
+.nav-item.active{background:var(--accent-soft); color:var(--accent); font-weight:600; border-left-color:var(--accent)}
+.nav-item .miss{color:var(--muted); font-weight:400; margin-left:6px; font-size:11.5px}
+#backdrop{display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:15}
+body.sidebar-open #backdrop{display:block}
+
+main{margin:54px 0 0 280px}
+article{max-width:920px; padding:36px 46px 110px}
+
+/* ============================================================
+   Article typography
+   ============================================================ */
+.doc-meta{font-size:12.5px; color:var(--muted); margin-bottom:18px; display:flex; gap:12px; align-items:center}
+.doc-meta a{color:var(--accent); text-decoration:none}
+.doc-meta .chip{border:1px solid var(--border); border-radius:99px; padding:1px 9px}
+article h1{font-size:2em; margin:.4em 0 .5em; padding-bottom:.3em; border-bottom:1px solid var(--border)}
+article h2{font-size:1.45em; margin:1.6em 0 .6em; padding-bottom:.25em; border-bottom:1px solid var(--border)}
+article h3{font-size:1.18em; margin:1.5em 0 .5em}
+article h4{font-size:1.02em; margin:1.4em 0 .4em; color:var(--muted)}
+article h1 .anchor,article h2 .anchor,article h3 .anchor,article h4 .anchor{
+  color:var(--muted); text-decoration:none; margin-left:8px; opacity:0; font-weight:400;
+}
+article h1:hover .anchor,article h2:hover .anchor,article h3:hover .anchor,article h4:hover .anchor{opacity:1}
+article a{color:var(--accent); text-decoration:none}
+article a:hover{text-decoration:underline}
+article code{background:var(--code-bg); border:1px solid var(--border); border-radius:5px; padding:.1em .35em; font-size:.86em}
+article pre.code{
+  position:relative; background:var(--pre-bg); border:1px solid var(--border); border-radius:9px;
+  padding:14px 16px; overflow:auto; line-height:1.55; margin:14px 0;
+}
+article pre.code code{background:none; border:0; padding:0; font-size:13px; color:var(--text); white-space:pre}
+article pre.code::after{
+  content:attr(data-lang); position:absolute; top:6px; right:10px; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:0 6px; background:var(--bg);
+}
+article blockquote{margin:14px 0; padding:2px 16px; border-left:4px solid var(--accent); background:var(--bg2); border-radius:0 8px 8px 0; color:var(--muted)}
+article blockquote p{color:var(--text)}
+article hr{border:0; border-top:1px solid var(--border); margin:26px 0}
+.tablewrap{overflow-x:auto; margin:14px 0}
+article table{border-collapse:collapse; font-size:13.5px; width:auto; max-width:100%}
+article th,article td{border:1px solid var(--border); padding:6px 11px; text-align:left; vertical-align:top}
+article th{background:var(--bg2); font-weight:600}
+article tr:nth-child(2n) td{background:var(--bg2)}
+article ul,article ol{padding-left:1.7em}
+article li{margin:.25em 0}
+mark{background:var(--mark); border-radius:2px}
+
+/* status cards: server instructions / content pending / errors */
+.card{border:1px solid var(--border); border-radius:12px; padding:22px 26px; margin:26px 0; background:var(--bg2)}
+.card.dashed{border-style:dashed}
+.card h1,.card h2{border:0; margin-top:0}
+.card code{white-space:nowrap}
+.card .big{font-size:34px; margin-bottom:6px}
+.pending{border-style:dashed}
+.spin{display:inline-block; width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite; vertical-align:-3px; margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   Responsive + print
+   ============================================================ */
+@media (max-width:900px){
+  #hamburger{display:block}
+  nav#sidebar{transform:translateX(-100%); transition:transform .18s ease; box-shadow:none}
+  body.sidebar-open nav#sidebar{transform:none; box-shadow:0 0 40px var(--shadow)}
+  main{margin-left:0}
+  article{padding:24px 18px 90px}
+  #search kbd{display:none}
+  #loadstat{display:none}
+}
+@media print{
+  .topbar,nav#sidebar,#backdrop{display:none!important}
+  main{margin:0} article{max-width:none; padding:0}
+  pre.code{white-space:pre-wrap; word-break:break-word}
+  a{color:inherit; text-decoration:none}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button id="hamburger" aria-label="Toggle navigation">☰</button>
+  <a class="brand" href="#/readme">Razy<b>docs</b><small>zero-build</small></a>
+  <div class="searchwrap">
+    <input id="search" type="text" placeholder="Search docs…" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div id="search-results" hidden></div>
+  </div>
+  <span id="loadstat" title="documents fetched in background"></span>
+  <button id="theme-toggle" aria-label="Toggle dark mode">☾</button>
+</header>
+<div id="backdrop"></div>
+<nav id="sidebar"><div id="nav"></div></nav>
+<main><article id="content"><p><span class="spin"></span>Loading…</p></article></main>
+
+<script>
+'use strict';
+/* ================================================================
+   1) NAV CONFIG — the single source of truth for the sidebar.
+   Add/remove/rename docs here; missing files degrade to a
+   "content pending" card instead of crashing.
+   `route`  : hash route id (URL becomes #/<route>)
+   `title`  : sidebar label
+   `file`   : path FETCHED, relative to site/ (repo files are ../)
+   ================================================================ */
+const NAV = [
+  { section: 'Overview', items: [
+    { route: 'readme', title: 'README', file: '../readme.md' },
+  ]},
+  { section: 'Manual', items: [
+    { route: 'manual/README',                    title: 'Manual index',              file: '../manual/README.md' },
+    { route: 'manual/01-getting-started',        title: '01 · Getting Started',      file: '../manual/01-getting-started.md' },
+    { route: 'manual/02-modules-and-lifecycle',  title: '02 · Modules & Lifecycle',  file: '../manual/02-modules-and-lifecycle.md' },
+    { route: 'manual/03-routing-and-requests',   title: '03 · Routing & Requests',   file: '../manual/03-routing-and-requests.md' },
+    { route: 'manual/04-database',               title: '04 · Database & ORM',       file: '../manual/04-database.md' },
+    { route: 'manual/05-templates',              title: '05 · Template Engine',      file: '../manual/05-templates.md' },
+    { route: 'manual/06-packages-and-deployment',title: '06 · Packages & Deployment',file: '../manual/06-packages-and-deployment.md' },
+    { route: 'manual/07-security-guide',         title: '07 · Security Guide',       file: '../manual/07-security-guide.md' },
+  ]},
+  { section: 'AI Guardrails', items: [
+    { route: 'agents', title: 'AGENTS.md',      file: '../AGENTS.md' },
+    { route: 'rules',  title: 'RZY Rules Pack', file: '../skills/RAZY-AI-RULES.md' },
+  ]},
+  { section: 'Demos', items: [
+    { route: 'demos/README',        title: 'Demo index',        file: '../demos/README.md' },
+    { route: 'demos/anti-patterns', title: 'Anti-patterns',     file: '../demos/anti-patterns.md' },
+  ]},
+  { section: 'Meta', items: [
+    { route: 'self-audit', title: 'Self-audit 2026-07', file: '../RAZY-ANALYSIS-REPORT.md' },
+    { route: 'changelog',  title: 'Changelog',          file: '../changelog/CHANGELOG.md' },
+  ]},
+];
+
+/* flat lookups built from NAV */
+const ENTRIES = NAV.flatMap(s => s.items.map(i => ({ ...i, section: s.section })));
+const BY_ROUTE = Object.fromEntries(ENTRIES.map(e => [e.route, e]));
+/* repo-relative file path -> route (for rewriting .md links into hash routes) */
+const FILE2ROUTE = Object.fromEntries(ENTRIES.map(e => [e.file.replace(/^\.\.\//, ''), e.route]));
+
+/* ================================================================
+   2) MARKDOWN RENDERER — built-in, escape-first, ~190 lines.
+   Supports: ATX h1-h4, fenced code (```lang), inline code, bold,
+   italic, links (relative .md links -> hash routes), ul/ol with
+   nesting, tables |, blockquotes, hr, hard line breaks.
+   Safety: ALL text is HTML-escaped before any transform; no raw
+   HTML passes through; non-http(s)/mailto link schemes blocked.
+   ================================================================ */
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+/** Join `base` (dir like '../manual') with a relative link `rel`, normalizing ./ and ../ */
+function joinPath(base, rel) {
+  const parts = (base + '/' + rel).split('/');
+  const out = [];
+  for (const p of parts) {
+    if (p === '.' || p === '') continue;
+    if (p === '..') { if (out.length && out[out.length - 1] !== '..') out.pop(); else out.push('..'); }
+    else out.push(p);
+  }
+  return out.join('/');
+}
+/**
+ * Build a renderer bound to a link resolver.
+ * resolveHref(url) -> {href, blank}  (implemented by the app below).
+ */
+function makeMarkdownRenderer(resolveHref) {
+  const slugSeen = Object.create(null);
+  function slug(text) {                    // heading -> id anchor
+    let s = text.toLowerCase().replace(/`/g, '').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+    if (!s) s = 'section';
+    slugSeen[s] = (slugSeen[s] || 0) + 1;
+    return slugSeen[s] > 1 ? s + '-' + slugSeen[s] : s;
+  }
+  /* inline pass: escape first, then images->alt, code spans, links, bold, italic */
+  function inline(raw) {
+    let s = escapeHtml(raw);
+    s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');            // images: render alt text only (no external fetch)
+    const codes = [];                                          // protect `code` from styling rules
+    s = s.replace(/`([^`]+)`/g, (m, c) => { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;.*?&quot;)?\)/g, (m, txt, url) => {
+      const t = resolveHref(url);
+      return '<a href="' + escapeHtml(t.href) + '"' + (t.blank ? ' target="_blank" rel="noopener"' : '') + '>' + txt + '</a>';
+    });
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')   // bold (** first so * italic can't eat it)
+         .replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    s = s.replace(/\*([^*\n]+)\*/g, '<em>$1</em>')             // italic *star*
+         .replace(/(^|[^\w])_([^_\n]+)_(?!\w)/g, '$1<em>$2</em>'); // underscore italic w/ word-boundary guard
+    s = s.replace(/\u0001/g, '<br>');                           // hard break (trailing backslash)
+    s = s.replace(/\u0000(\d+)\u0000/g, (m, i) => '<code>' + codes[i] + '</code>'); // restore code (already escaped)
+    return s;
+  }
+  const RE = {
+    fence: /^ {0,3}(```+|~~~+)\s*([\w.+-]*)\s*$/,
+    head:  /^ {0,3}(#{1,4})\s+(.+?)\s*#*\s*$/,
+    hr:    /^ {0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/,
+    ul:    /^(\s*)([-*+])\s+(.*)$/,
+    ol:    /^(\s*)(\d{1,9})[.)]\s+(.*)$/,
+    quote: /^ {0,3}>\s?(.*)$/,
+    tsep:  /^ {0,3}\|?[\s:|-]+\|?\s*$/,
+  };
+  const isBlockStart = (l) =>
+    RE.head.test(l) || RE.hr.test(l) || RE.quote.test(l) ||
+    RE.ul.test(l) || RE.ol.test(l) || RE.fence.test(l) || l.trimStart().startsWith('|');
+
+  /* one list run (ul/ol, nested by indent) -> html */
+  function renderList(L, i, endRef) {
+    const st = []; let html = ''; let n = i;
+    const popLevel = (closeParentLi) => {
+      const top = st[st.length - 1];
+      if (top.liOpen) { html += '</li>'; top.liOpen = false; }
+      html += '</' + top.type + '>'; st.pop();
+      if (closeParentLi && st.length) { const p = st[st.length - 1]; if (p.liOpen) { p.liOpen = false; html += '</li>'; } }
+    };
+    while (n < L.length) {
+      const mu = L[n].match(RE.ul), mo = mu ? null : L[n].match(RE.ol);
+      if (!mu && !mo) break;
+      const indent = (mu || mo)[1].replace(/\t/g, '    ').length;
+      const type = mu ? 'ul' : 'ol', text = (mu || mo)[3];
+      while (st.length && indent < st[st.length - 1].indent) popLevel(true);
+      const top = st[st.length - 1];
+      if (!top || indent > top.indent) { html += '<' + type + '>'; st.push({ indent, type, liOpen: false }); }
+      else if (indent === top.indent && type !== top.type) { popLevel(false); html += '<' + type + '>'; st.push({ indent, type, liOpen: false }); }
+      if (st[st.length - 1].liOpen) html += '</li>';
+      html += '<li>' + inline(text);
+      st[st.length - 1].liOpen = true;
+      n++;
+      /* continuation: indented, non-list lines belong to the open item */
+      while (n < L.length && L[n].trim() && !isBlockStart(L[n]) && L[n].search(/\S/) >= indent + 2) {
+        html += ' ' + inline(L[n].trim()); n++;
+      }
+    }
+    while (st.length) popLevel(true);
+    endRef[0] = n; return html;
+  }
+  /* one table block -> html (| cells, alignment row, header) */
+  function renderTable(L, i, endRef) {
+    const cells = (row) => row.trim().replace(/^\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+    const aligns = cells(L[i + 1]).map(c => /^:.*:$/.test(c) ? 'center' : /:$/.test(c) ? 'right' : 'left');
+    const th = cells(L[i]).map((c, k) => '<th style="text-align:' + (aligns[k] || 'left') + '">' + inline(c) + '</th>').join('');
+    let body = '', n = i + 2;
+    while (n < L.length && L[n].includes('|') && L[n].trim()) {
+      body += '<tr>' + cells(L[n]).map((c, k) => '<td style="text-align:' + (aligns[k] || 'left') + '">' + inline(c) + '</td>').join('') + '</tr>';
+      n++;
+    }
+    endRef[0] = n;
+    return '<div class="tablewrap"><table><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+  }
+  /* main block loop */
+  function render(src) {
+    const L = src.replace(/\r\n?/g, '\n').split('\n');
+    const out = []; let i = 0, m;
+    while (i < L.length) {
+      const line = L[i];
+      if (!line.trim()) { i++; continue; }
+      if ((m = line.match(RE.fence))) {                          // fenced code block
+        const closer = m[1][0].repeat(3), buf = []; i++;
+        while (i < L.length && !L[i].trim().startsWith(closer)) buf.push(L[i++]);
+        i++;                                                     // consume closing fence
+        out.push('<pre class="code" data-lang="' + escapeHtml(m[2] || 'text') + '"><code>' + escapeHtml(buf.join('\n')) + '</code></pre>');
+        continue;
+      }
+      if ((m = line.match(RE.head))) {                           // heading h1-h4 with anchor id
+        const lvl = m[1].length, id = slug(m[2]);
+        out.push('<h' + lvl + ' id="' + id + '">' + inline(m[2]) +
+                 '<a class="anchor" href="#' + id + '" aria-hidden="true">#</a></h' + lvl + '>');
+        i++; continue;
+      }
+      if (RE.hr.test(line)) { out.push('<hr>'); i++; continue; }
+      if (RE.quote.test(line)) {                                 // blockquote (paragraphs inside)
+        const buf = [];
+        while (i < L.length && (m = L[i].match(RE.quote))) buf.push(m[1]), i++;
+        let para = []; const ps = [];
+        const flush = () => { if (para.length) { ps.push('<p>' + para.join(' ') + '</p>'); para = []; } };
+        for (const b of buf) { if (!b.trim()) flush(); else para.push(inline(b.replace(/\\$/, '\u0001'))); }
+        flush();
+        out.push('<blockquote>' + ps.join('') + '</blockquote>');
+        continue;
+      }
+      if (line.includes('|') && L[i + 1] && RE.tsep.test(L[i + 1]) && L[i + 1].includes('-')) {
+        const end = [0]; out.push(renderTable(L, i, end)); i = end[0]; continue;
+      }
+      if (RE.ul.test(line) || RE.ol.test(line)) {                // list run
+        const end = [0]; out.push(renderList(L, i, end)); i = end[0]; continue;
+      }
+      const para = [];                                           // paragraph until blank/block start
+      while (i < L.length && L[i].trim() && !isBlockStart(L[i])) {
+        para.push(inline(L[i].replace(/\\$/, '\u0001'))); i++;    // trailing \ = hard break
+      }
+      if (para.length) out.push('<p>' + para.join(' ') + '</p>');
+    }
+    return out.join('\n');
+  }
+  return { render };
+}
+
+/* ================================================================
+   3) APP — cache/fetch, hash router, search, theme, sidebar
+   ================================================================ */
+const $content = document.getElementById('content');
+const $nav = document.getElementById('nav');
+const $search = document.getElementById('search');
+const $results = document.getElementById('search-results');
+const $loadstat = document.getElementById('loadstat');
+const cache = {};                                  // route -> {status:'ok'|'pending'|'error'|'server', raw, msg}
+let currentDocDir = '..';                          // dir used to resolve relative links in the active doc
+let pendingScrollTerm = null;                      // search term to scroll to after a doc renders
+
+/* ---- theme (localStorage, default follows OS) ---- */
+const themeBtn = document.getElementById('theme-toggle');
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  themeBtn.textContent = t === 'dark' ? '☀' : '☾';
+}
+applyTheme(localStorage.getItem('razy-theme') ||
+  (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('razy-theme', next); applyTheme(next);
+});
+
+/* ---- sidebar build (also shows a tiny dot for unfetched/pending docs) ---- */
+for (const sec of NAV) {
+  const h = document.createElement('div'); h.className = 'nav-section'; h.textContent = sec.section;
+  $nav.appendChild(h);
+  for (const item of sec.items) {
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.href = '#/' + item.route; a.dataset.route = item.route;
+    a.textContent = item.title;
+    $nav.appendChild(a);
+  }
+}
+const hamburger = document.getElementById('hamburger');
+const backdrop = document.getElementById('backdrop');
+hamburger.addEventListener('click', () => document.body.classList.toggle('sidebar-open'));
+backdrop.addEventListener('click', () => document.body.classList.remove('sidebar-open'));
+$nav.addEventListener('click', (e) => { if (e.target.closest('.nav-item')) document.body.classList.remove('sidebar-open'); });
+
+/* ---- fetch layer ---- */
+async function fetchDoc(entry) {
+  if (cache[entry.route] && cache[entry.route].status === 'ok') return cache[entry.route];
+  try {
+    if (location.protocol === 'file:') throw { proto: 'file' };
+    const res = await fetch(entry.file, { cache: 'no-store' });
+    if (!res.ok) {
+      cache[entry.route] = { status: res.status === 404 ? 'pending' : 'error', msg: 'HTTP ' + res.status };
+      return cache[entry.route];
+    }
+    cache[entry.route] = { status: 'ok', raw: await res.text() };
+    return cache[entry.route];
+  } catch (err) {
+    cache[entry.route] = (err && err.proto === 'file') ? { status: 'server' }
+                                                       : { status: 'error', msg: String(err && err.message || err) };
+    return cache[entry.route];
+  }
+}
+
+/* ---- status cards ---- */
+const esc = escapeHtml;
+function serverCard() {
+  return '<div class="card"><div class="big">🖥</div><h2>Serve the repo over HTTP</h2>' +
+    '<p>This page loads the <code>.md</code> sources with <code>fetch()</code>, which browsers block on ' +
+    '<code>file://</code>. From the <b>repo root</b> run:</p>' +
+    '<pre class="code" data-lang="bash"><code>php -S 127.0.0.1:8080</code></pre>' +
+    '<p>then open <a href="http://127.0.0.1:8080/site/">http://127.0.0.1:8080/site/</a>. ' +
+    '<em>Any static server works — it must serve the whole repo, since docs live above <code>site/</code>.</em></p></div>';
+}
+function pendingCard(entry) {
+  return '<div class="card pending"><div class="big">⏳</div><h2>Content pending</h2>' +
+    '<p><code>' + esc(entry.file) + '</code> has not been written yet (it is being authored or has moved). ' +
+    'The nav entry stays wired — reload once the file lands.</p>' +
+    '<p><button class="retry" data-route="' + esc(entry.route) + '">Retry</button></p></div>';
+}
+function errorCard(entry, msg) {
+  return '<div class="card"><div class="big">⚠️</div><h2>Could not load document</h2>' +
+    '<p><code>' + esc(entry.file) + '</code> — ' + esc(msg || 'unknown error') + '</p>' +
+    '<p><button class="retry" data-route="' + esc(entry.route) + '">Retry</button></p></div>';
+}
+$content.addEventListener('click', (e) => {
+  const b = e.target.closest('button.retry');
+  if (b) { delete cache[b.dataset.route]; show(BY_ROUTE[b.dataset.route]); }
+});
+
+/* ---- link resolver for the renderer: routes / anchors / safe schemes ---- */
+function resolveHref(url) {
+  if (url[0] === '#') return { href: url };                       // in-page heading anchor
+  if (/^https?:/i.test(url)) return { href: url, blank: true };   // external opens in new tab
+  if (/^mailto:/i.test(url)) return { href: url };
+  if (/^[a-z][a-z0-9+.\-]*:/i.test(url)) return { href: '#' };    // block javascript:, data:, ...
+  let clean = url.split('#')[0], frag = url.includes('#') ? '#' + url.split('#').slice(1).join('#') : '';
+  if (!clean) return { href: frag || '#' };
+  const path = joinPath(currentDocDir, clean);                    // resolve against the ACTIVE doc's dir
+  if (/\.md(\?[^#]*)?$/i.test(clean) || /\.md$/i.test(clean)) {
+    const key = path.replace(/^\.\.\//, '');                      // repo-relative
+    if (FILE2ROUTE[key]) return { href: '#/' + FILE2ROUTE[key] };// known doc -> hash route
+    return { href: path };                                        // other .md -> raw file via server
+  }
+  return { href: path };                                          // images/other assets
+}
+
+/* ---- router ---- */
+const renderer = makeMarkdownRenderer(resolveHref);
+function routeFromHash() {
+  const h = location.hash || '#/readme';
+  if (h.startsWith('#/')) { const e = BY_ROUTE[h.slice(2)]; if (e) return e; }
+  return BY_ROUTE.readme || ENTRIES[0];
+}
+async function show(entry) {
+  document.querySelectorAll('.nav-item').forEach(n =>
+    n.classList.toggle('active', n.dataset.route === entry.route));
+  currentDocDir = entry.file.includes('/') ? entry.file.slice(0, entry.file.lastIndexOf('/')) : '..';
+  document.title = entry.title + ' · Razy docs';
+  $content.innerHTML = '<p><span class="spin"></span>Loading <code>' + esc(entry.file) + '</code>…</p>';
+  const c = await fetchDoc(entry);
+  if (entry !== routeFromHash()) return;                          // superseded by a newer navigation
+  if (c.status === 'server')   { $content.innerHTML = serverCard();   return; }
+  if (c.status === 'pending')  { $content.innerHTML = pendingCard(entry); return; }
+  if (c.status !== 'ok')       { $content.innerHTML = errorCard(entry, c.msg); return; }
+  const html = renderer.render(c.raw);
+  $content.innerHTML =
+    '<div class="doc-meta"><span class="chip">' + esc(entry.section) + '</span>' +
+    '<a href="' + esc(entry.file) + '">' + esc(entry.file) + '</a> · source</div>' + html;
+  if (pendingScrollTerm) scrollToTerm(pendingScrollTerm);
+  pendingScrollTerm = null;
+  scrollTo({ top: 0 });
+}
+function scrollToTerm(term) {
+  const walker = document.createTreeWalker($content, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = walker.nextNode())) {
+    if (n.textContent.toLowerCase().includes(term)) {
+      const block = n.parentElement.closest('h1,h2,h3,h4,p,li,td,pre,blockquote') || n.parentElement;
+      block.scrollIntoView({ block: 'center' });
+      block.style.transition = 'background .4s'; block.style.background = 'var(--accent-soft)';
+      setTimeout(() => { block.style.background = ''; }, 1400);
+      return;
+    }
+  }
+}
+window.addEventListener('hashchange', () => {
+  const h = location.hash || '';
+  if (h && !h.startsWith('#/')) {                                 // bare #anchor -> scroll within doc
+    const el = document.getElementById(h.slice(1));
+    if (el) { el.scrollIntoView({ block: 'start' }); return; }
+  }
+  show(routeFromHash());
+});
+
+/* ---- search: AND terms over fetched docs (titles always match) ---- */
+let searchTimer = null;
+$search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 180); });
+$search.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { $search.value = ''; runSearch(); $search.blur(); }
+  if (e.key === 'Enter') { const first = $results.querySelector('.sr-item'); if (first) first.click(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement !== $search && !/input|textarea/i.test(document.activeElement.tagName)) {
+    e.preventDefault(); $search.focus();
+  }
+});
+function snippet(text, terms) {
+  const low = text.toLowerCase();
+  let at = low.indexOf(terms[0]);
+  if (at < 0) at = 0;
+  const from = Math.max(0, at - 70), to = Math.min(text.length, from + 200);
+  let s = (from > 0 ? '…' : '') + text.slice(from, to).replace(/\n+/g, ' · ') + (to < text.length ? '…' : '');
+  s = escapeHtml(s);
+  for (const t of terms) s = s.replace(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => '<mark>' + m + '</mark>');
+  return s;
+}
+function runSearch() {
+  const q = $search.value.trim().toLowerCase();
+  if (q.length < 2) { $results.hidden = true; return; }
+  const terms = q.split(/\s+/);
+  const hits = [];
+  for (const e of ENTRIES) {
+    const c = cache[e.route];
+    const titleHit = e.title.toLowerCase().includes(q) || e.route.toLowerCase().includes(q);
+    const body = c && c.status === 'ok' ? c.raw.replace(/```[\s\S]*?```/g, ' ').replace(/[#>*`|_[\]()]/g, '') : null;
+    const bodyHit = body !== null && terms.every(t => body.toLowerCase().includes(t));
+    if (titleHit || bodyHit) hits.push({ e, titleHit, body });
+  }
+  hits.sort((a, b) => (b.titleHit - a.titleHit));
+  $results.innerHTML = hits.length
+    ? hits.slice(0, 12).map(h =>
+        '<a class="sr-item" href="#/' + esc(h.e.route) + '"><div class="sr-title">' + esc(h.e.title) +
+        '<span>' + esc(h.e.section) + '</span></div>' +
+        (h.body ? '<div class="sr-snippet">' + snippet(h.body, terms) + '</div>' : '<div class="sr-snippet">title match — content not fetched yet</div>') +
+        '</a>').join('')
+    : '<div class="sr-empty">No match in fetched docs (' + fetchedCount() + '/' + ENTRIES.length + ' loaded).</div>';
+  $results.hidden = false;
+}
+$results.addEventListener('click', (e) => {
+  const item = e.target.closest('.sr-item'); if (!item) return;
+  e.preventDefault();
+  const route = decodeURIComponent(item.getAttribute('href').slice(2));
+  pendingScrollTerm = ($search.value.trim().toLowerCase().split(/\s+/)[0]) || null;
+  $results.hidden = true; $search.value = '';
+  if (location.hash === '#/' + route) show(BY_ROUTE[route]);      // same doc: hashchange won't fire
+  else location.hash = '#/' + route;                              // hashchange triggers show()
+}, true);                                                          // capture: beat the default anchor nav
+document.addEventListener('click', (e) => { if (!e.target.closest('.searchwrap')) $results.hidden = true; });
+function fetchedCount() { return ENTRIES.filter(e => cache[e.route] && cache[e.route].status === 'ok').length; }
+
+/* ---- background lazy prefetch (low priority, staggered) after first paint ---- */
+function updateLoadStat() { $loadstat.textContent = fetchedCount() + '/' + ENTRIES.length + ' docs'; }
+function backgroundFetch() {
+  const queue = ENTRIES.filter(e => !cache[e.route] || cache[e.route].status !== 'ok');
+  const step = () => {
+    if (!queue.length) { updateLoadStat(); return; }
+    const e = queue.shift();
+    fetchDoc(e).finally(() => { updateLoadStat(); setTimeout(step, 120); }); // gentle spacing
+  };
+  updateLoadStat(); setTimeout(step, 400);
+}
+
+/* ---- boot ---- */
+show(routeFromHash()).finally(backgroundFetch);
+window.addEventListener('hashchange', updateLoadStat);
+</script>
+</body>
+</html>

@@ -1,919 +1,550 @@
 # Razy Framework
 
-**A modular PHP framework for multi-site, multi-distributor application development.**
+**A modular PHP platform for multi-site, multi-distributor application delivery.**
 
 [![CI](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml/badge.svg)](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.2--beta-blue.svg)](https://github.com/RayFungHK/Razy/releases)
+[![Version](https://img.shields.io/badge/version-1.0.3--beta-blue.svg)](changelog/)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
+[![Tests](https://img.shields.io/badge/tests-4%2C845_passing-success.svg)](#testing--quality)
+[![Dependencies](https://img.shields.io/badge/runtime_deps-0-brightgreen.svg)](#what-razy-is-and-is-not)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-4564_passing-success.svg)](#testing)
-[![codecov](https://codecov.io/gh/RayFungHK/Razy/branch/master/graph/badge.svg)](https://codecov.io/gh/RayFungHK/Razy)
-[![PSR-4](https://img.shields.io/badge/PSR--4-compliant-brightgreen.svg)](https://www.php-fig.org/psr/psr-4/)
-[![PSR-12](https://img.shields.io/badge/PSR--12-compliant-brightgreen.svg)](https://www.php-fig.org/psr/psr-12/)
 
-Razy lets you manage multiple websites, APIs, and services from a single codebase. Each **distributor** runs its own set of versioned modules with independent routing, templates, and database access — while sharing common services through a unified module system.
+> **Documentation v2** — this README and the [`manual/`](manual/) tree were rewritten from
+> audited source code (2026-07). Every claim here is either verified against code at
+> `file:line`, or explicitly marked **[planned]**. Older generated docs may still contain
+> drift — where docs and code disagree, **code wins**. See [Doc trust levels](#doc-trust-levels).
 
 ---
 
 ## Table of Contents
 
-- [Key Features](#key-features)
-- [Requirements](#requirements)
-- [Installation](#installation)
+- [What Razy Is (and Is Not)](#what-razy-is-and-is-not)
 - [Quick Start](#quick-start)
-- [Docker](#docker)
+- [Golden Rules — Architecture Discipline](#golden-rules--architecture-discipline)
 - [Architecture Overview](#architecture-overview)
-- [Module Lifecycle](#module-lifecycle)
 - [Core Concepts](#core-concepts)
-- [Package Management (Composer Integration)](#package-management-composer-integration)
-- [Standalone Package System](#standalone-package-system)
-- [Demo Modules](#demo-modules)
-- [Performance: Razy vs Laravel](#performance-razy-vs-laravel)
-- [Testing](#testing)
-- [Documentation](#documentation)
-- [Roadmap](#roadmap)
-- [Version Milestone Summary](#version-milestone-summary)
-- [Contributing](#contributing)
-- [Development Journey](#development-journey)
+- [Routing](#routing)
+- [Cross-Module API, Events & Bindings](#cross-module-api-events--bindings)
+- [Template Engine](#template-engine)
+- [Database Layer](#database-layer)
+- [CLI Commands](#cli-commands)
+- [Standalone Packages](#standalone-packages)
+- [Performance](#performance)
+- [Testing & Quality](#testing--quality)
+- [Security Posture (Honest Edition)](#security-posture-honest-edition)
+- [Docker & Deployment](#docker--deployment)
+- [AI Agents & Coding Assistants](#ai-agents--coding-assistants)
+- [Documentation Map](#documentation-map)
+- [When to Choose Razy — and When Not To](#when-to-choose-razy--and-when-not-to)
 - [License](#license)
 
 ---
 
-## Key Features
+## What Razy Is (and Is Not)
 
-| Category | Highlights |
-|----------|------------|
-| **Multi-Site Architecture** | Run multiple distributors (sites/apps) from one installation with independent module sets, routing, and configuration |
-| **Module System** | Dependency-aware loading with 14 lifecycle hooks, cross-module APIs, event emitters, and bridge commands |
-| **Template Engine** | Block-based rendering with modifiers, function tags, WRAPPER/INCLUDE/TEMPLATE/USE/RECURSION blocks |
-| **Database Layer** | Multi-driver (MySQL, PostgreSQL, SQLite) with fluent query builder, Simple Syntax, ORM, migrations, and schema management |
-| **CLI Tooling** | 20+ commands — build, pack, publish, install from GitHub, interactive shell (`runapp`), bridge calls |
-| **Thread System** | Process-based concurrency via `ThreadManager` with spawn, await, and joinAll |
-| **Package Management** | Version-locked modules, Composer integration, phar distribution, repository publishing |
-| **Standalone Packages** | Run modules as CLI apps (.phar), exec/serve modes, dependency orchestration, inter-package API & events |
-| **Built-in Classes** | SSE, XHR (CORS), Mailer (SMTP), DOM builder, Crypt (AES-256), Collection, HashMap, YAML, OAuth2, Cache (PSR-16), Authenticator (TOTP/HOTP 2FA), FTPClient, SFTPClient, WebSocket |
+Razy runs **many websites, APIs, and services from one codebase**. Each site — a
+**distributor** — loads its own versioned set of **modules**, with its own routing,
+templates, config folders, and an **isolated Composer dependency tree**, while sharing
+one framework binary (`Razy.phar`).
 
----
+**Razy is:**
+- A module-distribution platform: modules are versioned, shareable, distributable units;
+  update a shared module once, every project picks it up on its own version schedule.
+- Multi-site by construction: domain → distributor mapping, per-domain config overlays,
+  per-distributor autoload scoping (`autoload/{distCode}/`).
+- Zero runtime dependencies: `composer.lock` contains **0 production packages**. Every
+  built-in (Mailer, WebSocket, OAuth2, Cache, Scheduler + cron, i18n Translator,
+  Prometheus metrics endpoint, TOTP, Crypt, YAML…) is implemented in-repo.
+- One binary: the whole framework is a single `Razy.phar`.
 
-## Requirements
-
-- PHP 8.2 or higher
-- Extensions: `ext-zip`, `ext-curl`, `ext-json`
-- Composer (recommended)
-
-## Installation
-
-### Via Composer
-
-```bash
-composer require rayfunghk/razy
-```
-
-### Via Docker
-
-```bash
-docker pull ghcr.io/rayfunghk/razy:latest
-docker run -p 8080:8080 ghcr.io/rayfunghk/razy
-```
-
-### From Source
-
-```bash
-git clone https://github.com/RayFungHK/Razy.git
-cd Razy
-composer install
-php build.php
-```
-
-### Subdirectory installs (`https://host/your-prefix/`)
-
-If the application is not at the web root (for example `https://localhost/abc/` with files under `…/htdocs/abc/`), Razy builds `RAZY_URL_ROOT` and module asset URLs from `RELATIVE_ROOT`. The framework prefers the path of `SYSTEM_ROOT` relative to `DOCUMENT_ROOT`, and falls back to `dirname($_SERVER['SCRIPT_NAME'])` when those paths do not align (symlinks, mounts, or unusual server variables). Ensure your front controller (`index.php`) is invoked with a correct `SCRIPT_NAME` (typical Apache, nginx + PHP-FPM, and Caddy setups do). Rewrite rules should still map `/your-prefix/webassets/…` to the framework as documented.
+**Razy is not:**
+- A general-purpose web framework competing with Laravel/Symfony feature breadth.
+- A Kubernetes-native multi-tenant platform — **tenant isolation across processes is
+  [planned] (v1.1→v2.0 roadmap)**; today isolation is per-directory and naming-level
+  plus in-process guards (details in [Security Posture](#security-posture-honest-edition)).
+- Composer — the built-in package manager reads Packagist metadata and extracts archives
+  itself; it is a subset by design.
 
 ## Quick Start
 
+Requirements: **PHP 8.2+**, `ext-zip`, `ext-curl`, `ext-json`.
+
 ```bash
-# Build the Razy environment
-php Razy.phar build
+# 1. Build (or grab the prebuilt Razy.phar from this repo root)
+php build.php
 
-# Create a distributor
-php Razy.phar init dist mysite
+# 2. Set up the Razy env in your project dir (config.inc.php, paths — there is no `init` command)
+php Razy.phar build .
 
-# Generate rewrite rules
-php Razy.phar rewrite mysite
+# 3. Bind a domain to a distributor code (interactive first run)
+php Razy.phar set localhost mysite -i
+php Razy.phar set example.com mysite     # add the real domain later, same dist code
+
+# 3. Serve (dev)
+php Razy.phar serve mysite
 ```
 
-This creates the working directory structure:
+Project layout produced:
 
 ```
 project/
-├── Razy.phar               # Framework binary
-├── config.inc.php           # Global configuration
-├── sites.inc.php            # Domain → distributor mapping
-├── index.php                # Web entry point
-├── shared/module/           # Cross-distributor modules
-└── sites/mysite/            # Your distributor
-    ├── dist.php             # Distributor config (tags, modules, bridge)
-    └── vendor/module/       # Your modules
-        ├── module.php       # Module metadata
-        └── default/
-            ├── package.php  # Package config (API name, requires)
-            └── controller/  # Route handlers
+├── Razy.phar               # the entire framework
+├── config.inc.php           # global config
+├── sites.inc.php            # domain → distributor mapping
+├── index.php                # web entry point
+├── autoload/                # per-distributor vendor trees
+│   ├── lock.json
+│   └── mysite/              # Composer packages for "mysite" ONLY
+├── shared/module/           # cross-distributor modules
+└── sites/mysite/
+    ├── dist.php             # modules, tags, bridge config
+    └── vendor/module/
+        └── blog/
+            ├── module.php           # metadata (module_code, version…)
+            └── default/
+                ├── package.php      # api_name, requires, prerequisite
+                ├── controller/      # route handlers (closures)
+                └── config/          # module config
 ```
 
-### sites.inc.php examples
-
-Map domains to distributors in `sites.inc.php`:
+A module's main controller returns an anonymous class extending `Controller`:
 
 ```php
-return [
-    'domains' => [
-        'example.com' => [
-            '/' => 'mysite@v2',                // standard mapping with tag
-        ],
-    ],
-];
-```
+<?php
+use Razy\Agent;
+use Razy\Controller;
 
-### config_mapping in dist.php
-
-Reuse the same distributor across domains with different config folders:
-
-```php
-// sites/mysite/dist.php
-return [
-    'dist' => 'mysite',
-    'modules' => [ /* ... */ ],
-    'config_mapping' => [
-        'localhost'       => 'local',         // loads sites/mysite:local/dist.php
-        'example.com@v2'  => 'prod',          // loads sites/mysite:prod/dist.php
-        'staging.com'     => '!/var/www/cfg',  // absolute path override
-    ],
-];
-```
-
----
-
-## Docker
-
-Razy ships with a complete Docker setup for development and testing.
-
-### Development
-
-```bash
-# Start PHP dev server + Caddy reverse proxy
-docker compose -f .docker/docker-compose.yml up
-
-# With live reload and auto-build
-docker compose -f .docker/docker-compose.yml -f .docker/docker-compose.dev.yml up
-```
-
-### Full Test Suite (Linux + Redis + SSH2)
-
-Run all tests including those that require Linux-only extensions:
-
-```bash
-docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit
-# → 4,564 tests, 8,178 assertions, 0 skipped
-```
-
-### DevContainer (VS Code / Codespaces)
-
-Open the project in VS Code and select **"Reopen in Container"** — the DevContainer is pre-configured with PHP 8.3, Composer, and all required extensions.
-
----
-
-## Architecture Overview
-
-```
-                    ┌─────────────────────────────────────┐
-                    │           Application                │
-                    │  (Domain matching → Distributor)     │
-                    └──────────────┬──────────────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              ▼                    ▼                     ▼
-      ┌──────────────┐   ┌──────────────┐      ┌──────────────┐
-      │  Distributor  │   │  Distributor  │      │  Standalone   │
-      │   (mysite)    │   │   (admin)     │      │   (lite)      │
-      └──────┬───────┘   └──────┬───────┘      └──────┬───────┘
-             │                   │                      │
-        ┌────┴────┐         ┌────┴────┐           ┌────┴────┐
-        │ Modules │         │ Modules │           │ Modules │
-        │ (tagged)│         │ (tagged)│           │ (direct)│
-        └─────────┘         └─────────┘           └─────────┘
-```
-
-Each distributor maps to a domain/path via `sites.inc.php` and loads its own versioned module set. Modules communicate through **APIs**, **events**, and **bridge commands**. The **Standalone** mode provides a lightweight runtime for single-module applications.
-
----
-
-## Module Lifecycle
-
-Modules progress through a well-defined lifecycle during each request:
-
-```
-__onInit  →  __onLoad  →  __onRequire  →  (await callbacks)
-    →  __onReady  →  __onScriptReady / __onRouted  →  __onEntry
-```
-
-```php
 return new class extends Controller {
     public function __onInit(Agent $agent): bool
     {
-        // Register routes, APIs, events, scripts
         $agent->addLazyRoute(['dashboard' => 'dashboard']);
-        $agent->addAPICommand('getUser', 'api/get_user.php');
-        $agent->listen('auth/user:onLogin', 'onUserLogin');
-        return true;
-    }
-
-    public function __onReady(): bool
-    {
-        // Safe to call APIs here — all modules are loaded
+        $agent->addAPICommand('getPost', 'api/get_post.php');
+        $agent->listen('core/auth:onLogin', 'onUserLogin');
         return true;
     }
 };
 ```
 
----
+Route handlers are plain closures bound to the controller (`$this` = `Controller`).
+Handler-file naming is resolved by `ClosureLoader` (verified `Module/ClosureLoader.php:126,130`):
+paths are relative to `controller/`, carry **no `.php` suffix**, and slash-less names get
+the module class-name prefix — the `dashboard` route above loads
+`controller/blog.dashboard.php`, while `api/get_thing` loads `controller/api/get_thing.php`.
+
+```php
+<?php
+// controller/blog.dashboard.php
+use Razy\Controller;
+
+return function (): void {
+    /** @var Controller $this */
+    $info = $this->getRoutedInfo();   // keys: route, arguments, method, url_query, module…
+    $this->xhr()->responseAsBody(['ok' => true, 'route' => $info['route']]);
+};
+```
+
+## Golden Rules — Architecture Discipline
+
+These rules are what make one-codebase-many-projects **not** collapse into a distributed
+monolith. They are binding for humans **and for AI coding agents** (full rule pack with
+examples and enforcement: [`skills/RAZY-AI-RULES.md`](skills/RAZY-AI-RULES.md),
+machine-checked by [`tools/lint-module-discipline.php`](tools/lint-module-discipline.php)).
+
+| ID | Rule | Correct mechanism |
+|----|------|-------------------|
+| RZ-001 | Never `require`/`include` another module's files | `$agent->addAPICommand(...)` + `$this->api('vendor/mod')->cmd(...)` |
+| RZ-002 | Never reach across distributor boundaries casually | Bridge commands + a **mandatory** `__onBridgeCall()` gate (the framework default allows all — you must close it, see [Security](#security-posture-honest-edition)) |
+| RZ-003 | Never hand-write SQL from user input; never `new PDO` | `$db->prepare()->select(...)->where('x=:x')->assign([...])` or ORM (`Model`) named params |
+| RZ-004 | **Templates do not auto-escape** — never output user data raw | `htmlspecialchars(..., ENT_QUOTES)` in code, the DOM builder in views, or `->escape` [planned core modifier] |
+| RZ-005 | Never resolve framework internals through DI (`SecurityException` is a fence — do not climb it) | Module DI child only; services via documented Controller helpers |
+| RZ-006 | Never write outside your module's `getDataPath()` / `getAssetPath()` | `getDataPath()`, `getAssetPath()` |
+| RZ-007 | Never hand-edit `autoload/` or `lock.json`; declare deps in `package.php` | `require` (module deps), `prerequisite` (Composer deps) + `php Razy.phar compose <dist>` |
+| RZ-008 | No shared state across modules (statics, singletons, global files) | APIs, events (`listen`/`trigger`), or per-distributor config |
+| RZ-009 | Lifecycle discipline: register in `__onInit`, IO only after `__onReady`; respect `false` returns | [Core Concepts](#core-concepts) |
+| RZ-010 | Call peers only through their published API; `bind()` for private helpers | `addAPICommand` (public) vs `$agent->bind()` (private) |
+| RZ-011 | No `eval`/`exec`/`shell_exec` with interpolated input; `ThreadManager::spawnPHPCode()` is **deprecated** (child-side `eval`) | plain callables via `ThreadManager`, `spawnPHPFile()`, or `Razy\WorkerPool` (persistent workers, file-based jobs) |
+| RZ-012 | A released module's API/Event surface is a **contract**: changes need version discipline | semver in `module.php`/`package.php`; new major dir for breaking changes |
+| RZ-013 | Routes are registered through `Agent` only; never hand-edit generated rewrite/Caddyfile output | `addRoute`/`addLazyRoute`/`group` + `php Razy.phar rewrite` |
+| RZ-014 | Every published API command ships a test; never weaken PHPStan/fixer configs to pass CI | `composer quality` |
+
+If an AI agent proposes code violating a Golden Rule, reject and re-prompt with the rule
+ID. The rules are greppable — CI fails on them.
+
+## Architecture Overview
+
+```
+                 ┌────────────────────────────────────────┐
+                 │   Application  (domain match → dist)    │
+                 │   sites.inc.php: 'example.com' → dist   │
+                 └────────────────────┬───────────────────┘
+                                      │
+             ┌────────────────────────┼────────────────────────┐
+             ▼                        ▼                         ▼
+      ┌─────────────┐         ┌─────────────┐          ┌──────────────┐
+      │ Distributor │         │ Distributor │          │  Standalone   │
+      │  (mysite)   │         │  (admin)    │          │   (lite)      │
+      │ modules@tag │         │ modules@tag │          │ single module │
+      └──────┬──────┘         └──────┬──────┘          └──────┬───────┘
+             │    api() / events / bridge (gated)              │
+        ┌────┴─────┐           ┌─────┴────┐                   │
+        │ Modules  │◄─────────►│ Modules  │                   │
+        │ per-dist │  API/Event│ per-dist │                   │
+        │ autoload │           │ autoload │                   │
+        └──────────┘           └──────────┘                   │
+```
+
+- **One FrankenPHP worker process** may host many distributors — they share the PHP
+  class table. Treat cross-module trust as **intra-process trust** (see [Security](#security-posture-honest-edition)).
+- `config_mapping` in `dist.php` reuses one distributor across domains with different
+  config folders (`'example.com@v2' => 'prod'` loads `sites/mysite:prod/dist.php`).
 
 ## Core Concepts
 
-### Routing
+### Module lifecycle (13 hooks + await callbacks)
 
-Two routing strategies: **lazy routes** (convention-based) and **regex routes** (pattern-based).
+```
+__onInit ─► __onLoad ─► __onRequire ─► (await callbacks)
+     ─► __onReady ─► __onScriptReady / __onRouted ─► __onEntry
+     (+ __onDispatch, __onAPICall, __onBridgeCall, __onError, __onDispose, __onTouch)
+```
+
+| Hook | Do | Never |
+|---|---|---|
+| `__onInit(Agent)` | register routes, APIs, bindings, listeners | DB/file/network IO, calling other modules' APIs (not loaded yet) |
+| `__onReady()` | cross-module API calls (all modules registered) | — |
+| `__onRouted()` / `__onEntry` | request-scoped work, auth checks | mutating module-level state that leaks across requests in worker mode |
+| `__onAPICall(ModuleInfo $fromModule, string $method)` | **permission gate** for your API surface | leaving unimplemented when exposing sensitive commands |
+| `__onBridgeCall(string $sourceDist, string $cmd)` | **permission gate** for cross-distributor | relying on the framework default (which allows all — RZ-002) |
+
+Returning `false` from lifecycle hooks aborts the module/request flow — handle it.
+
+### Versioned modules & tags
+
+A distributor selects module **tags** (versions) per module; `sites.inc.php` maps
+`'/' => 'mysite@v2'`. Two distributors can run different versions of the same module
+side by side — this is the core maintenance superpower: ship a fix once, every
+distributor adopts on its own schedule.
+
+## Routing
 
 ```php
-// Lazy: /modulecode/users/list → controller/users/list.php
-$agent->addLazyRoute(['users' => ['list' => 'list']]);
-
-// Regex: /api/user-42/profile → controller/Route.user_profile.php
-$agent->addRoute('/api/user-(:d)/profile', 'user_profile');
+$agent->addLazyRoute(['users' => 'users']);                  // handler: controller/<moduleClass>.users.php (prefix rule — see Quick Start)
+$agent->addRoute('/api/user-(:d)/profile', 'user_profile');  // (:d)=digits, (:w)=word → controller/Route.user_profile.php
+$agent->group('admin', function ($g) { /* scoped routes */ });
+$agent->reserve('admin');   // deny other modules from claiming /admin/*
 ```
 
-### Cross-Module API
+Request data arrives via the router; read route arguments with
+`$this->getRoutedInfo()['arguments']` (verified keys: `url_query, base_url, route,
+module, closure_path, arguments, type, method, is_shadow` — `RouteDispatcher.php:382+`)
+and answer JSON with `$this->xhr()->responseAsBody($payload)`. Note `url_query` is the
+**routed path, not the `?k=v` string** (`RouteDispatcher.php:409`) — Razy exposes no
+query-input wrapper, so for `$_GET/$_POST` reads, cast and validate immediately and
+never interpolate into SQL (RZ-003; the discipline lint flags raw superglobal reads at
+warning level — the shipped demos' migrated pattern annotates each read with a
+justified `// lint-allow: RZ-003`).
 
-Modules expose and consume APIs for inter-module communication:
+## Cross-Module API, Events & Bindings
+
+This is the **only sanctioned** cross-module surface (RZ-001, RZ-008, RZ-010).
 
 ```php
-// Provider: register in __onInit
-$agent->addAPICommand('getData', 'api/get_data.php');
+// Provider module — __onInit:
+$agent->addAPICommand('getPost', 'api/get_post');   // published to everyone (no .php suffix — loader appends)
+$agent->addAPICommand('#draftSave', 'api/draft');   // '#' = also a private binding (self-call sugar)
+$agent->bind('helper', 'helpers/format');           // private, never callable by others
 
-// Consumer: call from any handler
-$result = $this->api('vendor/provider')->getData($id);
+// Provider — permission gate (real signature verified Controller.php:173; $fromModule is the CALLER):
+public function __onAPICall(\Razy\ModuleInfo $fromModule, string $method, string $fqdn = ''): bool
+{
+    return $method === 'getPost';
+}
+
+// Consumer — anywhere after __onReady:
+$post = $this->api('vendor/blog')->getPost($id);
+
+// Events — provider (module acme/blog): BARE event name; payload via resolve(), not a
+// second arg (Controller.php:339); the framework qualifies the name with the module code:
+$this->trigger('published')->resolve(['id' => $post['id']]);
+// Events — consumer's __onInit: listen by the QUALIFIED name (Agent.php:177-181)
+$agent->listen('acme/blog:published', 'onPostPublished');  // or observe() for non-blocking
 ```
 
-### Template Engine
+Cross-**distributor** calls use bridge commands (`$agent->addBridgeCommand`) and MUST be
+gated via `__onBridgeCall` — see [Security](#security-posture-honest-edition).
 
-Block-based templates with variables, modifiers, conditionals, and iteration:
+## Template Engine
+
+Block syntax with variables, conditionals, iteration:
 
 ```
-{$user.name|capitalize}
-
-{@if $user.role="admin"}
-  <span class="badge">Admin</span>
-{/if}
-
-{@each source=$items as="item"}
-  <li>{$item.name} — {$item.price}</li>
-{/each}
+{$user.name->capitalize}              ← modifier chain (->)
+{@if $user.role="admin"} ... {/if}
+{@each source=$items as="item"} <li>{$item.name}</li> {/each}
+{@TEMPLATE "layout"} … {@INCLUDE "content"} {/TEMPLATE}
 ```
 
-### Database Simple Syntax
+> **Syntax correction vs old README:** `|` is **not** a modifier pipe. `{$a|$b}` tries
+> `$a`, then falls back to `$b` (alternatives chain; literals allowed: `{$user.nick|'anon'}`).
+> Modifiers use `->name:arg` (e.g. `{$title->upper}`, `{$tags->join:', '}`).
+> Trap: shipped `demo_modules/core/template_demo` .tpl files still use legacy `|upper`
+> syntax — it silently no-ops under the fallback semantics (`Entity.php:388-396`), do
+> not copy it.
 
-Shorthand syntax for joins, WHERE clauses, and JSON operations:
+Built-in modifiers: `upper, lower, trim, join, nl2br, capitalize, alphabet, gettype, addslashes`
+plus the newer `escape` (v1.0.3-beta+), `truncate`, `date`, `number`, `json`, `strip_tags`.
+Since v1.0.3-beta the engine ships an **`escape` modifier**: `{$userInput->escape}`
+(ENT_QUOTES, UTF-8, chains like `{$v->trim->escape}`). `{$var}` without a modifier
+still outputs **raw** — every dynamic value needs `->escape` or controller-side
+`htmlspecialchars()` (RZ-004). On older versions, add the fallback patch from
+[skills/RAZY-AI-RULES.md](skills/RAZY-AI-RULES.md) Appendix C. The **DOM builder**
+remains the auto-escaping path for programmatically-built HTML.
+Never render raw request input through `{$...}`.
+
+Form tokens (the engine has no `csrf_field` function — deliberate, see the rules doc):
+the controller passes the token, `<input type="hidden" name="_token" value="{$token->escape}">`.
+
+**Module-owned plugins** (governance): each module can ship its own modifiers/functions
+under `<module>/plugins/Template/` and register them with
+`$this->registerPluginLoader(self::PLUGIN_TEMPLATE)` — module code, module path, RZ-001-safe.
+Lookup is first-folder-wins and core folders register at bootstrap, so **modules cannot
+shadow core plugins** (predictable, no monkey-patching). File naming is the identity:
+`modifier.<name>.php` / `function.<name>.php`; the factory returns a closure producing a
+`TModifier`/`TFunction` subclass. Same contract family for Collection / Pipeline / Statement
+plugins (`PLUGIN_*` flags).
+
+## Database Layer
+
+Multi-driver (MySQL, PostgreSQL, SQLite) with a statement builder, "Simple Syntax",
+ORM, migrations, transactions/savepoints.
 
 ```php
-// Simple syntax generates complex SQL automatically
+$db = $this->getDB();
+
 $stmt = $db->prepare()
-    ->from('u.user-g.group[group_id]')
-    ->where('u.user_id=?,!g.auths~=?')
-    ->assign(['auths' => 'view', 'user_id' => 1]);
+    ->select('u.id, u.name')
+    ->from('u.user-g.group[group_id]')          // join: user u ⋈ group g ON group_id
+    ->where('u.user_id=:uid,!g.auths~=:auth')   // named params + JSON not-contains
+    ->assign(['uid' => $userId, 'auth' => 'view'])
+    ->order('>created_at')                       // > DESC, < ASC
+    ->limit(10, 0);
 
-// → SELECT * FROM `user` AS `u` JOIN `group` AS `g`
-//   ON u.group_id = g.group_id
-//   WHERE `u`.`user_id` = 1
-//   AND !(JSON_CONTAINS(JSON_EXTRACT(`g`.`auths`, '$.*'), '"view"') = 1)
+$rows = $stmt->query();         // result set
+$one = $stmt->lazy();           // first row
+$sql = $stmt->getSyntax();      // rendered SQL — debugging only, never re-inject user input
 ```
 
-### CLI Commands
+Rules (RZ-003): values **always** via `assign()`/named params; identifiers only from a
+whitelist (`^[A-Za-z_]\w*$`); never build condition strings from user input;
+`getSearchTextSyntax()` with raw text is a known injection landmine — pass search text
+through `assign()`. ORM (`Model`) uses `:param` bindings consistently — prefer it for
+row-level work. `Database::prepare(string)` raw passthrough is framework-internal
+plumbing; modules must not use it.
+
+## CLI Commands
+
+28 commands in `src/system/terminal/`: `build`, `init`, `serve`, `run`, `runapp`
+(interactive shell), `rewrite`, `routes`, `compose`, `install` (GitHub owner/repo),
+`pack`, `publish`, `validate`, `set`, `link`/`unlink`, `sync`, `remove`, `search`,
+`inspect`, `generate-skills`, `scaffold`, `cache`, `queue`, `schedule`, `bridge`, `pkg`, `standalone`,
+`version`, `help`.
 
 ```bash
-php Razy.phar build                    # Build environment
-php Razy.phar runapp mysite            # Interactive shell
-php Razy.phar install owner/repo       # Install from GitHub
-php Razy.phar pack distCode            # Package modules
-php Razy.phar publish                  # Publish to repository
-php Razy.phar validate distCode        # Validate & install deps
-php Razy.phar bridge '{"dist":"..."}'  # Cross-distributor call
+php Razy.phar compose mysite      # resolve prerequisites into autoload/mysite/
+php Razy.phar validate mysite     # structure + dependency validation (run in CI)
+php Razy.phar install acme/blog   # fetch a module archive from GitHub
+php Razy.phar generate-skills     # regenerate skills context for AI agents
 ```
 
----
+## Standalone Packages
 
-## Package Management (Composer Integration)
-
-Razy includes a built-in **Composer-compatible package manager** that downloads, extracts, and version-locks third-party packages from Packagist or any private mirror — **scoped per distributor** so each site gets its own isolated dependency tree.
-
-### How It Works
-
-1. **Modules declare prerequisites** in their `package.php` using `vendor/package` notation:
-
-   ```php
-   // vendor/blog/default/package.php
-   return [
-       'module_code'    => 'vendor/blog',
-       'version'        => '1.0.0',
-       'api_name'       => 'blog',
-       'require'        => ['vendor/auth' => '>=1.0.0'],   // Razy module dependency
-       'prerequisite'   => [                                 // Composer package dependency
-           'monolog/monolog'    => '^3.0',
-           'guzzlehttp/guzzle' => '^7.0',
-       ],
-   ];
-   ```
-
-2. **On compose**, the framework collects all `prerequisite` entries across every loaded module, resolves version constraints, and downloads matching packages:
-
-   ```bash
-   php Razy.phar compose mysite
-   # → Fetches metadata from Packagist
-   # → Downloads & extracts monolog/monolog ^3.0
-   # → Downloads & extracts guzzlehttp/guzzle ^7.0
-   # → Writes autoload/lock.json
-   ```
-
-3. **Per-distributor isolation** — packages are extracted into `autoload/{distributor_code}/` with PSR-4/PSR-0 namespace mapping, and a single `autoload/lock.json` tracks installed versions keyed by distributor:
-
-   ```
-   autoload/
-   ├── lock.json                          # Version lock (all distributors)
-   ├── mysite/                            # Packages for "mysite" distributor
-   │   ├── Monolog\
-   │   └── GuzzleHttp\
-   └── admin/                             # Packages for "admin" distributor
-       └── Monolog\
-   ```
-
-### Transport Layer
-
-The package manager is **transport-agnostic**. By default it fetches from Packagist over HTTPS, but you can point it at any mirror using a pluggable transport:
-
-| Transport | Protocol | Use Case |
-|-----------|----------|----------|
-| `HttpTransport` | HTTP/HTTPS | Packagist, Satis, Private Packagist, GitHub |
-| `FtpTransport` | FTP/FTPS | FTP mirrors with optional TLS |
-| `SftpTransport` | SFTP | SSH-based secure transfer |
-| `SmbTransport` | SMB/CIFS | Windows network shares, Samba |
-| `LocalTransport` | File system | Local directory or mounted drive |
-
-All transports implement `PackageTransportInterface`. Set a global default at bootstrap:
-
-```php
-use Razy\PackageManager;
-use Razy\PackageManager\FtpTransport;
-
-PackageManager::setDefaultTransport(new FtpTransport(
-    host: 'mirror.internal',
-    username: 'deploy',
-    password: 'secret',
-    basePath: '/composer',
-));
-```
-
-### Version Constraints
-
-Supports the same constraint syntax as Composer: `^1.0`, `~2.3`, `>=1.2.0`, `*`, exact versions, and stability flags (`@dev`, `@beta`, `@RC`). Sub-dependencies declared in each package's own `require` block are resolved recursively.
-
-> **Full details:** [Packaging & Distribution wiki](https://github.com/RayFungHK/Razy/wiki/Packaging-Distribution)
-
----
-
-## Standalone Package System
-
-Razy modules can run as **standalone CLI applications** — packaged as `.phar` archives and executed outside the web request lifecycle. This turns any module into a self-contained tool, background service, or migration script while retaining full access to Razy's module system, APIs, and events.
-
-### Architecture
-
-```
-┌──────────────────────────────────────────────────────┐
-│  php Razy.phar pkg vendor/app                        │
-└──────────────────┬───────────────────────────────────┘
-                   │
-         ┌─────────▼──────────┐
-         │   PackageRunner    │  Orchestrates lifecycle
-         └─────────┬──────────┘
-                   │
-    ┌──────────────┼──────────────┐
-    ▼              ▼              ▼
- Prerequisites  Dependencies   Execution
- (Composer)     (on_depend)    (Standalone or Distributor)
-    │              │              │
-    │         ┌────┴─────┐       ▼
-    │         │ complete  │    ┌──────────────┐
-    │         │ healthchk │    │   Module +    │
-    │         │ load      │    │  PackageTrait │
-    │         └──────────┘    └───────┬──────┘
-    │                                 │
-    └─────────────────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        ▼          ▼          ▼
-    __onPackage  __onPackage  __onPackage
-      Start()     Exec()      Stop()
-```
-
-Two execution modes:
-
-| Mode | Behaviour | Hook |
-|------|-----------|------|
-| **exec** | Run-to-completion — exits with a code | `__onPackageExec()` |
-| **serve** | Long-running (HTTP, WebSocket, queue) — blocks until signal | `__onPackageServe()` |
-
-Two runtime modes:
-
-| Runtime | Flag | How modules load |
-|---------|------|------------------|
-| **Standalone** | _(default)_ | Single module + co-modules from `on_depend "load"` |
-| **Distributor** | `-d dist/module` | Full Distributor loads ALL dist modules; target module executes lifecycle |
-
-### razy.pkg.json
-
-Every package has a manifest at the archive root:
+Any module can ship as an executable `.phar` app with its own manifest:
 
 ```json
 {
   "package_name": "my-api",
   "version": "1.0.0",
-  "description": "My standalone package",
-  "mode": "exec",
+  "mode": "exec",                    // exec = run-to-completion, serve = long-running
   "strict": false,
   "on_depend": [
-    {"package": "db-setup", "wait": "complete"},
+    {"package": "db-setup",      "wait": "complete"},
     {"package": "cache-service", "wait": "healthcheck"},
-    {"package": "shared-lib", "wait": "load"}
+    {"package": "shared-lib",    "wait": "load"}
   ],
-  "healthcheck": {
-    "url": "http://localhost:8080/health",
-    "interval": 2,
-    "timeout": 30,
-    "start_period": 5
-  },
-  "prerequisite": {
-    "monolog/monolog": "^3.0"
-  }
+  "healthcheck": {"url": "http://localhost:8080/health", "interval": 2, "timeout": 30},
+  "prerequisite": {"monolog/monolog": "^3.0"}
 }
 ```
 
-| Field | Purpose |
-|-------|---------|
-| `package_name` | Unique identifier (e.g., `my-api`, or `vendor/name` for dist mode) |
-| `version` | SemVer version string |
-| `mode` | `exec` (run-to-completion) or `serve` (long-running) |
-| `strict` | When `true`, serve mode binds to localhost only |
-| `on_depend` | Dependency orchestration — see below |
-| `healthcheck` | HTTP polling config for serve-mode packages |
-| `prerequisite` | Composer packages to auto-install |
-
-### Dependency Orchestration (`on_depend`)
-
-Packages can depend on other packages with three wait strategies:
-
-| Wait Mode | Behaviour |
-|-----------|-----------|
-| `"complete"` | Run the dependency as exec-mode, block until it exits successfully |
-| `"healthcheck"` | Spawn the dependency as serve-mode, poll its healthcheck URL until healthy |
-| `"load"` | Extract the dependency and inject it as a **co-module** into the same Standalone runtime — full API, events, and cross-module access |
-
-### PackageTrait — Lifecycle Hooks
-
-Add `PackageTrait` to any Controller to make it package-aware. All hooks use the reserved `__onPackage*` prefix — no conflict with module closures or routing methods.
-
-```php
-class MyController extends Controller
-{
-    use PackageTrait;
-
-    public function __onPackageStart(array $packageInfo): bool
-    {
-        // Register package API for co-modules to call
-        $this->registerPackageAPI('greet', fn(string $name) => "Hello, {$name}!");
-
-        // Subscribe to package events
-        $this->onPackageEvent('data:ready', fn(array $data) => $this->processData($data));
-
-        return true; // false aborts execution
-    }
-
-    public function __onPackageExec(array $packageInfo): int
-    {
-        // Core logic — return value is the process exit code
-        $this->emitPackageEvent('data:ready', ['key' => 'value']);
-        return 0;
-    }
-
-    public function __onPackageServe(array $packageInfo): void
-    {
-        // Long-running — start HTTP server, event loop, etc.
-        // This method should BLOCK until shutdown.
-    }
-
-    public function __onPackageStop(): void
-    {
-        // Cleanup: close connections, flush buffers
-    }
-
-    public function __onPackageHealthcheck(): bool
-    {
-        return true; // healthy
-    }
-}
-```
-
-| Hook | When | Return |
-|------|------|--------|
-| `__onPackageStart` | After prerequisites + dependencies resolve | `false` aborts execution |
-| `__onPackageExec` | Exec-mode entry point | `int` exit code (0 = success) |
-| `__onPackageServe` | Serve-mode entry point (blocks) | `void` |
-| `__onPackageStop` | On shutdown or stop signal | `void` |
-| `__onPackageHealthcheck` | Polled by dependents or `/_razy/health` | `bool` |
-
-### Package API & Package Events
-
-Separate from the Module API/Event system — these are **inter-package** communication channels for packages running in the same process (e.g., co-modules loaded via `on_depend "load"`).
-
-```php
-// Package A: register an API action
-$this->registerPackageAPI('transform', fn($input) => strtoupper($input));
-
-// Package B: call it
-$result = $this->callPackageAPI('vendor/a', 'transform', 'hello'); // "HELLO"
-
-// Events: pub/sub between packages
-$this->onPackageEvent('config:changed', fn($data) => $this->reload($data));
-$this->emitPackageEvent('config:changed', ['key' => 'timeout']);
-```
-
-### CLI Usage
+Hooks via `PackageTrait`: `__onPackageStart / __onPackageExec / __onPackageServe /
+__onPackageStop / __onPackageHealthcheck`. Inter-package API/events exist for co-modules
+loaded with `"wait": "load"`. Note: the per-package healthcheck **endpoint** is yours
+to implement — the framework ships its own liveness at `/_razy/health` (`Razy\Health`)
+which is a different thing (orchestrator probe, not package-specific).
 
 ```bash
-# Run an exec-mode package
 php Razy.phar pkg migrate -- --fresh
-
-# Run a serve-mode package in background
 php Razy.phar pkg my-api --daemon
-
-# Run via Distributor (full module ecosystem)
-php Razy.phar pkg -d mysite/vendor/worker -- --queue=emails
-
-# List installed packages
 php Razy.phar pkg list
-
-# Show package details
-php Razy.phar pkg info my-api
-
-# Stop a running daemon
-php Razy.phar pkg stop my-api
 ```
 
-### Dual Mode Detection
+## Performance
 
-A single Controller can serve both web requests and package execution:
+Measured on this repo's `benchmark/` suite (k6, 2 vCPU/4 GB containers, MySQL 8.0,
+single Docker Desktop host, 2026-02): Razy on **FrankenPHP worker mode** (boot-once
+dispatch) vs Laravel 12 **Octane/Swoole**:
 
-```php
-public function __onInit(Agent $agent): bool
-{
-    if (defined('RAZY_PACKAGE_MODE')) {
-        // Running as a standalone package
-        return true;
-    }
+| Scenario | Razy | Laravel | Verdict |
+|---|---:|---:|---|
+| Static route | 6,331 RPS | 1,254 | Razy 5.0× |
+| Template render | 6,264 | 1,137 | Razy 5.5× — **caveat 1** |
+| DB read | 3,763 | 952 | Razy 4.0× — caveat 2 |
+| DB write | 754 | 842 | Laravel 1.1× (MySQL-bound) |
+| Composite | 4,528 | 958 | Razy 4.7× — caveat 1 |
+| Heavy CPU | 144 | 325 | **Laravel 2.3×** (Swoole coroutines) |
 
-    // Normal web mode — register routes, APIs, etc.
-    $agent->addLazyRoute(['dashboard' => 'dashboard']);
-    return true;
-}
-```
+**Caveats, stated plainly** (our own audit, [`RAZY-ANALYSIS-REPORT.md`](RAZY-ANALYSIS-REPORT.md)):
+*caveat 1* — the benchmark's Razy endpoints built HTML by string concatenation instead of
+exercising Razy's own template engine; *caveat 2* — Razy used persistent PDO connections
+while Laravel did not. Treat stack-vs-stack numbers as directional, not as
+framework-vs-framework. A symmetric rerun (real templates, aligned connection policy,
+PHP-FPM baseline, pinned toolchain) is the standing benchmark task. Worker-mode
+per-request framework overhead is ~0.05 ms (boot-once, verified in `src/main.php`).
 
----
+**Autoscaling out of the box (unreleased):** the framework serves
+`GET /_razy/metrics` (Prometheus text format, answered pre-dispatch by `Razy\Metrics`)
+whose `razy_http_requests_total` counter is the intended HPA metric source — see the
+adapter rule in [`deploy/k8s/hpa.yaml`](deploy/k8s/hpa.yaml). Scheduled maintenance
+jobs need exactly one crontab line: `php Razy.phar schedule run` against your
+`scheduler.inc.php` (cron expressions, `withoutOverlapping()` locks, `--tz=`).
 
-## Demo Modules
+## Testing & Quality
 
-The [`demo_modules/`](demo_modules/) directory contains 22 production-ready reference modules organized by category:
-
-| Category | Modules |
-|----------|---------|
-| **core/** | event_demo, event_receiver, route_demo, template_demo, thread_demo, bridge_provider |
-| **data/** | collection_demo, database_demo, hashmap_demo, yaml_demo |
-| **demo/** | demo_index, hello_world, markdown_consumer |
-| **io/** | api_demo, api_provider, bridge_demo, dom_demo, mailer_demo, message_demo, sse_demo, xhr_demo |
-| **system/** | advanced_features, helper_module, markdown_service, plugin_demo, profiler_demo |
-
-Each module includes inline documentation and can be copied directly into your distributor's module directory. See the [demo README](demo_modules/README.md) for detailed descriptions.
-
----
-
-## Roadmap
-
-All items for v1.0 are complete. The framework is in **beta** — APIs are stable but may receive minor refinements before the final release.
-
-| Status | Feature |
-|--------|---------|
-| ✅ | Multi-site distributor architecture with domain routing |
-| ✅ | Module system with dependency resolution & 14 lifecycle hooks |
-| ✅ | Template engine with blocks, modifiers, conditionals, iteration |
-| ✅ | Multi-driver database layer (MySQL, PostgreSQL, SQLite) |
-| ✅ | GitHub module installer via CLI |
-| ✅ | Thread system (`ThreadManager`) |
-| ✅ | Cross-distributor bridge system |
-| ✅ | Module repository & publishing system |
-| ✅ | Cache system (PSR-16 SimpleCache with File, Redis, Null adapters) |
-| ✅ | Authenticator (TOTP/HOTP 2FA) |
-| ✅ | FTP/SFTP file transfer clients |
-| ✅ | Database migration system |
-| ✅ | Queue / job dispatching |
-| ✅ | Rate limiting middleware |
-| ✅ | WebSocket server & client |
-| ✅ | Docker image & CI/CD pipeline |
-| ✅ | Standalone Package System (exec/serve, dependency orchestration, Package API/Events) |
-| ✅ | Comprehensive test suite (4,564 tests, 8,178 assertions) |
-
----
-
-## Version Milestone Summary
-
-### v1.0-beta — First Public Beta (Feb 2026)
-
-The foundation release. Razy shipped as an open-source project with full governance (MIT license, contributing guide, security policy), Docker infrastructure, a Composer-compatible package manager, and a comprehensive test suite of 4,564 tests with zero skips. This milestone established the framework's public contract — stable APIs, reproducible builds, and CI/CD from day one.
-
-### v1.0.1-beta — Worker Optimization & Tenant Isolation (Feb 2026)
-
-Two problems drove this release:
-
-**1. Performance under persistent workers.**  
-The original FrankenPHP worker loop rebuilt the entire object graph (Application, Container, Standalone, Module, RouteDispatcher) on every single request — the same work a traditional CGI process does, but inside a persistent worker where it should only happen once. Fixing this was straightforward in concept (boot once, dispatch many) but required rethinking how state flows through the framework. The result was a **37× throughput improvement** (171 → 6,311 RPS) and **5× faster than Laravel Octane (Swoole)** on read-heavy workloads, with an additional round of 8 hot-path micro-optimizations shaving another 4.6% off tail latency.
-
-**2. Cross-vendor module identity collisions.**  
-Razy's module system uses a two-part `vendor/package` code (e.g., `acme/logger`), but several internal paths — config files, asset URLs, API registration, closure prefixes, rewrite rules — were keyed on only the short class name or alias (the last segment). In a single-vendor setup this worked fine. But in multi-tenant and multi-vendor deployments — the exact use case Razy was designed for — two modules from different vendors with the same package name (e.g., `acme/logger` and `beta/logger`) would silently collide: one module could read another's config, hijack its API, shadow its assets, or cause rewrite rules to be silently dropped.
-
-This is not an edge case. In enterprise SaaS environments, module vendors operate independently and cannot coordinate naming. A platform hosting modules from multiple vendors **must** guarantee vendor-scoped isolation by default. Five collision vectors were identified and fixed, API registration now throws on duplicates instead of silently overwriting, and all identity keys now use the full `vendor/package` module code.
-
-| Version | Key Changes |
-|---------|------------|
-| **v1.0-beta** | Open-source readiness, Docker, Composer package management, 4,564 tests |
-| **v1.0.1-beta** | 37× worker throughput, 5× vs Laravel, cross-vendor module isolation (5 collision fixes), DI security hardening, pre-commit hook, 4,794 tests |
-
-> Full per-version changelogs: [`changelog/`](changelog/) directory.
-
-### Cross-Tenant Architecture — Why and What's Next
-
-Razy was designed from the start as a **multi-site, multi-distributor** framework: one codebase, many projects. But as the architecture matured — especially with FrankenPHP worker mode keeping the entire Application graph alive in memory — a deeper problem surfaced.
-
-**The problem: shared-process trust boundaries.**
-
-In a traditional CGI model, each request starts a fresh PHP process. Isolation is free — one request can't reach into another's memory. But in a persistent worker, all distributors and modules share the same process. A malicious or buggy module in one distributor can theoretically access another distributor's data, configs, or API registrations. The v1.0.1-beta cross-vendor collision fixes addressed the **naming** side of this problem, but the **runtime isolation** side remains.
-
-The real-world scenario is straightforward: a SaaS platform hosts multiple tenants (clients), each with their own distributors, modules, domains, and data. Today, they all run inside the same PHP process, share the same filesystem, and trust each other implicitly. For internal tooling this is acceptable. For enterprise multi-tenant SaaS — where tenants are separate legal entities with separate data obligations — it is not.
-
-**The solution: 1 Tenant = 1 Razy Application environment.**
-
-Each tenant runs as a complete, isolated Razy instance — its own container, its own filesystem, its own `open_basedir`. The local host becomes just another tenant (the "Host Tenant"). Cross-tenant communication uses an explicit HTTP bridge with HMAC authentication, not shared memory. Module code requires **zero changes** — isolation is enforced at the framework and OS layers.
-
-| Phase | Version | What It Delivers |
-|-------|---------|-----------------|
-| Phase 0 — Foundation | **v1.0.1-beta** ✅ | DI security blocklist, worker dispatch guards, boot-once, distributor caching, module change detection |
-| Phase 1 — Tenant Isolation Core | v1.1.0-beta | Bootstrap tenant constants, data path isolation guards, in-memory hotplug (`plugTenant`/`unplugTenant`), worker signal integration |
-| Phase 2 — Docker Multi-Tenant | v1.1.0 | Hardened tenant Dockerfile (`open_basedir` + `disable_functions`), Compose templates, per-tenant config generator |
-| Phase 3 — Communication Layers | v1.2.0 | `TenantEmitter` (HTTP bridge + HMAC), `DataRequest`/`DataResponse` (file I/O), `__onTenantCall` permission gates, CLI `razy tenant` commands |
-| Phase 4 — Kubernetes + Lifecycle | v1.3.0 | K8s namespace/PVC/NetworkPolicy templates, Helm chart, WorkerLifecycleManager integration |
-| Phase 5 — Whitelist + Admin UI | v2.0.0 | `TenantAccessPolicy`, fine-grained cross-tenant data sharing, admin dashboard |
+Verified on this working tree (PHP 8.3, 2026-07):
 
 ```
-Phase 1 (isolation core) ─────┐
-                               ├──► Phase 2 (Docker)  ──► Phase 4 (K8s)
-                               │                              │
-                               └──► Phase 3 (L4 + Data) ─────┘──► Phase 5 (Whitelist)
+composer test → OK, but there were issues!
+Tests: 4845, Assertions: 8672, Warnings: 2, Skipped: 87   [40s]
 ```
 
-> Architecture deep-dive: [`architecture/ENTERPRISE-TENANT-ISOLATION.md`](architecture/ENTERPRISE-TENANT-ISOLATION.md)
-
----
-
-## Performance: Razy vs Laravel
-
-Benchmarked against **Laravel 12 + Octane (Swoole)** under identical conditions — same host, same MySQL, same container resources (2 CPUs / 4 GB RAM), same k6 load profiles.
-
-### Head-to-Head Results
-
-| Scenario | Razy RPS | Laravel RPS | Razy Advantage | Razy p95 | Laravel p95 |
-|----------|----------|-------------|---------------|----------|-------------|
-| **Static Route** | **6,331** | 1,254 | **5.0×** faster | 18.6ms | 186ms |
-| **Template Render** | **6,264** | 1,137 | **5.5×** faster | 19.0ms | 189ms |
-| **DB Read** (SELECT) | **3,763** | 952 | **4.0×** faster | 38.5ms | 191ms |
-| **DB Write** (INSERT) | 754 | **842** | Laravel 1.1× | 182ms | 186ms |
-| **Composite** (DB + Template) | **4,528** | 958 | **4.7×** faster | 72.4ms | 395ms |
-| **Heavy CPU** (500K MD5) | 144 | **325** | Laravel 2.3× | 595ms | 1,590ms |
-
-> Razy outperforms Laravel Octane in **4 of 6 scenarios** — all throughput-dominant workloads.
-> Laravel leads in DB Write (MySQL INSERT is the bottleneck, not framework overhead) and CPU-bound fast-request throughput (Swoole's coroutine isolation).
-> Even in the Heavy CPU scenario, Razy achieves **2.7× lower tail latency** (p95: 595ms vs 1,590ms).
-
-### Runtime Configuration
-
-| | Razy | Laravel |
-|---|---|---|
-| **Runtime** | FrankenPHP (Caddy, PHP 8.3.7, Alpine) | PHP 8.3-cli + Swoole (Octane) |
-| **Worker Mode** | Persistent worker, boot-once dispatch | Octane Swoole (`--workers=auto`) |
-| **OPcache** | JIT 1255, 128 MB buffer | JIT 1255, 128 MB buffer |
-| **Config Cache** | N/A (standalone Phar) | `config:cache`, `route:cache`, `view:cache` |
-
-### Why Is Razy Faster?
-
-The difference is **architectural**, not just runtime tuning:
-
-| | Razy | Laravel |
-|---|---|---|
-| **Per-request overhead** | ~0.05ms (dispatch only) | ~0.8ms (service container resolution, middleware pipeline, route matching) |
-| **Object graph** | Boot once, reuse across all requests | Rebuilt partially per request even with Octane |
-| **Template engine** | Native PHP blocks, zero compilation | Blade compiles to PHP, then executes |
-| **Route matching** | Direct hash lookup from pre-compiled table | Regex matching through middleware stack |
-| **Deployment** | Single `Razy.phar` — nothing to cache | Requires `config:cache`, `route:cache`, `view:cache`, `event:cache` for production |
-
-### Conceptual Differences
-
-Razy and Laravel solve different problems with fundamentally different philosophies:
-
-| Aspect | Razy | Laravel |
-|--------|------|----------|
-| **Design goal** | Multi-project, multi-tenant module platform | Full-featured web application framework |
-| **Unit of work** | Module (reusable, versioned, distributable) | Application (monolithic, project-bound) |
-| **Multi-site** | First-class — distributors share modules | Bolted on via tenancy packages |
-| **Team boundary** | Distributor per team, modules per sub-team, API/Event contracts | Package per team, service classes, facades |
-| **Upgrade model** | Update shared module → all projects benefit | Update per project via `composer update` |
-| **Code sharing** | Shared Modules (reference, not clone) | Composer packages (vendor lock per project) |
-| **Configuration** | `dist.php` + `package.php` (minimal, flat) | `.env` + `config/*.php` + service providers (layered, ceremonial) |
-| **Learning curve** | Steep upfront (module lifecycle), low ongoing | Low entry (conventions), steep at scale (deep service container knowledge) |
-| **Ecosystem** | Purpose-built, self-contained | Massive third-party ecosystem (Forge, Vapor, Nova, Livewire, etc.) |
-
-### When to Choose Razy
-
-**Razy is ideal for:**
-
-- **Multi-client platforms** — agencies or SaaS providers maintaining many client projects on a single codebase
-- **Module-driven SaaS** — products where each customer gets a different combination of features (modules)
-- **Subscription-based services** — where continuous upgrades across all clients is a core business requirement
-- **High-throughput APIs** — services where 5× throughput and 10× lower latency matter (real-time, IoT, fintech)
-- **Small teams managing many projects** — one module update benefits every project simultaneously
-- **Microservice backends** — lightweight, fast startup, single-binary deployment
-
-**Laravel is ideal for:**
-
-- **Standalone web applications** — CMS, e-commerce, admin panels with rich UI needs
-- **Teams that value convention over configuration** — developers familiar with Rails/Django patterns
-- **Projects that rely heavily on third-party packages** — authentication, billing, notifications, queues
-- **Prototyping and MVPs** — rapid scaffolding with Artisan generators
-- **CPU-bound workloads** — Swoole's coroutine model handles mixed I/O + CPU better
-
-> Full benchmark methodology, raw data, and reproduction steps: [`benchmark/`](benchmark/) directory.
-
----
-
-## Testing
+- **4,845 tests / 121 test classes**, 0 failures. The 87 skips are platform-conditional
+  (1× Windows `/proc`, ~53× Redis ext, 32× SSH2 ext) — all execute under
+  `.docker/docker-compose.test.yml`.
+- **CI**: PHP 8.2/8.3/8.4 matrix (Ubuntu) + Windows, pcov **50% line-coverage gate**,
+  php-cs-fixer (PSR-12 extended) via `cs2pr`, PHPStan level 5.
+- `composer quality` = cs-check + phpstan + test. `.githooks/pre-commit` enforces
+  cs-check + phpstan locally (`git config core.hooksPath .githooks`); tests and the
+  discipline lint run in CI.
+- Module discipline lint (Golden Rules): `php tools/lint-module-discipline.php <path>`
+  — CI runs it **blocking (`--strict`) on both `demos/` and `demo_modules/`**. The
+  shipped demos were migrated to full compliance in 2026-07 (4 errors / 109 warnings →
+  0 / 0 across 247 files, 15 justified `lint-allow` sites); the `->escape` modifier the
+  migration relies on is built in since v1.0.3-beta.
 
 ```bash
-# Install dependencies
-composer install
-
-# Run the full test suite
-composer test                  # 4,564 tests, 8,046 assertions (Windows — 87 skipped)
-composer test-coverage         # Generate coverage report
-
-# Code quality
-composer cs-check              # Check PSR-12 compliance
-composer cs-fix                # Auto-fix code style
-composer quality               # Run tests + style checks
+composer test            # unit + integration
+composer test-coverage   # HTML coverage (needs pcov/xdebug)
+composer quality         # cs + phpstan + tests
 ```
 
-### Full Platform Coverage via Docker
+## Security Posture (Honest Edition)
 
-To run all tests with zero skips (including Redis, SSH2, and Linux-only permission tests):
+**Genuinely strong (verified):** AES-256-CBC + HMAC-SHA256 encrypt-then-MAC with random
+IV and `hash_equals` (`Razy\Crypt`); RFC 4226/6238 TOTP/HOTP (`Razy\Authenticator`);
+CSPRNG (`random_bytes`) for all tokens/session IDs/backup codes; CSRF synchronizer with
+timing-safe checks; every `unserialize` uses `allowed_classes=false`; identifier
+whitelists in the SQL layer; ORM bound params; HTTP client protocol allow-lists; zero
+supply-chain runtime surface.
+
+**Gap remediation status** (2026-07 audit; ⚠️ = still binding for every project):
+
+| Gap | Status | What you MUST do today |
+|---|---|---|
+| Templates do not auto-escape | ✅ fixed v1.0.3-beta | Built-in `->escape` modifier ships; engine still does **not** auto-escape, so keep applying it (RZ-004) |
+| Package extraction lacked entry-path validation (zip-slip); RepoInstaller permitted plain HTTP | ✅ fixed (unreleased) | `Razy\ArchiveSafety` now rejects `..`/absolute/symlink entries and non-HTTPS URLs before extract; HTTPS stays the default (opt out only via `RAZY_ALLOW_INSECURE_TRANSPORT=1` on trusted LAN mirrors) |
+| Bridge commands open by default (`__onBridgeCall` default allows all); CLI `bridge` is unauthenticated local IPC | ⚠️ mitigated | Implement `__onBridgeCall` allow-lists for every bridge module. **New:** set `RAZY_BRIDGE_SECRET` to require an HMAC envelope (`Razy\BridgeSignature`) on every `executeBridgeCommand`; CLI `bridge` remains local IPC — treat shell access to the project dir as code-exec trust (RZ-002) |
+| `spawnPHPCode()` uses `eval(base64_decode())` in the child | ⚠️ open | Never pass input-derived code; prefer `spawnPHPFile()` (0600, atomic) or plain callables (RZ-011) |
+| SQL layer inlines quoted values (not native bound params); `getSearchTextSyntax()` landmine | ⚠️ open | `assign()` for every value; avoid raw search-text syntax (RZ-003) |
+| Shipped Docker image ran as root on `php -S` | ✅ fixed (unreleased) | `.docker/Dockerfile` is now non-root + OPcache + `/_razy/health` HEALTHCHECK; production worker image + K8s manifests live in `deploy/` |
+| No liveness endpoint for orchestrators | ✅ fixed (unreleased) | `GET /_razy/health` answered pre-dispatch (`Razy\Health`); verbose/deep tiers gated by `RAZY_HEALTH_VERBOSE`/`RAZY_HEALTH_TOKEN` |
+| Metrics scraping | ✅ shipped (unreleased) | `GET /_razy/metrics` (`Razy\Metrics`, Prometheus text format) feeds the HPA via `razy_http_requests_total`; basic gauges are public — deep detail (opcache/load/peak) requires `RAZY_HEALTH_TOKEN` |
+| Cross-tenant process isolation (tenant containers, HMAC bridge, K8s — Phase 1–5) | 🔶 improved | HMAC bridge + health + `deploy/k8s/` + worker image now exist, but the framework still shares one process/filesystem per install — **do not** host mutually-untrusted tenants in a single install today |
+
+Report vulnerabilities per [SECURITY.md](SECURITY.md).
+
+## Docker & Deployment
 
 ```bash
-docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit
-# → 4,564 tests, 8,178 assertions, 0 skipped, 0 errors
+docker compose -f .docker/docker-compose.yml up                                          # dev: php + Caddy
+docker compose -f .docker/docker-compose.yml -f .docker/docker-compose.dev.yml up        # live reload
+docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit   # full suite, 0 skips
 ```
 
-**Test suite covers**: 102 test classes across Authenticator, Cache (File/Redis/Null), Collection, Configuration, Container (DI), Controller, Crypt, Database (drivers, queries, transactions, migrations), DOM, EventDispatcher, FTPClient, HashMap, HttpClient, Logger, Mailer, Middleware, Module system, ORM, Pipeline, Routing, SFTPClient, Session, Template, Validation, WebSocket, Worker lifecycle, YAML, and more.
+- **Reality check:** the official image currently CMDs the PHP **built-in server**
+  (dev-grade) as root. For production, serve the built phar with your own
+  Caddy/FrankenPHP or PHP-FPM, run **non-root**, and add health probes on your own
+  endpoint (`/_razy/health` is **[planned]**).
+- The benchmark FrankenPHP worker setup in `benchmark/docker/` (Caddyfile `worker`
+  pattern) is the reference for persistent-worker deployment.
+- Kubernetes support (Helm, NetworkPolicy, per-tenant PVCs) is **[planned]** — none of it
+  exists today; do not deploy the manifests shown in `architecture/` docs as if shipped.
 
----
+## AI Agents & Coding Assistants
 
-## Documentation
+Load these before writing any Razy project code — they are designed to be read by LLMs:
 
-> **New here?** Start with the **[Quick Start (5 min)](https://github.com/RayFungHK/Razy/wiki/Quick-Start)** tutorial — build and run your first module in under 5 minutes.
+1. **[AGENTS.md](AGENTS.md)** — compact rule digest (every agent reads this file automatically).
+2. **[skills/RAZY-AI-RULES.md](skills/RAZY-AI-RULES.md)** — full rule pack RZ-001…RZ-014:
+   forbidden patterns (cross-module `require`, direct file access into other modules,
+   raw SQL, raw template output, DI fence-climbing), correct alternatives, self-check greps.
+3. **`skills.md` + generated per-dist/module context** — regenerate with
+   `php Razy.phar generate-skills` after structural changes.
+4. **Enforcement:** `php tools/lint-module-discipline.php sites/<dist> --format=json`
+   fails CI on violations. Agents must run it (and `composer quality`) on every change
+   they claim complete.
 
-Full documentation is available on the **[GitHub Wiki](https://github.com/RayFungHK/Razy/wiki)** and the **[Documentation Site](https://rayfunghk.github.io/Razy/)**.
+Agents must additionally trust **code over stale docs**: verify APIs in
+`src/library/Razy/` (or `php Razy.phar inspect`) before use, and cite `file:line` in
+rationales.
 
-| Section | Topics |
-|---------|--------|
-| **Getting Started** | [Quick Start](https://github.com/RayFungHK/Razy/wiki/Quick-Start) · [Installation](https://github.com/RayFungHK/Razy/wiki/Installation) · [Architecture](https://github.com/RayFungHK/Razy/wiki/Architecture) |
-| **Core Concepts** | [Modules](https://github.com/RayFungHK/Razy/wiki/Module-System) · [Controller](https://github.com/RayFungHK/Razy/wiki/Controller) · [Agent](https://github.com/RayFungHK/Razy/wiki/Agent) · [Routing](https://github.com/RayFungHK/Razy/wiki/Routing) · [Events](https://github.com/RayFungHK/Razy/wiki/Event-System) |
-| **Data & Storage** | [Database](https://github.com/RayFungHK/Razy/wiki/Database) · [Collection](https://github.com/RayFungHK/Razy/wiki/Collection) · [Configuration](https://github.com/RayFungHK/Razy/wiki/Configuration) · [HashMap](https://github.com/RayFungHK/Razy/wiki/HashMap) · [YAML](https://github.com/RayFungHK/Razy/wiki/YAML) |
-| **Rendering** | [Template Engine](https://github.com/RayFungHK/Razy/wiki/Template-Engine) · [DOM Builder](https://github.com/RayFungHK/Razy/wiki/DOM-Builder) |
-| **IO & Communication** | [XHR](https://github.com/RayFungHK/Razy/wiki/XHR) · [SSE](https://github.com/RayFungHK/Razy/wiki/SSE) · [Mailer](https://github.com/RayFungHK/Razy/wiki/Mailer) · [FTP/SFTP](https://github.com/RayFungHK/Razy/wiki/FTP-SFTP) · [SimplifiedMessage](https://github.com/RayFungHK/Razy/wiki/SimplifiedMessage) |
-| **Security** | [Crypt](https://github.com/RayFungHK/Razy/wiki/Crypt) · [Authenticator](https://github.com/RayFungHK/Razy/wiki/Authenticator) |
-| **Advanced** | [Plugins](https://github.com/RayFungHK/Razy/wiki/Plugin-System) · [Threads](https://github.com/RayFungHK/Razy/wiki/Thread-ThreadManager) · [Simple Syntax](https://github.com/RayFungHK/Razy/wiki/Simple-Syntax) |
-| **Deployment** | [Sites Config](https://github.com/RayFungHK/Razy/wiki/Sites-Configuration) · [Packaging](https://github.com/RayFungHK/Razy/wiki/Packaging-Distribution) · [CLI](https://github.com/RayFungHK/Razy/wiki/CLI-Commands) · [Caddy Worker](https://github.com/RayFungHK/Razy/wiki/Caddy-Worker-Mode) |
-| **Reference** | [API Reference](https://github.com/RayFungHK/Razy/wiki/API-Reference) · [ModuleInfo](https://github.com/RayFungHK/Razy/wiki/ModuleInfo) · [Utilities](https://github.com/RayFungHK/Razy/wiki/Utility-Functions) · [Testing](https://github.com/RayFungHK/Razy/wiki/Testing) |
+## Documentation Map
 
----
+| Path | Role | Trust |
+|---|---|---|
+| `readme.md` (this file) | canonical overview | verified against code, 2026-07 |
+| `manual/` | the user manual (v2) | written from source |
+| `AGENTS.md` + `skills/` | AI guardrail packs | canonical rules |
+| `demos/` | golden-path example modules + anti-pattern gallery | runnable references |
+| `site/` | zero-build documentation site (renders `manual/`) | shell; content = manual |
+| `architecture/` | design docs incl. ENTERPRISE-TENANT-ISOLATION.md | **design intent**, not current code |
+| `changelog/` | per-version changes | release-time truth |
+| `documentation/` | legacy HTML site | superseded by `site/` |
+| `skills.md` | generated project context | generated; refresh via `generate-skills` |
+| `RAZY-ANALYSIS-REPORT.md` | independent 2026-07 audit of this repo | evidence-backed self-assessment |
 
-## Contributing
+### Doc trust levels
 
-Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a pull request.
+1. **Code** (`src/`) — always authoritative.
+2. **This README + `manual/`** — verified 2026-07; report drift via issues.
+3. **Generated context** (`skills.md`) — authoritative *at generation time*; regenerate.
+4. **Design docs** (`architecture/`) — intent; gaps marked **[planned]**.
+5. Legacy mirrors (`docs/`, `memory/`, `Razy.wiki*`) — **deprecated**; never trust.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass (`composer test`)
-5. Submit a pull request
+## When to Choose Razy — and When Not To
 
-For bug reports and feature requests, please use [GitHub Issues](https://github.com/RayFungHK/Razy/issues).
+**Choose Razy** when: you run many client sites/services with overlapping-but-diverging
+feature sets; you want one module update to roll across projects on per-project version
+pins; you value zero supply-chain dependencies and one-phar deploys; your team boundaries
+map to distributors/modules with API contracts.
 
-See also: [Code of Conduct](CODE_OF_CONDUCT.md) · [Security Policy](SECURITY.md)
+**Choose Laravel/Symfony** when: single large app; you need the broad package ecosystem;
+conventional patterns matter more than module governance.
+**Choose Hyperf/Swoole** when: raw throughput + coroutine concurrency is the product.
 
----
-
-## Why Razy?
-
-Razy was born from real-world freelance experience managing multiple client projects simultaneously. Traditional frameworks made it painful to share code between projects, backport updates across deployments, and maintain version-specific module sets for different clients.
-
-Razy solves this by treating **modules as versioned, distributable units** — each project (distributor) picks exactly which module versions to load, shared services are available globally, and the entire system packages into a single phar for deployment.
-
-**Design principles:**
-
-- **Multi-tenancy by design** — not bolted on as an afterthought
-- **Version isolation** — different distributors can run different module versions side by side
-- **Zero-conflict autoloading** — Composer packages are scoped per distributor
-- **One binary deployment** — `Razy.phar` contains the entire framework
-
----
-
-## Development Journey
-
-Razy didn't start as a framework. It grew out of years of real-world project delivery, each stage solving a pain that the previous one exposed.
-
-### Phase 1 — The Template Problem
-
-In the early days of web development, PHP and HTML were tangled together. MVC was a good idea in theory, but in practice, frontend designers and backend developers constantly stepped on each other's toes. To reduce friction between the two roles, the first generation of Razy's **template engine** was born — inspired by phpBB's template architecture rather than Smarty, because Smarty's syntax was something a frontend person couldn't read at a glance. The goal was simple: **give designers markup they can understand without learning a programming language.**
-
-### Phase 2 — The Copy-Paste Trap
-
-When freelance projects started coming in, a painful pattern emerged. Every new project meant creating a new folder, copying in the template engine, configuring everything from scratch, and dragging over whatever libraries were useful from the last project. Each copy diverged the moment it was created. Changes were large, setup was slow, and nothing was truly reusable.
-
-### Phase 3 — The Version Drift Crisis
-
-The natural next step was to consolidate common code into a shared library. But as that library grew, maintaining it became its own problem. Updating a feature in one project didn't transfer cleanly to another — it wasn't just copy-and-paste. Worse, working with other vendors' systems revealed a deeper structural issue: **the earlier a client was onboarded, the more outdated their system became.** Debugging old versions was expensive, shipping new features to legacy clients was impractical, and the business incentive for building new functionality dropped because only the newest clients would benefit.
-
-### Phase 4 — Rethinking the Development Model
-
-This led to a fundamental rethink. Instead of treating each project as a standalone codebase, **what if code management and project management were the same thing?** What if every client's system was part of one unified development environment — different configurations of the same modules, not different copies? The concept of a module-driven, version-aware architecture started taking shape.
-
-### Phase 5 — From Project Fees to Subscription Services
-
-The business model evolved alongside the architecture. Rather than charging one-time project fees and walking away, the shift was toward **monthly subscription services** — maintaining a long-term relationship with each client. This meant every client, old and new, could receive continuous upgrades on a shared foundation. The economic incentive aligned perfectly with the architectural vision: invest once in a feature, roll it out across all subscribers.
-
-### Phase 6 — Razy Takes Shape
-
-Razy's first real prototype emerged with a clear mission: **minimize the cost of developing and maintaining modules.** Modules became reusable across projects. Multiple projects shared a single development environment. Module functionality was broken into small, focused fragments. URL-path-to-controller mapping made code navigation intuitive. **Shared Modules** could be referenced rather than cloned — one update propagated everywhere.
-
-### Phase 7 — Team Boundaries via API & Event
-
-As projects grew, multiple teams began working on the same system. To prevent teams from interfering with each other's codebases, Razy introduced **Module API** and **Event** systems. Each team declared what data they needed via requirement requests, and the providing team exposed it through formal APIs and events. Cross-module communication became **explicit and permissioned** rather than implicit and fragile.
-
-### Phase 8 — From Module-Base to Distributor-Base
-
-The unit of team ownership expanded. A team no longer managed just a single module — they managed an entire **distributor**, with sub-teams responsible for individual modules within it. This matched real organizational structures: one team owns the shop, another owns the admin panel, another owns the API gateway — each a distributor with its own routing, modules, and release cycle.
-
-### Phase 9 — Security & Isolation Hardening
-
-With multiple teams and multiple distributors sharing infrastructure, security became a priority. Razy went through continuous refinement to ensure **modules couldn't reach across distributor boundaries** and tamper with core logic. The architecture evolved to enforce isolation by default — not as a policy, but as a structural impossibility.
-
-### Phase 10 — Developer Experience Refinement
-
-Through years of real project delivery, Razy was continuously refined. Features like **Simple Syntax** (a shorthand for complex SQL joins and JSON operations) were added to make everyday development faster and more intuitive. Each pain point encountered in production fed back into the framework's design.
-
-### Phase 11 — Modern Stack & v1.0-Beta
-
-The modern development environment demanded more. **FrankenPHP Worker Mode** was integrated for persistent-process performance. Mainstream deployment patterns (Docker, Caddy, CI/CD) were supported natively. AI tooling was adopted to accelerate documentation, code auditing, and architectural analysis — turning months of manual work into days. After **three years of development** plus **six months of AI-assisted refinement**, Razy v1.0-Beta shipped. Benchmarks showed **higher throughput, lower latency, and better resource efficiency** than mainstream frameworks like Laravel.
-
-### Phase 12 — Container Architecture for Zero-Downtime Updates
-
-To minimize the impact of hotfixes and upgrades on running systems, Razy introduced **Core Container** and **Module Container** concepts. As long as a worker process was serving requests, hotplugged updates could be staged and transitioned using configurable strategies — from graceful drain to immediate swap — enabling **zero-downtime version transitions** in production.
-
-### Phase 13 — Tenant Isolation for Enterprise & SaaS
-
-The latest evolution brings **enterprise-grade tenant isolation**. Each tenant runs as an isolated pod with its own filesystem, data, and configuration — supporting both Docker Compose and Kubernetes deployments. Staging environments are cleaner, SaaS onboarding is streamlined, and microservice architectures can leverage Razy's module system without sacrificing security boundaries. The framework now supports the full spectrum from single-developer side projects to **multi-team, multi-tenant enterprise platforms**.
-
----
+**Do not choose Razy (yet)** when: you must host mutually-untrusted tenants on one
+install (isolation is naming-level today; OS/cluster isolation is planned), or when you
+need K8s-native deployment today.
 
 ## License
 
-[MIT License](LICENSE) — Copyright (c) Ray Fung
+[MIT](LICENSE) — Copyright (c) Ray Fung

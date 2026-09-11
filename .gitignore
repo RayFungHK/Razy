@@ -73,3 +73,19 @@
 # Benchmark suite (reproducible performance tests)
 !benchmark/
 !benchmark/**
+
+# === Documentation v2 (2026-07 redesign) ===
+!AGENTS.md
+!RAZY-ANALYSIS-REPORT.md
+!manual/
+!manual/**
+!skills/
+!skills/**
+!demos/
+!demos/**
+!site/
+!site/**
+!tools/
+!tools/**
+!deploy/
+!deploy/**

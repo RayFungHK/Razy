@@ -7,6 +7,146 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [Unreleased]
+
+**Security hardening & scale-readiness** (2026-07, audit findings §S2/§S3/§checklist)
+
+- **Fixed** zip-slip (audit §S2): new `Razy\ArchiveSafety` validates every ZIP entry
+  name (`..`/absolute/drive/wrapper/NUL) *before* `extractTo`, purges symlinked
+  extractions, randomises temp dirs at 0600, and rejects non-HTTPS distribution URLs
+  (opt-out: `RAZY_ALLOW_INSECURE_TRANSPORT=1`). Wired into `PackageManager` and
+  `RepoInstaller`; 52 unit tests (`tests/ArchiveSafetyTest.php`).
+- **Added** bridge HMAC (audit §S3, roadmap v1.2): `Razy\BridgeSignature` signs a
+  canonical envelope (source+module+command+args+ts+nonce, ±60s, `hash_equals`);
+  `Module::executeBridgeCommand` denies unsigned calls when `RAZY_BRIDGE_SECRET` is set.
+  11 unit tests (`tests/BridgeSignatureTest.php`).
+- **Added** `GET /_razy/health` liveness endpoint (`Razy\Health`): answered in
+  `main.php` before Application boot (no dist/module/session side effects); default
+  payload is probe-safe (status/uptime/ts); verbose (version/php/mode) behind
+  `RAZY_HEALTH_VERBOSE`; deep checks behind `RAZY_HEALTH_TOKEN`. 6 unit tests.
+- **Fixed** shipped Docker image runs as root: `.docker/Dockerfile` now builds/runs as a
+  non-root `razy` user, enables OPcache (immutable-phar settings), and HEALTHCHECKs
+  `/_razy/health`; production worker image + K8s manifests + distributed benchmark in
+  new `deploy/` (deployed sizing anchored on measured RPS in `benchmark/results/`).
+- **Changed** `PackageManager` extraction dirs created 0700 (was world-writable 0777).
+
+**Market-standard features** (2026-7, gap-closure round vs. mainstream frameworks)
+
+- **Added** Scheduler subsystem (`Razy\Scheduler`): `CronExpression` (5-field POSIX with
+  month/day names, wrapped ranges, `a/n`, correct day-OR-dom semantics, timezone-deterministic),
+  `Scheduler`/`Job` fluent API (`call`/`command`, `everyMinute`…`monthly`, `dailyAt`,
+  `withoutOverlapping`, `disabled`), and `Lock\FileLock`/`Lock\RedisLock` overlap guards
+  (Redis uses compare-and-delete so an expired lock is never stolen). New `schedule` CLI
+  (`run`/`list`/`test`) reads `scheduler.inc.php` at project root; one crontab line drives all
+  jobs. 48 tests (`CronExpressionTest`, `SchedulerTest`).
+- **Added** `GET /_razy/metrics` Prometheus endpoint (`Razy\Metrics`): answered pre-dispatch
+  like Health; exposes `razy_up`/uptime/`razy_http_requests_total`/memory always, OPcache hit
+  rate + load-average + peak memory behind `RAZY_HEALTH_TOKEN`. The request counter is
+  APCu-shared across FPM workers (labelled `scope=`); the K8s `hpa.yaml` + pod scrape
+  annotations now target it, closing the autoscaling loop with a first-class metric. 7 tests.
+- **Added** i18n backbone (`Razy\Translation`): `Translator` (Traditional-Chinese-first,
+  default locale `zh-Hant`, fallback chain, `group.key` dot keys, module-namespaced
+  `vendor/mod::group.key` dictionaries, smart-case `:placeholder` substitution, missing key →
+  key not throw), `FileLoader` (opcache-friendly PHP files, memoised) and `Pluralizer`
+  (Laravel-compatible `{n}`/`[a,b]` selectors + CJK single-category handling). 15 tests.
+- **Added** Redis session driver (`Razy\Session\Driver\RedisDriver`): native TTL sliding
+  expiration, SCAN-based GC (never `KEYS`), `allowed_classes=false` deserialization — the
+  prerequisite for multi-node/15k-TPS sessions (FileDriver's per-file lock serialises
+  concurrent same-session requests). Mirrors the `RedisAdapter` inject-a-client pattern.
+- **Added** gate-hook execution tests (`tests/GateHooksTest.php`, 13): the security gates
+  themselves — `__onAPICall`/`__onBridgeCall` and the `RAZY_BRIDGE_SECRET` HMAC pre-gate — had
+  **zero** framework-test coverage before this round (grep-verified); now pinned, including the
+  source-swap forgery rejection.
+- **Fixed** `SimpleSyntax` tokenizer now rejects oversized input (16 KiB cap) upfront: the
+  recursive/`(*SKIP)` regex already failed safely on pathological input, but the cap avoids
+  paying backtracking cost first (one parser — `VersionUtil` — consumes remote bytes). 4 new tests.
+- **Known gap** `Controller::__onDispatch()` is declared but never invoked in `src/` — a
+  reserved hook, not wired behavior (tracked as documentation drift).
+
+**Async execution & queue breadth** (2026-07 thread round)
+
+- **Added** `Razy\WorkerPool` — persistent worker-process pool complementing
+  ThreadManager's spawn-per-job model: boot N workers once, feed file-based jobs
+  over a line-JSON stdin/stdout protocol (warm opcache, amortised boot). No
+  posix/pcntl/signals — proc_open pipes + cooperative shutdown frame, identical
+  logic on Windows and Linux. Job deadlines are enforced **in-worker** via
+  `set_time_limit` (parent-side non-blocking pipe reads are empirically broken on
+  Windows: `fread` blocks regardless of `stream_set_blocking(false)`,
+  `stream_select` false-positives on anonymous pipes — documented in the class).
+  At-most-once delivery: dead workers fail their in-flight jobs and are replaced
+  on next dispatch. Direct instantiation (like the Redis drivers); creator owns
+  `shutdown()`, process-exit hook as backstop. 13 end-to-end tests with real
+  processes (persistence via pid equality, real parallelism via in-worker start
+  timestamps, crash recovery, deadline reaping).
+- **Added** `Queue\RedisQueueStore` — second `QueueStoreInterface` backend
+  (ZSET-per-status + hash-per-job, Lua-atomic reserve, priority in the sub-second
+  score fraction, GLOBAL id counter since the bare-id API demands cross-queue
+  uniqueness). Same semantics as DatabaseStore: attempts++ at reserve, complete
+  deletes, stale RESERVED not auto-recovered (parity by design). Follows the
+  framework-wide inject-a-connected-`\Redis` pattern (Cache/Session/Scheduler
+  family; no connection-config layer exists, so the `queue` CLI stays on
+  DatabaseStore until one does). 12 tests — executed in CI's redis job, skipped
+  honestly elsewhere.
+- **Deprecated** `ThreadManager::spawnPHPCode()` (child-side `eval(base64_decode())`,
+  the standing RZ-011 sink). Migration: `spawnPHPFile()` for one-shots,
+  `WorkerPool::submitCode()` for repeats; all "use spawnPHPCode" doc pointers
+  reversed to the safe paths. Functional during the deprecation window.
+
+**Template plugin ecosystem** (2026-07, market-parity round)
+
+- **Fixed (core, significant)** `TModifier::modify()` could not pass parameters at all:
+  it iterated the PATTERN-ORDER `preg_match_all` matrix as if it were per-match rows, so
+  **every** parameterised modifier (`{$tags->join:', '}`, `{$x->number:2}` …) silently
+  received empty arguments and ran on defaults. Now parses rows correctly (word/number/
+  quoted args, quote-stripping, order preserved); contract pinned by
+  `tests/TModifierParamParsingTest.php` (10 tests incl. real-`join` end-to-end).
+- **Added** five built-in modifiers: `truncate` (multibyte-safe, suffix counts toward the
+  limit, optional word-boundary cut — the classic `truncate:50` the docs once taught),
+  `date` (epoch s/ms, `DateTimeInterface`, formats, explicit timezone), `number`
+  (thousands/decimals, EU separators), `json` (script/attribute-safe via `JSON_HEX_*`,
+  CJK-readable, failure renders empty), `strip_tags` (allow-list accepts plain `b i` or
+  native `<b> <i>` forms). 26 tests (`TemplatePluginModifiersTest`).
+- **Added** `function.paginate` — first tested first-class function plugin: windowed
+  pagination nav from plain numbers (`page`/`pages`/`base`/`query`/`window`), all output
+  escaped at emit, active page `aria-current`. Exercises the real `{@name key=$var}` wire
+  format in its 7 tests (`TemplateFunctionPaginateTest`).
+- **Added** custom-validation-rule coverage: user rules (`extends ValidationRule`,
+  attached via `Validator::field()->rule()`) were an open surface with zero execution
+  tests; now pinned end-to-end — transform-on-pass, cross-field data, `:field` message
+  interpolation, `withMessage()`, bail modes, `when()` (7 tests, `ValidationCustomRuleTest`).
+- **Deliberately NOT shipped** (honest scope): `csrf_field`/`asset` template functions
+  (no view-reachable token/URL surface in the framework — the sanctioned pattern is the
+  controller passing the token: `<input type="hidden" name="_token" value="{$token->escape}">`)
+  and a `raw` modifier (the engine does not auto-escape, so `raw` would be a semantic no-op).
+- **Note** `src/plugins/` docblocks were whitespace-normalised by the project fixer
+  (plugins are excluded from `composer cs-check`; whitespace-only changes, tests green).
+
+**Template output safety & CLI honesty** (2026-07 docs/discipline overhaul)
+
+- **Added** built-in `escape` template modifier (`src/plugins/Template/modifier.escape.php`):
+  `{$value->escape}` (ENT_QUOTES, UTF-8, `ENT_SUBSTITUTE`, non-scalar → `''`; chainable).
+  Closes the RZ-004 framework gap; contract pinned by `tests/TemplateModifierEscapeTest.php` (9 tests).
+- **Added** CLI dispatch guard (`src/main.php`): terminal helper libraries (e.g.
+  `publish.inc.php`, the pkg-publish helper) no longer crash the runner when invoked as
+  commands; `php Razy.phar publish` now prints an actionable "use `pkg publish`" hint.
+- **Fixed** `help` command list: removed 5 commands with no implementation
+  (`fix`, `man`, `update`, `query`, `commit`); added 7 real ones (`serve`, `routes`,
+  `validate`, `search`, `sync`, `queue`, `bridge`).
+- **Fixed** `{$var|modifier}` usage examples in all shipped modifier plugin docblocks →
+  `->modifier` syntax (the engine's `|` is a fallback chain, `Entity.php:388-396`);
+  same for the `TModifier` header example (`truncate:50` never existed).
+- **Fixed** `VERSION` file `1.0.2-beta` → `1.0.3-beta` (was drifting from
+  `composer.json`/`RAZY_VERSION`; the file feeds `SkillsGenerator`).
+- **Changed** shipped `demo_modules/` fully migrated to Golden-Rule compliance
+  (4 errors / 109 warnings → 0 / 0, 247 files, 49 changed): `spawnPHPCode` teaching →
+  `spawnPHPFile`, raw-SQL lessons rewritten with the statement builder (`~=`, `|=`,
+  `alias()`, `group()`), 92 template outputs gained `->escape`, 18 silent legacy
+  `|pipe` no-ops fixed to real `->modifier` syntax, superglobal reads annotated with
+  justified `// lint-allow`. CI discipline lint now **blocking** on `demo_modules/`.
+- **Changed** discipline lint tool: `->escape`-era rules extended to `.tpl` PHP
+  snippets (scope `any`), legacy no-op `|pipe` detection added, suppression counters
+  separated (`line_suppressions` vs `files_disabled`), violation dedupe; self-test 25/25.
+
 ## [v1.0.3-beta](changelog/v1.0.3-beta.md) — 2026-05-29
 
 **Subdirectory Sessions & Module Routes** — Cookie scoping, site URL tidy, and `/library/*` rewrite fix.
