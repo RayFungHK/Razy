@@ -21,11 +21,11 @@
     <div class="grid grid-2">
         <div class="card">
             <h3>Template Syntax</h3>
-            <pre>{# Variable tags #}
-{$variable}
-{$path.to.nested.value}
-{$name|upper}
-{$url|"#"}
+            <pre>{# Variable tags — shown as literal syntax via entity braces (engine skips entities) #}
+&#123;$variable&#125;
+&#123;$path.to.nested.value&#125;
+&#123;$name->upper&#125;
+&#123;$url&#125;|"#"{# valid fallback-argument example: {$url|"#"} #}
 
 {# Function tags #}
 {@if $active}class="active"{/if}
@@ -53,7 +53,7 @@ echo $source->output();</pre>
 
     <div class="card">
         <h2>Parameter Resolution Chain</h2>
-        <p>When a <code>{$variable}</code> tag is rendered, the engine resolves values through a hierarchical chain:</p>
+        <p>When a <code>{$variable->escape}</code> tag is rendered, the engine resolves values through a hierarchical chain:</p>
         <pre>Entity (block instance)
   ↓ not found
 Block (parsed definition)
@@ -67,11 +67,11 @@ Template (engine manager / global params)</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/variables',this)">Variables &amp; Modifiers</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/blocks',this)">Block System</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/functions',this)">Function Tags</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/entity',this)">Entity API</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/advanced',this)">Advanced Patterns</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/variables',this)">Variables &amp; Modifiers</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/blocks',this)">Block System</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/functions',this)">Function Tags</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/entity',this)">Entity API</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/advanced',this)">Advanced Patterns</button>
         </div>
     </div>
 
@@ -81,15 +81,16 @@ Template (engine manager / global params)</pre>
         <h2>Built-in Modifiers</h2>
         <table>
             <tr><th>Modifier</th><th>Syntax</th><th>Description</th></tr>
-            <tr><td><code>upper</code></td><td><code>{$var|upper}</code></td><td>Convert to UPPERCASE</td></tr>
-            <tr><td><code>lower</code></td><td><code>{$var|lower}</code></td><td>Convert to lowercase</td></tr>
-            <tr><td><code>capitalize</code></td><td><code>{$var|capitalize}</code></td><td>Capitalize Each Word</td></tr>
-            <tr><td><code>trim</code></td><td><code>{$var|trim}</code></td><td>Trim whitespace</td></tr>
-            <tr><td><code>join</code></td><td><code>{$arr|join:", "}</code></td><td>Join array with separator</td></tr>
-            <tr><td><code>nl2br</code></td><td><code>{$var|nl2br}</code></td><td>Newlines to &lt;br&gt;</td></tr>
-            <tr><td><code>addslashes</code></td><td><code>{$var|addslashes}</code></td><td>Escape with addslashes()</td></tr>
-            <tr><td><code>alphabet</code></td><td><code>{$var|alphabet:"-"}</code></td><td>Slugify (alphanumeric + separator)</td></tr>
-            <tr><td><code>gettype</code></td><td><code>{$var|gettype}</code></td><td>Returns PHP type name</td></tr>
+            <tr><td><code>upper</code></td><td><code>&#123;$var-&gt;upper&#125;</code></td><td>Convert to UPPERCASE</td></tr>
+            <tr><td><code>lower</code></td><td><code>&#123;$var-&gt;lower&#125;</code></td><td>Convert to lowercase</td></tr>
+            <tr><td><code>capitalize</code></td><td><code>&#123;$var-&gt;capitalize&#125;</code></td><td>Capitalize Each Word</td></tr>
+            <tr><td><code>trim</code></td><td><code>&#123;$var-&gt;trim&#125;</code></td><td>Trim whitespace</td></tr>
+            <tr><td><code>join</code></td><td><code>&#123;$arr-&gt;join:", "&#125;</code></td><td>Join array with separator</td></tr>
+            <tr><td><code>nl2br</code></td><td><code>&#123;$var-&gt;nl2br&#125;</code></td><td>Newlines to &lt;br&gt;</td></tr>
+            <tr><td><code>addslashes</code></td><td><code>&#123;$var-&gt;addslashes&#125;</code></td><td>Escape with addslashes()</td></tr>
+            <tr><td><code>alphabet</code></td><td><code>&#123;$var-&gt;alphabet:'-'&#125;</code></td><td>Slugify (alphanumeric + separator)</td></tr>
+            <tr><td><code>gettype</code></td><td><code>&#123;$var-&gt;gettype&#125;</code></td><td>Returns PHP type name</td></tr>
+            <tr><td><code>escape</code></td><td><code>&#123;$var-&gt;escape&#125;</code></td><td>htmlspecialchars ENT_QUOTES UTF-8 (user data!)</td></tr>
         </table>
     </div>
 

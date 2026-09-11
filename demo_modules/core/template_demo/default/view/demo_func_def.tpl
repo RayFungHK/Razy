@@ -1,1 +1,1 @@
-{@def "greeting" "Hello World"}{@def "site" $base_url}{$greeting} — {$site}
+{@def "greeting" "Hello World"}{@def "site" $base_url}{$greeting->escape} — {$site->escape}

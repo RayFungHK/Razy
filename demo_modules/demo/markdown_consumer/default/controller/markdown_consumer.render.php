@@ -26,7 +26,10 @@ $result = $this->api('markdown')->parse($text);
 ```
 MARKDOWN;
 
-    $inputMarkdown = $_POST['markdown'] ?? $defaultMarkdown;
+    // Editor input: no framework POST-input API; content is handed to the markdown
+    // service API (never interpolated into SQL/paths); raw-HTML rendering of parsed
+    // markdown is the demo's sanctioned point (output provenance = parser, see view).
+    $inputMarkdown = $_POST['markdown'] ?? $defaultMarkdown; // lint-allow: RZ-003 editor textarea to API
     
     // Call the markdown service via cross-module API
     // This is the KEY - we don't use the library directly!

@@ -8,8 +8,9 @@
 return function (): void {
     header('Content-Type: application/json; charset=UTF-8');
     
-    $name = htmlspecialchars($_GET['name'] ?? 'Guest', ENT_QUOTES, 'UTF-8');
-    $email = filter_var($_GET['email'] ?? 'guest@example.com', FILTER_SANITIZE_EMAIL);
+    // Query-string input: no framework query-input API exists; values sanitized at read.
+    $name = htmlspecialchars($_GET['name'] ?? 'Guest', ENT_QUOTES, 'UTF-8'); // lint-allow: RZ-003 escaped at read
+    $email = filter_var($_GET['email'] ?? 'guest@example.com', FILTER_SANITIZE_EMAIL); // lint-allow: RZ-003 FILTER_SANITIZE at read
     
     $userData = [
         'id'         => uniqid('user_'),

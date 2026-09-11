@@ -18,7 +18,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Razy Framework - Demo Index</title>
-    <style>{$styles}</style>
+    <style>{$styles}</style>{# lint-allow: RZ-004 controller-authored static CSS (demo_index.php getStyles); escaping would break selectors #}
     <style>
         .hero {
             background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
@@ -90,11 +90,11 @@
             <p>Explore interactive demonstrations of Razy Framework features including routing, events, templating, database operations, and more.</p>
             <div class="stats">
                 <div class="stat">
-                    <div class="stat-value">{$demo_count}</div>
+                    <div class="stat-value">{$demo_count->escape}</div>
                     <div class="stat-label">Demo Modules</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">{$category_count}</div>
+                    <div class="stat-value">{$category_count->escape}</div>
                     <div class="stat-label">Categories</div>
                 </div>
             </div>
@@ -104,13 +104,13 @@
     <div class="container">
 <!-- START BLOCK: category -->
 <div class="category">
-    <h2>{$category_name}</h2>
+    <h2>{$category_name->escape}</h2>
     <div class="demo-grid">
 <!-- START BLOCK: demo -->
-        <a href="{$site_url}{$demo_url}" class="demo-card">
-            <h3>{$demo_icon} {$demo_name}</h3>
-            <p>{$demo_description}</p>
-            <div class="routes">{$demo_routes}</div>
+        <a href="{$site_url->escape}{$demo_url->escape}" class="demo-card">
+            <h3>{$demo_icon->escape} {$demo_name->escape}</h3>
+            <p>{$demo_description->escape}</p>
+            <div class="routes">{$demo_routes}</div>{# lint-allow: RZ-004 pre-escaped in controller (demo_index.index.php:75 htmlspecialchars); double-escape would corrupt display #}
         </a>
 <!-- END BLOCK: demo -->
     </div>

@@ -56,8 +56,8 @@ echo $thread->getExitCode();</pre>
     </div>
     
     <div class="card">
-        <h3>spawnPHPCode – Complex PHP Safely</h3>
-        <pre>// Base64-encoded internally to avoid shell escaping issues
+        <h3>spawnPHPFile – Complex PHP Safely</h3>
+        <pre>// Sanctioned path (RZ-011): code goes to a private 0600 temp file
 $phpCode = &lt;&lt;&lt;'PHP'
 $data = [
     "message" =&gt; "Hello from subprocess",
@@ -67,7 +67,7 @@ $data = [
 echo json_encode($data);
 PHP;
 
-$thread = $tm->spawnPHPCode($phpCode);
+$thread = $tm->spawnPHPFile($phpCode); // static code only — never input-derived
 $tm->await($thread->getId());
 echo $thread->getStdout();</pre>
     </div>
@@ -92,11 +92,11 @@ $tm->joinAll($threads);</pre>
     <div class="card">
         <h2>Run Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/inline',this)">▶ Inline Thread</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/process',this)">▶ Process Thread</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/complex',this)">▶ spawnPHPCode</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/multi',this)">▶ Multi-Task</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/parallel',this)">▶ Parallel</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/inline',this)">▶ Inline Thread</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/process',this)">▶ Process Thread</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/complex',this)">▶ spawnPHPFile</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/multi',this)">▶ Multi-Task</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/parallel',this)">▶ Parallel</button>
         </div>
     </div>
     
@@ -109,7 +109,8 @@ $tm->joinAll($threads);</pre>
             <tr><td><code>new ThreadManager()</code></td><td>Create thread manager</td></tr>
             <tr><td><code>setMaxConcurrency(n)</code></td><td>Set max concurrent processes</td></tr>
             <tr><td><code>spawn(callable, config)</code></td><td>Spawn inline or process thread</td></tr>
-            <tr><td><code>spawnPHPCode(code)</code></td><td>Spawn PHP code via base64 encoding</td></tr>
+            <tr><td><code>spawnPHPFile(code)</code></td><td>Preferred: private 0600 temp file execution (RZ-011)</td></tr>
+            <tr><td><code>spawnPHPCode(code)</code></td><td>Discouraged: base64 command-line eval path — RZ-011 hazard, avoid in new code</td></tr>
             <tr><td><code>await(threadId)</code></td><td>Wait for single thread</td></tr>
             <tr><td><code>joinAll(threads)</code></td><td>Wait for all threads</td></tr>
             <tr><td><code>Thread::getStatus()</code></td><td>Get thread status</td></tr>

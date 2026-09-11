@@ -42,9 +42,9 @@ $allStrings = $data('*:istype(string)');</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/basic',this)">Basic Operations</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/filter',this)">Filter Syntax</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/processor',this)">Processors</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/basic',this)">Basic Operations</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/filter',this)">Filter Syntax</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/processor',this)">Processors</button>
         </div>
     </div>
     

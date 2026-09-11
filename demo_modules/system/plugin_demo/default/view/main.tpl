@@ -86,9 +86,9 @@ Collection::AddPluginFolder(__DIR__ . '/plugins/Collection');</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/overview',this)">Plugin Architecture</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/template',this)">Template Plugins</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/collection',this)">Collection Plugins</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/overview',this)">Plugin Architecture</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/template',this)">Template Plugins</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/collection',this)">Collection Plugins</button>
         </div>
     </div>
     

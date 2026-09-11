@@ -1,5 +1,5 @@
 <ul>
 <!-- START BLOCK: item -->
-<li>{$name}</li>
+<li>{$name->escape}</li>
 <!-- END BLOCK: item -->
 </ul>

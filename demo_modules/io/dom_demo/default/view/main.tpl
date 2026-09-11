@@ -41,11 +41,11 @@ echo $div;  // &lt;div class="container main" id="app" data-page="home"&gt;&lt;/
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/basic',this)">Basic Elements</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/select',this)">Select Builder</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/input',this)">Input Builder</button>
-            <button class="btn btn-secondary demo-btn" onclick="loadDemo('{$module_url}/nested',this)">Nested Structures</button>
-            <button class="btn btn-secondary demo-btn" onclick="loadDemo('{$module_url}/form',this)">Complete Form</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/basic',this)">Basic Elements</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/select',this)">Select Builder</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/input',this)">Input Builder</button>
+            <button class="btn btn-secondary demo-btn" onclick="loadDemo('{$module_url->escape}/nested',this)">Nested Structures</button>
+            <button class="btn btn-secondary demo-btn" onclick="loadDemo('{$module_url->escape}/form',this)">Complete Form</button>
         </div>
     </div>
     

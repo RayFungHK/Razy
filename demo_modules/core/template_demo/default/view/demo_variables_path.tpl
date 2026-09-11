@@ -1,1 +1,1 @@
-{$user.profile.name} ({$user.profile.email}) — Theme: {$user.settings.theme}
+{$user.profile.name->escape} ({$user.profile.email->escape}) — Theme: {$user.settings.theme->escape}

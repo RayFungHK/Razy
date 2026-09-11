@@ -8,8 +8,9 @@
 return function (): void {
     header('Content-Type: application/json; charset=UTF-8');
     
-    $entityType = htmlspecialchars($_GET['entity'] ?? 'record', ENT_QUOTES, 'UTF-8');
-    $entityId = (int)($_GET['id'] ?? 1);
+    // Query-string input: no framework query-input API exists; values cast/escaped at read.
+    $entityType = htmlspecialchars($_GET['entity'] ?? 'record', ENT_QUOTES, 'UTF-8'); // lint-allow: RZ-003 escaped at read
+    $entityId = (int)($_GET['id'] ?? 1); // lint-allow: RZ-003 int-cast
     
     $changes = [
         'old' => ['status' => 'active', 'modified' => date('Y-m-d H:i:s', strtotime('-1 hour'))],

@@ -52,8 +52,8 @@ YAML::dumpFile('output.yaml', $data);</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-2">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/parse',this)">Parse YAML</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/dump',this)">Dump to YAML</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/parse',this)">Parse YAML</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/dump',this)">Dump to YAML</button>
         </div>
     </div>
     

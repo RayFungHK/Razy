@@ -51,7 +51,7 @@ source.onerror = (e) => {
         <h2>Live Demo — Code Examples</h2>
         <p>Click to load SSE code examples via XHR:</p>
         <div style="margin-top:12px">
-            <button class="btn btn-success demo-btn" onclick="loadDemo('{$module_url}/stream',this)">Load SSE Examples</button>
+            <button class="btn btn-success demo-btn" onclick="loadDemo('{$module_url->escape}/stream',this)">Load SSE Examples</button>
         </div>
     </div>
     

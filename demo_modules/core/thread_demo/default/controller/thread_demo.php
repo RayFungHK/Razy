@@ -34,7 +34,7 @@ return new class extends Controller {
             '/'        => 'main',
             'inline'   => 'inline',
             'process'  => 'process',
-            'complex'  => 'complex',   // spawnPHPCode demo with base64 encoding
+            'complex'  => 'complex',   // spawnPHPFile demo (sanctioned per RZ-011)
             'multi'    => 'multi',
             'parallel' => 'parallel',
         ]);

@@ -1,1 +1,1 @@
-Raw: "{$raw_input}" / Trimmed+Capitalized: {$raw_input|trim|capitalize}
+Raw: "{$raw_input}" / Trimmed+Capitalized: {$raw_input->trim->capitalize}{# lint-allow: RZ-004 static controller-authored demo string; Raw side is the deliberate contrast the lesson teaches #}

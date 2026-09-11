@@ -55,7 +55,7 @@ return $this->xhr()
         const resultEl = document.getElementById('result');
         resultEl.textContent = 'Loading...';
         try {
-            const response = await fetch('{$module_url}/api/users');
+            const response = await fetch('{$module_url->escape}/api/users');
             const data = await response.json();
             resultEl.textContent = JSON.stringify(data, null, 2);
         } catch (e) {
@@ -67,7 +67,7 @@ return $this->xhr()
         const resultEl = document.getElementById('result');
         resultEl.textContent = 'Submitting...';
         try {
-            const response = await fetch('{$module_url}/api/submit', {
+            const response = await fetch('{$module_url->escape}/api/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: 'Test User', email: 'test@example.com' })

@@ -131,3 +131,22 @@ jobs:
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress
+
+  discipline:
+    name: Module Discipline (Golden Rules)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Lint golden demos (blocking — demos must stay rule-clean)
+        run: php tools/lint-module-discipline.php demos --strict
+
+      - name: Lint shipped demos (blocking — migrated to Golden Rules 2026-07)
+        run: php tools/lint-module-discipline.php demo_modules --strict

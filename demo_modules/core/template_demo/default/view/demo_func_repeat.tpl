@@ -1,1 +1,1 @@
-Rating: {@repeat length=5}{$star}{/repeat} | Dots: {@repeat length=3}•{/repeat}
+Rating: {@repeat length=5}{$star->escape}{/repeat} | Dots: {@repeat length=3}•{/repeat}

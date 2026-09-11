@@ -16,9 +16,9 @@ return function (): void {
         'success_response' => [
             'description' => 'Successful form submission',
             'code' => <<<'PHP'
-// Validate and save form data
-$name = trim($_POST['name'] ?? '');
-$email = trim($_POST['email'] ?? '');
+// Validate and save form data (form body has no route placeholder; no framework input API)
+$name = trim($_POST['name'] ?? '');   // lint-allow: RZ-003 form input, validated next block
+$email = trim($_POST['email'] ?? ''); // lint-allow: RZ-003 form input, validated next block
 
 if (empty($name) || empty($email)) {
     return $this->xhr()
@@ -39,7 +39,7 @@ PHP,
             'description' => 'Error response with details',
             'code' => <<<'PHP'
 try {
-    $result = $this->processOrder($_POST);
+    $result = $this->processOrder($_POST); // lint-allow: RZ-003 form body to validating service
     return $this->xhr()
         ->data($result)
         ->send(true, 'Order processed');
@@ -77,9 +77,9 @@ PHP,
 public function submitForm(): void
 {
     $flow = new FlowManager();
-    $flow->start('FormWorker', $this->getDatabase(), 'users', 'user_id');
-    
-    if ($flow->save($_POST)) {
+    $flow->start('FormWorker', $this->getDB(), 'users', 'user_id');
+
+    if ($flow->save($_POST)) { // lint-allow: RZ-003 form body into validating FlowManager
         $this->xhr()
             ->data(['id' => $flow->getPrimaryKey()])
             ->send(true, 'Saved successfully');

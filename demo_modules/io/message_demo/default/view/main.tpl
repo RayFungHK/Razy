@@ -49,7 +49,7 @@ echo $parsed->getBody();  // Hello!</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/basic',this)">Message Operations</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/basic',this)">Message Operations</button>
         </div>
     </div>
     

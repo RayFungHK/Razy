@@ -55,8 +55,8 @@ $report = $profiler->report(true, 'stage_1', 'stage_2');</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-2">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/basic',this)">Basic Profiling</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/checkpoints',this)">Checkpoint Comparison</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/basic',this)">Basic Profiling</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/checkpoints',this)">Checkpoint Comparison</button>
         </div>
     </div>
     
@@ -79,7 +79,7 @@ $report = $profiler->report(true);
 foreach ($report as $stage => $metrics) {
     $time = round($metrics['execution_time'] * 1000, 2);
     $memory = round($metrics['memory_usage'] / 1024, 2);
-    error_log("[Profile] {$stage}: {$time}ms, {$memory}KB");
+    error_log("[Profile] {$stage->escape}: {$time->escape}ms, {$memory->escape}KB");
 }</pre>
     </div>
     

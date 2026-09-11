@@ -331,18 +331,18 @@
         <h2>Available Demos</h2>
         <p style="color:#64748b;margin-bottom:12px;">Each demo generates SQL statements and shows the query builder code.</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/connect',this)" style="cursor:pointer;border:none;">Connect</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/drivers',this)" style="cursor:pointer;border:none;">Drivers</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/select',this)" style="cursor:pointer;border:none;">SELECT</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/insert',this)" style="cursor:pointer;border:none;">INSERT</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/update',this)" style="cursor:pointer;border:none;">UPDATE</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/delete',this)" style="cursor:pointer;border:none;">DELETE</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/joins',this)" style="cursor:pointer;border:none;">Joins</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/where',this)" style="cursor:pointer;border:none;">Where</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/transaction',this)" style="cursor:pointer;border:none;">Transaction</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/advanced',this)" style="cursor:pointer;border:none;">Advanced</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/table_helper',this)" style="cursor:pointer;border:none;">TableHelper</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/column_helper',this)" style="cursor:pointer;border:none;">ColumnHelper</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/connect',this)" style="cursor:pointer;border:none;">Connect</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/drivers',this)" style="cursor:pointer;border:none;">Drivers</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/select',this)" style="cursor:pointer;border:none;">SELECT</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/insert',this)" style="cursor:pointer;border:none;">INSERT</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/update',this)" style="cursor:pointer;border:none;">UPDATE</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/delete',this)" style="cursor:pointer;border:none;">DELETE</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/joins',this)" style="cursor:pointer;border:none;">Joins</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/where',this)" style="cursor:pointer;border:none;">Where</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/transaction',this)" style="cursor:pointer;border:none;">Transaction</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/advanced',this)" style="cursor:pointer;border:none;">Advanced</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/table_helper',this)" style="cursor:pointer;border:none;">TableHelper</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/column_helper',this)" style="cursor:pointer;border:none;">ColumnHelper</button>
         </div>
     </div>
 
@@ -417,7 +417,7 @@ $users = $stmt->query()->fetchAll();</pre>
                 resultDiv.innerHTML = '<span class="loading-spinner"></span> Parsing...';
                 
                 try {
-                    const response = await fetch('{$module_url}/parse', {
+                    const response = await fetch('{$module_url->escape}/parse', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type, syntax })

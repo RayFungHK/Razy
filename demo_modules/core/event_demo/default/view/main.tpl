@@ -73,7 +73,7 @@ $responses = $emitter->getAllResponse();</pre>
         const resultEl = document.getElementById('result');
         resultEl.textContent = 'Firing event...';
         try {
-            const url = '{$module_url}/' + action + '?' + new URLSearchParams(params);
+            const url = '{$module_url->escape}/' + action + '?' + new URLSearchParams(params);
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
             const data = await response.json();
             resultEl.textContent = JSON.stringify(data, null, 2);

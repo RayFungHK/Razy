@@ -48,9 +48,9 @@ $data = $map->get($obj);</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/basic',this)">Basic Operations</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/objects',this)">Object Keys</button>
-            <button class="btn demo-btn" onclick="loadDemo('{$module_url}/iteration',this)">Iteration</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/basic',this)">Basic Operations</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/objects',this)">Object Keys</button>
+            <button class="btn demo-btn" onclick="loadDemo('{$module_url->escape}/iteration',this)">Iteration</button>
         </div>
     </div>
     

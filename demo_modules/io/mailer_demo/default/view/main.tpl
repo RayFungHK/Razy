@@ -48,9 +48,9 @@ $mailer->send();</pre>
     <div class="card">
         <h2>Available Demos</h2>
         <div class="grid grid-3">
-            <a href="{$module_url}/basic" class="btn">Basic Email</a>
-            <a href="{$module_url}/html" class="btn">HTML Email</a>
-            <a href="{$module_url}/attachments" class="btn">Attachments</a>
+            <a href="{$module_url->escape}/basic" class="btn">Basic Email</a>
+            <a href="{$module_url->escape}/html" class="btn">HTML Email</a>
+            <a href="{$module_url->escape}/attachments" class="btn">Attachments</a>
         </div>
     </div>
     

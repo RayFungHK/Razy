@@ -1,1 +1,1 @@
-Settings: {@each $settings}{$kvp.key}: {$kvp.value}; {/each}
+Settings: {@each $settings}{$kvp.key->escape}: {$kvp.value->escape}; {/each}

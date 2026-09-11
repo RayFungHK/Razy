@@ -1,1 +1,1 @@
-{$name} v{$version} — Built with {$language}
+{$name->escape} v{$version->escape} — Built with {$language->escape}

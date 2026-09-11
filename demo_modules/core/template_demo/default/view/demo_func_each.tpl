@@ -1,6 +1,6 @@
-Colors: {@each source=$colors as="c"}{$c.value}, {/each}
+Colors: {@each source=$colors as="c"}{$c.value->escape}, {/each}
 
 Users:
 {@each source=$users as="u"}
-  - {$u.value.name} (age {$u.value.age})
+  - {$u.value.name->escape} (age {$u.value.age->escape})
 {/each}

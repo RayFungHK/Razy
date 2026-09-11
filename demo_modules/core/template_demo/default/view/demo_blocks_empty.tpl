@@ -1,5 +1,5 @@
 Before
 <!-- START BLOCK: item -->
-{$name}
+{$name->escape}
 <!-- END BLOCK: item -->
 After

@@ -44,7 +44,9 @@ return function (): void {
     ];
     
     // === Subquery Approach (documentation) ===
-    // Note: Subqueries in WHERE clause require raw SQL or alias() pattern
+    // Note: Subqueries in WHERE use the alias() pattern (Statement.php:175).
+    // Raw SQL is NOT an escape hatch (RZ-003): prepare('SELECT…') with interpolated
+    // SQL is a banned pattern — there is no sanctioned raw-SQL path in modules.
     $subquery = $db->prepare()
         ->select('user_id')
         ->from('premium_members')
@@ -52,9 +54,9 @@ return function (): void {
     
     $results['subquery'] = [
         'subquery_sql' => $subquery->getSyntax(),
-        'description' => 'Subqueries in WHERE use alias() or raw SQL',
+        'description' => 'Subqueries in WHERE/joins use alias() (never raw string interpolation)',
         'example_code' => <<<'PHP'
-// Using alias() for subquery in FROM:
+// Using alias() for subquery in FROM/join — the sanctioned pattern:
 $stmt = $db->prepare()
     ->select('*')
     ->from('u.users');
@@ -62,9 +64,10 @@ $alias = $stmt->alias('premium');  // Create subquery alias
 $alias->select('user_id')->from('premium_members')->where('active=1');
 // Then join: ->from('u.users-premium.premium_members[user_id]')
 
-// Or use raw SQL for complex subqueries:
-$subSQL = $subquery->getSyntax();
-$stmt = $db->prepare("SELECT * FROM users WHERE id IN ($subSQL)");
+// Need an IN over an id set? Build it with the builder's where + assign()
+// value params, or express the same intent as the join above. Passing a raw
+// SQL string to prepare() with interpolated sub-SQL is an RZ-003 violation
+// and an injection hazard — modules have no sanctioned raw-SQL path.
 PHP,
     ];
     
@@ -159,22 +162,35 @@ foreach ($history as $query) {
 PHP,
     ];
     
-    // === Raw SQL Execution ===
+    // === Complex SQL (builder only) ===
     $results['raw_sql'] = [
+        'description' => 'JSON functions, IN and aggregates are builder-expressible — modules have no raw-SQL path (RZ-003)',
         'code' => <<<'PHP'
-// Prepared statement with raw SQL
-$stmt = $db->prepare("SELECT * FROM users WHERE JSON_CONTAINS(roles, ?)");
-$query = $stmt->query(['admin']);
+// JSON_CONTAINS via the '~=' where-operator (WhereSyntax.php:425, 657):
+$stmt = $db->prepare()
+    ->select('*')
+    ->from('users')
+    ->where('roles~=:role')
+    ->assign(['role' => 'admin']);   // value JSON-cast safely (WhereSyntax.php:768-770)
+$query = $stmt->query();
 
-// For complex queries not supported by builder
-$stmt = $db->prepare("
-    SELECT u.*, GROUP_CONCAT(r.name) AS roles
-    FROM users u
-    LEFT JOIN user_roles ur ON u.id = ur.user_id
-    LEFT JOIN roles r ON ur.role_id = r.id
-    WHERE u.active = 1
-    GROUP BY u.id
-");
+// IN via the '|=' where-operator (WhereSyntax.php:424):
+$stmt = $db->prepare()
+    ->select('*')
+    ->from('users')
+    ->where('id|=:ids')
+    ->assign(['ids' => [1, 2, 3]]);
+
+// GROUP_CONCAT + join + group — all builder (group() at Statement.php:531):
+$stmt = $db->prepare()
+    ->select('u.*, GROUP_CONCAT(ur.role_id) AS roles')
+    ->from('u.users-ur.user_roles[user_id]')
+    ->where('u.active=1')
+    ->group('u.id');
+
+// Why no raw-SQL path exists: string-built SQL is where injection enters
+// (RZ-003). If the builder truly cannot express something, extend it via a
+// Statement plugin ('plugins' section below) — never bypass it.
 PHP,
     ];
     
