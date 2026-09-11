@@ -32,6 +32,20 @@ use InvalidArgumentException;
 class SimpleSyntax
 {
     /**
+     * Hard input-length ceiling for the tokenizer.
+     *
+     * The split regex uses recursion and (*SKIP) constructs tuned for the
+     * developer-authored fragments it normally sees (WHERE clauses, join
+     * syntax, version constraints — bytes to low hundreds). One consumer can
+     * see REMOTE bytes: VersionUtil parses requirement strings from package
+     * metadata. The PCRE backtrack limit already forces preg_split() to return
+     * false on pathological input (handled), but rejecting oversized input
+     * upfront keeps that failure cheap instead of paying backtracking cost
+     * first. 16 KiB is orders of magnitude above any legitimate expression.
+     */
+    private const MAX_SYNTAX_LENGTH = 16384;
+
+    /**
      * Parse the Simple Syntax by given delimiter.
      *
      * @param string $syntax
@@ -44,6 +58,8 @@ class SimpleSyntax
      */
     public static function parseSyntax(string $syntax, string $delimiter = ',|', string $negativeLookahead = '', ?callable $parser = null, bool $notCaptureDelimiter = false): array
     {
+        self::assertSize($syntax);
+
         $clips = self::parseParens($syntax);
 
         if (\is_callable($parser)) {
@@ -85,6 +101,8 @@ class SimpleSyntax
      */
     public static function parseParens(string $text): array
     {
+        self::assertSize($text);
+
         // Recursive closure that consumes the input string, grouping content between '(' and ')'
         $closure = function (string &$clip, bool $opening = false) use (&$closure) {
             $extracted = [];
@@ -119,5 +137,17 @@ class SimpleSyntax
         };
 
         return $closure($text);
+    }
+
+    /**
+     * Reject pathological inputs before the regex engine pays for them.
+     *
+     * @throws InvalidArgumentException
+     */
+    private static function assertSize(string $input): void
+    {
+        if (\strlen($input) > self::MAX_SYNTAX_LENGTH) {
+            throw new InvalidArgumentException('Simple syntax expression exceeds the ' . self::MAX_SYNTAX_LENGTH . '-byte limit.');
+        }
     }
 }

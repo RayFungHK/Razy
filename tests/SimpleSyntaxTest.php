@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -415,5 +416,40 @@ class SimpleSyntaxTest extends TestCase
         // Delimiters with special regex meaning should be properly escaped
         $result = SimpleSyntax::parseSyntax('a.b.c', '.', '', null, true);
         $this->assertSame(['a', 'b', 'c'], $result);
+    }
+
+    #[Test]
+    public function oversizedExpressionRejectedUpfront(): void
+    {
+        $huge = \str_repeat("'x y' ", 4000); // ≈24KB of quote payloads
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('16384-byte limit');
+        SimpleSyntax::parseSyntax($huge);
+    }
+
+    #[Test]
+    public function justUnderTheLengthCapStillParses(): void
+    {
+        $nearLimit = \str_repeat('a,', 8000) . 'z'; // 16001 bytes
+        $this->assertLessThanOrEqual(16384, \strlen($nearLimit));
+
+        $result = SimpleSyntax::parseSyntax($nearLimit, ',', '', null, true);
+
+        $this->assertCount(8001, $result);
+    }
+
+    #[Test]
+    public function regexEngineFailureThrowsInsteadOfReturningGarbage(): void
+    {
+        $original = (string) \ini_get('pcre.backtrack_limit');
+        \ini_set('pcre.backtrack_limit', '1');
+
+        try {
+            $this->expectException(InvalidArgumentException::class);
+            SimpleSyntax::parseSyntax(\str_repeat('aaaaaaaaaaaaaaaaaaaaaaaaaa', 10) . ',b');
+        } finally {
+            \ini_set('pcre.backtrack_limit', $original);
+        }
     }
 }
