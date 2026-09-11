@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Function Plugin: repeat
+ * Template Function Plugin: repeat.
  *
  * Repeats the enclosed content a specified number of times.
  * Usage in templates: {@repeat length=3}content{/repeat}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -42,9 +43,9 @@ return function (...$arguments) {
         /**
          * Process the repeat function by repeating the wrapped content.
          *
-         * @param Entity $entity      The current template entity context
-         * @param array  $parameters  Named parameters ('length' = number of repetitions)
-         * @param array  $arguments   Positional arguments (unused)
+         * @param Entity $entity The current template entity context
+         * @param array $parameters Named parameters ('length' = number of repetitions)
+         * @param array $arguments Positional arguments (unused)
          * @param string $wrappedText The enclosed content to repeat
          *
          * @return string The repeated content, or empty string if length is 0 or negative
@@ -52,7 +53,7 @@ return function (...$arguments) {
         public function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): string
         {
             // Cast length to integer and clamp negative values to 0
-            $parameters['length'] = (int)$parameters['length'];
+            $parameters['length'] = (int) $parameters['length'];
             if ($parameters['length'] < 0) {
                 $parameters['length'] = 0;
             }

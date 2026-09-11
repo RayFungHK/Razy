@@ -10,13 +10,14 @@
  */
 
 /**
- * Template Function Plugin: def
+ * Template Function Plugin: def.
  *
  * Defines (assigns) a variable in the current template entity context.
  * The variable can then be referenced elsewhere in the template.
  * Usage in templates: {@def name='varname' value=$someValue}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -41,9 +42,9 @@ return function (...$arguments) {
         /**
          * Process the def function by assigning a variable to the template entity.
          *
-         * @param Entity $entity      The current template entity context
-         * @param array  $parameters  Named parameters ('name' and 'value')
-         * @param array  $arguments   Positional arguments (unused)
+         * @param Entity $entity The current template entity context
+         * @param array $parameters Named parameters ('name' and 'value')
+         * @param array $arguments Positional arguments (unused)
          * @param string $wrappedText Any enclosed content (unused)
          *
          * @return string Always returns empty string (no visible output)

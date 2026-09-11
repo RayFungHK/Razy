@@ -10,7 +10,7 @@
  */
 
 /**
- * Template Function Plugin: if
+ * Template Function Plugin: if.
  *
  * Provides conditional logic within templates. Evaluates a complex expression syntax
  * supporting variables, comparisons (=, !=, <, >, <=, >=, ^=, $=, |=),
@@ -19,6 +19,7 @@
  * Usage in templates: {@if $var='value'}true content{@else}false content{/if}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -26,8 +27,8 @@ namespace Razy;
 
 use Razy\Template\Entity;
 use Razy\Template\Plugin\TFunctionCustom;
-
 use Razy\Util\ArrayUtil;
+
 /**
  * Factory closure that creates and returns the `if` function plugin instance.
  *
@@ -47,8 +48,8 @@ return function (...$arguments) {
          * evaluates each group with support for comparison operators, logical
          * AND/OR chaining, and negation.
          *
-         * @param Entity $entity      The current template entity context
-         * @param string $syntax      The raw condition expression syntax
+         * @param Entity $entity The current template entity context
+         * @param string $syntax The raw condition expression syntax
          * @param string $wrappedText The enclosed content (may contain {@else} divider)
          *
          * @return string The rendered true or false branch based on condition result
@@ -70,8 +71,8 @@ return function (...$arguments) {
             $recursive = function (array $clips) use (&$recursive, $entity) {
                 $value = null;
                 $reverse = false;
-                while ($clip = array_shift($clips)) {
-                    if (is_array($clip)) {
+                while ($clip = \array_shift($clips)) {
+                    if (\is_array($clip)) {
                         // Recursively evaluate parenthesized sub-expressions
                         $value = $recursive($clip);
                         if ($reverse) {
@@ -80,16 +81,16 @@ return function (...$arguments) {
                         }
                     } else {
                         // Match variables, literals, comparison operators, and logical connectors
-                        while (preg_match('/^\s*(!)?(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*|-?\d+(?:\.\d+)?|(?P>rq))(?:([><!^$|]?=|<|>)((?P>value)))?([,|](!)?)?\s*/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
+                        while (\preg_match('/^\s*(!)?(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*|-?\d+(?:\.\d+)?|(?P>rq))(?:([><!^$|]?=|<|>)((?P>value)))?([,|](!)?)?\s*/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
                             // Resolve the operand value from the entity context
                             $operand = $entity->parseValue($matches['value'][0]);
-                            if (isset($matches[6]) && strlen($matches[6][0])) {
+                            if (isset($matches[6]) && \strlen($matches[6][0])) {
                                 // Comparison mode: resolve right-hand operand and compare
                                 $compare = $entity->parseValue($matches[6][0]);
                                 $value = ArrayUtil::comparison($operand, $compare, $matches[5][0]);
                             } else {
                                 // Truthiness check: scalar truthy or non-empty array
-                                $value = (is_scalar($operand) && $operand) || (is_array($operand) && !empty($operand));
+                                $value = (\is_scalar($operand) && $operand) || (\is_array($operand) && !empty($operand));
                             }
 
                             // Apply the inline negation operator (!) if present
@@ -105,7 +106,7 @@ return function (...$arguments) {
 
                             if (!isset($matches[7])) {
                                 // If the operator is not exists, the statement should be completed
-                                if (strlen($matches[0][0]) !== strlen($clip)) {
+                                if (\strlen($matches[0][0]) !== \strlen($clip)) {
                                     return false;
                                 }
                             } else {
@@ -123,7 +124,7 @@ return function (...$arguments) {
                             }
 
                             // Advance past the matched portion of the clip string
-                            $clip = substr($clip, (int)$matches[0][1] + strlen($matches[0][0]));
+                            $clip = \substr($clip, (int) $matches[0][1] + \strlen($matches[0][0]));
                         }
                     }
                 }
@@ -132,7 +133,7 @@ return function (...$arguments) {
             };
 
             // Split the wrapped content into true and false branches at the {@else} marker
-            $split = preg_split('/\\.(*SKIP)(*FAIL)|{@else}/', $entity->parseText($wrappedText), 2);
+            $split = \preg_split('/\.(*SKIP)(*FAIL)|{@else}/', $entity->parseText($wrappedText), 2);
             $trueText = $split[0];
             $falseText = $split[1] ?? '';
 

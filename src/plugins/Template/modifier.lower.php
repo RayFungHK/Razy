@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Modifier Plugin: lower
+ * Template Modifier Plugin: lower.
  *
  * Converts a string value to lowercase using PHP's strtolower() function.
- * Usage in templates: {$variable|lower}
+ * Usage in templates: {$variable->lower}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ return function (...$arguments) {
         /**
          * Process the value by converting it to lowercase.
          *
-         * @param mixed  $value The input value to transform
+         * @param mixed $value The input value to transform
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The lowercase string

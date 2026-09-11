@@ -10,13 +10,14 @@
  */
 
 /**
- * Template Modifier Plugin: capitalize
+ * Template Modifier Plugin: capitalize.
  *
  * Capitalizes the first letter of each word in the string, converting
  * the rest to lowercase first for consistent output.
- * Usage in templates: {$variable|capitalize}
+ * Usage in templates: {$variable->capitalize}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -34,7 +35,7 @@ return function (...$arguments) {
         /**
          * Process the value by capitalizing the first letter of each word.
          *
-         * @param mixed  $value The input value to transform
+         * @param mixed $value The input value to transform
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The capitalized string with each word's first letter uppercased

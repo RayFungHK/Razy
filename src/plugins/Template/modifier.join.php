@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Modifier Plugin: join
+ * Template Modifier Plugin: join.
  *
  * Joins array elements into a single string using a specified separator.
- * Usage in templates: {$array_variable|join:','}
+ * Usage in templates: {$array_variable->join:','}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ return function (...$arguments) {
         /**
          * Process the value by joining array elements with the given separator.
          *
-         * @param mixed  $value The input array to join
+         * @param mixed $value The input array to join
          * @param string ...$args The first argument is the separator string
          *
          * @return string The joined string

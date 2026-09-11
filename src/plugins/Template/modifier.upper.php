@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Modifier Plugin: upper
+ * Template Modifier Plugin: upper.
  *
  * Converts a string value to uppercase using PHP's strtoupper() function.
- * Usage in templates: {$variable|upper}
+ * Usage in templates: {$variable->upper}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ return function (...$arguments) {
         /**
          * Process the value by converting it to uppercase.
          *
-         * @param mixed  $value The input value to transform
+         * @param mixed $value The input value to transform
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The uppercase string

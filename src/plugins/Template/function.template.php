@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This file is part of Razy v0.5.
  *
@@ -9,7 +10,7 @@
  */
 
 /**
- * Template Function Plugin: template
+ * Template Function Plugin: template.
  *
  * Renders a named template block within the current template context.
  * Looks up a template block by name, creates a new entity from it,
@@ -17,6 +18,7 @@
  * Usage in templates: {@template 'block_name' param1=$value1}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -44,9 +46,9 @@ return function (...$arguments) {
         /**
          * Process the template function by rendering a named template block.
          *
-         * @param Entity $entity     The current template entity context
-         * @param array  $parameters Named parameters passed to the function
-         * @param array  $arguments  Positional arguments (first is the template block name)
+         * @param Entity $entity The current template entity context
+         * @param array $parameters Named parameters passed to the function
+         * @param array $arguments Positional arguments (first is the template block name)
          * @param string $wrappedText Any text wrapped between opening and closing tags
          *
          * @return string The rendered template block output, or empty string if not found

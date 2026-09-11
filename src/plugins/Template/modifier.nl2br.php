@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Modifier Plugin: nl2br
+ * Template Modifier Plugin: nl2br.
  *
  * Converts newline characters to HTML <br> tags for proper rendering in HTML output.
- * Usage in templates: {$variable|nl2br}
+ * Usage in templates: {$variable->nl2br}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ return function (...$arguments) {
         /**
          * Process the value by converting newline characters to HTML line breaks.
          *
-         * @param mixed  $value The input value containing newline characters
+         * @param mixed $value The input value containing newline characters
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The string with newlines replaced by <br> tags

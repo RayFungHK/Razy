@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This file is part of Razy v0.5.
  *
@@ -9,14 +10,15 @@
  */
 
 /**
- * Template Modifier Plugin: addslashes
+ * Template Modifier Plugin: addslashes.
  *
  * Escapes special characters (single quotes, double quotes, backslashes, and NUL bytes)
  * in a string by prefixing them with a backslash. Useful for safely embedding
  * strings in JavaScript or other contexts requiring escaped content.
- * Usage in templates: {$variable|addslashes}
+ * Usage in templates: {$variable->addslashes}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -34,7 +36,7 @@ return function (...$arguments) {
         /**
          * Process the value by escaping special characters with backslashes.
          *
-         * @param mixed  $value The input value to escape
+         * @param mixed $value The input value to escape
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The escaped string with backslashes added

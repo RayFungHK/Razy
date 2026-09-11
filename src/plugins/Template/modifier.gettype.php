@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Modifier Plugin: gettype
+ * Template Modifier Plugin: gettype.
  *
  * Returns the PHP type name of the given value (e.g., 'string', 'integer', 'array').
- * Usage in templates: {$variable|gettype}
+ * Usage in templates: {$variable->gettype}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ return function (...$arguments) {
         /**
          * Process the value by returning its PHP type name.
          *
-         * @param mixed  $value The input value to inspect
+         * @param mixed $value The input value to inspect
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The type name of the value

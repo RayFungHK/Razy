@@ -10,13 +10,14 @@
  */
 
 /**
- * Template Function Plugin: each
+ * Template Function Plugin: each.
  *
  * Iterates over an array source and renders the enclosed content for each element.
  * Each iteration assigns the current key and value to a named variable (defaults to 'kvp').
  * Usage in templates: {@each source=$items as='item'}{$item.key}: {$item.value}{/each}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -44,9 +45,9 @@ return function (...$arguments) {
         /**
          * Process the each function by iterating over the source array.
          *
-         * @param Entity $entity      The current template entity context
-         * @param array  $parameters  Named parameters ('source' and 'as')
-         * @param array  $arguments   Positional arguments (unused)
+         * @param Entity $entity The current template entity context
+         * @param array $parameters Named parameters ('source' and 'as')
+         * @param array $arguments Positional arguments (unused)
          * @param string $wrappedText The enclosed content rendered per iteration
          *
          * @return string The concatenated output from all iterations

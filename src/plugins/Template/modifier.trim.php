@@ -10,12 +10,13 @@
  */
 
 /**
- * Template Modifier Plugin: trim
+ * Template Modifier Plugin: trim.
  *
  * Strips leading and trailing whitespace from a string value.
- * Usage in templates: {$variable|trim}
+ * Usage in templates: {$variable->trim}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -33,7 +34,7 @@ return function (...$arguments) {
         /**
          * Process the value by trimming leading and trailing whitespace.
          *
-         * @param mixed  $value The input value to transform
+         * @param mixed $value The input value to transform
          * @param string ...$args Additional modifier arguments (unused)
          *
          * @return string The trimmed string

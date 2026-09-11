@@ -10,14 +10,15 @@
  */
 
 /**
- * Template Modifier Plugin: alphabet
+ * Template Modifier Plugin: alphabet.
  *
  * Sanitizes a string by replacing all non-alphanumeric characters (except underscores)
  * with a specified replacement character (defaults to hyphen). Useful for generating
  * URL-safe slugs or identifiers.
- * Usage in templates: {$variable|alphabet} or {$variable|alphabet:'_'}
+ * Usage in templates: {$variable->alphabet} or {$variable->alphabet:'_'}
  *
  * @package Razy
+ *
  * @license MIT
  */
 
@@ -35,7 +36,7 @@ return function (...$arguments) {
         /**
          * Process the value by replacing non-alphanumeric characters.
          *
-         * @param mixed  $value The input value to sanitize
+         * @param mixed $value The input value to sanitize
          * @param string ...$args The first argument is the replacement character (defaults to '-')
          *
          * @return string The sanitized, slug-like string

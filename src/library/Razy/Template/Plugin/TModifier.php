@@ -10,7 +10,7 @@
  *
  * Defines the TModifier base class for template modifier plugins. Modifiers
  * transform parameter values inline via the `->modifier:arg` syntax in
- * template tags (e.g., `{$name->uppercase->truncate:50}`).
+ * template tags (e.g., `{$name->trim->upper}`).
  *
  *
  * @license MIT
@@ -63,11 +63,21 @@ class TModifier
     final public function modify(mixed $value, string $paramText = ''): mixed
     {
         $arguments = [$value];
-        \preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText, $args);
 
-        // Build argument list: first element is always the value, followed by parsed modifier args
-        foreach ($args as $arg) {
-            $arguments[] = (\array_key_exists(4, $arg)) ? $arg[4] : ($arg[2] ?? $arg[1] ?? '');
+        // PREG_SET_ORDER: one row per ':param' token. Row layout: [1] bare word,
+        // [2] number-or-quoted-with-quotes, [4] quoted content (quotes stripped).
+        // (A pre-fix version iterated the PATTERN-ORDER matrix, treating group
+        // indices as argument indices — every modifier argument silently arrived
+        // as '', so parameterised modifiers always ran on defaults. Pinned by
+        // tests/TModifierParamParsingTest.)
+        \preg_match_all('/:(?:(\w+)|(-?\d+(?:\.\d+)?|(?<q>[\'"])((?:\.(*SKIP)|(?!\k<q>).)*)\k<q>))/', $paramText, $matches, \PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            if (($match[2] ?? '') !== '' && ("'" === $match[2][0] || '"' === $match[2][0])) {
+                $arguments[] = $match[4] ?? '';
+            } else {
+                $arguments[] = (($match[1] ?? '') !== '' ? $match[1] : ($match[2] ?? ''));
+            }
         }
 
         return \call_user_func_array([$this, 'process'], $arguments);
