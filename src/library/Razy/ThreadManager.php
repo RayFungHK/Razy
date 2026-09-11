@@ -28,8 +28,9 @@ use Throwable;
  *
  * @note **Windows Shell Escaping Limitation**: When using process mode with PHP `-r`
  *       arguments containing nested quotes, Windows cmd.exe may strip or mangle quotes.
- *       Use `spawnPHPCode()` for complex PHP scripts, which uses base64 encoding to
- *       avoid escaping issues.
+ *       Use `spawnPHPFile()` for complex PHP scripts (0600 temp file, no eval) —
+ *       NOT the deprecated `spawnPHPCode()` (eval sink, RZ-011). For repeated or
+ *       boot-heavy work, prefer {@see WorkerPool} (persistent workers).
  *
  * @example Inline mode (synchronous)
  * ```php
@@ -44,9 +45,9 @@ use Throwable;
  *     'args' => ['-r', 'echo getmypid();']  // Simple, no nested quotes
  * ]);
  * ```
- * @example Process mode - complex PHP code (recommended for Windows)
+ * @example Process mode - complex PHP code (safe path: temp file, not eval)
  * ```php
- * $thread = $tm->spawnPHPCode('echo json_encode(["key" => "value"]);');
+ * $thread = $tm->spawnPHPFile('echo json_encode(["key" => "value"]);');
  * $result = $tm->await($thread->getId());
  * ```
  */
@@ -124,6 +125,16 @@ class ThreadManager
      * This method avoids Windows shell escaping issues by encoding the PHP code
      * as base64, which eliminates problems with nested quotes and special characters.
      *
+     * @deprecated since v1.0.3-beta. The child runs `eval(base64_decode(...))` —
+     *             a standing eval sink (RZ-011) whose only edge over the safe
+     *             alternatives is fewer shell-escaping headaches. Migrate to:
+     *             one-shot tasks → {@see self::spawnPHPFile()} (0600 temp file,
+     *             atomic, no eval); repeated/boot-heavy tasks →
+     *             {@see WorkerPool::submitCode()} (file-based jobs, same
+     *             string ergonomics, persistent workers). This method stays
+     *             functional during the deprecation window; never feed it
+     *             input-derived code.
+     *
      * @param string $phpCode The PHP code to execute (without <?php tag)
      * @param string|null $phpPath Path to PHP executable (auto-detected if null)
      * @param array $options Additional options: cwd, env
@@ -132,8 +143,8 @@ class ThreadManager
      *
      * @example
      * ```php
-     * // Complex code with quotes - works on Windows and Unix
-     * $thread = $tm->spawnPHPCode('echo json_encode(["key" => "value"]);');
+     * // DEPRECATED path — prefer spawnPHPFile / WorkerPool::submitCode:
+     * $thread = $tm->spawnPHPFile('echo json_encode(["key" => "value"]);');
      * $result = $tm->await($thread->getId());
      * echo $result['stdout']; // {"key":"value"}
      * ```
@@ -613,8 +624,8 @@ class ThreadManager
      *
      * @note **Windows Limitation**: On Windows, `escapeshellarg()` uses double quotes,
      *       which can cause issues with arguments containing nested quotes (e.g., PHP `-r`
-     *       code with string literals). For complex PHP code, use `spawnPHPCode()` instead
-     *       which uses base64 encoding to avoid escaping issues.
+     *       code with string literals). For complex PHP code, use `spawnPHPFile()` —
+     *       it sidesteps shell escaping entirely via a 0600 temp file.
      *
      * @param string $command The command to execute
      * @param array $args Arguments to pass to the command
@@ -628,7 +639,7 @@ class ThreadManager
      * buildCommand('php', ['-r', 'echo getmypid();']);     // OK
      * buildCommand('php', ['-v']);                         // OK
      * ```
-     * @example Problematic arguments (use spawnPHPCode instead):
+     * @example Problematic arguments (use spawnPHPFile instead):
      * ```php
      * // Nested quotes fail on Windows
      * buildCommand('php', ['-r', 'echo "hello";']);        // May fail on Windows
