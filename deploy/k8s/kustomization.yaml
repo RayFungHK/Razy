@@ -1,0 +1,90 @@
+# =============================================================================
+# deploy/k8s/kustomization.yaml — one command for the whole 15k-TPS worker stack
+# =============================================================================
+# PURPOSE
+#   Wires the namespace-scoped manifest set together and stamps the common
+#   labels, so `kubectl apply -k deploy/k8s` is the whole deployment (after the
+#   Secret placeholders in secret.yaml are replaced with real values).
+#
+# 15000-TPS RELEVANCE
+#   Keeps the capacity-relevant objects — Deployment (replicas/requests/limits),
+#   HPA (min/max + per-pod RPS target), PDB (disruption floor) — applied as one
+#   atomic set. Split applies are how fleets end up with an HPA pointing at an
+#   old Deployment or a PDB whose selector no longer matches the pods, which is
+#   exactly when you discover it during a 15k-TPS surge.
+#
+# APPLY / VERIFY
+#   kubectl kustomize deploy/k8s                 # render only, no cluster needed
+#   kubectl apply -k deploy/k8s
+#   kubectl -n razy-prod rollout status deployment/razy-worker
+#   kubectl -n razy-prod get hpa,pdb,ingress,pods -o wide
+#
+# VERSION REQUIREMENT
+#   The `labels:` block below needs kustomize >= v4.4 (bundled since
+#   kubectl v1.23; kubectl v1.29+ / kustomize v5.x recommended). On older
+#   toolchains replace it with `commonLabels:` — but note commonLabels also
+#   rewrites *selectors*, which are immutable on an existing Deployment.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Everything except the Namespace object itself gets this namespace stamped on.
+namespace: razy-prod
+
+labels:
+  - includeSelectors: false      # do NOT touch Deployment/Service selectors
+    pairs:
+      app.kubernetes.io/name: razy
+      app.kubernetes.io/component: worker
+      app.kubernetes.io/part-of: razy-platform
+      app.kubernetes.io/managed-by: kustomize
+      # Add your own tenancy/envelope labels here (cost allocation, policy):
+      # team: platform
+      # env: prod
+
+resources:
+  # Order is irrelevant to kustomize (it applies in dependency-safe order),
+  # but this reading order mirrors the bring-up sequence in deploy/k8s/README.md.
+  - namespace.yaml       # razy-prod boundary + Pod Security Admission labels
+  - secret.yaml          # PLACEHOLDERS ONLY — replace before applying
+  - configmap.yaml       # Caddyfile + php-opcache.ini mounted into every pod
+  - deployment.yaml      # worker pods: probes, securityContext, topology spread
+  - service.yaml         # ClusterIP :80 -> pod :8080
+  - hpa.yaml             # CPU + request-rate autoscaling, 4..20 pods
+  - pdb.yaml             # 70% availability floor during maintenance
+  - ingress.yaml         # public TLS entry point
+
+images:
+  # Single place to pin what the fleet runs. Prefer a digest over a tag for
+  # production: `kubectl -n razy-prod set image deployment/razy-worker
+  # worker=<registry>/razy/worker@sha256:<digest>`, or set `digest:` here.
+  - name: registry.example.com/razy/worker
+    newTag: "1.0.3-beta"
+    # digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+# ---- Examples you will probably need -----------------------------------------
+#
+# 1) Override replica count without editing deployment.yaml (remember the HPA
+#    owns this field once reconciled):
+#
+# replicas:
+#   - name: razy-worker
+#     count: 8
+#
+# 2) Point at a per-environment registry / tag at deploy time:
+#
+# images:
+#   - name: registry.example.com/razy/worker
+#     newName: registry.internal/razy/worker
+#     newTag: "1.0.3-beta-a1b2c3d"
+#
+# 3) A cluster-specific patch (example: raise num_threads alongside CPU):
+#
+# patches:
+#   - target:
+#       kind: Deployment
+#       name: razy-worker
+#     patch: |-
+#       - op: replace
+#         path: /spec/template/spec/containers/0/env/0/value
+#         value: "4"

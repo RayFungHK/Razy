@@ -1,0 +1,481 @@
+# =============================================================================
+# deploy/k8s/configmap.yaml — Caddyfile + OPcache ini mounted into every pod
+# =============================================================================
+# PURPOSE
+#   Ships the two runtime-config files that decide worker behaviour *without*
+#   rebuilding the image:
+#     * Caddyfile         → mounted at /etc/caddy/Caddyfile (overrides the copy
+#                           baked into deploy/Dockerfile.worker)
+#     * php-opcache.ini   → mounted at /usr/local/etc/php/conf.d/99-razy-opcache.ini
+#   The deployment mounts each key as a single file via subPath
+#   (deploy/k8s/deployment.yaml), so the container stays read-only-rootfs.
+#
+# 15000-TPS RELEVANCE
+#   `num_threads` (Caddyfile) and `opcache.jit*`/`opcache.memory_consumption`
+#   (ini) are the two per-pod capacity knobs. Per-pod RPS is roughly
+#   `num_threads × core throughput`, and the measured 3,763-6,331 RPS anchors
+#   were taken with num_threads≈2 on 2 vCPU — so changing the CPU request without
+#   changing num_threads silently breaks the sizing math in deploy/k8s/README.md.
+#
+# SINGLE SOURCE OF TRUTH
+#   deploy/Caddyfile and deploy/php-opcache.ini are authoritative; the copies
+#   below are byte-identical so `kubectl apply` and `docker build` cannot drift.
+#   Regenerate after editing either source file:
+#     kubectl -n razy-prod create configmap razy-worker-config \
+#       --from-file=Caddyfile=deploy/Caddyfile \
+#       --from-file=php-opcache.ini=deploy/php-opcache.ini \
+#       --dry-run=client -o yaml > deploy/k8s/configmap.generated.yaml
+#
+# ROLLOUT WARNING
+#   The deployment uses subPath mounts, so ConfigMap edits are NOT hot-reloaded.
+#   After changing this ConfigMap you must restart the pods:
+#     kubectl -n razy-prod rollout restart deployment/razy-worker
+#   (env placeholders like {$FRANKENPHP_NUM_THREADS:2} are expanded by Caddy at
+#   parse time, so the FRANKENPHP_* env vars in deployment.yaml are the knobs you
+#   can change *without* editing this file.)
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: razy-worker-config
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+data:
+  Caddyfile: |-
+    # =============================================================================
+    # deploy/Caddyfile — FrankenPHP *worker mode* config for Razy (production)
+    # =============================================================================
+    # PURPOSE
+    #   Production Caddyfile for the worker image (deploy/Dockerfile.worker). It is
+    #   the benchmark config (benchmark/docker/Caddyfile.razy) hardened for real
+    #   traffic: same worker launch, plus JSON access logs, gzip/zstd, request
+    #   timeouts, trusted-proxy handling, and an explicit `/_razy/health` route so
+    #   Kubernetes probes never depend on the application router.
+    #
+    # 15000-TPS RELEVANCE
+    #   `frankenphp { worker ... }` is the single reason Razy reaches 4.5k-6.3k RPS
+    #   per 2 vCPU pod in benchmark/results — the PHP process survives across
+    #   requests (src/main.php:116-248 boots the Application once, then loops on
+    #   frankenphp_handle_request). Everything that is NOT the worker (file_server,
+    #   compression, logging) must stay cheap, which is why:
+    #     * num_threads is explicit (capacity per pod = num_threads × pods; the HPA
+    #       cannot help a pod whose queue is saturated — see deploy/k8s/README.md),
+    #     * max_queue_size is finite so overload becomes a fast 503 instead of an
+    #       unbounded latency spiral that trips probes and restarts pods,
+    #     * /_razy/health is answered by the framework before routing
+    #       (src/library/Razy/Health.php:33-54) and is NOT compressed here, so probe
+    #       cost stays negligible even at thousands of probes/minute.
+    #
+    # WORKER ENTRY CONTRACT
+    #   The worker script boots Razy exactly like the benchmark image
+    #   (benchmark/docker/Dockerfile.razy:47): chdir to SYSTEM_ROOT, require
+    #   config.inc.php, Phar::loadPhar, include phar://Razy.phar/main.php.
+    #
+    # INDENTATION
+    #   Spaces, not tabs — so this exact text can be embedded byte-for-byte in
+    #   deploy/k8s/configmap.yaml (YAML block scalars dislike tab indentation).
+    #
+    # ENV PLACEHOLDERS (expanded by Caddy when it parses this file, so the same text
+    # works in the image and in the ConfigMap — deploy/k8s/configmap.yaml):
+    #   FRANKENPHP_NUM_THREADS      default 2   (the measured 2 vCPU anchor)
+    #   FRANKENPHP_MAX_QUEUE_SIZE   default 1024
+    #   FRANKENPHP_MAX_WAIT_TIME    default 30s
+    # =============================================================================
+
+    {
+        # ---- Worker mode: the one block that matters -----------------------------
+        # Persistent PHP worker; every request is dispatched into the bootstrapped
+        # Razy process instead of re-executing PHP.
+        frankenphp {
+            worker /app/site/index.php {
+                # PHP worker threads per container. The measured anchors were taken
+                # on a 2 vCPU container, so 2 is the proven default: more threads
+                # than cores only moves queueing into the CPU scheduler.
+                num_threads {$FRANKENPHP_NUM_THREADS:2}
+
+                # Bounded admission control. Requests beyond num_threads queue; once
+                # the queue is full Caddy rejects immediately. Under a 15k-TPS ramp
+                # this is what keeps p99 honest and stops readinessProbe from failing
+                # because of queue latency alone.
+                max_queue_size {$FRANKENPHP_MAX_QUEUE_SIZE:1024}
+
+                # Time a queued request may wait for a free worker before 503.
+                max_wait_time  {$FRANKENPHP_MAX_WAIT_TIME:30s}
+
+                # Newer FrankenPHP builds can also cap worker RSS
+                # (`max_constant_memory 1024M`). Left commented: enable only after
+                # confirming your FrankenPHP version supports it, and keep it below
+                # the container memory limit minus the OPcache shm pool
+                # (deploy/php-opcache.ini).
+                # max_constant_memory 1024M
+            }
+        }
+
+        # Worker mode answers everything through PHP; keep php_server ahead of
+        # file_server so no request ever waits on a stat() walk first.
+        # (Same ordering as benchmark/docker/Caddyfile.razy:10.)
+        order php_server before file_server
+
+        # ---- Cluster reality: TLS is terminated at the Ingress --------------------
+        # Caddy must not try ACME or force redirects on a plain-HTTP pod listener;
+        # the public TLS policy lives in deploy/k8s/ingress.yaml.
+        auto_https disable_redirects
+
+        # Admin API off = no extra listener to defend and no accidental /metrics
+        # port. To feed the HPA custom metric (deploy/k8s/hpa.yaml), switch to
+        # `admin localhost:2019` and scrape /metrics from the pod instead.
+        admin off
+
+        # ---- Global (process/startup) log: structured, stderr, container-native ---
+        log {
+            output stderr
+            format  json
+            level   INFO
+        }
+
+        # ---- Listener behaviour --------------------------------------------------
+        servers {
+            # h1 for the Ingress, h2c for in-cluster callers that speak gRPC.
+            protocols h1 h2c
+
+            # X-Forwarded-For / X-Forwarded-Proto are trusted only from pod/network
+            # ranges, so client IPs and Host-based routing cannot be spoofed from
+            # outside the Ingress.
+            trusted_proxies static private_ranges
+
+            # Explicit timeouts: no slowloris-style worker pinning. A worker thread
+            # blocked by a slow client is a thread stolen from the 15k-TPS budget.
+            timeouts {
+                read_body   15s
+                read_header 10s
+                write       60s
+                idle        75s
+            }
+        }
+    }
+
+    # =============================================================================
+    # Pod listener (plain HTTP; deploy/k8s/service.yaml targets this port)
+    # =============================================================================
+    :8080 {
+        root * /app/site
+
+        # --- Framework liveness probe -------------------------------------------
+        # Passthrough, kept first and explicit.
+        #
+        # Why a dedicated block:
+        #   * /_razy/health is answered inside the worker before routing
+        #     (src/library/Razy/Health.php:24,170) — the block keeps that path out of
+        #     the catch-all handler so probe traffic cannot be affected by site
+        #     rewrites or compression settings;
+        #   * probes must never be served from a cache layer, hence no-store
+        #     (Health.php:48 already sends it; Caddy asserts it at the edge too —
+        #     note the app's own header() wins if they ever diverge);
+        #   * because `encode` lives in the other handle block below, probe JSON is
+        #     never compressed.
+        handle /_razy/health {
+            header * {
+                Cache-Control "no-store, max-age=0"
+            }
+            php_server
+        }
+
+        # --- Everything else: the Razy worker -----------------------------------
+        handle {
+            header * {
+                X-Content-Type-Options "nosniff"
+                X-Frame-Options        "SAMEORIGIN"
+                Referrer-Policy        "strict-origin-when-cross-origin"
+            }
+
+            # Response compression for real traffic: zstd first (content negotiation),
+            # gzip for compatibility. Caddy's default min_length (1024 B) stays in
+            # force, so tiny JSON responses do not burn compression CPU at 15k RPS.
+            # Site responses only — see the probe block note above.
+            encode zstd gzip
+
+            # Baseline response hardening. Razy strips X-Powered-By itself
+            # (src/system/bootstrap.inc.php:27) and expose_php=0
+            # (deploy/php-opcache.ini); the block above covers the rest.
+            php_server
+        }
+
+        # --- Access log: structured JSON on stderr ------------------------------
+        # Collected by the container runtime. `level INFO` keeps one line per
+        # response; at 15k RPS that is 15k lines/s, so raise to WARN if your log
+        # pipeline (not Caddy) becomes the bottleneck.
+        log {
+            output stderr
+            format  json
+            level   INFO
+        }
+    }
+
+    # =============================================================================
+    # OPTIONAL: TLS-terminating edge (only if this pod must serve 80/443 itself)
+    # =============================================================================
+    # Ports 80/443 need privilege the non-root image (USER 10001 in
+    # deploy/Dockerfile.worker) does not have. Either add NET_BIND_SERVICE to the pod
+    # or — preferably — leave TLS to the Ingress. If you do terminate TLS here:
+    #
+    # raz.example.com {
+    #     php_server
+    #     log {
+    #         output stderr
+    #         format  json
+    #         level   INFO
+    #     }
+    # }
+  php-opcache.ini: |-
+    ; =============================================================================
+    ; deploy/php-opcache.ini — Production OPcache / JIT drop-in for Razy worker mode
+    ; =============================================================================
+    ; PURPOSE
+    ;   Single committed PHP configuration drop-in for the FrankenPHP *worker* image
+    ;   (deploy/Dockerfile.worker). It is installed as
+    ;       /usr/local/etc/php/conf.d/99-razy-opcache.ini
+    ;   (same mechanism the benchmark image used — benchmark/docker/Dockerfile.razy:15-25 —
+    ;   but committed as a file instead of appended with `echo` at build time).
+    ;   The identical content is mounted from ConfigMap `razy-worker-config`
+    ;   (deploy/k8s/configmap.yaml), so image and cluster cannot drift.
+    ;
+    ; 15000-TPS RELEVANCE
+    ;   Every directive below was chosen for the measured worker-mode anchors in
+    ;   benchmark/results (2 vCPU / 4 GB container, PHP 8.3, FrankenPHP worker):
+    ;       static route   6,331 RPS   (results/COMPARISON-REPORT.md:59)
+    ;       template       6,264 RPS   (results/COMPARISON-REPORT.md:72)
+    ;       db-read        3,763 RPS   (results/03_razy_v2.txt:994)
+    ;       composite      4,528 RPS   (results/05_razy_v2.txt:1246)
+    ;   In worker mode PHP compiles ONCE per process and then serves 3.8k-6.3k RPS
+    ;   from that compiled state, so OPcache *capacity* and JIT *warm-up speed* are
+    ;   the two levers that decide how many pods the 15k-TPS target needs
+    ;   (sizing math: deploy/k8s/README.md).
+    ;
+    ; MEMORY BUDGET (read before raising the numbers — php.net opcache.configuration)
+    ;   Shared segment = opcache.memory_consumption (256M), and the interned-strings
+    ;   buffer is allocated INSIDE it, so the bytecode cache really gets
+    ;   256 - 32 = 224M. The JIT buffer (128M) is added ON TOP of that segment.
+    ;   Total per container: ~384M of shared memory, shared by all worker threads —
+    ;   it is NOT multiplied by FRANKENPHP_NUM_THREADS. Subtract it from the 4Gi pod
+    ;   limit in deploy/k8s/deployment.yaml when sizing PHP heap headroom
+    ;   (memory_limit is per request/worker thread).
+    ;
+    ; HARD RULE
+    ;   Timestamp validation MUST stay off in production: it costs a stat() per file
+    ;   per request. Turning it on for a "hot fix" buys nothing here — the image is
+    ;   immutable, so ship a new digest and roll (deploy/k8s/deployment.yaml).
+    ;
+    ; PHP VERSION NOTES
+    ;   * Pinned runtime is PHP 8.3 (deploy/Dockerfile.worker).
+    ;   * As of PHP 8.4 the DEFAULT of opcache.jit became "disable" (it was "tracing"
+    ;     before), and a JIT initialisation failure became a FATAL startup error.
+    ;     Setting opcache.jit + opcache.jit_buffer_size explicitly (as this file
+    ;     does) is what keeps throughput across a 8.3 → 8.4 base-image bump.
+    ;   * Directive names below were checked against the PHP 8.3 "OPcache runtime
+    ;     configuration" table. `opcache.validate_checksums` does not exist in PHP 8
+    ;     (only validate_timestamps / validate_permission / validate_root do), and
+    ;     `opcache.consistency_checks` was REMOVED in PHP 8.3.0 — both are therefore
+    ;     kept as comments, not as live lines, so nothing here is a silent no-op.
+    ;
+    ; LOAD ORDER NOTE
+    ;   conf.d files are read lexically; the `99-` prefix puts this file after
+    ;   `docker-php-ext-opcache.ini` (which only loads the extension), so these
+    ;   values win.
+    ; =============================================================================
+
+
+    ; -----------------------------------------------------------------------------
+    ; 1. OPcache core
+    ; -----------------------------------------------------------------------------
+
+    ; Master switch. Without it the worker re-parses Razy.phar on every request and
+    ; throughput collapses by roughly an order of magnitude.
+    opcache.enable = 1
+
+    ; OPcache for the CLI SAPI. Kept OFF: `php Razy.phar <cmd>` and composer run as
+    ; one-shot processes, where a shared cache buys nothing and only adds shm churn.
+    ; (The benchmark image set this to 1 because it measured CLI paths.)
+    opcache.enable_cli = 0
+
+    ; Shared-memory pool for compiled bytecode, in MB. Razy ships as one phar whose
+    ; compiled opcodes plus the vendor autoloader fit comfortably; 256M is the value
+    ; the benchmark measured with (benchmark/docker/Dockerfile.razy:17). Minimum
+    ; accepted value is 8.
+    opcache.memory_consumption = 256
+
+    ; Shared pool for interned strings (class/function names, literal keys), in MB.
+    ; Allocated INSIDE memory_consumption (so 224M of bytecode cache remains). At
+    ; ~5k RPS an undersized pool shows up as per-process duplication and RSS creep
+    ; between gc cycles. Benchmark value: 32 (Dockerfile.razy:18).
+    opcache.interned_strings_buffer = 32
+
+    ; Max number of keys (scripts) in the OPcache hash table. The value is clamped
+    ; UP to the first prime in {223,463,983,1979,3907,7963,16229,32531,...}, so this
+    ; 20000 actually becomes 32531. Headroom is cheap (hash-table size only) while
+    ; overflow means the oldest files stop being cached at all — which for a phar +
+    ; vendor + modules tree is exactly the cliff you do not want at peak load.
+    ; Benchmark used 10000 (Dockerfile.razy:19); 20000 leaves room for more modules.
+    opcache.max_accelerated_files = 20000
+
+    ; Wasted-memory percentage that triggers a scheduled restart. With
+    ; validate_timestamps off this almost never fires; it is insurance for an
+    ; `opcache_reset()` deploy hook, not a tuning knob. Max accepted value: 50.
+    opcache.max_wasted_percentage = 10
+
+    ; Key compiled files by their full path (default). Keep ON: Razy autoloads from
+    ; several roots (phar://, site/library, distributor folders —
+    ; src/system/bootstrap.inc.php:60-70), so identical basenames in different
+    ; directories are normal and must not collide.
+    opcache.use_cwd = 1
+
+    ; Keep PHPDoc comments in the cached opcodes (default). Razy and any composer
+    ; package that reads annotations/reflection docblocks depends on this; turning it
+    ; off saves a little shm and breaks that tooling.
+    opcache.save_comments = 1
+
+    ; -----------------------------------------------------------------------------
+    ; 2. Invalidation policy (immutable image ⇒ no file-change watching at all)
+    ; -----------------------------------------------------------------------------
+
+    ; THE production-critical switch. Images are immutable, so never stat the phar.
+    ; Deploy = new digest + rolling restart (deploy/k8s/deployment.yaml).
+    opcache.validate_timestamps = 0
+
+    ; Ignored while validate_timestamps=0; pinned to 0 anyway so that if an operator
+    ; flips timestamps on for an emergency, "check every request" is not also implied.
+    opcache.revalidate_freq = 0
+
+    ; Even with validate_timestamps=0, OPcache can still timestamp-check files
+    ; younger than this many seconds. 0 = never. Correct for immutable images, and it
+    ; is the last remaining per-file stat() in the hot path.
+    opcache.file_update_protection = 0
+
+    ; NOT set on purpose — documented so nobody re-adds it:
+    ;   opcache.validate_checksums → does not exist in PHP 8.x (the PHP 8.3 ini
+    ;   table has validate_timestamps / validate_permission / validate_root only).
+    ;   Writing it would be a silent no-op; validate_timestamps=0 is the real switch.
+    ;   opcache.consistency_checks → REMOVED as of PHP 8.3.0 (deprecated 8.1.18/8.2.5).
+    ;   opcache.fast_shutdown      → REMOVED as of PHP 7.2.0.
+
+    ; Keep the residual stat() helpers off (defaults, stated explicitly):
+    opcache.validate_permission = 0   ; no per-user permission re-validation
+    opcache.validate_root = 0         ; not a chroot deployment
+    opcache.revalidate_path = 0       ; do not re-walk include_path per file
+
+    ; Deliberately OFF (it is a real throughput knob, and a real trap):
+    ;   opcache.enable_file_override=1 makes file_exists()/is_file()/is_readable()
+    ;   answer from the opcode cache. That is tempting for a phar-based framework,
+    ;   but Razy modules write data files at runtime (getDataPath() roots, RZ-006),
+    ;   and a stale "does not exist" answer is a correctness bug, not a speedup.
+    opcache.enable_file_override = 0
+
+    ; -----------------------------------------------------------------------------
+    ; 3. JIT (tracing, enabled) — the hot-loop lever
+    ; -----------------------------------------------------------------------------
+
+    ; CRTO bitmask 1255 = C:1 (AVX when available) + R:2 (global register allocation)
+    ; + T:5 (tracing JIT, profile on the fly) + O:5 (whole-script optimisation).
+    ; This is the exact value the benchmark measured with
+    ; (benchmark/docker/Dockerfile.razy:22), i.e. the documented `tracing` mode
+    ; (= 1254) plus whole-script optimisation. The string aliases `tracing`/`on`
+    ; are valid too — keep the numeric form so the value is comparable with the
+    ; measured 3.8k-6.3k RPS anchors instead of silently differing by one digit.
+    opcache.jit = 1255
+
+    ; JIT code buffer. 128M = benchmark value (Dockerfile.razy:21). Added ON TOP of
+    ; opcache.memory_consumption in the same shared segment. 0 would DISABLE the JIT
+    ; silently, and on PHP >= 8.4 a failing JIT init is fatal — so never ship 0.
+    opcache.jit_buffer_size = 128M
+
+    ; Trace-capacity knobs (all INI_SYSTEM, defaults from the PHP 8.3 ini table).
+    ; A long-lived worker pod under a stable 15k-TPS mix accumulates more traces than
+    ; the defaults allow, after which new code simply stops being JIT-compiled and
+    ; tail latency quietly degrades while CPU looks fine.
+    opcache.jit_max_root_traces = 2048      ; default 1024 — more hot paths traced
+    opcache.jit_max_side_traces = 256       ; default 128  — branchy dispatch paths
+    opcache.jit_max_exit_counters = 16384   ; default 8192 — fewer aborted traces
+
+    ; Hotness thresholds: [0,255] range; out-of-range values fall back to defaults.
+    ; Left at the documented defaults on purpose: lowering them widens what gets
+    ; traced, which trades warm-up speed against trace-buffer pressure. A prime for
+    ; hot_loop is recommended by the docs.
+    opcache.jit_hot_loop = 61             ; default 64 before PHP 8.5 (prime)
+    opcache.jit_hot_func = 127            ; default 127
+    opcache.jit_hot_return = 8            ; default 8
+    opcache.jit_hot_side_exit = 8         ; default 8
+
+    ; Inlining depth for the CPU-heavy path (benchmark scenario 6, /benchmark/heavy,
+    ; p50 ~495ms measured): recursion/polymorphism in template + ORM loops gives up
+    ; inlining early at defaults.
+    opcache.jit_max_loop_unrolls = 16       ; default 8
+    opcache.jit_max_recursive_calls = 4     ; default 2
+    opcache.jit_max_recursive_returns = 4   ; default 2
+    opcache.jit_max_polymorphic_calls = 8   ; default 2 — more inlined method calls
+
+    ; Profiling trigger threshold — only used with trigger mode 2; 1255 uses T=5.
+    ; Kept at default, shown for completeness.
+    ;opcache.jit_prof_threshold = 0.005
+
+    ; Debug-only JIT tools — never in production (jit_debug slows compilation,
+    ; jit_bisect_limit STOPS JITing after N functions; both are miscompilation
+    ; bisecting tools).
+    ;opcache.jit_debug = 0
+    ;opcache.jit_bisect_limit = 0
+
+    ; -----------------------------------------------------------------------------
+    ; 4. Optional levers, left off with reasons
+    ; -----------------------------------------------------------------------------
+
+    ; Second-level disk cache. OFF: the worker holds bytecode in shm for the whole
+    ; process lifetime, so a file cache only pays off with very frequent pod
+    ; restarts or tight shm. If enabled, /tmp must be writable (it is: emptyDir in
+    ; deploy/k8s/deployment.yaml) and the directory is per-pod, never shared.
+    ;opcache.file_cache = /tmp/opcache
+    ;opcache.file_cache_only = 0
+    ;opcache.file_cache_consistency_checks = 0
+
+    ; Preloading. OFF: preload.php at the repo root resolves __DIR__/src/... paths,
+    ; so it only works where `src/` ships next to it, and a missing preload file is a
+    ; hard startup failure. If you enable it, note that preloading as root is refused
+    ; unless opcache.preload_user is set — this container runs as uid 10001.
+    ;opcache.preload = /app/preload.php
+    ;opcache.preload_user = 10001
+
+    ; Copy the PHP text segment into huge pages: needs OS-level huge-page setup and
+    ; emits an E_WARNING when that is missing, which is noise in a log pipeline that
+    ; is already carrying 15k lines/s. Enable only on nodes you provisioned for it.
+    ;opcache.huge_code_pages = 1
+
+    ; OPcache's own log: empty = stderr (what the container runtime collects).
+    ; Raise log_verbosity_level to 3 briefly when debugging JIT/OPcache behaviour
+    ; ("JIT buffer is full", "Interned string buffer overflow").
+    ;opcache.error_log = ""
+    ;opcache.log_verbosity_level = 1
+
+    ; Record compile-time warnings and replay them on cache hits. OFF: replaying
+    ; warnings per request costs work on the cached path.
+    opcache.record_warnings = 0
+
+    ; -----------------------------------------------------------------------------
+    ; 5. Non-OPcache directives that belong to the same performance envelope
+    ; -----------------------------------------------------------------------------
+
+    ; Phar + module paths are resolved constantly; a bigger realpath cache is a pure
+    ; win when the filesystem is an overlayfs inside a container. Both values match
+    ; the benchmark image (benchmark/docker/Dockerfile.razy:23-24).
+    realpath_cache_size = 4096K
+    realpath_cache_ttl = 600
+
+    ; Per-request memory ceiling. Well above the measured worker footprint; 512M
+    ; makes an OOM visible as a PHP fatal instead of a silent exit 137, and it is per
+    ; worker thread — with 2 threads + 384M shm it still fits inside the 4Gi limit
+    ; (see MEMORY BUDGET above and deploy/k8s/README.md caveats).
+    memory_limit = 512M
+
+    ; Not OPcache, but this is the production PHP drop-in, so it belongs here: drop
+    ; the `X-Powered-By` header. (Razy separately strips `X-Powered-By` in
+    ; src/system/bootstrap.inc.php:27.)
+    expose_php = 0

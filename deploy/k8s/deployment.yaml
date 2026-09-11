@@ -1,0 +1,310 @@
+# =============================================================================
+# deploy/k8s/deployment.yaml — Razy worker pods (FrankenPHP worker mode)
+# =============================================================================
+# PURPOSE
+#   The stateless compute layer for the 15k-TPS target: one pod = one FrankenPHP
+#   process with FRANKENPHP_NUM_THREADS PHP workers, serving from an immutable,
+#   non-root, read-only-rootfs image built by deploy/Dockerfile.worker.
+#
+# 15000-TPS RELEVANCE (full math in deploy/k8s/README.md)
+#   Measured, per 2 vCPU / 4 GB worker container (benchmark/results):
+#       static 6,331 RPS · template 6,264 · composite 4,528 · db-read 3,763
+#   Applying a x0.6 production discount (real traffic, mixed routes, sidecars,
+#   log pipeline, noisy neighbours):
+#       composite ≈ 2,717 RPS/pod → 15,000 / 2,717 ≈ 5.5 → 6 pods
+#       db-read   ≈ 2,258 RPS/pod → 15,000 / 2,258 ≈ 6.6 → 7 pods
+#   Hence replicas: 6 as the *read-dominant* floor; HPA (deploy/k8s/hpa.yaml)
+#   owns the range. Do not "optimise" by raising CPU without raising
+#   FRANKENPHP_NUM_THREADS: capacity is threads × pods, and the anchors above
+#   were both measured at 2 vCPU / 2 threads.
+#
+# WHY THESE PROBES
+#   All three probes hit GET /_razy/health — the framework's own liveness path,
+#   answered inside the worker loop before routing (src/library/Razy/Health.php:24
+#   and src/main.php:170), so it is cheap, has no DB/session side effects, and
+#   proves the exact thing a probe should: "this worker still serves HTTP".
+#   IMPORTANT: /_razy/health is liveness, not dependency readiness — it always
+#   returns HTTP 200 with {"status":"ok"} (Health.php:11-19). Readiness here only
+#   gates "worker is up"; DB/Redis readiness must be gated by your own endpoint or
+#   an initContainer (deploy/k8s/README.md "Mandatory prerequisites").
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: razy-worker
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  # Baseline floor for read-dominant 15k TPS (see header + README sizing table).
+  # The HPA takes ownership of this field the moment it is reconciled; keeping a
+  # non-zero value here only matters for the first minutes after `kubectl apply`
+  # and for rollback scenarios where the HPA is removed.
+  replicas: 6
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  # New pods must pass readiness (not just start) before the rollout advances —
+  # important because JIT/OPcache warm-up is where latency is worst.
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: razy
+      app.kubernetes.io/component: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Zero-unavailable + surge: at 15k RPS, taking a pod down without a
+      # replacement means an immediate ~1.5-2.5k RPS hole and a p99 spike.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: razy
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/part-of: razy-platform
+      annotations:
+        # The Caddyfile + OPcache ini come from ConfigMap razy-worker-config via
+        # subPath mounts, which are NOT hot-reloaded. After changing
+        # deploy/k8s/configmap.yaml, update this string (or just run
+        # `kubectl rollout restart`) so the change actually reaches the pods.
+        # With kustomize's configMapGenerator this hash is computed for you.
+        razy.example.com/config-version: "manual-restart-after-configmap-edit"
+        # Framework-native Prometheus endpoint (src/library/Razy/Metrics.php),
+        # served pre-routing on the worker HTTP port — no Caddy admin needed.
+        # Exposes razy_http_requests_total (drives the HPA) + process gauges.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/_razy/metrics"
+    spec:
+      # The worker needs no API access; do not mount a token into a pod that is
+      # exposed to public traffic.
+      automountServiceAccountToken: false
+      # Grace window = preStop sleep + in-flight drain + Caddy shutdown. Keep
+      # >= preStop (8s) + max request timeout (write 60s is the ceiling in
+      # deploy/Caddyfile; 45s is the compromise for fast deploys).
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001          # matches USER in deploy/Dockerfile.worker
+        runAsGroup: 10001
+        fsGroup: 10001            # makes the emptyDir mounts group-writable
+        fsGroupChangePolicy: OnRootMissing
+        seccompProfile:
+          type: RuntimeDefault
+      # ---- Multi-node / multi-zone spread -----------------------------------
+      # 20 pods on one node turns a single node failure into a total outage and
+      # also breaks the CPU assumption behind the sizing math.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          # ScheduleAnyway (not DoNotSchedule): during an emergency scale-out to
+          # 20 pods, being lopsided beats being unschedulable.
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: razy
+              app.kubernetes.io/component: worker
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: razy
+              app.kubernetes.io/component: worker
+      # Optional: pin away from burst/burstable instances — CPU credits make the
+      # 3.8-6.3k RPS anchors meaningless. Adjust the label to your provider.
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #             - key: node.kubernetes.io/instance-type
+      #               operator: NotIn
+      #               values: ["t3.small", "t3.medium"]
+      containers:
+        - name: worker
+          # Pin a DIGEST in production (registry.example.com/razy/worker@sha256:…).
+          # `images:` in kustomization.yaml rewrites this tag at build time.
+          image: registry.example.com/razy/worker:1.0.3-beta
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            # Only appears if you enable the Caddy admin endpoint in the
+            # ConfigMap (needed for Caddy's own /metrics):
+            # - name: admin
+            #   containerPort: 2019
+            #   protocol: TCP
+          # Secrets (RAZY_BRIDGE_SECRET, RAZY_ALLOW_INSECURE_TRANSPORT, DB/Redis)
+          # come from deploy/k8s/secret.yaml. New keys need no manifest change.
+          envFrom:
+            - secretRef:
+                name: razy-runtime-secrets
+          env:
+            # ---- Capacity knobs consumed by deploy/Caddyfile placeholders -----
+            # num_threads is THE per-pod throughput knob. Keep equal to the CPU
+            # request (measured anchor: 2 vCPU with 2 threads).
+            - name: FRANKENPHP_NUM_THREADS
+              value: "2"
+            - name: FRANKENPHP_MAX_QUEUE_SIZE
+              value: "1024"
+            - name: FRANKENPHP_MAX_WAIT_TIME
+              value: "30s"
+            # ---- Framework / worker-loop knobs -------------------------------
+            - name: RAZY_DEBUG
+              value: "false"
+            - name: RAZY_TIMEZONE
+              value: "UTC"
+            - name: RAZY_PHAR_LOCATION
+              value: "/app"
+            # Adds version/php/mode to /_razy/health (src/library/Razy/Health.php:73-77).
+            # Set "0" if publishing the framework version at the edge is not OK.
+            - name: RAZY_HEALTH_VERBOSE
+              value: "1"
+            # src/main.php:236 — 0 = never self-recycle (rolling updates recycle).
+            # Positive value = recycle after N requests (leak insurance).
+            - name: WORKER_MAX_REQUESTS
+              value: "0"
+            # src/main.php:238,244 — gc_collect_cycles() + template cache clear
+            # every N requests (500 is the framework default and the benchmark value).
+            - name: WORKER_GC_INTERVAL
+              value: "500"
+            # Caddy state dirs — all point at the writable emptyDir below.
+            - name: XDG_DATA_HOME
+              value: /var/lib/caddy
+            - name: XDG_CONFIG_HOME
+              value: /var/lib/caddy/config
+            - name: XDG_CACHE_HOME
+              value: /var/lib/caddy/cache
+            # Useful for log correlation across 20 pods.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          # ---- Sizing: Guaranteed QoS (requests == limits) --------------------
+          # The measured anchors came from a container hard-capped at 2 vCPU / 4G,
+          # so any other shape invalidates the sizing table. Guaranteed QoS also
+          # stops a noisy neighbour from stealing CPU and turning your p95 into
+          # someone else's p99.
+          # Capacity check: maxReplicas 20 × 2 CPU = 40 vCPU + 80 GiB of schedulable
+          # headroom must exist (or the HPA silently stalls — check `kubectl hpa`).
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          # ---- Probes (all on /_razy/health) ---------------------------------
+          # Startup: generous. Worker boot = phar load + Application/module graph
+          # + JIT/OPcache warm-up; 3s × 60 = 180s budget before we declare failure.
+          startupProbe:
+            httpGet:
+              path: /_razy/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          # Readiness: removes the pod from Service endpoints when the worker stops
+          # answering. successThreshold 2 avoids flapping under a single slow GC.
+          readinessProbe:
+            httpGet:
+              path: /_razy/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 2
+            failureThreshold: 3
+          # Liveness: restarts a wedged worker. NOTE — /_razy/health cannot report
+          # "degraded" for DB/Redis (Health.php:11-19); liveness here means "the
+          # PHP worker thread pool is responsive", not "the site is healthy".
+          livenessProbe:
+            httpGet:
+              path: /_razy/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Give the endpoint controller time to deregister this pod before
+                # SIGTERM, and give in-flight requests time to finish. Without
+                # this, rolling updates produce a burst of 502/503 at 15k RPS.
+                command: ["/bin/sh", "-c", "sleep 8"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Read-only root FS works because everything writable is a mount below.
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+              # Only if this pod must bind 80/443 itself (deploy/Caddyfile optional
+              # TLS block). In-cluster you do not need it — the listener is 8080.
+              # add: ["NET_BIND_SERVICE"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            # Overmount the Caddyfile/ini baked into the image with the ConfigMap,
+            # so config changes do not need an image rebuild.
+            - name: config
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+              readOnly: true
+            - name: config
+              mountPath: /usr/local/etc/php/conf.d/99-razy-opcache.ini
+              subPath: php-opcache.ini
+              readOnly: true
+            # /tmp: PHP upload_tmp_dir, session save_path, optional opcache file
+            # cache. Required by readOnlyRootFilesystem.
+            - name: tmp
+              mountPath: /tmp
+            # Caddy data/config/certificates (XDG_*_HOME above).
+            - name: caddy-state
+              mountPath: /var/lib/caddy
+            # Razy CACHE_FOLDER = SYSTEM_ROOT/data (bootstrap.inc.php:44-46):
+            # compiled templates + framework cache land here. Ephemeral on purpose
+            # (cold template compile after each deploy is acceptable); if you want
+            # it warm across restarts, use a per-node RWX PVC or move the cache to
+            # Redis — see deploy/k8s/README.md.
+            - name: site-data
+              mountPath: /app/site/data
+      volumes:
+        - name: config
+          configMap:
+            name: razy-worker-config
+            # 420 = 0644 (write in decimal: YAML 0xxx is octal, and kubectl's
+            # decoder is strict about it).
+            defaultMode: 420
+            items:
+              - key: Caddyfile
+                path: Caddyfile
+              - key: php-opcache.ini
+                path: php-opcache.ini
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: caddy-state
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: site-data
+          emptyDir:
+            sizeLimit: 512Mi

@@ -523,16 +523,43 @@ class Module implements ModuleInterface
      * Execute a bridge command for cross-distributor calls.
      * Unlike API commands, bridge commands are designed for external distributor access.
      *
+     * Signature enforcement (2026 audit §S3): when RAZY_BRIDGE_SECRET is set, the
+     * call MUST carry a matching HMAC envelope in $meta (['ts'=>int,'nonce'=>string,
+     * 'sig'=>string]) — see BridgeSignature::signedPayload() for the sender side.
+     * Unsigned/failed calls are denied (null), closing the self-declared-source hole.
+     *
      * @param string $sourceDistributor The identifier of the calling distributor
      * @param string $command The bridge command
      * @param array $args The arguments to pass
+     * @param array $meta Signature envelope: ts/nonce/sig (required when RAZY_BRIDGE_SECRET is set)
      *
      * @return mixed
      *
      * @throws Throwable
      */
-    public function executeBridgeCommand(string $sourceDistributor, string $command, array $args): mixed
+    public function executeBridgeCommand(string $sourceDistributor, string $command, array $args, array $meta = []): mixed
     {
+        $secret = BridgeSignature::secretFromEnv();
+
+        if ($secret !== '') {
+            $verified = isset($meta['ts'], $meta['nonce'], $meta['sig'])
+                && \is_int($meta['ts']) && \is_string($meta['nonce']) && \is_string($meta['sig'])
+                && BridgeSignature::verify(
+                    $secret,
+                    $sourceDistributor,
+                    $this->getModuleInfo()->getCode(),
+                    $command,
+                    $args,
+                    $meta['ts'],
+                    $meta['nonce'],
+                    $meta['sig'],
+                );
+
+            if (!$verified) {
+                return null;
+            }
+        }
+
         return $this->commands->executeBridgeCommand($sourceDistributor, $command, $args, $this->controller, $this->closureLoader);
     }
 

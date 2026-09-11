@@ -162,6 +162,24 @@ if (WEB_MODE) {
                     $urlQuery = '/';
                 }
 
+                // Framework liveness probe — answered pre-dispatch, zero module context.
+                // (strip subdirectory prefix but KEEP the query string for ?token=)
+                $probeQuery = $relativeRoot
+                    ? (string) \preg_replace('#^' . \preg_quote($relativeRoot, '#') . '#', '', (string) $rawUrlQuery)
+                    : (string) $rawUrlQuery;
+                if (Health::respondIfRequested($probeQuery)) {
+                    return;
+                }
+
+                // Prometheus scrape endpoint (HPA metric source) — same pre-dispatch tier.
+                if (Metrics::respondIfRequested($probeQuery)) {
+                    return;
+                }
+
+                // Business request accounting; probes/scrapes above return early and are
+                // deliberately NOT counted (scrape-driven autoscaling must not self-feed).
+                Metrics::recordRequest();
+
                 if (!$firstRequestHandled) {
                     // ── First request: full module lifecycle ──────────────
                     // Run the complete init chain (Module::initialize → __onInit
@@ -239,6 +257,19 @@ if (WEB_MODE) {
     } else {
         // --- Standard (non-worker) request handling ---
         try {
+            // Framework liveness probe — answered before any Application boot (§ checklist).
+            $probeRaw = (string) ($_SERVER['REQUEST_URI'] ?? '');
+            if (\defined('RELATIVE_ROOT') && RELATIVE_ROOT !== '') {
+                $probeRaw = (string) \preg_replace('#^' . \preg_quote(RELATIVE_ROOT, '#') . '#', '', $probeRaw);
+            }
+            if (Health::respondIfRequested($probeRaw)) {
+                return true;
+            }
+            if (Metrics::respondIfRequested($probeRaw)) {
+                return true;
+            }
+            Metrics::recordRequest();
+
             $app = new Application();
 
             if ($isStandaloneMode) {
@@ -346,6 +377,20 @@ if (WEB_MODE) {
             try {
                 // Each command script returns a Closure; include it and execute via Terminal
                 $closure = include $closureFilePath;
+
+                // Some terminal/*.inc.php files are shared helper libraries (e.g.,
+                // publish.inc.php, required at runtime by pkg.inc.php) and return
+                // nothing. Dispatching them would crash Terminal::run() with a
+                // TypeError — fail with an actionable message instead.
+                if (!$closure instanceof \Closure) {
+                    $hint = $command === 'publish'
+                        ? " The standalone 'publish' command was merged into 'pkg publish' — run: php Razy.phar pkg publish"
+                        : '';
+                    echo Terminal::COLOR_RED . "[Error] Command '" . $command . "' is not available." . $hint . Terminal::COLOR_DEFAULT . PHP_EOL;
+
+                    return true;
+                }
+
                 (new Terminal($command))->run($closure, $argv, $parameters);
             } catch (Throwable $e) {
                 // Print the error in red and exit gracefully

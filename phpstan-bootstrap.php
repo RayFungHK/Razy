@@ -22,3 +22,14 @@ define('SHARED_FOLDER', __DIR__ . '/shared');
 define('DATA_FOLDER', __DIR__ . '/data');
 define('HOSTNAME', 'localhost');
 define('SITE_URL_ROOT', '/');
+
+/**
+ * Stubs for global helper functions defined at runtime in bootstrap.inc.php,
+ * so PHPStan can resolve call sites in library classes (e.g. RepoInstaller).
+ */
+if (!function_exists('env')) {
+    function env(string $key, mixed $default = null): mixed
+    {
+        return $default;
+    }
+}

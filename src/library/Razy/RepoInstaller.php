@@ -620,6 +620,14 @@ class RepoInstaller
     {
         $this->notify(self::TYPE_DOWNLOAD_START, [$url]);
 
+        // Enforce HTTPS-only unless the operator opted into plain HTTP (§S2)
+        $allowInsecure = PackageManager::$allowInsecureTransport || (bool) \env('RAZY_ALLOW_INSECURE_TRANSPORT', false);
+        if (!ArchiveSafety::isSecureUrl($url, $allowInsecure)) {
+            $this->notify(self::TYPE_ERROR, ['Insecure distribution URL rejected (HTTPS required; set RAZY_ALLOW_INSECURE_TRANSPORT=1 to override)', $url]);
+
+            return false;
+        }
+
         // Write downloaded content to a temporary file
         $tempFile = \tempnam(\sys_get_temp_dir(), 'razy_repo_');
 
@@ -700,9 +708,20 @@ class RepoInstaller
 
         // Use a unique temporary directory for extraction
         $tempDir = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_extract_' . \bin2hex(\random_bytes(12));
-        if (!\mkdir($tempDir, 0o755, true)) {
+        if (!\mkdir($tempDir, 0o700, true)) {
             $this->notify(self::TYPE_ERROR, ['Cannot create temp directory', $tempDir]);
             $zip->close();
+
+            return false;
+        }
+
+        // Validate every entry name BEFORE extracting (zip-slip, audit §S2)
+        $badEntries = ArchiveSafety::validateArchive($zip);
+        if ($badEntries !== []) {
+            $this->notify(self::TYPE_ERROR, ['Archive contains ' . \count($badEntries) . ' unsafe entry name(s): ' . \implode(', ', \array_slice($badEntries, 0, 5))]);
+            $zip->close();
+            ArchiveSafety::purgeDirectory($tempDir);
+
             return false;
         }
 
@@ -711,10 +730,20 @@ class RepoInstaller
             $this->notify(self::TYPE_ERROR, ['Extraction failed', $tempDir]);
             $zip->close();
             $this->removeDirectory($tempDir);
+
             return false;
         }
 
         $zip->close();
+
+        // Post-extraction symlink containment (audit §S2)
+        $links = ArchiveSafety::findSymlinks($tempDir);
+        if ($links !== []) {
+            $this->notify(self::TYPE_ERROR, ['Archive contains symlinks — extraction rejected', \array_slice($links, 0, 5)]);
+            ArchiveSafety::purgeDirectory($tempDir);
+
+            return false;
+        }
 
         // GitHub/Git archives wrap content in a single root folder; detect and unwrap
         $files = \array_diff(\scandir($tempDir), ['.', '..']);

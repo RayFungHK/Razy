@@ -1,0 +1,116 @@
+# =============================================================================
+# deploy/k8s/ingress.yaml — public TLS entry point for the worker fleet
+# =============================================================================
+# PURPOSE
+#   Terminates TLS at the edge and forwards plaintext HTTP to Service
+#   razy-worker:80. The pods themselves serve plain HTTP on 8080 as a non-root
+#   process (deploy/Dockerfile.worker, deploy/Caddyfile `auto_https disable_redirects`),
+#   so this is the only place certificates, redirects, and HTTP/2 live.
+#
+# 15000-TPS RELEVANCE
+#   At 15k RPS the Ingress layer is a real hop, not a formality:
+#     * Upstream keep-alive (annotation `proxy-http-version: "1.1"` plus the
+#       controller ConfigMap keys `upstream-keepalive-connections/-requests/-timeout`)
+#       is what stops the controller from opening a new TCP connection per request
+#       in front of a framework that dispatches one in ~0.05 ms
+#       (benchmark/results/COMPARISON-REPORT.md:35). ConfigMap, not per-Ingress —
+#       see the annotations block below for the full list and the idle-timeout
+#       ordering rule against Caddy's `idle 75s`.
+#     * TLS protocol list (`ssl-protocols`) is a ConfigMap key too; only
+#       `ssl-prefer-server-ciphers` is per-Ingress.
+#     * Request-rate metrics from this object are the usual source for the HPA's
+#       http_requests_per_second metric (deploy/k8s/hpa.yaml).
+#   The Ingress is also the first place a 15k-TPS synthetic test (see
+#   deploy/benchmark-distributed/) can fail while the pods are fine — if your
+#   load test caps out well below 15k with idle pods, look here and at the
+#   Service dataplane before blaming Razy.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: razy-worker
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+  annotations:
+    # ---- Valid per-Ingress annotations (ingress-nginx) ------------------------
+    # Pod listener is plaintext HTTP/1.1 (deploy/Caddyfile `:8080`).
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # HTTP/1.1 upstream is what makes keep-alive to the pods possible at all
+    # (it is also the controller default; stated so a config drift is visible).
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    # ---- Timeouts aligned with deploy/Caddyfile (write 60s / read_body 15s) --
+    # Unitless seconds.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-body-size: "4m"
+    # ---- Failover during rollouts, without masking app errors ----------------
+    # Retry the next upstream only on transport failure/502, max 2 tries: covers
+    # a pod that is draining, but does not paper over real 5xx from Razy.
+    nginx.ingress.kubernetes.io/proxy-next-upstream: "error timeout http_502"
+    nginx.ingress.kubernetes.io/proxy-next-upstream-tries: "2"
+    # TLS cipher preference is per-Ingress; the protocol *list* is not (see below).
+    nginx.ingress.kubernetes.io/ssl-prefer-server-ciphers: "true"
+    # ---- 15k-TPS-critical, but NOT per-Ingress knobs --------------------------
+    # These are ingress-nginx **ConfigMap** keys (controller-wide). Putting them
+    # here would be silently ignored, so they are documented instead — set them on
+    # the controller's ConfigMap before claiming a 15k number through the edge:
+    #   upstream-keepalive-connections: 128     # idle keepalive pool per worker
+    #   upstream-keepalive-requests:    1000    # requests per kept-alive conn
+    #   upstream-keepalive-timeout:     60      # must be > pod idle timeout? see note
+    #   ssl-protocols: "TLSv1.2 TLSv1.3"
+    #   enable-hsts: "true" / hsts-max-age: "31536000" / hsts-include-subdomains
+    #   worker-connections: 4096                # edge conn capacity for the load test
+    # NOTE on idle ordering: the controller's `upstream-keepalive-timeout` must be
+    # SHORTER than Caddy's `idle 75s` (deploy/Caddyfile). If nginx holds an idle
+    # connection longer than the pod does, it sends a request onto a socket Caddy
+    # already closed and you pay a 502 (or a retry) per race — a classic
+    # "why does the load test show 0.4% errors" mystery.
+    # ---- Zero-downtime option worth testing at 15k ---------------------------
+    # nginx.ingress.kubernetes.io/service-upstream: "true"
+    #   (upstream = the Service ClusterIP instead of the pod IP list: no 502 storm
+    #    when 20 pod IPs churn during a rollout; costs kube-proxy in the hot path.)
+spec:
+  ingressClassName: nginx
+  tls:
+    # Certificate for the public host. Create/rotate it out of band
+    # (cert-manager below, or your CA):
+    #   kubectl -n razy-prod create secret tls razy-public-tls \
+    #     --cert=fullchain.pem --key=privkey.pem
+    # A missing secret makes the controller serve the default cert — verify this
+    # path before the load test, not during it.
+    - hosts:
+        - raz.example.com
+      secretName: razy-public-tls
+    # cert-manager alternative (uncomment + adjust the ClusterIssuer name, and add
+    # the `acme.cert-manager.io/http01-edit-in-place: "true"` annotation if your
+    # issuer needs the HTTP01 solver on this same host):
+    # ---
+    # (this document intentionally keeps one resource per file; put the Certificate
+    #  in its own file if you use cert-manager)
+  rules:
+    - host: raz.example.com
+      http:
+        paths:
+          # Ingress-nginx matches the most specific path first, so the Exact
+          # health path below wins over `/` for probe/canary traffic while both
+          # still land on the same worker Service (no app-level routing is
+          # duplicated here — RZ-013: routes belong to addRoute/addLazyRoute).
+          - path: /_razy/health
+            pathType: Exact
+            backend:
+              service:
+                name: razy-worker
+                port:
+                  name: http
+          # Everything else: the Razy router.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: razy-worker
+                port:
+                  name: http

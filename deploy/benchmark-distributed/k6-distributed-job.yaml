@@ -1,0 +1,147 @@
+# =============================================================================
+# deploy/benchmark-distributed/k6-distributed-job.yaml — 6-shard 15k-TPS runner
+# =============================================================================
+# PURPOSE
+#   Kubernetes Indexed Job that runs the load generator in 6 shards of 2,500 RPS
+#   each, so the aggregate reaches the 15,000 RPS objective. One machine cannot
+#   generate 15k RPS of *checked* requests reliably: the default profile needs
+#   ~1,100 pre-allocated VUs (see the pre/max numbers printed by k6), which is
+#   ~11 cores of generator before the target is even involved. Six 2-vCPU shards
+#   spread the generator cost across nodes and keep the measured latency honest.
+#
+#   Shard maths: completions 6 × TOTAL_RPS 2500 = 15,000 RPS aggregate. Each shard
+#   independently asserts its own `http_reqs rate >= 95% of 2500`, so the run only
+#   goes green if every shard delivered its share.
+#
+# PREREQUISITE (one command, creates the ConfigMap this Job mounts)
+#   kubectl -n razy-prod create configmap razy-loadtest-script \
+#     --from-file=load-test.js=deploy/benchmark-distributed/load-test.js \
+#     --dry-run=client -o yaml | kubectl apply -f -
+#
+# RUN / READ RESULTS
+#   kubectl -n razy-prod delete job razy-load-15k --ignore-not-found
+#   kubectl -n razy-prod apply -f deploy/benchmark-distributed/k6-distributed-job.yaml
+#   kubectl -n razy-prod wait --for=condition=complete job/razy-load-15k --timeout=25m
+#   kubectl -n razy-prod describe job razy-load-15k        # or: logs -l job-name=…
+#   kubectl -n razy-prod logs -l job-name=razy-load-15k --prefix | tee run.log
+#   # each pod writes its summary JSON to an emptyDir; copy them out before the
+#   # pods disappear:
+#   for p in $(kubectl -n razy-prod get pods -l job-name=razy-load-15k -o name); do
+#     kubectl -n razy-prod cp "$p" k6 /results "./results/${p##*/}"
+#   done
+#
+# WHAT THIS IS NOT
+#   Not a k6-operator install (the operator adds `parallelism`/`scatter` and cloud
+#   aggregation). This is plain batch/v1 so it works on any cluster with no CRDs.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: razy-load-15k
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: load-generator
+    app.kubernetes.io/part-of: razy-platform
+spec:
+  # Indexed completion: pod N receives JOB_COMPLETION_INDEX = N, which the command
+  # below feeds to k6 as INSTANCE_INDEX (used as a metric tag for correlation).
+  completionMode: Indexed
+  completions: 6
+  parallelism: 6
+  # A failing shard means the 15k objective was NOT met — do not retry and call a
+  # green aggregate of 5 shards a pass.
+  backoffLimit: 0
+  activeDeadlineSeconds: 1500     # 4 min ramp + 5 min plateau + slack
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: razy
+        app.kubernetes.io/component: load-generator
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      # Generators must NOT share a node with the workers they are measuring —
+      # the CPU they steal comes straight out of the 3.8-6.3k RPS anchor.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: load-generator
+      securityContext:
+        runAsNonRoot: true
+        # uid/gid of the `k6` user inside grafana/k6:0.57.0 (alpine-based runtime
+        # stage: `adduser -D -u 12345 -g 12345 k6`), so the container keeps running
+        # as its own unprivileged user instead of a foreign uid.
+        runAsUser: 12345
+        runAsGroup: 12345
+        fsGroup: 12345
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: k6
+          # Pinned generator (see README.md for why the generator version is part
+          # of the result). Newer 0.57+/1.x images also work.
+          image: grafana/k6:0.57.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "shard=${JOB_COMPLETION_INDEX} target=${TOTAL_RPS} RPS profile=${PROFILE}"
+              # JOB_COMPLETION_INDEX is injected by the Job controller in Indexed
+              # mode; k6's -e is used (instead of an env: entry) because $(...)
+              # expansion in `env:` cannot reference controller-injected vars.
+              exec k6 run -e INSTANCE_INDEX="$JOB_COMPLETION_INDEX" /scripts/load-test.js
+          env:
+            # Cluster-internal Service (deploy/k8s/service.yaml): bypasses TLS and
+            # the Ingress so the 15k number measures the fleet, not the edge.
+            # Set to https://raz.example.com to measure the whole path instead.
+            - name: TARGET_BASE_URL
+              value: http://razy-worker.razy-prod.svc.cluster.local
+            # Aggregate objective 15,000 ÷ 6 shards.
+            - name: TOTAL_RPS
+              value: "2500"
+            - name: PROFILE
+              value: read-dominant
+            - name: SUSTAIN
+              value: 5m
+            - name: RESULTS_DIR
+              value: /results
+            # INSTANCE_INDEX is passed via `k6 run -e` in args (see above).
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            # k6 + summary output (RESULTS_DIR) on a writable volume, because the
+            # container runs with a read-only root filesystem.
+            - name: results
+              mountPath: /results
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: scripts
+          configMap:
+            name: razy-loadtest-script
+            defaultMode: 420      # 0644 in decimal
+        - name: results
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi

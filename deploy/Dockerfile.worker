@@ -1,0 +1,219 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# deploy/Dockerfile.worker — Razy production image, FrankenPHP WORKER mode
+# =============================================================================
+# PURPOSE
+#   Build-once / run-forever production image for Razy: multi-stage (composer +
+#   phar build in a throwaway stage), non-root container, OPcache+JIT from a
+#   committed ini, and FrankenPHP in worker mode driven by deploy/Caddyfile.
+#
+# 15000-TPS RELEVANCE
+#   The existing production image (.docker/Dockerfile:58) runs `php -S` — a
+#   single-process, single-threaded dev server that bootstraps Razy per request
+#   and cannot exceed a few hundred RPS per container, so 15k TPS would need
+#   ~50+ pods of pure waste. This image runs the measured worker path instead:
+#   one bootstrapped process per thread serving 3.8k-6.3k RPS per 2 vCPU
+#   (benchmark/results/COMPARISON-REPORT.md:140-147), which is what makes a
+#   4-8 pod, 15k-TPS deployment plausible (deploy/k8s/README.md).
+#   Non-root + immutable + read-only-friendly are prerequisites for the
+#   securityContext in deploy/k8s/deployment.yaml, not decoration.
+#
+# BUILD (context = repo root, like the benchmark image)
+#   docker build -f deploy/Dockerfile.worker \
+#     -t registry.example.com/razy/worker:1.0.3-beta .
+#   (BuildKit is on by default in Docker Engine >= 23; set DOCKER_BUILDKIT=1 otherwise.)
+#
+# RUN
+#   docker run --rm -p 8080:8080 registry.example.com/razy/worker:1.0.3-beta
+#   curl -s localhost:8080/_razy/health
+#
+# LAYOUT (identical to the proven benchmark image, benchmark/docker/Dockerfile.razy)
+#   /app/Razy.phar        the framework deliverable (built in stage 1)
+#   /app/vendor           composer autoloader the phar may still reference
+#   /app/site             SYSTEM_ROOT (chdir'd by the worker entry script)
+#   /app/site/index.php   worker entry: boot Razy once, then loop in main.php
+#   /app/site/config.inc.php
+#   /app/site/data/cache  CACHE_FOLDER (bootstrap.inc.php:44-46) — must be writable
+#   /app/demo_modules     reference modules shipped with the image
+#   /etc/caddy/Caddyfile  worker-mode Caddy config (overridable by ConfigMap)
+# =============================================================================
+
+# ---- Pinned toolchain (override with --build-arg for mirrors/digests) --------
+ARG BUILDER_IMAGE=php:8.3-cli-alpine
+ARG RUNTIME_IMAGE=dunglas/frankenphp:latest-php8.3-alpine
+ARG COMPOSER_IMAGE=composer:2
+
+# =============================================================================
+# Stage 1 — build the phar (mirrors .docker/Dockerfile:9-29)
+# =============================================================================
+FROM ${BUILDER_IMAGE} AS builder
+
+ARG COMPOSER_IMAGE
+
+RUN apk add --no-cache zip libzip-dev curl-dev icu-dev oniguruma-dev \
+    && docker-php-ext-install zip mbstring
+
+COPY --from=${COMPOSER_IMAGE} /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+# Dependency layer first, so source edits do not re-resolve composer.
+COPY composer.json composer.lock* ./
+RUN composer install --prefer-dist --no-dev --no-interaction --no-scripts --optimize-autoloader
+
+COPY . .
+
+# Build Razy.phar and fail the build loudly if it is missing (same guard as
+# .docker/Dockerfile:21-22).
+RUN php -d phar.readonly=0 build.php \
+    && test -f /app/Razy.phar \
+    && echo "Razy.phar built OK ($(wc -c < /app/Razy.phar) bytes)" \
+    || (echo "ERROR: Razy.phar not found after build" && exit 1)
+
+# ---- Generate the standalone SYSTEM_ROOT for worker mode ---------------------
+# data/cache = CACHE_FOLDER, plugins = PLUGIN_FOLDER (bootstrap.inc.php:41,44-46).
+# Razy writes compiled templates there, so both must exist and be writable.
+RUN mkdir -p /app/site/data/cache /app/site/plugins
+
+# config.inc.php — env-driven, same key set the benchmark/production images use
+# (debug / phar_location / timezone; benchmark/razy/config.inc.php,
+# .docker/Dockerfile:27). RAZY_PHAR_LOCATION lets a ConfigMap move the phar.
+RUN printf '%s\n' \
+    '<?php' \
+    'return [' \
+    '    "debug"         => filter_var(getenv("RAZY_DEBUG") ?: "false", FILTER_VALIDATE_BOOLEAN),' \
+    '    "phar_location" => getenv("RAZY_PHAR_LOCATION") ?: "/app",' \
+    '    "timezone"      => getenv("RAZY_TIMEZONE") ?: "UTC",' \
+    '];' \
+    > /app/site/config.inc.php
+
+# Worker entry script — copied in behaviour from benchmark/docker/Dockerfile.razy:47.
+# chdir() makes /app/site resolve as SYSTEM_ROOT (so standalone/ is detected);
+# main.php then enters the frankenphp_handle_request() loop (src/main.php:116-248)
+# and answers GET /_razy/health from inside that loop (src/main.php:170).
+RUN printf '%s\n' \
+    '<?php' \
+    'namespace Razy;' \
+    'use Phar;' \
+    '' \
+    'chdir(__DIR__);' \
+    '$razyConfig = require __DIR__ . "/config.inc.php";' \
+    '$pharPath   = ($razyConfig["phar_location"] ?? dirname(__DIR__)) . "/Razy.phar";' \
+    'Phar::loadPhar($pharPath, "Razy.phar");' \
+    'include "phar://Razy.phar/main.php";' \
+    > /app/site/index.php
+
+# =============================================================================
+# Stage 2 — runtime (FrankenPHP / Caddy worker)
+# =============================================================================
+FROM ${RUNTIME_IMAGE} AS runtime
+
+LABEL org.opencontainers.image.title="razy-worker" \
+      org.opencontainers.image.description="Razy PHP framework on FrankenPHP (worker mode), non-root" \
+      org.opencontainers.image.source="https://github.com/example/razy" \
+      org.opencontainers.image.licenses="MIT"
+
+# Extensions: zip/curl/json are hard requires (composer.json:16-18);
+# mbstring matches the existing production image (.docker/Dockerfile:34);
+# pdo_mysql is needed for the DB-backed benchmark/business routes;
+# opcache must be *loaded* for deploy/php-opcache.ini to mean anything;
+# pcntl is what the benchmark worker image installed (Dockerfile.razy:9-12).
+RUN install-php-extensions \
+        zip \
+        mbstring \
+        pdo_mysql \
+        opcache \
+        pcntl
+
+# Committed OPcache/JIT tuning (single source of truth; the same file is mounted
+# from ConfigMap razy-worker-config in deploy/k8s/configmap.yaml).
+COPY --chown=root:root deploy/php-opcache.ini /usr/local/etc/php/conf.d/99-razy-opcache.ini
+
+# ---- Non-root runtime user --------------------------------------------------
+# Numeric uid/gid 10001 so Kubernetes can assert runAsNonRoot without an
+# /etc/passwd entry (deploy/k8s/deployment.yaml securityContext).
+RUN addgroup -g 10001 -S razy \
+    && adduser -u 10001 -S -H -D -G razy -h /app -s /sbin/nologin razy \
+    && mkdir -p /app/site/data/cache /app/site/plugins /var/lib/caddy /tmp/opcache \
+    && chown -R 10001:10001 /app /var/lib/caddy /tmp/opcache
+
+WORKDIR /app
+
+# Application payload, owned by the runtime user (files stay 0644 / dirs 0755).
+COPY --from=builder --chown=10001:10001 /app/Razy.phar        /app/Razy.phar
+COPY --from=builder --chown=10001:10001 /app/vendor           /app/vendor
+COPY --from=builder --chown=10001:10001 /app/composer.json    /app/composer.json
+COPY --from=builder --chown=10001:10001 /app/site             /app/site
+COPY --from=builder --chown=10001:10001 /app/demo_modules     /app/demo_modules
+
+# Worker-mode Caddy config. In Kubernetes deploy/k8s/deployment.yaml mounts a
+# ConfigMap over this exact path, so image and cluster cannot drift silently.
+COPY --chown=10001:10001 deploy/Caddyfile /etc/caddy/Caddyfile
+
+# The phar must not be writable at runtime (read-only exec is fine); Razy loads
+# it via Phar::loadPhar(). Data dirs need to stay writable for CACHE_FOLDER.
+RUN chmod 0644 /app/Razy.phar /app/site/index.php /app/site/config.inc.php \
+    && chmod 0755 /app /app/site /app/site/data /app/site/data/cache /app/site/plugins
+
+# ---- Runtime environment ----------------------------------------------------
+# RAZY_DEBUG / RAZY_TIMEZONE / phar_location are read by the generated
+# /app/site/config.inc.php (see stage 1).
+#
+# Health payload tiers: src/library/Razy/Health.php:11-16,95-111. Verbose adds
+# version/php/mode — flip to "0" if publishing the framework version at the edge
+# is unacceptable. RAZY_HEALTH_TOKEN belongs in a Secret, never in an image ENV.
+#
+# Worker-loop knobs are read by src/main.php:236-248. WORKER_MAX_REQUESTS=0 means
+# never self-recycle (Kubernetes rolling updates recycle the pods); set a positive
+# number (e.g. 200000) if you prefer leak-proofing by request-count recycling.
+# WORKER_GC_INTERVAL=500 matches the framework default (gc + template-cache clear).
+#
+# FRANKENPHP_* are consumed by the deploy/Caddyfile placeholders.
+# XDG_* point Caddy's state at one writable path (emptyDir in Kubernetes).
+ENV RAZY_DEBUG=false \
+    RAZY_TIMEZONE=UTC \
+    RAZY_PHAR_LOCATION=/app \
+    RAZY_HEALTH_VERBOSE=1 \
+    WORKER_MAX_REQUESTS=0 \
+    WORKER_GC_INTERVAL=500 \
+    FRANKENPHP_NUM_THREADS=2 \
+    FRANKENPHP_MAX_QUEUE_SIZE=1024 \
+    FRANKENPHP_MAX_WAIT_TIME=30s \
+    XDG_DATA_HOME=/var/lib/caddy \
+    XDG_CONFIG_HOME=/var/lib/caddy/config \
+    XDG_CACHE_HOME=/var/lib/caddy/cache
+
+# 8080 is the real in-cluster listener (deploy/Caddyfile `:8080`).
+# 80/443 are declared for the optional TLS-terminating edge only — a non-root
+# process cannot bind them without NET_BIND_SERVICE, so in Kubernetes the
+# Ingress terminates TLS instead (deploy/k8s/ingress.yaml).
+EXPOSE 8080 80 443
+
+# ---- Container healthcheck --------------------------------------------------
+# Hits the framework probe: GET /_razy/health (Health.php:24), which always
+# answers 200 + JSON from inside the worker loop and never touches DB/session.
+# busybox `wget` ships with the Alpine base; if you swap the base image and it
+# disappears, use:  php -r 'exit(strpos(@file_get_contents("http://127.0.0.1:8080/_razy/health") ?: "", "\"status\"") === false ? 1 : 0);'
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
+    CMD wget -q -T 3 -O /dev/null "http://127.0.0.1:8080/_razy/health" || exit 1
+
+# Caddy drains on SIGTERM; give it the same grace period the pod uses.
+STOPSIGNAL SIGTERM
+
+# ---- Launch: worker mode ----------------------------------------------------
+# Same effective launch as the benchmark image, which relied on the base image's
+# default `frankenphp php-server` + /etc/caddy/Caddyfile
+# (benchmark/docker/Dockerfile.razy:50-52). Spelled out here so the launch cannot
+# change under us when the base image is bumped.
+#
+# Worker mode itself comes from the Caddyfile (`frankenphp { worker ... }`), NOT
+# from the adapter flag: `--adapter=frankenphp` merely selects the generic
+# (non-framework-specific) php-server template. If your pinned FrankenPHP build
+# predates the --adapter flag, delete that one token — nothing else changes.
+# If your base image replaces ENTRYPOINT with a wrapper script, keep
+# ENTRYPOINT ["frankenphp"] and move these tokens into CMD instead.
+ENTRYPOINT ["frankenphp", "php-server", \
+            "--adapter=frankenphp", \
+            "-c", "/etc/caddy/Caddyfile"]
+
+USER 10001:10001

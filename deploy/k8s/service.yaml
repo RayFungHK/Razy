@@ -1,0 +1,54 @@
+# =============================================================================
+# deploy/k8s/service.yaml — stable in-cluster endpoint in front of worker pods
+# =============================================================================
+# PURPOSE
+#   ClusterIP Service selecting the worker pods. The Ingress (deploy/k8s/ingress.yaml)
+#   terminates TLS and forwards here; cluster-internal callers use
+#   `http://razy-worker.razy-prod.svc.cluster.local/`.
+#
+# 15000-TPS RELEVANCE
+#   `port: 80 → targetPort: http (8080)` keeps the pod listener unprivileged
+#   (non-root image cannot bind 80; deploy/Dockerfile.worker). Two honest notes
+#   for 15k RPS:
+#     1. Session affinity is deliberately None — Razy workers share no state
+#        (once sessions/cache are externalised), and any affinity pins load to
+#        pods and defeats the HPA + topology spread.
+#     2. At 15k RPS you traverse kube-proxy (iptables/IPVS) or an eBPF dataplane.
+#        IPVS/eBPF handles this trivially; iptables mode adds per-connection cost
+#        and rule-sync latency during a 20-pod scale-out. If your cluster is in
+#        iptables mode and you see unexplained p99 jitter, check here first.
+#   This Service is also what the HPA's request-rate metric is usually derived
+#   from (ingress-nginx request metrics labelled by service/namespace).
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: razy-worker
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+  annotations:
+    # Only meaningful if you enable Caddy's admin endpoint (deploy/Caddyfile
+    # `admin localhost:2019`) and scrape it for the HPA custom metric.
+    # prometheus.io/scrape: "true"
+    # prometheus.io/port: "2019"
+    # prometheus.io/path: "/metrics"
+    {}
+spec:
+  type: ClusterIP
+  # No sticky sessions: worker pods are interchangeable by design.
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 80
+      # Named targetPort follows the container port name, so the pod can change
+      # its listen port without touching this Service.
+      targetPort: http
+      protocol: TCP
+      # Helps service meshes pick the right protocol:
+      # appProtocol: http
+  selector:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker

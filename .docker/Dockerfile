@@ -1,6 +1,10 @@
 # Razy Framework — Official Docker Image
 # Multi-stage build: install deps → build phar → slim runtime
 #
+# ⚠️ This image runs PHP's BUILT-IN server: dev / smoke / demo use only.
+#    Production = worker mode: deploy/Dockerfile.worker (FrankenPHP, prebuilt
+#    object graph, /_razy/health probes) with deploy/k8s/ for orchestration.
+#
 # Usage:
 #   docker build -t razy -f .docker/Dockerfile .
 #   docker run -p 8080:8080 razy
@@ -32,21 +36,28 @@ RUN mkdir -p /app/site && \
 FROM php:8.3-cli-alpine AS runtime
 
 RUN apk add --no-cache libzip-dev curl-dev icu-dev oniguruma-dev \
-    && docker-php-ext-install zip mbstring pcntl \
+    && docker-php-ext-install zip mbstring pcntl opcache \
     && apk del --no-cache libzip-dev curl-dev icu-dev oniguruma-dev \
     && apk add --no-cache libzip curl icu-libs oniguruma
 
+# Runtime hardening: non-root user (audit §checklist — no root containers).
+RUN addgroup -g 1000 razy && adduser -u 1000 -G razy -D razy
+
+# OPcache on, validation off (immutable phar); sane JIT defaults.
+RUN printf 'opcache.enable=1\nopcache.enable_cli=0\nopcache.validate_timestamps=0\nopcache.memory_consumption=192\nopcache.max_accelerated_files=20000\nopcache.interned_strings_buffer=16\nexpose_php=0\n' \
+    > /usr/local/etc/php/conf.d/razy-production.ini
+
 WORKDIR /app
 
-# Copy built phar + vendor + source
-COPY --from=builder /app/Razy.phar ./Razy.phar
-COPY --from=builder /app/vendor ./vendor
-COPY --from=builder /app/composer.json ./composer.json
-COPY --from=builder /app/src ./src
+# Copy built phar + vendor + source (owned by the runtime user)
+COPY --from=builder --chown=razy:razy /app/Razy.phar ./Razy.phar
+COPY --from=builder --chown=razy:razy /app/vendor ./vendor
+COPY --from=builder --chown=razy:razy /app/composer.json ./composer.json
+COPY --from=builder --chown=razy:razy /app/src ./src
 
 # Copy generated site and demo modules
-COPY --from=builder /app/site ./site
-COPY --from=builder /app/demo_modules ./demo_modules
+COPY --from=builder --chown=razy:razy /app/site ./site
+COPY --from=builder --chown=razy:razy /app/demo_modules ./demo_modules
 
 # Default: run the PHP built-in server with the generated site
 EXPOSE 8080
@@ -54,5 +65,11 @@ ENV RAZY_HOST=0.0.0.0
 ENV RAZY_PORT=8080
 ENV RAZY_DEBUG=false
 ENV RAZY_TIMEZONE=UTC
+
+USER razy
+
+# Liveness probe (framework endpoint exists since this build — see Razy\Health)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget -qO- "http://127.0.0.1:${RAZY_PORT}/_razy/health" | grep -q '"status":"ok"' || exit 1
 
 CMD ["sh", "-c", "php -S ${RAZY_HOST}:${RAZY_PORT} -t /app/site /app/site/router.php"]

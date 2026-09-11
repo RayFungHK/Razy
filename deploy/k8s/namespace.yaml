@@ -1,0 +1,42 @@
+# =============================================================================
+# deploy/k8s/namespace.yaml — isolation boundary for the 15k-TPS worker fleet
+# =============================================================================
+# PURPOSE
+#   Single namespace holding every object in this manifest set (Deployment,
+#   Service, HPA, PDB, Ingress, Secret, ConfigMap). Nothing in this directory
+#   is cluster-scoped except the Ingress class it references.
+#
+# 15000-TPS RELEVANCE
+#   The namespace is the quota/PDB/HPA blast radius. Keeping the worker fleet in
+#   one namespace lets you attach a ResourceQuota + LimitRange (not shipped here;
+#   see deploy/k8s/README.md "Optional hardening") so a runaway autoscaler cannot
+#   consume the whole cluster while chasing 15k RPS, and it scopes the
+#   topologySpreadConstraints to a known pod set.
+#
+# APPLY
+#   kubectl apply -k deploy/k8s            # (preferred; kustomization sets this ns)
+#   kubectl apply -f deploy/k8s/namespace.yaml
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: razy-prod
+  labels:
+    # Standard Kubernetes labels (consumed by kustomize labels in kustomization.yaml).
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+    app.kubernetes.io/managed-by: kustomize
+    # Pod-monitoring / service-mesh discovery hooks — adjust to your stack.
+    # istio-injection: enabled
+  annotations:
+    description: >-
+      Razy framework workers on FrankenPHP (worker mode). Sized for
+      ~15,000 read-dominant TPS; see deploy/k8s/README.md for the measured
+      per-pod anchors (3,763-6,331 RPS per 2 vCPU pod) behind the replica count.
+    # If your cluster enforces Pod Security Admission, the workload is
+    # `restricted`-compatible (non-root, read-only rootfs, dropped capabilities).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

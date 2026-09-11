@@ -1,0 +1,121 @@
+# =============================================================================
+# deploy/k8s/hpa.yaml — autoscaling the worker fleet toward 15,000 TPS
+# =============================================================================
+# PURPOSE
+#   HorizontalPodAutoscaler (autoscaling/v2) on the razy-worker Deployment,
+#   driven by two signals: CPU utilisation (cheap, always available) and request
+#   rate per pod (the signal that actually matches the 15k-TPS objective).
+#
+# 15000-TPS RELEVANCE — where minReplicas: 4 / maxReplicas: 20 comes from
+#   Measured per 2 vCPU / 4 GB container (benchmark/results, worker mode):
+#       static 6,331 · template 6,264 · composite 4,528 · db-read 3,763 RPS
+#   x0.6 production discount → composite ≈ 2,717 RPS/pod, db-read ≈ 2,258 RPS/pod.
+#       15,000 / 2,717 ≈ 5.5  → 6 pods for a composite (read+render) mix
+#       15,000 / 2,258 ≈ 6.6  → 7 pods for a db-read-dominant mix
+#       15,000 / 3,799 ≈ 4.0  → 4 pods only if traffic is static/template-dominant
+#   So: minReplicas 4 is the *lower bound of the measured envelope* and is only
+#   honest for cache-hit/static traffic; for read-dominant 15k, run minReplicas 6-7
+#   (deployment.yaml ships replicas: 6 as that floor). maxReplicas 20 gives ~54k
+#   RPS of discounted composite capacity — roughly 3.5x headroom for surges,
+#   GC/JIT cold starts after a scale-out, and node failures.
+#   Steady-state target per pod = 15,000 / 10 = 1,500 RPS ⇒ averageValue "1500"
+#   below: the HPA holds ~10 pods at the 15k objective, leaving room to climb.
+#   CPU 65% utilisation is the secondary brake (the anchors were CPU-saturated
+#   at 2 vCPU, so CPU tracks RPS closely in worker mode).
+#
+# PREREQUISITE for the custom metric
+#   `http_requests_per_second` as a `pods`-type metric requires metrics
+#   adaptation (prometheus-adapter / KNORR / GCP Adapter). Without it the HPA
+#   reports "failed to get pods metric" and only CPU acts — which still works,
+#   but slower (CPU lags RPS by the scrape interval).
+#
+#   Razy now exposes a FIRST-CLASS source: the framework-native counter
+#   razy_http_requests_total at GET /_razy/metrics (src/library/Razy/Metrics.php,
+#   answered pre-routing like the health probe). Point Prometheus at the pods,
+#   then the adapter rule that drives this HPA becomes:
+#     seriesQuery: razy_http_requests_total{namespace="razy-prod"}
+#     resources:   {overrides: {namespace: {resource: "namespace"}, pod: {resource: "pod"}}}
+#     name:        {matches: "^razy_http_requests_total$", as: "http_requests_per_second"}
+#     metricsQuery: sum(rate(<<.Series>>{<<.LabelMatchers>>}[1m])) by (<<.GroupBy>>)
+#   (Counter is APCu-shared across FPM workers and per-process otherwise; the
+#   `scope` label tells you which you are scraping — see Metrics class docblock.)
+#   Alternatively scrape Caddy's own http_requests_total via its admin endpoint;
+#   see the `admin` note in deploy/Caddyfile.
+#
+# WHAT AUTOSCALING CANNOT FIX
+#   If a pod's worker queue (max_queue_size in deploy/Caddyfile) is saturated, or
+#   MySQL/ProxySQL is the real ceiling, adding pods moves the bottleneck, it does
+#   not remove it. See deploy/k8s/README.md "Honest caveats".
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: razy-worker
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: razy-worker
+    # Omitting `replicas:` — do not set it, it would freeze the scale target.
+  minReplicas: 4
+  maxReplicas: 20
+  metrics:
+    # ---- Primary: per-pod request rate (needs metrics adaptation) ------------
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          # 1,500 RPS/pod ⇒ 10 pods at the 15k objective; ~55% of the discounted
+          # composite capacity (2,717), i.e. headroom for GC/JIT and node loss.
+          averageValue: "1500"
+    # ---- Secondary: CPU utilisation (always available) ----------------------
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Utilisation is relative to the *request* (2 CPU here), so 65% ≈ 1.3 cores.
+          # Worker-mode PHP is CPU-bound at target load; above ~75% p99 climbs
+          # faster than RPS does (queueing, not capacity).
+          averageUtilization: 65
+    # ---- Optional third brake: memory (worker RSS growth / leaks) -----------
+    # Enable only if you see RSS growth between WORKER_GC_INTERVAL cycles; memory
+    # scaling on PHP workers is usually a leak signal, not a load signal.
+    # - type: Resource
+    #   resource:
+    #     name: memory
+    #     target:
+    #       type: Utilization
+    #       averageUtilization: 80
+  behavior:
+    scaleUp:
+      # React fast: 15k-TPS surges arrive in seconds, and a new pod needs its
+      # startupProbe budget (JIT/OPcache warm-up) before it can take traffic.
+      stabilizationWindowSeconds: 15
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          percent: 100
+          periodSeconds: 60
+        - type: Pods
+          pods: 4
+          periodSeconds: 60
+    scaleDown:
+      # Scale down slowly — a JIT-cold pod is ~2x slower than a warm one, so
+      # thrashing shows up as tail latency, not as an error.
+      stabilizationWindowSeconds: 300
+      selectPolicy: Min
+      policies:
+        - type: Percent
+          percent: 10
+          periodSeconds: 60
+        - type: Pods
+          pods: 2
+          periodSeconds: 60

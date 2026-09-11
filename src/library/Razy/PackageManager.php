@@ -81,6 +81,14 @@ class PackageManager
     /** @var string Notification type: download is starting */
     public const TYPE_DOWNLOAD = 'start_download';
 
+    /**
+     * Operator opt-in (static flag, or env RAZY_ALLOW_INSECURE_TRANSPORT=1)
+     * permitting plain-HTTP distribution URLs on trusted LAN mirrors. Default
+     * false — public installs are HTTPS-only (2026 audit §S2). Never read from
+     * package metadata; only from trusted operator settings.
+     */
+    public static bool $allowInsecureTransport = false;
+
     /** @var array<string, array> In-memory cache of fetched package versions keyed by package name */
     private static array $cached = [];
 
@@ -242,6 +250,17 @@ class PackageManager
         // Resolve the distribution download URL/path before proceeding
         $distUrl = $this->package['dist']['url'];
 
+        // ── Source integrity guard (2026 audit §S2: hostile repo metadata) ──
+        // Package name and dist URL arrive from remote metadata and must never
+        // reach a filesystem path or an unencrypted transport unchecked.
+        $safeName = ArchiveSafety::sanitizePackageName($this->name);
+        $allowInsecure = self::$allowInsecureTransport || (bool) \env('RAZY_ALLOW_INSECURE_TRANSPORT', false);
+        if ($safeName === null || !\is_string($distUrl) || !ArchiveSafety::isSecureUrl($distUrl, $allowInsecure)) {
+            $this->notify(self::TYPE_ERROR, [$this->name, 'Rejected: hostile package name or insecure distribution URL']);
+
+            return false;
+        }
+
         // Compare current locked version against the resolved package version
         $currentVersion = self::$versionLock[$this->distributor->getCode()][$this->name]['version'] ?? '0.0.0.0';
         if (\version_compare($currentVersion, $this->package['version_normalized'], '>=')) {
@@ -275,14 +294,37 @@ class PackageManager
             // Open and extract the downloaded zip archive
             $zip = new ZipArchive();
             if (true === $zip->open($temporaryFilePath)) {
-                $temporaryExtractPath = PathUtil::append(\sys_get_temp_dir(), $this->name . '-' . $this->package['version']);
-                \mkdir($temporaryExtractPath);
+                // Validate every entry name BEFORE touching disk (zip-slip, audit §S2)
+                $badEntries = ArchiveSafety::validateArchive($zip);
+                if ($badEntries !== []) {
+                    $zip->close();
+                    @\unlink($temporaryFilePath);
+                    $this->notify(self::TYPE_ERROR, [$this->name, 'Archive contains ' . \count($badEntries) . ' unsafe entry name(s): ' . \implode(', ', \array_slice($badEntries, 0, 5))]);
+
+                    return false;
+                }
+
+                // Random temp dir; never derive the path from the package name
+                $temporaryExtractPath = PathUtil::append(\sys_get_temp_dir(), 'razy_extract_' . \bin2hex(\random_bytes(12)));
+                \mkdir($temporaryExtractPath, 0o700, true);
 
                 // Extract to a temporary directory before moving to the final location
                 $zip->extractTo($temporaryExtractPath);
+                $zip->close();
+
+                // Post-extraction symlink containment (audit §S2)
+                $links = ArchiveSafety::findSymlinks($temporaryExtractPath);
+                if ($links !== []) {
+                    ArchiveSafety::purgeDirectory($temporaryExtractPath);
+                    @\unlink($temporaryFilePath);
+                    $this->notify(self::TYPE_ERROR, [$this->name, 'Archive contains symlinks — extraction rejected']);
+
+                    return false;
+                }
+
                 $pathOfExtract = PathUtil::append(SYSTEM_ROOT, 'autoload', $this->distributor->getCode());
                 if (!\is_dir($pathOfExtract)) {
-                    \mkdir($pathOfExtract, 0o777, true);
+                    \mkdir($pathOfExtract, 0o700, true);
                 }
 
                 // GitHub/Packagist archives typically wrap contents in a single root folder
@@ -295,7 +337,6 @@ class PackageManager
                     $this->notify(self::TYPE_EXTRACT, [$this->name, $namespace, $extract ?: '/']);
                     \xcopy(PathUtil::append($temporaryExtractPath, $path, $extract), PathUtil::append($pathOfExtract, $namespace));
                 }
-                $zip->close();
 
                 $this->status = self::STATUS_UPDATED;
                 self::$versionLock[$this->distributor->getCode()][$this->name] = [

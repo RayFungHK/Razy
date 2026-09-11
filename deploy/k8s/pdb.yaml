@@ -1,0 +1,44 @@
+# =============================================================================
+# deploy/k8s/pdb.yaml — keep the 15k-TPS fleet available during node maintenance
+# =============================================================================
+# PURPOSE
+#   PodDisruptionBudget: voluntary disruptions (drain, node upgrade, cluster
+#   autoscaler scale-down) may not take the worker fleet below 70% of its current
+#   size.
+#
+# 15000-TPS RELEVANCE
+#   With ~10 pods at the 15k objective, each pod carries ~1.5k RPS. An
+#   unrestricted drain could take half the fleet at once, i.e. a self-inflicted
+#   capacity cliff exactly when the HPA is also reacting. 70% means:
+#       10 pods → at most 3 disrupted simultaneously
+#        6 pods → at most 2 disrupted
+#        4 pods (minReplicas) → at most 1 disrupted
+#   Combined with maxUnavailable: 0 in the Deployment, deploys stay loss-free and
+#   maintenance stops competing with autoscaling.
+#
+# WHY minAvailable (not maxUnavailable)
+#   With an HPA in the loop, `maxUnavailable: 1` reads as "1 pod is always
+#   disruptable", which invites the cluster autoscaler into a disruption loop.
+#   A percentage floor keeps the invariant tied to the actual fleet size.
+#
+# HONEST LIMIT
+#   A PDB only governs *voluntary* disruption. Node crashes, eviction due to
+#   memory pressure, and preemption are involuntary — the topology spread in
+#   deploy/k8s/deployment.yaml is what limits their blast radius.
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: razy-worker
+  namespace: razy-prod
+  labels:
+    app.kubernetes.io/name: razy
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: razy-platform
+spec:
+  # Percentage of the *current* replica count that must stay scheduled.
+  minAvailable: 70%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: razy
+      app.kubernetes.io/component: worker
