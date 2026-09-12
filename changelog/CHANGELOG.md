@@ -141,6 +141,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   Laravel-style fluent API that never existed (real `addColumn` grammar,
   verified against `tests/MigrationTest.php`); manual/04 drift warning updated.
 
+**Official registry grows** (2026-07)
+
+- **Added** first-party `modules/` resolution to the packager: `php Razy.phar
+  pack <code>` locates a module by the `module_code` DECLARED in each
+  `modules/*/module.php` when no `shared/module/<code>` (or distributor) path
+  exists — never by directory-name coincidence; existing layouts resolve
+  identically. Closes the Wave-1 gap where the first-party home wasn't
+  packable.
+- **Published** `razymod/queue-admin` 1.0.0 to the official registry
+  (tag `razymod-queue-admin-v1.0.0`, sha256 claimed): first real slash-scoped
+  module code end-to-end — packager-computed checksum cross-verified against
+  an independent `Get-FileHash`, live search resolves it, and the downloaded
+  asset re-hashes to the index claim.
+
 **Module ecosystem begins** (2026-07 Wave 1, `architecture/PORTING-VALUE.md`)
 
 - **Added** first-party module home `modules/` — new top-level convention (approved

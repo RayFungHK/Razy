@@ -116,11 +116,28 @@ return function (string $moduleCode = '', string $version = '', string $outputPa
         $modulePath = PathUtil::append($modulePath, 'sites', $distCode, $moduleCode);
     }
 
+    // First-party home fallback (Wave 1 `modules/`): located by the module_code
+    // DECLARED in each candidate's module.php — never by directory-name
+    // coincidence. Consulted only when the shared/distributor path is absent,
+    // so existing layouts resolve identically (BC by resolution order).
+    if (!\is_file(PathUtil::append($modulePath, 'module.php'))) {
+        $firstPartyRoot = PathUtil::append(SYSTEM_ROOT, 'modules');
+
+        foreach (\glob(PathUtil::append($firstPartyRoot, '*', 'module.php')) ?: [] as $candidateConfig) {
+            $candidate = require $candidateConfig;
+
+            if (($candidate['module_code'] ?? '') === $moduleCode) {
+                $modulePath = \dirname($candidateConfig);
+                break;
+            }
+        }
+    }
+
     // Verify module.php configuration file exists at the module path
     $moduleConfigPath = PathUtil::append($modulePath, 'module.php');
     if (!\is_file($moduleConfigPath)) {
         $this->writeLineLogging('{@c:red}[ERROR] Module not found: ' . $moduleCode . '{@reset}', true);
-        $this->writeLineLogging('        Expected at: ' . $modulePath, true);
+        $this->writeLineLogging('        Expected at: ' . $modulePath . ' (modules/ was also searched by declared module_code)', true);
         exit(1);
     }
 
