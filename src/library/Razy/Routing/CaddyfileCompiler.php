@@ -28,6 +28,11 @@ use Throwable;
  * - Per-distributor data mapping handlers
  * - Shared module path handler
  * - Declared sibling-path exclusions (host-level `exclude_paths`) gating php_server
+ * - Claim scoping (Phase 2): hosts whose distributors all mount on sub-paths
+ *   emit `@php_claimed { path <mount> <mount>/* [not path <excluded>…] }` so
+ *   the PHP claim matches Apache's per-mount discipline (option (a),
+ *   architecture/ROUTE-COEXISTENCE.md §4); the health probe gets its own
+ *   handle on such hosts (FM-5, Q5 answered: emit-by-need).
  * - FrankenPHP worker mode or standard php_server directive
  *
  * Coexistence decision (Q3, architecture/ROUTE-COEXISTENCE.md §5): excluded
@@ -148,7 +153,15 @@ class CaddyfileCompiler
                 'document_root' => \rtrim($documentRoot, '/'),
             ]);
 
+            /** @var list<string> Mount paths declared for this domain (Phase 2 claim scoping) */
+            $mountPaths = [];
+
             foreach ($paths as $urlPath => $distIdentifier) {
+                // Claim scoping tracks the PATH TABLE, not module-scan success:
+                // a distributor whose scan fails still owns its mount — de-claiming
+                // it silently would hand the prefix to nobody (FM-1 all over again).
+                $mountPaths[] = (string) $urlPath;
+
                 try {
                     [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
                     $distributor = new Distributor($code, $tag ?: '*');
@@ -173,8 +186,63 @@ class CaddyfileCompiler
                 'document_root' => \rtrim($documentRoot, '/'),
             ]);
 
-            // ── Declared sibling exclusions: php_server matcher gate (FM-1) ──
-            if ([] !== $excludedPrefixes) {
+            // ── PHP claim emission, three modes (Phase 1 doctrine + Phase 2 scoping) ──
+            // (1) sub-path-only mounts  → scoped @php_claimed matcher + health handle
+            //     (root mounts claim the host by definition, so scoping stops being
+            //     meaningful the moment one exists — documented trade-off);
+            // (2) any root mount + exclusions → Phase 1 @not_excluded gate;
+            // (3) any root mount, no exclusions → bare php_server, byte-identical
+            //     legacy output (golden-pinned).
+            $hasRootMount = \in_array('/', $mountPaths, true);
+            $subPrefixes = [];
+
+            foreach (\array_unique($mountPaths) as $mountPath) {
+                $prefix = \trim($mountPath, '/');
+
+                if ($prefix === '') {
+                    continue;
+                }
+
+                // Multi-segment mounts are legitimate (set.inc.php:60 explode limit 2 —
+                // `example.com/team/app` is a real operator config, Apache-side consumes
+                // it at RewriteRuleCompiler.php:202), so validation is PER SEGMENT:
+                // Caddy matcher args must not carry spaces/braces/quotes (file syntax)
+                // or dot-segments (meaningless-to-dangerous as path matchers).
+                foreach (\explode('/', $prefix) as $segment) {
+                    if ($segment === '' || $segment === '.' || $segment === '..' || \preg_match('/^[\w.-]+$/', $segment) !== 1) {
+                        throw new ConfigurationException(
+                            'Mount path "' . $mountPath . '" for domain ' . $domain . ' contains an unsafe segment "'
+                            . $segment . '" (each segment: letters, digits, underscore, dot, hyphen; no empty/dot segments);'
+                            . ' the Caddy claim matcher cannot be emitted safely.',
+                        );
+                    }
+                }
+
+                $subPrefixes[] = $prefix;
+            }
+
+            if ($subPrefixes !== [] && !$hasRootMount) {
+                $pathArgs = [];
+
+                foreach ($subPrefixes as $prefix) {
+                    $pathArgs[] = '/' . $prefix;
+                    $pathArgs[] = '/' . $prefix . '/*';
+                }
+
+                $matcherLines = ['@php_claimed {', "\tpath " . \implode(' ', $pathArgs)];
+
+                if ([] !== $excludedPrefixes) {
+                    $matcherLines[] = "\tnot path " . ExcludePaths::caddyPaths($excludedPrefixes);
+                }
+
+                $matcherLines[] = "\t}";
+
+                $siteBlock->newBlock('php_claim')->assign([
+                    'matcher_body' => \implode("\n", $matcherLines),
+                ]);
+                $siteBlock->newBlock('health')->assign([]);
+                $phpMatcher = ' @php_claimed';
+            } elseif ([] !== $excludedPrefixes) {
                 $siteBlock->newBlock('exclusion')->assign([
                     'path_patterns' => $pathPatterns,
                 ]);

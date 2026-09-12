@@ -43,6 +43,24 @@
 	# present or 404; proxying them belongs to the edge config (this file stays do-not-claim).
 	@not_excluded not path {$path_patterns}
 <!-- END BLOCK: exclusion -->
+<!-- START BLOCK: php_claim -->
+	# Claim scoping (coexistence Phase 2, Caddy side of Apache's per-mount
+	# route_path discipline): the PHP claim covers ONLY the mounted prefixes
+	# below; declared sibling exclusions stay outside it inside this matcher.
+	{$matcher_body}
+<!-- END BLOCK: php_claim -->
+<!-- START BLOCK: health -->
+	# Health probe (FM-5): on sub-path mounts the scoped claim would strand
+	# /_razy/health, so it gets its own handle FIRST (pattern follows
+	# deploy/Caddyfile — answer to Q5). Standard php_server on purpose: probes
+	# are answered pre-dispatch and never need the app worker.
+	handle /_razy/health {
+		header * {
+			Cache-Control "no-store, max-age=0"
+		}
+		php_server
+	}
+<!-- END BLOCK: health -->
 <!-- START BLOCK: worker -->
 	php_server{$php_matcher} {
 		worker {$document_root}/index.php

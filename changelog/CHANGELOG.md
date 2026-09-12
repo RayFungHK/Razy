@@ -101,6 +101,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - **Added** `manual/08-coexistence.md` + `deploy/coexistence/` worked samples
   (edge-proxy split incl. the PHP-side impossibility boundary). 29 tests.
 
+**Route coexistence — Phase 2** (2026-07, `architecture/ROUTE-COEXISTENCE.md` §4 item 3)
+
+- **Added** Caddy claim scoping: hosts whose distributors ALL mount on sub-paths
+  now gate `php_server` behind `@php_claimed { path <mount>… [not path
+  <excluded>…] }` — the option-(a) cure for the Caddy-side FM-1/FM-2 gap, where
+  one tail claim used to front-control the whole host regardless of mounts.
+  Apache already worked this way (`{route_path}` per block); the generator now
+  matches that discipline. Declared exclusions are ABSORBED into the matcher
+  (no double `@not_excluded` emission); mount paths are validated per segment
+  (`ConfigurationException` on spaces/braces/dot-segments) while legitimate
+  multi-segment mounts (`set.inc.php:60`, e.g. `/team/app`) scope with their
+  full prefix.
+- **Added** FM-5 health handle on scoped hosts (`handle /_razy/health`,
+  `Cache-Control: no-store`, deliberately non-worker — probes are answered
+  pre-dispatch), closing the dossier's Q5 for the Caddy half; the Apache
+  variant stays open. Three-mode doctrine pinned: scoped bundle only appears
+  where FM-5 bites; root-only hosts stay **byte-identical** to pre-Phase-2
+  output (Phase 1 goldens re-pinned from the Phase 2 side), root+exclusions
+  keeps the unchanged Phase 1 gate. 13 tests (`tests/CaddyClaimScopingTest`).
+
 **Declarative data contracts** (2026-07 Wave 2, `architecture/ORM-CONTRACT-PACKS.md` C1/C2)
 
 - **Added** Visibility Packs — the decision's second half ("pack 就是指定 name/id

@@ -66,6 +66,7 @@ decided at the web-server layer, which is exactly what the rest of this page doe
 | **Subdomain per app** (default recommendation) | `pyapp.example.com` → its own vhost/site; Razy keeps `example.com` | none — this is the model the code already lives by (per-domain bindings, dossier §3(e)) | always, unless a customer owns one path on a shared apex |
 | **Edge proxy, path-split** (recommended for one domain) | nginx/Caddy at the edge routes `/api-py/` → sibling upstream and the rest → Razy; Razy's generated file is used only behind the Razy location | none — edge config is operator-owned (`deploy/README.md:78-80` already deploys this way) | you control an edge proxy |
 | **Same web server, declared exclusions** | add `exclude_paths` to `sites.inc.php` (below) so the generated file itself refuses to claim sibling prefixes | Phase 1 support shipped — see §3 | Apache/FrankenPHP is the only lever (shared host, no edge) |
+| **Sub-path mount per app (same domain, no edge)** | `php Razy.phar set example.com/app mydist` — Apache already claims per-mount (`{route_path}`); under Caddy the PHP claim is now scoped by an `@php_claimed` matcher | Phase 2 support shipped — see §4 | sharing one domain on Apache or FrankenPHP without an edge proxy |
 | ~~Hand-edit the generated `.htaccess`/`Caddyfile`~~ | — | **never** | RZ-013 (`skills/RAZY-AI-RULES.md:332-339`); worse, the checksum watchdog (`Application::validation()` `:688`, regenerate on mismatch `:699-700`) silently erases manual edits at the end of the next request |
 
 Worked configs for the edge topologies (nginx + Caddy, with an ASCII topology diagram)
@@ -119,7 +120,7 @@ a Razy install under `/shop` declaring a sibling at `/shop/reports` writes
 `/shop/reports`). `[L]` on a `-` target stops this rewrite pass with **no** internal
 redirect ([flags doc](https://httpd.apache.org/docs/current/rewrite/flags.html#flag_l));
 the request then falls through to normal Apache processing (vhost `Alias`/`ProxyPass`
-still required — see §4).
+still required — see §5).
 
 Caddy/FrankenPHP — a `not path` named matcher (`@not_excluded`) that removes the
 prefixes from the `php_server` claim, worker and standard modes alike
@@ -180,10 +181,50 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
 - **The fallback denylist (`htaccess.tpl:46`) stays a pure loop-guard** (Q2): its
   accidental exemptions (`/asset-foo` surviving because of `^asset`) remain undefined
   behavior — do not build coexistence on them; declare prefixes.
-- Probes (`/_razy/health`, `/_razy/metrics`) only work where a distributor owns `/` or
-  the edge forwards them — see FM-5 in the dossier; still open (Q5).
+- Probes: under Caddy, scoped hosts get a dedicated `/_razy/health` handle (Phase 2 —
+  see §4), so the liveness probe survives sub-path mounts; Apache hosts and
+  `/_razy/metrics` still require a root mount or edge forwarding (FM-5 in the dossier).
 
-## 4. Apache-only coexistence, end to end
+## 4. Caddy claim scoping (Phase 2)
+
+Apache claims are per-mount by construction: every block carries the `{route_path}`
+prefix (`htaccess.tpl:29,33,41`). The Caddy generator used to trail behind — one
+`php_server` tail claimed the **whole host** even when every distributor mounted only
+`/app`. It now emits one of three modes per site (`CaddyfileCompiler::compileSiteBlocks()`):
+
+1. **Scoped** — every mount on the domain is a sub-path:
+
+   ```caddy
+   @php_claimed {
+       path /app /app/*                     # OR-list of the domain's mounts
+       not path /api-py /api-py/*           # declared exclusions, absorbed in-matcher
+   }
+   handle /_razy/health { ... }             # FM-5, below
+   php_server @php_claimed                  # worker mode: worker block inside
+   ```
+
+   Inside a named matcher, `path` arguments OR together and `not path` ANDs the
+   negation — exactly "on one of our mounts, and not excluded". Mount paths are
+   validated per segment (word chars/dot/hyphen; empty and dot segments rejected with
+   `ConfigurationException`); multi-segment mounts (`/team/app` — legitimate per
+   `set.inc.php:60`, consumed Apache-side at `RewriteRuleCompiler.php:202`) scope with
+   their full prefix.
+2. **Root + exclusions** — a `/` mount claims the whole host by definition, so the
+   Phase 1 `@not_excluded` gate stands unchanged.
+3. **Root-only, no exclusions** — the legacy bare `php_server`; output is
+   **byte-identical** to pre-Phase-2 (goldens re-pinned from the Phase 2 side in
+   `tests/CaddyClaimScopingTest`).
+
+Health (FM-5, the answer to dossier Q5): scoped hosts get `handle /_razy/health`
+emitted **before** the claim — pattern from `deploy/Caddyfile:132-137`, with
+`Cache-Control: no-store` — deliberately standard (non-worker) `php_server`, since
+`Razy\Health` answers pre-dispatch and never needs the app worker. Root mounts
+already reach the probe through the catch-all, so no block is emitted there.
+
+Regenerate after upgrade (`php Razy.phar rewrite --caddy`); the checksum watchdog
+would force it anyway (RZ-013).
+
+## 5. Apache-only coexistence, end to end
 
 For the shared-host operator who owns the vhost (or a host `Include`) but not an edge
 proxy — the one combination the generated file alone cannot finish (it can refuse to
@@ -205,7 +246,7 @@ prefix stops there instead of being rewritten to `index.php`. Full worked files:
 and
 [`deploy/coexistence/sites.exclude.php.example`](../deploy/coexistence/sites.exclude.php.example).
 
-## 5. Checklist
+## 6. Checklist
 
 ```
 [ ] Sibling has a real handler (edge proxy location, or vhost Alias/ProxyPass)
@@ -213,5 +254,7 @@ and
 [ ] php Razy.phar rewrite <dist>   (and --caddy under FrankenPHP) — no exceptions thrown
 [ ] Generated file contains the passthrough block BEFORE the domain gate / php_server claim
 [ ] Requests to /<prefix>/... reach the sibling; a Razy route still serves normally
+[ ] Caddy, sub-path-only mounts: Caddyfile shows the @php_claimed matcher and the
+    /_razy/health handle; /_razy/health answers even though no distributor owns /
 [ ] No hand-edit of .htaccess / Caddyfile anywhere (RZ-013 + watchdog)
 ```

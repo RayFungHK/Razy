@@ -474,6 +474,10 @@ legitimate catch-alls need an allow-comment, same convention as `lint-allow`
 
 ## 4. Recommendation (phased, smallest-first)
 
+> **Status (2026-07): Phases 0–2 shipped** (docs+samples; `exclude_paths` both
+> generators; Caddy claim scoping + health handle). Phase 3 open. Q5 answered for the
+> Caddy half below; Q1–Q3 answered in §5.
+
 1. **Phase 0 — documentation only (this week).** Publish the coexistence page (fills
    D6): "same host ⇒ proxy-split at the edge or separate subdomain" (options c+e), the
    FM-1/FM-2 mechanism, and the FM-5 probe caveat. Touches `manual/`/`docs/` and a
@@ -514,7 +518,7 @@ legitimate catch-alls need an allow-comment, same convention as `lint-allow`
 | Q2 | **ANSWERED (Phase 1 shipped): denylist stays a pure loop-guard**; the declared `exclude_paths` list is the coexistence contract (no reliance on accidental exemptions). | FM-4's accidental exemptions disappear either way; pick deliberately |
 | Q3 | **ANSWERED (Phase 1 shipped): NO `reverse_proxy` emission** — the generated file only de-claims excluded paths (php_server matcher); upstream wiring stays edge-operator-owned. | Ownership boundary of machine-generated config |
 | Q4 | Host-gate truth: align `.htaccess` `*`-expansion to `[^.]+` (RewriteRuleCompiler.php:51 → match Application.php:729) or widen PHP to `.+`? | FM-6; changing PHP affects `matchDomain` for everyone |
-| Q5 | Should generated configs emit a non-scoped `/_razy/health` rule (Apache `RewriteRule ^_razy/health %{ENV:BASE}index.php [L]`, Caddy `handle` like deploy/Caddyfile:132-137)? | FM-5; probes currently work only where a dist owns `/` |
+| Q5 | **ANSWERED — Caddy half (Phase 2 shipped)**: scoped hosts (all mounts sub-path) emit `handle /_razy/health { header no-store; php_server }` before the claim, pattern from deploy/Caddyfile:132-137; root mounts already reach the probe. **Apache variant stays open** — Phase 2 scope was the Caddy generator; sub-path mounts on Apache still strand the probe (FM-5). | FM-5 closed where it was the reported gap; Apache half needs its own decision |
 | Q6 | `reserve` — was a dist.php `reserve` key intended (docblock says so, Agent.php:433-435; nothing parses it)? Fix code or docblock (D3)? | Affects §3(a)/(f) design surface |
 | Q7 | Is `internal_bridge.path` (documentation/pages/sites-configuration.html:84-88) a planned feature or stale doc (D2)? If planned, it needs generator support like everything else | Prevents a second host-level claim appearing without exclusion support |
 | Q8 | Should `^\w+/shared/` (htaccess.tpl:8) and `@shared` (caddyfile.tpl:33) be domain-gated and/or narrowed to a fixed first segment? | FM-3 is unconditional theft today |
