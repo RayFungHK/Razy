@@ -26,7 +26,7 @@ Primitives Razy already ships (all code-verified this line of work):
 | Candidate (origin) | Razy form | Effort | Rationale |
 |---|---|---|---|
 | **Queue dashboard** (Laravel Horizon) | module exposing per-queue pending/reserved/buried views; `QueueStoreInterface::count()` already returns exactly this | S–M (~3–5 d) | Queue just landed; the dashboard is its missing face. Per-distributor queue views are a differentiator Laravel lacks. |
-| **Roles/permissions** (spatie/laravel-permission) | tables + `can()` service, **per-distributor scope is a free architectural win** | S–M (~4 d) | Killer fit for multi-distributor platforms. Prerequisite: auth hook-site survey (not yet verified). |
+| **Roles/permissions** (spatie/laravel-permission) | tables + `can()` service, **per-distributor scope is a free architectural win** | S–M (~4 d) | Killer fit for multi-distributor platforms. PREREQS LARGERLY MET (verified 2026-07, ORM dossier §4.3): `AuthManager` + `Gate::policy` keyed per model class exist and are tested (`Auth/`, `tests/AuthTest.php`); remaining survey is role→principal wiring only. |
 | **Notifications** (Laravel) | notifier + mail/SSE/db channels — all three channel primitives already exist | M (~5–7 d) | Fan-out across distributors is a natural story. |
 | **Feature flags** (Laravel Pennant) | module flag store + template modifier (`->whenFlag`) via the plugin system | S (~2 d) | Small; pairs with metrics/scheduler; template-plugin contract is pinned. |
 | **Settings store** (spatie/laravel-config) | per-distributor key/value with typed casts | S | Fits per-distributor config discipline (RZ-008 clean). |
@@ -35,7 +35,7 @@ Primitives Razy already ships (all code-verified this line of work):
 
 | Candidate | Gap | Effort |
 |---|---|---|
-| **API tokens** (Laravel Sanctum) | auth/session hook sites not yet surveyed | M (+1–2 d survey) |
+| **API tokens** (Laravel Sanctum) | auth stack exists (`AuthManager`/`Gate`, tested — ORM dossier §4.3); remaining survey is narrower than feared | M (−1 d: pre-answered) |
 | **Media library** (spatie/laravel-medialibrary) | GD/Imagick conversion config layer; RZ-006 file sovereignty is actually a plus (media per module data path) | M–L |
 | **OAuth social login** (Socialite) | HTTP client primitive **NOT VERIFIED** — probe `src/` for a cURL/HTTP wrapper first; absence makes this an implicit XL | M or XL (survey decides) |
 | **Job batches / retry UI** | pure Queue extension (batch columns on the store) | S–M; ship with dashboard |
@@ -63,9 +63,10 @@ If ever started, begin by specifying a forms/validation DSL — the pinned
 - **Wave 1 (~2–3 weeks)**: queue-dashboard + roles/permissions + settings store
   (all S–M, zero primitive gaps; permission starts with the auth hook survey).
 - **Wave 2**: notifications + media library.
-- **Pre-flight surveys (≤1 day each, do first)**:
-  1. auth hook-site surface (→ Sanctum real price);
-  2. HTTP client existence (→ Socialite go/no-go).
+- **Pre-flight surveys**:
+  1. auth hook-site surface — **DONE** (ORM dossier §4.3: AuthManager/Gate::policy per
+     model class, tested); role→principal wiring remains for the permission module design;
+  2. HTTP client existence (→ Socialite go/no-go) — still open.
 
 ## Standing caveats
 
