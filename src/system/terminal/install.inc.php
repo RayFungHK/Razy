@@ -216,6 +216,18 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             $repoManager = new RepositoryManager($repositories);
             $moduleInfo = $repoManager->getModuleInfo($moduleCode);
 
+            // Publisher trust banner (S5/G4): never silent about an unsigned or
+            // REFUSED (signature-invalid) registry, even when lookup "succeeded".
+            foreach ($repoManager->getTrustReport() as $trustUrl => $trustState) {
+                if ($trustState === RepositoryManager::TRUST_INVALID) {
+                    $this->writeLineLogging('{@c:red}[SIGNATURE INVALID]{@reset} ' . $trustUrl . ' — index.sig failed verification against the pinned publisher key; index REFUSED.', true);
+                } elseif ($trustState === RepositoryManager::TRUST_UNSIGNED) {
+                    $this->writeLineLogging('{@c:yellow}[UNVERIFIED]{@reset} ' . $trustUrl . ' — no index.sig (or no pinned key): integrity is checksum-only.', true);
+                } else {
+                    $this->writeLineLogging('{@c:green}[SIGNED]{@reset} ' . $trustUrl . ' — index verified against the pinned publisher key.', true);
+                }
+            }
+
             if (!$moduleInfo) {
                 $this->writeLineLogging('{@c:red}[ERROR] Module "' . $moduleCode . '" not found in configured repositories.{@reset}', true);
                 $this->writeLineLogging('', true);
@@ -939,6 +951,16 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                         $depInstaller->install();
                                     } else {
                                         $this->writeLineLogging('  {@c:red}[ERROR] Failed to validate repository{@reset}', true);
+                                    }
+                                }
+
+                                // Publisher trust banner (S5/G4) for the dependency pass —
+                                // AFTER fetches, so the trust report is populated.
+                                foreach ($repoManager->getTrustReport() as $trustUrl => $trustState) {
+                                    if ($trustState === RepositoryManager::TRUST_INVALID) {
+                                        $this->writeLineLogging('  {@c:red}[SIGNATURE INVALID]{@reset} ' . $trustUrl . ' — index REFUSED.', true);
+                                    } elseif ($trustState === RepositoryManager::TRUST_UNSIGNED) {
+                                        $this->writeLineLogging('  {@c:yellow}[UNVERIFIED]{@reset} ' . $trustUrl . ' — integrity is checksum-only.', true);
                                     }
                                 }
                             }

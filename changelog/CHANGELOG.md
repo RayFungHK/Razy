@@ -86,6 +86,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   PAT in `packages/publish.inc.php` (never committed — caught by the catch-all
   ignore rule) should still be rotated and moved to an env var.
 
+**Registry S5 — signed index (publisher authenticity)** (2026-07, `architecture/OFFICIAL-REPO-INSTALL.md` G4/S5)
+
+- **Added** `Razy\PackageSignature`: detached **Ed25519** (sodium) signatures over
+  the **exact index bytes** — verify happens in `RepositoryManager::fetchIndex`
+  BEFORE `json_decode`, so a forged index is never parsed. Pinned verification
+  key ships as a phar asset (`src/asset/keys/official-repo.pub`); override via
+  `RAZY_REGISTRY_PUBKEY` (hex or `.pub` path). Deliberate evolution of the
+  dossier's "canonical JSON" plan: exact bytes = no reconstruct step where
+  canonicalization bugs live. No openssl fallback — dual impls are dual attack
+  surfaces; missing sodium fails loud.
+- **Added** trust banners on `search`/`install`/`sync`/`pkg`: 🟢 `[SIGNED]` /
+  🟡 `[UNVERIFIED]` (no sig or no pinned key → checksum-only, loudly) /
+  🔴 `[SIGNATURE INVALID]` (index REFUSED, results excluded). Trust state is
+  per-repository (`getIndexTrustState`/`getTrustReport`) and never silent.
+- **Added** `php Razy.phar sign` maintainer CLI: `keygen` (refuses to overwrite),
+  `sign <file>`, `verify <file>` (defaults to the pinned key — the live smoke
+  test); relative paths anchor to the project root (Phar wrapper caveat);
+  `pkg publish --push` auto-signs when `RAZY_REGISTRY_SIGNKEY` is set and
+  prints `[UNVERIFIED]` when it isn't. Signing key lives OUTSIDE the repo by
+  design; the private key is never read by verification.
+- **Live**: official registry publishes `index.sig` + `keys/official-repo.pub`;
+  E2E proof = phar-pinned key verifies live index bytes (exit 0), one-byte
+  tamper is refused (exit 1), live `search` prints `[SIGNED]`. 14 tests
+  (`tests/PackageSignatureTest.php`), source-ordering pinned.
+- **Fixed** (found by the E2E): `search` printed numeric list keys instead of
+  module codes (`install 0` nonsense in the hint); `--refresh` documented as
+  the per-run-cache no-op it always was.
+
 **Route coexistence — Phase 0+1** (2026-07, `architecture/ROUTE-COEXISTENCE.md`)
 
 - **Added** declared sibling exclusions: host-level `exclude_paths` in

@@ -82,7 +82,28 @@ from repositories you trust**, pin versions (`-v`), and review diffs in `vendor/
 like any dependency. Treat `autoload/` + `vendor/module/` as third-party code with your
 module's runtime privileges.
 
+### Official registry & publisher signatures (trust model)
+
+With no `repository.inc.php`, `search/install/sync/pkg` resolve the built-in official
+registry (`RayFungHK/Razy-Repository@main`, `RepositoryManager::defaultRepositories()`).
+Integrity there is layered, and the layer you're on is **never silent** — every lookup
+prints one banner per registry:
+
+| Banner | Meaning | Enforced by |
+|---|---|---|
+| 🟢 `[SIGNED]` | `index.sig` (detached Ed25519 over the exact `index.json` bytes) verified against the key pinned in the phar (`src/asset/keys/official-repo.pub`) | `Razy\PackageSignature` in `fetchIndex`, **before** `json_decode` |
+| 🟡 `[UNVERIFIED]` | no `index.sig` / no pinned key → integrity is checksum-only | `Razy\PackageVerifier` per-artifact SHA-256 (fail-closed once claimed) |
+| 🔴 `[SIGNATURE INVALID]` | signature mismatch → the index is **REFUSED** (never parsed, no results) | same as SIGNED row; fail-closed |
+
+Checksums catch corruption and drift; the signature catches a **compromised registry
+repository** (an attacker who rewrites `index.json` can also rewrite its checksums —
+not the signature). Sign/verify/rotate: `php Razy.phar sign` (`keygen` / `sign <file>`
+/ `verify <file>`), full runbook in `tools/registry-seed/README.md`. Override the
+pinned key with `RAZY_REGISTRY_PUBKEY` (hex or `.pub` path) when hosting a private
+signed registry.
+
 ## 4. phar packaging: `pack`, `pkg`, `publish`
+
 
 ```bash
 php Razy.phar pack <vendor/module> <version> [output_path]   # pack.inc.php usage

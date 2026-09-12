@@ -15,7 +15,7 @@
  *
  * Options:
  *   -v, --verbose    Show detailed information (all versions, repository URLs)
- *   --refresh        Force refresh repository index cache
+ *   --refresh        Accepted for compatibility (index cache is per-run today)
  *
  * @license MIT
  */
@@ -46,7 +46,7 @@ return function (string $query = '', ...$options) use (&$parameters) {
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Options:', true);
         $this->writeLineLogging('  -v, --verbose    Show detailed information', true);
-        $this->writeLineLogging('  --refresh        Force refresh repository index cache', true);
+        $this->writeLineLogging('  --refresh        Accepted for compatibility (index cache is per-run)', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Examples:', true);
         $this->writeLineLogging('  php Razy.phar search database', true);
@@ -73,8 +73,24 @@ return function (string $query = '', ...$options) use (&$parameters) {
     // Initialize RepositoryManager and perform the search query
     $repoManager = new RepositoryManager($repositories);
 
-    // Execute search across all configured repositories
-    $results = $repoManager->search($query, $refresh);
+    // Execute search across all configured repositories. NOTE: RepositoryManager's
+    // index cache is per-instance (fresh every CLI run) — --refresh is accepted
+    // for interface stability but has nothing stale to evict today.
+    $results = $repoManager->search($query);
+
+    // Publisher trust banner (S5/G4): the trust outcome of every fetched index
+    // is printed — an unsigned or REFUSED registry is never silent.
+    foreach ($repoManager->getTrustReport() as $trustUrl => $trustState) {
+        if ($trustState === RepositoryManager::TRUST_INVALID) {
+            $this->writeLineLogging('{@c:red}[SIGNATURE INVALID]{@reset} ' . $trustUrl . ' — index.sig failed verification against the pinned publisher key; index REFUSED.', true);
+        } elseif ($trustState === RepositoryManager::TRUST_UNSIGNED) {
+            $this->writeLineLogging('{@c:yellow}[UNVERIFIED]{@reset} ' . $trustUrl . ' — no index.sig (or no pinned key): integrity is checksum-only.', true);
+        } else {
+            $this->writeLineLogging('{@c:green}[SIGNED]{@reset} ' . $trustUrl . ' — index verified against the pinned publisher key.', true);
+        }
+    }
+
+    $this->writeLineLogging('', true);
 
     if (empty($results)) {
         $this->writeLineLogging('{@c:yellow}No modules found matching "' . $query . '".{@reset}', true);
@@ -84,7 +100,12 @@ return function (string $query = '', ...$options) use (&$parameters) {
     $this->writeLineLogging('Found {@c:green}' . \count($results) . '{@reset} module(s):', true);
     $this->writeLineLogging('', true);
 
-    foreach ($results as $moduleCode => $info) {
+    // search() returns a flat LIST whose rows carry 'module_code' — the array
+    // KEYS are numeric, so the code must be read from the row (was printed as
+    // 0/1/2 until the S5 live E2E exposed it).
+    foreach ($results as $info) {
+        $moduleCode = (string) ($info['module_code'] ?? '');
+
         $this->writeLineLogging('{@c:green}' . $moduleCode . '{@reset}', true);
 
         if (!empty($info['description'])) {
@@ -113,7 +134,7 @@ return function (string $query = '', ...$options) use (&$parameters) {
     }
 
     // Show install instructions
-    $firstModule = \array_key_first($results);
+    $firstModule = (string) ($results[0]['module_code'] ?? '');
     $this->writeLineLogging('To install a module:', true);
     $this->writeLineLogging('  {@c:cyan}php Razy.phar install ' . $firstModule . '{@reset}', true);
     $this->writeLineLogging('', true);

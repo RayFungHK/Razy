@@ -18,6 +18,7 @@
 namespace Razy;
 
 use Closure;
+use Razy\Exception\PackageIntegrityException;
 use Razy\Util\PathUtil;
 
 /**
@@ -43,6 +44,18 @@ class RepositoryManager
     /** @var string Notification type: search result found */
     public const TYPE_SEARCH_RESULT = 'search_result';
 
+    /** @var string Trust state: index.sig verified against the pinned publisher key */
+    public const TRUST_SIGNED = 'signed';
+
+    /** @var string Trust state: no index.sig (or unverifiable without a pinned key) — checksum-only integrity */
+    public const TRUST_UNSIGNED = 'unsigned';
+
+    /** @var string Trust state: index.sig FAILED verification — the index was refused, never parsed */
+    public const TRUST_INVALID = 'invalid';
+
+    /** @var string Trust state: index was never fetched in this manager instance */
+    public const TRUST_UNKNOWN = 'unknown';
+
     /**
      * Built-in default official registry (gap G1, OFFICIAL-REPO-INSTALL.md §7.1).
      * Consulted only when no project repository.inc.php is usable; a
@@ -59,6 +72,9 @@ class RepositoryManager
 
     /** @var array<string, array> Cached repository index data keyed by repository URL */
     private array $indexCache = [];
+
+    /** @var array<string, string> Publisher-trust outcome per repository (S5/G4), keyed by repository URL */
+    private array $indexTrust = [];
 
     /** @var Closure|null Progress/status notification callback */
     private ?Closure $notifyClosure = null;
@@ -232,6 +248,46 @@ class RepositoryManager
             return null;
         }
 
+        // ── Publisher authenticity (S5 / gap G4): verify the detached Ed25519
+        // signature over the EXACT fetched bytes BEFORE json_decode trusts them.
+        // Checksums (PackageVerifier) catch drift and accidents; this signature
+        // is what survives a compromised registry repo. Fail-closed: an invalid
+        // signature refuses the index (returns null) — untrusted JSON is never
+        // parsed, so no code path can act on tampered metadata.
+        $signature = $this->httpGet($this->buildRawUrl($repoUrl, $branch, 'index.sig'));
+        $pinnedKey = PackageSignature::resolvePinnedPublicKey();
+
+        if ($signature !== null) {
+            if ($pinnedKey === null) {
+                // Signed content we cannot verify is UNVERIFIED content — say so,
+                // never silently drop to "trusted".
+                $this->indexTrust[$repoUrl] = self::TRUST_UNSIGNED;
+                $this->notify(self::TYPE_INFO, ['Index is signed but no pinned public key is available (asset keys/official-repo.pub or ' . PackageSignature::ENV_PUBKEY . ') — treating as UNVERIFIED', $repoUrl]);
+            } else {
+                try {
+                    $valid = PackageSignature::verify($response, \trim($signature), $pinnedKey);
+                } catch (PackageIntegrityException $e) {
+                    $this->indexTrust[$repoUrl] = self::TRUST_INVALID;
+                    $this->notify(self::TYPE_ERROR, ['Index signature check failed: ' . $e->getMessage(), $repoUrl]);
+
+                    return null;
+                }
+
+                if ($valid !== true) {
+                    $this->indexTrust[$repoUrl] = self::TRUST_INVALID;
+                    $this->notify(self::TYPE_ERROR, ['Index signature INVALID against the pinned publisher key — tampered index? refusing to parse it', $repoUrl]);
+
+                    return null;
+                }
+
+                $this->indexTrust[$repoUrl] = self::TRUST_SIGNED;
+                $this->notify(self::TYPE_INFO, ['Index signature verified against pinned publisher key', $repoUrl]);
+            }
+        } else {
+            $this->indexTrust[$repoUrl] = self::TRUST_UNSIGNED;
+            $this->notify(self::TYPE_INFO, ['UNVERIFIED registry: no index.sig published — integrity is checksum-only', $repoUrl]);
+        }
+
         $data = \json_decode($response, true);
         if (\json_last_error() !== JSON_ERROR_NONE) {
             $this->notify(self::TYPE_ERROR, ['Invalid index JSON', $repoUrl]);
@@ -240,6 +296,28 @@ class RepositoryManager
 
         $this->indexCache[$repoUrl] = $data;
         return $data;
+    }
+
+    /**
+     * Publisher-trust outcome for one repository after its index was fetched.
+     *
+     * @return string one of TRUST_SIGNED / TRUST_UNSIGNED / TRUST_INVALID / TRUST_UNKNOWN (not fetched)
+     */
+    public function getIndexTrustState(string $repoUrl): string
+    {
+        return $this->indexTrust[$repoUrl] ?? self::TRUST_UNKNOWN;
+    }
+
+    /**
+     * Trust outcomes for every repository whose index this manager fetched —
+     * commands print this as the "never silent" UNVERIFIED banner
+     * (OFFICIAL-REPO-INSTALL.md §7: "unsigned index ⇒ hard banner").
+     *
+     * @return array<string, string> repository URL => TRUST_* value
+     */
+    public function getTrustReport(): array
+    {
+        return $this->indexTrust;
     }
 
     /**

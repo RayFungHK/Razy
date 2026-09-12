@@ -487,6 +487,18 @@ return function (string ...$args) use (&$parameters) {
         $repoManager = new RepositoryManager($repositories);
         $pkgInfo = $repoManager->getModuleInfo($pkgCode);
 
+        // Publisher trust banner (S5/G4): never silent about an unsigned or
+        // REFUSED (signature-invalid) registry.
+        foreach ($repoManager->getTrustReport() as $trustUrl => $trustState) {
+            if ($trustState === RepositoryManager::TRUST_INVALID) {
+                $this->writeLineLogging('{@c:red}[SIGNATURE INVALID]{@reset} ' . $trustUrl . ' — index.sig failed verification against the pinned publisher key; index REFUSED.', true);
+            } elseif ($trustState === RepositoryManager::TRUST_UNSIGNED) {
+                $this->writeLineLogging('{@c:yellow}[UNVERIFIED]{@reset} ' . $trustUrl . ' — no index.sig (or no pinned key): integrity is checksum-only.', true);
+            } else {
+                $this->writeLineLogging('{@c:green}[SIGNED]{@reset} ' . $trustUrl . ' — index verified against the pinned publisher key.', true);
+            }
+        }
+
         if (!$pkgInfo) {
             $this->writeLineLogging('{@c:red}[Error]{@reset} Package "' . $pkgCode . '" not found in configured repositories.', true);
             $this->writeLineLogging('', true);
@@ -1017,9 +1029,12 @@ return function (string ...$args) use (&$parameters) {
             return true;
         }
 
-        // Write updated index.json
+        // Write updated index.json — encoded ONCE; the same exact bytes go to
+        // disk, to GitHub, and to the publisher signature (no divergence).
+        $indexBytes = \json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
         if (!$dryRun) {
-            \file_put_contents($idxPath, \json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            \file_put_contents($idxPath, $indexBytes);
         }
 
         $this->writeLineLogging('[{@c:green}✓{@reset}] Generated: index.json', true);
@@ -1040,10 +1055,29 @@ return function (string ...$args) use (&$parameters) {
                 $ghRepo,
                 $pubBranch,
                 'index.json',
-                \json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+                $indexBytes,
                 'Update repository index (packages)'
             );
             $this->writeLineLogging(($putResult['success'] ? '[{@c:green}✓{@reset}]' : '[{@c:red}✗{@reset}]') . ' index.json', true);
+
+            // Publisher signature (S5/G4): sign the EXACT bytes pushed when a
+            // signing key is configured. No key ⇒ the push is honestly loud
+            // about staying UNVERIFIED.
+            $signSecret = PackageSignature::resolveSigningSecret(null);
+
+            if ($signSecret !== null) {
+                $sigResult = \githubPutFile(
+                    $ghToken,
+                    $ghRepo,
+                    $pubBranch,
+                    'index.sig',
+                    PackageSignature::sign($indexBytes, $signSecret) . "\n",
+                    'Update index signature (Ed25519)'
+                );
+                $this->writeLineLogging(($sigResult['success'] ? '[{@c:green}✓{@reset}]' : '[{@c:red}✗{@reset}]') . ' index.sig (Ed25519 over the pushed bytes)', true);
+            } else {
+                $this->writeLineLogging('{@c:yellow}[UNVERIFIED]{@reset} index pushed UNSIGNED (set RAZY_REGISTRY_SIGNKEY to sign)', true);
+            }
 
             // Upload manifest.json for each processed package
             foreach ($processedCodes as $code) {

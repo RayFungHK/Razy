@@ -372,6 +372,18 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         @\unlink($tempPhar);
     }
 
+    // Publisher trust banner (S5/G4): the sync loop fetched indexes — report
+    // their publisher-trust outcome, never silently.
+    foreach ($repoManager->getTrustReport() as $trustUrl => $trustState) {
+        if ($trustState === RepositoryManager::TRUST_INVALID) {
+            $this->writeLineLogging('{@c:red}[SIGNATURE INVALID]{@reset} ' . $trustUrl . ' — index.sig failed verification against the pinned publisher key; index REFUSED.', true);
+        } elseif ($trustState === RepositoryManager::TRUST_UNSIGNED) {
+            $this->writeLineLogging('{@c:yellow}[UNVERIFIED]{@reset} ' . $trustUrl . ' — no index.sig (or no pinned key): integrity is checksum-only.', true);
+        } else {
+            $this->writeLineLogging('{@c:green}[SIGNED]{@reset} ' . $trustUrl . ' — index verified against the pinned publisher key.', true);
+        }
+    }
+
     $this->writeLineLogging('', true);
     $this->writeLineLogging('{@s:bu}Summary', true);
     $this->writeLineLogging('  Installed: {@c:green}' . $installCount . '{@reset}', true);
