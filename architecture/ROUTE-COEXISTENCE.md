@@ -510,9 +510,9 @@ legitimate catch-alls need an allow-comment, same convention as `lint-allow`
 
 | # | Question | Why it matters |
 |---|---|---|
-| Q1 | Should `exclude_paths` live in `sites.inc.php` (host-level, operator-owned) or `dist.php` (per distributor)? `sites.inc.php` is itself template-written by `writeSiteConfig()` (Application.php:550-604), so either way the template needs the key — but *whose* claim is an exclusion? | Decides compiler API + watchdog behavior |
-| Q2 | Should the denylist at htaccess.tpl:40 stay a pure loop-guard (with exclusions as the contract) or be replaced by the declared list? | FM-4's accidental exemptions disappear either way; pick deliberately |
-| Q3 | May the generated Caddyfile emit `reverse_proxy <upstream>` for excluded paths (Razy file becomes the app graph), or must Caddy coexistence stay "don't claim + edge config proxies"? | Ownership boundary of machine-generated config |
+| Q1 | **ANSWERED (Phase 1 shipped): host-level in `sites.inc.php`** — an exclusion describes the shared host, not one distributor; `Routing\ExcludePaths` documents the decision, read path `Application::loadSiteConfig()` → both compilers. | Decides compiler API + watchdog behavior |
+| Q2 | **ANSWERED (Phase 1 shipped): denylist stays a pure loop-guard**; the declared `exclude_paths` list is the coexistence contract (no reliance on accidental exemptions). | FM-4's accidental exemptions disappear either way; pick deliberately |
+| Q3 | **ANSWERED (Phase 1 shipped): NO `reverse_proxy` emission** — the generated file only de-claims excluded paths (php_server matcher); upstream wiring stays edge-operator-owned. | Ownership boundary of machine-generated config |
 | Q4 | Host-gate truth: align `.htaccess` `*`-expansion to `[^.]+` (RewriteRuleCompiler.php:51 → match Application.php:729) or widen PHP to `.+`? | FM-6; changing PHP affects `matchDomain` for everyone |
 | Q5 | Should generated configs emit a non-scoped `/_razy/health` rule (Apache `RewriteRule ^_razy/health %{ENV:BASE}index.php [L]`, Caddy `handle` like deploy/Caddyfile:132-137)? | FM-5; probes currently work only where a dist owns `/` |
 | Q6 | `reserve` — was a dist.php `reserve` key intended (docblock says so, Agent.php:433-435; nothing parses it)? Fix code or docblock (D3)? | Affects §3(a)/(f) design surface |

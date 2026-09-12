@@ -4,6 +4,12 @@ RewriteEngine on
 RewriteCond $0#%{REQUEST_URI} ^([^#]*)#(.*)\1$
 RewriteRule ^.*$ - [E=BASE:%2]
 
+<!-- START BLOCK: exclusion -->
+# Declared sibling prefix {$prefix}: never claimed by Razy (sites.inc.php 'exclude_paths' — see manual/08-coexistence.md).
+# REQUEST_URI carries the full path; per-directory patterns below see the prefix-stripped path.
+RewriteCond %{REQUEST_URI} ^{$prefix_pattern}(/|$)
+RewriteRule ^ - [L]
+<!-- END BLOCK: exclusion -->
 # Rewrite the shared module location
 RewriteRule ^\w+/shared/(.*)$ shared/$1 [L]
 

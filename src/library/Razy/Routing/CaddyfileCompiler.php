@@ -12,6 +12,7 @@
 namespace Razy\Routing;
 
 use Razy\Distributor;
+use Razy\Exception\ConfigurationException;
 use Razy\Template;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -26,7 +27,12 @@ use Throwable;
  * - Module webasset file_server handlers
  * - Per-distributor data mapping handlers
  * - Shared module path handler
+ * - Declared sibling-path exclusions (host-level `exclude_paths`) gating php_server
  * - FrankenPHP worker mode or standard php_server directive
+ *
+ * Coexistence decision (Q3, architecture/ROUTE-COEXISTENCE.md §5): excluded
+ * paths are ONLY de-claimed here — the generator never emits `reverse_proxy`
+ * for third-party upstreams; wiring an upstream stays the edge operator's job.
  *
  * Usage (via CLI):
  *   php Razy.phar rewrite --caddy
@@ -44,9 +50,14 @@ class CaddyfileCompiler
      * @param string $outputPath Path to write the Caddyfile
      * @param bool $workerMode Whether to generate worker mode directives
      * @param string $documentRoot Document root path for root directive
+     * @param array $excludePaths Raw host-level `exclude_paths` config value
+     *                            (list of sibling-app path prefixes, e.g. ['/api-py']); validated
+     *                            via ExcludePaths::normalize() — see that class for the Q1/Q2/Q3
+     *                            placement decisions. Empty/absent ⇒ byte-identical legacy output.
      *
      * @return bool True on success
      *
+     * @throws ConfigurationException On an invalid exclude_paths entry
      * @throws Throwable
      */
     public function compile(
@@ -55,6 +66,7 @@ class CaddyfileCompiler
         string $outputPath,
         bool   $workerMode = true,
         string $documentRoot = '/app/public',
+        array  $excludePaths = [],
     ): bool {
         $source = Template::loadFile(PHAR_PATH . '/asset/setup/caddyfile.tpl');
         $rootBlock = $source->getRoot();
@@ -63,7 +75,7 @@ class CaddyfileCompiler
         $domainAliases = $this->buildAliasMap($aliases, $multisite);
 
         // Build per-domain site blocks
-        $this->compileSiteBlocks($rootBlock, $multisite, $domainAliases, $workerMode, $documentRoot);
+        $this->compileSiteBlocks($rootBlock, $multisite, $domainAliases, $workerMode, $documentRoot, $excludePaths);
 
         // Atomic write: write to temp file, then rename to avoid partial writes
         $tmpPath = $outputPath . '.' . \uniqid('', true) . '.tmp';
@@ -105,6 +117,9 @@ class CaddyfileCompiler
      * @param array $domainAliases Canonical domain => alias list
      * @param bool $workerMode Use FrankenPHP worker mode
      * @param string $documentRoot Server document root
+     * @param array $excludePaths Raw host-level 'exclude_paths' config value
+     *
+     * @throws ConfigurationException On an invalid exclude_paths entry
      */
     private function compileSiteBlocks(
         mixed  $rootBlock,
@@ -112,8 +127,17 @@ class CaddyfileCompiler
         array  $domainAliases,
         bool   $workerMode,
         string $documentRoot,
+        array  $excludePaths = [],
     ): void {
         $addedWebAssets = [];
+
+        // Host-level sibling exclusions apply to every site block; invalid
+        // entries fail loudly here (before any file write).
+        $excludedPrefixes = ExcludePaths::normalize($excludePaths);
+        $pathPatterns = ExcludePaths::caddyPaths($excludedPrefixes);
+        // Leading space when present so 'php_server' renders byte-identical
+        // to the legacy output with no exclusions.
+        $phpMatcher = [] !== $excludedPrefixes ? ' @not_excluded' : '';
 
         foreach ($multisite as $domain => $paths) {
             // Build the domain address string (include aliases)
@@ -149,13 +173,23 @@ class CaddyfileCompiler
                 'document_root' => \rtrim($documentRoot, '/'),
             ]);
 
+            // ── Declared sibling exclusions: php_server matcher gate (FM-1) ──
+            if ([] !== $excludedPrefixes) {
+                $siteBlock->newBlock('exclusion')->assign([
+                    'path_patterns' => $pathPatterns,
+                ]);
+            }
+
             // PHP server mode
             if ($workerMode) {
                 $siteBlock->newBlock('worker')->assign([
                     'document_root' => \rtrim($documentRoot, '/'),
+                    'php_matcher' => $phpMatcher,
                 ]);
             } else {
-                $siteBlock->newBlock('standard');
+                $siteBlock->newBlock('standard')->assign([
+                    'php_matcher' => $phpMatcher,
+                ]);
             }
         }
     }

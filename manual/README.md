@@ -24,6 +24,7 @@ rather than a copied pattern are marked *illustrative*.
 | 05 | [05-templates.md](05-templates.md) | Real template syntax, modifiers, blocks, plugin format, DOM builder, XSS discipline |
 | 06 | [06-packages-and-deployment.md](06-packages-and-deployment.md) | `package.php`, compose, autoload isolation, standalone packages, phar, Docker reality, deployment checklist |
 | 07 | [07-security-guide.md](07-security-guide.md) | Crypt, 2FA, CSRF, sessions, bridge trust, threads, dependency trust, hardening checklist |
+| 08 | [08-coexistence.md](08-coexistence.md) | Same-host PHP+foreign-app routing: why `.htaccess` claims everything, `exclude_paths` sibling declarations, edge-proxy topology, the impossibility boundary |
 
 ---
 

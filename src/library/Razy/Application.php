@@ -419,6 +419,13 @@ class Application
             $this->config['alias'] = [];
         }
 
+        // Host-level sibling exclusions (coexistence; Routing\ExcludePaths).
+        // Entry validation happens at generation time (compiler) so a typo
+        // surfaces as a clear `rewrite` error instead of taking down serving.
+        if (!\is_array($this->config['exclude_paths'] ?? null)) {
+            $this->config['exclude_paths'] = [];
+        }
+
         return $this->config;
     }
 
@@ -494,6 +501,11 @@ class Application
     /**
      * Update the rewrite.
      *
+     * Carries the host-level `exclude_paths` sibling-exclusion config into the
+     * compiler (host-level placement is deliberate — exclusions describe the
+     * shared host, not one distributor; see Routing\ExcludePaths). Applies on
+     * the normal `rewrite` regeneration flow; no separate command.
+     *
      * @return bool
      *
      * @throws Error
@@ -505,7 +517,7 @@ class Application
         if (!self::$locked) {
             $compiler = new Routing\RewriteRuleCompiler();
             $outputPath = PathUtil::append(\defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, '.htaccess');
-            return $compiler->compile($this->multisite, $this->alias, $outputPath);
+            return $compiler->compile($this->multisite, $this->alias, $outputPath, $this->config['exclude_paths'] ?? []);
         }
 
         return true;
@@ -517,6 +529,10 @@ class Application
      * Produces a Caddy-compatible configuration file with site blocks for each
      * domain, webasset handlers, data mapping, and FrankenPHP worker mode
      * directives. This is the Caddy equivalent of updateRewriteRules().
+     *
+     * Carries the host-level `exclude_paths` config through; the compiler only
+     * de-claims those paths from php_server and never emits reverse_proxy
+     * (decision Q3, architecture/ROUTE-COEXISTENCE.md §5).
      *
      * @param bool $workerMode Whether to enable FrankenPHP worker mode (default: true)
      * @param string $documentRoot The server document root path (default: '/app/public')
@@ -532,7 +548,7 @@ class Application
         if (!self::$locked) {
             $compiler = new Routing\CaddyfileCompiler();
             $outputPath = PathUtil::append(\defined('RAZY_PATH') ? RAZY_PATH : SYSTEM_ROOT, 'Caddyfile');
-            return $compiler->compile($this->multisite, $this->alias, $outputPath, $workerMode, $documentRoot);
+            return $compiler->compile($this->multisite, $this->alias, $outputPath, $workerMode, $documentRoot, $this->config['exclude_paths'] ?? []);
         }
 
         return true;
@@ -545,6 +561,7 @@ class Application
      *
      * @return bool
      *
+     * @throws ConfigurationException On an invalid `exclude_paths` entry
      * @throws Throwable
      */
     public function writeSiteConfig(?array $config = null): bool
@@ -577,6 +594,14 @@ class Application
                         ]);
                     }
                 }
+            }
+
+            // Round-trip host-level exclusions so config regeneration (this
+            // method and the shutdown watchdog) never drops them. Only
+            // validated prefixes are written, keeping the emitted PHP literal
+            // safe; invalid entries throw with a clear message instead.
+            foreach (Routing\ExcludePaths::normalize($config['exclude_paths'] ?? []) as $prefix) {
+                $root->newBlock('exclude_path')->assign('prefix', $prefix);
             }
 
             try {

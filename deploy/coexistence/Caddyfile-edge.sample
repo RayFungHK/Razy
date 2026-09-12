@@ -1,0 +1,44 @@
+# Edge proxy (Caddy) — path-split between a sibling app and a Razy deployment.
+#
+# Topology A in README.md. OPERATOR-OWNED config; the Razy-generated Caddyfile
+# (`php Razy.phar rewrite --caddy`) is a SEPARATE file that lives on the Razy server
+# behind this edge. Ordered `handle` blocks are Caddy's documented composition
+# primitive — first match wins, so the sibling prefix must come first.
+#
+# On the Razy side nothing must be hand-edited: either the edge already never forwards
+# /api-py/* (this file), or the generated file declines it via 'exclude_paths'
+# (manual/08-coexistence.md §3).
+
+example.com {
+	# ── Sibling prefix → upstream ──
+	# Reverse-proxying siblings is THIS operator-owned file's job, never the generated
+	# Caddyfile's (decision Q3: no reverse_proxy emission from Razy).
+	handle /api-py/* {
+		# The Python app sees /v1/items when strip_prefix runs; drop the line if it
+		# expects /api-py/v1/items (mirror-image of nginx' trailing-slash proxy_pass rule).
+		uri strip_prefix /api-py
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	# ── Everything else → the Razy deployment ──
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# Health/metrics probes (answered inside Razy's PHP layer — see manual/08 §4):
+	# handle /_razy/health {
+	# 	reverse_proxy 127.0.0.1:8080
+	# }
+}
+
+# Variant: if THIS Caddy is also the Razy web server (FrankenPHP) rather than a pure
+# edge, keep the sibling handle first and let Razy's generated site config serve the
+# rest via its php_server claim — merge order matters, the generated file's
+# 'exclude_paths' matcher then protects the prefix at both layers:
+#
+#   example.com {
+#       handle /api-py/* {
+#           reverse_proxy 127.0.0.1:8000
+#       }
+#       import RazyCaddyfile   # the generated, machine-owned site block
+#   }

@@ -1,0 +1,52 @@
+<?php
+
+/*
+ * Razy-side half of Topology C (deploy/coexistence/README.md): the same Apache host
+ * also runs a Python app proxied at /api-py/ (see apache-vhost-exinclude.conf).
+ *
+ * This is the FULL shape of sites.inc.php, showing where the new host-level
+ * 'exclude_paths' key goes. Copy the key into your real sites.inc.php (install root,
+ * beside 'domains'/'alias'), then REGENERATE the machine-owned rewrite files:
+ *
+ *     php Razy.phar rewrite <dist>          # Apache  → .htaccess
+ *     php Razy.phar rewrite --caddy         # FrankenPHP → Caddyfile
+ *
+ * Never hand-edit the generated files (RZ-013) — the checksum watchdog
+ * (Application::validation()) rewrites them anyway.
+ *
+ * What the generator emits for this key, and every rule it enforces on the values,
+ * is documented in manual/08-coexistence.md §3 (validation errors throw at `rewrite`
+ * time with the offending entry named).
+ *
+ * This file is part of Razy v0.5.
+ * (c) Ray Fung <hello@rayfung.hk>
+ * MIT license — see LICENSE.
+ */
+
+return [
+    'domains' => [
+        'example.com' => [
+            '/' => 'mydist',
+        ],
+    ],
+
+    'alias' => [
+        'www.example.com' => 'example.com',
+    ],
+
+    // ── Sibling applications on this host — never claimed by generated rules ──
+    //
+    // Host-level (Q1 decision): one declaration covers every distributor mounted on
+    // the host, because these prefixes belong to OTHER apps sharing the host, not to
+    // any distributor's own route claim. See Razy\Routing\ExcludePaths docblock.
+    //
+    // Rules (enforced by ExcludePaths::normalize, throws ConfigurationException):
+    //   - '/'-prefixed path segments using [A-Za-z0-9._-] only — no regex/glob syntax;
+    //   - '/' alone rejected (would exclude the whole host);
+    //   - Razy's own URL space (index.php, data, shared, webassets, sites, ...) rejected;
+    //   - trailing slash and duplicates tolerated (normalized).
+    //
+    'exclude_paths' => [
+        '/api-py',
+    ],
+];

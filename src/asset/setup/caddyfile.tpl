@@ -37,13 +37,19 @@
 		file_server
 	}
 <!-- END BLOCK: shared -->
+<!-- START BLOCK: exclusion -->
+	# Declared sibling paths (sites.inc.php 'exclude_paths') — never claimed by Razy.
+	# php_server is gated on @not_excluded, so these paths are served statically if
+	# present or 404; proxying them belongs to the edge config (this file stays do-not-claim).
+	@not_excluded not path {$path_patterns}
+<!-- END BLOCK: exclusion -->
 <!-- START BLOCK: worker -->
-	php_server {
+	php_server{$php_matcher} {
 		worker {$document_root}/index.php
 	}
 <!-- END BLOCK: worker -->
 <!-- START BLOCK: standard -->
-	php_server
+	php_server{$php_matcher}
 <!-- END BLOCK: standard -->
 }
 

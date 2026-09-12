@@ -46,4 +46,18 @@ return [
 		'{$alias}' => '{$domain}',
 		<!-- END BLOCK: alias -->
 	],
+
+	// Host-level sibling path exclusions for same-host coexistence (see
+	// manual/08-coexistence.md). Each entry is a host-absolute path prefix
+	// (e.g. '/api-py') of an application sharing this host; segments allow
+	// letters, digits, '.', '_' and '-' only — no regex/glob syntax.
+	// The generated .htaccess / Caddyfile will never claim these paths.
+	// Regenerate after editing:
+	//   php Razy.phar rewrite          (Apache .htaccess)
+	//   php Razy.phar rewrite --caddy  (Caddy/FrankenPHP Caddyfile)
+	'exclude_paths' => [
+		<!-- START BLOCK: exclude_path -->
+		'{$prefix}',
+		<!-- END BLOCK: exclude_path -->
+	],
 ];

@@ -12,6 +12,7 @@
 namespace Razy\Routing;
 
 use Razy\Distributor;
+use Razy\Exception\ConfigurationException;
 use Razy\Template;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -23,6 +24,7 @@ use Throwable;
  * rewrite rule compilation logic into a dedicated service class.
  *
  * Handles:
+ * - Operator-declared sibling-path exclusions (host-level `exclude_paths`)
  * - Domain detection rules (RewriteCond/RewriteRule for RAZY_DOMAIN)
  * - Domain alias mapping
  * - Wildcard domain catch-all
@@ -69,15 +71,23 @@ class RewriteRuleCompiler
      * @param array<string, array<string, string>> $multisite Domain => path => distributor mapping
      * @param array<string, string> $aliases Alias domain => canonical domain mapping
      * @param string $outputPath Path to write the .htaccess file
+     * @param array $excludePaths Raw host-level `exclude_paths` config value
+     *                            (list of sibling-app path prefixes, e.g. ['/api-py']); validated
+     *                            via ExcludePaths::normalize() — see that class for the Q1/Q2/Q3
+     *                            placement decisions. Empty/absent ⇒ byte-identical legacy output.
      *
      * @return bool True on success
      *
+     * @throws ConfigurationException On an invalid exclude_paths entry
      * @throws Throwable
      */
-    public function compile(array $multisite, array $aliases, string $outputPath): bool
+    public function compile(array $multisite, array $aliases, string $outputPath, array $excludePaths = []): bool
     {
         $source = Template::loadFile(PHAR_PATH . '/asset/setup/htaccess.tpl');
         $rootBlock = $source->getRoot();
+
+        // ── Phase 0: Declared Sibling Exclusions (before every claim) ──
+        $this->compileExclusionRules($rootBlock, $excludePaths);
 
         // ── Phase 1: Domain Detection ──
         $this->compileDomainRules($rootBlock, $multisite, $aliases);
@@ -91,6 +101,32 @@ class RewriteRuleCompiler
         \rename($tmpPath, $outputPath);
 
         return true;
+    }
+
+    /**
+     * Generate do-not-claim passthrough rules for operator-declared sibling
+     * applications (FM-1 cure, architecture/ROUTE-COEXISTENCE.md §3(b)).
+     *
+     * Emitted before the domain gate and every distributor block: `[L]` on a
+     * `-` target stops this file's rewrite pass for matching requests without
+     * an internal redirect, so Razy never front-controls a declared sibling
+     * path. `%{REQUEST_URI}` is the correct condition variable because
+     * per-directory patterns see the directory-prefix-stripped path
+     * (https://httpd.apache.org/docs/current/rewrite/htaccess.html#path-stripping).
+     *
+     * @param mixed $rootBlock The template root block
+     * @param array $excludePaths Raw host-level 'exclude_paths' config value
+     *
+     * @throws ConfigurationException On an invalid configured prefix
+     */
+    private function compileExclusionRules(mixed $rootBlock, array $excludePaths): void
+    {
+        foreach (ExcludePaths::normalize($excludePaths) as $prefix) {
+            $rootBlock->newBlock('exclusion')->assign([
+                'prefix' => $prefix,
+                'prefix_pattern' => ExcludePaths::apachePattern($prefix),
+            ]);
+        }
     }
 
     /**

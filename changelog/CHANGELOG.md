@@ -63,6 +63,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - **Known gap** `Controller::__onDispatch()` is declared but never invoked in `src/` — a
   reserved hook, not wired behavior (tracked as documentation drift).
 
+**Route coexistence — Phase 0+1** (2026-07, `architecture/ROUTE-COEXISTENCE.md`)
+
+- **Added** declared sibling exclusions: host-level `exclude_paths` in
+  `sites.inc.php` makes the generated `.htaccess` / Caddyfile NEVER claim the
+  listed prefixes (the cure for the reported path-theft, FM-1). Apache emits
+  `REQUEST_URI`-anchored `[L]` passthroughs before domain/mount blocks; Caddy
+  de-claims `php_server` via path matcher — and deliberately never emits
+  `reverse_proxy` (Q3: Razy's machine-owned file stays out of the app-graph).
+  New `Routing\ExcludePaths` validates at generation time (fail with a clear
+  `rewrite` error, never take down serving). Empty/absent config keeps output
+  byte-identical (regression-pinned). Q1 decision: host-level ownership —
+  exclusions describe the shared host, not one distributor.
+- **Added** `manual/08-coexistence.md` + `deploy/coexistence/` worked samples
+  (edge-proxy split incl. the PHP-side impossibility boundary). 29 tests.
+
 **Declarative data contracts** (2026-07 Wave 2, `architecture/ORM-CONTRACT-PACKS.md` C1/C2)
 
 - **Added** `Razy\ORM\Contract` + `ContractCompiler`: the declarative skeleton the
