@@ -63,6 +63,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - **Known gap** `Controller::__onDispatch()` is declared but never invoked in `src/` — a
   reserved hook, not wired behavior (tracked as documentation drift).
 
+**Declarative data contracts** (2026-07 Wave 2, `architecture/ORM-CONTRACT-PACKS.md` C1/C2)
+
+- **Added** `Razy\ORM\Contract` + `ContractCompiler`: the declarative skeleton the
+  user asked for — table/fields/relations declared ONCE, reusing the existing
+  Column grammar (no new DSL), compiled to real CREATE TABLE SQL incl. FK
+  constraints from field-level `reference(table,col)`; JSON sub-schemas are
+  addressable annotations (`profile.city`) without phantom columns; relation
+  kinds include the new `hasManyThrough`. Ships create-generate (generated
+  migration SOURCE, require-verified) + snapshot/drift REPORTING (added/removed/
+  changed columns). Honest scope: NOT diff-migrations against a live DB (driver
+  introspection verifiably absent, §3.2); the grammar's positional-length
+  normalization is documented by the tests themselves. Models without a
+  Contract behave exactly as before (BC).
+
 **ORM reliability & dead-API cleanup** (2026-07, from `architecture/ORM-CONTRACT-PACKS.md`)
 
 - **Fixed** `with()` was silently ignored by `first()`/`find()` — eager loading
