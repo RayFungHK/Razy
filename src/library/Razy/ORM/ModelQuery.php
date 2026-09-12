@@ -446,6 +446,11 @@ class ModelQuery
 
     /**
      * Execute the query and return the first matching model, or null.
+     *
+     * Relations declared via with() ARE eager-loaded on the returned model
+     * (v1.0.3-beta fix: they were previously, and silently, ignored here —
+     * only get() applied them, so `with()->first()` looked cached-fast while
+     * every relation access fell through to lazy per-model loads).
      */
     public function first(): ?Model
     {
@@ -465,7 +470,13 @@ class ModelQuery
         /** @var Model $modelClass */
         $modelClass = $this->modelClass;
 
-        return $modelClass::newFromRow($row, $this->database);
+        $model = $modelClass::newFromRow($row, $this->database);
+
+        if (!empty($this->eagerLoad)) {
+            $this->loadEagerRelations([$model]);
+        }
+
+        return $model;
     }
 
     /**
@@ -606,6 +617,11 @@ class ModelQuery
      *
      * Returns a Generator that yields Model instances without loading
      * the entire result set into memory at once.
+     *
+     * NOTE: with() relations are NOT applied here — eager loading is a
+     * batch strategy and is semantically incompatible with a streaming
+     * cursor (per-row eager loads would reintroduce exactly the N+1 it
+     * exists to prevent). Use get()/first() when you need with().
      *
      * ```php
      * foreach (User::query($db)->cursor() as $user) {

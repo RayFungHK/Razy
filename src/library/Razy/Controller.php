@@ -625,10 +625,15 @@ class Controller
      *
      * return new class extends Migration {
      *     public function up(SchemaBuilder $schema): void {
+     *         // Column syntax is the verified grammar (Column.php:92):
+     *         // 'name=type(int),auto' — auto-increment primary key;
+     *         // 'name=type(text),nullable' — optional text column;
+     *         // foreign keys use the 'reference(table,column)' parameter
+     *         // (Column.php:109; emits FK DDL through SchemaBuilder).
      *         $schema->create('users', function ($table) {
-     *             $table->integer('id')->primary()->autoIncrement();
-     *             $table->string('name', 100);
-     *             $table->string('email', 255)->unique();
+     *             $table->addColumn('id=type(int),auto');
+     *             $table->addColumn('name=type(text)');
+     *             $table->addColumn('email=type(text),nullable');
      *         });
      *     }
      *
@@ -641,6 +646,12 @@ class Controller
      *     }
      * };
      * ```
+     *
+     * (Docblock corrected v1.0.3-beta: the previous example showed
+     * `$table->integer('id')->primary()->autoIncrement()` — Laravel-style
+     * fluent methods that DO NOT exist on Razy's Table; Table's real column
+     * API is addColumn(string $syntax) (Database/Table.php), verified against
+     * tests/MigrationTest.php:193-196.)
      *
      * Example usage in controller:
      * ```php

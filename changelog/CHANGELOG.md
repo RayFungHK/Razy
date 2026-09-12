@@ -63,6 +63,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - **Known gap** `Controller::__onDispatch()` is declared but never invoked in `src/` — a
   reserved hook, not wired behavior (tracked as documentation drift).
 
+**ORM reliability & dead-API cleanup** (2026-07, from `architecture/ORM-CONTRACT-PACKS.md`)
+
+- **Fixed** `with()` was silently ignored by `first()`/`find()` — eager loading
+  ran only on `get()`, so the most-used terminals quietly fell back to lazy
+  per-model loads (N+1 by surprise). Both now honour declared relations
+  (pinned by 3 new tests in `EagerLoadingTest`; `cursor()` keeps batch-free
+  semantics by design, documented).
+- **Deprecated** `Database::getMaxStatement()` — zero callers AND never
+  executable (it overwrote its own validated table name with a GUID; the
+  advertised `latest` alias could never bind). Removal next major (RZ-012);
+  the Statement `Max` plugin or explicit joins are the sanctioned paths.
+- **Fixed** doc drift: `Controller`'s migration docblock no longer shows the
+  Laravel-style fluent API that never existed (real `addColumn` grammar,
+  verified against `tests/MigrationTest.php`); manual/04 drift warning updated.
+
 **Module ecosystem begins** (2026-07 Wave 1, `architecture/PORTING-VALUE.md`)
 
 - **Added** first-party module home `modules/` — new top-level convention (approved

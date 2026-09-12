@@ -671,6 +671,55 @@ class EagerLoadingTest extends TestCase
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Section 9b: first()/find() eager loading (v1.0.3-beta fix —
+    // with() was silently ignored by these terminals, only get() applied it)
+    // ═══════════════════════════════════════════════════════════════
+
+    public function testFirstEagerLoadsRequestedRelations(): void
+    {
+        $db = $this->createDb();
+        $this->createSchema($db);
+
+        $alice = EL_Author::create($db, ['name' => 'Alice']);
+        EL_Post::create($db, ['title' => 'Post 1', 'author_id' => $alice->getKey()]);
+        EL_Post::create($db, ['title' => 'Post 2', 'author_id' => $alice->getKey()]);
+
+        $author = EL_Author::query($db)->with('posts')->first();
+
+        $this->assertNotNull($author);
+        $this->assertTrue($author->relationLoaded('posts'), 'first() must honour with() like get() does');
+        $this->assertCount(2, $author->posts);
+    }
+
+    public function testFindEagerLoadsViaFirst(): void
+    {
+        $db = $this->createDb();
+        $this->createSchema($db);
+
+        $alice = EL_Author::create($db, ['name' => 'Alice']);
+        EL_Profile::create($db, ['bio' => 'Engineer', 'author_id' => $alice->getKey()]);
+
+        $author = EL_Author::query($db)->with('profile')->find($alice->getKey());
+
+        $this->assertNotNull($author);
+        $this->assertTrue($author->relationLoaded('profile'));
+        $this->assertInstanceOf(EL_Profile::class, $author->profile);
+    }
+
+    public function testFirstWithoutWithIsUnaffected(): void
+    {
+        $db = $this->createDb();
+        $this->createSchema($db);
+
+        EL_Author::create($db, ['name' => 'Solo']);
+
+        $author = EL_Author::query($db)->first();
+
+        $this->assertNotNull($author);
+        $this->assertFalse($author->relationLoaded('posts'), 'no with() => no eager work, no phantom relation state');
+    }
+
     public function testEagerLoadingPreloadsHasOneForAllModels(): void
     {
         $db = $this->createDb();

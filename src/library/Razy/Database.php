@@ -621,6 +621,15 @@ class Database implements DatabaseInterface
      * for a given column, grouped by a binding column. Uses a self-join with
      * a subquery alias to find the maximum value per group.
      *
+     * @deprecated v1.0.3-beta — DO NOT USE: this method has never been
+     *     executable. It overwrites its own validated table name with a GUID
+     *     (:664-665) and emits an unresolvable FROM clause; the `latest`
+     *     alias it advertises can therefore never bind. It also has zero
+     *     callers repo-wide. Scheduled for removal in the next major (RZ-012).
+     *     For greatest-N-per-group today: the Statement `Max` plugin
+     *     (src/plugins/Statement/Max.php) or an explicit
+     *     `$db->prepare()->select()->…->join(...)` chain (RZ-003).
+     *
      * @param string $tableName The table name
      * @param string $binding The column to group by
      * @param string $valueColumn The column to find the MAX of

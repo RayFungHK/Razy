@@ -206,10 +206,13 @@ Column definitions use a **simple-syntax string** — verified working usage:
 (`SchemaBuilder.php:64-72`), `table()` passes a `TableHelper` for ALTERs (`:76-88`),
 `dropIfExists()` (`:110`).
 
-⚠️ **Doc drift warning:** the framework docblocks (`Controller.php:620-643`,
-`Database/Migration.php:35-47`) show `$table->integer('id')->primary()->autoIncrement()` —
-those builder methods **do not exist anywhere in `src/`** (verified by full-tree grep).
-Use the `addColumn('name=type(...),flags')` form above. (Reported in the drift list.)
+✅ **Doc drift resolved (v1.0.3-beta):** the fake fluent example
+(`$table->integer('id')->primary()->autoIncrement()` — methods that never
+existed) has been removed from both `Controller.php`'s migration docblock
+(replaced with the real `addColumn('name=type(...),flags')` grammar, verified
+against `tests/MigrationTest.php:193-196`) and `Database/Migration.php` (which
+now shows a valid `raw()` example). If you still meet the fluent form anywhere,
+it is wrong — use the grammar above. (Was item 7 in the drift list.)
 
 ```php
 $manager = $this->getMigrationManager($db);
