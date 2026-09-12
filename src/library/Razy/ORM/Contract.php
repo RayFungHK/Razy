@@ -47,7 +47,8 @@ final class Contract
      *     primary_key?: string,
      *     timestamps?: bool,
      *     fields: array<string, string|array{column?: string, type?: string, json?: array<string, string>}>,
-     *     relations?: list<array{kind: string, target: string, as: string, fk?: string, pivot?: string, through?: string}>
+     *     relations?: list<array{kind: string, target: string, as: string, fk?: string, pivot?: string, through?: string}>,
+     *     indexes?: list<array{columns: list<string>, name?: string}>
      * } $definition
      */
     private function __construct(
@@ -176,7 +177,6 @@ final class Contract
                 $column = $spec;
             } elseif (\is_array($spec)) {
                 $column = (string) ($spec['column'] ?? $spec['type'] ?? '');
-                /** @var array<string, string> $json */
                 $json = (array) ($spec['json'] ?? []);
 
                 foreach ($json as $sub => $subSyntax) {

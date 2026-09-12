@@ -237,11 +237,11 @@ final class ContractCompiler
         $segments = [];
 
         foreach (\explode(':', $firstBlock) as $segment) {
-            $name = \trim(\strstr($segment, '=', true) ?? '', '`');
-            if ($name === '') {
+            $eq = \strpos($segment, '=');
+            if ($eq === false || $eq === 0) {
                 return null;
             }
-            $segments[$name] = $segment;
+            $segments[\trim(\substr($segment, 0, $eq), '`')] = $segment;
         }
 
         return $segments;
