@@ -41,8 +41,8 @@ deploy/
 ## Fastest path
 
 ```bash
-docker build -f deploy/Dockerfile.worker -t registry.example.com/razy/worker:1.0.3-beta .
-docker run --rm -p 8080:8080 registry.example.com/razy/worker:1.0.3-beta
+docker build -f deploy/Dockerfile.worker -t registry.example.com/razy/worker:1.1.0-beta .
+docker run --rm -p 8080:8080 registry.example.com/razy/worker:1.1.0-beta
 curl -s localhost:8080/_razy/health          # {"status":"ok","uptime_seconds":…,"version":"…"}
 
 # then the cluster (read k8s/README.md §2-§4 first — the prerequisites are mandatory)

@@ -35,8 +35,8 @@ non-root fleet. Everything here is namespace-scoped to `razy-prod`.
 #    - TLS cert for the public host
 
 # 1. Build + push the worker image (context = repo root)
-docker build -f deploy/Dockerfile.worker -t registry.example.com/razy/worker:1.0.3-beta .
-docker push registry.example.com/razy/worker:1.0.3-beta
+docker build -f deploy/Dockerfile.worker -t registry.example.com/razy/worker:1.1.0-beta .
+docker push registry.example.com/razy/worker:1.1.0-beta
 #    Prefer digest pinning: images: → digest: in kustomization.yaml
 
 # 2. Replace the placeholders in secret.yaml (or swap the file for a
@@ -57,7 +57,7 @@ curl -sk https://raz.example.com/_razy/health
 Expected probe body (worker mode, `RAZY_HEALTH_VERBOSE=1`):
 
 ```json
-{"status":"ok","uptime_seconds":42,"timestamp":1760000000,"version":"1.0.3-beta","php":"8.3.x","mode":"worker"}
+{"status":"ok","uptime_seconds":42,"timestamp":1760000000,"version":"1.1.0-beta","php":"8.3.x","mode":"worker"}
 ```
 
 `version`/`php`/`mode` only appear with `RAZY_HEALTH_VERBOSE=1`
