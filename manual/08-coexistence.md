@@ -246,7 +246,41 @@ prefix stops there instead of being rewritten to `index.php`. Full worked files:
 and
 [`deploy/coexistence/sites.exclude.php.example`](../deploy/coexistence/sites.exclude.php.example).
 
-## 6. Checklist
+## 6. Build-time route audit (Phase 3)
+
+`php Razy.phar validate <dist>` now ends with a **Route Audit (coexistence FM-2)**
+section — the PHP-side half of the dossier's cheap insurance (option (f)). It
+FUNCTIONALLY probes each route's already-compiled regex (`Razy\Routing\RouteAudit`,
+engine truth by construction — the same regex the dispatcher will use) against
+synthetic foreign paths, flagging:
+
+| Rule | Meaning |
+|---|---|
+| `root_claim` | standard route serves EVERY path reaching this distributor (the demo `addRoute('/')` footgun) |
+| `absorbs_foreign` | standard route matches paths under a declared exclusion or a sibling mount (the unanchored-tail class: `/v1` also serves `/v1.5/…`) |
+| `lazy_shadows` | lazy route's alias prefix is at or above a sibling mount / excluded prefix (FM-2 confirmed case: lazy at `/shop` swallows `/shop/reports`) |
+
+Foreign namespaces come from `sites.inc.php` (`exclude_paths` + the domain table's
+sibling mounts on domains this dist also serves). Findings are **advisory**: they
+count as validate warnings and never change the exit code.
+
+Legitimate catch-alls opt out per SITE — `catch-alls being safe is a topology
+decision, not a module property` — in `dist.php`:
+
+```php
+'route_audit_allow' => ['demo/hello_world:/', 'vendor/mod:/alias'],
+```
+
+entries match `module_code:<route>` (standard: registered pattern; lazy: the
+alias-bound route_path).
+
+`php Razy.phar rewrite` gained the companion **Host claim summary**: per domain,
+what the file about to be written asserts (mount → claim, exclusions, and under
+`--caddy` whether each host gets the Phase 2 scoped claim or a host-claim).
+Computed from the same site config the compilers consume — never a re-parse of
+generated output (RZ-013).
+
+## 7. Checklist
 
 ```
 [ ] Sibling has a real handler (edge proxy location, or vhost Alias/ProxyPass)
@@ -256,5 +290,7 @@ and
 [ ] Requests to /<prefix>/... reach the sibling; a Razy route still serves normally
 [ ] Caddy, sub-path-only mounts: Caddyfile shows the @php_claimed matcher and the
     /_razy/health handle; /_razy/health answers even though no distributor owns /
+[ ] php Razy.phar validate <dist> — Route Audit has no UNEXPLAINED findings
+    (intentional catch-alls recorded in dist.php route_audit_allow)
 [ ] No hand-edit of .htaccess / Caddyfile anywhere (RZ-013 + watchdog)
 ```

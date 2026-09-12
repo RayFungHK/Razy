@@ -121,6 +121,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   output (Phase 1 goldens re-pinned from the Phase 2 side), root+exclusions
   keeps the unchanged Phase 1 gate. 13 tests (`tests/CaddyClaimScopingTest`).
 
+**Route coexistence — Phase 3** (2026-07, `architecture/ROUTE-COEXISTENCE.md` option (f))
+
+- **Added** build-time FM-2 route audit: `validate` ends with a Route Audit
+  section (`Razy\Routing\RouteAudit`) FUNCTIONALLY probing each route's
+  already-compiled regex — the same regex the dispatcher will use, engine truth
+  by construction — against synthetic foreign paths. Flags `root_claim`
+  (distributor catch-alls, the demo `addRoute('/')` footgun),
+  `absorbs_foreign` (unanchored-tail class: `/v1` also serves `/v1.5/…`), and
+  `lazy_shadows` (lazy alias prefix at/above a sibling mount or exclusion).
+  Foreign namespaces read from `sites.inc.php` (exclusions + sibling mounts on
+  domains the dist serves). Advisory by design: warnings never change the exit
+  code. Intentional catch-alls opt out SITE-side in `dist.php`
+  `route_audit_allow` (topology decision, not a module property). 14 tests
+  driving the REAL `RouteDispatcher::compileRouteRegex`.
+- **Added** `rewrite` host claim summary: per domain, exactly what the file
+  about to be written asserts (mount → claim, exclusions, Caddy scoped vs
+  host-claim mode) — computed from the same site config the compilers consume,
+  never re-parsing generated output (RZ-013).
+
 **Declarative data contracts** (2026-07 Wave 2, `architecture/ORM-CONTRACT-PACKS.md` C1/C2)
 
 - **Added** Visibility Packs — the decision's second half ("pack 就是指定 name/id

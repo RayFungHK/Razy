@@ -474,8 +474,10 @@ legitimate catch-alls need an allow-comment, same convention as `lint-allow`
 
 ## 4. Recommendation (phased, smallest-first)
 
-> **Status (2026-07): Phases 0–2 shipped** (docs+samples; `exclude_paths` both
-> generators; Caddy claim scoping + health handle). Phase 3 open. Q5 answered for the
+> **Status (2026-07): Phases 0–3 shipped** (docs+samples; `exclude_paths` both
+> generators; Caddy claim scoping + health handle; `validate` route audit +
+> `rewrite` host-claim summary — option (f), functional probes over compiled
+> regexes, `dist.php` `route_audit_allow` opt-out). Q5 answered for the
 > Caddy half below; Q1–Q3 answered in §5.
 
 1. **Phase 0 — documentation only (this week).** Publish the coexistence page (fills

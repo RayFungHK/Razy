@@ -25,6 +25,7 @@
 namespace Razy;
 
 use Exception;
+use Razy\Routing\ExcludePaths;
 use Razy\Util\PathUtil;
 
 return function (string $distCode = '') use (&$parameters) {
@@ -88,6 +89,44 @@ return function (string $distCode = '') use (&$parameters) {
                 $dist['domains'],
                 $dist['domains'] === 1 ? '' : 's'
             ), true);
+        }
+
+        $this->writeLineLogging('', true);
+
+        // ── Host claim summary (coexistence Phase 3) ──
+        // Exactly what the file about to be written asserts, computed from the
+        // SAME site config the compilers consume (not a re-parse of output).
+        $excluded = ExcludePaths::normalize((array) ($config['exclude_paths'] ?? []));
+
+        $this->writeLineLogging('{@c:blue}Host claim summary...{@reset}', true);
+
+        foreach ((array) ($config['domains'] ?? []) as $domain => $distPaths) {
+            $mounts = (array) $distPaths;
+            \ksort($mounts); // '/' first, then lexicographic depth
+
+            $this->writeLineLogging(\sprintf('  {@c:white}%s{@reset}', $domain), true);
+
+            foreach ($mounts as $path => $identifier) {
+                if (!\is_string($identifier)) {
+                    continue;
+                }
+
+                $claim = '/' === $path
+                    ? 'ENTIRE HOST'
+                    : '/' . \trim((string) $path, '/') . ' + /* (scoped)';
+
+                $this->writeLineLogging(\sprintf('    %-16s → %-20s claims: %s', (string) $path, $identifier, $claim), true);
+            }
+
+            if ($isCaddy) {
+                $this->writeLineLogging('    Caddy mode: ' . (isset($mounts['/'])
+                    ? 'host-claim php_server' . ([] !== $excluded ? ' gated by @not_excluded' : '')
+                    : 'scoped @php_claimed + /_razy/health handle (Phase 2)'), true);
+            }
+
+            if ([] !== $excluded) {
+                $this->writeLineLogging('    excluded, never claimed: ' . \implode(', ', $excluded), true);
+            }
         }
 
         $this->writeLineLogging('', true);

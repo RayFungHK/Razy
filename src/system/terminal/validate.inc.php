@@ -8,6 +8,10 @@
  * registered routes and API commands, and checks that each referenced
  * closure file is loadable. Optionally generates stub files for missing closures.
  *
+ * Also runs the FM-2 coexistence route audit (Route Coexistence Phase 3,
+ * `Razy\Routing\RouteAudit`): catch-all / foreign-absorbing findings are
+ * ADVISORY warnings — they never change the exit code (errors still do).
+ *
  * Usage:
  *   php Razy.phar validate <distributor_code> [module_code] [options]
  *
@@ -25,6 +29,8 @@
 
 namespace Razy;
 
+use Razy\Routing\ExcludePaths;
+use Razy\Routing\RouteAudit;
 use Razy\Util\PathUtil;
 use Throwable;
 
@@ -231,6 +237,93 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
 
             $this->writeLineLogging('', true);
         }
+
+        // ── FM-2 route audit (coexistence Phase 3, dossier option (f)) ──
+        // Functional probes over the route table's COMPILED regexes. Foreign
+        // namespaces = declared exclude_paths + sibling mounts on domains this
+        // dist also serves. Advisory by design: findings count as warnings.
+        $this->writeLineLogging('{@s:b}Route Audit (coexistence FM-2){@reset}', true);
+
+        try {
+            $app = new Application();
+            $siteConfig = $app->loadSiteConfig();
+
+            $foreign = [];
+
+            foreach (ExcludePaths::normalize((array) ($siteConfig['exclude_paths'] ?? [])) as $prefix) {
+                $foreign[$prefix] = 'declared exclusion ' . $prefix;
+            }
+
+            foreach ((array) ($siteConfig['domains'] ?? []) as $domainName => $distPaths) {
+                $selfMounted = false;
+
+                foreach ((array) $distPaths as $mountPath => $identifier) {
+                    if (\is_string($identifier) && \explode('@', $identifier)[0] === $distCode) {
+                        $selfMounted = true;
+
+                        break;
+                    }
+                }
+
+                if (!$selfMounted) {
+                    continue; // siblings on unrelated hosts are not this dist's URL space
+                }
+
+                foreach ((array) $distPaths as $mountPath => $identifier) {
+                    // '/' skipped: a sibling root mount is FM-1's generator problem,
+                    // and any route absorbing it is already caught by the root-claim probe.
+                    if (!\is_string($identifier) || '/' === $mountPath || \explode('@', $identifier)[0] === $distCode) {
+                        continue;
+                    }
+
+                    $foreign[(string) $mountPath] ??= 'sibling mount ' . $mountPath . ' (' . $identifier . ') on ' . $domainName;
+                }
+            }
+
+            $allow = [];
+            $distConfigPath = PathUtil::append($distPath, 'dist.php');
+
+            if (\is_file($distConfigPath)) {
+                $distConfig = require $distConfigPath;
+                $allow = \array_values(\array_filter(
+                    (array) ((\is_array($distConfig) ? $distConfig : [])['route_audit_allow'] ?? []),
+                    'is_string',
+                ));
+            }
+
+            $audit = RouteAudit::run($routes, $foreign, $allow);
+
+            if ([] === $audit['findings']) {
+                $this->writeLineLogging('  {@c:green}✓ no catch-all or foreign-absorbing routes found{@reset}'
+                    . ($audit['suppressed'] > 0 ? ' (' . $audit['suppressed'] . ' suppressed by route_audit_allow)' : ''), true);
+            }
+
+            foreach ($audit['findings'] as $finding) {
+                $this->writeLineLogging(\sprintf(
+                    '  {@c:yellow}⚠ [%s]{@reset} {@c:white}%s{@reset} "%s"%s',
+                    $finding['rule'],
+                    $finding['module_code'],
+                    $finding['route'],
+                    '' !== $finding['prefix'] ? ' ↔ ' . $finding['prefix'] : '',
+                ), true);
+                $this->writeLineLogging('      ' . $finding['message'], true);
+                $this->writeLineLogging(\sprintf(
+                    "      allow if intentional: dist.php route_audit_allow[] = '%s:%s'",
+                    $finding['module_code'],
+                    $finding['route'],
+                ), true);
+                ++$totalWarnings;
+            }
+
+            if ($audit['suppressed'] > 0 && [] !== $audit['findings']) {
+                $this->writeLineLogging('  (' . $audit['suppressed'] . ' suppressed by route_audit_allow)', true);
+            }
+        } catch (Throwable $e) {
+            $this->writeLineLogging('  {@c:yellow}⚠ audit skipped: ' . $e->getMessage() . '{@reset}', true);
+            ++$totalWarnings;
+        }
+
+        $this->writeLineLogging('', true);
 
         // Summary
         $this->writeLineLogging('{@s:b}Validation Summary{@reset}', true);
