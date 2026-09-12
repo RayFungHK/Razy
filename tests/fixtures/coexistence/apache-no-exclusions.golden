@@ -1,0 +1,14 @@
+RewriteEngine on
+
+# Detect base directory for subdirectory installs
+RewriteCond $0#%{REQUEST_URI} ^([^#]*)#(.*)\1$
+RewriteRule ^.*$ - [E=BASE:%2]
+
+# Rewrite the shared module location
+RewriteRule ^\w+/shared/(.*)$ shared/$1 [L]
+
+# ── Domain Detection ──
+RewriteCond %{HTTP_HOST} ^example\.com(:\d+)?$ [NC]
+RewriteRule ^ - [E=RAZY_DOMAIN:example.com]
+
+# ── Distributor Rewrite Rules ──
