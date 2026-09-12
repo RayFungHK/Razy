@@ -34,11 +34,16 @@ namespace Razy;
 
 use Exception;
 use Phar;
+use Razy\Exception\PackageIntegrityException;
 use Razy\Util\PathUtil;
 
 return function (string $repository = '', string $targetPath = '', ...$options) use (&$parameters) {
     // Helper: fetch a URL safely with cURL (protocol-restricted, with timeout)
     $safeFetchUrl = static function (string $url): string|false {
+        // Registry text files (disclaimer/terms) honour the same transport policy (G5).
+        if (!ArchiveSafety::isSecureUrl($url, PackageVerifier::insecureTransportAllowed())) {
+            return false;
+        }
         if (!\function_exists('curl_init')) {
             return @\file_get_contents($url);
         }
@@ -75,6 +80,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
     $moduleName = null;
     $distCode = null;
     $fromRepo = false;
+    $fromRepoUrl = null;
     $autoConfirm = false;
 
     foreach ($options as $option) {
@@ -94,6 +100,8 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             $distCode = \substr($option, \strpos($option, '=') + 1);
         } elseif ($option === '--from-repo' || $option === '-r') {
             $fromRepo = true;
+        } elseif (\str_starts_with($option, '--from=')) {
+            $fromRepoUrl = \substr($option, 7);
         } elseif ($option === '--yes' || $option === '-y') {
             $autoConfirm = true;
         }
@@ -126,6 +134,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         $this->writeLineLogging('  {@c:green}-n, --name=NAME{@reset}      Module name (for modules directory)', true);
         $this->writeLineLogging('  {@c:green}-d, --dist=CODE{@reset}      Install to distributor\'s modules directory', true);
         $this->writeLineLogging('  {@c:green}--token=TOKEN{@reset}        Authentication token (for private repos)', true);
+        $this->writeLineLogging('  {@c:green}--from=URL[@branch]{@reset}  One-shot registry source for --from-repo (not persisted)', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Examples:', true);
         $this->writeLineLogging('  {@c:cyan}# Install from main branch{@reset}', true);
@@ -153,6 +162,7 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         $this->writeLineLogging('  {@c:cyan}# Install from configured repositories{@reset}', true);
         $this->writeLineLogging('  php Razy.phar install vendor/module --from-repo', true);
         $this->writeLineLogging('  php Razy.phar install vendor/module@1.0.0 --from-repo', true);
+        $this->writeLineLogging('  php Razy.phar install vendor/module --from-repo --from=https://github.com/acme/packs@main', true);
         $this->writeLineLogging('', true);
 
         exit(1);
@@ -161,23 +171,34 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
     try {
         // Handle --from-repo: install from configured repositories
         if ($fromRepo) {
-            // Load repository configuration
-            $repositoryConfig = SYSTEM_ROOT . '/repository.inc.php';
-            if (!\is_file($repositoryConfig)) {
-                $this->writeLineLogging('{@c:red}[ERROR] No repository.inc.php found.{@reset}', true);
-                $this->writeLineLogging('', true);
-                $this->writeLineLogging('Create repository.inc.php in your project root:', true);
-                $this->writeLineLogging('  {@c:cyan}<?php{@reset}', true);
-                $this->writeLineLogging('  {@c:cyan}return [{@reset}', true);
-                $this->writeLineLogging('  {@c:cyan}    \'https://github.com/username/repo/\' => \'main\',{@reset}', true);
-                $this->writeLineLogging('  {@c:cyan}];{@reset}', true);
-                exit(1);
-            }
+            // Resolve registry sources with documented precedence (G1):
+            //   --from override > project repository.inc.php (authoritative)
+            //   > built-in default official registry.
+            if ($fromRepoUrl !== null && $fromRepoUrl !== '') {
+                $fromRepoSource = $fromRepoUrl;
+                $fromRepoBranch = 'main';
 
-            $repositories = include $repositoryConfig;
-            if (!\is_array($repositories) || empty($repositories)) {
-                $this->writeLineLogging('{@c:red}[ERROR] No repositories configured.{@reset}', true);
-                exit(1);
+                if (\str_contains($fromRepoSource, '@')) {
+                    [$fromRepoSource, $fromRepoBranch] = \explode('@', $fromRepoSource, 2);
+                }
+
+                if ($fromRepoSource === '' || $fromRepoBranch === '') {
+                    $this->writeLineLogging('{@c:red}[ERROR] --from expects <url>[@branch].{@reset}', true);
+                    exit(1);
+                }
+
+                $this->writeLineLogging('[{@c:blue}SOURCE{@reset}] One-shot registry override: {@c:cyan}' . $fromRepoSource . ' @ ' . $fromRepoBranch . '{@reset} (not persisted)', true);
+                $this->writeLineLogging('', true);
+                $repositories = [$fromRepoSource => $fromRepoBranch];
+            } else {
+                $repositories = RepositoryManager::resolveRepositories(SYSTEM_ROOT . '/repository.inc.php');
+
+                if ($repositories === RepositoryManager::defaultRepositories()) {
+                    $this->writeLineLogging('{@c:yellow}[NOTICE] No usable repository.inc.php — using the built-in default official registry.{@reset}', true);
+                    $this->writeLineLogging('  Registry: {@c:cyan}' . RepositoryManager::DEFAULT_OFFICIAL_URL . ' @ ' . RepositoryManager::DEFAULT_OFFICIAL_BRANCH . '{@reset}', true);
+                    $this->writeLineLogging('  If it is unreachable or missing the pack, create repository.inc.php or pass {@c:cyan}--from=<url>[@branch]{@reset}.', true);
+                    $this->writeLineLogging('', true);
+                }
             }
 
             // Parse module code and optional version from vendor/module@version format
@@ -350,6 +371,29 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
 
             $this->writeLineLogging('[{@c:green}✓{@reset}] Download URL: {@c:cyan}' . $downloadUrl . '{@reset}', true);
 
+            // S2 integrity: resolve the checksum claim from index metadata before
+            // touching disk. Claimed-but-missing is fail-closed; a checksum-less
+            // (v1) index proceeds only with a loud warning (G3).
+            $checksumClaim = PackageVerifier::resolveExpectedChecksum($moduleInfo, $requestedVersion);
+
+            if ($checksumClaim['required'] && $checksumClaim['sha256'] === null) {
+                $this->writeLineLogging('{@c:red}[ERROR] Checksum claimed but missing: ' . $checksumClaim['reason'] . '{@reset}', true);
+                $this->writeLineLogging('{@c:red}Refusing to install an artifact that cannot be verified.{@reset}', true);
+                exit(1);
+            }
+
+            if (!$checksumClaim['required']) {
+                $this->writeLineLogging('{@c:yellow}[WARN] ' . $checksumClaim['reason'] . ' — artifact integrity CANNOT be verified.{@reset}', true);
+            }
+
+            // Transport policy: HTTPS-only unless the operator opted into HTTP mirrors (G5).
+            try {
+                PackageVerifier::assertSecureUrl($downloadUrl);
+            } catch (PackageIntegrityException $e) {
+                $this->writeLineLogging('{@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
+                exit(1);
+            }
+
             // Determine target path for module installation
             if ($distCode) {
                 // Install to distributor's modules directory
@@ -392,6 +436,21 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             // Save the downloaded content to a temp file and extract it to the target path
             $tempPhar = \sys_get_temp_dir() . '/razy_' . \md5(\microtime()) . '.phar';
             \file_put_contents($tempPhar, $pharContent);
+
+            // Verify the checksum BEFORE any extraction — a mismatch must abort with
+            // nothing written to the target path (fail-closed, G3).
+            if ($checksumClaim['required']) {
+                $this->writeLineLogging('[{@c:yellow}VERIFY{@reset}] Verifying sha256 checksum...', true);
+
+                try {
+                    PackageVerifier::verifyFile($tempPhar, (string) $checksumClaim['sha256']);
+                    $this->writeLineLogging('[{@c:green}✓{@reset}] Checksum verified', true);
+                } catch (PackageIntegrityException $e) {
+                    $this->writeLineLogging('{@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
+                    @\unlink($tempPhar);
+                    exit(1);
+                }
+            }
 
             $this->writeLineLogging('[{@c:yellow}EXTRACT{@reset}] Extracting module...', true);
 
@@ -503,6 +562,25 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                     continue;
                                 }
 
+                                // S2 integrity: same fail-closed checksum policy for dependency phars.
+                                $depClaim = PackageVerifier::resolveExpectedChecksum($depInfo, $depVersion);
+
+                                if ($depClaim['required'] && $depClaim['sha256'] === null) {
+                                    $this->writeLineLogging('  {@c:red}[ERROR] Checksum claimed but missing: ' . $depClaim['reason'] . '{@reset}', true);
+                                    continue;
+                                }
+
+                                if (!$depClaim['required']) {
+                                    $this->writeLineLogging('  {@c:yellow}[WARN] ' . $depClaim['reason'] . ' — integrity CANNOT be verified.{@reset}', true);
+                                }
+
+                                try {
+                                    PackageVerifier::assertSecureUrl($depUrl);
+                                } catch (PackageIntegrityException $e) {
+                                    $this->writeLineLogging('  {@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
+                                    continue;
+                                }
+
                                 // Download and extract dependency
                                 $this->writeLineLogging('  [DOWNLOAD] ' . $depUrl, true);
 
@@ -510,6 +588,10 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                                 \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                                 \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+                                \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+                                \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+                                \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+                                \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
                                 \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
 
                                 $depContent = \curl_exec($ch);
@@ -530,6 +612,17 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                 // Extract dependency
                                 $depTempPhar = \sys_get_temp_dir() . '/razy_dep_' . \md5($reqModuleCode . \microtime()) . '.phar';
                                 \file_put_contents($depTempPhar, $depContent);
+
+                                // Verify dependency checksum BEFORE extraction (fail-closed).
+                                if ($depClaim['required']) {
+                                    try {
+                                        PackageVerifier::verifyFile($depTempPhar, (string) $depClaim['sha256']);
+                                    } catch (PackageIntegrityException $e) {
+                                        $this->writeLineLogging('  {@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
+                                        @\unlink($depTempPhar);
+                                        continue;
+                                    }
+                                }
 
                                 try {
                                     if (!\is_dir($depTargetPath)) {

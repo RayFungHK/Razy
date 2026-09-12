@@ -10,13 +10,25 @@
  */
 
 /**
- * Razy Framework - Default Repository Configuration (Setup Asset)
+ * Razy Framework - Registry Sources Configuration (Setup Asset)
  *
- * Returns an associative array mapping repository URLs to their target branch.
- * These repositories are used by the Razy package manager to discover and
- * install modules, plugins, and shared libraries.
+ * Returns an associative array mapping repository URLs to the branch their
+ * index.json is served from. Consumed by `search`, `install --from-repo`,
+ * `pkg install`, and `sync` to discover and install packs.
  *
  * Format: 'repository_url' => 'branch_name'
+ *
+ * HONEST STATUS (2026-07): the entry below is the planned OFFICIAL Razy
+ * registry. The maintainer has not published it yet, so it may answer 404 —
+ * Razy then reports "not found in configured repositories" and installs
+ * nothing. While it is unpublished you can:
+ *   - point a single command at any live registry:
+ *       php Razy.phar install <vendor>/<mod> --from-repo --from=https://github.com/<you>/<registry>@main
+ *   - or replace the URL below with a registry that exists today.
+ *
+ * Note: since S0, deleting this file is safe — Razy falls back to the same
+ * built-in default official registry (Razy\RepositoryManager::DEFAULT_OFFICIAL_URL).
+ * A hand-written file like this one stays authoritative when it returns entries.
  *
  * @package Razy
  * @license MIT

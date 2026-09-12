@@ -63,6 +63,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 - **Known gap** `Controller::__onDispatch()` is declared but never invoked in `src/` — a
   reserved hook, not wired behavior (tracked as documentation drift).
 
+**Registry S0 — honest one-click install** (2026-07, `architecture/OFFICIAL-REPO-INSTALL.md`)
+
+- **Added** `Razy\PackageVerifier` (+ typed `PackageIntegrityException`):
+  fail-closed sha256 gate — index entries CLAIMING a checksum are mandatory
+  (claimed-but-empty aborts too); v1 indexes without checksums warn loudly
+  ("CANNOT be verified") and proceed, matching reality instead of pretending.
+  URL policy delegates to the existing `ArchiveSafety::isSecureUrl`.
+- **Added** built-in default official registry (`DEFAULT_OFFICIAL_*` = the URL
+  the scaffolder already pointed at) via `RepositoryManager::resolveRepositories()`
+  — `install`/`sync`/`search`/`pkg` now work with ZERO config; a
+  `repository.inc.php` with entries stays authoritative; `install --from=<url>[@branch]`
+  one-shot override added.
+- **Fixed**: checksum verification now happens BEFORE every
+  `extractTo`/save across ALL FOUR fetch paths (install main + dependency,
+  sync, pkg) — previously the phar path bypassed `ArchiveSafety` entirely and
+  the published sha256 was verified nowhere; the dependency cURL also gained the
+  missing `CURLOPT_PROTOCOLS`/redirect caps/timeout. Source-ordering is pinned
+  by tests. 34 tests, network-free.
+- ⚠️ Maintainer action items: the scaffolded registry URL 404s until the repo is
+  created (clear error + `--from` documented meanwhile); the plaintext GitHub
+  PAT in `packages/publish.inc.php` (never committed — caught by the catch-all
+  ignore rule) should still be rotated and moved to an env var.
+
 **Route coexistence — Phase 0+1** (2026-07, `architecture/ROUTE-COEXISTENCE.md`)
 
 - **Added** declared sibling exclusions: host-level `exclude_paths` in

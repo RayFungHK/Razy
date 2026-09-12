@@ -43,6 +43,17 @@ class RepositoryManager
     /** @var string Notification type: search result found */
     public const TYPE_SEARCH_RESULT = 'search_result';
 
+    /**
+     * Built-in default official registry (gap G1, OFFICIAL-REPO-INSTALL.md §7.1).
+     * Consulted only when no project repository.inc.php is usable; a
+     * hand-written registry file stays authoritative. The maintainer publishes
+     * this repo — until then it may 404 and callers degrade with a clear error.
+     */
+    public const DEFAULT_OFFICIAL_URL = 'https://github.com/RayFungHK/Razy-Repository/';
+
+    /** @var string Branch of the built-in default official registry */
+    public const DEFAULT_OFFICIAL_BRANCH = 'master';
+
     /** @var array<string, string> Registered repository URLs mapped to their branch names */
     private array $repositories = [];
 
@@ -63,17 +74,16 @@ class RepositoryManager
         $this->notifyClosure = $notify ? $notify(...) : null;
 
         if ($repositories === null) {
-            // Load default repository list from the system-level configuration file
-            $repoFile = PathUtil::append(SYSTEM_ROOT, 'repository.inc.php');
-            if (\is_file($repoFile)) {
-                $repositories = require $repoFile;
-            }
+            // Load the project repository list, falling back to the built-in
+            // default official registry when no repository.inc.php is usable (G1).
+            $repositories = self::resolveRepositories();
         }
 
-        if (\is_array($repositories)) {
-            foreach ($repositories as $url => $branch) {
-                $this->addRepository($url, $branch);
-            }
+        // resolveRepositories() always yields an array (built-in default when
+        // the config file is absent), and the parameter is ?array — so this
+        // point is array-typed by contract; no is_array guard needed.
+        foreach ($repositories as $url => $branch) {
+            $this->addRepository((string) $url, (string) $branch);
         }
     }
 
@@ -136,6 +146,45 @@ class RepositoryManager
     }
 
     /**
+     * The built-in default official registry map (gap G1).
+     *
+     * Lets `search` / `install --from-repo` / `pkg install` resolve packs
+     * without the hand-written repository.inc.php blocker; a one-shot
+     * `--from <url>[@branch]` override beats it for a single command.
+     *
+     * @return array<string, string> Repository URL → branch, never empty
+     */
+    public static function defaultRepositories(): array
+    {
+        return [\rtrim(self::DEFAULT_OFFICIAL_URL, '/') => self::DEFAULT_OFFICIAL_BRANCH];
+    }
+
+    /**
+     * Resolve registry sources with documented precedence:
+     * project repository.inc.php (authoritative while it returns entries)
+     * → built-in default official registry.
+     *
+     * @param string|null $configFile Explicit config path (defaults to SYSTEM_ROOT/repository.inc.php)
+     *
+     * @return array<string, string> Repository URL → branch, never empty
+     */
+    public static function resolveRepositories(?string $configFile = null): array
+    {
+        $configFile ??= PathUtil::append(SYSTEM_ROOT, 'repository.inc.php');
+
+        if (\is_file($configFile)) {
+            // A hand-written registry file is authoritative when it has entries.
+            $repositories = require $configFile;
+
+            if (\is_array($repositories) && $repositories !== []) {
+                return $repositories;
+            }
+        }
+
+        return self::defaultRepositories();
+    }
+
+    /**
      * Add a repository source.
      *
      * @param string $url Repository base URL
@@ -179,7 +228,7 @@ class RepositoryManager
 
         $response = $this->httpGet($indexUrl);
         if ($response === null) {
-            $this->notify(self::TYPE_ERROR, ['Failed to fetch index', $indexUrl]);
+            $this->notify(self::TYPE_ERROR, ['Failed to fetch index (registry unreachable or index.json not found)', $indexUrl]);
             return null;
         }
 
@@ -260,6 +309,12 @@ class RepositoryManager
                     'versions' => $index[$moduleCode]['versions'] ?? [],
                     'repository' => $repoUrl,
                     'branch' => $branch,
+                    // S2 integrity: pass the checksum-bearing metadata through
+                    // (schema-v2 'releases.<v>.sha256' or flat 'sha256') so
+                    // installers can resolve the claim via PackageVerifier
+                    // without re-fetching the index. Additive keys only.
+                    'releases' => $index[$moduleCode]['releases'] ?? [],
+                    'sha256' => $index[$moduleCode]['sha256'] ?? null,
                 ];
             }
         }
@@ -451,6 +506,15 @@ class RepositoryManager
      */
     private function httpGet(string $url): ?string
     {
+        // Transport policy (gap G5): index/manifest fetches honour the same
+        // HTTPS-only rule as artifact downloads (ArchiveSafety::isSecureUrl);
+        // insecure sources need the explicit operator opt-in.
+        if (!ArchiveSafety::isSecureUrl($url, PackageVerifier::insecureTransportAllowed())) {
+            $this->notify(self::TYPE_ERROR, ['Insecure repository URL rejected (HTTPS required; set RAZY_ALLOW_INSECURE_TRANSPORT=1 to override)', $url]);
+
+            return null;
+        }
+
         $ch = \curl_init($url);
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);

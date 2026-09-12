@@ -35,6 +35,7 @@ namespace Razy;
 
 use Exception;
 use Phar;
+use Razy\Exception\PackageIntegrityException;
 use Razy\Util\PathUtil;
 
 return function (string $distCode = '', ...$options) use (&$parameters) {
@@ -284,6 +285,30 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
             continue;
         }
 
+        // S2 integrity: resolve the checksum claim from index metadata before
+        // touching disk. Claimed-but-missing is fail-closed; a checksum-less
+        // (v1) index proceeds only with a loud warning (G3).
+        $checksumClaim = PackageVerifier::resolveExpectedChecksum($moduleInfo, $targetVersion);
+
+        if ($checksumClaim['required'] && $checksumClaim['sha256'] === null) {
+            $this->writeLineLogging('    {@c:red}[ERROR] Checksum claimed but missing: ' . $checksumClaim['reason'] . '{@reset}', true);
+            $errorCount++;
+            continue;
+        }
+
+        if (!$checksumClaim['required']) {
+            $this->writeLineLogging('    {@c:yellow}[WARN] ' . $checksumClaim['reason'] . ' — artifact integrity CANNOT be verified.{@reset}', true);
+        }
+
+        // Transport policy: HTTPS-only unless the operator opted into HTTP mirrors (G5).
+        try {
+            PackageVerifier::assertSecureUrl($downloadUrl);
+        } catch (PackageIntegrityException $e) {
+            $this->writeLineLogging('    {@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
+            $errorCount++;
+            continue;
+        }
+
         // Download the phar package via cURL
         $this->writeLineLogging('    [{@c:yellow}DOWNLOAD{@reset}] ' . \basename($downloadUrl), true);
 
@@ -313,6 +338,19 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
         // Write the downloaded content to a temporary file and extract into target
         $tempPhar = \sys_get_temp_dir() . '/razy_' . \md5(\microtime()) . '.phar';
         \file_put_contents($tempPhar, $pharContent);
+
+        // Verify the checksum BEFORE any extraction — a mismatch aborts this
+        // module with nothing new written to the target path (fail-closed, G3).
+        if ($checksumClaim['required']) {
+            try {
+                PackageVerifier::verifyFile($tempPhar, (string) $checksumClaim['sha256']);
+            } catch (PackageIntegrityException $e) {
+                $this->writeLineLogging('    {@c:red}[ERROR] ' . $e->getMessage() . '{@reset}', true);
+                @\unlink($tempPhar);
+                $errorCount++;
+                continue;
+            }
+        }
 
         try {
             // Ensure the target directory exists before extraction

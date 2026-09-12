@@ -71,6 +71,7 @@ namespace Razy;
 
 use Exception;
 use Phar;
+use Razy\Exception\PackageIntegrityException;
 use Razy\Package\PackageManifest;
 use Razy\Package\PackageRegistry;
 use Razy\Package\PackageRunner;
@@ -585,6 +586,31 @@ return function (string ...$args) use (&$parameters) {
             return false;
         }
 
+        // S2 integrity: resolve the checksum claim from index metadata.
+        // Claimed-but-missing is fail-closed; a checksum-less (v1) index
+        // proceeds only with a loud warning (G3).
+        $checksumClaim = PackageVerifier::resolveExpectedChecksum($pkgInfo, $requestedVersion);
+
+        if ($checksumClaim['required'] && $checksumClaim['sha256'] === null) {
+            $this->writeLineLogging('{@c:red}[Error]{@reset} Checksum claimed but missing: ' . $checksumClaim['reason'] . '{@reset}', true);
+            $this->writeLineLogging('{@c:red}Refusing to install an artifact that cannot be verified.{@reset}', true);
+
+            return false;
+        }
+
+        if (!$checksumClaim['required']) {
+            $this->writeLineLogging('{@c:yellow}[WARN] ' . $checksumClaim['reason'] . ' — artifact integrity CANNOT be verified.{@reset}', true);
+        }
+
+        // Transport policy: HTTPS-only unless the operator opted into HTTP mirrors (G5).
+        try {
+            PackageVerifier::assertSecureUrl($downloadUrl);
+        } catch (PackageIntegrityException $e) {
+            $this->writeLineLogging('{@c:red}[Error]{@reset} ' . $e->getMessage() . '{@reset}', true);
+
+            return false;
+        }
+
         $this->writeLineLogging('[{@c:yellow}DOWNLOAD{@reset}] ' . $downloadUrl, true);
 
         // Download the .phar file
@@ -611,6 +637,20 @@ return function (string ...$args) use (&$parameters) {
 
         $sizeKB = \round($downloadSize / 1024, 2);
         $this->writeLineLogging('[{@c:green}✓{@reset}] Downloaded ({@c:green}' . $sizeKB . ' KB{@reset})', true);
+
+        // Verify the bytes BEFORE saving them to packages/ — a mismatch aborts
+        // with nothing written (pkg install keeps the phar un-extracted, so the
+        // saved file is the artifact itself; fail-closed, G3).
+        if ($checksumClaim['required']) {
+            try {
+                PackageVerifier::verifyString($pharContent, (string) $checksumClaim['sha256']);
+                $this->writeLineLogging('[{@c:green}✓{@reset}] Checksum verified', true);
+            } catch (PackageIntegrityException $e) {
+                $this->writeLineLogging('{@c:red}[Error]{@reset} ' . $e->getMessage() . '{@reset}', true);
+
+                return false;
+            }
+        }
 
         // Save the .phar to packages/<vendor>/<module>/<version>.phar
         $targetDir = PathUtil::append($pkgDir, $pkgCode);

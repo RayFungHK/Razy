@@ -54,23 +54,17 @@ return function (string $query = '', ...$options) use (&$parameters) {
         exit(1);
     }
 
-    // Load repository configuration from the project root
-    $repositoryConfig = SYSTEM_ROOT . '/repository.inc.php';
-    if (!\is_file($repositoryConfig)) {
-        $this->writeLineLogging('{@c:yellow}[WARNING] No repository.inc.php found.{@reset}', true);
-        $this->writeLineLogging('', true);
-        $this->writeLineLogging('Create repository.inc.php in your project root:', true);
-        $this->writeLineLogging('  {@c:cyan}<?php{@reset}', true);
-        $this->writeLineLogging('  {@c:cyan}return [{@reset}', true);
-        $this->writeLineLogging('  {@c:cyan}    \'https://github.com/username/repo/\' => \'main\',{@reset}', true);
-        $this->writeLineLogging('  {@c:cyan}];{@reset}', true);
-        exit(1);
-    }
-
-    $repositories = include $repositoryConfig;
+    // Load repository configuration; when the project file is absent/empty,
+    // fall back to the built-in default registry (same resolution as `install`)
+    // so search works out-of-the-box instead of hard-exiting (S1).
+    $repositories = RepositoryManager::resolveRepositories();
     if (!\is_array($repositories) || empty($repositories)) {
         $this->writeLineLogging('{@c:yellow}[WARNING] No repositories configured.{@reset}', true);
         exit(1);
+    }
+
+    if (!\is_file(SYSTEM_ROOT . '/repository.inc.php')) {
+        $this->writeLineLogging('{@c:yellow}[NOTE]{@reset} no repository.inc.php — using the built-in default registry (add one to override).', true);
     }
 
     $this->writeLineLogging('Searching for: {@c:cyan}' . $query . '{@reset}', true);
