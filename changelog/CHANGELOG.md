@@ -103,6 +103,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 **Declarative data contracts** (2026-07 Wave 2, `architecture/ORM-CONTRACT-PACKS.md` C1/C2)
 
+- **Added** Visibility Packs — the decision's second half ("pack 就是指定 name/id
+  visable 的屬性"): `Model::$packs` declares named serialisation views; a dotted
+  entry (`profile.city`) prunes a cast JSON column to the declared sub-path
+  (addresses on one root merge). `ModelQuery::pack('name')` validates
+  IMMEDIATELY (typo throws before any SQL) and propagates through
+  `get/first/find/paginate`; a pack overrides `$visible`/`$hidden` while active
+  and shapes ONLY the queried model (relations keep their own shape). Honest
+  boundary pinned by tests: OUTPUT gate — `getRawAttribute()` still sees
+  in-memory data (never was an injection control; Executor inlines values).
+  No pack = `$hidden`/`$visible` behaviour byte-for-byte unchanged. 13 tests.
+
 - **Added** `Razy\ORM\Contract` + `ContractCompiler`: the declarative skeleton the
   user asked for — table/fields/relations declared ONCE, reusing the existing
   Column grammar (no new DSL), compiled to real CREATE TABLE SQL incl. FK

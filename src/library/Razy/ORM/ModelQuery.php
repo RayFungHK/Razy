@@ -85,6 +85,9 @@ class ModelQuery
      */
     private array $eagerLoad = [];
 
+    /** Active pack view applied to every hydrated model (null = none) */
+    private ?string $packName = null;
+
     /**
      * Global scope names to exclude from this query.
      *
@@ -415,6 +418,33 @@ class ModelQuery
         return $this;
     }
 
+    /**
+     * Restrict every hydrated model's serialisation to a declared pack view.
+     *
+     * The name is validated against the model's static `$packs` IMMEDIATELY
+     * (fail-loud, before any SQL runs); each model returned by `get()` /
+     * `first()` / `find()` (and therefore `paginate()`) carries the view.
+     * Eager-loaded RELATED models are unaffected — a pack shapes the model
+     * it was queried on, not the graph beneath it.
+     *
+     * ```php
+     * $public = User::query($db)->pack('public')->get(); // toArray() = pack view
+     * ```
+     *
+     * @throws InvalidArgumentException on an undeclared pack name
+     *
+     * @return $this
+     */
+    public function pack(string $pack): static
+    {
+        /** @var class-string<Model> $modelClass */
+        $modelClass = $this->modelClass;
+        $modelClass::getPackDefinition($pack);
+        $this->packName = $pack;
+
+        return $this;
+    }
+
     // -----------------------------------------------------------------------
     //  Terminal methods — execute and return results
     // -----------------------------------------------------------------------
@@ -431,7 +461,13 @@ class ModelQuery
         $models = [];
 
         foreach ($rows as $row) {
-            $models[] = $modelClass::newFromRow($row, $this->database);
+            $model = $modelClass::newFromRow($row, $this->database);
+
+            if ($this->packName !== null) {
+                $model->applyPack($this->packName);
+            }
+
+            $models[] = $model;
         }
 
         $collection = new ModelCollection($models);
@@ -471,6 +507,10 @@ class ModelQuery
         $modelClass = $this->modelClass;
 
         $model = $modelClass::newFromRow($row, $this->database);
+
+        if ($this->packName !== null) {
+            $model->applyPack($this->packName);
+        }
 
         if (!empty($this->eagerLoad)) {
             $this->loadEagerRelations([$model]);

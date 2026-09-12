@@ -267,6 +267,54 @@ model events `creating/created/updating/updated/saving/saved/deleting/deleted`
 The ORM is the safe path: **all values go through named parameters** (`where('x=:x',
 ['x'=>…])`). Prefer it when the builder's inline-quoting (below) tempts you to interpolate.
 
+### 6a. Contract + Visibility packs (v1.0.3-beta+)
+
+`Razy\ORM\Contract` declares a table's skeleton ONCE (fields in the same Column
+simple-syntax the Migrations use, relations incl. `hasManyThrough`, JSON
+sub-schemas as addresses):
+
+```php
+use Razy\ORM\Contract;
+use Razy\ORM\ContractCompiler;
+
+$contract = Contract::define([
+    'table' => 'users', 'primary_key' => 'id', 'timestamps' => true,
+    'fields' => [
+        'id'      => 'id=type(int),auto',
+        'email'   => 'email=type(varchar,255),nullable',
+        'team_id' => 'team_id=type(int),nullable,reference(teams,id)', // real FK DDL
+        'profile' => ['column' => 'profile=type(text),nullable', 'json' => ['city' => 'type(varchar)']],
+    ],
+    'relations' => [['kind' => 'hasMany', 'target' => 'posts', 'as' => 'posts', 'fk' => 'user_id']],
+]);
+$compiler = new ContractCompiler();
+echo $compiler->createTableSql($contract);          // CREATE TABLE incl. FK, no DB needed
+$drift = $compiler->drift($contract, $savedSnapshot); // added/removed/changed REPORT only
+```
+
+Scope honesty: create-generate + drift **reporting** — no diff-migrations against a
+live DB (driver introspection does not exist), and the grammar normalizes positional
+lengths (`varchar,320` vs `,255` export identically — see `OrmContractTest`).
+
+A **pack** is a named serialisation view — "which attributes are visible to whom":
+
+```php
+class User extends Model {
+    protected static array $packs = [
+        'public'  => ['id', 'name', 'profile.city'],   // JSON pruned to declared paths
+        'contact' => ['id', 'name', 'email', 'profile.city', 'profile.phone'],
+    ];
+}
+$users = $User::query($db)->pack('public')->get();  // typo'd name throws IMMEDIATELY
+$users->first()->toArray();  // ['id'=>…,'name'=>…,'profile'=>['city'=>…]] — nothing else
+```
+
+Packs override `$visible`/`$hidden` while active, propagate through
+`get/first/find/paginate`, and shape ONLY the queried model — eager-loaded
+relations keep their own shape. They are an **output** gate: `getRawAttribute()`
+still sees everything in memory (intentional; the Executor inlines values at SQL
+level, so attribute-hiding was never an injection control — see §7).
+
 ## 7. Injection discipline (RZ-003) — read this once, save many apps
 
 The executor builds a final SQL string and `prepare()`s it **without a bound parameter

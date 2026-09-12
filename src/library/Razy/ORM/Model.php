@@ -17,6 +17,7 @@ namespace Razy\ORM;
 use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
+use InvalidArgumentException;
 use JsonException;
 use Razy\Database;
 use Razy\Exception\ModelNotFoundException;
@@ -118,6 +119,24 @@ abstract class Model
      */
     protected static array $visible = [];
 
+    /**
+     * Named serialisation views ("packs"), each a non-empty list of visible
+     * attribute names; dotted entries (`profile.city`) prune a cast array/JSON
+     * column down to the declared sub-path instead of exposing it whole.
+     *
+     * A pack is selected per query (`ModelQuery::pack('public')`) or per
+     * instance (`applyPack()`); while active it takes precedence over BOTH
+     * `$visible` and `$hidden`. Attributes stay in memory either way — packs
+     * are an OUTPUT gate (serialisation view), not a memory/SQL restriction.
+     *
+     * Declared `mixed` on purpose: a subclass may override this with any
+     * malformed shape (PHP cannot enforce value types on static props), and
+     * getPackDefinition() validates it loudly at run time.
+     *
+     * @var array<string, mixed>
+     */
+    protected static array $packs = [];
+
     // -----------------------------------------------------------------------
     //  Boot & Global Scopes (class-level, stored per concrete class)
     // -----------------------------------------------------------------------
@@ -180,6 +199,11 @@ abstract class Model
      * Whether this model has been persisted to the database.
      */
     protected bool $exists = false;
+
+    /**
+     * Active pack view name (see static $packs); null = no pack in effect.
+     */
+    protected ?string $viewedPack = null;
 
     /**
      * Database connection associated with this model instance.
@@ -1107,6 +1131,57 @@ abstract class Model
     // -----------------------------------------------------------------------
 
     /**
+     * Activate one of this model's declared packs for serialisation.
+     *
+     * Fails loudly (InvalidArgumentException) on an undeclared pack name —
+     * a pack typo is a programmer error and must surface at the call site,
+     * not silently widen or narrow output.
+     */
+    public function applyPack(string $pack): static
+    {
+        static::getPackDefinition($pack);
+        $this->viewedPack = $pack;
+
+        return $this;
+    }
+
+    /**
+     * Name of the currently active pack view, or null.
+     */
+    public function getViewedPack(): ?string
+    {
+        return $this->viewedPack;
+    }
+
+    /**
+     * Validate and return a declared pack definition.
+     *
+     * @return list<string>
+     *
+     * @throws InvalidArgumentException when the pack is undeclared or malformed
+     */
+    public static function getPackDefinition(string $pack): array
+    {
+        $definition = static::$packs[$pack] ?? null;
+
+        if ($definition === null) {
+            throw new InvalidArgumentException("Pack '{$pack}' is not declared on " . static::class . " (declared: " . (empty(static::$packs) ? 'none' : implode(', ', array_keys(static::$packs))) . ').');
+        }
+
+        if (!\is_array($definition) || $definition === []) {
+            throw new InvalidArgumentException("Pack '{$pack}' on " . static::class . ' must be a non-empty list of attribute names.');
+        }
+
+        foreach ($definition as $field) {
+            if (!\is_string($field) || \preg_match('/^[a-z]\w*(\.[a-z]\w*)*$/', $field) !== 1) {
+                throw new InvalidArgumentException("Pack '{$pack}' on " . static::class . " contains an invalid field name: '" . (is_scalar($field) ? (string) $field : gettype($field)) . "'.");
+            }
+        }
+
+        return $definition;
+    }
+
+    /**
      * Convert the model to an associative array.
      *
      * Applies accessors and casts, then filters through `$hidden` / `$visible`.
@@ -1448,10 +1523,17 @@ abstract class Model
     }
 
     /**
-     * Filter an associative array through `$visible` / `$hidden`.
+     * Filter an associative array through the active pack, else
+     * `$visible` / `$hidden`.
      *
-     * If `$visible` is non-empty it acts as a whitelist; otherwise
-     * `$hidden` acts as a blacklist.
+     * Pack view (highest precedence while active): plain names are a
+     * whitelist; dotted addresses additionally prune their root array/JSON
+     * column down to the declared sub-path (merged across addresses). An
+     * address whose root is absent, or not array-shaped after casting,
+     * contributes nothing — views never fabricate data.
+     *
+     * Without a pack: if `$visible` is non-empty it acts as a whitelist;
+     * otherwise `$hidden` acts as a blacklist.
      *
      * @param array<string, mixed> $attributes
      *
@@ -1459,6 +1541,40 @@ abstract class Model
      */
     private function filterAttributes(array $attributes): array
     {
+        if ($this->viewedPack !== null) {
+            $out = [];
+            $roots = [];
+
+            foreach (static::getPackDefinition($this->viewedPack) as $field) {
+                if (!\str_contains($field, '.')) {
+                    if (\array_key_exists($field, $attributes)) {
+                        $out[$field] = $attributes[$field];
+                    }
+
+                    continue;
+                }
+
+                $segments = \explode('.', $field);
+                $root = \array_shift($segments);
+
+                if (!\array_key_exists($root, $attributes) || !\is_array($attributes[$root])) {
+                    continue;
+                }
+
+                $roots[$root][] = $segments;
+            }
+
+            foreach ($roots as $root => $paths) {
+                $pruned = [];
+                foreach ($paths as $segments) {
+                    $pruned = \array_replace_recursive($pruned, self::pruneToPath($attributes[$root], $segments));
+                }
+                $out[$root] = $pruned;
+            }
+
+            return $out;
+        }
+
         if (!empty(static::$visible)) {
             return \array_intersect_key($attributes, \array_flip(static::$visible));
         }
@@ -1468,6 +1584,35 @@ abstract class Model
         }
 
         return $attributes;
+    }
+
+    /**
+     * Keep only the declared path inside a decoded array value,
+     * re-wrapped in its segment chain ([] when the path doesn't exist).
+     *
+     * @param array<int, string> $segments
+     *
+     * @return array<string, mixed>
+     */
+    private static function pruneToPath(array $value, array $segments): array
+    {
+        $segment = \array_shift($segments);
+
+        if ($segment === null || !\array_key_exists($segment, $value)) {
+            return [];
+        }
+
+        if ($segments === []) {
+            return [$segment => $value[$segment]];
+        }
+
+        $child = $value[$segment];
+
+        if (!\is_array($child)) {
+            return [];
+        }
+
+        return [$segment => self::pruneToPath($child, $segments)];
     }
 
     /**
