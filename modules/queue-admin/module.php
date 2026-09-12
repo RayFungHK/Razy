@@ -13,6 +13,6 @@ return [
     'module_code' => 'razymod/queue-admin',
     'name'        => 'Queue Admin',
     'author'      => 'Razy Framework',
-    'description' => 'Headless queue dashboard: per-queue status counts, job lookup, release/bury/delete actions over any QueueStoreInterface',
-    'version'     => '1.0.0', // RZ-012: bump on ANY released-surface change
+    'description' => 'Queue dashboard: per-queue status counts, job lookup, release/bury/delete actions over any QueueStoreInterface — with an optional self-contained HTML shell (/ui)',
+    'version'     => '1.1.0', // RZ-012: minor — new HTTP surface (/ui /job /act /purge), nothing removed
 ];

@@ -143,6 +143,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 **Official registry grows** (2026-07)
 
+- **Added** queue-admin HTML shell (module v1.1.0): self-contained `/ui` page
+  (no demo-module wrapper dependency), `/job` lookup feed, and guarded POST
+  `/act` `/purge` (POST-only 405 → CSRF double-submit 403 → service
+  validation). CSRF is double-submit-by-necessity, documented: the framework
+  Session subsystem emits NO cookie anywhere (grep-verified), so
+  `CsrfTokenManager` presumes operator-level wiring a module must not assume.
+  Client rendering is textContent-only; the two server-side interpolations are
+  proven safe by an adversarial end-to-end render through the REAL plugin
+  wiring (->escape entities present, no payload anywhere). Discipline strict:
+  0 errors/warnings with justified RZ-003/004 line suppressions.
+
 - **Added** first-party `modules/` resolution to the packager: `php Razy.phar
   pack <code>` locates a module by the `module_code` DECLARED in each
   `modules/*/module.php` when no `shared/module/<code>` (or distributor) path

@@ -23,8 +23,14 @@ return new class extends Controller {
 
     public function __onInit(Agent $agent): bool
     {
-        // RZ-013: routes only through Agent.
+        // RZ-013: routes only through Agent. 'ui' is the HTML shell,
+        // 'job' its lookup feed, 'act'/'purge' guarded POST mutations
+        // (POST-only + CSRF double-submit + service validation).
         $agent->addLazyRoute(['status' => 'status']);
+        $agent->addLazyRoute(['ui' => 'ui']);
+        $agent->addLazyRoute(['job' => 'job']);
+        $agent->addLazyRoute(['act' => 'act']);
+        $agent->addLazyRoute(['purge' => 'purge']);
 
         // Public commands (RZ-010). Paths relative to controller/, extension
         // appended by the loader (ClosureLoader.php:130) — never write '.php'.
