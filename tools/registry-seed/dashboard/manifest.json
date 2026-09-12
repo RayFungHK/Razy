@@ -1,0 +1,10 @@
+{
+    "package_name": "dashboard",
+    "description": "Web-based GUI dashboard for managing Razy packages and modules",
+    "author": "Ray Fung <hello@rayfung.hk>",
+    "type": "package",
+    "versions": [
+        "1.0.0"
+    ],
+    "latest": "1.0.0"
+}

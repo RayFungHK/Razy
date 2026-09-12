@@ -215,9 +215,9 @@ class PackageVerifierTest extends TestCase
     public function testDefaultOfficialRegistryConstantIsPinned(): void
     {
         $this->assertSame('https://github.com/RayFungHK/Razy-Repository/', RepositoryManager::DEFAULT_OFFICIAL_URL);
-        $this->assertSame('master', RepositoryManager::DEFAULT_OFFICIAL_BRANCH);
+        $this->assertSame('main', RepositoryManager::DEFAULT_OFFICIAL_BRANCH);
         $this->assertSame(
-            ['https://github.com/RayFungHK/Razy-Repository' => 'master'],
+            ['https://github.com/RayFungHK/Razy-Repository' => 'main'],
             RepositoryManager::defaultRepositories(),
             'default map is non-empty and trailing-slash normalized',
         );

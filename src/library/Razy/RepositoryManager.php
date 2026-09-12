@@ -46,13 +46,13 @@ class RepositoryManager
     /**
      * Built-in default official registry (gap G1, OFFICIAL-REPO-INSTALL.md §7.1).
      * Consulted only when no project repository.inc.php is usable; a
-     * hand-written registry file stays authoritative. The maintainer publishes
-     * this repo — until then it may 404 and callers degrade with a clear error.
+     * hand-written registry file stays authoritative. Published 2026-07 —
+     * seeded via tools/registry-seed/ (layout contract in that repo's README).
      */
     public const DEFAULT_OFFICIAL_URL = 'https://github.com/RayFungHK/Razy-Repository/';
 
-    /** @var string Branch of the built-in default official registry */
-    public const DEFAULT_OFFICIAL_BRANCH = 'master';
+    /** @var string Branch of the built-in default official registry (GitHub default branch) */
+    public const DEFAULT_OFFICIAL_BRANCH = 'main';
 
     /** @var array<string, string> Registered repository URLs mapped to their branch names */
     private array $repositories = [];

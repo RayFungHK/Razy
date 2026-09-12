@@ -19,12 +19,13 @@
  * Format: 'repository_url' => 'branch_name'
  *
  * HONEST STATUS (2026-07): the entry below is the planned OFFICIAL Razy
- * registry. The maintainer has not published it yet, so it may answer 404 —
- * Razy then reports "not found in configured repositories" and installs
- * nothing. While it is unpublished you can:
+ * registry. Published 2026-07 (seeded from the framework's
+ * tools/registry-seed/); its README documents the layout + checksum contract.
+ * If it is ever unreachable, Razy reports "unreachable or index.json not
+ * found" and installs nothing. You can:
  *   - point a single command at any live registry:
  *       php Razy.phar install <vendor>/<mod> --from-repo --from=https://github.com/<you>/<registry>@main
- *   - or replace the URL below with a registry that exists today.
+ *   - or replace the URL below with another registry.
  *
  * Note: since S0, deleting this file is safe — Razy falls back to the same
  * built-in default official registry (Razy\RepositoryManager::DEFAULT_OFFICIAL_URL).
@@ -36,5 +37,5 @@
 
 // Map of package repository URLs to the branch that should be tracked
 return [
-    'https://github.com/RayFungHK/Razy-Repository/' => 'master',
+    'https://github.com/RayFungHK/Razy-Repository/' => 'main',
 ];

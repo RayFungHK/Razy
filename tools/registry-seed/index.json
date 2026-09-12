@@ -1,0 +1,16 @@
+{
+    "dashboard": {
+        "description": "Web-based GUI dashboard for managing Razy packages and modules",
+        "author": "Ray Fung <hello@rayfung.hk>",
+        "type": "package",
+        "latest": "1.0.0",
+        "versions": [
+            "1.0.0"
+        ],
+        "releases": {
+            "1.0.0": {
+                "sha256": "d0ec79772112ef547980656f0413aad3d0f909c87637feef801069f5fcef41b8"
+            }
+        }
+    }
+}
