@@ -1,18 +1,27 @@
 {
     "module_code": "razymod/queue-admin",
-    "description": "Headless queue dashboard: per-queue status counts, job lookup, release/bury/delete actions over any QueueStoreInterface",
+    "description": "Queue dashboard: per-queue status counts, job lookup, release/bury/delete actions over any QueueStoreInterface \u2014 with an optional self-contained HTML shell (/ui)",
     "author": "Razy Framework",
-    "latest": "1.0.0",
+    "latest": "1.1.0",
     "versions": [
+        "1.1.0",
         "1.0.0"
     ],
-    "updated": "2026-09-12 17:27:30",
+    "updated": "2026-09-12 18:42:47",
     "releases": {
         "1.0.0": {
             "file": "1.0.0.phar",
             "size": 13204,
             "checksum": "2280cf2248d8e44e59cc443cad183ec7b9ff5e50854c11f20fa3f062c8f49b78",
             "created": "2026-09-12 17:27:30",
+            "php_version": "8.0",
+            "razy_version": "1.0.3-beta"
+        },
+        "1.1.0": {
+            "file": "1.1.0.phar",
+            "size": 19916,
+            "checksum": "2d44a00fb56dba6b2fb3ed7a67502691b93eaddd48d320967716dcc84e211e31",
+            "created": "2026-09-12 18:42:47",
             "php_version": "8.0",
             "razy_version": "1.0.3-beta"
         }
