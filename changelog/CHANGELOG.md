@@ -9,6 +9,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** first-party module `razymod/permissions` **S2** (skeleton + schema + gates;
+  dossier PERMISSION-MODULE.md milestone, in-tree like `queue-admin`, not yet published):
+  four RBAC tables (`permissions` catalog / flat `roles` / `permission_role` / `actor_role`)
+  via a driver-branched migration mirroring the framework's own `DatabaseStore::ensureStorage`
+  precedent — so up/down run END-TO-END on sqlite, honour the Database prefix (shared-DB
+  multi-dist §4.3), and composite UNIQUEs are constraint-enforced, not convention-enforced;
+  `actor_id` is a pure text reference (Q1: no FK into any user table, no `dist_code`
+  column anywhere); `ORM\Contract` mirrors pin the shape with parity checked against the
+  LIVE schema (PRAGMA); config-connect resolver (declared `database.{type,connection}` →
+  connected `Database` or explicit null — never the ambient-registry patterns it
+  deliberately declines to copy); two-tier `__onAPICall` allow-list LIVE before any command
+  ships (Q4: reads open, governance ONLY the config-named governor, empty/absent governor
+  denies, unknown denies) — S3 can only plug into this reviewed shape. 35 tests
+  (`tests/PermissionsModuleTest.php`) incl. a 27-case gate matrix. Module discipline lint
+  0/0, phpstan [OK].
+- **Fixed** ledger P8: `manual/04-database.md` advertised `getModuleConfig()->get(...)` —
+  **no such method ever existed** (`Configuration extends Collection extends ArrayObject`;
+  read API is `['key'] ?? default`). The session's second doc-phantom (after
+  `getSharedInstance`), caught the moment S2 code believed the manual; corrected at the
+  source with file:line trail.
 - **Added** permission-module **S1 core seam** (dossier PERMISSION-MODULE.md; maintainer
   Q1/Q2 decided): `SessionGuard` — persists ONLY the actor identifier in `$_SESSION` and
   hydrates via an app-provided resolver closure (framework never owns the user row; garbage

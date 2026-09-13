@@ -47,8 +47,12 @@ it — `database_demo/default/controller/database_demo.php:88-95`) but is marked
 own docblock: `$db = $this->resolve(Database::class);` (`Controller.php:648`). Prefer
 `new Database()` / DI; treat the static registry as legacy.
 
-Per-module configuration belongs in your module config (`$this->getModuleConfig()->get(...)`,
-`Controller.php:292`) — read credentials there, never hardcode.
+Per-module configuration belongs in your module config — read it via **ArrayAccess**:
+`$this->getModuleConfig()['key'] ?? $default` (`Controller.php:292`; the entity is a
+`Configuration extends Collection extends ArrayObject` — `Configuration.php:26`,
+`Collection.php:31`. **There is no `->get()` method** — the `->get(...)` this line used
+to advertise was a phantom, corrected 2026-09 when razymod/permissions was built;
+dossier ledger P8). Read credentials there, never hardcode.
 
 Extras: `setPrefix('rzy_')` (`:495`, applied automatically by the builder), `setTimezone()`
 (`:286`), debug helpers `getLastQueried()`/`getQueried()`/`getTotalQueryCount()`
