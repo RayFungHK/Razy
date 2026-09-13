@@ -128,6 +128,35 @@ class Database implements DatabaseInterface
     }
 
     /**
+     * Get the application's shared Database instance — the one the app itself
+     * registered AND connected (the convention: `Database::getInstance('main')`
+     * connected during the app's bootstrap, as the database_demo does).
+     *
+     * CONTRACT (deliberately stricter than getInstance()): an instance that was
+     * never registered, or was lazily registered but never successfully
+     * connected, resolves to NULL. An unconnected instance is operationally
+     * indistinguishable from no database, and callers this method exists for
+     * (queue CLI, razymod/queue-admin) degrade explicitly on null instead of
+     * failing mid-query. This method never creates instances (contrast the
+     * deprecated getInstance() lazy-create) — shared means "shared with the
+     * app", not "created on demand by a consumer".
+     *
+     * Fixes the phantom this API was called under since the queue tool shipped
+     * (6 callers, zero definitions): queue work silently degraded, and the
+     * published razymod/queue-admin commands errored on first call.
+     *
+     * @param string $name instance name the app conventionally connects
+     *
+     * @return Database|null connected shared instance, null = not available
+     */
+    public static function getSharedInstance(string $name = 'main'): ?self
+    {
+        $instance = self::$instances[$name] ?? null;
+
+        return ($instance !== null && $instance->isConnected()) ? $instance : null;
+    }
+
+    /**
      * Reset the static instance registry. Used in worker mode between requests.
      */
     public static function resetInstances(): void

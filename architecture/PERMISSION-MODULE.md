@@ -166,7 +166,14 @@ Framework does **not** auto-connect (`manual/04-database.md:16-22`: `connect(hos
   top of a substrate that scopes by cookie-name + per-dist config + app-wired DB, and would
   contradict every sibling table. Shared-DB multi-dist deployments use `setPrefix()`.
 
-### 4.4 The phantom `getSharedInstance` (new finding, load-bearing for §7)
+### 4.4 The phantom `getSharedInstance` (new finding, load-bearing for §7) — ✅ RESOLVED 2026-09
+
+> **Shipped since this dossier landed:** `Database::getSharedInstance(string $name = 'main'): ?self`
+> is now DEFINED (contract: shared = registered AND connected via `isConnected()`; never
+> lazily creates; null when unavailable) with `tests/DatabaseSharedInstanceTest.php` (6,
+> SQLite-backed). Ledger P2 below is closed; the published `razymod/queue-admin` is
+> retroactively repaired — no republish. The adjacent gap stays open: the queue CLI
+> establishes no connection of its own (no CLI DB-config layer yet).
 
 `Database::getSharedInstance()` does not exist. Consequences verified by reading: the CLI
 queue worker wraps it in `try { … } catch (Throwable)` (`queue.inc.php:47-63`) so
@@ -383,6 +390,8 @@ beyond the queue-admin `/ui` bar; login/logout UI (accounts territory); password
   an ambient DB handle that predates any module, and one honest shared-instance accessor
   kills the "hoping for magic" class of bugs; document it as **app-must-set** with
   fail-loud semantics replacing `queue.inc.php`'s swallowed `Throwable` (`:47-63`).
+  → **Define-it SHIPPED (§4.4 note); the fail-loud rework of `queue.inc.php:47-63` is
+  still open (deliberately not touched in the phantom fix).**
 - **Q4 — Governor for mutations**: is one config-named governor module
   (`governor => 'razymod/accounts'`-style, §8 allow-list) the right trust shape, or does
   each app wire its own governance UI and the module should *also* expose a same-origin
@@ -399,7 +408,7 @@ beyond the queue-admin `/ui` bar; login/logout UI (accounts territory); password
 | # | Doc/comment claim | Code reality (winner) |
 |---|---|---|
 | P1 | `AuthManager.php:31-32` docblock registers `new SessionGuard(...)` / `new TokenGuard(...)` | **neither class exists** (re-verified this pass; OAuth ledger D2 stands) — `src/library/Razy/Auth/` = Hash, AccessDeniedException, AuthManager, AuthMiddleware, AuthorizeMiddleware, CallbackGuard, Gate, GenericUser (glob) |
-| P2 | `queue.inc.php:52` + `modules/queue-admin` (×5) call `Database::getSharedInstance()` as if it were the blessed pattern (`support/store.php:5-8` *documents* mirroring the CLI) | **no definition anywhere** (`grep 'function getSharedInstance'` = 0; Database.php has no trait/`__callStatic`, full method inventory `:103-778`) → `queue work` always "no database" (swallowed, `queue.inc.php:47-63`); published module's api commands `Error` on first call (`status.php:14` outside its try) — tests never hit it (§4.4) |
+| P2 | `queue.inc.php:52` + `modules/queue-admin` (×5) call `Database::getSharedInstance()` as if it were the blessed pattern (`support/store.php:5-8` *documents* mirroring the CLI) | **no definition anywhere** (`grep 'function getSharedInstance'` = 0; Database.php has no trait/`__callStatic`, full method inventory `:103-778`) → `queue work` always "no database" (swallowed, `queue.inc.php:47-63`); published module's api commands `Error` on first call (`status.php:14` outside its try) — tests never hit it (§4.4). ✅ **CLOSED 2026-09**: defined (registered-AND-connected); published module retroactively repaired; `queue.inc.php` fail-loud rework still open (Q3) |
 | P3 | `Razy\Auth\CallbackGuard` name suggests callback/route gating; nothing documents otherwise | it is an auth `GuardInterface` implementation (`:39,:40-37`); `addCallbackRoute` exists nowhere (grep = 0) |
 | P4 | `Gate.php:28-52` usage docblock (`$gate = new Gate($auth); …`) reads like supported wiring | there is **no bootstrap path**: no container binding, no Agent surface, no caller (§0); "usable in principle, wired nowhere" |
 | P5 | `manual/` and `CLASS-CATALOG.md` coverage of the guard layer | `manual/` = 0 `Gate`/`AuthManager` mentions (grep); `CLASS-CATALOG.md:52` lists only `Razy\Authenticator`; `manual/07-security-guide.md:130-149` covers API/bridge gates and never the auth layer |

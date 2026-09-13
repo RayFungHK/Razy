@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [Unreleased]
+
+- **Fixed** phantom `Database::getSharedInstance()` (dossier PERMISSION-MODULE.md P2): the method
+  had **6 callers and zero definitions** — `queue work` always silently degraded to "no
+  database", and the PUBLISHED `razymod/queue-admin` (v1.0.0/1.1.0, registry-signed) errored on
+  first call to its `status/job/act/purge` commands. Defining it framework-side retroactively
+  repairs the released module — no republish needed. Contract (stricter than the deprecated
+  lazy `getInstance()`): shared = **registered AND connected** (`isConnected()`, the
+  success-only flag — not `getDriver()`, which can hold an assigned-but-failed driver);
+  never creates instances; `null` when unavailable, matching the callers' explicit
+  null-degradation discipline. SQLite-backed tests (`tests/DatabaseSharedInstanceTest.php`,
+  6) pin all of it, including worker-reset semantics. Known adjacent gap (stated, not faked):
+  the queue CLI establishes no connection itself — no CLI DB-config layer exists yet; this fix
+  makes resolution honest, and `queue work` becomes fully useful in any app that connects
+  `'main'` in its bootstrap (the documented convention, as `database_demo` does).
+
 ## [v1.1.0-beta](changelog/v1.1.0-beta.md) — 2026-09-12
 
 **Signed Official Registry · Scheduler · ORM Contracts · Route Coexistence · Ops Pack** — the full 2026-07/09 line (24 commits, 5,238 tests), details in [v1.1.0-beta](changelog/v1.1.0-beta.md).
