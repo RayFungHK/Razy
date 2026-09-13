@@ -378,12 +378,15 @@ beyond the queue-admin `/ui` bar; login/logout UI (accounts territory); password
   config+cookie scoping (§4.3). *Recommendation*: user row stays **app-side forever** —
   either the app's own table (razit pattern, `razit-user`) or a future `razymod/accounts`;
   `razymod/permissions` v1 binds `user:<id>` keys and nothing else. Framework: never.
+  → **DECIDED 2026-09-12 (maintainer): user row stays app-side forever; framework never owns it.**
 - **Q2 — Promote `Razy\Auth\*` to a stable published surface now?** It is test-frozen
   (89 behaviors) and about to get its first real consumer. *Recommendation*: yes — declare
   `Gate`, `AuthManager`, `GuardInterface`, `AuthenticatableInterface`, `GenericUser`,
   `Hash` semver-stable at the next minor under RZ-012 (additive-only thereafter); fix the
   `AuthManager.php:31-32` lie by shipping the real `SessionGuard` (S1), not by deleting the
   line, so `CallbackGuard`'s misnomer stays documented (ledger P3).
+  → **DECIDED 2026-09-12: yes — `Razy\Auth\*` declared semver-stable at the next minor;
+  additive-only thereafter; SessionGuard ships in S1 (P1 closes with it).**
 - **Q3 — `Database::getSharedInstance()` phantom**: define it (set-once/get by app boot,
   request-reset) or delete the 6 call sites and migrate queue + queue-admin to
   config-connect? *Recommendation*: define it — the CLI `queue work` path genuinely needs
@@ -398,10 +401,14 @@ beyond the queue-admin `/ui` bar; login/logout UI (accounts territory); password
   HTTP surface (queue-admin `/ui` precedent)? *Recommendation*: config-named governor for
   `api()` writes; no mutation HTTP surface in v1 (the double-submit pattern defends a
   *read* shell only, and admin UI is a maintainer decision anyway).
+  → **DECIDED 2026-09-12: config-named governor for all `api()` writes; v1 exposes NO
+  mutation HTTP surface.**
 - **Q5 — Direct grants** (`actor_permission`): schema space reserved, zero v1 code. If a
   real app needs them, do they participate in super-admin exemption (they wouldn't) and
   audit (`yes`)? *Recommendation*: keep off until a named use case; the role layer covers
   every razit-era scenario observed in `production-sample/`.
+  → **DECIDED 2026-09-12: OFF in v1 (schema space reserved, zero code); reopens only on a
+  named use case.**
 
 ## 12. Doc-drift ledger (code wins; adds to OAuth §10, whose D2 this re-verifies)
 
