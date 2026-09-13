@@ -28,8 +28,8 @@ use Razy\Contract\GuardInterface;
  * Usage:
  * ```php
  * $auth = new AuthManager();
- * $auth->addGuard('web', new SessionGuard(...));
- * $auth->addGuard('api', new TokenGuard(...));
+ * $auth->addGuard('web', new SessionGuard($resolver));      // session-hydrated actors
+ * $auth->addGuard('api', new CallbackGuard($userResolver)); // any custom strategy
  * $auth->setDefaultGuard('web');
  *
  * // Use default guard

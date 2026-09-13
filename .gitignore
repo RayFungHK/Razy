@@ -61,6 +61,7 @@
 # LLM navigation files
 !LLM-CAS.md
 !skills.md
+!CLASS-CATALOG.md
 
 # Architecture & design docs
 !architecture/

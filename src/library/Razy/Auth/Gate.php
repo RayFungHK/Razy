@@ -78,6 +78,22 @@ class Gate
     private ?Closure $afterCallback = null;
 
     /**
+     * Appended before-check interceptors (addBefore()), run in registration
+     * order AFTER the single-slot before() hook.
+     *
+     * @var list<Closure>
+     */
+    private array $beforeCallbacks = [];
+
+    /**
+     * Appended after-check interceptors (addAfter()), run in registration
+     * order after the single-slot after() hook.
+     *
+     * @var list<Closure>
+     */
+    private array $afterCallbacks = [];
+
+    /**
      * Explicit user override (for forUser() scoping).
      */
     private ?AuthenticatableInterface $userOverride = null;
@@ -161,6 +177,49 @@ class Gate
     }
 
     /**
+     * Append a before-check interceptor to the shared list.
+     *
+     * Several subscribers compose instead of displacing each other — the
+     * single-slot before() is last-writer-wins by design and stays that way
+     * (pinned); this additive list is the seam multi-module registration
+     * (razymod/permissions answering abilities from DB) must use.
+     *
+     * Semantics per hook, in registration order, AFTER the single-slot hook:
+     * the FIRST non-null boolean short-circuits — the ability check and ALL
+     * after hooks are skipped, exactly like the single-slot behavior.
+     * Return null to abstain.
+     *
+     * @param Closure $callback Closure(AuthenticatableInterface $user, string $ability, array $args): ?bool
+     *
+     * @return static For method chaining
+     */
+    public function addBefore(Closure $callback): static
+    {
+        $this->beforeCallbacks[] = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Append an after-check interceptor to the shared list.
+     *
+     * Runs in registration order after the single-slot after(); each hook
+     * sees the result left by its predecessors, and the LAST non-null return
+     * wins (generalization of the single-slot override semantics — suited to
+     * audit/logging subscribers, not short-circuit policy).
+     *
+     * @param Closure $callback Closure(AuthenticatableInterface $user, string $ability, bool $result, array $args): ?bool
+     *
+     * @return static For method chaining
+     */
+    public function addAfter(Closure $callback): static
+    {
+        $this->afterCallbacks[] = $callback;
+
+        return $this;
+    }
+
+    /**
      * Determine if the given ability is allowed for the current user.
      *
      * @param string $ability The ability name
@@ -176,9 +235,19 @@ class Gate
             return false;
         }
 
-        // Before interceptor
+        // Before interceptor (single slot, pinned)
         if ($this->beforeCallback !== null) {
             $beforeResult = ($this->beforeCallback)($user, $ability, $arguments);
+            if ($beforeResult !== null) {
+                return (bool) $beforeResult;
+            }
+        }
+
+        // Appended before hooks: registration order, first non-null wins and
+        // short-circuits (ability check AND all after hooks skipped).
+        foreach ($this->beforeCallbacks as $hook) {
+            $beforeResult = $hook($user, $ability, $arguments);
+
             if ($beforeResult !== null) {
                 return (bool) $beforeResult;
             }
@@ -195,9 +264,19 @@ class Gate
         // Default deny for undefined abilities
         $result ??= false;
 
-        // After interceptor
+        // After interceptor (single slot, pinned)
         if ($this->afterCallback !== null) {
             $afterResult = ($this->afterCallback)($user, $ability, $result, $arguments);
+            if ($afterResult !== null) {
+                $result = (bool) $afterResult;
+            }
+        }
+
+        // Appended after hooks: registration order, each sees predecessors'
+        // result, last non-null wins.
+        foreach ($this->afterCallbacks as $hook) {
+            $afterResult = $hook($user, $ability, $result, $arguments);
+
             if ($afterResult !== null) {
                 $result = (bool) $afterResult;
             }

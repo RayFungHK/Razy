@@ -168,6 +168,29 @@ public function __onBridgeCall(string $sourceDistributor, string $command): bool
 Also: never register an API/bridge command that returns raw secrets, DB credentials, or
 another tenant's data — the gate protects invocation, not payload semantics.
 
+### The ability layer — `Razy\Auth\*` (published surface; distinct vocabulary)
+
+The word "permission" in this repo's *module* docs means the two gates above
+(`__onAPICall`/`__onBridgeCall`): **module-to-module invocation control**. The
+`Razy\Auth\*` namespace is a different axis — **what a logged-in actor may do**:
+
+| Piece | Role |
+|---|---|
+| `Gate` | ability engine: `define`/`policy`/`allows`/`authorize`, **default-deny** for undefined abilities, single-slot `before()`/`after()` + appended `addBefore()`/`addAfter()` lists (lists compose across modules; first non-null `before` short-circuits) |
+| `GateFactory` | one Gate per distributor, memoized by name; `flush()`/`forget()` for worker mode |
+| `AuthManager` | named guards + default-guard delegation |
+| `SessionGuard` | persists ONLY the actor's identifier under a session key and hydrates via an **app-provided resolver** — the framework never owns the user row (maintainer decision, `architecture/PERMISSION-MODULE.md` Q1). No session started (CLI) = request-lifetime storage, fail-closed to guest |
+| `CallbackGuard`, `GenericUser`, `Hash`, `AccessDeniedException` | closure-delegating guard, array-backed actor, hashing helpers, typed denial |
+
+**Stability (RZ-012, maintainer decision Q2):** this layer is a *published
+surface* — additive-only from here; `razymod/permissions` and `razymod/oauth`
+(their dossiers) are its first real consumers. Until those ship, the layer is
+tested and stable but **unwired**: nothing in the framework core populates a
+Gate — wiring is your app's/bootstrap's job (one `AuthManager` + guard per
+distributor, `GateFactory::make($distCode, $auth, builder)`). CLI requests have
+no session ⇒ `Gate` denies guests ⇒ CLI authorization needs an explicit
+`forUser()` actor; that is fail-closed by construction, not a bug.
+
 ## 7. Threads — `ThreadManager` (via `$agent->thread()`, `Agent.php:304`)
 
 | API | Line | Safety |

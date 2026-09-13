@@ -9,6 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** permission-module **S1 core seam** (dossier PERMISSION-MODULE.md; maintainer
+  Q1/Q2 decided): `SessionGuard` — persists ONLY the actor identifier in `$_SESSION` and
+  hydrates via an app-provided resolver closure (framework never owns the user row; garbage
+  session values fail closed to guest; no session started (CLI) = request-lifetime storage,
+  no exceptions, no leaks); `Gate::addBefore()/addAfter()` — multi-subscriber appended lists
+  so modules compose instead of displacing (the single-slot `before()` keeps its pinned
+  last-writer-wins semantics; first non-null appended `before` short-circuits incl. after
+  hooks; appended `after`s chain, last non-null wins); `GateFactory` — one memoized Gate
+  per distributor with `flush()` for worker mode. **Declared published surface (RZ-012,
+  additive-only)** across `Razy\Auth\*` — manual §6 vocabulary subsection + CLASS-CATALOG
+  appendix close ledger P5/S0; the `AuthManager` docblock's fictional `TokenGuard` example
+  is replaced by the real `CallbackGuard` (P1 fully closed). Still true and stated: the
+  core wires **nothing** — Gate population stays app bootstrap's job until
+  `razymod/permissions` (S2+) ships. 21 new tests (SessionGuard 11, hook-list/factory 10);
+  the pre-existing 89-test Gate/Auth regression net passes untouched.
 - **Fixed** phantom `Database::getSharedInstance()` (dossier PERMISSION-MODULE.md P2): the method
   had **6 callers and zero definitions** — `queue work` always silently degraded to "no
   database", and the PUBLISHED `razymod/queue-admin` (v1.0.0/1.1.0, registry-signed) errored on
