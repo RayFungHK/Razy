@@ -43,6 +43,7 @@ return function () {
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'search', 'Search for modules across configured repositories.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'sync', 'Synchronize modules for a distributor from its repository config.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'queue', 'Manage the job queue system (worker loop, status).'));
+    $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'migrate', 'Deploy-time module schema migrations (apply, --status, --rollback).'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'schedule', 'Run cron-scheduled jobs from scheduler.inc.php (run, list, test).'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'bridge', 'Execute internal API commands across distributors via JSON payload.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'sign', 'Registry publisher signatures (keygen, sign index.json, verify vs pinned key).' . PHP_EOL));

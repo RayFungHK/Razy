@@ -58,6 +58,21 @@ interleave freely (module line and framework-migration line are independent).
 > docblock saying so. New pins: `tests/MigrationGovernanceTest.php` (10),
 > incl. the exact E4 batch-interleave scenario.
 
+> **✅ M2 SHIPPED 2026-09**: `php Razy.phar migrate <dist> [module_code]
+> [--status|--rollback=n] [--force] [--domain=…]` — the unified surface.
+> Boots the distributor init-phase only (RZ-009), enumerates modules
+> carrying a `migration/` dir, resolves each one's DB via the config-connect
+> contract (§4.2 option 1 — the ambient `getSharedInstance`/`getInstance`
+> shapes are pinned-OUT by test), and drives the scoped manager one scope per
+> module. `--status` is read-only and doubles as the deploy gate (drift
+> present ⇒ exit non-zero); `--rollback` requires an explicit module code —
+> mass rollback is not a deploy verb; `--force` passes through to the M1
+> operator escape and is documented as never-for-automation. Web-request
+> migration policy is printed in the command's own usage (Q-M2). Tests:
+> source-pin suite in the house inc.php style (`MigrateCommandTest`, 9) plus
+> real-phar smoke (usage/exit codes verified against the built phar).
+> M3+M4 (declaration + O(1) fast path) remain queued.
+
 Original questions retained verbatim below (recommendations inline).
 
 - **Q-M1**: M0+M1 together as one framework patch (tracking-table ADD COLUMN + hash column, self-healing)? **Rec: yes** — E4 is a live footgun the moment a second module adopts migrations; both share the same table touch-point.

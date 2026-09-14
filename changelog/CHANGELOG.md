@@ -9,6 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** `php Razy.phar migrate` (dossier MIGRATION-GOVERNANCE.md M2 — the
+  unified, deploy-time migration surface): applies pending migrations of every
+  module carrying a `migration/` dir in a distributor, one scope per module (M0);
+  `--status` renders applied/pending/drift per module and exits non-zero on
+  checksum drift (a deploy gate, not a report); `--rollback[=n]` requires an
+  explicit module code (mass rollback is not a deploy verb); `--force` is the
+  M1 operator escape, documented as never-for-automation. Module DBs resolve via
+  the config-connect contract — ambient connection shapes are pinned out by test.
+  Web requests never migrate (Q-M2), stated in the command itself. help mirror
+  updated; real-phar smoke verified (usage + exit codes). 9 tests.
 - **Changed** `MigrationManager` — **M0+M1 integrity floor** (dossier
   MIGRATION-GOVERNANCE.md, maintainer-decided 2026-09): tracking rows now carry
   `scope` (module owner) and `checksum` (sha256 of the file at apply time),
