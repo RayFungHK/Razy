@@ -1,6 +1,6 @@
 # MIGRATION-GOVERNANCE — the migration subsystem has no owner, no trigger, no integrity check
 
-Date: 2026-09. Status: **DECIDED 2026-09 — all four maintainer calls per recommendation**; execution queue M0+M1 → M2 → M3+M4 (§4).
+Date: 2026-09. Status: **DECIDED 2026-09 — all four maintainer calls per recommendation; ALL SHIPPED (M0+M1, M2, M3+M4)** (§4).
 Trigger: maintainer challenge during razymod/permissions S3: "模組升級/降級沒有好的檢查；
 愈多 migration 愈累積更多 SQL 檢查；沒有統一化管理；migration 由 developer 負責會出很多問題。"
 Every claim below is code-verified (file:line), per house doctrine "Code beats docs".
@@ -71,7 +71,31 @@ interleave freely (module line and framework-migration line are independent).
 > migration policy is printed in the command's own usage (Q-M2). Tests:
 > source-pin suite in the house inc.php style (`MigrateCommandTest`, 9) plus
 > real-phar smoke (usage/exit codes verified against the built phar).
-> M3+M4 (declaration + O(1) fast path) remain queued.
+
+> **✅ M3+M4 SHIPPED 2026-09** (one patch, closing the queue):
+> **M3** — `package.php` gains `'migration' => 'deploy' | 'manual'`
+> (default `manual` = the historic, developer-invoked behaviour; parser at
+> ModuleInfo, getters `getMigrationMode()`/`getMigrationDeclared()`). The
+> unnamed bulk `migrate <dist>` pass now runs ONLY `deploy`-declared modules;
+> naming a module explicitly IS the manual sign-off; `--status` ignores the
+> gate and shows every module tagged `[deploy]/[manual]`. A suspect
+> declaration (typo) degrades to `manual` — the safe side — WITH a loud CLI
+> warning, never silently. `razymod/permissions` declares `deploy` (the tree
+> demonstrates its own contract).
+> **M4** — fast-path manifest (`MigrationManager::MANIFEST_TABLE`, one row
+> per scope): the manifest is the combined sha256 of every discovered FILE
+> (name + content hash), stored only after a pass that left zero pending and
+> invalidated by every `rollback()`/`reset()`. A matching manifest proves the
+> exact state a completed pass left behind — no applied-rows SELECT, no
+> per-file re-hashing. `--force` (and `migrate(force: true)`) never reads nor
+> WRITES the manifest, so an operator escaping drift can never normalize that
+> drift into a fast path. E5's "每多一次 migration 就累積更多檢查 query" is
+> answered twice over: the accumulation itself is gone (content verification
+> is manifest-checked, O(1) rows), and the true no-op path no longer scans
+> applied history at all — pinned by a strict query-count comparison test.
+> Content edits invalidate the manifest by construction (hash covers bytes);
+> rollback-then-migrate re-applies (pinned). 7 governance + 3 command tests
+> added; full suite 5,346.
 
 Original questions retained verbatim below (recommendations inline).
 

@@ -67,6 +67,15 @@ class MigrationManager
     /** @var string Name of the migration tracking table (without prefix) */
     public const TRACKING_TABLE = 'razy_migrations';
 
+    /**
+     * Fast-path manifest table (M4): one row per scope holding the combined
+     * hash of every discovered migration FILE (name + content sha256).
+     * A matching manifest proves the exact state a completed migrate() left
+     * behind — no applied-rows SELECT, no per-file re-hashing pass needed.
+     * rollback()/reset() invalidate the row so pending work resurfaces.
+     */
+    public const MANIFEST_TABLE = 'razy_migration_meta';
+
     /** @var string Regex pattern for valid migration filenames */
     public const MIGRATION_FILENAME_PATTERN = '/^\d{4}_\d{2}_\d{2}_\d{6}_\w+\.php$/';
 
@@ -197,6 +206,27 @@ class MigrationManager
                 $this->database->execute($this->database->prepare($alter));
             }
         }
+
+        // M4 manifest table (same memo: one DDL pass per instance)
+        $metaTable = $this->qualifiedManifestName();
+        $metaSql = match ($driverType) {
+            'mysql', 'mariadb' => "CREATE TABLE IF NOT EXISTS `{$metaTable}` ("
+                . '`scope` VARCHAR(190) NOT NULL PRIMARY KEY, '
+                . '`manifest` VARCHAR(64) NOT NULL, '
+                . '`updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP'
+                . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+            'pgsql' => "CREATE TABLE IF NOT EXISTS \"{$metaTable}\" ("
+                . '"scope" VARCHAR(190) NOT NULL PRIMARY KEY, '
+                . '"manifest" VARCHAR(64) NOT NULL, '
+                . '"updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+                . ')',
+            default => "CREATE TABLE IF NOT EXISTS \"{$metaTable}\" ("
+                . '"scope" VARCHAR(190) NOT NULL PRIMARY KEY, '
+                . '"manifest" VARCHAR(64) NOT NULL, '
+                . '"updated_at" DATETIME DEFAULT CURRENT_TIMESTAMP'
+                . ')',
+        };
+        $this->database->execute($this->database->prepare($metaSql));
 
         $this->trackingTableReady = true;
     }
@@ -353,6 +383,20 @@ class MigrationManager
     {
         $this->ensureTrackingTable();
 
+        // M4 fast path. The manifest is the combined hash of every discovered
+        // FILE (name + content sha256) as left behind by a COMPLETED migrate()
+        // of this scope. A match proves: nothing pending, and every applied
+        // file's content is exactly what the previous pass verified — the
+        // applied-rows SELECT and the verification loop are both skippable.
+        // rollback()/reset() invalidate the row, so rolled-back work always
+        // resurfaces; force never reads or writes the manifest (an operator
+        // escaping drift must not normalize that drift into a fast path).
+        $manifest = $force ? null : $this->manifestHash();
+
+        if ($manifest !== null && $this->manifestMatches($manifest)) {
+            return [];
+        }
+
         if (!$force) {
             $drift = $this->verifyChecksums();
 
@@ -369,6 +413,10 @@ class MigrationManager
 
         $pending = $this->getPending();
         if (empty($pending)) {
+            if ($manifest !== null) {
+                $this->storeManifest($manifest);
+            }
+
             return [];
         }
 
@@ -385,6 +433,12 @@ class MigrationManager
             $migration->up($this->schema);
             $this->recordMigration($name, $batch, (string) \hash_file('sha256', $path));
             $executed[] = $name;
+        }
+
+        // Every pending item applied in this call and the files are the ones
+        // just hashed -> future no-op calls can take the fast path.
+        if ($manifest !== null) {
+            $this->storeManifest($manifest);
         }
 
         return $executed;
@@ -405,6 +459,7 @@ class MigrationManager
     public function rollback(int $steps = 1): array
     {
         $this->ensureTrackingTable();
+        $this->clearManifest(); // M4: rolled-back work must resurface as pending
 
         if ($steps < 1) {
             return [];
@@ -474,6 +529,7 @@ class MigrationManager
     public function reset(): array
     {
         $this->ensureTrackingTable();
+        $this->clearManifest(); // M4: same invalidation discipline as rollback()
 
         $quoted = $this->quotedTableName();
         $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
@@ -677,6 +733,99 @@ class MigrationManager
     private function qualifiedTableName(): string
     {
         return $this->database->getPrefix() . self::TRACKING_TABLE;
+    }
+
+    /**
+     * Fast-path manifest helpers (M4). The manifest covers FILES only
+     * (name + content hash); applied-state correctness comes from the write
+     * discipline: it is stored only after a pass that left zero pending, and
+     * invalidated by every rollback/reset.
+     */
+    private function manifestHash(): ?string
+    {
+        $parts = [];
+
+        foreach ($this->discover() as $name => $path) {
+            $hash = \hash_file('sha256', $path);
+
+            if ($hash === false) {
+                return null; // file vanished between scan and hash: no proof, take the full path
+            }
+
+            $parts[] = $name . ':' . $hash;
+        }
+
+        if ($parts === []) {
+            return null; // nothing discovered: nothing to prove
+        }
+
+        return \hash('sha256', \implode("\n", $parts));
+    }
+
+    private function manifestMatches(string $manifest): bool
+    {
+        $query = $this->database->execute(
+            $this->database->prepare(
+                'SELECT manifest FROM ' . $this->quotedManifestName()
+                . ' WHERE scope = ' . $this->database->getDBAdapter()->quote($this->scope),
+            ),
+        );
+        $row = $query->fetch();
+
+        return \is_array($row) && ($row['manifest'] ?? '') === $manifest;
+    }
+
+    /**
+     * Upsert the scope's manifest — driver-branched on purpose: a single
+     * "portable upsert" does not exist (sqlite/pgsql ON CONFLICT vs MySQL
+     * ON DUPLICATE KEY).
+     */
+    private function storeManifest(string $manifest): void
+    {
+        $table = $this->quotedManifestName();
+        $qScope = $this->database->getDBAdapter()->quote($this->scope);
+        $qHash = $this->database->getDBAdapter()->quote($manifest);
+        $driverType = $this->database->getDriverType() ?? 'sqlite';
+
+        $sql = match ($driverType) {
+            'mysql', 'mariadb' => "INSERT INTO {$table} (scope, manifest) VALUES ({$qScope}, {$qHash}) "
+                . 'ON DUPLICATE KEY UPDATE manifest = VALUES(manifest)',
+            'pgsql' => "INSERT INTO {$table} (\"scope\", \"manifest\") VALUES ({$qScope}, {$qHash}) "
+                . 'ON CONFLICT ("scope") DO UPDATE SET "manifest" = EXCLUDED."manifest"',
+            default => "INSERT INTO {$table} (\"scope\", \"manifest\") VALUES ({$qScope}, {$qHash}) "
+                . 'ON CONFLICT ("scope") DO UPDATE SET "manifest" = excluded."manifest"',
+        };
+
+        $this->database->execute($this->database->prepare($sql));
+    }
+
+    private function clearManifest(): void
+    {
+        $this->database->execute(
+            $this->database->prepare(
+                'DELETE FROM ' . $this->quotedManifestName()
+                . ' WHERE scope = ' . $this->database->getDBAdapter()->quote($this->scope),
+            ),
+        );
+    }
+
+    /**
+     * Get the fully qualified manifest table name (with prefix, unquoted).
+     */
+    private function qualifiedManifestName(): string
+    {
+        return $this->database->getPrefix() . self::MANIFEST_TABLE;
+    }
+
+    private function quotedManifestName(): string
+    {
+        $name = $this->qualifiedManifestName();
+        $driver = $this->database->getDriverType() ?? 'sqlite';
+
+        return match ($driver) {
+            'mysql', 'mariadb' => "`{$name}`",
+            default => '"' . $name . '"',
+        };
     }
 
     /**

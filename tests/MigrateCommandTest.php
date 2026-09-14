@@ -86,4 +86,25 @@ class MigrateCommandTest extends TestCase
         // deploy gate: problems (including --status drift) exit non-zero
         $this->assertMatchesRegularExpression('/failures > 0.*exit\(1\)/s', $this->src);
     }
+
+    // ── M3: declaration-gated bulk pass ───────────────────────────
+
+    public function testBulkApplyIsGatedByTheDeployDeclaration(): void
+    {
+        $this->assertStringContainsString("\$mode !== 'deploy'", $this->src, 'unnamed bulk pass skips manual-declared modules');
+        $this->assertStringContainsString('skipped (declared manual', $this->src, '...but never silently');
+        $this->assertStringContainsString('suspect migration declaration', $this->src, 'typos degrade to manual WITH a loud warning');
+    }
+
+    public function testStatusIgnoresTheGateAndShowsEverything(): void
+    {
+        // visibility is the point of --status: the gate applies to apply only
+        $this->assertStringContainsString('!$statusOnly && $moduleFilter === null && $mode !== ', $this->src);
+    }
+
+    public function testFirstPartyModuleDeclaresDeploy(): void
+    {
+        $pkg = \file_get_contents(SYSTEM_ROOT . '/modules/permissions/default/package.php');
+        $this->assertStringContainsString("'migration' => 'deploy'", $pkg, 'the tree demonstrates its own M3 declaration');
+    }
 }

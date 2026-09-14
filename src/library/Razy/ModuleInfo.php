@@ -81,6 +81,17 @@ class ModuleInfo
     /** @var bool Whether the module uses shadow (symlinked) assets */
     private bool $shadowAsset = false;
 
+    /**
+     * Migration declaration mode (package.php 'migration' key, dossier
+     * MIGRATION-GOVERNANCE.md M3): 'deploy' joins the bulk
+     * `php Razy.phar migrate <dist>` pass; 'manual' (default, = the historic
+     * behaviour) runs only when the module is named explicitly.
+     */
+    private string $migrationMode = 'manual';
+
+    /** Raw declared value ('' = undeclared); a non-empty suspect value means it was not deploy|manual */
+    private string $migrationDeclared = '';
+
     /** @var bool Whether the module is packaged as a .phar archive */
     private bool $pharArchive = false;
 
@@ -247,6 +258,16 @@ class ModuleInfo
             $settings['shadow_asset'] ??= false;
             $this->shadowAsset = !!$settings['shadow_asset'] && !\preg_match('/^phar:\/\//', $this->modulePath);
 
+            // Migration declaration (M3): 'deploy' | 'manual' (default). An
+            // unknown value degrades to 'manual' — the safe side — and the
+            // CLI surfaces the suspect declaration rather than failing the
+            // whole module load over a typo.
+            $migrationDeclared = \strtolower(\trim((string) ($settings['migration'] ?? '')));
+            $this->migrationMode = \in_array($migrationDeclared, ['deploy', 'manual'], true)
+                ? $migrationDeclared
+                : 'manual';
+            $this->migrationDeclared = $migrationDeclared;
+
             if (isset($settings['require']) && \is_array($settings['require'])) {
                 // Parse explicit module dependencies with version constraints
                 foreach ($settings['require'] as $moduleCode => $version) {
@@ -332,6 +353,25 @@ class ModuleInfo
      *
      * @return string
      */
+    /**
+     * Migration declaration mode: 'deploy' or 'manual' (M3). Anything the
+     * parser did not recognize arrives here as 'manual' (safe default).
+     */
+    public function getMigrationMode(): string
+    {
+        return $this->migrationMode;
+    }
+
+    /**
+     * Raw 'migration' value as declared in package.php ('' = undeclared).
+     * A non-empty value that getMigrationMode() did not echo is a suspect
+     * declaration (typo) — the CLI surfaces it instead of failing the load.
+     */
+    public function getMigrationDeclared(): string
+    {
+        return $this->migrationDeclared;
+    }
+
     public function getAPIName(): string
     {
         return $this->apiName;

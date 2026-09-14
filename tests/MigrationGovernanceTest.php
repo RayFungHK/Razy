@@ -268,6 +268,118 @@ class MigrationGovernanceTest extends TestCase
         $this->assertSame([$name], \array_keys($manager->getPending()), 'module migration/ dir pre-registered as before');
     }
 
+    // ── M4: fast-path manifest ────────────────────────────────────
+
+    public function testRepeatPassTakesTheManifestFastPath(): void
+    {
+        $dir = $this->migrationDir('2026_09_15_120000_FastOne', 'gov_f1');
+
+        $first = $this->manager('mod/fast');
+        $first->addPath($dir);
+        $before = $this->db->getTotalQueryCount();
+        $this->assertCount(1, $first->migrate());
+        $fullPass = $this->db->getTotalQueryCount() - $before;
+
+        // fresh instance (CLI reality): ensure-DDL + ONE meta SELECT, no
+        // applied-rows scan, no verification hashing pass
+        $second = $this->manager('mod/fast');
+        $second->addPath($dir);
+        $before = $this->db->getTotalQueryCount();
+        $this->assertSame([], $second->migrate());
+        $fastPass = $this->db->getTotalQueryCount() - $before;
+
+        $this->assertLessThan($fullPass, $fastPass, 'no-op pass costs strictly fewer queries than the real pass');
+    }
+
+    public function testContentEditAlwaysInvalidatesTheFastPath(): void
+    {
+        $dir = $this->migrationDir('2026_09_15_120001_FastTwo', 'gov_f2');
+        $m = $this->manager('mod/fast2');
+        $m->addPath($dir);
+        $m->migrate();
+
+        \file_put_contents("{$dir}/2026_09_15_120001_FastTwo.php", "<?php // tampered\n");
+
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('drifted');
+        $m->migrate(); // manifest mismatch -> full path -> verification catches it
+    }
+
+    public function testRollbackInvalidatesTheManifest(): void
+    {
+        $dir = $this->migrationDir('2026_09_15_120002_FastThree', 'gov_f3');
+        $m = $this->manager('mod/fast3');
+        $m->addPath($dir);
+        $name = $m->migrate()[0];
+
+        $m->rollback(1);
+
+        $this->assertSame([$name], $m->migrate(), 'rolled-back work resurfaces — never hidden by a stale manifest');
+    }
+
+    public function testForceNeitherTrustsNorStoresTheManifest(): void
+    {
+        $dir = $this->migrationDir('2026_09_15_120003_FastFour', 'gov_f4');
+        $m = $this->manager('mod/fast4');
+        $m->addPath($dir);
+        $m->migrate();
+        \file_put_contents("{$dir}/2026_09_15_120003_FastFour.php", "<?php // tampered\n");
+
+        $this->assertSame([], $m->migrate(force: true), 'force escapes drift');
+        $this->assertSame([], $m->migrate(force: true), 'twice, without re-running');
+
+        $this->expectException(DatabaseException::class);
+        $m->migrate(); // and STILL fails afterwards: force did not normalize the drift into a manifest
+    }
+
+    public function testEmptyDiscoveryStoresNoManifestAndStaysSafe(): void
+    {
+        $dir = \sys_get_temp_dir() . '/razy_gov_empty_' . \bin2hex(\random_bytes(6));
+        \mkdir($dir, 0o777, true);
+        $this->tempDirs[] = $dir;
+
+        $m = $this->manager('mod/empty');
+        $m->addPath($dir);
+
+        $this->assertSame([], $m->migrate());
+        $this->assertSame([], $m->migrate());
+    }
+
+    public function testMigrationDeclarationParses(): void
+    {
+        $this->assertSame('deploy', $this->moduleInfoWith(['migration' => 'deploy'])->getMigrationMode());
+        $this->assertSame('manual', $this->moduleInfoWith(['migration' => 'manual'])->getMigrationMode());
+        $this->assertSame('manual', $this->moduleInfoWith([])->getMigrationMode(), 'default = historic behaviour');
+        $this->assertSame('', $this->moduleInfoWith([])->getMigrationDeclared());
+    }
+
+    public function testSuspectDeclarationDegradesToManualButStaysVisible(): void
+    {
+        $info = $this->moduleInfoWith(['migration' => 'deply']); // the typo class
+
+        $this->assertSame('manual', $info->getMigrationMode(), 'safe side, never auto-apply on a typo');
+        $this->assertSame('deply', $info->getMigrationDeclared(), '...and the CLI can still surface the suspect value');
+    }
+
+    // ── M3: package declaration ───────────────────────────────────
+
+    /**
+     * @param array<string, mixed> $packageKeys extra package.php keys
+     */
+    private function moduleInfoWith(array $packageKeys): ModuleInfo
+    {
+        $base = \sys_get_temp_dir() . '/razy_gov_mod_' . \bin2hex(\random_bytes(6));
+        \mkdir($base . '/default', 0o777, true);
+        $this->tempDirs[] = $base . '/default';
+        $this->tempDirs[] = $base;
+
+        \file_put_contents("{$base}/default/package.php", '<?php return ' . \var_export(\array_merge(['name' => 'GovDecl', 'version' => '0.1.0', 'author' => 'gov'], $packageKeys), true) . ';');
+
+        // site-level config supplies code/author; package.php (disk) supplies
+        // the 'migration' declaration — ModuleInfo.php:177/187 verbatim
+        return new ModuleInfo($base, ['module_code' => 'test/govdecl', 'author' => 'gov', 'description' => 'x'], 'default');
+    }
+
     /**
      * Create a temp migration dir holding one minimal migration file.
      */

@@ -653,19 +653,22 @@ class Controller
      * API is addColumn(string $syntax) (Database/Table.php), verified against
      * tests/MigrationTest.php:193-196.)
      *
-     * Example usage in controller:
+     * Example usage from a DEPLOY-TIME command (policy: web requests NEVER
+     * migrate and lifecycle hooks must not run DDL — dossier
+     * MIGRATION-GOVERNANCE.md Q-M2; the standard surface is package.php
+     * 'migration' => 'deploy' + php Razy.phar migrate <dist> [--status]):
      * ```php
-     * public function __onInit(Agent $agent): bool {
+     * public function deployMigrations(Agent $agent): bool {
      *     $db = $this->resolve(Database::class);
      *     $manager = $this->getMigrationManager($db);
      *
-     *     // Run pending migrations
+     *     // Run pending migrations (checksum-verified; scope = this module)
      *     $applied = $manager->migrate();
      *
      *     // Check status
      *     $status = $manager->getStatus();
      *
-     *     // Rollback last batch
+     *     // Rollback last batch of THIS module's scope only (M0)
      *     $rolledBack = $manager->rollback();
      *
      *     return true;

@@ -9,6 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** migration governance M3+M4 (dossier MIGRATION-GOVERNANCE.md, closing its queue):
+  `package.php` `'migration' => 'deploy' | 'manual'` (default manual = historic behaviour;
+  `ModuleInfo::getMigrationMode()/getMigrationDeclared()`) — the bulk
+  `php Razy.phar migrate <dist>` pass now runs only `deploy`-declared modules, naming a
+  module explicitly is the manual sign-off, `--status` still shows everything tagged, and
+  a suspect declaration degrades to manual WITH a warning (never silently). Plus the
+  fast-path manifest (`razy_migration_meta`, one row per scope): combined file hash stored
+  only after a zero-pending pass, invalidated by every rollback/reset, never read or written
+  by `force` — a no-op `migrate()` no longer scans applied history or re-hashes files
+  (strict query-count pin). `razymod/permissions` declares `migration => 'deploy'`. 10 tests.
 - **Added** `php Razy.phar migrate` (dossier MIGRATION-GOVERNANCE.md M2 — the
   unified, deploy-time migration surface): applies pending migrations of every
   module carrying a `migration/` dir in a distributor, one scope per module (M0);
