@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** `razymod/permissions` S4 (dossier PERMISSION-MODULE.md): the `{@can}` Template function plugin —
+  ships inside the module, self-registers at its `__onInit` (`registerPluginLoader(PLUGIN_TEMPLATE)`),
+  enclosure tags `{@can 'a.b' 'c.d'}…{/can}` with quoted/bare/`$var` tokens; deny is server-side
+  (enclosed markup never ships), dead DB hides instead of breaking the render (never-throw hot path),
+  RZ-004 posture documented and pinned. `canAbilities()` session-bound check on the controller.
+  New golden demo `golden/policy` (fail-closed consumer: nullable api + `!== true` + `responseCode(403)`).
+  `manual/11-permissions.md` (+README row; 09/10 numbering follows dossier reservations) incl. the
+  razit→permissions migration table. **audit-actor deferred S4→S5** (dossier self-contradiction fixed:
+  §8 audit is an event; a read side needs the table §8 refuses). Caught en route: `controller->service()`
+  had never executed until the S4 real-engine tests — its `require` resolved `support/support/`;
+  latent since S3, now paid. 8 tests (real Template render through the module's own registration path;
+  PluginManager per-folder memo reset via the documented `Template::resetPlugins()`).
 - **Added** migration governance M3+M4 (dossier MIGRATION-GOVERNANCE.md, closing its queue):
   `package.php` `'migration' => 'deploy' | 'manual'` (default manual = historic behaviour;
   `ModuleInfo::getMigrationMode()/getMigrationDeclared()`) — the bulk

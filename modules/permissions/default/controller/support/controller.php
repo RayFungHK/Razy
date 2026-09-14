@@ -40,7 +40,11 @@ class PermissionController extends Controller
 
     /**
      * Governance commands: ONLY the config-named governor module (Q4).
-     * audit-actor stays OUT of the list until S4 ships it.
+     * audit-actor stays OUT until it exists at all — the dossier's own S5 row
+     * (line 361) defers it, since §8 audit is an EVENT and a "last denials"
+     * read side would need the audit table that §8 deliberately does not
+     * ship (S4 wording fixed in the dossier; the :298 S4 marker was the
+     * contradiction).
      */
     private const GOVERN_ONLY = [
         'roles-of' => true,
@@ -58,6 +62,12 @@ class PermissionController extends Controller
         $agent->addAPICommand('roles-of', 'api/roles_of');
         $agent->addAPICommand('assign-role', 'api/assign_role');
         $agent->addAPICommand('revoke-role', 'api/revoke_role');
+
+        // S4: the module's Template plugins (plugins/Template/function.can.php)
+        // — one registration, bound to THIS controller; consuming templates get
+        // {can …} without copy-paste (production proof: razit-multilang ships
+        // function.ml.php the same way, dossier §Templates row).
+        $this->registerPluginLoader(self::PLUGIN_TEMPLATE);
 
         return true;
     }
@@ -97,7 +107,10 @@ class PermissionController extends Controller
     public function service(): Service
     {
         $config = $this->getModuleConfig();
-        $resolver = require __DIR__ . '/support/database.php';
+        // sibling file — this controller LIVES in support/ (S3 shipped this
+        // require with a support/support/ path; never executed until the S4
+        // template tests drove controller->service() for the first time)
+        $resolver = require __DIR__ . '/database.php';
 
         return new Service(
             $resolver($config['database'] ?? null),
@@ -149,6 +162,19 @@ class PermissionController extends Controller
                 });
             },
         );
+    }
+
+    /**
+     * Session-actor check for the {can} template plugin (S4): same decision
+     * grammar as api()->can() (guest > super > db), same never-throw
+     * hot-path contract (Service.php:146) — a template render can therefore
+     * never be broken by policy lookups, and every failure denies.
+     *
+     * @param list<string> $abilities
+     */
+    public function canAbilities(array $abilities): bool
+    {
+        return $this->service()->canAny($abilities);
     }
 
     /**
