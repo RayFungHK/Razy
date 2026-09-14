@@ -1,0 +1,24 @@
+# Supplementary static analysis for in-tree MODULES (not the house gate —
+# phpstan.neon stays src/library only). Scope limit, stated honestly:
+# api/ handler closures receive $this only at execution (ClosureLoader::bind
+# to the controller); phpstan cannot rebind $this from a standalone-file
+# context at any level (varTag.variableNotFound is by design, not a config
+# weakness). The commands these handlers implement are instead pinned by the
+# 51 green tests in tests/Permissions*Test.php (RZ-014 coverage) and the
+# module-discipline lint. Everything else in the module is fully analysed.
+parameters:
+    level: 5
+    bootstrapFiles:
+        - %currentWorkingDirectory%/phpstan-bootstrap.php
+    paths:
+        - modules/permissions
+    excludePaths:
+        - modules/permissions/default/controller/api	# see header: $this only exists at execution
+    phpVersion: 80200
+    dynamicConstantNames:
+        - CLI_MODE
+        - WEB_MODE
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Call to an undefined method#'
+        - '#Access to an undefined property#'

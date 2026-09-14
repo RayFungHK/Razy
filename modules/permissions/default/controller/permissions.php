@@ -1,90 +1,42 @@
 <?php
 
 /**
- * razymod/permissions — main controller (S2: skeleton + gates).
+ * razymod/permissions — main controller (S3: check surface wired onto the
+ * S2 gates; S2 notes retained below).
  *
- * The two-tier API allow-list is LIVE now (Q4 decision); the command
- * registrations land in S3 TOGETHER WITH their handlers — RZ-014 forbids a
- * command constant outrunning shipped, tested code, so __onInit registers
- * NOTHING yet and __onAPICall guards a surface that does not exist until S3.
+ * The two-tier API allow-list (Q4 decision) was LIVE from S2; S3 registers
+ * the commands it describes — every registration maps 1:1 to a constant and
+ * to a shipped handler (RZ-014: the matrix test in the repo suite already
+ * pinned these names before they existed).
+ *
+ * Deviation from the house `return new class() extends Controller` shape
+ * (queue-admin): the class is NAMED in support/controller.php so the api/
+ * handler closures — bound to this controller at execution — can annotate
+ * their $this honestly and phpstan can verify the module (deviation stated
+ * in the dossier S3 row). The file still returns an instance, exactly like
+ * the anonymous-class shape did.
  *
  * Config keys consumed (per-distributor, config/<dist>/permissions.php —
- * Module.php:1052-1056; keys NOT read before their milestone are listed in
- * the dossier, not here):
- *   - 'governor'  : module_code of the single module allowed to mutate roles
- *                  (Q4). Absent = no governor = every governance command
- *                  denied. Never env-extendable (config is the allow-list of
- *                  record).
- *   - 'database'  : {type, connection} — config-connect DB (§4.2 option 1,
- *                  resolved by controller/support/database.php). NEVER the
- *                  ambient-phantom pattern (§4.4 lesson).
+ * Module.php:1052-1056):
+ *   - 'governor'      : module_code allowed to mutate roles (Q4). Absent =
+ *                      every governance command denied. Never env-extendable
+ *                      (config is the allow-list of record).
+ *   - 'database'      : {type, connection} config-connect DB (§4.2 option 1,
+ *                      support/database.php). NEVER the ambient-phantom
+ *                      pattern (§4.4 lesson).
+ *   - 'super_actors'  : actor keys allowed everything (§7.3), extended —
+ *                      never replaced — by env RAZY_SUPER_ADMINS csv
+ *   - 'system_actors' : CLI-only acting identities (§7.5), consulted ONLY
+ *                      under CLI_MODE, first entry wins, never ambient on web
+ *   - 'session_key'   : session slot holding the actor key "type:id"
+ *                      (default '__auth_actor' — the module's own slot;
+ *                      SessionGuard's '__auth_user_id' belongs to the app)
  *
- * Shape follows razymod/queue-admin (the first-party module reference).
+ * Shape follows razymod/queue-admin; policy logic lives in support/Service.php.
  */
 
 namespace Razy\Module\permissions;
 
-use Razy\Agent;
-use Razy\Controller;
-use Razy\ModuleInfo;
+require_once __DIR__ . '/support/controller.php';
 
-return new class() extends Controller {
-    /**
-     * Read/check commands: any module in the distributor may call them
-     * (the razit loop consumer pattern — fail-closed happens at the
-     * *decision*, not at the door). S3 will register: can, can-any,
-     * abilities, define-ability.
-     */
-    private const API_ALLOW = [
-        'can' => true,
-        'can-any' => true,
-        'abilities' => true,
-        'define-ability' => true,
-    ];
-
-    /**
-     * Governance commands: ONLY the config-named governor module (Q4).
-     * S3 will register: roles-of, assign-role, revoke-role. S4 candidate:
-     * audit-actor (kept OUT of the list until it ships).
-     */
-    private const GOVERN_ONLY = [
-        'roles-of' => true,
-        'assign-role' => true,
-        'revoke-role' => true,
-    ];
-
-    public function __onInit(Agent $agent): bool
-    {
-        // S2 ships no routes and no API commands: registration arrives with
-        // handlers in S3 (RZ-014). The gate below is pre-wired and pinned by
-        // tests/PermissionsModuleTest.php so S3 can only ever plug into a
-        // reviewed trust shape.
-        return true;
-    }
-
-    /**
-     * Gate for api('razymod/permissions')->… (RZ-010). Framework default
-     * allows ALL — implemented allow-list denies the unknown (AGENTS.md trap).
-     * $module is the REQUESTING module's ModuleInfo (Controller.php:173).
-     */
-    public function __onAPICall(ModuleInfo $module, string $method, string $fqdn = ''): bool
-    {
-        if (isset(self::API_ALLOW[$method])) {
-            return true;
-        }
-
-        if (isset(self::GOVERN_ONLY[$method])) {
-            // Absent/empty governor config must NEVER match: a bare null
-            // comparison against the caller code would let a module literally
-            // named '' through. Read API is ArrayAccess — Configuration
-            // extends Collection which extends ArrayObject (Collection.php:31);
-            // there is NO ->get() method despite manual/04:50 advertising one
-            // (ledger P8 — the same phantom class as getSharedInstance).
-            $governor = $this->getModuleConfig()['governor'] ?? null;
-
-            return \is_string($governor) && $governor !== '' && $module->getCode() === $governor;
-        }
-
-        return false;
-    }
-};
+return new PermissionController();
