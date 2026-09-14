@@ -31,8 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   can delete module B's rows (E4 footgun), per-call cost quantified honestly
   (constant queries, O(n) rows+requires). Proposes M0 scope-column + M1 checksum
   (integrity floor) → M2 `php Razy.phar migrate --status` deploy-time CLI →
-  M3 declaration over developer wiring → M4 O(1) fast path. **OPEN — 4 questions
-  await maintainer positions.**
+  M3 declaration over developer wiring → M4 O(1) fast path. **All 4 questions
+  DECIDED same-day by the maintainer (all per recommendation): M0+M1 as one
+  patch; web-request auto-migrate banned (CLI-only); checksum fail-loud.**
 - **Added** first-party module `razymod/permissions` **S2** (skeleton + schema + gates;
   dossier PERMISSION-MODULE.md milestone, in-tree like `queue-admin`, not yet published):
   four RBAC tables (`permissions` catalog / flat `roles` / `permission_role` / `actor_role`)

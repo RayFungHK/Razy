@@ -1,6 +1,6 @@
 # MIGRATION-GOVERNANCE — the migration subsystem has no owner, no trigger, no integrity check
 
-Date: 2026-09. Status: **OPEN — dossier for maintainer decisions**.
+Date: 2026-09. Status: **DECIDED 2026-09 — all four maintainer calls per recommendation**; execution queue M0+M1 → M2 → M3+M4 (§4).
 Trigger: maintainer challenge during razymod/permissions S3: "模組升級/降級沒有好的檢查；
 愈多 migration 愈累積更多 SQL 檢查；沒有統一化管理；migration 由 developer 負責會出很多問題。"
 Every claim below is code-verified (file:line), per house doctrine "Code beats docs".
@@ -33,7 +33,17 @@ Every claim below is code-verified (file:line), per house doctrine "Code beats d
 
 Downgrade stance (deliberate limitation to state): `--to`/`--rollback` stay explicit-operator tools; a package downgrade installs older code and the CLI **warns** when applied migrations are newer than the installed manifest — automatic down() on downgrade is data-loss roulette and should stay refused.
 
-## 4. Questions for the maintainer (recommendation first, as usual)
+## 4. Questions for the maintainer — ✅ ALL DECIDED 2026-09 (all per recommendation)
+
+- **Q-M1 = YES**: M0+M1 as ONE framework patch (scope column + checksum, self-healing ALTER).
+- **Q-M2 = BAN**: web-request auto-migration prohibited; CLI/deploy-time only.
+- **Q-M3 = FAIL-LOUD** on checksum mismatch, `--force` is the only escape.
+- **Q-M4 = ORDER**: M0+M1 first, M2 CLI next, M3+M4 as one.
+
+Execution queue: **M0+M1 (integrity floor)** → M2 → M3+M4. razymod/permissions S4/S5
+interleave freely (module line and framework-migration line are independent).
+
+Original questions retained verbatim below (recommendations inline).
 
 - **Q-M1**: M0+M1 together as one framework patch (tracking-table ADD COLUMN + hash column, self-healing)? **Rec: yes** — E4 is a live footgun the moment a second module adopts migrations; both share the same table touch-point.
 - **Q-M2**: Web-request auto-migrate — banned outright in guidance (CLI-only, deploy-time)? **Rec: ban** — boot-time DDL is a RZ-009-shaped cost with concurrency races (two requests running the same ALTER) on top.
