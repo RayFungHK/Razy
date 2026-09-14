@@ -9,6 +9,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** `razymod/permissions` **S3** check surface — the S2 allow-list now fronts
+  REAL handlers (RZ-014 honored in reverse: commands landed 1:1 onto the pre-pinned
+  matrix): `can` (hot path, NEVER throws — dead DB collapses to deny), `can-any`,
+  `abilities`, `define-ability` (flat-dotted grammar enforced, idempotent), plus
+  governor-only `roles-of`/`assign-role`/`revoke-role` (idempotent grants, unknown
+  roles REFUSED never auto-created). Decision grammar guest-pre-deny > super
+  (config EXTENDED by `RAZY_SUPER_ADMINS`, never ambient for guests) > DB membership;
+  CLI resolves only configured `system_actors` (§7.5); session actor via the module's
+  own `session_key`. The per-distributor **Gate** (S1 seam) answers from the DB through
+  one decisive before-hook, built lazily — never at boot (RZ-009 cost doctrine);
+  gated db-denials fire `permission.denied` (direct `can()` reads stay silent per §8).
+  16 tests (`tests/PermissionsCheckSurfaceTest.php`; 51 permission tests total),
+  `phpstan.modules.neon` (supplementary module analysis; api-handler `$this`-binding
+  limitation documented, coverage by tests instead), discipline lint 0/0.
+- **Added** `architecture/MIGRATION-GOVERNANCE.md` — evidence dossier behind the
+  maintainer's migration-governance challenge: framework ships the engine with
+  **zero** trigger (no CLI command, no upgrade hook, no call sites), no checksum
+  (applied-file edits undetectable, `MigrationManager.php:122-139`), one
+  process-global tracking table with **no module scope** — module A's `rollback()`
+  can delete module B's rows (E4 footgun), per-call cost quantified honestly
+  (constant queries, O(n) rows+requires). Proposes M0 scope-column + M1 checksum
+  (integrity floor) → M2 `php Razy.phar migrate --status` deploy-time CLI →
+  M3 declaration over developer wiring → M4 O(1) fast path. **OPEN — 4 questions
+  await maintainer positions.**
 - **Added** first-party module `razymod/permissions` **S2** (skeleton + schema + gates;
   dossier PERMISSION-MODULE.md milestone, in-tree like `queue-admin`, not yet published):
   four RBAC tables (`permissions` catalog / flat `roles` / `permission_role` / `actor_role`)

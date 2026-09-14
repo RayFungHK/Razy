@@ -1,0 +1,45 @@
+# MIGRATION-GOVERNANCE — the migration subsystem has no owner, no trigger, no integrity check
+
+Date: 2026-09. Status: **OPEN — dossier for maintainer decisions**.
+Trigger: maintainer challenge during razymod/permissions S3: "模組升級/降級沒有好的檢查；
+愈多 migration 愈累積更多 SQL 檢查；沒有統一化管理；migration 由 developer 負責會出很多問題。"
+Every claim below is code-verified (file:line), per house doctrine "Code beats docs".
+
+## 1. Evidence (current facts)
+
+| # | Fact | Evidence |
+|---|------|----------|
+| E1 | **Nothing in the framework ever runs migrations.** `getMigrationManager()` has ZERO call sites in `src/` (only its own definition + docblock); all 28 terminal commands contain no `migrate` | grep `MigrationManager` over `src/`: hits only `Controller.php:605-691` (the helper), `Database/MigrationManager.php` itself, and one `ContractCompiler.php:116` comment; `ls src/system/terminal/*.inc.php` (28 files, none migrate) |
+| E2 | **No upgrade/downgrade hook exists.** `__onUpgrade` appears nowhere in `src/`; `pkg install/update` paths never consult a module's `migration/` dir | grep `__onUpgrade\|onUpgrade` over `src/`: no hits |
+| E3 | **Applied migrations are name-only.** Tracking table columns = `migration, batch, executed_at`; NO checksum → editing an already-applied file is permanently undetectable (classic "developer owns migrations" incident: silently rewriting history) | `MigrationManager.php:122-139` (DDL), `getApplied()` :192-206 selects names only, `migrate()` records name+batch :249-253 |
+| E4 | **The tracking table is process-global, not per-module.** `TRACKING_TABLE` is a `const` — every manager instance in every module against the same Database shares ONE table with no module discriminator; `rollback()` selects `DISTINCT batch` across ALL modules, and unresolvable files are "gracefully skipped" → **module A's rollback can delete module B's tracking rows while B's tables remain** | `:52` (const), `:284` (`SELECT DISTINCT batch FROM {$quoted}`), missing-file skip behaviour pinned by `tests/MigrationTest.php` |
+| E5 | **Per-call cost, quantified honestly.** One `migrate()` call = 1× `CREATE TABLE IF NOT EXISTS` (per manager INSTANCE memo :113 — a new instance per request pays it every request) + 1× `SELECT migration` (**constant query count, O(n) transferred rows**, n = lifetime migrations) + `scandir` + `require` of every migration file; pending applies add 1 batch-query + 1 INSERT each. So "愈多 migration 愈多 SQL" is half-true: queries stay constant, but rows/scandir/requires grow linearly, and a module calling `migrate()` from `__onReady` pays it PER REQUEST (boot-time DDL — the exact cost pattern RZ-009 warns about) | `:111-144`, `:192-219`, `:232-257`, `discover()` :155-185 |
+| E6 | Consequence nobody chose: the sanctioned integration point today is module code calling `getMigrationManager()` itself — i.e. **every deployment decides ad hoc** (boot = cost+RZ-009 smell, or manual = fresh installs half-migrated). `razymod/permissions` S2/S3 deferred the problem honestly (tests drive MigrationManager directly; nothing in the module runs migrations at runtime) | `Controller.php:605-691` is doc-only guidance; S2/S3 module code contains no migrate() call |
+
+## 2. What the maintainer's four complaints map to
+
+1. "升級降級沒有好的檢查" → E1+E2+E3: no trigger, no hook, no checksum, no status surface.
+2. "愈多 migration 愈累積 SQL" → E5: constant queries but O(n) rows + O(n) file requires per call; **no fast path**.
+3. "沒有統一化管理" → E4: one shared tracking table without module identity; no site-wide `--status`; per-module DB targets are invisible to any central tool.
+4. "developer 負責會出問題" → E6: today that is literally true — the framework ships the engine and points at the developer's bootstrap for ignition.
+
+## 3. Proposed milestones (M0 first; each independently shippable, all additive RZ-012)
+
+- **M0 — module scope column (integrity floor, small).** `MigrationManager` gains a `scope` (module_code) recorded at apply; tracking rows filtered by scope in `getApplied/getPending/rollback`. Old rows (no column) read as legacy scope `''` = current behaviour, `ALTER TABLE ... ADD COLUMN` self-heal on ensure. Kills E4 cross-module rollback corruption. ~S-sized incl. tests.
+- **M1 — checksum.** `sha256(file contents)` recorded at apply; `migrate()` verifies every applied row's file hash; mismatch ⇒ fail-loud (one bypass flag). Rewriting applied history becomes impossible-by-accident. Cheap: 1 hash per file on the fast path (see M4).
+- **M2 — `php Razy.phar migrate <dist> [--status] [--to=…] [--rollback=n]`.** Deploy-time CLI (the "統一管理" surface): resolves each module's declared DB (same config-connect contract `razymod/permissions` pioneered, §4.2 option 1), runs its scoped manager, prints applied/pending/batch/date table. Web requests never migrate (stated policy, not default drift).
+- **M3 — declaration, not developer wiring.** `package.php` key `migration => 'deploy' | 'manual'` (default `manual` = today): `deploy` modules get their pending migrations run by the M2 CLI only. The __onReady-boot-DDL option disappears from guidance.
+- **M4 — fast path (fixes E5 at scale).** Store a manifest hash (sorted discovered filenames+hashes) in the tracking meta row; `migrate()` = 1 indexed SELECT + 1 local hash compare → return-early without requiring any migration file. O(1) regardless of history length; checksum verification (M1) rides the same manifest.
+
+Downgrade stance (deliberate limitation to state): `--to`/`--rollback` stay explicit-operator tools; a package downgrade installs older code and the CLI **warns** when applied migrations are newer than the installed manifest — automatic down() on downgrade is data-loss roulette and should stay refused.
+
+## 4. Questions for the maintainer (recommendation first, as usual)
+
+- **Q-M1**: M0+M1 together as one framework patch (tracking-table ADD COLUMN + hash column, self-healing)? **Rec: yes** — E4 is a live footgun the moment a second module adopts migrations; both share the same table touch-point.
+- **Q-M2**: Web-request auto-migrate — banned outright in guidance (CLI-only, deploy-time)? **Rec: ban** — boot-time DDL is a RZ-009-shaped cost with concurrency races (two requests running the same ALTER) on top.
+- **Q-M3**: checksum mismatch default = fail-loud with `--force` escape? **Rec: yes** (silent auto-trust of edited history is the incident we are preventing).
+- **Q-M4**: order — M0+M1 now, M2 next, M3+M4 as one? **Rec: yes.**
+
+## 5. Non-goals
+
+No auto-generated migrations, no ORM-sync schema diffing (Contract stays a declared mirror, §4.1 stance unchanged), no multi-tenant dist-level parallelism tricks, no change to `queue`'s own `DatabaseStore::ensureStorage` (it self-provisions by design and is not a MigrationManager consumer).
