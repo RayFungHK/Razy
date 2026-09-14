@@ -43,6 +43,21 @@ Downgrade stance (deliberate limitation to state): `--to`/`--rollback` stay expl
 Execution queue: **M0+M1 (integrity floor)** → M2 → M3+M4. razymod/permissions S4/S5
 interleave freely (module line and framework-migration line are independent).
 
+> **✅ M0+M1 SHIPPED 2026-09** (same wave as the decision). Implementation
+> decisions beyond the letter of the proposal, stated: strict scope — pre-M0
+> rows keep `scope ''` and are visible ONLY to scope-`''` managers (no silent
+> adoption; the house had zero live consumers, E1, so adoption ambiguity is
+> theoretical); self-healing `ADD COLUMN` per driver on existing tables;
+> `checksum ''` rows are unverifiable-by-design (skipped, never guessed);
+> verification covers EDITED and MISSING applied files, `migrate(force: true)`
+> is the operator-only escape; `verifyChecksums(): array<name,error>` is the
+> programmatic surface M2 `--status` will consume; `Controller::
+> getMigrationManager()` now auto-scopes by module code. One pre-existing test
+> (`MigrationTest::testMigrateThrowsForMissingFile`) pinned the lenient
+> missing-file silence M1 exists to kill — strengthened, not weakened, with a
+> docblock saying so. New pins: `tests/MigrationGovernanceTest.php` (10),
+> incl. the exact E4 batch-interleave scenario.
+
 Original questions retained verbatim below (recommendations inline).
 
 - **Q-M1**: M0+M1 together as one framework patch (tracking-table ADD COLUMN + hash column, self-healing)? **Rec: yes** — E4 is a live footgun the moment a second module adopts migrations; both share the same table touch-point.

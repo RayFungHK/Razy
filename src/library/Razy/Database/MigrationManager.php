@@ -38,13 +38,29 @@ use Throwable;
  *   - executed_at: Timestamp of execution
  *
  * Usage:
- *   $manager = new MigrationManager($database);
+ *   $manager = new MigrationManager($database);                  // legacy '' scope
+ *   $manager = new MigrationManager($database, 'vendor/module'); // module scope (M0)
  *   $manager->addPath('/path/to/migrations');
- *   $manager->migrate();           // Run all pending
- *   $manager->rollback();          // Rollback last batch
+ *   $manager->migrate();           // Run all pending (fails loud on checksum drift, M1)
+ *   $manager->migrate(force: true) // explicit escape hatch (operator decision only)
+ *   $manager->rollback();          // Rollback last batch (of THIS scope)
  *   $manager->rollback(2);         // Rollback last 2 batches
- *   $manager->reset();             // Rollback everything
+ *   $manager->reset();             // Rollback everything (this scope)
  *   $status = $manager->getStatus(); // Get migration status
+ *
+ * Scope (M0, dossier MIGRATION-GOVERNANCE.md E4): one Database can host many
+ * modules; every manager used to share one tracking table with no owner, so
+ * module A's rollback() batch selection could (and was designed to) delete
+ * module B's tracking rows while B's tables remained. Rows now carry a
+ * `scope` (module code, auto-filled by Controller::getMigrationManager) and
+ * every read/write filters by it. Pre-M0 rows keep scope '' and are visible
+ * only to scope-'' managers — strict, no silent adoption.
+ *
+ * Checksum (M1): each applied migration records sha256 of its file bytes;
+ * migrate() re-hashes every checksummed applied file before running pending
+ * work — an edited applied file (the classic "developer owns migrations"
+ * incident) throws instead of silently rewriting history. Rows predating M1
+ * have an empty checksum and are NOT verifiable (stated, not guessed).
  */
 class MigrationManager
 {
@@ -67,10 +83,21 @@ class MigrationManager
      * MigrationManager constructor.
      *
      * @param Database $database The connected database instance
+     * @param string $scope Owner identity (module code) recorded on every
+     *                      applied row and filtered on every read. Default ''
+     *                      = legacy behaviour (pre-M0 single-owner tables).
      */
-    public function __construct(private readonly Database $database)
+    public function __construct(private readonly Database $database, private readonly string $scope = '')
     {
         $this->schema = new SchemaBuilder($database);
+    }
+
+    /**
+     * Get the ownership scope this manager reads and writes.
+     */
+    public function getScope(): string
+    {
+        return $this->scope;
     }
 
     /**
@@ -123,23 +150,54 @@ class MigrationManager
                 . '`id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, '
                 . '`migration` VARCHAR(255) NOT NULL, '
                 . '`batch` INT NOT NULL, '
-                . '`executed_at` DATETIME DEFAULT CURRENT_TIMESTAMP'
+                . '`executed_at` DATETIME DEFAULT CURRENT_TIMESTAMP, '
+                . '`scope` VARCHAR(190) NOT NULL DEFAULT \'\', '
+                . '`checksum` VARCHAR(64) NOT NULL DEFAULT \'\''
                 . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
             'pgsql' => "CREATE TABLE IF NOT EXISTS \"{$tableName}\" ("
                 . '"id" SERIAL PRIMARY KEY, '
                 . '"migration" VARCHAR(255) NOT NULL, '
                 . '"batch" INTEGER NOT NULL, '
-                . '"executed_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+                . '"executed_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP, '
+                . '"scope" VARCHAR(190) NOT NULL DEFAULT \'\', '
+                . '"checksum" VARCHAR(64) NOT NULL DEFAULT \'\''
                 . ')',
             default => "CREATE TABLE IF NOT EXISTS \"{$tableName}\" ("
                 . '"id" INTEGER PRIMARY KEY AUTOINCREMENT, '
                 . '"migration" VARCHAR(255) NOT NULL, '
                 . '"batch" INTEGER NOT NULL, '
-                . '"executed_at" DATETIME DEFAULT CURRENT_TIMESTAMP'
+                . '"executed_at" DATETIME DEFAULT CURRENT_TIMESTAMP, '
+                . '"scope" VARCHAR(190) NOT NULL DEFAULT \'\', '
+                . '"checksum" VARCHAR(64) NOT NULL DEFAULT \'\''
                 . ')',
         };
 
         $this->database->execute($this->database->prepare($sql));
+
+        // Self-heal pre-M0 tables: CREATE IF NOT EXISTS is a no-op on existing
+        // tables, so ADD any missing governance column (idempotent per driver).
+        $existing = $this->trackingColumns($driverType, $tableName);
+        $columnDdl = match ($driverType) {
+            'mysql', 'mariadb' => [
+                'scope' => "ALTER TABLE `{$tableName}` ADD COLUMN `scope` VARCHAR(190) NOT NULL DEFAULT ''",
+                'checksum' => "ALTER TABLE `{$tableName}` ADD COLUMN `checksum` VARCHAR(64) NOT NULL DEFAULT ''",
+            ],
+            'pgsql' => [
+                'scope' => "ALTER TABLE \"{$tableName}\" ADD COLUMN \"scope\" VARCHAR(190) NOT NULL DEFAULT ''",
+                'checksum' => "ALTER TABLE \"{$tableName}\" ADD COLUMN \"checksum\" VARCHAR(64) NOT NULL DEFAULT ''",
+            ],
+            default => [
+                'scope' => "ALTER TABLE \"{$tableName}\" ADD COLUMN \"scope\" VARCHAR(190) NOT NULL DEFAULT ''",
+                'checksum' => "ALTER TABLE \"{$tableName}\" ADD COLUMN \"checksum\" VARCHAR(64) NOT NULL DEFAULT ''",
+            ],
+        };
+
+        foreach ($columnDdl as $column => $alter) {
+            if (!\in_array($column, $existing, true)) {
+                $this->database->execute($this->database->prepare($alter));
+            }
+        }
+
         $this->trackingTableReady = true;
     }
 
@@ -185,24 +243,78 @@ class MigrationManager
     }
 
     /**
-     * Get the list of already-applied migration names.
+     * Get the list of already-applied migration names (this scope).
      *
      * @return string[] Applied migration names, ordered by execution
      */
     public function getApplied(): array
     {
+        return \array_keys($this->getAppliedWithChecksum());
+    }
+
+    /**
+     * Applied migrations of this scope as name => recorded sha256
+     * ('' = recorded before M1, unverifiable). Duplicated names (should not
+     * exist within one scope) collapse to the LAST recorded hash.
+     *
+     * @return array<string, string>
+     */
+    public function getAppliedWithChecksum(): array
+    {
         $this->ensureTrackingTable();
 
         $quoted = $this->quotedTableName();
+        $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
+
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration FROM {$quoted} ORDER BY id ASC",
+                "SELECT migration, checksum FROM {$quoted} WHERE scope = {$quotedScope} ORDER BY id ASC",
             ),
         );
 
-        $rows = $query->fetchAll();
+        $map = [];
+        foreach ($query->fetchAll() as $row) {
+            $map[$row['migration']] = (string) ($row['checksum'] ?? '');
+        }
 
-        return \array_column($rows, 'migration');
+        return $map;
+    }
+
+    /**
+     * Verify recorded checksums against the files on disk (M1).
+     *
+     * Programmatic surface for status tooling (M2 CLI --status consumes it);
+     * migrate() enforces the same rule fail-loud before doing any work.
+     * Pre-M1 rows (empty checksum) are skipped: unverifiable, never guessed.
+     *
+     * @return array<string, string> migration name => error ('' = clean);
+     *                               empty array when everything verifies
+     */
+    public function verifyChecksums(): array
+    {
+        $errors = [];
+
+        foreach ($this->getAppliedWithChecksum() as $name => $recorded) {
+            if ($recorded === '') {
+                continue; // legacy row: nothing trustworthy to compare against
+            }
+
+            $path = $this->findMigrationFile($name);
+
+            if ($path === null) {
+                $errors[$name] = "applied migration file is missing: {$name}";
+
+                continue;
+            }
+
+            $actual = \hash_file('sha256', $path);
+
+            if ($actual !== $recorded) {
+                $errors[$name] = "checksum drift for {$name} (applied as {$recorded}, file now {$actual})";
+            }
+        }
+
+        return $errors;
     }
 
     /**
@@ -219,19 +331,41 @@ class MigrationManager
     }
 
     /**
-     * Run all pending migrations.
+     * Run all pending migrations (this scope).
      *
      * Each call increments the batch number. All migrations in a single
      * migrate() call share the same batch, enabling batch-based rollback.
      *
+     * Before any work, every checksummed applied file is re-verified (M1):
+     * drift throws fail-loud — silently rewriting applied history is exactly
+     * the incident this guards. $force is the operator-only escape hatch.
+     *
+     * @param bool $force Proceed despite checksum drift (operator decision;
+     *                    never wire user input into this)
+     *
      * @return string[] Names of migrations that were executed
      *
-     * @throws DatabaseException If a migration file does not return a Migration instance
+     * @throws DatabaseException If a migration file does not return a Migration instance,
+     *                           or checksum verification fails while not forced
      * @throws Throwable If a migration's up() method throws
      */
-    public function migrate(): array
+    public function migrate(bool $force = false): array
     {
         $this->ensureTrackingTable();
+
+        if (!$force) {
+            $drift = $this->verifyChecksums();
+
+            if ($drift !== []) {
+                $detail = \implode('; ', $drift);
+
+                throw new DatabaseException(
+                    "Applied migrations drifted from their files (scope '{$this->scope}'): {$detail}. "
+                    . 'Editing an applied migration rewrites shared history - restore the file, or '
+                    . 'migrate(force: true) as an explicit operator decision.',
+                );
+            }
+        }
 
         $pending = $this->getPending();
         if (empty($pending)) {
@@ -249,7 +383,7 @@ class MigrationManager
         foreach ($pending as $name => $path) {
             $migration = $this->resolveMigration($path);
             $migration->up($this->schema);
-            $this->recordMigration($name, $batch);
+            $this->recordMigration($name, $batch, (string) \hash_file('sha256', $path));
             $executed[] = $name;
         }
 
@@ -277,11 +411,15 @@ class MigrationManager
         }
 
         $quoted = $this->quotedTableName();
+        $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
 
-        // Get the distinct batch numbers to rollback (most recent first)
+        // Get the distinct batch numbers to rollback (most recent first,
+        // THIS SCOPE ONLY — pre-M0 this selected across every module sharing
+        // the table and its missing-file skip then deleted other modules'
+        // rows; MIGRATION-GOVERNANCE.md E4).
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT DISTINCT batch FROM {$quoted} ORDER BY batch DESC",
+                "SELECT DISTINCT batch FROM {$quoted} WHERE scope = {$quotedScope} ORDER BY batch DESC",
             ),
         );
         $batches = \array_column($query->fetchAll(), 'batch');
@@ -296,7 +434,7 @@ class MigrationManager
         foreach ($batchesToRollback as $batch) {
             $query = $this->database->execute(
                 $this->database->prepare(
-                    "SELECT migration FROM {$quoted} WHERE batch = {$batch} ORDER BY id DESC",
+                    "SELECT migration FROM {$quoted} WHERE batch = {$batch} AND scope = {$quotedScope} ORDER BY id DESC",
                 ),
             );
             foreach ($query->fetchAll() as $row) {
@@ -338,11 +476,12 @@ class MigrationManager
         $this->ensureTrackingTable();
 
         $quoted = $this->quotedTableName();
+        $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
 
-        // Get all applied migrations in reverse order
+        // Get all applied migrations in reverse order (this scope)
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration FROM {$quoted} ORDER BY id DESC",
+                "SELECT migration FROM {$quoted} WHERE scope = {$quotedScope} ORDER BY id DESC",
             ),
         );
         $rows = $query->fetchAll();
@@ -382,8 +521,11 @@ class MigrationManager
      *   - applied: Whether this migration has been applied
      *   - batch: Batch number (null if not applied)
      *   - executed_at: Execution timestamp (null if not applied)
+     *   - checksum: Recorded sha256 ('' = pending, or applied pre-M1)
      *
-     * @return array<int, array{name: string, applied: bool, batch: int|null, executed_at: string|null}>
+     * Reads are scoped to this manager's scope (M0).
+     *
+     * @return array<int, array{name: string, applied: bool, batch: int|null, executed_at: string|null, checksum: string}>
      */
     public function getStatus(): array
     {
@@ -391,11 +533,12 @@ class MigrationManager
 
         $all = $this->discover();
         $quoted = $this->quotedTableName();
+        $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
 
-        // Get applied migration details
+        // Get applied migration details (this scope)
         $query = $this->database->execute(
             $this->database->prepare(
-                "SELECT migration, batch, executed_at FROM {$quoted} ORDER BY id ASC",
+                "SELECT migration, batch, executed_at, checksum FROM {$quoted} WHERE scope = {$quotedScope} ORDER BY id ASC",
             ),
         );
         $appliedRows = $query->fetchAll();
@@ -414,6 +557,7 @@ class MigrationManager
                 'applied' => $record !== null,
                 'batch' => $record ? (int) $record['batch'] : null,
                 'executed_at' => $record['executed_at'] ?? null,
+                'checksum' => (string) ($record['checksum'] ?? ''),
             ];
             unset($appliedMap[$name]);
         }
@@ -425,6 +569,7 @@ class MigrationManager
                 'applied' => true,
                 'batch' => (int) $record['batch'],
                 'executed_at' => $record['executed_at'] ?? null,
+                'checksum' => (string) ($record['checksum'] ?? ''),
             ];
         }
 
@@ -439,6 +584,30 @@ class MigrationManager
     public function getSchemaBuilder(): SchemaBuilder
     {
         return $this->schema;
+    }
+
+    /**
+     * Physical column names of the tracking table, per driver catalog.
+     *
+     * @return list<string>
+     */
+    private function trackingColumns(string $driverType, string $tableName): array
+    {
+        $quoted = $this->quotedTableName();
+
+        $sql = match ($driverType) {
+            'mysql', 'mariadb' => "SHOW COLUMNS FROM {$quoted}",
+            'pgsql' => 'SELECT column_name AS name FROM information_schema.columns WHERE table_name = '
+                . $this->database->getDBAdapter()->quote($tableName),
+            default => "PRAGMA table_info({$quoted})",
+        };
+
+        $rows = $this->database->execute($this->database->prepare($sql))->fetchAll();
+
+        return \array_values(\array_map(
+            static fn (array $row): string => (string) ($driverType === 'mysql' || $driverType === 'mariadb' ? $row['Field'] : $row['name']),
+            $rows,
+        ));
     }
 
     /**
@@ -465,21 +634,25 @@ class MigrationManager
      *
      * @param string $name Migration name
      * @param int $batch Batch number
+     * @param string $checksum sha256 of the migration file bytes ('' = unknown)
      */
-    private function recordMigration(string $name, int $batch): void
+    private function recordMigration(string $name, int $batch, string $checksum = ''): void
     {
         $quoted = $this->quotedTableName();
         $quotedName = $this->database->getDBAdapter()->quote($name);
+        $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
+        $quotedChecksum = $this->database->getDBAdapter()->quote($checksum);
 
         $this->database->execute(
             $this->database->prepare(
-                "INSERT INTO {$quoted} (migration, batch) VALUES ({$quotedName}, {$batch})",
+                "INSERT INTO {$quoted} (migration, batch, scope, checksum) VALUES ({$quotedName}, {$batch}, {$quotedScope}, {$quotedChecksum})",
             ),
         );
     }
 
     /**
-     * Remove a migration record from the tracking table.
+     * Remove a migration record from the tracking table (this scope only —
+     * pre-M0 a name deleted every module's row with it, E4 again).
      *
      * @param string $name Migration name
      */
@@ -487,10 +660,11 @@ class MigrationManager
     {
         $quoted = $this->quotedTableName();
         $quotedName = $this->database->getDBAdapter()->quote($name);
+        $quotedScope = $this->database->getDBAdapter()->quote($this->scope);
 
         $this->database->execute(
             $this->database->prepare(
-                "DELETE FROM {$quoted} WHERE migration = {$quotedName}",
+                "DELETE FROM {$quoted} WHERE migration = {$quotedName} AND scope = {$quotedScope}",
             ),
         );
     }

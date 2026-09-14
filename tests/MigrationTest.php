@@ -13,6 +13,7 @@ use Razy\Database\MigrationManager;
 use Razy\Database\SchemaBuilder;
 use Razy\Database\Table;
 use Razy\Database\Table\TableHelper;
+use Razy\Exception\DatabaseException;
 use ReflectionClass;
 use Throwable;
 
@@ -1066,6 +1067,13 @@ class MigrationTest extends TestCase
         $manager->migrate();
     }
 
+    /**
+     * M1 (MIGRATION-GOVERNANCE.md): an applied row whose file is gone is
+     * DRIFT, not silence — this test previously pinned the lenient
+     * "already applied, no pending, no error" behaviour that let applied
+     * history vanish unnoticed. Strengthened semantics 2026-09:
+     * migrate() fails loud; force:true proceeds without re-running.
+     */
     public function testMigrateThrowsForMissingFile(): void
     {
         $dir = $this->createTempMigrationDir();
@@ -1083,9 +1091,26 @@ class MigrationTest extends TestCase
         $manager2 = new MigrationManager($db);
         $manager2->addPath('/nonexistent');
 
-        // getPending should be empty (already applied), so no error
-        $result = $manager2->migrate();
-        $this->assertSame([], $result);
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('applied migration file is missing');
+        $manager2->migrate();
+    }
+
+    public function testMigrateForceProceedsPastMissingAppliedFile(): void
+    {
+        $dir = $this->createTempMigrationDir();
+        $this->createMigrationFile($dir, '2025_01_01_000000_Ghost', 'ghost_t');
+
+        $db = $this->createSqliteDb();
+        $manager = new MigrationManager($db);
+        $manager->addPath($dir);
+        $manager->migrate();
+
+        $manager2 = new MigrationManager($db);
+        $manager2->addPath('/nonexistent');
+
+        // operator escape hatch: proceed, and applied work is NOT re-run
+        $this->assertSame([], $manager2->migrate(force: true));
     }
 
     // ═══════════════════════════════════════════════════════════════

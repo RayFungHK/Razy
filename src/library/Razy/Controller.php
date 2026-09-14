@@ -688,7 +688,10 @@ class Controller
             );
         }
 
-        $manager = new MigrationManager($database);
+        // Scope = this module's code (M0): modules sharing one Database each
+        // own their tracking rows; another module's rollback can no longer
+        // touch this one's history (dossier MIGRATION-GOVERNANCE.md E4).
+        $manager = new MigrationManager($database, $this->getModuleCode());
         $manager->addPath($migrationPath);
 
         return $manager;

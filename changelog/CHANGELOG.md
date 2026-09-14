@@ -9,6 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Changed** `MigrationManager` — **M0+M1 integrity floor** (dossier
+  MIGRATION-GOVERNANCE.md, maintainer-decided 2026-09): tracking rows now carry
+  `scope` (module owner) and `checksum` (sha256 of the file at apply time),
+  self-healing `ADD COLUMN` on pre-M0 tables. Every read/write
+  (applied/pending/rollback/reset/status/record/remove) filters by scope — the
+  E4 footgun (module A's rollback deleting module B's rows via shared batches
+  + missing-file skip) is closed and pinned by the exact interleave scenario.
+  `migrate()` verifies checksums FIRST and fails loud on drift (edited or
+  missing applied files) — `force: true` is the operator-only escape; rows
+  predating M1 (`checksum ''`) are unverifiable by design, never guessed.
+  `verifyChecksums()` is the public surface for the upcoming `migrate --status`
+  (M2). `Controller::getMigrationManager()` auto-scopes by module code.
+  Behavior change (decided): previously, a missing applied file migrated on
+  silently; one pre-existing test that pinned that leniency was strengthened
+  to the new contract. 10 new tests (`tests/MigrationGovernanceTest.php`).
 - **Added** `razymod/permissions` **S3** check surface — the S2 allow-list now fronts
   REAL handlers (RZ-014 honored in reverse: commands landed 1:1 onto the pre-pinned
   matrix): `can` (hot path, NEVER throws — dead DB collapses to deny), `can-any`,
