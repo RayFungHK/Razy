@@ -29,6 +29,8 @@ method (manual/04 ledger P8).
 | `super_actors` | list of actor keys (`"type:id"`) that pass every check |
 | `system_actors` | CLI/service-posture actors (§7.5): consulted **only when `CLI_MODE`** — a web request can never wear one |
 | `session_key` | `$_SESSION` key holding the actor (`"type:id"` string or int id → `"user:{id}"`); default `__auth_actor` |
+| `cache_ttl` | seconds; **0 (default) = no cross-request cache at all**. >0 memoizes per-actor ability sets in `Razy\Cache` (writes through the API invalidate instantly — §7.6 mandate; out-of-band DB edits recover when the TTL expires) |
+| `audit` | bool, default off — persists gated denials into `permission_audit_log` for the `audit-actor` read side (event stays primary, §7) |
 
 Super is `super_actors` ∪ env `RAZY_SUPER_ADMINS` (comma-separated) — the
 escape hatch extends config, it never replaces it (ops break-glass).
@@ -55,6 +57,7 @@ any failure anywhere                       → deny, never throw
 | `roles-of(type, id)` | governor only | `array` |
 | `assign-role(type, id, role)` | governor only | `array` (idempotent) |
 | `revoke-role(type, id, role)` | governor only | `array` (idempotent) |
+| `audit-actor(actorKey, limit?)` | governor only | `list` newest-first denial rows (needs `audit`) |
 
 Ability codes: `^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)+$` (dot-grouped, the
 razit `$module/$action` pair flattened into one code). `assign-role` refuses
@@ -105,9 +108,20 @@ $agent->listen('razymod/permissions:permission.denied', function (array $p): arr
 
 Fires on gated denials that reached the DB layer (`via === 'db'`); plain
 `api()->can()` reads stay silent (razit-loop volume would bury evidence).
-The `audit-actor` read API needs a table first — §8 doctrine is "audit is
-an event"; shipping a read side means shipping the table, and that is a
-named S5 decision, not an assumption (dossier §5 contradiction fixed in S4).
+
+**S5 added the opt-in read side.** With config `audit` on, the module
+listens to its own event and logs rows to `permission_audit_log`
+(ships as the module's second migration); the governor can then ask:
+
+```php
+$denials = $this->api('razymod/permissions')->audit-actor('user:7'); // newest first
+```
+
+Default off keeps the §8 doctrine exactly: event-only, empty table, no
+storage promises. The log is best-effort by contract (an audit surface
+that can break the decision path it observes is worse than none);
+retention is an ops concern. The razit-loop's plain `can()` reads still
+never reach this table — it records gated denials, not traffic.
 
 ## 8. Schema and deploy
 

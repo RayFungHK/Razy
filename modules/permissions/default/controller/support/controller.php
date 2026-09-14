@@ -20,6 +20,7 @@ use Razy\Auth\CallbackGuard;
 use Razy\Auth\Gate;
 use Razy\Auth\GateFactory;
 use Razy\Auth\GenericUser;
+use Razy\Cache;
 use Razy\Contract\AuthenticatableInterface;
 use Razy\Controller;
 use Razy\ModuleInfo;
@@ -40,16 +41,14 @@ class PermissionController extends Controller
 
     /**
      * Governance commands: ONLY the config-named governor module (Q4).
-     * audit-actor stays OUT until it exists at all — the dossier's own S5 row
-     * (line 361) defers it, since §8 audit is an EVENT and a "last denials"
-     * read side would need the audit table that §8 deliberately does not
-     * ship (S4 wording fixed in the dossier; the :298 S4 marker was the
-     * contradiction).
+     * audit-actor joined in S5 once its read side legitimately existed
+     * (opt-in table via the second migration; the EVENT remains primary).
      */
     private const GOVERN_ONLY = [
         'roles-of' => true,
         'assign-role' => true,
         'revoke-role' => true,
+        'audit-actor' => true,
     ];
 
     public function __onInit(Agent $agent): bool
@@ -62,12 +61,29 @@ class PermissionController extends Controller
         $agent->addAPICommand('roles-of', 'api/roles_of');
         $agent->addAPICommand('assign-role', 'api/assign_role');
         $agent->addAPICommand('revoke-role', 'api/revoke_role');
+        $agent->addAPICommand('audit-actor', 'api/audit_actor');
 
         // S4: the module's Template plugins (plugins/Template/function.can.php)
         // — one registration, bound to THIS controller; consuming templates get
         // {can …} without copy-paste (production proof: razit-multilang ships
         // function.ml.php the same way, dossier §Templates row).
         $this->registerPluginLoader(self::PLUGIN_TEMPLATE);
+
+        // S5 optional audit trail: the module listens to ITS OWN denial event
+        // (the emitter-qualified name it fires, §8) and persists rows when
+        // the `audit` config says so. Default off = event-only doctrine
+        // intact, table stays empty. Registration here is inert (RZ-009).
+        if (!empty($this->getModuleConfig()['audit'])) {
+            $agent->listen('razymod/permissions:permission.denied', function (array $payload = []): array {
+                $this->service()->auditLog(
+                    (string) ($payload['actor_key'] ?? ''),
+                    (string) ($payload['ability'] ?? ''),
+                    (string) ($payload['source'] ?? 'gate'),
+                );
+
+                return ['audited' => true];
+            });
+        }
 
         return true;
     }
@@ -112,10 +128,14 @@ class PermissionController extends Controller
         // template tests drove controller->service() for the first time)
         $resolver = require __DIR__ . '/database.php';
 
+        // S5: Cache::getAdapter() is NullAdapter before initialize()
+        // (Cache.php:117-118) — a no-op store, so cache_ttl simply does
+        // nothing until the distributor really has a cache (fail-closed).
         return new Service(
             $resolver($config['database'] ?? null),
             $config->array(),
             \defined('CLI_MODE') && CLI_MODE,
+            Cache::getAdapter(),
         );
     }
 

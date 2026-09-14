@@ -9,6 +9,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** `razymod/permissions` S5 (dossier PERMISSION-MODULE.md — the module's milestone line now reads
+  S1–S5 complete, version 0.2.0 RZ-012-minor): each S5 gate decided individually.
+  **Cross-request cache (§7.6)**: opt-in `cache_ttl` (default 0 = shipped posture stays zero ambient
+  state), `Razy\Cache\CacheInterface` injected (facade supplies `NullAdapter` pre-initialize = fail-safe),
+  the §7.6-mandated invalidation-on-write always armed — real writes clear the actor's set, a no-op
+  assign deliberately does NOT (nothing went stale), empty deny-sets cache too (fail-closed direction),
+  foreign cache values recompute instead of granting, `invalidateActor()` public for governor tools.
+  **Opt-in audit trail (§8 read side)**: `audit` config + second migration `permission_audit_log` +
+  Contract mirror; the module listens to its OWN `permission.denied` event and best-effort logs gated
+  denials; governor-only `audit-actor(key, limit?)` answers newest-first. Event stays primary, default
+  off. **Direct grants stay OFF** (Q5 reopens on a NAMED use case, not on a milestone word);
+  **admin UI not shipped** (Q4: no mutation surface; read shell never demanded). 8 tests; S2 suite
+  updated for the 5th table / two-migration batch / audit-actor governor row.
 - **Added** `razymod/permissions` S4 (dossier PERMISSION-MODULE.md): the `{@can}` Template function plugin —
   ships inside the module, self-registers at its `__onInit` (`registerPluginLoader(PLUGIN_TEMPLATE)`),
   enclosure tags `{@can 'a.b' 'c.d'}…{/can}` with quoted/bare/`$var` tokens; deny is server-side

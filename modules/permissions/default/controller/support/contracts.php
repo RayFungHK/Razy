@@ -81,4 +81,20 @@ return [
             ['columns' => ['actor_type', 'actor_id'], 'name' => 'idx_actor'],
         ],
     ]),
+
+    // S5 opt-in denial audit log: rows appear only when the `audit` config
+    // is on; the permission.denied EVENT remains the primary surface (§8).
+    'permission_audit_log' => Contract::define([
+        'table' => 'permission_audit_log',
+        'fields' => [
+            'id' => 'type(int),auto',
+            'actor_key' => 'type(text)',
+            'ability' => 'type(text)',
+            'source' => 'type(text)',
+            'created_at' => 'type(timestamp),nullable',
+        ],
+        'indexes' => [
+            ['columns' => ['actor_key', 'id'], 'name' => 'idx_audit_actor'],
+        ],
+    ]),
 ];

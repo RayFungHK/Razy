@@ -61,27 +61,26 @@ class PermissionsModuleTest extends TestCase
             yield "read {$cmd} with no governor configured" => [$cmd, 'other/mod', $none, true];
         }
 
-        // governance: governor-named caller only
-        foreach (['roles-of', 'assign-role', 'revoke-role'] as $cmd) {
+        // governance: governor-named caller only (audit-actor joined with S5)
+        foreach (['roles-of', 'assign-role', 'revoke-role', 'audit-actor'] as $cmd) {
             yield "govern {$cmd} by governor" => [$cmd, 'acme/governor', $gov, true];
             yield "govern {$cmd} by stranger" => [$cmd, 'evil/mod', $gov, false];
             yield "govern {$cmd} with no governor configured" => [$cmd, 'acme/governor', $none, false];
             yield "govern {$cmd} with EMPTY governor config" => [$cmd, '', ['governor' => ''], false];
         }
 
-        // unknown + not-yet-shipped: deny
+        // unknown: deny
         yield 'unknown command denied even to governor' => ['wipe-all', 'acme/governor', $gov, false];
-        yield 'audit-actor not in the list until S4' => ['audit-actor', 'acme/governor', $gov, false];
     }
 
     // ── migration: up ─────────────────────────────────────────────
 
-    public function testUpCreatesAllFourRbacTables(): void
+    public function testUpCreatesAllRbacTablesPlusAuditLog(): void
     {
         $db = $this->migrateSqliteDb();
         $schema = new SchemaBuilder($db);
 
-        foreach (['permissions', 'roles', 'permission_role', 'actor_role'] as $table) {
+        foreach (['permissions', 'roles', 'permission_role', 'actor_role', 'permission_audit_log'] as $table) {
             $this->assertTrue($schema->hasTable($table), "table '{$table}' must exist after migrate()");
         }
     }
@@ -98,9 +97,9 @@ class PermissionsModuleTest extends TestCase
         $first = $manager->migrate();
         $second = $manager->migrate();
 
-        $this->assertCount(1, $first, 'exactly the one shipped migration applies');
+        $this->assertCount(2, $first, 'the two shipped migrations apply (RBAC tables S2 + audit log S5)');
         $this->assertSame([], $second, 'tracking table prevents re-run');
-        $this->assertCount(1, $manager->getApplied());
+        $this->assertCount(2, $manager->getApplied());
     }
 
     // ── migration: constraints actually enforced ──────────────────
@@ -157,10 +156,10 @@ class PermissionsModuleTest extends TestCase
         $manager->migrate();
 
         $rolled = $manager->rollback();
-        $this->assertCount(1, $rolled);
+        $this->assertCount(2, $rolled, 'one step rolls the whole last batch (both shipped migrations ran in batch 1)');
 
         $schema = new SchemaBuilder($db);
-        foreach (['permissions', 'roles', 'permission_role', 'actor_role'] as $table) {
+        foreach (['permissions', 'roles', 'permission_role', 'actor_role', 'permission_audit_log'] as $table) {
             $this->assertFalse($schema->hasTable($table), "table '{$table}' must be gone after rollback");
         }
         $this->assertSame([], $manager->getApplied());
@@ -177,7 +176,7 @@ class PermissionsModuleTest extends TestCase
             ->fetchAll(PDO::FETCH_COLUMN);
 
         $this->assertSame(
-            ['rzt_actor_role', 'rzt_permission_role', 'rzt_permissions', 'rzt_roles'],
+            ['rzt_actor_role', 'rzt_permission_audit_log', 'rzt_permission_role', 'rzt_permissions', 'rzt_roles'],
             $physical,
             'raw DDL applies the prefix itself — shared-DB multi-dist isolation lever (§4.3)',
         );
@@ -192,7 +191,7 @@ class PermissionsModuleTest extends TestCase
         /** @var array<string, Contract> $contracts */
         $contracts = require __DIR__ . '/../modules/permissions/default/controller/support/contracts.php';
 
-        $this->assertSame(['permissions', 'roles', 'permission_role', 'actor_role'], \array_keys($contracts));
+        $this->assertSame(['permissions', 'roles', 'permission_role', 'actor_role', 'permission_audit_log'], \array_keys($contracts));
 
         foreach ($contracts as $name => $contract) {
             $this->assertInstanceOf(Contract::class, $contract);

@@ -33,13 +33,18 @@
  * join belongs in the framework, not in interpolated SQL (RZ-003).
  *
  * Memo (§7.6): per-actor ability sets live on THIS instance only — one
- * Service per call means memo = intra-call batching (can-any). Cross-request
- * caching is S5 (Razy\Cache + invalidation-on-write mandatory first); until
- * then no ambient state crosses a request boundary by construction.
+ * Service per call means memo = intra-call batching (can-any). S5 added the
+ * cross-request layer: Razy\Cache behind `cache_ttl` (default 0 = OFF, no
+ * ambient state by default), with the §7.6-MANDATED invalidation-on-write —
+ * assignRole/revokeRole delete the actor's cached set unconditionally.
+ * Out-of-band DB writes (governor bypassing the API, app-side bulk edits)
+ * are not observable from here: the TTL is their recovery horizon. Deny
+ * sets cache too (fail-closed direction: a stale cache hides, never grants).
  */
 
 namespace Razy\Module\permissions;
 
+use Razy\Cache\CacheInterface;
 use Razy\Database;
 use Razy\Env;
 use Throwable;
@@ -66,6 +71,7 @@ final class Service
         private readonly ?Database $db,
         private readonly array $config = [],
         private readonly bool $cli = false,
+        private readonly ?CacheInterface $cache = null,
     ) {
     }
 
@@ -296,6 +302,7 @@ final class Service
                 'role_id' => (int) $roleId,
             ]));
             $this->actorMemo = []; // write-time invalidation (§7.6)
+            $this->cache?->delete($this->cacheKey($actorType . ':' . $actorId)); // S5 cross-request
         }
 
         return ['ok' => true, 'created' => $dup === []];
@@ -323,8 +330,74 @@ final class Service
             $this->db->delete('actor_role', ['t' => $actorType, 'a' => $actorId, 'r' => (int) $roleId], 'actor_type=:t,actor_id=:a,role_id=:r'),
         );
         $this->actorMemo = [];
+        $this->cache?->delete($this->cacheKey($actorType . ':' . $actorId)); // S5 cross-request
 
         return ['ok' => true, 'revoked' => $query->affected()]; // Query exposes affected(), no rowCount()
+    }
+
+    // ── audit (S5: event remains primary; this is the opt-in read side) ──
+
+    /**
+     * Best-effort denial row (inserted by the module's own permission.denied
+     * listener when `audit` is on). NEVER throws: an audit surface that can
+     * break the decision path it observes would be worse than no audit.
+     */
+    public function auditLog(string $actorKey, string $ability, string $source = 'gate'): void
+    {
+        if ($this->db === null || $actorKey === '') {
+            return;
+        }
+
+        try {
+            $this->db->execute($this->db->insert('permission_audit_log', ['actor_key', 'ability', 'source'])->assign([
+                'actor_key' => $actorKey,
+                'ability' => $ability,
+                'source' => $source,
+            ]));
+        } catch (Throwable) {
+            // swallow by contract (best-effort); the EVENT already fired with the truth
+        }
+    }
+
+    /**
+     * Newest-first denials for one actor (dossier §8 contract:
+     * `audit-actor(string $actorKey): array`). Governor-only upstream.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function auditActor(string $actorKey, int $limit = 50): array
+    {
+        if ($this->db === null || $actorKey === '') {
+            return [];
+        }
+
+        $limit = \max(1, \min(200, $limit));
+
+        // Statement::limit($position, $fetchLength) — position first, verified
+        // Statement.php:704; order direction is a PREFIX ('>id' = DESC,
+        // Statement.php:732-739 — 'id DESC' would be parsed as a column name);
+        // everything else through the sanctioned builder.
+        return $this->db->execute(
+            $this->db->prepare()
+                ->select('actor_key,ability,source,created_at')
+                ->from('permission_audit_log')
+                ->where('actor_key=:k')
+                ->assign(['k' => $actorKey])
+                ->order('>id')
+                ->limit(0, $limit),
+        )->fetchAll();
+    }
+
+    /**
+     * Cross-request cache invalidation for one actor (§7.6 mandate: no
+     * cross-request cache exists WITHOUT this). Safe on every setting:
+     * without a cache adapter it is a no-op, with one it is the ONLY thing
+     * that makes a grant/revoke visible before the TTL.
+     */
+    public function invalidateActor(string $actorKey): void
+    {
+        $this->actorMemo = []; // in-batch memo too (one Service kept alive)
+        $this->cache?->delete($this->cacheKey($actorKey));
     }
 
     // ── internals ─────────────────────────────────────────────────
@@ -338,6 +411,53 @@ final class Service
             return $this->actorMemo[$actorKey];
         }
 
+        $ttl = \max(0, (int) ($this->config['cache_ttl'] ?? 0));
+
+        if ($ttl > 0 && $this->cache !== null) {
+            $cached = $this->cache->get($this->cacheKey($actorKey), null);
+
+            if (\is_array($cached) && $this->isAbilitySet($cached)) {
+                // our own writer stores array<string,true>; foreign shapes
+                // (a poisoned shared key-space) recompute rather than grant.
+                // Empty deny-sets are legitimately cacheable (fail-closed).
+                return $cached;
+            }
+        }
+
+        $set = $this->computeAbilities($actorKey);
+        $this->actorMemo[$actorKey] = $set;
+
+        if ($ttl > 0 && $this->cache !== null) {
+            $this->cache->set($this->cacheKey($actorKey), $set, $ttl);
+        }
+
+        return $set;
+    }
+
+    /**
+     * @param array<array-key, mixed> $candidate
+     */
+    private function isAbilitySet(array $candidate): bool
+    {
+        foreach ($candidate as $code => $flag) {
+            if (!\is_string($code) || $flag !== true) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function cacheKey(string $actorKey): string
+    {
+        return 'razymod/permissions.abilities.' . \sha1($actorKey);
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function computeAbilities(string $actorKey): array
+    {
         $set = [];
 
         if ($this->db !== null) {
@@ -366,7 +486,8 @@ final class Service
             }
         }
 
-        $this->actorMemo[$actorKey] = $set;
+        // memo/cache writing belongs to the callers (abilitiesFor /
+        // computeAndCache) — computeAbilities is the pure read
 
         return $set;
     }
