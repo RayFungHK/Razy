@@ -269,6 +269,21 @@ return function () {
             } else {
                 $executed = $manager->migrate($force);
                 $this->writeLineLogging('  {@c:green}applied {@reset}' . \implode(', ', $executed ?: ['(up to date)']), true);
+
+                // Q3 (MODULE-LIFECYCLE.md): `module.installed` fires ONLY
+                // where migrations actually RAN — this door and the wizard
+                // POST door, on a non-empty apply. An up-to-date pass fires
+                // nothing (the module was installed before this request);
+                // peers seed their own data off the event, schema never
+                // moves in reaction to a peer.
+                if ($executed !== []) {
+                    $module->createEmitter('module.installed')->resolve([
+                        'module' => $code,
+                        'version' => $module->getModuleInfo()->getVersion(),
+                        'via' => 'cli',
+                        'applied' => count($executed),
+                    ]);
+                }
             }
         } catch (Throwable $e) {
             $failures++;

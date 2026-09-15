@@ -25,6 +25,7 @@ use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Module\ModuleStatus;
+use Razy\Setup\WizardRunner;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -329,6 +330,13 @@ class Distributor implements DistributorInterface
             return false;
         }
 
+        // Framework-owned setup door (MODULE-LIFECYCLE.md L4): answered
+        // before session, lifecycle, or route table — the wizard is not a
+        // module and pre-dates module readiness by definition.
+        if ($this->handleWizardRequest($this->urlQuery)) {
+            return true;
+        }
+
         $this->setSession();
 
         // Execute all await functions and notify ready
@@ -393,6 +401,12 @@ class Distributor implements DistributorInterface
         $this->urlQuery = PathUtil::tidy($urlQuery, false, '/');
         if (!$this->urlQuery || !\str_starts_with($this->urlQuery, '/')) {
             $this->urlQuery = '/' . \ltrim($this->urlQuery, '/');
+        }
+
+        // Worker-mode requests reach the setup door through this fast path
+        // too — one door per channel, same runner, same rails.
+        if ($this->handleWizardRequest($this->urlQuery)) {
+            return true;
         }
 
         // Reset stale route metadata from previous request
@@ -767,6 +781,21 @@ class Distributor implements DistributorInterface
         $manager->addPath($migrationDir);
 
         return $this->readinessMemo[$code] = $manager->isUpToDate();
+    }
+
+    /**
+     * Give the framework wizard runner (MODULE-LIFECYCLE.md L4) the request
+     * when its reserved path matches. The path is intercepted BEFORE the
+     * route table — no module, whatever its alias, can shadow or impersonate
+     * the setup door. Non-setup paths return false untouched.
+     */
+    public function handleWizardRequest(string $urlQuery): bool
+    {
+        if (\str_starts_with(\ltrim($urlQuery, '/'), WizardRunner::PATH_PREFIX . '/')) {
+            return (new WizardRunner($this))->handle($urlQuery);
+        }
+
+        return false;
     }
 
     /**

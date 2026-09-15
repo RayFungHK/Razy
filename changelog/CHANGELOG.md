@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** MODULE-LIFECYCLE L4 — the wizard door, on the narrowest rails Q2/Q6 approved.
+  `php Razy.phar module wizard-token <dist> <code>` mints a signed, single-use, 10-minute token
+  (`WizardTokenSigner`, StateSigner lineage: HMAC-verified constant-time before parse, dist+module
+  bound, nonce spent in the mandatory cache — `NullAdapter` is refused at mint, because a token that
+  can never be spent is a lie printed in green). Minting is refused — loudly, audited — for modules
+  that don't declare `'provision' => 'wizard'`, for unreachable ledgers, and when nothing is pending.
+  The web runner (`Razy\Setup\WizardRunner`) owns `/__setup/<code>` — the exact path L3's 302 targets —
+  intercepted BEFORE session, lifecycle, and route table in BOTH dispatch channels, so no module alias
+  can ever impersonate it. POST verifies → spends the nonce BEFORE any migration work (a retry needs a
+  fresh mint: a leaked page cannot re-run the door) → migrates through the SAME doors as CLI
+  (`ModuleDatabaseConnector` + `MigrationManager`, prefix `wizard_runner`) → fires `module.installed`
+  (`via: wizard`). The CLI door now fires it too — and only on a non-empty apply: an up-to-date pass
+  fires nothing (Q3: the event means migrations RAN). Every mint, spend, and refusal writes one
+  `[Razy][wizard]` audit line; the framework still owns no user row. The GET page is zero-DB by design
+  — the ledger's shape is revealed only after proof of the shell. Suite 5,486 → 5,501
+  (`tests/ModuleLifecycleL4Test.php`: signer behavior incl. tamper/cross-binding/replay/expiry/
+  NullAdapter rails, runner CLI-refuse, door-order source pins); non-wizard and unknown-code mints
+  dogfood-refused against the rebuilt phar.
 - **Added** MODULE-LIFECYCLE L3 — the readiness gate at the dispatcher, the answer the ERP paid 15
   handler-whitelist copies for. `Route::ready('vendor/mod')` (or `'self'`) gates a route;
   `$agent->readyRoutes('self')` gates every route a module registers afterwards (explicit per-route gates

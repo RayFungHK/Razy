@@ -20,6 +20,7 @@
  *   php Razy.phar module status <dist>
  *   php Razy.phar module enable <dist> <vendor/module>
  *   php Razy.phar module disable <dist> <vendor/module> [--force]
+ *   php Razy.phar module wizard-token <dist> <vendor/module>
  *
  * Arguments:
  *   status            Table: code, version, provision, enabled, pending, ready.
@@ -30,6 +31,10 @@
  *                     absent = every listed module is enabled). disable
  *                     refuses when a live module `require`s the target — the
  *                     dependents are named; --force is the operator override.
+ *   wizard-token      Mint the single-use, dist+module-bound, 10-minute
+ *                     setup token for a declared-`wizard` module (Q2/Q6
+ *                     rails: minting lives ONLY here; the web runner spends
+ *                     tokens, never mints them).
  *
  * Options:
  *   --force           Override the dependent-refusal of `disable` (operator
@@ -45,6 +50,8 @@ namespace Razy;
 use Razy\Database\MigrationManager;
 use Razy\Database\ModuleDatabaseConnector;
 use Razy\Module\ModuleStatus;
+use Razy\Security\Wizard\WizardTokenSigner;
+use Razy\Setup\WizardRunner;
 use Razy\Util\PathUtil;
 use Throwable;
 
@@ -65,10 +72,12 @@ return function (string $sub = '', string $distCode = '', string $moduleCode = '
         $this->writeLineLogging('  {@c:cyan}php Razy.phar module status <dist>{@reset}                  derived state table (deploy-gate exit)', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar module enable <dist> <vendor/module>{@reset}    write the enable-list', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar module disable <dist> <vendor/module> {@reset}( {@c:green}--force{@reset} )', true);
+        $this->writeLineLogging('  {@c:cyan}php Razy.phar module wizard-token <dist> <vendor/module>{@reset}', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('  Ready is DERIVED from the migration ledger, never stored. There is no', true);
         $this->writeLineLogging('  install/uninstall verb: schema moves at `php Razy.phar migrate <dist>`', true);
-        $this->writeLineLogging('  only; disabling never drops data (dossier MODULE-LIFECYCLE.md Q4/Q6).', true);
+        $this->writeLineLogging('  only, or through the declared wizard door with a token minted HERE', true);
+        $this->writeLineLogging('  (dossier MODULE-LIFECYCLE.md Q2/Q4/Q6).', true);
         $this->writeLineLogging('', true);
     };
 
@@ -101,6 +110,74 @@ return function (string $sub = '', string $distCode = '', string $moduleCode = '
     /** @var list<Module> $modules */
     $modules = \array_values($distributor->getRegistry()->getModules());
     $enableListPath = PathUtil::append(SYSTEM_ROOT, 'config', $distCode, 'modules.php');
+
+    // ── wizard-token: the shell proves the operator, the token survives the browser hop ──
+    if ($sub === 'wizard-token') {
+        // Q6 rails: minting is the CLI's exclusive power. The token is bound
+        // to THIS dist + module, single-use, and dead in 10 minutes. No
+        // account, no password, no framework user row — the OAuth dossier's
+        // bootstrap chicken-and-egg dies right here, on these rails.
+        $moduleCode = \trim($moduleCode);
+
+        if ($moduleCode === '') {
+            $this->writeLineLogging('{@c:red}[ERROR]{@reset} wizard-token needs a module code.', true);
+            exit(1);
+        }
+
+        $module = $distributor->getRegistry()->get($moduleCode);
+
+        if ($module === null) {
+            $this->writeLineLogging("{@c:red}[ERROR]{@reset} No module '{$moduleCode}' in distributor '{$distCode}'.", true);
+            exit(1);
+        }
+
+        if ($module->getModuleInfo()->getProvision() !== 'wizard') {
+            $this->writeLineLogging("{@c:red}[ERROR]{@reset} '{$moduleCode}' declares provision '"
+                . $module->getModuleInfo()->getProvision() . "' — the wizard door is not open for it.", true);
+            $this->writeLineLogging('    Only a manifest key of {@c:cyan}\'provision\' => \'wizard\'{@reset} may ever receive a token.', true);
+            exit(1);
+        }
+
+        $migrationDir = PathUtil::append($module->getModuleInfo()->getPath(), 'migration');
+
+        if (!\is_dir($migrationDir)) {
+            $this->writeLineLogging("{@c:red}[ERROR]{@reset} '{$moduleCode}' declares wizard provisioning but ships no migration/ directory — nothing to run.", true);
+            exit(1);
+        }
+
+        try {
+            $db = ModuleDatabaseConnector::connect($module, $moduleCode, 'cli_wizard_token');
+            $manager = new MigrationManager($db, $moduleCode);
+            $manager->addPath($migrationDir);
+            $pending = \count($manager->getPending());
+        } catch (Throwable $e) {
+            // Fail loud, refuse to mint: a token that leads to an unreachable
+            // ledger only teaches the browser the error the shell already knows.
+            $this->writeLineLogging("{@c:red}[ERROR]{@reset} Ledger unreachable, refusing to mint: {$e->getMessage()}", true);
+            exit(1);
+        }
+
+        if ($pending === 0) {
+            $this->writeLineLogging("{@c:yellow}[SKIP]{@reset} '{$moduleCode}' has nothing pending — schema already deployed, no token minted.", true);
+            exit(0);
+        }
+
+        try {
+            $signer = WizardRunner::makeSigner();
+        } catch (Throwable $e) {
+            $this->writeLineLogging("{@c:red}[ERROR]{@reset} Token minting refused: {$e->getMessage()}", true);
+            exit(1);
+        }
+
+        $token = $signer->issue($distCode, $moduleCode);
+        WizardRunner::audit($distCode, "wizard token minted for '{$moduleCode}' (pending {$pending})");
+
+        $this->writeLineLogging("{@c:green}[TOKEN]{@reset} {$token}", true);
+        $this->writeLineLogging('', true);
+        $this->writeLineLogging("    One use, {$distCode} :: {$moduleCode}, {$pending} pending migration(s).", true);
+        $this->writeLineLogging('    Expires in ' . WizardTokenSigner::DEFAULT_TTL . ' seconds. Post it to /__setup/' . \rawurlencode($moduleCode) . ' to run the door.', true);
+        exit(0);
+    }
 
     // ── enable / disable: the ONE file, written through Configuration ─────
     if ($sub === 'enable' || $sub === 'disable') {
