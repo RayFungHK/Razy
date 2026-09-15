@@ -26,6 +26,7 @@ rather than a copied pattern are marked *illustrative*.
 | 07 | [07-security-guide.md](07-security-guide.md) | Crypt, 2FA, CSRF, sessions, bridge trust, threads, dependency trust, hardening checklist |
 | 08 | [08-coexistence.md](08-coexistence.md) | Same-host PHP+foreign-app routing: why `.htaccess` claims everything, `exclude_paths` sibling declarations, edge-proxy topology, the impossibility boundary |
 | 11 | [11-permissions.md](11-permissions.md) | `razymod/permissions`: fail-closed doctrine, config keys, decision grammar, API surface, `{@can}` templates, `permission.denied` audit event, razit migration |
+| 12 | [12-module-lifecycle.md](12-module-lifecycle.md) | Derived readiness (`moduleReady`), `provision` (deploy/wizard/none), route `ready` gates with framework 503/302, `module status/enable/disable/wizard-token`, the token-gated wizard door, honest `module.installed` |
 
 *(09 and 10 are intentionally unassigned: 09 is reserved by the OAuth dossier
 (`architecture/OAUTH-SOCIALITE-HTTP.md` S5 → `manual/09-social-login.md`); 10

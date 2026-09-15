@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** MODULE-LIFECYCLE L5 — the chapter and the declarations that make the doctrine usable.
+  `manual/12-module-lifecycle.md` (derived readiness, `provision` values, route gates and their
+  503/302 answers, the operator verbs, wizard rails diagrammed, honest `module.installed`, the
+  old-app substitution table — every claim cited to a verified `file:line`). The razymod modules
+  now declare their provisioning honestly: `permissions` → `wizard` (the login-foundation
+  chicken-and-egg is the shape the door exists for), `oauth` and `queue-admin` → `none` (declared
+  absence beats guessing). `validate` gained the dossier's Q2 rail backfilled from L1: declaring
+  `wizard` without a `migration/` directory is an error — a door with nothing behind it is a
+  declared lie (the CLI mint already refuses the same shape at the other door). The dossier
+  carries its as-built record (§4.1, honest deltas included) and the ERP migration appendix (§7:
+  phar-upgrade-first, shape-by-shape substitutions with the evidence anchors, operator sequence).
+  Suite unchanged; the new validate rule pinned.
 - **Added** MODULE-LIFECYCLE L4 — the wizard door, on the narrowest rails Q2/Q6 approved.
   `php Razy.phar module wizard-token <dist> <code>` mints a signed, single-use, 10-minute token
   (`WizardTokenSigner`, StateSigner lineage: HMAC-verified constant-time before parse, dist+module

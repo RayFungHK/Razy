@@ -243,6 +243,28 @@ final class ModuleLifecycleL4Test extends TestCase
         self::assertStringContainsString('module wizard-token <dist> <vendor/module>', $usage);
     }
 
+    public function testValidateRefusesAWizardDoorWithNothingBehindIt(): void
+    {
+        // Q2 rail (L1 rule, backfilled at L5): the CLI mint and the manifest
+        // auditor refuse the SAME shape from their two doors.
+        $source = (string) \file_get_contents(SYSTEM_ROOT . '/src/system/terminal/validate.inc.php');
+        self::assertStringContainsString("\$provisionDeclared === 'wizard'", $source);
+        self::assertStringContainsString('ships no migration/ directory', $source);
+    }
+
+    public function testRazymodModulesDeclareTheirProvisionHonestly(): void
+    {
+        // the L5 declarations — read as data, not eval'd
+        $permissions = require SYSTEM_ROOT . '/modules/permissions/default/package.php';
+        $queueAdmin = require SYSTEM_ROOT . '/modules/queue-admin/default/package.php';
+        $oauth = require SYSTEM_ROOT . '/modules/oauth/default/package.php';
+
+        self::assertSame('wizard', $permissions['provision'] ?? null, 'login foundation declares the wizard door');
+        self::assertDirectoryExists(SYSTEM_ROOT . '/modules/permissions/default/migration', 'and can back it up — validate would error otherwise');
+        self::assertSame('none', $queueAdmin['provision'] ?? null);
+        self::assertSame('none', $oauth['provision'] ?? null);
+    }
+
     // ── fixtures ───────────────────────────────────────────────────────────
 
     private function cacheFake(): CacheInterface

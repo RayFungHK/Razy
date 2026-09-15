@@ -1,6 +1,6 @@
 # MODULE-LIFECYCLE — Install / Enable / Disable as a Framework Concern
 
-**Status: APPROVED — maintainer sign-off 2026-09-17: Q1–Q6 ALL per recommendation. Build scope L0–L5 fully unblocked (wizard runner included under the Q2 narrow rails).**  
+**Status: ✅ BUILT — L0–L5 shipped (commits `e35e647`…see §4.1), gates green, dogfooded on the playground app; maintainer sign-off 2026-09-17 (Q1–Q6 ALL per recommendation) proved out in code. Push pending explicit word.**  
 **Drafted:** 2026-09 (post v1.1.0-beta.2)  
 **Trigger:** Maintainer question 2026-09: 「是否 Razy 提供 module install/enable/disable 機制，比 developer 自行處理大部分安裝機制更好？簡單的 install event 讓 developer 不用再處理 order，也可以控制什麼 module 走 web setting、什麼不走 auto migration、什麼 module trigger 到其他 module installed 就 auto migration。」  
 **Companion evidence:** ERP pain survey (2026-09, full report `scratch/ERP-ROUTE-DEPENDENCY-REPORT.md`, gitignored — load-bearing evidence inlined below so this dossier stands alone).  
@@ -160,6 +160,19 @@ $agent->addLazyRoute([
 
 Every milestone: own commit, gates green (`composer quality`, module lint, `validate`), phar rebuild on src changes. Push only on explicit word (standing).
 
+### 4.1 Shipped — as-built record (2026-09)
+
+| # | Commit | As-built notes (honest deltas from the table above) |
+|---|---|---|
+| **L0** | `e35e647` (+style `ab88ffe`) | Lint rules landed as RZ-016/RZ-017 in the discipline linter (regex + structural fixtures, selfTest 27+4); the require-warning names `require` (singular) verbatim. Zombie-key purge exposed two local playground manifests whose `required` key had silently disabled a dependency graph — the permanent e2e fixture. |
+| **L1** | `b091838` | `moduleReady` + `MigrationManager::isUpToDate()` (drift deliberately excluded — deploy-gate business); `provision` with M3-style degradation + validate suspect check; `Module::disable()` revived `ModuleStatus::Disabled`; `ModuleDatabaseConnector` became the ONE config-connect door (prefixes `cli_migrate`/`module_ready`/`module_status`). Controller-level consumer helper deferred to L3 by design. |
+| **L2** | `d7075ed` | Live dogfood caught the session's key bug: the READY blacklist let a require-blocked (`Processing`) module show READY=yes — replaced by the POSITIVE whitelist `[InQueue, Loaded]` in BOTH predicate and status column, pinned from both sides. |
+| **L3** | `9694690` | The dossier's `['main','ready'=>…]` leaf syntax collides with lazy directory-tree semantics — the `Route` entity carries the gate instead (`Route::ready`, `Agent::readyRoutes`); `Module::addLazyRoute` widened (a pinned TypeError reversed deliberately). Gating is EXPLICIT opt-in (auto-gating existing pending modules = unannounced 503, refused on BC). Consumer helper delivered as `Controller::moduleReady` (internal branching only). |
+| **L4** | `fe6af81` | NO step registry: under §5's refused list, seeding steps are `module.installed` listeners (product code) — the runner migrates + announces, the ERP's `registerInstall` shape gets no framework counterpart BY DESIGN. Token spent BEFORE migration work (failure needs a fresh mint); `NullAdapter` cache refused at mint; interception on both dispatch channels; `module.installed` fires in migrate only on non-empty apply. |
+| **L5** | (this commit) | `manual/12-module-lifecycle.md`; razymod declares (`permissions`→wizard — login-foundation shape; `oauth`/`queue-admin`→none — declared absence); validate gained the wizard-without-migrations error (L1 rail backfilled); ERP appendix below; this table. |
+
+Suite 5,441 → 5,501+ across the arc; every gate stayed green at every commit; phar rebuilt throughout.
+
 ## 5. Do-NOT-build (killed this draft)
 
 - Stored install flags / "reconcile" commands (Q1).
@@ -180,3 +193,33 @@ Every milestone: own commit, gates green (`composer quality`, module lint, `vali
 | Q4 | ✅ disable never drops data; uninstall out of scope | 2026-09-17 |
 | Q5 | ✅ `config/<dist>/modules.php` (absent file = all listed enabled — zero-migration BC) | 2026-09-17 |
 | Q6 | ✅ CLI-minted one-time wizard token (StateSigner lineage; no framework user row) | 2026-09-17 |
+
+## 7. ERP migration appendix (L5 — the concrete substitution)
+
+Ground rule FIRST: the ERP ships phar `1.0.3` while this framework line is `1.1.0-beta.2+` —
+**upgrade the phar first**, re-run `validate` + the discipline linter on the ERP tree (the L0
+evidence run flagged RZ-017 ×104 and RZ-016 ×2 there), and only then substitute shapes.
+Order within the ERP is otherwise free; each row is independent.
+
+| ERP's current shape (evidence in §"ERP evidence" above) | Substitute with | Notes |
+|---|---|---|
+| 6 stored `$installed` flags (hand-synced) | delete them — call `moduleReady()` / rely on the route gate | flags were already lying (they said installed during pending ledgers) |
+| 15 byte-similar handler whitelists (`if (!$moduleReady) goto install`) | `$agent->readyRoutes('self')` once in `__onInit` of the gated module; peer-shaped needs → `(new Route(...))->ready('vendor/peer')` | the framework's 503 names the module + `php Razy.phar migrate <dist>`; XHR gets JSON — the whitelist copy's UI job, better |
+| `core.php:101-125` root-route hijack ("redirect to installer when uninstalled") | delete the hijack — the gate's 302/503 fires per actually-gated route | the hijack answered EVERY root request; the gate answers only unready ones |
+| `core.php:130-133` `__onAPICall return true` (open gate compensating for dead guards) | implement real `__onAPICall` allow-lists while moving handlers; the gate already removed the "handler runs before install" threat that motivated the openness | RZ-010/RZ-017 rule the rest |
+| 38 `registerInstall` steps + `usort(order)` + 5 colliding order numbers | `package.php 'provision' => 'wizard'` + `module wizard-token` for schema; step seeding becomes one `module.installed` listener per module applying its own defaults idempotently | install-order was ALREADY solved by `require` (load graph); the `order` numbers were solving it again in the wrong dimension — delete them |
+| `ensureSchema()` calls in web handlers (both `api/getMigrationManager.php` copies = the RZ-016 pair) | delete; declare the DDL as migration files (`migration => 'deploy'`) | the lint fails CI on reappearance |
+| per-handler `class_exists('erp\\...')` / `method_exists($emitter,...)` guards | `api('vendor/mod')->has('cmd')` (never `method_exists` — Emitter's `__call` makes it always false, the trap that killed a production integration) | RZ-017 covers the import side; the gate covers the "is the peer's schema usable" side |
+| `task.php:44-84` dual-track routes (installed vs not variants) | one route + the gate; the two variants' bodies merge once the "tables missing" branch disappears | |
+| `switch_lang.php:20` open redirect riding the whitelist machinery | independent fix (`Location` must validate against host allow-list) — noted here because the whitelist deletion touches its neighborhood | unrelated security defect, unrelated fix, same sweep |
+
+Operator sequence per ERP distributor, end-state:
+
+```bash
+php Razy.phar validate <dist>                                   # keys + provisions honest
+php Razy.phar module status <dist>                              # derived truth, gate exit code
+php Razy.phar migrate <dist>                                    # deploy-door schema
+php Razy.phar module enable|disable <dist> <code> [--force]     # the enable-list (git-tracked)
+# wizard-provisioned modules' first run, as needed:
+php Razy.phar module wizard-token <dist> <code>
+```

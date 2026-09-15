@@ -199,6 +199,17 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                 $totalErrors++;
             }
 
+            // A wizard door with nothing behind it (dossier Q2 rail): declaring
+            // 'wizard' promises the runner a migration run — a module without a
+            // migration/ directory promises an empty door, which is exactly the
+            // kind of declared-lie validate exists to catch. (Backfilled at L5;
+            // the CLI mint refuses the same shape at the other door.)
+            if ($provisionDeclared === 'wizard' && !\is_dir(PathUtil::append($moduleInfo->getPath(), 'migration'))) {
+                $this->writeLineLogging("  {@c:red}✗ Declares 'wizard' provision but ships no migration/ directory — "
+                    . "nothing for the runner to run{@reset}", true);
+                $totalErrors++;
+            }
+
             // Get routes and API commands for this module
             $moduleRoutes = $routesByModule[$code]['routes'] ?? [];
             $apiCommands = $module->getAPICommands();
