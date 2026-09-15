@@ -9,6 +9,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** MODULE-LIFECYCLE L2 — the operator surface. `php Razy.phar module status <dist>` renders the
+  derived-state table (code, version, provision, enabled, pending, ready) with deploy-gate exit codes: a
+  pending migration or an UNREACHABLE ledger exits non-zero — the gate refuses what it cannot see.
+  `module enable|disable <dist> <code>` writes `config/<dist>/modules.php` through `Configuration`
+  (ghost module names refused — enable-list entries for absent modules are never written); `disable`
+  refuses when a live module `require`s the target and names the dependents, `--force` being the
+  operator-grade override. There is deliberately no install/uninstall verb. Dogfooded live on the
+  playground, where the run caught two real bugs the tests then pinned: the READY column (and the L1
+  predicate with it) had accepted a module blocked mid-require — `standby()` leaves `Processing`, which a
+  "bad states" blacklist let through — both now take the POSITIVE whitelist `[InQueue, Loaded]`; and the
+  dependent-refusal proved its worth against the very `require` L0 had just un-deadened. Suite 5,461 →
+  5,470 (`tests/ModuleLifecycleL2Test.php`, incl. the enable-list file round-trip contract between the
+  write door and the boot-time read).
 - **Added** MODULE-LIFECYCLE L1 — readiness is DERIVED, never stored. `Distributor::moduleReady('vendor/mod')`
   answers `ready := declared migrations all applied` from the M0–M4 ledger (M4 manifest fast path first,
   new `MigrationManager::isUpToDate()`), memoized in-process only; a loaded module without a `migration/`

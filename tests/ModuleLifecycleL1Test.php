@@ -127,6 +127,20 @@ final class ModuleLifecycleL1Test extends TestCase
         self::assertFalse($distributor->moduleReady('off/mod'), 'disabled is not ready, and says so without throwing');
     }
 
+    public function testModuleReadyIsFalseForAModuleBlockedMidRequire(): void
+    {
+        // The shape the L2 dogfood caught: standby() already ran (Processing)
+        // when a peer's require failed — a blacklist of "bad states" passed
+        // this through and showed READY=yes beside a NOT-loaded warning.
+        // Only InQueue/Loaded may answer; that is why the gate is a whitelist.
+        $blocked = $this->moduleWithStatus('test/blocked', ModuleStatus::Processing);
+        $pending = $this->moduleWithStatus('test/pending', ModuleStatus::Pending);
+        $distributor = $this->distributorWith(['test/blocked' => $blocked, 'test/pending' => $pending]);
+
+        self::assertFalse($distributor->moduleReady('test/blocked'));
+        self::assertFalse($distributor->moduleReady('test/pending'));
+    }
+
     public function testModuleReadyIsVacuouslyTrueForLoadedModuleWithoutMigrations(): void
     {
         $dir = \sys_get_temp_dir() . '/razy_l1nomig_' . \bin2hex(\random_bytes(5));

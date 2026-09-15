@@ -747,11 +747,12 @@ class Distributor implements DistributorInterface
 
         $module = $this->registry->get($code);
 
-        if ($module === null || \in_array(
-            $module->getStatus(),
-            [ModuleStatus::Pending, ModuleStatus::Disabled, ModuleStatus::Failed, ModuleStatus::Unloaded],
-            true,
-        )) {
+        // POSITIVE whitelist, not a blacklist: a module blocked mid-require
+        // after standby() sits in Processing — a "bad states" exclusion list
+        // let exactly that through (caught live by the L2 dogfood: a
+        // peer-disabled dependent showed READY=yes while the boot warning
+        // named it NOT loaded). Only a queued-or-loaded module can answer.
+        if ($module === null || !\in_array($module->getStatus(), [ModuleStatus::InQueue, ModuleStatus::Loaded], true)) {
             return $this->readinessMemo[$code] = false;
         }
 
