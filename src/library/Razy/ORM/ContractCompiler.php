@@ -31,6 +31,60 @@ final class ContractCompiler
     private const TIMESTAMP_SYNTAX = 'type(text),nullable';
 
     /**
+     * @param array<string, array{column: string, json: array<string, string>}> $fields
+     */
+    private static function addColumns(Table $table, array $fields, bool $timestamps): void
+    {
+        foreach ($fields as $name => $field) {
+            $table->addColumn($name . '=' . $field['column']);
+        }
+
+        if ($timestamps) {
+            $table->addColumn('created_at=' . self::TIMESTAMP_SYNTAX);
+            $table->addColumn('updated_at=' . self::TIMESTAMP_SYNTAX);
+        }
+    }
+
+    /**
+     * Parse the `[col:col:…]` column list of an exportConfig() string into
+     * name => segment. Returns null when the string cannot be understood.
+     *
+     * @return array<string, string>|null
+     */
+    private static function columnSegments(string $config): ?array
+    {
+        $open = \strpos($config, '[');
+        if ($open === false) {
+            // Any compiled-contract snapshot ALWAYS has a column block — a
+            // bracket-less string is an alien shape, not an empty table.
+            return null;
+        }
+
+        $inner = \substr($config, $open + 1);
+        $end = \strpos($inner, ']');
+        if ($end === false) {
+            return null;
+        }
+        $firstBlock = \substr($inner, 0, $end);
+        $segments = [];
+
+        foreach (\explode(':', $firstBlock) as $segment) {
+            $eq = \strpos($segment, '=');
+            if ($eq === false || $eq === 0) {
+                return null;
+            }
+            $segments[\trim(\substr($segment, 0, $eq), '`')] = $segment;
+        }
+
+        return $segments;
+    }
+
+    private static function escape(string $value): string
+    {
+        return \str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
+    }
+
+    /**
      * Pure CREATE TABLE string — no database needed (tests pin this).
      */
     public function createTableSql(Contract $contract, string $prefix = ''): string
@@ -125,7 +179,7 @@ final class ContractCompiler
         foreach ($contract->getIndexes() as $index) {
             $quoted = \array_map(static fn (string $c): string => "'" . self::escape($c) . "'", $index['columns']);
             $name = $index['name'] !== '' ? ", '" . self::escape($index['name']) . "'" : '';
-            $indexLines[] = "            \$table->groupIndexing([" . \implode(', ', $quoted) . "]{$name});";
+            $indexLines[] = '            $table->groupIndexing([' . \implode(', ', $quoted) . "]{$name});";
         }
 
         $indexBlock = $indexLines === [] ? '' : "\n" . \implode("\n", $indexLines);
@@ -196,59 +250,5 @@ final class ContractCompiler
         }
 
         return $table;
-    }
-
-    /**
-     * @param array<string, array{column: string, json: array<string, string>}> $fields
-     */
-    private static function addColumns(Table $table, array $fields, bool $timestamps): void
-    {
-        foreach ($fields as $name => $field) {
-            $table->addColumn($name . '=' . $field['column']);
-        }
-
-        if ($timestamps) {
-            $table->addColumn('created_at=' . self::TIMESTAMP_SYNTAX);
-            $table->addColumn('updated_at=' . self::TIMESTAMP_SYNTAX);
-        }
-    }
-
-    /**
-     * Parse the `[col:col:…]` column list of an exportConfig() string into
-     * name => segment. Returns null when the string cannot be understood.
-     *
-     * @return array<string, string>|null
-     */
-    private static function columnSegments(string $config): ?array
-    {
-        $open = \strpos($config, '[');
-        if ($open === false) {
-            // Any compiled-contract snapshot ALWAYS has a column block — a
-            // bracket-less string is an alien shape, not an empty table.
-            return null;
-        }
-
-        $inner = \substr($config, $open + 1);
-        $end = \strpos($inner, ']');
-        if ($end === false) {
-            return null;
-        }
-        $firstBlock = \substr($inner, 0, $end);
-        $segments = [];
-
-        foreach (\explode(':', $firstBlock) as $segment) {
-            $eq = \strpos($segment, '=');
-            if ($eq === false || $eq === 0) {
-                return null;
-            }
-            $segments[\trim(\substr($segment, 0, $eq), '`')] = $segment;
-        }
-
-        return $segments;
-    }
-
-    private static function escape(string $value): string
-    {
-        return \str_replace(["\\", "'"], ["\\\\", "\\'"], $value);
     }
 }

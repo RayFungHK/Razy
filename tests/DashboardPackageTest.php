@@ -233,7 +233,7 @@ class DashboardPackageTest extends TestCase
         // Should have at least the distributors key (even if empty or error)
         $this->assertTrue(
             \array_key_exists('distributors', $result) || \array_key_exists('error', $result),
-            'Sites endpoint must return distributors or error key'
+            'Sites endpoint must return distributors or error key',
         );
     }
 
@@ -360,25 +360,25 @@ class DashboardPackageTest extends TestCase
 
         // PHP wrapper that sets up the environment and includes the router
         $wrapper = <<<'PHP'
-<?php
-// Simulate web server environment
-$_SERVER['REQUEST_URI'] = $argv[1];
-$_SERVER['REQUEST_METHOD'] = 'GET';
-$_SERVER['REQUEST_TIME'] = time();
+            <?php
+            // Simulate web server environment
+            $_SERVER['REQUEST_URI'] = $argv[1];
+            $_SERVER['REQUEST_METHOD'] = 'GET';
+            $_SERVER['REQUEST_TIME'] = time();
 
-// Set env vars
-putenv('RAZY_DASHBOARD_PROJECT_ROOT=' . $argv[2]);
-putenv('RAZY_DASHBOARD_PKG_DIR=' . $argv[3]);
-putenv('RAZY_DASHBOARD_ASSETS=' . $argv[4]);
+            // Set env vars
+            putenv('RAZY_DASHBOARD_PROJECT_ROOT=' . $argv[2]);
+            putenv('RAZY_DASHBOARD_PKG_DIR=' . $argv[3]);
+            putenv('RAZY_DASHBOARD_ASSETS=' . $argv[4]);
 
-// Capture output
-ob_start();
-$result = require $argv[5];
-$output = ob_get_clean();
+            // Capture output
+            ob_start();
+            $result = require $argv[5];
+            $output = ob_get_clean();
 
-// The router echoes JSON for API endpoints
-echo $output;
-PHP;
+            // The router echoes JSON for API endpoints
+            echo $output;
+            PHP;
 
         $wrapperFile = \sys_get_temp_dir() . '/razy_dashboard_test_' . \md5($uri) . '.php';
         \file_put_contents($wrapperFile, $wrapper);

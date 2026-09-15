@@ -25,8 +25,11 @@ use Razy\Routing\CaddyfileCompiler;
 class CaddyClaimScopingTest extends TestCase
 {
     private const SUBPATH = ['example.com' => ['/app' => 'coex_fake_dist']];
+
     private const TWO_SUBPATHS = ['example.com' => ['/app' => 'coex_fake_dist', '/shop' => 'coex_fake_dist']];
+
     private const MIXED_ROOT_AND_SUB = ['example.com' => ['/' => 'coex_fake_dist', '/app' => 'coex_fake_dist']];
+
     private const TRAILING_SLASH = ['example.com' => ['/app/' => 'coex_fake_dist']];
 
     private string $tmpDir = '';
@@ -52,17 +55,6 @@ class CaddyClaimScopingTest extends TestCase
     private static function lf(string $content): string
     {
         return \str_replace(["\r\n", "\r"], "\n", $content);
-    }
-
-    /**
-     * @param array<string, array<string, string>> $multisite
-     */
-    private function compile(array $multisite, bool $workerMode = true, array $excludePaths = []): string
-    {
-        $outputPath = $this->tmpDir . '/Caddyfile.' . \uniqid();
-        (new CaddyfileCompiler())->compile($multisite, [], $outputPath, $workerMode, '/app/public', $excludePaths);
-
-        return self::lf((string) \file_get_contents($outputPath));
     }
 
     // ── Mode 1: scoped claim ─────────────────────────────────────────
@@ -185,5 +177,16 @@ class CaddyClaimScopingTest extends TestCase
     {
         $this->expectException(ConfigurationException::class);
         $this->compile(['example.com' => ['/a{b' => 'coex_fake_dist']]);
+    }
+
+    /**
+     * @param array<string, array<string, string>> $multisite
+     */
+    private function compile(array $multisite, bool $workerMode = true, array $excludePaths = []): string
+    {
+        $outputPath = $this->tmpDir . '/Caddyfile.' . \uniqid();
+        (new CaddyfileCompiler())->compile($multisite, [], $outputPath, $workerMode, '/app/public', $excludePaths);
+
+        return self::lf((string) \file_get_contents($outputPath));
     }
 }

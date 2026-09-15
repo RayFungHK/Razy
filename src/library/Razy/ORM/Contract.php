@@ -262,7 +262,7 @@ final class Contract
         $indexes = [];
 
         foreach ($raw as $index) {
-            $columns = array_values(array_map('strval', (array) ($index['columns'] ?? [])));
+            $columns = \array_values(\array_map('strval', (array) ($index['columns'] ?? [])));
             if ($columns === []) {
                 throw new InvalidArgumentException('Contract index needs at least one column.');
             }

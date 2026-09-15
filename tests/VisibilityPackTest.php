@@ -27,47 +27,6 @@ use Razy\ORM\Relation\HasMany;
 #[CoversClass(ModelQuery::class)]
 class VisibilityPackTest extends TestCase
 {
-    private function createDb(): Database
-    {
-        static $counter = 0;
-        $db = new Database('vp_test_' . (++$counter));
-        $db->connectWithDriver('sqlite', ['path' => ':memory:']);
-
-        $adapter = $db->getDBAdapter();
-        $adapter->exec('
-            CREATE TABLE vp_users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT,
-                password_hash TEXT,
-                profile TEXT
-            )
-        ');
-        $adapter->exec('
-            CREATE TABLE vp_posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                user_id INTEGER
-            )
-        ');
-
-        return $db;
-    }
-
-    /** @param array<string,mixed>|null $profile */
-    private function seedUser(Database $db, string $name = 'Ada', ?array $profile = ['city' => 'HK', 'phone' => '555', 'secret' => 'top']): int
-    {
-        // casts write-path encodes the array — no hand-rolled JSON in SQL.
-        $user = VP_User::create($db, [
-            'name' => $name,
-            'email' => 'ada@example.com',
-            'password_hash' => 'HASHED',
-            'profile' => $profile,
-        ]);
-
-        return (int) $user->getKey();
-    }
-
     // ── Fail-loud validation ─────────────────────────────────────────
 
     public function testUndeclaredPackThrowsAtQueryTimeBeforeAnySql(): void
@@ -115,7 +74,7 @@ class VisibilityPackTest extends TestCase
         $this->assertNotNull($model);
 
         $array = $model->toArray();
-        $this->assertSame(['id', 'name', 'profile'], array_keys($array));
+        $this->assertSame(['id', 'name', 'profile'], \array_keys($array));
         $this->assertSame(['city' => 'HK'], $array['profile'], 'only the declared sub-path leaks');
         $this->assertArrayNotHasKey('email', $array);
         $this->assertArrayNotHasKey('password_hash', $array);
@@ -140,7 +99,7 @@ class VisibilityPackTest extends TestCase
         $array = VP_User::query($db)->pack('adminview')->find($id)->toArray();
 
         $this->assertArrayHasKey('password_hash', $array, 'an explicit pack overrides $hidden by design');
-        $this->assertSame(['id', 'password_hash'], array_keys($array));
+        $this->assertSame(['id', 'password_hash'], \array_keys($array));
     }
 
     public function testMemoryGateBoundaryIsHonest(): void
@@ -162,7 +121,7 @@ class VisibilityPackTest extends TestCase
 
         $array = VP_User::query($db)->pack('public')->find($id)->toArray();
 
-        $this->assertSame(['id', 'name'], array_keys($array), 'absent JSON root is omitted, never fabricated');
+        $this->assertSame(['id', 'name'], \array_keys($array), 'absent JSON root is omitted, never fabricated');
     }
 
     // ── Propagation ──────────────────────────────────────────────────
@@ -195,7 +154,7 @@ class VisibilityPackTest extends TestCase
 
         $this->assertCount(1, $posts);
         $postArray = $posts->first()->toArray();
-        $this->assertSame(['id', 'title', 'user_id'], array_keys($postArray), 'pack shapes the queried model, not the graph beneath it');
+        $this->assertSame(['id', 'title', 'user_id'], \array_keys($postArray), 'pack shapes the queried model, not the graph beneath it');
     }
 
     public function testNoPackKeepsLegacyHiddenBehaviour(): void
@@ -217,9 +176,50 @@ class VisibilityPackTest extends TestCase
 
         $json = VP_User::query($db)->pack('public')->find($id)->toJson();
 
-        $decoded = json_decode($json, true);
+        $decoded = \json_decode($json, true);
         $this->assertArrayNotHasKey('email', $decoded);
         $this->assertSame(['city' => 'HK'], $decoded['profile']);
+    }
+
+    private function createDb(): Database
+    {
+        static $counter = 0;
+        $db = new Database('vp_test_' . (++$counter));
+        $db->connectWithDriver('sqlite', ['path' => ':memory:']);
+
+        $adapter = $db->getDBAdapter();
+        $adapter->exec('
+            CREATE TABLE vp_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT,
+                password_hash TEXT,
+                profile TEXT
+            )
+        ');
+        $adapter->exec('
+            CREATE TABLE vp_posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                user_id INTEGER
+            )
+        ');
+
+        return $db;
+    }
+
+    /** @param array<string,mixed>|null $profile */
+    private function seedUser(Database $db, string $name = 'Ada', ?array $profile = ['city' => 'HK', 'phone' => '555', 'secret' => 'top']): int
+    {
+        // casts write-path encodes the array — no hand-rolled JSON in SQL.
+        $user = VP_User::create($db, [
+            'name' => $name,
+            'email' => 'ada@example.com',
+            'password_hash' => 'HASHED',
+            'profile' => $profile,
+        ]);
+
+        return (int) $user->getKey();
     }
 }
 

@@ -146,7 +146,7 @@ class Statement
      */
     public static function standardizeColumn(string $column, ?callable $quote = null): string
     {
-        $quote = $quote ?? fn ($c) => '`' . $c . '`';
+        $quote ??= fn ($c) => '`' . $c . '`';
         $column = \trim($column);
         // Match column syntax: optional table alias prefix, column name (backtick-quoted or identifier),
         // with optional JSON path operator (-> or ->>)

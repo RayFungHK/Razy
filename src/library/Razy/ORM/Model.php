@@ -675,6 +675,34 @@ abstract class Model
     }
 
     /**
+     * Validate and return a declared pack definition.
+     *
+     * @return list<string>
+     *
+     * @throws InvalidArgumentException when the pack is undeclared or malformed
+     */
+    public static function getPackDefinition(string $pack): array
+    {
+        $definition = static::$packs[$pack] ?? null;
+
+        if ($definition === null) {
+            throw new InvalidArgumentException("Pack '{$pack}' is not declared on " . static::class . ' (declared: ' . (empty(static::$packs) ? 'none' : \implode(', ', \array_keys(static::$packs))) . ').');
+        }
+
+        if (!\is_array($definition) || $definition === []) {
+            throw new InvalidArgumentException("Pack '{$pack}' on " . static::class . ' must be a non-empty list of attribute names.');
+        }
+
+        foreach ($definition as $field) {
+            if (!\is_string($field) || \preg_match('/^[a-z]\w*(\.[a-z]\w*)*$/', $field) !== 1) {
+                throw new InvalidArgumentException("Pack '{$pack}' on " . static::class . " contains an invalid field name: '" . (\is_scalar($field) ? (string) $field : \gettype($field)) . "'.");
+            }
+        }
+
+        return $definition;
+    }
+
+    /**
      * Override in subclasses to register global scopes or perform
      * other one-time class-level setup.
      *
@@ -786,6 +814,35 @@ abstract class Model
     private static function studly(string $value): string
     {
         return \str_replace(' ', '', \ucwords(\str_replace(['_', '-'], ' ', $value)));
+    }
+
+    /**
+     * Keep only the declared path inside a decoded array value,
+     * re-wrapped in its segment chain ([] when the path doesn't exist).
+     *
+     * @param array<int, string> $segments
+     *
+     * @return array<string, mixed>
+     */
+    private static function pruneToPath(array $value, array $segments): array
+    {
+        $segment = \array_shift($segments);
+
+        if ($segment === null || !\array_key_exists($segment, $value)) {
+            return [];
+        }
+
+        if ($segments === []) {
+            return [$segment => $value[$segment]];
+        }
+
+        $child = $value[$segment];
+
+        if (!\is_array($child)) {
+            return [];
+        }
+
+        return [$segment => self::pruneToPath($child, $segments)];
     }
 
     /**
@@ -1151,34 +1208,6 @@ abstract class Model
     public function getViewedPack(): ?string
     {
         return $this->viewedPack;
-    }
-
-    /**
-     * Validate and return a declared pack definition.
-     *
-     * @return list<string>
-     *
-     * @throws InvalidArgumentException when the pack is undeclared or malformed
-     */
-    public static function getPackDefinition(string $pack): array
-    {
-        $definition = static::$packs[$pack] ?? null;
-
-        if ($definition === null) {
-            throw new InvalidArgumentException("Pack '{$pack}' is not declared on " . static::class . " (declared: " . (empty(static::$packs) ? 'none' : implode(', ', array_keys(static::$packs))) . ').');
-        }
-
-        if (!\is_array($definition) || $definition === []) {
-            throw new InvalidArgumentException("Pack '{$pack}' on " . static::class . ' must be a non-empty list of attribute names.');
-        }
-
-        foreach ($definition as $field) {
-            if (!\is_string($field) || \preg_match('/^[a-z]\w*(\.[a-z]\w*)*$/', $field) !== 1) {
-                throw new InvalidArgumentException("Pack '{$pack}' on " . static::class . " contains an invalid field name: '" . (is_scalar($field) ? (string) $field : gettype($field)) . "'.");
-            }
-        }
-
-        return $definition;
     }
 
     /**
@@ -1584,35 +1613,6 @@ abstract class Model
         }
 
         return $attributes;
-    }
-
-    /**
-     * Keep only the declared path inside a decoded array value,
-     * re-wrapped in its segment chain ([] when the path doesn't exist).
-     *
-     * @param array<int, string> $segments
-     *
-     * @return array<string, mixed>
-     */
-    private static function pruneToPath(array $value, array $segments): array
-    {
-        $segment = \array_shift($segments);
-
-        if ($segment === null || !\array_key_exists($segment, $value)) {
-            return [];
-        }
-
-        if ($segments === []) {
-            return [$segment => $value[$segment]];
-        }
-
-        $child = $value[$segment];
-
-        if (!\is_array($child)) {
-            return [];
-        }
-
-        return [$segment => self::pruneToPath($child, $segments)];
     }
 
     /**

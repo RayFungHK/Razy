@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database\Migration;
@@ -90,7 +91,7 @@ class OrmContractTest extends TestCase
 
             try {
                 Contract::define($definition);
-            } catch (\InvalidArgumentException $e) {
+            } catch (InvalidArgumentException $e) {
                 $thrown = $e->getMessage();
             }
 

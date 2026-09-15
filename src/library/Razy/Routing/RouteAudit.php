@@ -51,7 +51,9 @@ final class RouteAudit
     public const PROBE_SEGMENT = '__razy_audit_probe__';
 
     public const RULE_ROOT_CLAIM = 'root_claim';
+
     public const RULE_ABSORBS_FOREIGN = 'absorbs_foreign';
+
     public const RULE_LAZY_SHADOWS = 'lazy_shadows';
 
     /**
@@ -61,11 +63,11 @@ final class RouteAudit
      *                                     (entries need 'type'; standard: 'route' +
      *                                     'compiled_regex' + 'module_code'; lazy: 'route_path').
      * @param array<string, string> $foreignPrefixes Host-absolute prefixes that are
-     *                                     NOT this distributor's URL space, keyed prefix =>
-     *                                     human label (sibling mounts from the domain table,
-     *                                     declared `exclude_paths`). '/' is meaningless as a
-     *                                     foreign key here (root claim already covers it) —
-     *                                     callers filter it out.
+     *                                               NOT this distributor's URL space, keyed prefix =>
+     *                                               human label (sibling mounts from the domain table,
+     *                                               declared `exclude_paths`). '/' is meaningless as a
+     *                                               foreign key here (root claim already covers it) —
+     *                                               callers filter it out.
      * @param list<string> $allow dist.php `route_audit_allow` entries ('module_code:route').
      *
      * @return array{findings: list<array{rule: string, route_key: string, module_code: string, route: string, prefix: string, message: string}>, suppressed: int}

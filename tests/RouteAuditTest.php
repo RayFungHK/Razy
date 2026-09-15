@@ -26,7 +26,7 @@ class RouteAuditTest extends TestCase
     private static function standard(string $pattern, array $extra = []): array
     {
         return [
-            'ANY:' . $pattern => array_merge([
+            'ANY:' . $pattern => \array_merge([
                 'type' => 'standard',
                 'route' => $pattern,
                 'compiled_regex' => RouteDispatcher::compileRouteRegex($pattern),
@@ -50,11 +50,6 @@ class RouteAuditTest extends TestCase
                 'path' => 'some.closure',
             ],
         ];
-    }
-
-    private function audit(array $routes, array $foreign = [], array $allow = []): array
-    {
-        return RouteAudit::run($routes, $foreign, $allow);
     }
 
     public function testRootCatchAllIsFlagged(): void
@@ -193,5 +188,10 @@ class RouteAuditTest extends TestCase
     {
         $this->assertSame('/' . RouteAudit::PROBE_SEGMENT . '/deep-path', RouteAudit::probePath(''));
         $this->assertSame('/api-py/' . RouteAudit::PROBE_SEGMENT . '/deep-path', RouteAudit::probePath('/api-py/'));
+    }
+
+    private function audit(array $routes, array $foreign = [], array $allow = []): array
+    {
+        return RouteAudit::run($routes, $foreign, $allow);
     }
 }
