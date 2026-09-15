@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — dashboard core service.
  *
@@ -65,18 +66,18 @@ final class QueueAdminService
         }
 
         return [
-            'id'           => $job->id,
-            'queue'        => $job->queue,
-            'handler'      => $job->handler,
-            'payload'      => $job->payload,
-            'attempts'     => $job->attempts,
+            'id' => $job->id,
+            'queue' => $job->queue,
+            'handler' => $job->handler,
+            'payload' => $job->payload,
+            'attempts' => $job->attempts,
             'max_attempts' => $job->maxAttempts,
-            'retry_delay'  => $job->retryDelay,
-            'priority'     => $job->priority,
-            'status'       => $job->status->value,
+            'retry_delay' => $job->retryDelay,
+            'priority' => $job->priority,
+            'status' => $job->status->value,
             'available_at' => $job->availableAt,
-            'created_at'   => $job->createdAt,
-            'error'        => $job->error,
+            'created_at' => $job->createdAt,
+            'error' => $job->error,
         ];
     }
 

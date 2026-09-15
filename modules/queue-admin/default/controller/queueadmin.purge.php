@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — guarded purge route (POST /<module-alias>/purge).
  *
@@ -47,6 +48,6 @@ return function (): void {
         return;
     }
 
-    $service = new \Razy\Module\queueadmin\QueueAdminService($store);
+    $service = new Razy\Module\queueadmin\QueueAdminService($store);
     $this->xhr()->responseAsBody($service->purge($queue));
 };

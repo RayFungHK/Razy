@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — HTML shell route (GET /<module-alias>/ui).
  *

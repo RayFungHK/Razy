@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — public API command 'purge' (clear finished/buried of a queue).
  */
@@ -20,7 +21,7 @@ return function (string $queue = 'default'): array {
         $service = new QueueAdminService(new DatabaseStore($db));
 
         return $service->purge($queue);
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         return ['ok' => false, 'error' => $e::class . ': ' . $e->getMessage()];
     }
 };

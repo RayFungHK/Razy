@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — main controller.
  *
@@ -12,13 +13,13 @@ use Razy\Agent;
 use Razy\Controller;
 use Razy\ModuleInfo;
 
-return new class extends Controller {
+return new class() extends Controller {
     /** Published surface (RZ-010); everything else stays private. */
     private const API_ALLOW = [
         'status' => true,
-        'job'    => true,
-        'act'    => true,
-        'purge'  => true,
+        'job' => true,
+        'act' => true,
+        'purge' => true,
     ];
 
     public function __onInit(Agent $agent): bool

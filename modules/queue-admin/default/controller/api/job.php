@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — public API command 'job'.
  */
@@ -21,7 +22,7 @@ return function (int|string $id): array {
         $job = $service->job($id);
 
         return ['ok' => $job !== null, 'job' => $job];
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         return ['ok' => false, 'error' => $e::class . ': ' . $e->getMessage()];
     }
 };

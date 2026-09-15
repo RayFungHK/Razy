@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — public API command 'act' (release|bury|delete).
  *
@@ -23,7 +24,7 @@ return function (int|string $id, string $kind, int $retryDelay = 0): array {
         $service = new QueueAdminService(new DatabaseStore($db));
 
         return $service->action($id, $kind, $retryDelay);
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         return ['ok' => false, 'error' => $e::class . ': ' . $e->getMessage()];
     }
 };

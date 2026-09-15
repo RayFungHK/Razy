@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — lazy-route handler for /<module-alias>/status.
  *
@@ -17,7 +18,7 @@ return function (): void {
 
     if ($store === null) {
         $this->xhr()->responseAsBody([
-            'ok'    => false,
+            'ok' => false,
             'error' => 'no database connection available (queue store unresolvable)',
         ]);
 
@@ -30,6 +31,6 @@ return function (): void {
     $arguments = is_array($routed['arguments'] ?? null) ? $routed['arguments'] : [];
     $queues = array_values(array_filter(array_map('strval', (array) ($arguments['queues'] ?? ['default']))));
 
-    $service = new \Razy\Module\queueadmin\QueueAdminService($store);
+    $service = new Razy\Module\queueadmin\QueueAdminService($store);
     $this->xhr()->responseAsBody(['ok' => true, 'status' => $service->status($queues)]);
 };

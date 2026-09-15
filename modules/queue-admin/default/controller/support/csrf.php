@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — CSRF double-submit helper for the HTML shell.
  *

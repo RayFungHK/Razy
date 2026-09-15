@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — job lookup feed (GET /<module-alias>/job?id=…).
  *
@@ -30,6 +31,6 @@ return function (): void {
 
     require_once __DIR__ . '/support/QueueAdminService.php';
 
-    $service = new \Razy\Module\queueadmin\QueueAdminService($store);
+    $service = new Razy\Module\queueadmin\QueueAdminService($store);
     $this->xhr()->responseAsBody(['ok' => true, 'job' => $service->job($id)]);
 };

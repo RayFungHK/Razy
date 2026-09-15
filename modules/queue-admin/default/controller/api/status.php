@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — public API command 'status'.
  *
@@ -23,7 +24,7 @@ return function (array $queues = ['default']): array {
         $service = new QueueAdminService(new DatabaseStore($db));
 
         return ['ok' => true, 'status' => $service->status(array_values(array_map('strval', $queues)))];
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         return ['ok' => false, 'error' => $e::class . ': ' . $e->getMessage()];
     }
 };

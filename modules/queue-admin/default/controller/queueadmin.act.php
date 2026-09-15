@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — guarded mutation route (POST /<module-alias>/act).
  *
@@ -53,6 +54,6 @@ return function (): void {
         return;
     }
 
-    $service = new \Razy\Module\queueadmin\QueueAdminService($store);
+    $service = new Razy\Module\queueadmin\QueueAdminService($store);
     $this->xhr()->responseAsBody($service->action($id, $kind, $retryDelay));
 };

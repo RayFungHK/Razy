@@ -1,4 +1,5 @@
 <?php
+
 /**
  * razymod/queue-admin — queue-store resolver (own-module support file).
  *
