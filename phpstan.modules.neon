@@ -12,8 +12,12 @@ parameters:
         - %currentWorkingDirectory%/phpstan-bootstrap.php
     paths:
         - modules/permissions
+        - modules/oauth
     excludePaths:
         - modules/permissions/default/controller/api	# see header: $this only exists at execution
+        - modules/oauth/default/controller/api	    # same shape (razymod/oauth handlers)
+        - modules/oauth/default/controller/oauth.authorize.php
+        - modules/oauth/default/controller/oauth.callback.php
     phpVersion: 80200
     dynamicConstantNames:
         - CLI_MODE

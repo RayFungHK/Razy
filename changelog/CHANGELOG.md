@@ -9,6 +9,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** `razymod/oauth` module — **S5 (dossier)**: social login routes (`/authorize` → 302 to provider — never
+  the 301 `Controller::goto`; `/callback` → core-verified exchange → `social.user_resolved`) + per-dist config
+  carrying ENV VAR NAMES only, never values (Q5) + implemented `__onAPICall` allow-list publishing the single
+  read-only `providers` command (queue-admin shape). Q1 enforced as schema: `package.php` has NO migration key and
+  the module stores nothing — identity persistence is the app's listener's job (documented event contract in the
+  new `manual/09-social-login.md`). Module-discipline lint 0 errors/0 warnings (three `lint-allow: RZ-003` with
+  written justifications — all superglobal reads are cast-then-allowlisted); `phpstan.modules.neon` now covers
+  `modules/oauth` too. 7 new tests (metadata, allow-list shape, 302-never-301 pins, flow/env separation, unknown-
+  provider and missing-secret fail-loud, manual-ships-with-module).
 - **Added** OAuth provider pack — **S3 (dossier)**: `Security\OAuth\Provider\GithubProvider` (S256-only, UA-bearing
   user calls, verified+primary email fallback via `/user/emails` — email as CONTACT data), `GoogleProvider`
   (`access_type=offline`, optional `prompt=consent`/`hd`; identity is **`sub`, not email**, `legacy_sub` still
