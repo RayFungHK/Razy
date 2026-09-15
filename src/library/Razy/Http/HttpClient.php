@@ -16,6 +16,7 @@ namespace Razy\Http;
 
 use Closure;
 use CurlHandle;
+use Razy\ArchiveSafety;
 
 /**
  * Fluent HTTP client wrapper around PHP's cURL extension.
@@ -57,8 +58,20 @@ use CurlHandle;
  * - Request/response interceptors
  * - Retry support
  */
-class HttpClient
+class HttpClient implements ClientInterface
 {
+    /**
+     * Hard cap on followed redirects (OAuth dossier S1). Kept public so tests
+     * assert the real number, not a magic literal.
+     */
+    public const MAX_REDIRECTS = 3;
+
+    /**
+     * Floor for a request timeout. cURL reads 0 as "wait forever"; the client
+     * never permits that (S1 mandatory-timeout).
+     */
+    public const MIN_TIMEOUT = 1;
+
     /**
      * Base URL prepended to relative request URLs.
      */
@@ -85,6 +98,13 @@ class HttpClient
      * Whether to verify SSL certificates.
      */
     private bool $verifySsl = true;
+
+    /**
+     * Per-client escape hatch from the HTTPS-only default (OAuth dossier Q5).
+     * Combined with the process-wide RAZY_ALLOW_INSECURE_TRANSPORT=1 env; the
+     * only two ways plain HTTP is ever permitted.
+     */
+    private bool $allowInsecureTransport = false;
 
     /**
      * Body encoding format: 'json' or 'form'.
@@ -234,7 +254,9 @@ class HttpClient
      */
     public function timeout(int $seconds): static
     {
-        $this->timeout = $seconds;
+        // Floor at MIN_TIMEOUT: cURL treats 0 as "wait forever", which the
+        // hardened client must never allow (S1 mandatory timeout).
+        $this->timeout = \max(self::MIN_TIMEOUT, $seconds);
 
         return $this;
     }
@@ -244,7 +266,7 @@ class HttpClient
      */
     public function connectTimeout(int $seconds): static
     {
-        $this->connectTimeout = $seconds;
+        $this->connectTimeout = \max(self::MIN_TIMEOUT, $seconds);
 
         return $this;
     }
@@ -267,6 +289,40 @@ class HttpClient
     public function withVerifying(): static
     {
         $this->verifySsl = true;
+
+        return $this;
+    }
+
+    /**
+     * Permit plain-HTTP transport for this client (OAuth dossier Q5).
+     *
+     * The ONLY escape hatches from the HTTPS-only default are this flag and
+     * the process-wide RAZY_ALLOW_INSECURE_TRANSPORT=1 — never a silent
+     * default. Intended for a trusted local mirror; if you did not choose the
+     * URL yourself, you must not widen the gate for it.
+     */
+    public function allowInsecureTransport(bool $allow = true): static
+    {
+        $this->allowInsecureTransport = $allow;
+
+        return $this;
+    }
+
+    /**
+     * Get the per-client insecure-transport opt-in flag.
+     */
+    public function getAllowInsecureTransport(): bool
+    {
+        return $this->allowInsecureTransport;
+    }
+
+    /**
+     * Set the Accept header (default stays 'application/json'; GitHub token
+     * and user endpoints are the reason explicit control is documented).
+     */
+    public function withAccept(string $type): static
+    {
+        $this->headers['accept'] = $type;
 
         return $this;
     }
@@ -640,6 +696,11 @@ class HttpClient
      */
     protected function executeRequest(string $method, string $url, array $options = []): HttpResponse
     {
+        // Fail loud BEFORE any network I/O (OAuth dossier S1, Q5): a plain-HTTP
+        // URL is rejected unless this client (or RAZY_ALLOW_INSECURE_TRANSPORT=1)
+        // opted in. No DNS/connection is ever attempted for a rejected URL.
+        $this->assertSecureTransport($url);
+
         $ch = \curl_init();
 
         // URL & method
@@ -672,9 +733,9 @@ class HttpClient
         \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
 
-        // Follow redirects
+        // Follow redirects (S1 tightened the cap from 5 to 3)
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+        \curl_setopt($ch, CURLOPT_MAXREDIRS, self::MAX_REDIRECTS);
 
         // User-Agent
         if ($this->userAgent !== null) {
@@ -736,16 +797,41 @@ class HttpClient
             $errno = \curl_errno($ch);
             \curl_close($ch);
 
-            // Return a synthetic error response
-            return new HttpResponse(0, \json_encode([
-                'error' => $error,
-                'errno' => $errno,
-            ]), []);
+            // Fail loud (S1): a request that never produced a response is an
+            // error, not a fabricated status-0 response. The old synthetic
+            // return was the phantom class the queue CLI only just escaped (Q3).
+            throw new HttpTransportException(
+                \sprintf('HTTP transport failure for %s %s: %s', \strtoupper($method), $url, $error),
+                $errno,
+            );
         }
 
         \curl_close($ch);
 
         return new HttpResponse($statusCode, $body, $responseHeaders);
+    }
+
+    /**
+     * Enforce the HTTPS-only transport policy on a fully-built URL.
+     *
+     * Reuses ArchiveSafety::isSecureUrl — the same primitive the ZIP/package
+     * paths gate on (PackageVerifier::assertSecureUrl), so "one policy, one
+     * door" holds across every byte that leaves the framework.
+     *
+     * @throws HttpTransportException when plain HTTP is used without opt-in
+     */
+    protected function assertSecureTransport(string $url): void
+    {
+        // env() is a bootstrap helper; tests may run without it loaded.
+        $allow = $this->allowInsecureTransport
+            || (\function_exists('env') && (bool) \env('RAZY_ALLOW_INSECURE_TRANSPORT', false));
+
+        if (!ArchiveSafety::isSecureUrl($url, $allow)) {
+            throw new HttpTransportException(
+                'Insecure transport rejected (HTTPS required): ' . $url
+                . ' — allowInsecureTransport(true) / RAZY_ALLOW_INSECURE_TRANSPORT=1 only for a trusted local mirror.',
+            );
+        }
     }
 
     /**

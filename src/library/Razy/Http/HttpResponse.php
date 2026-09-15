@@ -120,9 +120,17 @@ class HttpResponse
 
     /**
      * Whether the response is a redirect (3xx).
+     *
+     * Pass an exact status (OAuth dossier S1: `redirect(302)`) to assert the
+     * specific redirect shape; with no argument the whole 3xx family matches,
+     * exactly as before.
      */
-    public function redirect(): bool
+    public function redirect(int $status = 0): bool
     {
+        if ($status !== 0) {
+            return $this->statusCode === $status;
+        }
+
         return $this->statusCode >= 300 && $this->statusCode < 400;
     }
 
@@ -203,6 +211,35 @@ class HttpResponse
         }
 
         return $current;
+    }
+
+    /**
+     * Decode the body by CONTENT TYPE (OAuth dossier S1): JSON bodies via
+     * json(), and `application/x-www-form-urlencoded` via parse_str — the
+     * exact shape GitHub's token endpoint answers with, which a
+     * json()-only parser silently dropped.
+     *
+     * @return array<string,mixed>|null null when the type is neither, or the
+     *                                  body does not decode
+     */
+    public function data(): ?array
+    {
+        $type = \strtolower((string) $this->header('content-type'));
+
+        if (\str_contains($type, 'json')) {
+            $decoded = $this->json(true);
+
+            return \is_array($decoded) ? $decoded : null;
+        }
+
+        if (\str_contains($type, 'application/x-www-form-urlencoded')) {
+            $parsed = [];
+            \parse_str($this->body, $parsed);
+
+            return $parsed;
+        }
+
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════
