@@ -35,10 +35,15 @@ namespace Razy;
 use Exception;
 use Phar;
 use Razy\Exception\PackageIntegrityException;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use Razy\Util\PathUtil;
 
 return function (string $repository = '', string $targetPath = '', ...$options) use (&$parameters) {
-    // Helper: fetch a URL safely with cURL (protocol-restricted, with timeout)
+    // Helper: fetch a URL safely (S1 migration: the hardened client is the door;
+    // the G5 gate stays here — this function's contract is an honest false, and
+    // curl-less minimal environments keep their stream fallback because
+    // HttpClient itself requires the extension).
     $safeFetchUrl = static function (string $url): string|false {
         // Registry text files (disclaimer/terms) honour the same transport policy (G5).
         if (!ArchiveSafety::isSecureUrl($url, PackageVerifier::insecureTransportAllowed())) {
@@ -47,21 +52,13 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
         if (!\function_exists('curl_init')) {
             return @\file_get_contents($url);
         }
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-        \curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        $result = \curl_exec($ch);
-        $httpCode = (int) \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-        if ($result === false || $httpCode !== 200) {
+        try {
+            $response = HttpClient::create()->timeout(15)->get($url);
+        } catch (HttpTransportException) {
             return false;
         }
-        return $result;
+
+        return $response->status() === 200 ? $response->body() : false;
     };
 
     $this->writeLineLogging('{@s:bu}Repository Module Installer', true);
@@ -422,27 +419,21 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
             // Download the .phar file from the resolved URL
             $this->writeLineLogging('[{@c:yellow}DOWNLOAD{@reset}] Starting download...', true);
 
-            $ch = \curl_init($downloadUrl);
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-            \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-            \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-            \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-            \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-            \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
+            try {
+                $response = HttpClient::create()->userAgent('Razy-Installer')->timeout(60)->get($downloadUrl);
+            } catch (HttpTransportException $e) {
+                $this->writeLineLogging('{@c:red}[ERROR] Failed to download module: ' . $e->getMessage() . '{@reset}', true);
+                exit(1);
+            }
+            $httpCode = $response->status();
+            $pharContent = $response->body();
 
-            $pharContent = \curl_exec($ch);
-            $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $downloadSize = \curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
-            \curl_close($ch);
-
-            if ($httpCode !== 200 || $pharContent === false) {
+            if ($httpCode !== 200 || $pharContent === '') {
                 $this->writeLineLogging('{@c:red}[ERROR] Failed to download module (HTTP ' . $httpCode . '){@reset}', true);
                 exit(1);
             }
 
-            $sizeInKB = \round($downloadSize / 1024, 2);
+            $sizeInKB = \round(\strlen($pharContent) / 1024, 2);
             $this->writeLineLogging('[{@c:green}✓{@reset}] Downloaded ({@c:green}' . $sizeInKB . ' KB{@reset})', true);
 
             // Save the downloaded content to a temp file and extract it to the target path
@@ -596,19 +587,14 @@ return function (string $repository = '', string $targetPath = '', ...$options) 
                                 // Download and extract dependency
                                 $this->writeLineLogging('  [DOWNLOAD] ' . $depUrl, true);
 
-                                $ch = \curl_init($depUrl);
-                                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                                \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                                \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-                                \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-                                \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-                                \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-                                \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-                                \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
-
-                                $depContent = \curl_exec($ch);
-                                $depHttpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                                \curl_close($ch);
+                                try {
+                                    $depResponse = HttpClient::create()->userAgent('Razy-Installer')->timeout(60)->get($depUrl);
+                                    $depHttpCode = $depResponse->status();
+                                    $depContent = $depResponse->body();
+                                } catch (HttpTransportException $e) {
+                                    $this->writeLineLogging('  {@c:red}[ERROR] Download failed: ' . $e->getMessage() . '{@reset}', true);
+                                    continue;
+                                }
 
                                 if ($depHttpCode !== 200 || !$depContent) {
                                     $this->writeLineLogging('  {@c:red}[ERROR] Download failed (HTTP ' . $depHttpCode . '){@reset}', true);

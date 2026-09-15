@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Changed** CLI download doors — **S1 caller migration completed**: `install` (safe-fetch helper + phar download +
+  dependency download), `pkg install` and `sync` artifact downloads now run through the hardened `HttpClient`
+  (transport reasons reach the operator instead of bare `HTTP 0`; sizes measured from the body). The `install`
+  command's curl-LESS-environment stream fallback survives by design (the client requires the extension). The only
+  hand-rolled cURL left in the framework: the deprecated `OAuth2`/`Office365SSO` internals (retired by their S2/S3
+  rewrite, per signed Q3) and `SSE` long-lived connections (excluded — different door shape).
 - **Changed** registry/publish HTTP — **S1 caller migration (mainline)**: `publish.inc.php` (all ten GitHub API
   sites), `RepoInstaller` (4 JSON reads + 2 HEAD probes + the streaming archive download), `RepositoryManager`
   index fetches and `PackageManager\HttpTransport` (metadata reader + file download) now run through the

@@ -59,6 +59,23 @@ class S1CallerMigrationTest extends TestCase
         $this->assertStringContainsString('if ($sinkOpened) {', $src, 'a sink the client opened is always closed - no handle leak');
     }
 
+    public function testCliDownloadDoorsMigrated(): void
+    {
+        // the three CLI fetch paths the dossier lists as 'install/pkg/sync downloads'
+        $install = $this->src('system/terminal/install.inc.php');
+        $this->assertSame(1, \substr_count($install, 'curl_'), 'only the curl-LESS-environment function_exists fallback remains by design');
+        $this->assertStringContainsString('function_exists(\'curl_init\')', $install, 'stream fallback survives for curl-less installs - HttpClient needs the extension');
+        $this->assertStringContainsString('HttpTransportException', $install, 'both phar downloads carry the transport reason');
+
+        $pkg = $this->src('system/terminal/pkg.inc.php');
+        $this->assertStringNotContainsString('curl_', $pkg);
+        $this->assertStringContainsString("'Razy-PackageInstaller'", $pkg, 'UA preserved through migration');
+
+        $sync = $this->src('system/terminal/sync.inc.php');
+        $this->assertStringNotContainsString('curl_', $sync);
+        $this->assertStringContainsString('HttpTransportException', $sync);
+    }
+
     private function src(string $relative): string
     {
         $path = SYSTEM_ROOT . '/src/' . $relative;

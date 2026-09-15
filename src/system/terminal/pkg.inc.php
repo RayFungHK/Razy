@@ -75,6 +75,8 @@ use Razy\Exception\PackageIntegrityException;
 use Razy\Package\PackageManifest;
 use Razy\Package\PackageRegistry;
 use Razy\Package\PackageRunner;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use Razy\Util\PathUtil;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -625,29 +627,25 @@ return function (string ...$args) use (&$parameters) {
 
         $this->writeLineLogging('[{@c:yellow}DOWNLOAD{@reset}] ' . $downloadUrl, true);
 
-        // Download the .phar file
-        $ch = \curl_init($downloadUrl);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-        \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-        \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-PackageInstaller');
+        // Download the .phar file (S1 migration: hardened client door; the G5
+        // gate above stays on purpose so its operator-facing message survives)
+        try {
+            $response = HttpClient::create()->userAgent('Razy-PackageInstaller')->timeout(60)->get($downloadUrl);
+        } catch (HttpTransportException $e) {
+            $this->writeLineLogging('{@c:red}[Error]{@reset} Download failed: ' . $e->getMessage(), true);
 
-        $pharContent = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $downloadSize = \curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
-        \curl_close($ch);
+            return false;
+        }
+        $httpCode = $response->status();
+        $pharContent = $response->body();
 
-        if ($httpCode !== 200 || $pharContent === false) {
+        if ($httpCode !== 200 || $pharContent === '') {
             $this->writeLineLogging('{@c:red}[Error]{@reset} Download failed (HTTP ' . $httpCode . ')', true);
 
             return false;
         }
 
-        $sizeKB = \round($downloadSize / 1024, 2);
+        $sizeKB = \round(\strlen($pharContent) / 1024, 2);
         $this->writeLineLogging('[{@c:green}✓{@reset}] Downloaded ({@c:green}' . $sizeKB . ' KB{@reset})', true);
 
         // Verify the bytes BEFORE saving them to packages/ — a mismatch aborts

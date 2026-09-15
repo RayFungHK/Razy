@@ -36,6 +36,8 @@ namespace Razy;
 use Exception;
 use Phar;
 use Razy\Exception\PackageIntegrityException;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use Razy\Util\PathUtil;
 
 return function (string $distCode = '', ...$options) use (&$parameters) {
@@ -309,31 +311,27 @@ return function (string $distCode = '', ...$options) use (&$parameters) {
             continue;
         }
 
-        // Download the phar package via cURL
+        // Download the phar package (S1 migration: hardened client door; the
+        // G5 gate above stays on purpose so its operator-facing message survives)
         $this->writeLineLogging('    [{@c:yellow}DOWNLOAD{@reset}] ' . \basename($downloadUrl), true);
 
-        $ch = \curl_init($downloadUrl);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-        \curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-        \curl_setopt($ch, CURLOPT_USERAGENT, 'Razy-Installer');
+        try {
+            $response = HttpClient::create()->userAgent('Razy-Installer')->timeout(60)->get($downloadUrl);
+        } catch (HttpTransportException $e) {
+            $this->writeLineLogging('    {@c:red}[ERROR] Download failed: ' . $e->getMessage() . '{@reset}', true);
+            $errorCount++;
+            continue;
+        }
+        $httpCode = $response->status();
+        $pharContent = $response->body();
 
-        $pharContent = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $downloadSize = \curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
-        \curl_close($ch);
-
-        if ($httpCode !== 200 || $pharContent === false) {
+        if ($httpCode !== 200 || $pharContent === '') {
             $this->writeLineLogging('    {@c:red}[ERROR] Download failed (HTTP ' . $httpCode . '){@reset}', true);
             $errorCount++;
             continue;
         }
 
-        $sizeInKB = \round($downloadSize / 1024, 2);
+        $sizeInKB = \round(\strlen($pharContent) / 1024, 2);
 
         // Write the downloaded content to a temporary file and extract into target
         $tempPhar = \sys_get_temp_dir() . '/razy_' . \md5(\microtime()) . '.phar';
