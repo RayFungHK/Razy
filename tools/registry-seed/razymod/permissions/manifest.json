@@ -1,0 +1,20 @@
+{
+    "module_code": "razymod/permissions",
+    "description": "RBAC policy layer: permissions/roles tables in the app-provided database, ability catalog answering Razy\\Auth\\Gate, config-named governor for mutations, permission.denied audit event",
+    "author": "Razy Framework",
+    "latest": "0.2.0",
+    "versions": [
+        "0.2.0"
+    ],
+    "updated": "2026-09-15 08:51:26",
+    "releases": {
+        "0.2.0": {
+            "file": "0.2.0.phar",
+            "size": 28682,
+            "checksum": "579ddcb1bc43870d73e28c5faf28aa7727395f9d77fe6269c241648cfff9bf4a",
+            "created": "2026-09-15 08:51:26",
+            "php_version": "8.0",
+            "razy_version": "1.1.0-beta.1"
+        }
+    }
+}

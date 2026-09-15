@@ -13,6 +13,20 @@
             }
         }
     },
+    "razymod/permissions": {
+        "description": "RBAC policy layer: permissions/roles tables in the app-provided database, ability catalog answering Razy\\Auth\\Gate, config-named governor for mutations, permission.denied audit event",
+        "author": "Razy Framework",
+        "type": "module",
+        "latest": "0.2.0",
+        "versions": [
+            "0.2.0"
+        ],
+        "releases": {
+            "0.2.0": {
+                "sha256": "579ddcb1bc43870d73e28c5faf28aa7727395f9d77fe6269c241648cfff9bf4a"
+            }
+        }
+    },
     "razymod/queue-admin": {
         "description": "Queue dashboard: per-queue status counts, job lookup, release/bury/delete actions over any QueueStoreInterface - with an optional self-contained HTML shell (/ui)",
         "author": "Razy Framework",
