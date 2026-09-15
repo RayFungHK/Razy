@@ -1,6 +1,6 @@
 # MODULE-LIFECYCLE — Install / Enable / Disable as a Framework Concern
 
-**Status: DRAFT — awaiting maintainer sign-off (Q1–Q6 below)**  
+**Status: APPROVED — maintainer sign-off 2026-09-17: Q1–Q6 ALL per recommendation. Build scope L0–L5 fully unblocked (wizard runner included under the Q2 narrow rails).**  
 **Drafted:** 2026-09 (post v1.1.0-beta.2)  
 **Trigger:** Maintainer question 2026-09: 「是否 Razy 提供 module install/enable/disable 機制，比 developer 自行處理大部分安裝機制更好？簡單的 install event 讓 developer 不用再處理 order，也可以控制什麼 module 走 web setting、什麼不走 auto migration、什麼 module trigger 到其他 module installed 就 auto migration。」  
 **Companion evidence:** ERP pain survey (2026-09, full report `scratch/ERP-ROUTE-DEPENDENCY-REPORT.md`, gitignored — load-bearing evidence inlined below so this dossier stands alone).  
@@ -154,8 +154,8 @@ $agent->addLazyRoute([
 | **L0** | Companion XS pack (§2.5): require-absent warning, `validate` unknown-key check, `Emitter::has()`, web-migrate lint, cross-namespace lint | `Distributor.php`, `validate.inc.php`, `Emitter.php`, `tools/lint-module-discipline.php` + tests each | silent vanish, typo'd manifests, method_exists dead code, smuggled DDL, 74-import blind spot | XS×3 + S×2 |
 | **L1** | Derived readiness: `moduleReady('vendor/mod')` (manifest fast path + in-process memo, fail-loud DB), `provision` key parse + validate rules, dist enable-list file + `ModuleStatus::Disabled` assignment on load-skip | `ModuleRegistry`, `ModuleInfo.php`, `Distributor.php`, `MigrationManager` (reuse `getStatus`) | 6 stored flags; dead enum case | M |
 | **L2** | `module status/enable/disable` CLI (status = deploy-gate exit codes; disable = dependent-refusal fail-loud) | `src/system/terminal/module.inc.php` (new), help registry | no operator surface | S |
-| **L3** | Route `ready` gate + framework 503/302 page + `addLazyRoute` opts; **Q2 decides 503-only vs wizard-capable** | `Agent.php`, `RouteDispatcher.php`, error pages | 15 whitelist copies, dead menus, per-handler `isInstalled()` | M |
-| **L4** | Wizard runner (only if Q2 approves): token mint/verify (`StateSigner` lineage), single-use nonce, per-module step registration (framework-side, ordered by `require` graph), audit | new `Razy\Setup\*`, CLI | 38 `registerInstall` + 5 collisions + bootstrap chicken-and-egg | M |
+| **L3** | Route `ready` gate + framework 503/302 page + `addLazyRoute` opts; wizard-capable (Q2 approved) | `Agent.php`, `RouteDispatcher.php`, error pages | 15 whitelist copies, dead menus, per-handler `isInstalled()` | M |
+| **L4** | Wizard runner (Q2 approved — build): token mint/verify (`StateSigner` lineage), single-use nonce, per-module step registration (framework-side, ordered by `require` graph), audit | new `Razy\Setup\*`, CLI | 38 `registerInstall` + 5 collisions + bootstrap chicken-and-egg | M |
 | **L5** | Docs + dogfood: `manual/12-module-lifecycle.md`; `razymod/queue-admin`, `permissions`, `oauth` declare `provision`; ERP migration appendix (replace `$installed`+whitelist+wizard with L1-L4 shapes, phar 1.0.3→new first) | manual, modules, dossier closure | — | S |
 
 Every milestone: own commit, gates green (`composer quality`, module lint, `validate`), phar rebuild on src changes. Push only on explicit word (standing).
@@ -174,9 +174,9 @@ Every milestone: own commit, gates green (`composer quality`, module lint, `vali
 
 | Q | Decision | Date |
 |---|---|---|
-| Q1 | ☐ derived / ☐ stored | |
-| Q2 | ☐ wizard opt-in / ☐ CLI-only | |
-| Q3 | ☐ as recommended (announce-only events, predicate ready) / ☐ other | |
-| Q4 | ☐ disable never drops / ☐ other | |
-| Q5 | ☐ config/<dist>/modules.php / ☐ other | |
-| Q6 | ☐ CLI one-time token / ☐ other | |
+| Q1 | ✅ derived (stored flags refused) | 2026-09-17 |
+| Q2 | ✅ wizard opt-in approved (narrow rails: declared key, CLI-minted one-time token, lint-visible) | 2026-09-17 |
+| Q3 | ✅ as recommended — announce-only events from the actor; readiness is a predicate; auto-migrate-peer refused | 2026-09-17 |
+| Q4 | ✅ disable never drops data; uninstall out of scope | 2026-09-17 |
+| Q5 | ✅ `config/<dist>/modules.php` (absent file = all listed enabled — zero-migration BC) | 2026-09-17 |
+| Q6 | ✅ CLI-minted one-time wizard token (StateSigner lineage; no framework user row) | 2026-09-17 |
