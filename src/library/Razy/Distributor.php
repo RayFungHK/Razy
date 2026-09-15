@@ -175,6 +175,34 @@ class Distributor implements DistributorInterface
             $this->require($module);
         }
 
+        // Fail-loud (MODULE-LIFECYCLE.md L0): modules skipped because a declared
+        // 'require' dependency was absent or failed used to vanish with zero
+        // diagnostics — the silent-failure class the ERP audit named as hardest
+        // to debug. Mirror the await-unresolved warning below (same file, same
+        // shape) for every module left unqueued by an unsatisfied require.
+        foreach ($this->registry->getModules() as $module) {
+            if ($module->getStatus() === ModuleStatus::InQueue) {
+                continue;
+            }
+
+            $missing = [];
+            foreach ($module->getModuleInfo()->getRequire() as $depCode => $depVersion) {
+                $dep = $this->registry->get($depCode);
+                if ($dep === null || $dep->getStatus() !== ModuleStatus::InQueue) {
+                    $missing[] = $depCode;
+                }
+            }
+
+            if ($missing !== []) {
+                \trigger_error(
+                    'Razy: Module \'' . $module->getModuleInfo()->getCode() . '\' was NOT loaded — its \'require\' '
+                    . 'dependenc' . (\count($missing) === 1 ? 'y' : 'ies') . ' never loaded: ' . \implode(', ', $missing)
+                    . '. Either install/enable them, or the key is misspelled — the manifest key is \'require\' (singular).',
+                    E_USER_WARNING,
+                );
+            }
+        }
+
         // Only trigger __onInit stage
         if ($initialOnly) {
             return $this;

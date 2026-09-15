@@ -492,6 +492,21 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Whether an API command with this name is registered.
+     *
+     * The probe behind Emitter::has() — the sanctioned replacement for
+     * method_exists() on API objects (dossier MODULE-LIFECYCLE.md L0).
+     *
+     * @param string $command
+     *
+     * @return bool
+     */
+    public function hasAPICommand(string $command): bool
+    {
+        return $this->commands->has($command);
+    }
+
+    /**
      * Register a bridge command for cross-distributor communication.
      * Bridge commands are separate from API commands - they are exposed to other distributors.
      *

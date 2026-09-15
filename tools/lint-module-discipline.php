@@ -84,8 +84,12 @@ const RULES = [
                  '#\bspawnPHPCode\s*\([^)]*\$#']],
     ['id' => 'RZ-013', 'level' => 'error', 'scope' => 'php', 'desc' => 'Hand-writing generated rewrite/server config',
      'regex' => ['#\b(?:file_put_contents|fwrite)\s*\([^;]*(?:\.htaccess|Caddyfile)#']],
+    ['id' => 'RZ-016', 'level' => 'error', 'scope' => 'php', 'desc' => 'Migration execution in module code — migrations run at the deploy door (`php Razy.phar migrate`) only, never from web-triggered module paths (dossier MODULE-LIFECYCLE.md; needs a written lint-allow justification for the CLI-command exemption)',
+     'regex' => ['#\bgetMigrationManager\s*\(\s*\)#']],
     // RZ-009/010/012/014 are semantic (lifecycle usage, contracts, tests) — not
     // statically detectable with confidence; enforced by review + composer quality.
+    // RZ-017 (cross-module namespace import) is structural, not per-line regex —
+    // implemented as the two-pass scan below (module manifests, then import check).
 ];
 
 function usage(int $code = 2): never
@@ -120,6 +124,19 @@ $violations = [];
 $lineSuppressions = 0;
 $filesDisabled = 0;
 $scanned = 0;
+
+// RZ-017 pre-pass: module manifests → namespace map (vendor\module → root).
+// Namespaces are not declared in package.php; the convention (and the shape
+// ERP proved dangerous) is namespace == module_code with '\' separators.
+$nsMap = [];
+foreach ($paths as $root) {
+    foreach (discoverModuleManifests($root, $excludes) as [$code, $rootDir]) {
+        $ns = strtolower(str_replace('/', '\\', $code));
+        if (!isset($nsMap[$ns])) {
+            $nsMap[$ns] = $rootDir;
+        }
+    }
+}
 
 foreach ($paths as $root) {
     if (!file_exists($root)) {
@@ -166,6 +183,19 @@ foreach ($paths as $root) {
                         $violations[] = violation($file, $i + 1, 'RZ-002', 'error', RULES[1]['desc']);
                     }
                 }
+            }
+        }
+
+        // RZ-017 (structural): cross-module namespace import — `use`/FQCN
+        // references resolving to a SIBLING module's namespace are the
+        // RZ-001 blind spot the ERP audit measured at 74 live hits. Sanctioned
+        // surfaces are addAPICommand + events, never class-level coupling.
+        if ($scope === 'php' && $nsMap !== []) {
+            $owner = findModuleRoot($file);
+            foreach (rz017Scan($lines, $nsMap, $owner) as [$lineNo, $hitNs, $targetDir, $ownerLabel]) {
+                if (isSuppressed($lines, $lineNo - 1, 'RZ-017')) { $lineSuppressions++; continue; }
+                $violations[] = violation($file, $lineNo, 'RZ-017', 'error',
+                    'Cross-module namespace import (\'' . $hitNs . '\' belongs to ' . $targetDir . ', file is in ' . $ownerLabel . ') — use addAPICommand or events (RZ-001 remedy)');
             }
         }
 
@@ -256,6 +286,79 @@ function findModuleRoot(string $file): ?string
     return null;
 }
 
+/**
+ * RZ-017 matcher: line-level `use`/FQCN references that resolve (via $nsMap,
+ * lower-cased 'vendor\module' keys) to a module other than the owning one.
+ *
+ * @param list<string> $lines
+ * @param array<string, string> $nsMap
+ *
+ * @return list<array{0: int, 1: string, 2: string, 3: string}> [lineNo, ns, targetDir, ownerLabel]
+ */
+function rz017Scan(array $lines, array $nsMap, ?string $ownerRoot): array
+{
+    $hits = [];
+    $ownerKey = $ownerRoot !== null ? strtolower(str_replace('\\', '/', $ownerRoot)) : '';
+
+    foreach ($lines as $i => $line) {
+        $hitNs = null;
+        if (preg_match('/^\s*use\s+([A-Za-z_]\w*)[\\\\]([A-Za-z_]\w*)(?=[\\\\]|;)/', $line, $m)) {
+            $hitNs = strtolower($m[1] . '\\' . $m[2]);
+        } elseif (preg_match('/[\\\\]([A-Za-z_]\w*)[\\\\]([A-Za-z_]\w*)(?=[\\\\]|::)/', $line, $m)) {
+            $hitNs = strtolower($m[1] . '\\' . $m[2]);
+        }
+        if ($hitNs !== null && isset($nsMap[$hitNs])) {
+            $targetDir = strtolower(str_replace('\\', '/', $nsMap[$hitNs]));
+            if ($ownerKey === '' || $ownerKey !== $targetDir) {
+                $hits[] = [$i + 1, $hitNs, $targetDir, $ownerKey === '' ? 'outside any module' : $ownerKey];
+            }
+        }
+    }
+
+    return $hits;
+}
+
+/**
+ * RZ-017 pre-pass: collect [module_code, root-dir] for every module.php found
+ * under $root (excludes honored), so cross-module namespace imports can be
+ * resolved against real sibling manifests instead of guesses.
+ *
+ * @param list<string> $excludes
+ *
+ * @return list<array{0: string, 1: string}>
+ */
+function discoverModuleManifests(string $root, array $excludes): array
+{
+    $found = [];
+    if (is_file($root)) {
+        $root = dirname($root);
+    }
+
+    try {
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        );
+    } catch (UnexpectedValueException) {
+        return $found;
+    }
+
+    foreach ($it as $spl) {
+        /** @var SplFileInfo $spl */
+        if (!$spl->isFile() || $spl->getFilename() !== 'module.php') continue;
+        $file = str_replace('\\', '/', $spl->getPathname());
+        foreach ($excludes as $ex) {
+            if ($ex !== '' && str_contains($file, $ex)) continue 2;
+        }
+        $content = @file_get_contents($spl->getPathname());
+        if ($content !== false && preg_match('/[\'"]module_code[\'"]\s*=>\s*[\'"]([^\'"]+)[\'"]/', $content, $m)) {
+            $found[] = [$m[1], str_replace('\\', '/', $spl->getPath())];
+        }
+    }
+
+    return $found;
+}
+
 function moduleDefinesBridgeGate(string $moduleRoot): bool
 {
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($moduleRoot, FilesystemIterator::SKIP_DOTS));
@@ -286,6 +389,8 @@ function selfTest(): int
         ['php', "<?php\nfile_put_contents('/etc/passwd', \$x);\n", 'RZ-006'],
         ['php', "<?php\nfile_put_contents('autoload/lock.json', \$x);\n", 'RZ-007'],
         ['php', "<?php\nfile_put_contents('.htaccess', \$rules);\n", 'RZ-013'],
+        ['php', "<?php\n\$mm = \$this->getMigrationManager();\n\$mm->migrate();\n", 'RZ-016'],
+        ['php', "<?php\n\$done = \$manager->runMigrations([\$migration]);\n", null], // module-local runner is not the door API
         // Clean code — must NOT violate
         ['php', "<?php\n\$db->prepare()->select('*')->from('posts')->where('title~=:q')->assign(['q' => '%' . \$keyword . '%'])->query();\n", null],
         ['php', "<?php\n\$post = \$this->api('golden/provider')->findUser(1);\n", null],
@@ -315,6 +420,25 @@ function selfTest(): int
         $ok = $hit === $expect;
         $failed += $ok ? 0 : 1;
         printf("%s  expect=%-7s got=%-7s  %.60s\n", $ok ? 'ok  ' : 'FAIL', $expect ?? '-', $hit ?? '-', str_replace("\n", ' ', trim($code)));
+    }
+
+    // RZ-017 structural fixture: sibling import hits, own-namespace import and
+    // framework FQCN stay clean.
+    $nsMap = ['golden\\provider' => '/srv/modules/golden/provider/default'];
+    $foreign = ["<?php\n", "use golden\\provider\\Helper;\n"];
+    $own = ["<?php\n", "use golden\\provider\\Helper;\n"];
+    $fqcn = ["<?php\n", "\\golden\\provider\\Thing::go();\n"];
+    $framework = ["<?php\n", "\\Razy\\Database::table('x');\n"];
+
+    $structural = [
+        ['ok  ', count(rz017Scan($foreign, $nsMap, '/srv/modules/golden/consumer/default')) === 1],
+        ['ok  ', rz017Scan($own, $nsMap, '/srv/modules/golden/provider/default') === []],
+        ['ok  ', count(rz017Scan($fqcn, $nsMap, '/srv/modules/golden/consumer/default')) === 1],
+        ['ok  ', rz017Scan($framework, $nsMap, '/srv/modules/golden/consumer/default') === []],
+    ];
+    foreach ($structural as [$label, $pass]) {
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=RZ-017 got=%s  (structural)\n", $pass ? 'ok  ' : 'FAIL', $pass ? 'as expected' : 'MISSED');
     }
     printf("\n%s: %d/%d fixtures passed\n", $failed === 0 ? 'PASSED' : 'FAILED', count($cases) - $failed, count($cases));
     return $failed === 0 ? 0 : 1;

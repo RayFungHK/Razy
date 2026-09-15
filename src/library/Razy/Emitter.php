@@ -52,4 +52,21 @@ class Emitter
         // Delegate the call to the target module's API; return null if no target module is set
         return ($this->module) ? $this->module->execute($this->requestedBy->getModuleInfo(), $method, $arguments) : null;
     }
+
+    /**
+     * Whether the target module exposes the named API command.
+     *
+     * method_exists() is useless against this class — it dispatches through
+     * __call, so method_exists() always returns false and guards written with
+     * it silently kill integrations (dossier MODULE-LIFECYCLE.md L0 names a
+     * production instance). This is the sanctioned probe.
+     *
+     * @param string $command The API command name to probe
+     *
+     * @return bool True when calling $command on this emitter would dispatch
+     */
+    public function has(string $command): bool
+    {
+        return $this->module !== null && $this->module->hasAPICommand($command);
+    }
 }

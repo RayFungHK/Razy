@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [Unreleased]
+
+- **Added** MODULE-LIFECYCLE dossier L0 companion pack — the loud-failure trio plus two new Golden
+  Rules. `Emitter::has('cmd')` is now the sanctioned availability probe (`Emitter.php:68` → `Module::hasAPICommand`
+  → `CommandRegistry::has`, mirroring `executeCommand`'s registration lookup exactly); `method_exists()` on an API
+  object is documented as the always-false dead-code trap the ERP audit proved in production. A module left
+  unqueued by an unsatisfied `package.php 'require'` now warns loudly, naming the skipped module, the missing
+  dependencies, and the `require`-vs-`requires` typo hint (`Distributor.php`, mirroring the await-unresolved
+  warning that previously stood alone). `validate` fails loud on unknown `package.php` keys — the closed set is
+  `ModuleInfo::PACKAGE_KEYS`, with a did-you-mean suggestion — after the audit caught our own tree shipping dead
+  `label`/`required`/`type`/`routes` zombies (all purged; the markdown_consumer dependency went from
+  silently-dead to real). **RZ-016**: migrations run only at the deploy door — the lint flags
+  `getMigrationManager()` in module code (the ERP's `getMigrationManager` API-command door is the named
+  violator). **RZ-017**: cross-module class imports (`use`/FQCN of a sibling module's namespace) close the
+  RZ-001 blind spot — the new structural lint pass pre-reads `module.php` manifests and caught 104 live hits
+  on the ERP tree on first run. Suite grew 5,441 → 5,450 with `tests/ModuleLifecycleL0Test.php`.
+
 ## [v1.1.0-beta.2](changelog/v1.1.0-beta.2.md) — 2026-09-17
 
 **OAuth 2.0 Core (PKCE S256 + Signed Single-Use State) · One HTTP Door · RZ-015 Zero-Dependency Law · Queue Fail-Loud** — the full OAuth dossier line (11 commits, 5,441 tests), details in [v1.1.0-beta.2](changelog/v1.1.0-beta.2.md).

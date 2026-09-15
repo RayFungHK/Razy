@@ -361,6 +361,30 @@ import it into core. Decided 2026-09-17 (OAuth dossier Q4) because the absence o
 this rule made "just add Guzzle" look cheap. Human rule (the lint tool scans module
 code, not `src/`); enforced in review + CI diff guards on `composer.json` `require`.
 
+## RZ-016 — Migrations run only at the deploy door (error)
+
+**Statement.** Module code must not reach the migration manager (`Controller::getMigrationManager()`)
+from web-triggerable paths. Schema moves at exactly two doors: `php Razy.phar migrate <dist>`
+(deploy) and, when a module declares `'provision' => 'wizard'` (dossier MODULE-LIFECYCLE.md, L1+),
+the framework's token-gated wizard runner — never an ad-hoc `install_action` handler or a
+`__onReady` auto-migrate. The ERP audit found live violations of exactly this shape (core auto-migrating
+during web boot; a `getMigrationManager` API command as a public migration door). Lint:
+`RZ-016` flags `getMigrationManager()` in module code; the legitimate CLI-command exemption needs
+`// lint-allow: RZ-016` with a written justification.
+
+## RZ-017 — No cross-module class imports (error)
+
+**Statement.** A module's code may not `use` or FQCN-reference another module's namespaces
+(`use erp\user\UserIdRemapHelper;`, `\erp\group\PermissionResolver::…`). Module boundaries are
+the same legal entities RZ-001 protects at the file level — class-level coupling is the same
+violation through the autoloader's back door, and the ERP audit measured 74 live hits while the
+old RZ-001 regex (require/include only) saw zero of them. Cross-module capability travels through
+`addAPICommand` + `$this->api('vendor/mod')` or events; to probe whether a peer exposes a command,
+use `$this->api('vendor/mod')->has('command')` — never `method_exists()` on an API object (the Emitter
+is `__call` magic; a `method_exists` guard is permanently false and silently kills the integration).
+Lint: `RZ-017` is structural — it pre-scans `module.php` manifests in the same command's paths and
+flags imports resolving to a sibling module's `vendor/module` namespace.
+
 ---
 
 ## Appendix A — Agent pre-PR checklist

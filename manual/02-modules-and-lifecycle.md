@@ -139,6 +139,10 @@ $data = $this->api('acme/store')->getThing($id);              // Controller.php:
 `api()` returns **`?Emitter` — null when the target module isn't loaded**
 (`Controller.php:508-513`); call sites must tolerate null (RZ-009). Emitter methods map to
 registered command names via `__call` (`Emitter.php:50`); unknown commands resolve to null.
+To probe availability, use `$this->api('acme/store')->has('getThing')` (`Emitter.php:68`) —
+**never `method_exists()`**: the Emitter dispatches through `__call`, so `method_exists()` is
+always false and a guard built on it silently disables the integration (dossier
+MODULE-LIFECYCLE.md L0 found one doing exactly that in production).
 Command name grammar: `/^#?[a-z]\w*$/i` (`Agent.php:65-67`). Duplicates throw at
 registration (`Module/CommandRegistry.php:61-63`).
 

@@ -35,6 +35,8 @@ The Golden Rules below are the short form; rule IDs are stable and quotable.
 | RZ-013 | Hand-editing generated rewrite/Caddyfile output; routes bypassing `Agent` | `addRoute`/`addLazyRoute`/`group` + `php Razy.phar rewrite` |
 | RZ-014 | Shipping an API command with no test; weakening `phpstan.neon`/fixer config to pass | Tests for every published command; `composer quality` |
 | RZ-015 | Third-party runtime dependency in framework core (`src/`) | Harden the in-house primitive, or ship the dependency in a module/package (RZ-007 manifest) — core stays dependency-free |
+| RZ-016 | Migration execution from module/web paths (`getMigrationManager()` in a handler) | `php Razy.phar migrate <dist>` at deploy (or the declared wizard door once MODULE-LIFECYCLE L1 lands); never an install_action handler, never `__onReady` |
+| RZ-017 | Cross-module class imports (`use erp\user\Helper;` / FQCN of a sibling module) | `addAPICommand` + `api()` or events; probe with `api('vendor/mod')->has('cmd')`, never `method_exists()` |
 
 ## Definition of done (every change)
 
@@ -62,6 +64,9 @@ and flag it for human review.
 - `ThreadManager::spawnPHPCode()` uses `eval(base64_decode())` in the child — never feed
   it input-derived code (RZ-011). It is **deprecated** as of v1.0.3-beta; migrate to
   `spawnPHPFile()` (one-shot) or `Razy\WorkerPool::submitCode()` (boot/CPU-heavy repeats).
+- `api('vendor/mod')` returns an `Emitter` that dispatches through `__call` — **`method_exists()`
+  on it is always false** (a production integration died silently this way). Probe with
+  `->has('command')`; never `method_exists()`.
 
 If a task requires violating a rule, **stop and ask the human** with the rule ID and
 the reason — do not improvise around the architecture.

@@ -17,15 +17,14 @@
  */
 
 return [
-    'label' => 'Markdown Service',
+    'name' => 'Markdown Service',
     'version' => '1.0.0',
     'author' => 'Razy Framework',
     
     // API name for cross-module calls
     'api_name' => 'markdown',
     
-    // NO required modules - this is a leaf service
-    'required' => [],
+    // NO require modules - this is a leaf service
     
     // The ONLY place that declares the commonmark dependency
     // Other modules depend on THIS module, not the library

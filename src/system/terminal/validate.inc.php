@@ -165,6 +165,27 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             $this->writeLineLogging("{@s:b}Module: {$code}{@reset}", true);
             $this->writeLineLogging("  Alias: {$info['alias']}", true);
 
+            // Unknown package.php keys fail loud (MODULE-LIFECYCLE.md L0): the
+            // framework only reads its closed key set, so a misspelled
+            // dependency key ('requires'/'required') ships a module whose
+            // dependencies were never enforced — the task/appform production
+            // finding that motivated this gate.
+            $unknownKeys = \array_values(\array_diff($moduleInfo->getPackageKeys(), ModuleInfo::PACKAGE_KEYS));
+            foreach ($unknownKeys as $unknownKey) {
+                $suggest = '';
+                $bestDistance = 4;
+                foreach (ModuleInfo::PACKAGE_KEYS as $knownKey) {
+                    $distance = \levenshtein($unknownKey, $knownKey);
+                    if ($distance < $bestDistance) {
+                        $bestDistance = $distance;
+                        $suggest = " — did you mean '{@c:green}{$knownKey}{@reset}'?";
+                    }
+                }
+                $this->writeLineLogging("  {@c:red}✗ Unknown package.php key: '{$unknownKey}'{$suggest}{@reset}", true);
+                $this->writeLineLogging('    Unknown keys are never parsed; a dependency-typo means dependencies silently never applied.', true);
+                $totalErrors++;
+            }
+
             // Get routes and API commands for this module
             $moduleRoutes = $routesByModule[$code]['routes'] ?? [];
             $apiCommands = $module->getAPICommands();

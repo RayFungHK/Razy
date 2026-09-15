@@ -80,6 +80,22 @@ class CommandRegistry
     }
 
     /**
+     * Whether the command name is registered as an API command.
+     *
+     * Mirrors executeCommand()'s lookup exactly — registration is required even
+     * for slash-less commands that resolve to a controller method — so probes
+     * never lie about dispatchability.
+     *
+     * @param string $command The command name to probe
+     *
+     * @return bool True when api()->{$command}() would dispatch
+     */
+    public function has(string $command): bool
+    {
+        return \array_key_exists($command, $this->apiCommands);
+    }
+
+    /**
      * Register a bridge command for cross-distributor communication.
      *
      * @param string $command The bridge command name

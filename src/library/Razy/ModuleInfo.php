@@ -45,6 +45,20 @@ class ModuleInfo
      */
     public const REGEX_MODULE_CODE = '/^[a-z0-9]([_.-]?[a-z0-9]+)*(\/[a-z0-9](([_.]?|-{0,2})[a-z0-9]+)*)+$/i';
 
+    /**
+     * Closed set of top-level keys a package.php may declare (dossier
+     * MODULE-LIFECYCLE.md L0). Anything else is a typo or a zombie — the
+     * named production failure is 'requires'/'required' for 'require', which
+     * parses to nothing and ships a silently-dead dependency. `validate`
+     * reports every unknown key as an error. 'provision' joins this set when
+     * L1 lands (declaring it before then correctly fails as unknown).
+     */
+    public const PACKAGE_KEYS = [
+        'name', 'version', 'author', 'description', 'module_code',
+        'alias', 'assets', 'prerequisite', 'api_name', 'shadow_asset',
+        'migration', 'require', 'services', 'metadata',
+    ];
+
     /** @var string Module display alias (defaults to class name) */
     private string $alias = '';
 
@@ -77,6 +91,9 @@ class ModuleInfo
 
     /** @var array<string, string> Required modules: module code => version constraint */
     private array $require = [];
+
+    /** @var list<string> Raw top-level package.php keys (unknown-key audit, MODULE-LIFECYCLE.md L0) */
+    private array $declaredPackageKeys = [];
 
     /** @var bool Whether the module uses shadow (symlinked) assets */
     private bool $shadowAsset = false;
@@ -135,6 +152,9 @@ class ModuleInfo
                 // The containerPath IS the module path (e.g., SYSTEM_ROOT/standalone/).
                 // Controller expected at: standalone/controller/{className}.php
                 $settings = $moduleConfig['_standalone_settings'] ?? [];
+                if (\is_array($settings)) {
+                    $this->declaredPackageKeys = \array_map('strval', \array_keys($settings));
+                }
 
                 if (isset($moduleConfig['module_code'])) {
                     $code = \trim($moduleConfig['module_code']);
@@ -178,6 +198,9 @@ class ModuleInfo
                     if (!\is_array($settings)) {
                         throw new ModuleConfigException("Invalid module settings in '{$packagePath}': expected array, got " . \gettype($settings) . '.');
                     }
+
+                    // Keep the declared key set for the validate-time unknown-key audit
+                    $this->declaredPackageKeys = \array_map('strval', \array_keys($settings));
                 } catch (ModuleConfigException $e) {
                     throw $e;
                 } catch (Exception $e) {
@@ -447,6 +470,19 @@ class ModuleInfo
     public function getRequire(): array
     {
         return $this->require;
+    }
+
+    /**
+     * Raw top-level keys declared in package.php (standalone: the
+     * '_standalone_settings' payload). Diff against ModuleInfo::PACKAGE_KEYS
+     * to surface unknown keys — typos like 'requires' silently dead the
+     * dependency (dossier MODULE-LIFECYCLE.md L0).
+     *
+     * @return list<string>
+     */
+    public function getPackageKeys(): array
+    {
+        return $this->declaredPackageKeys;
     }
 
     /**

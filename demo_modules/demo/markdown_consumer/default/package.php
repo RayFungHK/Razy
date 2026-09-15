@@ -14,13 +14,13 @@
  */
 
 return [
-    'label' => 'Markdown Consumer Demo',
+    'name' => 'Markdown Consumer Demo',
     'version' => '1.0.0',
     'author' => 'Razy Framework',
     
     // Require the service module, NOT the library
     // This is the key to avoiding version conflicts!
-    'required' => [
+    'require' => [
         'system/markdown_service' => '*',  // ANY version of the service
     ],
     
