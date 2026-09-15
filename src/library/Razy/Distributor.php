@@ -17,6 +17,8 @@ namespace Razy;
 use Razy\Config\ConfigLoader;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
+use Razy\Database\MigrationManager;
+use Razy\Database\ModuleDatabaseConnector;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\ModuleScanner;
 use Razy\Distributor\PrerequisiteResolver;
@@ -71,6 +73,16 @@ class Distributor implements DistributorInterface
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
+
+    /**
+     * In-process memo for moduleReady() (dossier MODULE-LIFECYCLE.md L1):
+     * readiness is derived from the migration ledger, so it cannot change
+     * within one request — but the route gate may ask per route match.
+     * NOT a stored flag: gone when the process is.
+     *
+     * @var array<string, bool>
+     */
+    private array $readinessMemo = [];
 
     // --- Extracted sub-objects (Phase 2 refactoring) ---
 
@@ -170,8 +182,17 @@ class Distributor implements DistributorInterface
             $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
         }
 
+        // Enable-list (MODULE-LIFECYCLE.md Q5): config/<dist>/modules.php is the
+        // CLI-written, git-tracked enable/disable ledger. Absent file = every
+        // listed module is enabled — today's distributors behave identically.
+        $this->applyEnableList();
+
         // Put all modules into queue by priority with its require module.
         foreach ($this->registry->getModules() as $module) {
+            if ($module->getStatus() === ModuleStatus::Disabled) {
+                continue; // operator-disabled: visible in the registry, never initialized
+            }
+
             $this->require($module);
         }
 
@@ -181,8 +202,8 @@ class Distributor implements DistributorInterface
         // to debug. Mirror the await-unresolved warning below (same file, same
         // shape) for every module left unqueued by an unsatisfied require.
         foreach ($this->registry->getModules() as $module) {
-            if ($module->getStatus() === ModuleStatus::InQueue) {
-                continue;
+            if ($module->getStatus() === ModuleStatus::InQueue || $module->getStatus() === ModuleStatus::Disabled) {
+                continue; // queued, or deliberately disabled by the operator (not an accident)
             }
 
             $missing = [];
@@ -699,6 +720,55 @@ class Distributor implements DistributorInterface
     }
 
     /**
+     * Is this module's schema ready to serve? (dossier MODULE-LIFECYCLE.md Q1:
+     * ready is DERIVED, never stored — `ready := declared migrations all
+     * applied`, read from the M0-M4 ledger every time, memoized only within
+     * this process.)
+     *
+     * - A module that is absent, disabled, failed, or still Pending is not
+     *   ready (false, quiet — the predicate answers, gate decisions are the
+     *   caller's).
+     * - A module with no `migration/` directory has nothing declared, so it is
+     *   vacuously ready once loaded — no DB touch at all (O(1)).
+     * - DB trouble is LOUD: the config-connect cause throws (a lying false
+     *   here is how the ERP's six `$installed` flags were born).
+     *
+     * Checksum DRIFT is deliberately not folded into this answer — drift is
+     * the `migrate --status` deploy gate's fail-loud business (see
+     * MigrationManager::isUpToDate), not a per-request readiness question.
+     *
+     * @throws Exception\DatabaseException When the module's declared database cannot be resolved
+     */
+    public function moduleReady(string $code): bool
+    {
+        if (\array_key_exists($code, $this->readinessMemo)) {
+            return $this->readinessMemo[$code];
+        }
+
+        $module = $this->registry->get($code);
+
+        if ($module === null || \in_array(
+            $module->getStatus(),
+            [ModuleStatus::Pending, ModuleStatus::Disabled, ModuleStatus::Failed, ModuleStatus::Unloaded],
+            true,
+        )) {
+            return $this->readinessMemo[$code] = false;
+        }
+
+        $migrationDir = PathUtil::append($module->getModuleInfo()->getPath(), 'migration');
+
+        if (!\is_dir($migrationDir)) {
+            return $this->readinessMemo[$code] = true; // nothing declared, nothing to wait for
+        }
+
+        $db = ModuleDatabaseConnector::connect($module, $code, 'module_ready');
+        $manager = new MigrationManager($db, $code);
+        $manager->addPath($migrationDir);
+
+        return $this->readinessMemo[$code] = $manager->isUpToDate();
+    }
+
+    /**
      * Load dist.php, validate the dist code format, and return the config array.
      *
      * @return array The validated distributor configuration
@@ -882,6 +952,47 @@ class Distributor implements DistributorInterface
      *
      * @throws Throwable
      */
+    /**
+     * Apply the dist enable-list (dossier MODULE-LIFECYCLE.md Q5):
+     * `config/<dist>/modules.php` returning ['vendor/mod' => bool]. Only an
+     * explicit false disables; a listed true or an unlisted module is enabled,
+     * and the absent file means everything the dist lists is enabled (zero
+     * behavioural change for today's sites). Codes that name no scanned module
+     * warn — a dead enable-list entry is the same zombie-key class L0 killed.
+     */
+    private function applyEnableList(): void
+    {
+        $file = PathUtil::append(SYSTEM_ROOT, 'config', $this->code, 'modules.php');
+
+        if (!\is_file($file)) {
+            return; // absent = all listed enabled (the Q5 backwards-compatibility rail)
+        }
+
+        $list = (new Configuration($file))->array();
+
+        if ($list === []) {
+            return;
+        }
+
+        foreach ($this->registry->getModules() as $module) {
+            $code = $module->getModuleInfo()->getCode();
+
+            if (\array_key_exists($code, $list) && $list[$code] === false) {
+                $module->disable();
+            }
+        }
+
+        foreach (\array_keys($list) as $code) {
+            if (\is_string($code) && $this->registry->get($code) === null) {
+                \trigger_error(
+                    'Razy: enable-list entry \'' . $code . '\' names no module in dist \'' . $this->code . '\' — '
+                    . 'it was uninstalled, renamed, or misspelled; remove it or restore the module.',
+                    E_USER_WARNING,
+                );
+            }
+        }
+    }
+
     private function require(Module $module): bool
     {
         if ($this->registry->isLoadable($module)) {
@@ -902,6 +1013,11 @@ class Distributor implements DistributorInterface
                         return false;
                     }
                 } elseif ($reqModule->getStatus() === ModuleStatus::Failed) {
+                    return false;
+                } elseif ($reqModule->getStatus() === ModuleStatus::Disabled) {
+                    // A disabled dependency is not loadable this boot; the
+                    // L0 pass names it so the operator connects the dots
+                    // (enable it, or it was the dependents' intent that moved).
                     return false;
                 }
             }

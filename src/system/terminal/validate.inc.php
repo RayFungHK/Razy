@@ -186,6 +186,19 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                 $totalErrors++;
             }
 
+            // Suspect provision declaration (MODULE-LIFECYCLE.md L1/Q2): the
+            // runtime degrades an unknown value to 'deploy' — the web-never-
+            // migrates side — but a typo'd 'wizard' must never sit silently in
+            // a manifest, because the day L4 lands, its value decides whether
+            // a web door exists for this module. Surface it now.
+            $provisionDeclared = $moduleInfo->getProvisionDeclared();
+
+            if ($provisionDeclared !== '' && !\in_array($provisionDeclared, ['deploy', 'wizard', 'none'], true)) {
+                $this->writeLineLogging("  {@c:red}✗ Suspect provision declaration: '{$provisionDeclared}' "
+                    . "(expected 'deploy', 'wizard' or 'none'; treated as 'deploy'){@reset}", true);
+                $totalErrors++;
+            }
+
             // Get routes and API commands for this module
             $moduleRoutes = $routesByModule[$code]['routes'] ?? [];
             $apiCommands = $module->getAPICommands();

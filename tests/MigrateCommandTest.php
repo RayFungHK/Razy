@@ -68,11 +68,16 @@ class MigrateCommandTest extends TestCase
 
     public function testDatabaseResolutionIsConfigConnectNotAmbient(): void
     {
-        $this->assertStringContainsString("['database']", $this->src);
-        $this->assertStringContainsString('connectWithDriver', $this->src);
-        // the ambient patterns the dossier rejected must not sneak in
+        // Since L1 the connect lives behind the ONE door: the CLI pins the
+        // door call, the door itself pins config-connect.
+        $this->assertStringContainsString('ModuleDatabaseConnector::connect', $this->src);
+        $door = (string) \file_get_contents(SYSTEM_ROOT . '/src/library/Razy/Database/ModuleDatabaseConnector.php');
+        $this->assertStringContainsString("['database']", $door);
+        $this->assertStringContainsString('connectWithDriver', $door);
+        // the ambient patterns the dossier rejected must not sneak in (either side)
         $this->assertStringNotContainsString('getSharedInstance', $this->src);
         $this->assertStringNotContainsString('Database::getInstance', $this->src);
+        $this->assertStringNotContainsString('getSharedInstance', $door);
     }
 
     public function testDistributorBootIsInitPhaseOnly(): void

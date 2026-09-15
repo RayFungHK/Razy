@@ -9,6 +9,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** MODULE-LIFECYCLE L1 — readiness is DERIVED, never stored. `Distributor::moduleReady('vendor/mod')`
+  answers `ready := declared migrations all applied` from the M0–M4 ledger (M4 manifest fast path first,
+  new `MigrationManager::isUpToDate()`), memoized in-process only; a loaded module without a `migration/`
+  directory is vacuously ready with zero DB touch, and an unreachable ledger THROWS with its named cause —
+  a quiet false here is how the ERP's six `$installed` flags were born. `package.php 'provision' =>
+  'deploy'|'wizard'|'none'` parses with the M3 degradation shape (unknown → 'deploy', the web-never-migrates
+  side) and `validate` errors on suspect values; `'provision'` joins the closed key set. The enable-list lands
+  at `config/<dist>/modules.php` (Q5: absent file = everything listed is enabled — today's sites behave
+  byte-identically): an explicit `false` skips boot via the resurrected `ModuleStatus::Disabled` (zero
+  assignments since the enum was born; `Module::disable()` is its first writer), a disabled `require` dep
+  blocks dependents through the L0 warning, and zombie enable-list entries name themselves. The config-connect
+  resolver became the ONE door — `Database\ModuleDatabaseConnector` — shared by `migrate` and the predicate,
+  with distinct instance-name prefixes. Suite 5,450 → 5,461 (`tests/ModuleLifecycleL1Test.php`).
 - **Added** MODULE-LIFECYCLE dossier L0 companion pack — the loud-failure trio plus two new Golden
   Rules. `Emitter::has('cmd')` is now the sanctioned availability probe (`Emitter.php:68` → `Module::hasAPICommand`
   → `CommandRegistry::has`, mirroring `executeCommand`'s registration lookup exactly); `method_exists()` on an API

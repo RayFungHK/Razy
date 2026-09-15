@@ -361,6 +361,31 @@ class MigrationManager
     }
 
     /**
+     * Read-only readiness check (dossier MODULE-LIFECYCLE.md L1): true when
+     * every discovered migration of this scope is applied. Takes the M4
+     * manifest fast path first — a manifest match proves nothing pending —
+     * so the common steady-state answer costs one manifest read, not a
+     * per-file comparison.
+     *
+     * Deliberately pending-only: checksum DRIFT is the migrate door's
+     * fail-loud business (its `--status` deploy gate reports it); treating
+     * drift as "not ready" would re-hash every applied file on every
+     * request and silently merge two different failures into one answer.
+     */
+    public function isUpToDate(): bool
+    {
+        $this->ensureTrackingTable();
+
+        $manifest = $this->manifestHash();
+
+        if ($manifest !== null && $this->manifestMatches($manifest)) {
+            return true;
+        }
+
+        return $this->getPending() === [];
+    }
+
+    /**
      * Run all pending migrations (this scope).
      *
      * Each call increments the batch number. All migrations in a single

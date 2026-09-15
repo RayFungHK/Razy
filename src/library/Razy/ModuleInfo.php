@@ -50,13 +50,12 @@ class ModuleInfo
      * MODULE-LIFECYCLE.md L0). Anything else is a typo or a zombie — the
      * named production failure is 'requires'/'required' for 'require', which
      * parses to nothing and ships a silently-dead dependency. `validate`
-     * reports every unknown key as an error. 'provision' joins this set when
-     * L1 lands (declaring it before then correctly fails as unknown).
+     * reports every unknown key as an error.
      */
     public const PACKAGE_KEYS = [
         'name', 'version', 'author', 'description', 'module_code',
         'alias', 'assets', 'prerequisite', 'api_name', 'shadow_asset',
-        'migration', 'require', 'services', 'metadata',
+        'migration', 'require', 'services', 'metadata', 'provision',
     ];
 
     /** @var string Module display alias (defaults to class name) */
@@ -108,6 +107,18 @@ class ModuleInfo
 
     /** Raw declared value ('' = undeclared); a non-empty suspect value means it was not deploy|manual */
     private string $migrationDeclared = '';
+
+    /**
+     * Provision mode (package.php 'provision' key, dossier MODULE-LIFECYCLE.md Q2):
+     * 'deploy' (default) = schema moves only at `php Razy.phar migrate`; 'wizard'
+     * is the declared, lint-visible exception whose web entry is gated by a
+     * CLI-minted one-time token (runner lands at L4); 'none' = ships no schema.
+     * An unknown value degrades to 'deploy' — the side where web never migrates.
+     */
+    private string $provision = 'deploy';
+
+    /** Raw declared value ('' = undeclared); a non-empty suspect value means it was not deploy|wizard|none */
+    private string $provisionDeclared = '';
 
     /** @var bool Whether the module is packaged as a .phar archive */
     private bool $pharArchive = false;
@@ -291,6 +302,17 @@ class ModuleInfo
                 : 'manual';
             $this->migrationDeclared = $migrationDeclared;
 
+            // Provision declaration (MODULE-LIFECYCLE.md Q2): 'deploy' (default,
+            // = the M3 policy that web requests never migrate) | 'wizard' (the
+            // declared narrow exception) | 'none'. An unknown value degrades to
+            // 'deploy' — the safe side — and `validate` surfaces the suspect
+            // declaration rather than failing the load over a typo (M3 shape).
+            $provisionDeclared = \strtolower(\trim((string) ($settings['provision'] ?? '')));
+            $this->provision = \in_array($provisionDeclared, ['deploy', 'wizard', 'none'], true)
+                ? $provisionDeclared
+                : 'deploy';
+            $this->provisionDeclared = $provisionDeclared;
+
             if (isset($settings['require']) && \is_array($settings['require'])) {
                 // Parse explicit module dependencies with version constraints
                 foreach ($settings['require'] as $moduleCode => $version) {
@@ -393,6 +415,25 @@ class ModuleInfo
     public function getMigrationDeclared(): string
     {
         return $this->migrationDeclared;
+    }
+
+    /**
+     * Resolved provision mode: 'deploy' (default) | 'wizard' | 'none'
+     * (package.php 'provision' key, dossier MODULE-LIFECYCLE.md Q2).
+     */
+    public function getProvision(): string
+    {
+        return $this->provision;
+    }
+
+    /**
+     * Raw 'provision' value as declared in package.php ('' = undeclared).
+     * A non-empty value that getProvision() did not echo is a suspect
+     * declaration (typo) — `validate` surfaces it instead of failing the load.
+     */
+    public function getProvisionDeclared(): string
+    {
+        return $this->provisionDeclared;
     }
 
     public function getAPIName(): string

@@ -405,6 +405,23 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Mark the module Disabled before any controller work (dossier
+     * MODULE-LIFECYCLE.md L1): the dist enable-list (`config/<dist>/modules.php`)
+     * says this module must not run this boot. The module stays visible in the
+     * registry as Disabled — absent would lie to `require` diagnostics and to
+     * `moduleReady()` (which answers false precisely because Disabled is not
+     * ready). Never drops or touches data; uninstall is out of scope (Q6).
+     *
+     * @return $this
+     */
+    public function disable(): self
+    {
+        $this->status = ModuleStatus::Disabled;
+
+        return $this;
+    }
+
+    /**
      * Trigger __onReady event when all modules have loaded.
      */
     public function notify(): void

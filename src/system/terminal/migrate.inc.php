@@ -56,6 +56,7 @@
 namespace Razy;
 
 use Razy\Database\MigrationManager;
+use Razy\Database\ModuleDatabaseConnector;
 use Razy\Util\PathUtil;
 use Throwable;
 
@@ -149,38 +150,19 @@ return function () {
 
     /**
      * Config-connect (dossier §4.2 option 1): the module's per-distributor
-     * config declares its database; failures are explicit, never ambient.
+     * config declares its database — resolved through the ONE connector door
+     * (shared with the readiness predicate, MODULE-LIFECYCLE.md L1); failures
+     * are explicit here, never ambient.
      */
     $connectModuleDatabase = function (Module $module, string $code) use (&$failures) {
-        $config = $module->loadConfig()->array();
-        $dbConfig = $config['database'] ?? null;
-
-        if (!\is_array($dbConfig) || !isset($dbConfig['type'], $dbConfig['connection']) || !\is_array($dbConfig['connection'])) {
-            $failures++;
-            $this->writeLineLogging('  {@c:red}[FAIL]{@reset} no config-connect database declared '
-                . "(config: 'database' => ['type' => ..., 'connection' => [...]])", true);
-
-            return null;
-        }
-
-        $name = (string) ($dbConfig['name'] ?? 'cli_migrate_' . \preg_replace('/[^a-zA-Z0-9]+/', '_', $code));
-        $db = new Database($name);
-
         try {
-            if (!$db->connectWithDriver((string) $dbConfig['type'], $dbConfig['connection'])) {
-                $failures++;
-                $this->writeLineLogging('  {@c:red}[FAIL]{@reset} database connection refused', true);
-
-                return null;
-            }
+            return ModuleDatabaseConnector::connect($module, $code, 'cli_migrate');
         } catch (Throwable $e) {
             $failures++;
-            $this->writeLineLogging('  {@c:red}[FAIL]{@reset} database connection error: ' . $e->getMessage(), true);
+            $this->writeLineLogging('  {@c:red}[FAIL]{@reset} ' . $e->getMessage(), true);
 
             return null;
         }
-
-        return $db;
     };
 
     /**
