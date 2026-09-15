@@ -9,6 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Changed** registry/publish HTTP — **S1 caller migration (mainline)**: `publish.inc.php` (all ten GitHub API
+  sites), `RepoInstaller` (4 JSON reads + 2 HEAD probes + the streaming archive download), `RepositoryManager`
+  index fetches and `PackageManager\HttpTransport` (metadata reader + file download) now run through the
+  hardened `HttpClient` — hand-rolled cURL in these files is gone (5 source-pin tests guard the door). Enabled
+  by additive client options: `raw_body` (verbatim octet-stream uploads), `sink` (stream-to-file, no
+  whole-archive-in-RAM; internally-opened sinks always closed) and `progress` (modern XFERINFO callback).
+  Failure paths got strictly more informative (transport reasons reach the operator; unreachable repositories
+  now notify instead of silently nulling); disclosed wire diffs in code comments. Remaining raw-cURL by design:
+  `OAuth2`/`Office365SSO` internals (S2/S3 rewrite per signed Q3) and `SSE` long-lived connections (not this
+  door's shape); `install`/`pkg`/`sync` download sites follow next.
 - **Added** `Razy\Http\ClientInterface` (injectable narrow seam: `get/post/put/patch/delete/head/options/send`)
   and `Razy\Http\HttpTransportException` — **`HttpClient` hardening, OAuth dossier S1 first slice**: HTTPS-only
   default gate reusing the shared `ArchiveSafety::isSecureUrl` primitive (one policy with the package paths;

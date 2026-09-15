@@ -19,6 +19,8 @@ namespace Razy;
 
 use Closure;
 use Exception;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use ZipArchive;
 
 /**
@@ -164,28 +166,9 @@ class RepoInstaller
         // Query the GitHub REST API for repository metadata
         $apiUrl = \sprintf('https://api.github.com/repos/%s/%s', $this->owner, $this->repo);
 
-        $headers = [
-            'User-Agent: Razy-Repo-Installer',
-            'Accept: application/vnd.github.v3+json',
-        ];
+        $response = $this->githubJson($apiUrl);
 
-        if ($this->authToken) {
-            $headers[] = 'Authorization: token ' . $this->authToken;
-        }
-
-        $ch = \curl_init($apiUrl);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-
-        if ($httpCode === 200 && $response) {
+        if ($response !== null) {
             $data = \json_decode($response, true);
             if (\json_last_error() === JSON_ERROR_NONE) {
                 return $data;
@@ -208,28 +191,9 @@ class RepoInstaller
 
         $apiUrl = \sprintf('https://api.github.com/repos/%s/%s/releases/latest', $this->owner, $this->repo);
 
-        $headers = [
-            'User-Agent: Razy-Repo-Installer',
-            'Accept: application/vnd.github.v3+json',
-        ];
+        $response = $this->githubJson($apiUrl);
 
-        if ($this->authToken) {
-            $headers[] = 'Authorization: token ' . $this->authToken;
-        }
-
-        $ch = \curl_init($apiUrl);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-
-        if ($httpCode === 200 && $response) {
+        if ($response !== null) {
             $data = \json_decode($response, true);
             if (\json_last_error() === JSON_ERROR_NONE) {
                 return $data;
@@ -252,28 +216,9 @@ class RepoInstaller
 
         $apiUrl = \sprintf('https://api.github.com/repos/%s/%s/releases', $this->owner, $this->repo);
 
-        $headers = [
-            'User-Agent: Razy-Repo-Installer',
-            'Accept: application/vnd.github.v3+json',
-        ];
+        $response = $this->githubJson($apiUrl);
 
-        if ($this->authToken) {
-            $headers[] = 'Authorization: token ' . $this->authToken;
-        }
-
-        $ch = \curl_init($apiUrl);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-
-        if ($httpCode === 200 && $response) {
+        if ($response !== null) {
             $releases = \json_decode($response, true);
             if (\json_last_error() === JSON_ERROR_NONE && \is_array($releases)) {
                 // Iterate releases to find the first non-prerelease, non-draft entry
@@ -301,28 +246,9 @@ class RepoInstaller
 
         $apiUrl = \sprintf('https://api.github.com/repos/%s/%s/tags', $this->owner, $this->repo);
 
-        $headers = [
-            'User-Agent: Razy-Repo-Installer',
-            'Accept: application/vnd.github.v3+json',
-        ];
+        $response = $this->githubJson($apiUrl);
 
-        if ($this->authToken) {
-            $headers[] = 'Authorization: token ' . $this->authToken;
-        }
-
-        $ch = \curl_init($apiUrl);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-
-        if ($httpCode === 200 && $response) {
+        if ($response !== null) {
             $tags = \json_decode($response, true);
             if (\json_last_error() === JSON_ERROR_NONE && \is_array($tags)) {
                 return \array_column($tags, 'name');
@@ -494,30 +420,68 @@ class RepoInstaller
     }
 
     /**
+     * Build a hardened HTTP client carrying the installer's identity + auth
+     * (S1 migration: the seven hand-rolled cURL blocks all shared this shape).
+     *
+     * @param string|null $accept Accept header, or null to leave the client default
+     * @param bool $bearer true = 'Bearer' scheme, false = GitHub 'token' scheme
+     */
+    private function httpClient(?string $accept, bool $bearer): HttpClient
+    {
+        $client = HttpClient::create()->userAgent('Razy-Repo-Installer');
+
+        if ($accept !== null) {
+            $client = $client->withAccept($accept);
+        }
+
+        if ($this->authToken) {
+            $client = $bearer
+                ? $client->withToken($this->authToken)
+                : $client->withHeader('Authorization', 'token ' . $this->authToken);
+        }
+
+        return $client;
+    }
+
+    /**
+     * GitHub REST JSON GET (S1 migration): body on HTTP 200, null on any other
+     * status OR a transport error — exactly the old httpCode-0-means-null shape.
+     *
+     * @return string|null Raw JSON body or null
+     */
+    private function githubJson(string $apiUrl): ?string
+    {
+        try {
+            $response = $this->httpClient('application/vnd.github.v3+json', false)->get($apiUrl);
+        } catch (HttpTransportException) {
+            return null;
+        }
+
+        return $response->status() === 200 ? $response->body() : null;
+    }
+
+    /**
+     * HEAD existence probe (S1 migration): 2xx/3xx means "exists".
+     */
+    private function headExists(string $url, bool $bearer): bool
+    {
+        try {
+            $response = $this->httpClient(null, $bearer)->head($url);
+        } catch (HttpTransportException) {
+            return false;
+        }
+
+        return $response->status() >= 200 && $response->status() < 400;
+    }
+
+    /**
      * Validate custom URL is accessible.
      *
      * @return bool True if URL is valid
      */
     private function validateCustomUrl(): bool
     {
-        $headers = ['User-Agent: Razy-Repo-Installer'];
-        if ($this->authToken) {
-            $headers[] = 'Authorization: Bearer ' . $this->authToken;
-        }
-
-        $ch = \curl_init($this->customUrl);
-        \curl_setopt($ch, CURLOPT_NOBODY, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-
-        \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-
-        return $httpCode >= 200 && $httpCode < 400;
+        return $this->headExists($this->customUrl, true);
     }
 
     /**
@@ -589,24 +553,7 @@ class RepoInstaller
      */
     private function urlExists(string $url): bool
     {
-        $headers = ['User-Agent: Razy-Repo-Installer'];
-        if ($this->authToken) {
-            $headers[] = 'Authorization: token ' . $this->authToken;
-        }
-
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_NOBODY, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-
-        \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-
-        return $httpCode >= 200 && $httpCode < 400;
+        return $this->headExists($url, false);
     }
 
     /**
@@ -628,52 +575,39 @@ class RepoInstaller
             return false;
         }
 
-        // Write downloaded content to a temporary file
+        // Write downloaded content to a temporary file (the client's sink owns
+        // the writing from here; tempnam still pre-creates it for failure paths)
         $tempFile = \tempnam(\sys_get_temp_dir(), 'razy_repo_');
+        if ($tempFile === false) {
+            $this->notify(self::TYPE_ERROR, ['Cannot create temporary file']);
 
-        $fp = \fopen($tempFile, 'w+');
-        if (!$fp) {
-            $this->notify(self::TYPE_ERROR, ['Cannot create temporary file', $tempFile]);
             return false;
         }
 
-        // Build authorization headers based on the source type
-        $headers = ['User-Agent: Razy-Repo-Installer'];
+        // Streaming download to disk + byte-progress (S1 first-class sink, no
+        // whole-archive-in-RAM). GitHub uses the 'token' scheme, others Bearer.
+        $bearer = $this->source !== self::SOURCE_GITHUB;
 
-        if ($this->authToken) {
-            // GitHub uses 'token' scheme; other providers use 'Bearer'
-            if ($this->source === self::SOURCE_GITHUB) {
-                $headers[] = 'Authorization: token ' . $this->authToken;
-            } else {
-                $headers[] = 'Authorization: Bearer ' . $this->authToken;
-            }
+        try {
+            $response = $this->httpClient(null, $bearer)->send('GET', $url, [
+                'sink' => $tempFile,
+                'progress' => function (int $downloadSize, int $downloaded): void {
+                    $percentage = \round(($downloaded / $downloadSize) * 100, 2);
+                    $this->notify(self::TYPE_PROGRESS, [$downloadSize, $downloaded, $percentage]);
+                },
+            ]);
+            $httpCode = $response->status();
+        } catch (HttpTransportException $e) {
+            $this->notify(self::TYPE_ERROR, ['Download failed', $e->getMessage()]);
+            \unlink($tempFile);
+
+            return false;
         }
 
-        // Configure cURL for streaming download with progress reporting
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_FILE, $fp);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-        \curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-        // Report download progress percentage to the notification callback
-        \curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $downloadSize, $downloaded) {
-            if ($downloadSize > 0) {
-                $percentage = \round(($downloaded / $downloadSize) * 100, 2);
-                $this->notify(self::TYPE_PROGRESS, [$downloadSize, $downloaded, $percentage]);
-            }
-        });
-
-        $result = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-        \fclose($fp);
-
-        if (!$result || $httpCode !== 200) {
+        if ($httpCode !== 200) {
             $this->notify(self::TYPE_ERROR, ['Download failed', \sprintf('HTTP %d', $httpCode)]);
             \unlink($tempFile);
+
             return false;
         }
 

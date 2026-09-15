@@ -523,7 +523,12 @@ class HttpClient implements ClientInterface
      *
      * @param string $method HTTP method
      * @param string $url Full URL or relative path
-     * @param array<string,mixed> $options Request options: 'query', 'body', 'headers'
+     * @param array<string,mixed> $options Request options: 'query', 'body' (array,
+     *                                     encoded per bodyFormat), 'raw_body'
+     *                                     (verbatim string, wins over 'body'),
+     *                                     'sink' (path or resource, streams out),
+     *                                     'progress' (fn(size, done), pairs with sink),
+     *                                     'headers'
      *
      * @return HttpResponse
      */
@@ -763,9 +768,53 @@ class HttpClient implements ClientInterface
             \curl_setopt($ch, CURLOPT_USERPWD, $this->basicAuth['username'] . ':' . $this->basicAuth['password']);
         }
 
-        // Body
-        if (isset($options['body']) && !empty($options['body'])) {
+        // Body — structured (per bodyFormat) or raw bytes (S1: release-asset
+        // uploads are the reason; a JSON-only client forces re-roll-your-own-cURL
+        // for binaries, which is exactly how the call sites drifted in the first place)
+        if (isset($options['raw_body']) && \is_string($options['raw_body'])) {
+            \curl_setopt($ch, CURLOPT_POSTFIELDS, $options['raw_body']);
+        } elseif (isset($options['body']) && !empty($options['body'])) {
             $this->applyBody($ch, $options['body'], $requestHeaders);
+        }
+
+        // Sink (S1): stream the response straight to a file/resource instead of
+        // buffering — package downloads migrated off hand-rolled cURL would
+        // otherwise regress to whole-archive-in-RAM, so the sink is first-class.
+        // A path we opened ourselves is always closed below; a caller-supplied
+        // resource stays open — its owner closes it.
+        $sinkHandle = null;
+        $sinkOpened = false;
+        if (isset($options['sink'])) {
+            if (\is_resource($options['sink'])) {
+                $sinkHandle = $options['sink'];
+            } else {
+                $sinkHandle = @\fopen((string) $options['sink'], 'wb') ?: null;
+                $sinkOpened = $sinkHandle !== null;
+            }
+
+            if ($sinkHandle === null) {
+                \curl_close($ch);
+
+                throw new HttpTransportException('Cannot open download sink: ' . (string) $options['sink']);
+            }
+
+            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+            \curl_setopt($ch, CURLOPT_FILE, $sinkHandle);
+        }
+
+        // Byte-level progress (S1), paired with sink — XFERINFO is the modern
+        // replacement for the deprecated progress callback and reports the
+        // same (downloadSize, downloaded) pair the old call sites consumed.
+        if (isset($options['progress']) && \is_callable($options['progress'])) {
+            $progress = $options['progress'];
+            \curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+            \curl_setopt($ch, CURLOPT_XFERINFOFUNCTION, static function ($ch, int $downloadSize, int $downloaded) use ($progress): int {
+                if ($downloadSize > 0) {
+                    $progress($downloadSize, $downloaded);
+                }
+
+                return 0; // 0 = continue the transfer
+            });
         }
 
         // Custom cURL options (filter out security-sensitive overrides)
@@ -792,6 +841,12 @@ class HttpClient implements ClientInterface
         $body = \curl_exec($ch);
         $statusCode = (int) \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
+        // Flush+release a sink we opened before any branch below leaves (the
+        // caller needs the bytes readable on success AND on failure).
+        if ($sinkOpened) {
+            \fclose($sinkHandle);
+        }
+
         if ($body === false) {
             $error = \curl_error($ch);
             $errno = \curl_errno($ch);
@@ -808,7 +863,7 @@ class HttpClient implements ClientInterface
 
         \curl_close($ch);
 
-        return new HttpResponse($statusCode, $body, $responseHeaders);
+        return new HttpResponse($statusCode, \is_string($body) ? $body : '', $responseHeaders);
     }
 
     /**

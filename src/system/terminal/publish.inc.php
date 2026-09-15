@@ -17,9 +17,59 @@ namespace Razy;
 
 use Exception;
 use Phar;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use Razy\Util\PathUtil;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+
+/**
+ * Single GitHub API transport door (OAuth dossier S1 migration).
+ *
+ * Before this, every github* function below hand-rolled its own cURL: no
+ * timeouts, no HTTPS gate, no redirect policy, and a silent false on any
+ * transport error. They now share the hardened HttpClient (one policy, one
+ * door). A transport failure maps to the legacy sentinel status 0 with the
+ * reason carried in 'error', so every existing failure branch keeps working
+ * AND the operator finally learns WHY (fail-loud, dossier Q3 doctrine).
+ *
+ * Wire-visible diffs, disclosed: GETs now also carry the client's default
+ * Content-Type and may follow up to 3 redirects (GitHub's endpoints answered
+ * directly for every success path this command has ever produced).
+ *
+ * @return array{status:int, body:string, error:string}
+ */
+function githubApiRequest(string $method, string $url, string $token, ?string $rawBody = null, string $contentType = 'application/json'): array
+{
+    try {
+        $client = HttpClient::create()
+            ->userAgent('Razy-Publisher')
+            ->withAccept('application/vnd.github.v3+json')
+            ->withToken($token);
+
+        if ($rawBody !== null) {
+            $client = $client->withHeader('Content-Type', $contentType);
+
+            return ghResult($client->send($method, $url, ['raw_body' => $rawBody]));
+        }
+
+        return ghResult($client->send($method, $url));
+    } catch (HttpTransportException $e) {
+        return ['status' => 0, 'body' => '', 'error' => $e->getMessage()];
+    }
+}
+
+/**
+ * Flatten an HttpResponse to the githubApiRequest result shape.
+ *
+ * @param \Razy\Http\HttpResponse $response
+ *
+ * @return array{status:int, body:string, error:string}
+ */
+function ghResult(\Razy\Http\HttpResponse $response): array
+{
+    return ['status' => $response->status(), 'body' => $response->body(), 'error' => ''];
+}
 
 /**
  * Normalize a version string to standard X.Y.Z format.
@@ -59,17 +109,7 @@ function githubGetTags(string $token, string $repo): array
 {
     $apiUrl = 'https://api.github.com/repos/' . $repo . '/tags';
 
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response] = githubApiRequest('GET', $apiUrl, $token);
 
     if ($httpCode !== 200) {
         return [];
@@ -99,17 +139,7 @@ function githubCreateTag(string $token, string $repo, string $branch, string $ta
     // First, get the SHA of the branch
     $apiUrl = 'https://api.github.com/repos/' . $repo . '/git/ref/heads/' . $branch;
 
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response] = githubApiRequest('GET', $apiUrl, $token);
 
     if ($httpCode !== 200) {
         return ['success' => false, 'error' => 'Could not get branch SHA'];
@@ -130,27 +160,14 @@ function githubCreateTag(string $token, string $repo, string $branch, string $ta
         'sha' => $sha,
     ];
 
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_POST, true);
-    \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-        'Content-Type: application/json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response, 'error' => $transportError] = githubApiRequest('POST', $apiUrl, $token, \json_encode($data));
 
     if ($httpCode === 201) {
         return ['success' => true];
     }
 
     $errorData = \json_decode($response, true);
-    $errorMessage = $errorData['message'] ?? 'HTTP ' . $httpCode;
+    $errorMessage = $errorData['message'] ?? ('HTTP ' . $httpCode . ($transportError !== '' ? ' - ' . $transportError : ''));
 
     return ['success' => false, 'error' => $errorMessage];
 }
@@ -171,17 +188,7 @@ function githubDeleteFile(string $token, string $repo, string $branch, string $p
     $apiUrl = 'https://api.github.com/repos/' . $repo . '/contents/' . $path;
 
     // First, get the file to get its SHA
-    $ch = \curl_init($apiUrl . '?ref=' . $branch);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response] = githubApiRequest('GET', $apiUrl . '?ref=' . $branch, $token);
 
     if ($httpCode !== 200) {
         return ['success' => false, 'error' => 'File not found'];
@@ -201,27 +208,14 @@ function githubDeleteFile(string $token, string $repo, string $branch, string $p
         'branch' => $branch,
     ];
 
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-    \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-        'Content-Type: application/json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response, 'error' => $transportError] = githubApiRequest('DELETE', $apiUrl, $token, \json_encode($data));
 
     if ($httpCode === 200) {
         return ['success' => true];
     }
 
     $errorData = \json_decode($response, true);
-    $errorMessage = $errorData['message'] ?? 'HTTP ' . $httpCode;
+    $errorMessage = $errorData['message'] ?? ('HTTP ' . $httpCode . ($transportError !== '' ? ' - ' . $transportError : ''));
 
     return ['success' => false, 'error' => $errorMessage];
 }
@@ -243,17 +237,7 @@ function githubPutFile(string $token, string $repo, string $branch, string $path
     $apiUrl = 'https://api.github.com/repos/' . $repo . '/contents/' . $path;
 
     // First, try to get the file to check if it exists (need SHA for update)
-    $ch = \curl_init($apiUrl . '?ref=' . $branch);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response] = githubApiRequest('GET', $apiUrl . '?ref=' . $branch, $token);
 
     $sha = null;
     if ($httpCode === 200) {
@@ -273,27 +257,14 @@ function githubPutFile(string $token, string $repo, string $branch, string $path
     }
 
     // Upload/update the file
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
-    \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-        'Content-Type: application/json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response, 'error' => $transportError] = githubApiRequest('PUT', $apiUrl, $token, \json_encode($data));
 
     if ($httpCode === 200 || $httpCode === 201) {
         return ['success' => true];
     }
 
     $errorData = \json_decode($response, true);
-    $errorMessage = $errorData['message'] ?? 'HTTP ' . $httpCode;
+    $errorMessage = $errorData['message'] ?? ('HTTP ' . $httpCode . ($transportError !== '' ? ' - ' . $transportError : ''));
 
     return ['success' => false, 'error' => $errorMessage];
 }
@@ -322,20 +293,7 @@ function githubCreateRelease(string $token, string $repo, string $tagName, strin
         'prerelease' => $prerelease,
     ];
 
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_POST, true);
-    \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-        'Content-Type: application/json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response, 'error' => $transportError] = githubApiRequest('POST', $apiUrl, $token, \json_encode($data));
 
     if ($httpCode === 201) {
         $releaseData = \json_decode($response, true);
@@ -343,7 +301,7 @@ function githubCreateRelease(string $token, string $repo, string $tagName, strin
     }
 
     $errorData = \json_decode($response, true);
-    $errorMessage = $errorData['message'] ?? 'HTTP ' . $httpCode;
+    $errorMessage = $errorData['message'] ?? ('HTTP ' . $httpCode . ($transportError !== '' ? ' - ' . $transportError : ''));
 
     return ['success' => false, 'error' => $errorMessage];
 }
@@ -368,20 +326,7 @@ function githubUploadReleaseAsset(string $token, string $repo, int $releaseId, s
         return ['success' => false, 'error' => 'Cannot read file: ' . $assetPath];
     }
 
-    $ch = \curl_init($uploadUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_POST, true);
-    \curl_setopt($ch, CURLOPT_POSTFIELDS, $fileContent);
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-        'Content-Type: application/octet-stream',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response, 'error' => $transportError] = githubApiRequest('POST', $uploadUrl, $token, $fileContent, 'application/octet-stream');
 
     if ($httpCode === 201) {
         $assetData = \json_decode($response, true);
@@ -389,7 +334,7 @@ function githubUploadReleaseAsset(string $token, string $repo, int $releaseId, s
     }
 
     $errorData = \json_decode($response, true);
-    $errorMessage = $errorData['message'] ?? 'HTTP ' . $httpCode;
+    $errorMessage = $errorData['message'] ?? ('HTTP ' . $httpCode . ($transportError !== '' ? ' - ' . $transportError : ''));
 
     return ['success' => false, 'error' => $errorMessage];
 }
@@ -406,17 +351,7 @@ function githubGetReleases(string $token, string $repo): array
 {
     $apiUrl = 'https://api.github.com/repos/' . $repo . '/releases';
 
-    $ch = \curl_init($apiUrl);
-    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token,
-        'User-Agent: Razy-Publisher',
-        'Accept: application/vnd.github.v3+json',
-    ]);
-
-    $response = \curl_exec($ch);
-    $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    \curl_close($ch);
+    ['status' => $httpCode, 'body' => $response] = githubApiRequest('GET', $apiUrl, $token);
 
     if ($httpCode !== 200) {
         return [];

@@ -19,6 +19,8 @@ namespace Razy;
 
 use Closure;
 use Razy\Exception\PackageIntegrityException;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use Razy\Util\PathUtil;
 
 /**
@@ -593,19 +595,23 @@ class RepositoryManager
             return null;
         }
 
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'User-Agent: Razy-RepositoryManager',
-            'Accept: application/json, */*',
-        ]);
+        // S1 migration: the transport is the hardened client now. The gate
+        // above stays (deliberate) so the operator hears RepositoryManager's
+        // own message, not the client's generic one. Transport failures used
+        // to be silent nulls; they now notify — failure paths are allowed to
+        // get MORE informative, never less (fail-loud doctrine, Q3).
+        try {
+            $response = HttpClient::create()
+                ->userAgent('Razy-RepositoryManager')
+                ->withAccept('application/json, */*')
+                ->get($url);
+        } catch (HttpTransportException $e) {
+            $this->notify(self::TYPE_ERROR, ['HTTP request failed', $e->getMessage()]);
 
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
+            return null;
+        }
 
-        return ($httpCode >= 200 && $httpCode < 300) ? $response : null;
+        return $response->successful() ? $response->body() : null;
     }
 
     /**

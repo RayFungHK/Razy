@@ -21,6 +21,8 @@ namespace Razy\PackageManager;
 use Closure;
 use Exception;
 use Razy\Contract\PackageTransportInterface;
+use Razy\Http\HttpClient;
+use Razy\Http\HttpTransportException;
 use Razy\Util\PathUtil;
 
 /**
@@ -51,25 +53,25 @@ class HttpTransport implements PackageTransportInterface
         $packageName = \strtolower($packageName);
         $url = PathUtil::append($this->baseUrl, 'p2', $packageName . '.json');
 
-        $context = \stream_context_create([
-            'http' => [
-                'header' => "User-Agent: Razy-Package-Manager\r\n",
-                'timeout' => 30,
-            ],
-        ]);
-
-        $content = @\file_get_contents($url, false, $context);
-        if (false === $content) {
+        // S1 migration: off the old stream-context reader onto the hardened
+        // client (timeouts + HTTPS gate + one door). Disclosed diffs: a
+        // redirect-chain that ends in 200 now succeeds (the old reader read
+        // the FIRST status line and gave up on 3xx); the 30s connect budget
+        // becomes the client's own (30s transfer / 10s connect).
+        try {
+            $response = HttpClient::create()
+                ->userAgent('Razy-Package-Manager')
+                ->get($url);
+        } catch (HttpTransportException) {
             return null;
         }
 
-        // Verify HTTP 200 OK
-        if (isset($http_response_header) && !$this->isResponseOk($http_response_header)) {
+        if (!$response->successful()) {
             return null;
         }
 
         try {
-            $data = \json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            $data = \json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);
 
             return \is_array($data) ? $data : null;
         } catch (Exception) {
@@ -82,35 +84,24 @@ class HttpTransport implements PackageTransportInterface
      */
     public function download(string $url, string $destinationPath, ?Closure $progressCallback = null): bool
     {
-        $targetFile = \fopen($destinationPath, 'w');
-        if (false === $targetFile) {
+        // S1 migration: same streaming sink + byte-progress contract as the
+        // hand-rolled cURL it replaces (fopen-before-transfer included: the
+        // destination is created even when the transfer then fails).
+        $options = ['sink' => $destinationPath];
+        if (null !== $progressCallback) {
+            $options['progress'] = $progressCallback;
+        }
+
+        try {
+            $response = HttpClient::create()
+                ->userAgent('Razy-Package-Manager')
+                ->withHeader('Accept-Encoding', 'gzip, deflate')
+                ->send('GET', $url, $options);
+        } catch (HttpTransportException) {
             return false;
         }
 
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        \curl_setopt($ch, CURLOPT_FILE, $targetFile);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'User-Agent: Razy-Package-Manager',
-            'Accept-Encoding: gzip, deflate',
-        ]);
-
-        if (null !== $progressCallback) {
-            \curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-            \curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $downloadSize, $downloaded) use ($progressCallback) {
-                if ($downloadSize > 0) {
-                    $progressCallback($downloadSize, $downloaded);
-                }
-            });
-        }
-
-        $result = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        \curl_close($ch);
-        \fclose($targetFile);
-
-        return false !== $result && $httpCode >= 200 && $httpCode < 400;
+        return $response->status() >= 200 && $response->status() < 400;
     }
 
     /**
@@ -119,25 +110,5 @@ class HttpTransport implements PackageTransportInterface
     public function getScheme(): string
     {
         return 'https';
-    }
-
-    /**
-     * Check if the HTTP response header indicates success (2xx).
-     *
-     * @param array $headers The $http_response_header array
-     *
-     * @return bool
-     */
-    private function isResponseOk(array $headers): bool
-    {
-        foreach ($headers as $header) {
-            if (\preg_match('/^HTTP\/[\d.]+\s+(\d+)/', $header, $matches)) {
-                $code = (int) $matches[1];
-
-                return $code >= 200 && $code < 300;
-            }
-        }
-
-        return false;
     }
 }
