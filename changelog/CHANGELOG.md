@@ -7,82 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
-## [Unreleased]
+## [v1.1.0-beta.2](changelog/v1.1.0-beta.2.md) — 2026-09-17
 
-- **Added** `razymod/oauth` module — **S5 (dossier)**: social login routes (`/authorize` → 302 to provider — never
-  the 301 `Controller::goto`; `/callback` → core-verified exchange → `social.user_resolved`) + per-dist config
-  carrying ENV VAR NAMES only, never values (Q5) + implemented `__onAPICall` allow-list publishing the single
-  read-only `providers` command (queue-admin shape). Q1 enforced as schema: `package.php` has NO migration key and
-  the module stores nothing — identity persistence is the app's listener's job (documented event contract in the
-  new `manual/09-social-login.md`). Module-discipline lint 0 errors/0 warnings (three `lint-allow: RZ-003` with
-  written justifications — all superglobal reads are cast-then-allowlisted); `phpstan.modules.neon` now covers
-  `modules/oauth` too. 7 new tests (metadata, allow-list shape, 302-never-301 pins, flow/env separation, unknown-
-  provider and missing-secret fail-loud, manual-ships-with-module).
-- **Added** OAuth provider pack — **S3 (dossier)**: `Security\OAuth\Provider\GithubProvider` (S256-only, UA-bearing
-  user calls, verified+primary email fallback via `/user/emails` — email as CONTACT data), `GoogleProvider`
-  (`access_type=offline`, optional `prompt=consent`/`hd`; identity is **`sub`, not email**, `legacy_sub` still
-  identifies), `MicrosoftProvider` (tenant-aware Entra endpoints, Graph field-selection, Graph object id — not the
-  UPN — as identity, hints, sign-out URL). New `OAuth2::verifyIdTokenClaims`: audience exact-match, absolute expiry,
-  issuer-regex, optional nonce/hd binds — and honest by law: it CHECKS STRUCTURE, never verifies signatures (full
-  JWK machinery stays on the dossier's Do-NOT-build list; results may say "claims checked", never "signature
-  verified"). `Razy\Office365SSO` re-expressed on the hardened client (Q3: name kept; its last two cURL sites died —
-  framework-wide, hand-rolled cURL now exists ONLY inside `HttpClient` and the excluded `SSE` streamer). 19 fixture
-  tests (`OAuthProvidersTest`), zero sockets.
-- **Added** OAuth 2.0 core — **S2 (dossier)**: new `Razy\Security\OAuth\*` namespace — `OAuth2` (authorization-code
-  flow: PKCE S256 always-on per RFC 7636, signed single-use `state` per Q2 option C, RFC 6749 §5.2 error mapping,
-  exact-match registered `redirect_uri`, state verified BEFORE any network call, Basic or body client auth,
-  Content-Type-aware token parsing — GitHub's urlencoded default finally works), `StateSigner` (HMAC state +
-  `hash_equals`, provider/redirect binding, TTL; PKCE verifier custody via Cache, never through the browser;
-  cacheless configuration fails loud), `TokenResponse` (relative `expires_in` becomes an absolute deadline),
-  `OAuthConfig`, `ProviderInterface` + `ProviderRegistry`. Zero dependencies (RZ-015), zero network in tests —
-  28 new `OAuth2CoreTest` cases include the RFC 7636 Appendix B vector. The legacy `Razy\OAuth2` keeps its name
-  (Q3) with its internals replaced by the hardened HttpClient (transport reasons now reach `OAuthException`;
-  urlencoded token bodies no longer die in `json_decode` — that bug surviving this long is the dossier's own
-  evidence). The phantom `Razy\OAuth2` constructor documented in `tests/Razy-Feature-TestCases.md` §48 is
-  corrected to the real signature in the same commit (signed Q3).
-- **Changed** CLI download doors — **S1 caller migration completed**: `install` (safe-fetch helper + phar download +
-  dependency download), `pkg install` and `sync` artifact downloads now run through the hardened `HttpClient`
-  (transport reasons reach the operator instead of bare `HTTP 0`; sizes measured from the body). The `install`
-  command's curl-LESS-environment stream fallback survives by design (the client requires the extension). The only
-  hand-rolled cURL left in the framework: the deprecated `OAuth2`/`Office365SSO` internals (retired by their S2/S3
-  rewrite, per signed Q3) and `SSE` long-lived connections (excluded — different door shape).
-- **Changed** registry/publish HTTP — **S1 caller migration (mainline)**: `publish.inc.php` (all ten GitHub API
-  sites), `RepoInstaller` (4 JSON reads + 2 HEAD probes + the streaming archive download), `RepositoryManager`
-  index fetches and `PackageManager\HttpTransport` (metadata reader + file download) now run through the
-  hardened `HttpClient` — hand-rolled cURL in these files is gone (5 source-pin tests guard the door). Enabled
-  by additive client options: `raw_body` (verbatim octet-stream uploads), `sink` (stream-to-file, no
-  whole-archive-in-RAM; internally-opened sinks always closed) and `progress` (modern XFERINFO callback).
-  Failure paths got strictly more informative (transport reasons reach the operator; unreachable repositories
-  now notify instead of silently nulling); disclosed wire diffs in code comments. Remaining raw-cURL by design:
-  `OAuth2`/`Office365SSO` internals (S2/S3 rewrite per signed Q3) and `SSE` long-lived connections (not this
-  door's shape); `install`/`pkg`/`sync` download sites follow next.
-- **Added** `Razy\Http\ClientInterface` (injectable narrow seam: `get/post/put/patch/delete/head/options/send`)
-  and `Razy\Http\HttpTransportException` — **`HttpClient` hardening, OAuth dossier S1 first slice**: HTTPS-only
-  default gate reusing the shared `ArchiveSafety::isSecureUrl` primitive (one policy with the package paths;
-  sole escapes `allowInsecureTransport(true)` or `RAZY_ALLOW_INSECURE_TRANSPORT=1`, per signed Q5); cURL-level
-  failures now throw instead of returning the old fabricated status-0 response (fail-loud, same doctrine as
-  the `queue` rework; verified zero readers of the old sentinel); timeouts floored at 1s (`timeout(0)` can no
-  longer mean "wait forever"); `MAXREDIRS` 5→3; `HttpResponse::data()` parses bodies by Content-Type
-  (JSON **and** `x-www-form-urlencoded` — the GitHub token-endpoint shape a JSON-only parser dropped);
-  `redirect(302)` exact-status helper, zero-arg `redirect()` unchanged. 12 tests, zero network.
-  (Caller migration onto the client = S1 continued, next.)
+**OAuth 2.0 Core (PKCE S256 + Signed Single-Use State) · One HTTP Door · RZ-015 Zero-Dependency Law · Queue Fail-Loud** — the full OAuth dossier line (11 commits, 5,441 tests), details in [v1.1.0-beta.2](changelog/v1.1.0-beta.2.md).
 
-- **Added** RZ-015 — framework core keeps **zero third-party runtime dependencies** (rules-doc section +
-  AGENTS.md table): PSR-18/7 interop lives in modules or standalone packages. OAuth dossier sign-off
-  (Q1–Q5 all per recommendation, 2026-09-17): guard-seam-only identity + `social.user_resolved`, signed
-  stateless `state` default, `OAuth2`/`Office365SSO` names kept but internals to be replaced (labels
-  applied in CLASS-CATALOG), insecure transport single escape `RAZY_ALLOW_INSECURE_TRANSPORT=1`, provider
-  secrets in env. ADR-1 recorded in PORTING-VALUE.md; build scope S0–S3+S5 authorised (S4 OAuth 1.0a
-  stays deferred). Docs/policy only — zero code touched.
-- **Changed** `queue` CLI — **fail-loud rework** (dossier PERMISSION-MODULE.md Q3 tail, the half of the
-  P2 phantom the S1.5 fix left open): the resolver no longer swallows `Throwable` into one anonymous
-  "check database connection" line that exit(0)'d. Failure class 1 — no registered-AND-connected shared
-  instance — names the actual gap ("The queue CLI opens no connection itself") plus the bootstrap fix;
-  failure class 2 — store construction throws — surfaces class + message verbatim. All five subcommands
-  (`work`/`once`/`status`/`clear`/`retry`) `exit(1)` on resolver-null, retry's usage error too; the dead
-  `class_exists(QueueManager::class)` guard is gone. The original phantom symptom — a worker "running"
-  forever against nothing while reporting success — is now structurally impossible. 5 source-pinned
-  tests (`tests/QueueCommandTest.php`, MigrateCommandTest house style).
+- **Added** `Razy\Security\OAuth\*` — authorization-code flow core: PKCE S256 always-on (`plain` never offered or accepted), signed single-use `state` (Q2 option C; PKCE verifier custodied in `Cache`, NEVER through the browser), state verified BEFORE any network, RFC 6749 §5.2 error mapping only after verification, exact-match `redirect_uri`, RFC 8707 refresh; provider pack `GithubProvider` / `GoogleProvider` (identity is **`sub`, not email**) / `MicrosoftProvider` (Entra, Graph object id); `OAuth2::verifyIdTokenClaims` enforces the G11 honest label — claims checked, signature NEVER verified. 47 zero-socket tests, RFC 7636 Appendix B vector pinned
+- **Added** `razymod/oauth` 0.1.0 — `/authorize`/`/callback` routes (302, never the 301 `Controller::goto`), per-dist config carrying env var NAMES only (Q5), implemented `__onAPICall` allow-list with one read-only command, Q1 enforced as schema (`package.php` without any migration key — no users table, test-pinned); `manual/09-social-login.md`; module-discipline lint 0/0
+- **Changed** every outbound framework HTTP call now runs through ONE hardened door — HTTPS-only default (+ `RAZY_ALLOW_INSECURE_TRANSPORT` operator escape), mandatory timeouts floored at 1 s, redirect cap 3 judged at the final response, `raw_body`/`sink`/`progress` options; new `ClientInterface` injectable seam + `HttpTransportException` named causes; `publish.inc.php` ×10, `RepoInstaller` ×7, `RepositoryManager` (unreachable repos now NOTIFY instead of silent null), `PackageManager\HttpTransport`, and the `install`/`pkg`/`sync` downloads all migrated and source-pinned — framework-wide `curl_init` survives only in `HttpClient`, the excluded `SSE` streamer, and one environment probe; legacy `OAuth2`/`Office365SSO` heart-swapped (Q3: names kept), GitHub-shaped urlencoded token answers fixed
+- **Added** RZ-015 as law — framework core carries zero third-party runtime dependencies forever (ADR-1 in `PORTING-VALUE.md`, rule table rows); the ~700-line OAuth core shipped with `require: 0` unchanged — the law's first real test, passed
+- **Fixed** queue CLI silent-zero — all five subcommands now name the missing-database gap explicitly and `exit(1)`; a worker "succeeding" forever against nothing is structurally impossible (5 source-pinned tests)
+- **Fixed** `tests/Razy-Feature-TestCases.md` §48 phantom constructor and phantom array-parameter calls corrected to the real signatures
 
 ## [v1.1.0-beta.1](changelog/v1.1.0-beta.1.md) — 2026-09-17
 
