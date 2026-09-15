@@ -763,6 +763,29 @@ class Controller
     }
 
     /**
+     * Check if a module is READY — its declared migrations are all applied,
+     * derived from the migration ledger at call time (MODULE-LIFECYCLE.md
+     * L1; the helper promised in the L1 commit, delivered with its first
+     * consumer surface at L3). Distinct from hasModule(): loaded is memory,
+     * ready is schema.
+     *
+     * Request admission does NOT belong here — that is what `Route::ready(...)`
+     * and `Agent::readyRoutes()` do at the dispatcher door (L3). Use this to
+     * branch internal logic (offer a degraded view, skip an optional panel),
+     * never to re-implement the gate the framework already enforces.
+     *
+     * @param string $moduleCode The module code to check (exact 'vendor/mod' code)
+     *
+     * @return bool
+     *
+     * @throws Exception\DatabaseException When the ledger is unreachable (fail-loud by design)
+     */
+    final public function moduleReady(string $moduleCode): bool
+    {
+        return $this->module->moduleReady($moduleCode);
+    }
+
+    /**
      * Get the data path URL.
      *
      * @param string $module The module name

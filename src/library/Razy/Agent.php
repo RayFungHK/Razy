@@ -34,6 +34,15 @@ use Throwable;
 class Agent
 {
     /**
+     * Default readiness gate for this module's routes (dossier
+     * MODULE-LIFECYCLE.md L3). Once set, every route registered afterwards
+     * without its own gate gets it — the module-wide form of
+     * `Route::ready(...)`, typically `readyRoutes('self')` for a module that
+     * declares migrations (its own schema gates its own screens).
+     */
+    private string $defaultReadyGate = '';
+
+    /**
      * Agent constructor.
      *
      * @param Module $module
@@ -282,6 +291,25 @@ class Agent
     }
 
     /**
+     * Gate every subsequently registered route of this module on a module's
+     * readiness (dossier MODULE-LIFECYCLE.md L3). `'self'` gates on this
+     * module — the module-wide answer to "don't serve screens whose tables
+     * do not exist yet"; a `'vendor/module'` code gates on a peer.
+     * Individual routes may still declare their own `Route::ready(...)`,
+     * which wins. Script routes (CLI) are never gated.
+     *
+     * @param string $moduleCode 'self' or a 'vendor/module' code
+     *
+     * @return $this Fluent interface
+     */
+    public function readyRoutes(string $moduleCode = 'self'): static
+    {
+        $this->defaultReadyGate = \trim($moduleCode);
+
+        return $this;
+    }
+
+    /**
      * Put the callable into the list to wait for execute until other specified modules has ready.
      *
      * @param string $moduleCode
@@ -483,6 +511,7 @@ class Agent
                 if (\is_string($path)) {
                     $path = \trim(PathUtil::tidy($path, false, '/'), '/');
                 }
+                $path = $this->applyDefaultReadyGate($type, $path);
                 $registerRoute = [$this->module, 'add' . $type];
                 \call_user_func_array($registerRoute, [
                     $this->qualifyRoutePathForRegistration($type, $route, $urlPrefix),
@@ -523,7 +552,7 @@ class Agent
                                 $registerRoute = [$this->module, 'add' . $type];
                                 \call_user_func_array($registerRoute, [
                                     $this->qualifyRoutePathForRegistration($type, $routePath, $urlPrefix),
-                                    PathUtil::append($relativePath, $path),
+                                    $this->applyDefaultReadyGate($type, PathUtil::append($relativePath, $path)),
                                 ]);
                             }
                         }
@@ -538,6 +567,28 @@ class Agent
         }
 
         return $this;
+    }
+
+    /**
+     * Apply the module's default readiness gate (set via `readyRoutes()`) to
+     * a route path — wrapping plain string paths in a Route entity only when
+     * a gate is actually owed. An explicit `Route::ready(...)` always wins.
+     */
+    private function applyDefaultReadyGate(string $type, mixed $path): mixed
+    {
+        if ($this->defaultReadyGate === '' || $type === 'Script') {
+            return $path;
+        }
+
+        if (!$path instanceof Route) {
+            $path = new Route((string) $path);
+        }
+
+        if (!$path->hasReadyGate()) {
+            $path->ready($this->defaultReadyGate);
+        }
+
+        return $path;
     }
 
     /**

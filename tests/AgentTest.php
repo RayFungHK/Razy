@@ -539,11 +539,14 @@ class AgentTest extends TestCase
     #[Test]
     public function addLazyRouteWithRouteEntityIsPassedToModule(): void
     {
-        // Module::addLazyRoute expects string $path, so passing a Route entity
-        // triggers a TypeError at the Module level. Agent does allow Route through
-        // addRoutePath but Module rejects it.
+        // Contract flip at MODULE-LIFECYCLE.md L3: the Route entity was
+        // REJECTED here (Module::addLazyRoute was string-only, and the old
+        // pinned this TypeError). It is now the carrier of the readiness
+        // gate (Route::ready(...)), so it passes through untouched.
         $routeEntity = new Route('lazy/closure');
-        $this->expectException(TypeError::class);
+        $this->mockModule->expects($this->once())
+            ->method('addLazyRoute')
+            ->with('lazyRoute', $routeEntity);
 
         $this->agent->addLazyRoute('lazyRoute', $routeEntity);
     }

@@ -218,6 +218,25 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Whether a module is READY — declared migrations all applied, derived
+     * from the migration ledger at call time (MODULE-LIFECYCLE.md L1/L3).
+     * Distinct from hasModule(): loaded is memory, ready is schema. Route
+     * gating belongs on the registration door (`Route::ready(...)`,
+     * `Agent::readyRoutes()`), not in handler bodies — this answers internal
+     * logic branches, not request admission.
+     *
+     * @param string $moduleCode The module code to check
+     *
+     * @return bool
+     *
+     * @throws Exception\DatabaseException When the ledger is unreachable (fail-loud by design)
+     */
+    public function moduleReady(string $moduleCode): bool
+    {
+        return $this->distributor->moduleReady($moduleCode);
+    }
+
+    /**
      * Put the callable into the list to wait for executing until other specified modules has ready.
      *
      * @param string $moduleCode
@@ -995,7 +1014,7 @@ class Module implements ModuleInterface
      *
      * @return $this
      */
-    public function addLazyRoute(string $route, string $path): static
+    public function addLazyRoute(string $route, string|Route $path): static
     {
         // Parse HTTP method prefix (e.g., 'POST /submit' → method='POST', route='/submit')
         [$method, $route] = RouteDispatcher::parseMethodPrefix($route);

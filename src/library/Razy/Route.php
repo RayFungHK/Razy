@@ -42,6 +42,16 @@ class Route
     /** @var ?string Optional route name for named route lookups */
     private ?string $name = null;
 
+    /**
+     * Readiness gate (dossier MODULE-LIFECYCLE.md L3): module code whose
+     * schema must be ready before this route executes, or 'self' for the
+     * owning module. Enforced by the dispatcher — a gate that lives in the
+     * handler body is the per-handler isInstalled() check this replaces.
+     *
+     * @var ?string
+     */
+    private ?string $readyGate = null;
+
     /** @var mixed Arbitrary data attached to this route for controller consumption */
     private mixed $data = null;
 
@@ -188,6 +198,33 @@ class Route
     public function getName(): ?string
     {
         return $this->name;
+    }
+
+    /**
+     * Gate this route on another module's readiness (or 'self'): while the
+     * named module is not ready, the framework answers 503 (or 302 into the
+     * wizard when that module declares provision 'wizard') — never a 404,
+     * never a handler writing to tables that do not exist yet.
+     *
+     * @param string $moduleCode 'vendor/module' or 'self'
+     *
+     * @return $this Fluent interface
+     */
+    public function ready(string $moduleCode): self
+    {
+        $this->readyGate = \trim($moduleCode);
+
+        return $this;
+    }
+
+    public function getReadyGate(): ?string
+    {
+        return $this->readyGate;
+    }
+
+    public function hasReadyGate(): bool
+    {
+        return $this->readyGate !== null && $this->readyGate !== '';
     }
 
     /**

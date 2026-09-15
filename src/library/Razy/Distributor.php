@@ -937,6 +937,11 @@ class Distributor implements DistributorInterface
         $this->registry = new ModuleRegistry($this, $autoload);
         $this->scanner = new ModuleScanner($this);
         $this->router = new RouteDispatcher();
+        // Route `ready` gates answer through THIS predicate — one readiness
+        // policy, one door (MODULE-LIFECYCLE.md L3 wires what L1 derived)
+        $this->router->setReadinessProbe(
+            fn (string $moduleCode): bool => $this->moduleReady($moduleCode),
+        );
         $this->prerequisites = new PrerequisiteResolver($this->distCode, $this);
 
         if ($container = $this->getContainer()) {

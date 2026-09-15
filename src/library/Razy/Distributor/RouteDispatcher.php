@@ -17,6 +17,7 @@ namespace Razy\Distributor;
 use Closure;
 use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
+use Razy\Exception\HttpException;
 use Razy\Exception\RedirectException;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
@@ -51,6 +52,16 @@ class RouteDispatcher
 
     /** @var bool Whether routes need re-sorting before next match */
     private bool $routesDirty = false;
+
+    /**
+     * Readiness probe for route `ready` gates (dossier MODULE-LIFECYCLE.md
+     * L3): injected by the Distributor as `moduleReady(...)` — the dispatcher
+     * never learns how readiness is computed, only that it answers per
+     * module code. A gate declared without a probe fails loud and refuses.
+     *
+     * @var ?callable(string): bool
+     */
+    private $readinessProbe = null;
 
     /** @var bool Whether CLI scripts need re-sorting before next match */
     private bool $scriptsDirty = false;
@@ -153,6 +164,16 @@ class RouteDispatcher
     }
 
     /**
+     * Install the readiness probe (Distributor::moduleReady lineage).
+     */
+    public function setReadinessProbe(callable $probe): static
+    {
+        $this->readinessProbe = $probe;
+
+        return $this;
+    }
+
+    /**
      * Set up a standard route.
      *
      * @param Module $module
@@ -199,6 +220,7 @@ class RouteDispatcher
             'redirect_target' => $redirectTarget,
             'tidied_path' => $tidiedPath,
             'tidied_route' => PathUtil::tidy('/' . $route, false, '/'),
+            'ready_gate' => $path instanceof Route && $path->hasReadyGate() ? $path->getReadyGate() : null,
         ];
         $this->routesDirty = true;
 
@@ -245,11 +267,11 @@ class RouteDispatcher
      *
      * @param Module $module The module entity
      * @param string $route The route path string
-     * @param string $path The closure path of method
+     * @param string|Route $path The closure path of method (a Route entity may carry a readiness gate)
      *
      * @return $this
      */
-    public function setLazyRoute(Module $module, string $route, string $path, string $method = '*'): static
+    public function setLazyRoute(Module $module, string $route, string|Route $path, string $method = '*'): static
     {
         $routePath = '/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/');
         $routeKey = \strtoupper($method) . ':' . $routePath;
@@ -260,8 +282,14 @@ class RouteDispatcher
             'route_path' => $routePath,
             'type' => 'lazy',
             'method' => \strtoupper($method),
+            'ready_gate' => $path instanceof Route && $path->hasReadyGate() ? $path->getReadyGate() : null,
         ];
         $this->routesDirty = true;
+
+        // Register named route if the path is a Route object with a name
+        if ($path instanceof Route && $path->hasName()) {
+            $this->registerNamedRoute($path->getName(), $routeKey);
+        }
 
         return $this;
     }
@@ -485,6 +513,14 @@ class RouteDispatcher
                     throw new RedirectException($redirectUrl, 302);
                 }
 
+                // Readiness gate (MODULE-LIFECYCLE.md L3): the answer the ERP
+                // paid 15 handler-whitelist copies for, now enforced HERE,
+                // not by handler discipline. Not-ready never means 404-silence
+                // and never means a handler writing into tables that do not
+                // exist yet — it means 503 (deploy door) or a 302 into the
+                // wizard (declared 'wizard' provision, token-gated at L4).
+                $this->evaluateReadinessGate($data['ready_gate'] ?? null, $data['module'], $registry, $siteURL);
+
                 // Determine the executor: shadow routes delegate to the target module
                 $executor = (isset($data['target'])) ? $data['target'] : $data['module'];
                 if (!$path || !($closure = $executor->getClosure($path))) {
@@ -617,6 +653,41 @@ class RouteDispatcher
     }
 
     /**
+     * Enforce a route's readiness gate (dossier MODULE-LIFECYCLE.md L3).
+     * Returns quietly when the gate passes; throws the framework's answer
+     * when it does not. Public for testability — production enters through
+     * matchRoute(), which calls this at the single, pre-execution door.
+     *
+     * @throws RedirectException when the gated module declares 'wizard' provision
+     * @throws HttpException 503 response already delivered
+     *
+     * @internal
+     */
+    public function evaluateReadinessGate(?string $readyGate, Module $owner, ModuleRegistry $registry, string $siteURL): void
+    {
+        if ($readyGate === null || $readyGate === '') {
+            return; // ungated route — the overwhelming majority, zero cost
+        }
+
+        $gateCode = $readyGate === 'self' ? $owner->getModuleInfo()->getCode() : $readyGate;
+
+        if ($this->readinessProbe === null) {
+            // A gate without a probe is a wiring bug, not a verdict.
+            \trigger_error(
+                'Razy: a route declares ready => \'' . $readyGate . '\' but no readiness probe is installed.',
+                E_USER_WARNING,
+            );
+            $gateReady = false;
+        } else {
+            $gateReady = ($this->readinessProbe)($gateCode);
+        }
+
+        if (!$gateReady) {
+            $this->respondNotReady($gateCode, $registry, $siteURL);
+        }
+    }
+
+    /**
      * Register a named route mapping.
      *
      * @param string $name The route name
@@ -632,5 +703,59 @@ class RouteDispatcher
             );
         }
         $this->namedRoutes[$name] = $routeKey;
+    }
+
+    /**
+     * Answer a not-ready gate (dossier MODULE-LIFECYCLE.md L3). The named
+     * module ships the answer style itself through its declared provision:
+     * 'wizard' gets a 302 into the framework wizard runner (token-gated at
+     * L4 — until the runner lands, the route simply 404s at the target);
+     * anything else gets a 503 naming the module and the exact deploy
+     * command, JSON-shaped for XHR. Response headers are sent HERE; the
+     * HttpException then ends the request through main.php's graceful
+     * HttpException pass (same contract as RedirectException).
+     *
+     * @throws RedirectException 302 for declared-wizard modules
+     * @throws HttpException 503 response already delivered
+     */
+    private function respondNotReady(string $gateCode, ModuleRegistry $registry, string $siteURL): never
+    {
+        $target = $registry->get($gateCode);
+
+        if ($target !== null && $target->getModuleInfo()->getProvision() === 'wizard') {
+            $url = PathUtil::append($siteURL, '__setup/' . \rawurlencode($gateCode));
+
+            throw new RedirectException($url, 302);
+        }
+
+        $fix = 'php Razy.phar migrate <dist>  (inspect first: php Razy.phar migrate <dist> --status)';
+        $wantsJson = \strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
+            || \str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+
+        \http_response_code(503);
+        \header('Retry-After: 60');
+
+        if ($wantsJson) {
+            \header('Content-Type: application/json; charset=utf-8');
+            echo \json_encode([
+                'error' => 'module-not-ready',
+                'module' => $gateCode,
+                'message' => "Module '{$gateCode}' is not ready: its declared migrations have not been applied.",
+                'fix' => $fix,
+            ], JSON_UNESCAPED_SLASHES);
+        } else {
+            \header('Content-Type: text/html; charset=utf-8');
+            echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>503 — module not ready</title></head>'
+                . '<body style="font-family:system-ui,sans-serif;max-width:38rem;margin:4rem auto;padding:0 1rem">'
+                . '<h1>503 — module not ready</h1>'
+                . '<p>Module <code>' . \htmlspecialchars($gateCode, ENT_QUOTES, 'UTF-8')
+                . '</code> is installed but its declared migrations have not been applied yet.</p>'
+                . '<p>Deploy its schema, then retry:</p><pre>' . \htmlspecialchars($fix, ENT_QUOTES, 'UTF-8') . '</pre>'
+                . '<p><small>This answer is derived from the migration ledger at request time — '
+                . 'apply the migrations and the very next request passes.</small></p>'
+                . '</body></html>';
+        }
+
+        throw new HttpException(503, "Route refused: module '{$gateCode}' is not ready.");
     }
 }

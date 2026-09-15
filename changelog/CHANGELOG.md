@@ -9,6 +9,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** MODULE-LIFECYCLE L3 — the readiness gate at the dispatcher, the answer the ERP paid 15
+  handler-whitelist copies for. `Route::ready('vendor/mod')` (or `'self'`) gates a route;
+  `$agent->readyRoutes('self')` gates every route a module registers afterwards (explicit per-route gates
+  win; CLI script routes never gate). A not-ready gate never answers 404-silence and never lets a handler
+  write into tables that do not exist: `deploy`-provision modules get a framework **503** naming the
+  module and the exact `php Razy.phar migrate <dist>` fix (JSON for XHR, `Retry-After: 60`), declared
+  `wizard`-provision modules flip the same verdict to a **302** into `/__setup/<code>` (the token-gated
+  L4 runner answers there; until then the redirect target simply 404s). The gate runs through ONE door —
+  `RouteDispatcher::evaluateReadinessGate()` before the executor is even resolved — answering via a probe
+  seam the Distributor wires to the L1 `moduleReady()` predicate, so there is one readiness policy;
+  a gate without its probe warns loud and refuses closed. Honest deviations: the dossier's illustrative
+  `['main', 'ready' => …]` leaf syntax collides with lazy-registry directory semantics (an array value is
+  a folder level), so the `Route` entity carries the gate — and `Module::addLazyRoute()` widened to
+  accept it, deliberately reversing the pinned TypeError that previously rejected Route entities there;
+  gating is EXPLICIT opt-in only — existing modules with pending ledgers keep serving, auto-gating them
+  would have been an unannounced 503 (BC); the handler-side helper promised in the L1 commit lands as
+  `Controller::moduleReady()` (via a `Module::moduleReady()` proxy, `hasModule` lineage) documented as
+  internal-logic branching only — request admission belongs to the route door, not handler bodies. Suite 5,470 → 5,485 (`tests/ModuleLifecycleL3Test.php`; the dispatch call-site order is
+  source-pinned since `matchRoute()` itself is untestable end-to-end under the CLI_MODE test bootstrap).
 - **Added** MODULE-LIFECYCLE L2 — the operator surface. `php Razy.phar module status <dist>` renders the
   derived-state table (code, version, provision, enabled, pending, ready) with deploy-gate exit codes: a
   pending migration or an UNREACHABLE ledger exits non-zero — the gate refuses what it cannot see.
