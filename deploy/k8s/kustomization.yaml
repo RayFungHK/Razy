@@ -59,7 +59,7 @@ images:
   # production: `kubectl -n razy-prod set image deployment/razy-worker
   # worker=<registry>/razy/worker@sha256:<digest>`, or set `digest:` here.
   - name: registry.example.com/razy/worker
-    newTag: "1.1.0-beta"
+    newTag: "1.1.0-beta.1"
     # digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
 # ---- Examples you will probably need -----------------------------------------
@@ -76,7 +76,7 @@ images:
 # images:
 #   - name: registry.example.com/razy/worker
 #     newName: registry.internal/razy/worker
-#     newTag: "1.1.0-beta-a1b2c3d"
+#     newTag: "1.1.0-beta.1-a1b2c3d"
 #
 # 3) A cluster-specific patch (example: raise num_threads alongside CPU):
 #

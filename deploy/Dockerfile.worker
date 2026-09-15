@@ -20,11 +20,11 @@
 #
 # BUILD (context = repo root, like the benchmark image)
 #   docker build -f deploy/Dockerfile.worker \
-#     -t registry.example.com/razy/worker:1.1.0-beta .
+#     -t registry.example.com/razy/worker:1.1.0-beta.1 .
 #   (BuildKit is on by default in Docker Engine >= 23; set DOCKER_BUILDKIT=1 otherwise.)
 #
 # RUN
-#   docker run --rm -p 8080:8080 registry.example.com/razy/worker:1.1.0-beta
+#   docker run --rm -p 8080:8080 registry.example.com/razy/worker:1.1.0-beta.1
 #   curl -s localhost:8080/_razy/health
 #
 # LAYOUT (identical to the proven benchmark image, benchmark/docker/Dockerfile.razy)
