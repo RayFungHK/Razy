@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** RZ-015 — framework core keeps **zero third-party runtime dependencies** (rules-doc section +
+  AGENTS.md table): PSR-18/7 interop lives in modules or standalone packages. OAuth dossier sign-off
+  (Q1–Q5 all per recommendation, 2026-09-17): guard-seam-only identity + `social.user_resolved`, signed
+  stateless `state` default, `OAuth2`/`Office365SSO` names kept but internals to be replaced (labels
+  applied in CLASS-CATALOG), insecure transport single escape `RAZY_ALLOW_INSECURE_TRANSPORT=1`, provider
+  secrets in env. ADR-1 recorded in PORTING-VALUE.md; build scope S0–S3+S5 authorised (S4 OAuth 1.0a
+  stays deferred). Docs/policy only — zero code touched.
 - **Changed** `queue` CLI — **fail-loud rework** (dossier PERMISSION-MODULE.md Q3 tail, the half of the
   P2 phantom the S1.5 fix left open): the resolver no longer swallows `Throwable` into one anonymous
   "check database connection" line that exit(0)'d. Failure class 1 — no registered-AND-connected shared

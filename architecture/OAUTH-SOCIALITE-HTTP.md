@@ -252,7 +252,7 @@ RZ-012-clean (additive signatures / new classes only), and RZ-014-clean (tests s
 
 | Step | Change | Files / classes | Size + tests |
 |---|---|---|---|
-| **S0 Decide + label (day 0)** | Adopt this decision as an ADR line in `PORTING-VALUE.md`; mark `OAuth2`/`Office365SSO` "unwired, untested" in `CLASS-CATALOG.md:72-73`; no API change | `architecture/*.md`, `CLASS-CATALOG.md` | XS · 0 tests |
+| **S0 Decide + label (day 0)** — ✅ **SHIPPED 2026-09-17** (same-day sign-off: Q1–Q5 all per recommendation; ADR-1 in `PORTING-VALUE.md` (which also closes its own stale Tier-2 'NOT VERIFIED' row + pre-flight #2 'still open' row); CLASS-CATALOG labels applied; RZ-015 in rules-doc + AGENTS table) | Adopt this decision as an ADR line in `PORTING-VALUE.md`; mark `OAuth2`/`Office365SSO` "unwired, untested" in `CLASS-CATALOG.md:72-73`; no API change | `architecture/*.md`, `CLASS-CATALOG.md` | XS · 0 tests |
 | **S1 One door (HTTP)** | Harden `HttpClient`: HTTPS-only default via `isSecureUrl` + `RAZY_ALLOW_INSECURE_TRANSPORT` parity (`PackageVerifier.php:173-181`), mandatory timeouts, `MAXREDIRS 3`, Content-Type-aware body parse (JSON **and** urlencoded), `Accept` control, `withBasicAuth` usable on token calls, `redirect(int $status)` helper (302); new `Razy\Http\ClientInterface` + `HttpTransportException`; **migrate** `publish.inc.php` (10 sites), `RepositoryManager.php:585-609`, `RepoInstaller` (7), `HttpTransport.php:83-114`, `OAuth2.php:341-435`, `Office365SSO` (2), `install/pkg/sync` downloads | `src/library/Razy/Http/{HttpClient,HttpResponse,ClientInterface,HttpTransportException}.php`, `src/system/terminal/publish.inc.php`, `src/library/Razy/{RepositoryManager,RepoInstaller,OAuth2,Office365SSO}.php`, `src/library/Razy/PackageManager/HttpTransport.php` | **M (~4–5 d)** · extend `tests/HttpClientTest.php` (798 lines today, option-assertion style `:686`) + `tests/HttpTransportPolicyTest.php` for the URL gate; refactor is behaviour-preserving so existing 147 test files are the regression net |
 | **S2 OAuth2 core** | New `Razy\Security\OAuth2` (rewrite in place or new namespace) on `HttpClient`: PKCE S256 always-on, state gen+bind (option C, A fast-path), single-use nonce via `Cache`, `redirect_uri` exact-match, RFC 6749 §5.2 error mapping, refresh, provider contract (4 methods) + registry | `src/library/Razy/Security/OAuth/{OAuth2,ProviderInterface,StateSigner,TokenResponse,Provider/*}.php` (names TBD), `Exception/OAuthException.php` reuse | **M (~5 d)** · `tests/OAuth2Test.php`: RFC 7636 **Appendix B vector** (`dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk` → `E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM`), verifier length 43–128, `plain` never offered, state mismatch + replay, urlencoded token body (GitHub shape), Basic-vs-body auth, error JSON → exception; **no network** — inject the client (the reason `ClientInterface` exists) |
 | **S3 Provider pack: GitHub + Google** | `GithubProvider` (S256-only, `Accept: application/json`, `api.github.com/user`, scopes `read:user user:email`), `GoogleProvider` (`accounts.google.com/o/oauth2/v2/auth`, `oauth2.googleapis.com/token`, `access_type=offline`, `prompt`, `hd`, claims via `sub` **not** email); `Office365SSO` re-expressed on the new core, deprecated-but-supported | `src/library/Razy/Security/OAuth/Provider/{GithubProvider,GoogleProvider}.php`, `Office365SSO.php` | S–M (~3 d) · fixture-driven tests per provider (request-shape assertions + `sub`/`aud`/`exp`/`iss` cases) |
@@ -268,6 +268,10 @@ a framework users-table (Q1 — app/module territory).
 
 ## 9. Open questions for the maintainer
 
+> **SIGN-OFF 2026-09-17:** the maintainer chose **every question per recommendation**
+> (banners below), and **authorised the build scope S0–S3 + S5** (S4 OAuth 1.0a stays
+> deferred per §8's own rule — no named provider). RZ-015 is law from this date.
+
 - **Q1 — Who owns the user row?** Nothing in `src/` or `modules/` persists an identity
   (`GuardInterface:32-69` has no `login/logout`; no `users` migration anywhere).
   *Recommendation*: framework ships the guard seam + fires `social.user_resolved`
@@ -275,20 +279,30 @@ a framework users-table (Q1 — app/module territory).
   `razymod/accounts`. Do **not** add a `users` table to core — it collides with RZ-008 and with
   every host app's schema. (This is the same queue the permission/`Gate` layer sits in —
   `Auth/Gate.php` exists with no identity to authorize.)
+  → **DECIDED 2026-09-17: per recommendation** — guard seam + `social.user_resolved`
+  event only; no `users` table in core, ever (same doctrine as PERMISSION-MODULE Q1).
 - **Q2 — State binding default**: signed stateless `state` (option C) as default with `$_SESSION`
   fast path, or require apps to install session-cookie wiring first?
   *Recommendation*: signed state as default; it is the only option that works for a module that
   cannot assume cookie plumbing — the exact reason `queue-admin` shipped double-submit
   (`support/csrf.php:5-13`).
+  → **DECIDED 2026-09-17: per recommendation** — signed stateless state is the default;
+  `$_SESSION` is an optional fast path, never a prerequisite.
 - **Q3 — Fate of `Razy\OAuth2` / `Office365SSO`**: they are advertised (`readme.md:56`,
   `CLASS-CATALOG.md:72-73`) but untested and unwired, and `tests/Razy-Feature-TestCases.md:4392-4398`
   documents a constructor that does not exist.
   *Recommendation*: keep both class names (RZ-012 additive), reimplement internals on the client,
   add S2's tests, and correct the feature-test doc in the same commit.
+  → **DECIDED 2026-09-17: per recommendation** — names survive (RZ-012), internals are
+  replaced; the `tests/Razy-Feature-TestCases.md:4392-4398` phantom constructor is
+  corrected in the S2 commit that makes the truth possible (CLASS-CATALOG labels
+  already applied in S0).
 - **Q4 — Formal dependency policy**: codify "framework core = zero third-party runtime deps,
   forever; PSR-18/7 interop lives in modules or standalone packages (`PackageRunner:93-145`)".
   *Recommendation*: yes, one paragraph in `skills/RAZY-AI-RULES.md` as a new rule ID — the
   absence of this rule is what makes "just add Guzzle" look cheap.
+  → **DECIDED 2026-09-17: SHIPPED as RZ-015** (RAZY-AI-RULES section + AGENTS.md short
+  table; human rule — the module lint tool has nothing core-scoped to scan there).
 - **Q5 — HTTPS strictness + secret storage**: default-deny `http://` in the new client would
   break local/plain-HTTP mirrors; and `client_secret` would sit in
   `SYSTEM_ROOT/config/<dist>/<Module>.php` (`Module.php:1052-1056`) with no secret convention.
@@ -296,6 +310,8 @@ a framework users-table (Q1 — app/module territory).
   one env var) and read provider secrets from env with the config file holding a reference, not
   the literal secret — matching the `RAZY_BRIDGE_SECRET`/`RAZY_REGISTRY_*` precedent
   (`BridgeSignature.php:32-45`).
+  → **DECIDED 2026-09-17: per recommendation** — `RAZY_ALLOW_INSECURE_TRANSPORT=1` is
+  the single escape hatch; provider secrets live in env, config holds references only.
 
 ## 10. Doc-drift ledger (code wins)
 

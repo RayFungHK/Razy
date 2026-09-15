@@ -34,6 +34,7 @@ The Golden Rules below are the short form; rule IDs are stable and quotable.
 | RZ-012 | Changing a released module's API/event surface without version discipline | semver in `module.php`/`package.php`; new major dir for breaking |
 | RZ-013 | Hand-editing generated rewrite/Caddyfile output; routes bypassing `Agent` | `addRoute`/`addLazyRoute`/`group` + `php Razy.phar rewrite` |
 | RZ-014 | Shipping an API command with no test; weakening `phpstan.neon`/fixer config to pass | Tests for every published command; `composer quality` |
+| RZ-015 | Third-party runtime dependency in framework core (`src/`) | Harden the in-house primitive, or ship the dependency in a module/package (RZ-007 manifest) — core stays dependency-free |
 
 ## Definition of done (every change)
 

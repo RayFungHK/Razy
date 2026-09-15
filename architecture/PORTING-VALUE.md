@@ -37,7 +37,7 @@ Primitives Razy already ships (all code-verified this line of work):
 |---|---|---|
 | **API tokens** (Laravel Sanctum) | auth stack exists (`AuthManager`/`Gate`, tested — ORM dossier §4.3); remaining survey is narrower than feared | M (−1 d: pre-answered) |
 | **Media library** (spatie/laravel-medialibrary) | GD/Imagick conversion config layer; RZ-006 file sovereignty is actually a plus (media per module data path) | M–L |
-| **OAuth social login** (Socialite) | HTTP client primitive **NOT VERIFIED** — probe `src/` for a cURL/HTTP wrapper first; absence makes this an implicit XL | M or XL (survey decides) |
+| **OAuth social login** (Socialite) | RESOLVED by [`OAUTH-SOCIALITE-HTTP.md`](OAUTH-SOCIALITE-HTTP.md): HTTP primitive exists (`Razy\Http\HttpClient`) but unhardened; in-house client + OAuth2 core chosen (option i′). S0–S3+S5 **AUTHORISED 2026-09-17** — see ADR-1 below | M (survey closed) |
 | **Job batches / retry UI** | pure Queue extension (batch columns on the store) | S–M; ship with dashboard |
 
 ## Reframed (looks like a port, isn't — or already exists)
@@ -66,7 +66,8 @@ If ever started, begin by specifying a forms/validation DSL — the pinned
 - **Pre-flight surveys**:
   1. auth hook-site surface — **DONE** (ORM dossier §4.3: AuthManager/Gate::policy per
      model class, tested); role→principal wiring remains for the permission module design;
-  2. HTTP client existence (→ Socialite go/no-go) — still open.
+  2. HTTP client existence (→ Socialite go/no-go) — **DONE** (OAuth dossier: `HttpClient`
+     exists, cURL-backed; hardened in-house per ADR-1, not replaced).
 
 ## Standing caveats
 
@@ -75,3 +76,16 @@ If ever started, begin by specifying a forms/validation DSL — the pinned
   tests from day one.
 - Multi-distributor scoping changes data models (add `distributor_id` discipline early);
   retrofitting it later is the expensive mistake to avoid.
+
+## ADR-1 (2026-09-17) — Social login: in-house OAuth2 on a hardened HttpClient
+
+**Decided** (OAuth dossier Q1–Q5, all per recommendation): (i′) in-house — harden
+`Razy\Http\HttpClient` (S1), build `OAuth2` core on it with PKCE S256 always-on and
+signed stateless `state` default (S2), GitHub+Google provider pack with
+`Office365SSO` re-expressed on the new core (S3), shipped to consumers as
+`razymod/oauth` (S5). Framework core takes **zero third-party runtime dependencies —
+now codified as RZ-015**. No `users` table in core (Q1: guard seam +
+`social.user_resolved` event, identity stays app-side); old class names survive
+(Q3: RZ-012 additive, internals replaced); `RAZY_ALLOW_INSECURE_TRANSPORT=1` is the
+single insecure-transport escape and provider secrets live in env with config
+holding references (Q5). OAuth 1.0a signer (S4) stays deferred — no named provider.

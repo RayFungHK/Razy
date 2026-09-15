@@ -69,8 +69,8 @@
 | 21 | `Razy\Mailer` | class | SMTP 郵件發送器，支援附件、HTML/純文字、CC/BCC、TLS/SSL、非同步 | — |
 | 22 | `Razy\Module` | class | 模組生命週期管理核心；包裝 Controller 與 ModuleInfo 元資料 | ✏️ **[Phase 2.3]** DI 改造 — 透過 Container 解析子物件（`createAgent()`/`createThreadManager()`）<br>✏️ **[Phase 4.2]** 錯誤改用 `ModuleException` / `ModuleLoadException`<br>✏️ **[Phase 5.1]** 移除 7 個 `@deprecated` STATUS_* 常量 |
 | 23 | `Razy\ModuleInfo` | class | 模組不可變元資料描述（code、version、prerequisites、assets） | ✏️ **[Phase 4.2]** 錯誤改用 `ModuleConfigException`<br>✏️ **[Phase 5.2]** 改用 `ConfigLoader` 載入設定<br>✏️ **[Phase 5.3]** 延遲初始化（首次存取才載入 config） |
-| 24 | `Razy\OAuth2` | class | OAuth 2.0 授權碼流程處理器 | — |
-| 25 | `Razy\Office365SSO` | class | Microsoft Office 365 / Azure AD SSO 認證客戶端 | — |
+| 24 | `Razy\OAuth2` | class | OAuth 2.0 授權碼流程處理器 | ⚠️ **[2026-09-17 OAuth dossier] unwired, untested** — advertised since v0.5.x with zero call sites and zero tests; reimplemented on the hardened HTTP client per S1–S2 (Q3 DECIDED: name kept, internals replaced) |
+| 25 | `Razy\Office365SSO` | class | Microsoft Office 365 / Azure AD SSO 認證客戶端 | ⚠️ **[2026-09-17 OAuth dossier] unwired, untested** — same fate as `OAuth2`; re-expressed on the new core per S3 (Q3 DECIDED) |
 | 26 | `Razy\PackageManager` | class | Packagist 相容的套件下載、解壓、管理 | — |
 | 27 | `Razy\Pipeline` | class | 串聯式 Action 管線，用於資料處理與驗證 | — |
 | 28 | `Razy\PluginManager` | class | Template/Collection/Pipeline/Statement 的集中插件註冊中心 | — |

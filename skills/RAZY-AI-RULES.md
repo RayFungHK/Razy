@@ -348,6 +348,19 @@ PSR-12 via php-cs-fixer (config `.php-cs-fixer.dist.php` only — do not create 
 `ignoreErrors` entries), `composer test` green. The 50% coverage gate may not be
 weakened.
 
+## RZ-015 — Framework core has zero third-party runtime dependencies (error)
+
+**Statement.** `src/` (the framework phar) may not depend on any third-party runtime
+package — no Guzzle, no league/*, no symfony/* beyond their PSR *contracts*, forever.
+Interop with the wider PHP world lives in modules or standalone packages
+(`PackageRunner:93-145`), which carry their own `require` manifests (RZ-007); PSR-18
+HTTP and PSR-7 message consumers belong there, not in core. When a primitive looks
+missing ("just add Guzzle"), the correct move is to harden the in-house equivalent
+(HttpClient, OAuth2, …) or to ship the dependency inside a module/package — never to
+import it into core. Decided 2026-09-17 (OAuth dossier Q4) because the absence of
+this rule made "just add Guzzle" look cheap. Human rule (the lint tool scans module
+code, not `src/`); enforced in review + CI diff guards on `composer.json` `require`.
+
 ---
 
 ## Appendix A — Agent pre-PR checklist
