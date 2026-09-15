@@ -9,7 +9,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
-_(nothing pending — post-v1.1.0-beta.1 work accumulates here)_
+- **Changed** `queue` CLI — **fail-loud rework** (dossier PERMISSION-MODULE.md Q3 tail, the half of the
+  P2 phantom the S1.5 fix left open): the resolver no longer swallows `Throwable` into one anonymous
+  "check database connection" line that exit(0)'d. Failure class 1 — no registered-AND-connected shared
+  instance — names the actual gap ("The queue CLI opens no connection itself") plus the bootstrap fix;
+  failure class 2 — store construction throws — surfaces class + message verbatim. All five subcommands
+  (`work`/`once`/`status`/`clear`/`retry`) `exit(1)` on resolver-null, retry's usage error too; the dead
+  `class_exists(QueueManager::class)` guard is gone. The original phantom symptom — a worker "running"
+  forever against nothing while reporting success — is now structurally impossible. 5 source-pinned
+  tests (`tests/QueueCommandTest.php`, MigrateCommandTest house style).
 
 ## [v1.1.0-beta.1](changelog/v1.1.0-beta.1.md) — 2026-09-17
 

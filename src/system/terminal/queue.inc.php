@@ -43,24 +43,36 @@ return function () {
         }
     }
 
-    // Resolve QueueManager — requires a database connection
+    // Resolve QueueManager over the shared 'main' database. Fail-loud rework
+    // (dossier PERMISSION-MODULE.md Q3 tail): the pre-rework version swallowed
+    // Throwable, and every failure collapsed into one anonymous "check
+    // database connection" line that exit(0)'d. The queue CLI establishes NO
+    // connection itself, so naming the failure class IS the fix path:
+    //   shared instance absent   -> bootstrap never registered AND connected
+    //   construction throws      -> exception class + message, verbatim
+    // Callers exit(1) on null: a queue command that cannot reach the queue is
+    // never a silent zero again (the original phantom symptom was a worker
+    // that "ran" forever against nothing, reporting success).
     $getManager = function (): ?QueueManager {
-        try {
-            // Attempt to get the QueueManager from the framework
-            if (\class_exists(QueueManager::class)) {
-                // Try to create a QueueManager using the default database
-                $db = Database::getSharedInstance();
-                if ($db !== null) {
-                    $store = new Queue\DatabaseStore($db);
+        $db = Database::getSharedInstance();
 
-                    return new QueueManager($store);
-                }
-            }
-        } catch (Throwable $e) {
-            // Fall through
+        if ($db === null) {
+            $this->writeLineLogging('{@c:red}Error: no registered-and-connected database.{@reset} The queue CLI opens no connection itself - register AND connect one (e.g. \'main\') in your bootstrap; see Database::getSharedInstance().');
+
+            return null;
         }
 
-        return null;
+        try {
+            return new QueueManager(new Queue\DatabaseStore($db));
+        } catch (Throwable $e) {
+            $this->writeLineLogging(\sprintf(
+                '{@c:red}Error: queue store construction failed: %s: %s{@reset}',
+                \get_class($e),
+                $e->getMessage()
+            ));
+
+            return null;
+        }
     };
 
     switch ($subcommand) {
@@ -81,8 +93,7 @@ return function () {
 
             $manager = $getManager();
             if ($manager === null) {
-                $this->writeLineLogging('{@c:red}Error: Could not initialize QueueManager. Check database connection.{@reset}');
-                break;
+                exit(1); // the resolver named the reason, fail-loud (Q3)
             }
 
             $manager->ensureStorage();
@@ -163,8 +174,7 @@ return function () {
         case 'once':
             $manager = $getManager();
             if ($manager === null) {
-                $this->writeLineLogging('{@c:red}Error: Could not initialize QueueManager.{@reset}');
-                break;
+                exit(1); // the resolver named the reason, fail-loud (Q3)
             }
 
             $manager->ensureStorage();
@@ -180,8 +190,7 @@ return function () {
         case 'status':
             $manager = $getManager();
             if ($manager === null) {
-                $this->writeLineLogging('{@c:red}Error: Could not initialize QueueManager.{@reset}');
-                break;
+                exit(1); // the resolver named the reason, fail-loud (Q3)
             }
 
             $manager->ensureStorage();
@@ -205,8 +214,7 @@ return function () {
         case 'clear':
             $manager = $getManager();
             if ($manager === null) {
-                $this->writeLineLogging('{@c:red}Error: Could not initialize QueueManager.{@reset}');
-                break;
+                exit(1); // the resolver named the reason, fail-loud (Q3)
             }
 
             $manager->ensureStorage();
@@ -222,13 +230,12 @@ return function () {
             $jobId = isset($args[1]) ? (int) $args[1] : 0;
             if ($jobId <= 0) {
                 $this->writeLineLogging('{@c:red}Usage: queue retry <job-id>{@reset}');
-                break;
+                exit(1); // operator usage error, same posture as migrate (Q3)
             }
 
             $manager = $getManager();
             if ($manager === null) {
-                $this->writeLineLogging('{@c:red}Error: Could not initialize QueueManager.{@reset}');
-                break;
+                exit(1); // the resolver named the reason, fail-loud (Q3)
             }
 
             $manager->ensureStorage();
