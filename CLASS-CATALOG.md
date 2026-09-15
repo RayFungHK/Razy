@@ -69,7 +69,7 @@
 | 21 | `Razy\Mailer` | class | SMTP 郵件發送器，支援附件、HTML/純文字、CC/BCC、TLS/SSL、非同步 | — |
 | 22 | `Razy\Module` | class | 模組生命週期管理核心；包裝 Controller 與 ModuleInfo 元資料 | ✏️ **[Phase 2.3]** DI 改造 — 透過 Container 解析子物件（`createAgent()`/`createThreadManager()`）<br>✏️ **[Phase 4.2]** 錯誤改用 `ModuleException` / `ModuleLoadException`<br>✏️ **[Phase 5.1]** 移除 7 個 `@deprecated` STATUS_* 常量 |
 | 23 | `Razy\ModuleInfo` | class | 模組不可變元資料描述（code、version、prerequisites、assets） | ✏️ **[Phase 4.2]** 錯誤改用 `ModuleConfigException`<br>✏️ **[Phase 5.2]** 改用 `ConfigLoader` 載入設定<br>✏️ **[Phase 5.3]** 延遲初始化（首次存取才載入 config） |
-| 24 | `Razy\OAuth2` | class | OAuth 2.0 授權碼流程處理器 | ⚠️ **[2026-09-17 OAuth dossier] unwired, untested** — advertised since v0.5.x with zero call sites and zero tests; reimplemented on the hardened HTTP client per S1–S2 (Q3 DECIDED: name kept, internals replaced) |
+| 24 | `Razy\OAuth2` | class | OAuth 2.0 授權碼流程處理器 | ⚠️ **[2026-09-17 OAuth dossier] superseded** — advertised since v0.5.x unwired; internals now run on the hardened HTTP client (S2 heart-swap, Q3: name kept) and are pinned by `OAuth2CoreTest`. Build on `Razy\Security\OAuth\OAuth2` instead (PKCE S256, signed single-use state, §5.2 mapping) |
 | 25 | `Razy\Office365SSO` | class | Microsoft Office 365 / Azure AD SSO 認證客戶端 | ⚠️ **[2026-09-17 OAuth dossier] unwired, untested** — same fate as `OAuth2`; re-expressed on the new core per S3 (Q3 DECIDED) |
 | 26 | `Razy\PackageManager` | class | Packagist 相容的套件下載、解壓、管理 | — |
 | 27 | `Razy\Pipeline` | class | 串聯式 Action 管線，用於資料處理與驗證 | — |
@@ -399,3 +399,20 @@
 | `Razy\Auth\AccessDeniedException` | class | `authorize()` 拒絕型異常 | 發佈面 |
 
 刻意未列入＝尚不存在：`TokenGuard`、框架內建 permission 表層（屬 `razymod/permissions` 計畫 S2 起）。
+
+## 附錄 2026-09 — `Razy\Security\OAuth\*` 授權核心（S2 落地，本附錄為代碼實查）
+
+> 決策與流程設計：`architecture/OAUTH-SOCIALITE-HTTP.md`（Q1–Q5 全數依建議簽核 2026-09-17）。
+> 零依賴（RZ-015）、零網路測試（注入 `ClientInterface`）：28 測 `OAuth2CoreTest`，含 RFC 7636 Appendix B 官方向量。
+
+| 類別 | 形態 | 職責 | 狀態 |
+|------|------|------|------|
+| `Razy\Security\OAuth\OAuth2` | class | 授權碼流程核心：`begin()`（PKCE S256 恆開＋簽名 state）、`exchange()`（state 先驗**永不先觸網**、§5.2 錯誤映射、redirect_uri 精確匹配、單次 nonce 贖回）、`refresh()`（RFC 8707 無 PKCE） | 新增 · S2 |
+| `Razy\Security\OAuth\StateSigner` | class | 簽名單次 state（Q2 方案 C：HMAC + `hash_equals` + provider/redirect_uri 綁定 + TTL）；PKCE verifier 由 Cache 保管、**從不經瀏覽器**；無 cache 即 fail-loud | 新增 · S2 |
+| `Razy\Security\OAuth\TokenResponse` | class (readonly DTO) | token 端點回覆；相對 `expires_in` 落成絕對 `expiresAt` | 新增 · S2 |
+| `Razy\Security\OAuth\OAuthConfig` | class (readonly DTO) | 每流程客戶參數（Q5：調用端從 env/配置組裝，核心不讀 env） | 新增 · S2 |
+| `Razy\Security\OAuth\ProviderInterface` | interface | 提供者契約（Socialite 四方法形＋`authorizeParams` quirk 鉤）；憑證**不在**提供者內（RZ-006/Q5） | 新增 · S2 |
+| `Razy\Security\OAuth\ProviderRegistry` | class | 具名提供者註冊表（非靜態袋，RZ-008） | 新增 · S2 |
+| `Razy\OAuth2`（舊名） | class | **superseded**（Q3 留名換心）：內部改走加固 HttpClient，urlencoded token 回覆不再炸（原缺陷釘入 S2 註解）；`parseJWT`/`validateState`/`isJWTExpired` 原樣保留（`Office365SSO` 依賴，待 S3 改寫） | 換心 · S2 |
+
+刻意未列入＝屬 S3/S5：`Provider\GithubProvider`、`Provider\GoogleProvider`（S3）、`razymod/oauth` 模組面（S5）。

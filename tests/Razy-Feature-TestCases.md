@@ -4384,23 +4384,21 @@ Agent parsed
 
 ## 48. OAuth2 (OAuth2 客戶端)
 
-> `Razy\OAuth2` — OAuth2 授權流程客戶端。
+> `Razy\OAuth2` — OAuth2 授權流程客戶端（**已由 `Razy\Security\OAuth\OAuth2` 取代**：PKCE S256、簽名單次 state、錯誤映射；見 OAuth dossier S2。本類保留原名，內部改走加固 HttpClient）。
 
 ### 48.1 設定 Authorization URL
+
+> 2026-09 修正：本節原為幽靈簽名（`new OAuth2()` 零參與 `getAuthorizationUrl(array)`）。真實構造子是 `__construct(string $clientId, string $clientSecret, string $redirectUri)`，`getAuthorizationUrl()` 不接受參數（2026-09-17 簽核 Q3 指示：換心的同一個 commit 修文件）。
 
 ```php
 use Razy\OAuth2;
 
-$oauth = new OAuth2();
+$oauth = new OAuth2('your-client-id', 'your-secret', 'https://example.com/callback');
 $oauth->setAuthorizeUrl('https://accounts.google.com/o/oauth2/auth');
 $oauth->setTokenUrl('https://oauth2.googleapis.com/token');
+$oauth->setScope('openid email');
 
-$authUrl = $oauth->getAuthorizationUrl([
-    'client_id'     => 'your-client-id',
-    'redirect_uri'  => 'https://example.com/callback',
-    'response_type' => 'code',
-    'scope'         => 'openid email',
-]);
+$authUrl = $oauth->getAuthorizationUrl();
 
 echo str_starts_with($authUrl, 'https://accounts.google.com') ? 'URL generated' : 'Failed';
 ```
@@ -4414,15 +4412,11 @@ URL generated
 
 ### 48.2 getAccessToken
 
+> 2026-09 修正：真實簽名是 `getAccessToken(string $code): array`（client/redirect/grant 參數屬構造子與內部，非呼叫端傳遞）。
+
 ```php
 // 在收到 authorization code 後：
-// $token = $oauth->getAccessToken([
-//     'client_id'     => 'your-client-id',
-//     'client_secret' => 'your-secret',
-//     'code'          => $_GET['code'],
-//     'grant_type'    => 'authorization_code',
-//     'redirect_uri'  => 'https://example.com/callback',
-// ]);
+// $token = $oauth->getAccessToken($_GET['code']);
 // echo $token['access_token'];
 echo 'Token exchange configured';
 ```
@@ -4436,13 +4430,10 @@ Token exchange configured
 
 ### 48.3 refreshAccessToken
 
+> 2026-09 修正：真實簽名是 `refreshAccessToken(string $refreshToken): array`。
+
 ```php
-// $newToken = $oauth->refreshAccessToken([
-//     'client_id'     => 'your-client-id',
-//     'client_secret' => 'your-secret',
-//     'refresh_token' => $refreshToken,
-//     'grant_type'    => 'refresh_token',
-// ]);
+// $newToken = $oauth->refreshAccessToken($refreshToken);
 echo 'Refresh token supported';
 ```
 

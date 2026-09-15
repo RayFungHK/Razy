@@ -22,7 +22,14 @@ use Razy\Exception\OAuthException;
  *
  * Provides a generic OAuth 2.0 authorization code flow implementation that can
  * be used with various OAuth providers. Handles authorization URL generation,
- * token exchange, token refresh, and authenticated API requests via cURL.
+ * token exchange, token refresh, and authenticated API requests.
+ *
+ * **SUPERSEDED by `Razy\Security\OAuth\OAuth2`** (dossier S2): that core is the
+ * one to build on — PKCE S256 always-on, signed single-use state (Q2), RFC
+ * 6749 §5.2 error mapping, no session assumptions. This class survives at its
+ * name (Q3, RZ-012: the surface is advertised) with its internals replaced by
+ * the hardened HttpClient; it has no PKCE and no state custody of its own,
+ * which is exactly why the new core exists.
  *
  * @class OAuth2
  */
@@ -340,34 +347,24 @@ class OAuth2
      */
     public function httpGet(string $url, string $accessToken): array
     {
-        // Initialize cURL with Bearer token authentication
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $accessToken,
-            'Accept: application/json',
-        ]);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = \curl_error($ch);
-        \curl_close($ch);
-
-        // Check for transport-level errors (DNS, timeout, connection refused, etc.)
-        if ($error) {
-            throw new OAuthException('HTTP GET request failed: ' . $error);
+        // S2 heart swap (Q3): the door is the hardened HttpClient now — TLS
+        // verification, timeouts, HTTPS gate and a loud transport failure
+        // instead of cURL-error-string archaeology. Messages kept verbatim;
+        // callers of this class see identical behavior, only better protected.
+        try {
+            $response = (new Http\HttpClient())
+                ->withToken($accessToken)
+                ->withAccept('application/json')
+                ->get($url);
+        } catch (Http\HttpTransportException $e) {
+            throw new OAuthException('HTTP GET request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        // Check for HTTP error status codes (4xx/5xx)
-        if ($httpCode >= 400) {
-            throw new OAuthException('HTTP GET request failed with code ' . $httpCode . ': ' . $response);
+        if ($response->status() >= 400) {
+            throw new OAuthException('HTTP GET request failed with code ' . $response->status() . ': ' . $response->body());
         }
 
-        // Decode and validate the JSON response body
-        $data = \json_decode($response, true);
+        $data = \json_decode($response->body(), true);
         if (\json_last_error() !== JSON_ERROR_NONE) {
             throw new OAuthException('Failed to decode JSON response: ' . \json_last_error_msg());
         }
@@ -397,40 +394,39 @@ class OAuth2
      */
     private function httpPost(string $url, array $params): array
     {
-        // Initialize cURL for POST with form-encoded parameters (standard OAuth2 token exchange)
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
-        \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        \curl_setopt($ch, CURLOPT_POST, true);
-        \curl_setopt($ch, CURLOPT_POSTFIELDS, \http_build_query($params));
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/x-www-form-urlencoded',
-            'Accept: application/json',
-        ]);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = \curl_error($ch);
-        \curl_close($ch);
-
-        // Check for transport-level errors
-        if ($error) {
-            throw new OAuthException('HTTP POST request failed: ' . $error);
+        // S2 heart swap (Q3): the door is the hardened HttpClient. One disclosed
+        // BEHAVIOUR fix rides along: token endpoints answering
+        // x-www-form-urlencoded (GitHub's default, §5 G8) used to die in
+        // json_decode here — Content-Type-aware parsing now sees them. That the
+        // bug stood this long is the dossier's own evidence this pair was
+        // never wired or tested; the new core is.
+        try {
+            $response = (new Http\HttpClient())->send('POST', $url, [
+                'headers' => [
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                    'Accept' => 'application/json',
+                ],
+                'raw_body' => \http_build_query($params, '', '&'),
+            ]);
+        } catch (Http\HttpTransportException $e) {
+            throw new OAuthException('HTTP POST request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        // Check for HTTP error status codes (4xx/5xx)
-        if ($httpCode >= 400) {
-            throw new OAuthException('HTTP POST request failed with code ' . $httpCode . ': ' . $response);
+        if ($response->status() >= 400) {
+            throw new OAuthException('HTTP POST request failed with code ' . $response->status() . ': ' . $response->body());
         }
 
-        // Decode and validate the JSON response body
-        $data = \json_decode($response, true);
+        $data = $response->data();
+
+        if (\is_array($data)) {
+            return $data;
+        }
+
+        $decoded = \json_decode($response->body(), true);
         if (\json_last_error() !== JSON_ERROR_NONE) {
             throw new OAuthException('Failed to decode JSON response: ' . \json_last_error_msg());
         }
 
-        return $data;
+        return $decoded;
     }
 }

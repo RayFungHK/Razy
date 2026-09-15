@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** OAuth 2.0 core — **S2 (dossier)**: new `Razy\Security\OAuth\*` namespace — `OAuth2` (authorization-code
+  flow: PKCE S256 always-on per RFC 7636, signed single-use `state` per Q2 option C, RFC 6749 §5.2 error mapping,
+  exact-match registered `redirect_uri`, state verified BEFORE any network call, Basic or body client auth,
+  Content-Type-aware token parsing — GitHub's urlencoded default finally works), `StateSigner` (HMAC state +
+  `hash_equals`, provider/redirect binding, TTL; PKCE verifier custody via Cache, never through the browser;
+  cacheless configuration fails loud), `TokenResponse` (relative `expires_in` becomes an absolute deadline),
+  `OAuthConfig`, `ProviderInterface` + `ProviderRegistry`. Zero dependencies (RZ-015), zero network in tests —
+  28 new `OAuth2CoreTest` cases include the RFC 7636 Appendix B vector. The legacy `Razy\OAuth2` keeps its name
+  (Q3) with its internals replaced by the hardened HttpClient (transport reasons now reach `OAuthException`;
+  urlencoded token bodies no longer die in `json_decode` — that bug surviving this long is the dossier's own
+  evidence). The phantom `Razy\OAuth2` constructor documented in `tests/Razy-Feature-TestCases.md` §48 is
+  corrected to the real signature in the same commit (signed Q3).
 - **Changed** CLI download doors — **S1 caller migration completed**: `install` (safe-fetch helper + phar download +
   dependency download), `pkg install` and `sync` artifact downloads now run through the hardened `HttpClient`
   (transport reasons reach the operator instead of bare `HTTP 0`; sizes measured from the body). The `install`
