@@ -9,6 +9,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** `Razy\Http\ClientInterface` (injectable narrow seam: `get/post/put/patch/delete/head/options/send`)
+  and `Razy\Http\HttpTransportException` — **`HttpClient` hardening, OAuth dossier S1 first slice**: HTTPS-only
+  default gate reusing the shared `ArchiveSafety::isSecureUrl` primitive (one policy with the package paths;
+  sole escapes `allowInsecureTransport(true)` or `RAZY_ALLOW_INSECURE_TRANSPORT=1`, per signed Q5); cURL-level
+  failures now throw instead of returning the old fabricated status-0 response (fail-loud, same doctrine as
+  the `queue` rework; verified zero readers of the old sentinel); timeouts floored at 1s (`timeout(0)` can no
+  longer mean "wait forever"); `MAXREDIRS` 5→3; `HttpResponse::data()` parses bodies by Content-Type
+  (JSON **and** `x-www-form-urlencoded` — the GitHub token-endpoint shape a JSON-only parser dropped);
+  `redirect(302)` exact-status helper, zero-arg `redirect()` unchanged. 12 tests, zero network.
+  (Caller migration onto the client = S1 continued, next.)
+
 - **Added** RZ-015 — framework core keeps **zero third-party runtime dependencies** (rules-doc section +
   AGENTS.md table): PSR-18/7 interop lives in modules or standalone packages. OAuth dossier sign-off
   (Q1–Q5 all per recommendation, 2026-09-17): guard-seam-only identity + `social.user_resolved`, signed
