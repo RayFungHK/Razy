@@ -43,6 +43,59 @@ final class OAuth2
     }
 
     /**
+     * Decode-and-bind id_token claims (dossier §7 step 9, G11).
+     *
+     * HONEST LABEL, law of this method: it VERIFIES STRUCTURE (audience
+     * exact-match, absolute expiry, issuer regex, optional nonce/hd binds)
+     * and it does NOT verify the signature — full JWK fetch/rotate/verify is
+     * explicitly on the dossier's Do-NOT-build list. Callers may present
+     * results as "claims checked"; they must NEVER say "signature verified".
+     *
+     * @return array<string,mixed> the claims
+     */
+    public static function verifyIdTokenClaims(string $idToken, string $clientId, string $issuerPattern, ?string $expectedNonce = null, ?string $expectedHostedDomain = null): array
+    {
+        $parts = \explode('.', $idToken);
+
+        if (\count($parts) !== 3) {
+            throw new OAuthException('Invalid id_token format (expected three segments).');
+        }
+
+        $claims = \json_decode(StateSigner::b64urlDecode($parts[1]), true);
+
+        if (!\is_array($claims)) {
+            throw new OAuthException('id_token payload is not JSON.');
+        }
+
+        $aud = $claims['aud'] ?? null;
+        $audOk = \is_string($aud) ? \hash_equals($aud, $clientId) : (\is_array($aud) && \in_array($clientId, $aud, true));
+
+        if (!$audOk) {
+            throw new OAuthException('id_token audience does not include this client.');
+        }
+
+        if (!isset($claims['exp']) || !\is_numeric($claims['exp']) || \time() >= (int) $claims['exp']) {
+            throw new OAuthException('id_token is expired or carries no exp.');
+        }
+
+        $iss = $claims['iss'] ?? null;
+
+        if (!\is_string($iss) || \preg_match($issuerPattern, $iss) !== 1) {
+            throw new OAuthException('id_token issuer is not recognized.');
+        }
+
+        if ($expectedNonce !== null && (!isset($claims['nonce']) || !\is_string($claims['nonce']) || !\hash_equals($expectedNonce, $claims['nonce']))) {
+            throw new OAuthException('id_token nonce does not match the login attempt.');
+        }
+
+        if ($expectedHostedDomain !== null && (!isset($claims['hd']) || !\is_string($claims['hd']) || !\hash_equals($expectedHostedDomain, $claims['hd']))) {
+            throw new OAuthException('id_token hosted domain (hd) does not match the required Workspace.');
+        }
+
+        return $claims;
+    }
+
+    /**
      * Build the authorize redirect (the caller answers 302 — never
      * Controller::goto, that one is 301; dossier §7).
      *

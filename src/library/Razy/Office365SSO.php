@@ -24,6 +24,11 @@ use Razy\Exception\OAuthException;
  * Microsoft Entra ID endpoint configuration, Microsoft Graph API integration
  * for user profile retrieval, ID token parsing, and session management.
  *
+ * **SUPERSEDED by `Razy\Security\OAuth\Provider\MicrosoftProvider`** (dossier
+ * S3, Q3: name kept, internals re-expressed). Its cURL pair now runs through
+ * the hardened HttpClient; new code composes the provider on the S2 core
+ * instead of inheriting this class.
+ *
  * @class Office365SSO
  */
 class Office365SSO extends OAuth2
@@ -227,29 +232,16 @@ class Office365SSO extends OAuth2
     public function getUserPhoto(string $accessToken, string $size = '648x648'): ?string
     {
         try {
-            // Request the photo binary data at the specified resolution via Graph API
-            $url = "https://graph.microsoft.com/v1.0/me/photos/{$size}/\$value";
+            // S3 re-expression: the hardened door; a photo-less user answers
+            // 404 and stays the documented silent null (the old shape callers
+            // rely on), and so does a transport failure — profile art is not
+            // identity, its absence is a state, not an error.
+            $response = (new Http\HttpClient())
+                ->withToken($accessToken)
+                ->get("https://graph.microsoft.com/v1.0/me/photos/{$size}/\$value");
 
-            $ch = \curl_init($url);
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-            \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
-            \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-            \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $accessToken,
-            ]);
-
-            $response = \curl_exec($ch);
-            $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            \curl_close($ch);
-
-            // Return photo data only on success; null if user has no photo
-            if ($httpCode === 200) {
-                return $response;
-            }
-
-            return null;
-        } catch (Exception) {
+            return $response->status() === 200 ? $response->body() : null;
+        } catch (Http\HttpTransportException | Exception) {
             return null;
         }
     }
@@ -381,37 +373,26 @@ class Office365SSO extends OAuth2
      */
     public function httpPost(string $url, array $data, string $accessToken): array
     {
-        // Send authenticated JSON POST to Microsoft Graph API
-        $ch = \curl_init($url);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
-        \curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        \curl_setopt($ch, CURLOPT_POST, true);
-        \curl_setopt($ch, CURLOPT_POSTFIELDS, \json_encode($data));
-        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $accessToken,
-            'Content-Type: application/json',
-            'Accept: application/json',
-        ]);
-
-        $response = \curl_exec($ch);
-        $httpCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = \curl_error($ch);
-        \curl_close($ch);
-
-        // Check for transport-level errors
-        if ($error) {
-            throw new OAuthException('HTTP POST request failed: ' . $error);
+        // S3 re-expression (Q3): the hardened door answers for Graph too.
+        // Messages and shapes preserved verbatim for the advertised surface.
+        try {
+            $response = (new Http\HttpClient())->send('POST', $url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ],
+                'raw_body' => \json_encode($data),
+            ]);
+        } catch (Http\HttpTransportException $e) {
+            throw new OAuthException('HTTP POST request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        // Check for HTTP error status codes (4xx/5xx)
-        if ($httpCode >= 400) {
-            throw new OAuthException('HTTP POST request failed with code ' . $httpCode . ': ' . $response);
+        if ($response->status() >= 400) {
+            throw new OAuthException('HTTP POST request failed with code ' . $response->status() . ': ' . $response->body());
         }
 
-        // Decode and validate the JSON response body
-        $decoded = \json_decode($response, true);
+        $decoded = \json_decode($response->body(), true);
         if (\json_last_error() !== JSON_ERROR_NONE) {
             throw new OAuthException('Failed to decode JSON response: ' . \json_last_error_msg());
         }

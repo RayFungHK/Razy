@@ -9,6 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** OAuth provider pack — **S3 (dossier)**: `Security\OAuth\Provider\GithubProvider` (S256-only, UA-bearing
+  user calls, verified+primary email fallback via `/user/emails` — email as CONTACT data), `GoogleProvider`
+  (`access_type=offline`, optional `prompt=consent`/`hd`; identity is **`sub`, not email**, `legacy_sub` still
+  identifies), `MicrosoftProvider` (tenant-aware Entra endpoints, Graph field-selection, Graph object id — not the
+  UPN — as identity, hints, sign-out URL). New `OAuth2::verifyIdTokenClaims`: audience exact-match, absolute expiry,
+  issuer-regex, optional nonce/hd binds — and honest by law: it CHECKS STRUCTURE, never verifies signatures (full
+  JWK machinery stays on the dossier's Do-NOT-build list; results may say "claims checked", never "signature
+  verified"). `Razy\Office365SSO` re-expressed on the hardened client (Q3: name kept; its last two cURL sites died —
+  framework-wide, hand-rolled cURL now exists ONLY inside `HttpClient` and the excluded `SSE` streamer). 19 fixture
+  tests (`OAuthProvidersTest`), zero sockets.
 - **Added** OAuth 2.0 core — **S2 (dossier)**: new `Razy\Security\OAuth\*` namespace — `OAuth2` (authorization-code
   flow: PKCE S256 always-on per RFC 7636, signed single-use `state` per Q2 option C, RFC 6749 §5.2 error mapping,
   exact-match registered `redirect_uri`, state verified BEFORE any network call, Basic or body client auth,

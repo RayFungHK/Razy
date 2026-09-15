@@ -70,7 +70,7 @@
 | 22 | `Razy\Module` | class | 模組生命週期管理核心；包裝 Controller 與 ModuleInfo 元資料 | ✏️ **[Phase 2.3]** DI 改造 — 透過 Container 解析子物件（`createAgent()`/`createThreadManager()`）<br>✏️ **[Phase 4.2]** 錯誤改用 `ModuleException` / `ModuleLoadException`<br>✏️ **[Phase 5.1]** 移除 7 個 `@deprecated` STATUS_* 常量 |
 | 23 | `Razy\ModuleInfo` | class | 模組不可變元資料描述（code、version、prerequisites、assets） | ✏️ **[Phase 4.2]** 錯誤改用 `ModuleConfigException`<br>✏️ **[Phase 5.2]** 改用 `ConfigLoader` 載入設定<br>✏️ **[Phase 5.3]** 延遲初始化（首次存取才載入 config） |
 | 24 | `Razy\OAuth2` | class | OAuth 2.0 授權碼流程處理器 | ⚠️ **[2026-09-17 OAuth dossier] superseded** — advertised since v0.5.x unwired; internals now run on the hardened HTTP client (S2 heart-swap, Q3: name kept) and are pinned by `OAuth2CoreTest`. Build on `Razy\Security\OAuth\OAuth2` instead (PKCE S256, signed single-use state, §5.2 mapping) |
-| 25 | `Razy\Office365SSO` | class | Microsoft Office 365 / Azure AD SSO 認證客戶端 | ⚠️ **[2026-09-17 OAuth dossier] unwired, untested** — same fate as `OAuth2`; re-expressed on the new core per S3 (Q3 DECIDED) |
+| 25 | `Razy\Office365SSO` | class | Microsoft Office 365 / Azure AD SSO 認證客戶端 | ⚠️ **[2026-09-17 OAuth dossier] superseded** — Q3 留名換心（S3）：Graph photo/POST 兩站 cURL 歸零、改走加固 HttpClient；新代码用 `Provider\MicrosoftProvider` 組成於 S2 核心 |
 | 26 | `Razy\PackageManager` | class | Packagist 相容的套件下載、解壓、管理 | — |
 | 27 | `Razy\Pipeline` | class | 串聯式 Action 管線，用於資料處理與驗證 | — |
 | 28 | `Razy\PluginManager` | class | Template/Collection/Pipeline/Statement 的集中插件註冊中心 | — |
@@ -416,3 +416,14 @@
 | `Razy\OAuth2`（舊名） | class | **superseded**（Q3 留名換心）：內部改走加固 HttpClient，urlencoded token 回覆不再炸（原缺陷釘入 S2 註解）；`parseJWT`/`validateState`/`isJWTExpired` 原樣保留（`Office365SSO` 依賴，待 S3 改寫） | 換心 · S2 |
 
 刻意未列入＝屬 S3/S5：`Provider\GithubProvider`、`Provider\GoogleProvider`（S3）、`razymod/oauth` 模組面（S5）。
+
+### S3 追加（同月落地）
+
+| 類別 | 形態 | 職責 | 狀態 |
+|------|------|------|------|
+| `Razy\Security\OAuth\Provider\GithubProvider` | class (ProviderInterface) | GitHub：UA 必備、`/user/emails` verified+primary 回退（email＝聯絡資料） | 新增 · S3 |
+| `Razy\Security\OAuth\Provider\GoogleProvider` | class (ProviderInterface) | Google：`access_type=offline`、可選 `hd`/`prompt=consent`；**身份是 `sub` 不是 email**（`legacy_sub` 仍認得） | 新增 · S3 |
+| `Razy\Security\OAuth\Provider\MicrosoftProvider` | class (ProviderInterface) | Entra ID：tenant 化端點、Graph 欄位選取、身份用 Graph object id（UPN 只是聯絡）、登出 URL | 新增 · S3 |
+| `OAuth2::verifyIdTokenClaims()` | static | id_token 結構驗證（aud 精確、絕對 exp、iss 正規式、nonce/hd 綁定）——**永不驗簽章**（JWK 機制在 Do-NOT-build 清單；只能說「claims checked」，永不能說「signature verified」） | 新增 · S3 |
+
+至此全庫手寫 cURL 只存在於 `HttpClient`（大門）與 `SSE`（長連線，明確排除）。
