@@ -13,7 +13,7 @@ namespace Razy\Module\queueadmin;
 
 return [
     'name' => 'Queue Admin',
-    'version' => '1.1.0',
+    'version' => '1.2.1', // synced with module.php (L4 shipped them desynced — fixed at the responseAsBody revival)
     'author' => 'Razy Framework',
     'description' => 'Queue dashboard over QueueStoreInterface with an optional HTML shell (/ui)',
     'api_name' => 'queue_admin_api',

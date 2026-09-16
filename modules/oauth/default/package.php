@@ -17,7 +17,7 @@ namespace Razy\Module\oauth;
 
 return [
     'name' => 'Social Login',
-    'version' => '0.1.0',
+    'version' => '0.1.1', // synced with module.php (XHR::responseAsBody revival)
     'author' => 'Razy Framework',
     'description' => 'Social login routes over the OAuth2 core (dossier OAUTH-SOCIALITE-HTTP.md S5)',
     'api_name' => 'oauth_api',

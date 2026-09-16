@@ -45,17 +45,17 @@ namespace Razy\Validation;
  *     }
  * }
  *
- * // In controller (or use Controller::validated(), FORMREQUEST-RAIL M1):
+ * // In controller (or use Controller::validated(), FORMREQUEST-RAIL M1, which
+ * // IS the two-verdict block below as one call):
  * $request = CreateUserRequest::fromGlobals();
  * if (!$request->isAuthorized()) {
  *     $this->xhr()->responseCode(403)->responseAsBody(
  *         ['error' => 'forbidden', 'message' => 'This action is unauthorized.']);
- *     return;
+ *     // responseAsBody emits and ends dispatch — nothing below it runs
  * }
  * if ($request->validate()->fails()) {
  *     $this->xhr()->responseCode(422)->responseAsBody(
  *         ['error' => 'validation-failed', 'errors' => $request->errors()]);
- *     return;
  * }
  * $validated = $request->validated();
  * ```
@@ -103,6 +103,10 @@ abstract class FormRequest
      */
     public static function fromGlobals(): static
     {
+        // phpstan is right that superglobals always exist; the deleted-
+        // superglobal scare during M1 came from a TEST unsetting them, fixed
+        // at the test (FormRequestDoorTest::tearDown) — production SAPIs
+        // always populate them.
         $data = \array_merge($_GET, $_POST);
 
         return new static($data);

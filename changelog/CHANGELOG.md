@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** FORMREQUEST-RAIL M0+M1 — the Validation family (shipped v0.5, never had a
+  consumer or a manual chapter) gets its door: `Controller::validated(RequestClass)`
+  resolves source by Content-Type, PASS returns the validated payload in one call, FAIL
+  answers 403 `{error:"forbidden"}` or 422 `{error:"validation-failed",errors,fix}` as
+  two named verdicts (Q4) and ends dispatch on the established HttpException control-flow
+  — rejected input physically cannot reach a handler. `messages()` — the hook the docblock
+  taught and NO code consumed for two years — is wired (Validator-level `field.ruleName`
+  map, lcfirst'd short class names); the `$_FILES` docblock lie retires with file
+  validation explicitly out of scope (Q3). **M1's door test caught a whole-family bug
+  first**: `XHR::responseAsBody()` only STORED its body — emission needed a `sendEnvelope()`
+  tail that zero call sites ever called, so queue-admin's and oauth's JSON error surfaces
+  have shipped EMPTY bodies since birth; an API used wrong by 100% of callers IS the bug —
+  responseAsBody now emits directly (sendEnvelope remains an idempotent array-mode pull),
+  reviving eight first-party call sites with zero module edits (both modules patched:
+  queue-admin 1.2.1 — also realigning its module.php/package.php version desync from L4 —
+  and oauth 0.1.1). The docblock reference to the non-existent ContextHandler class died
+  too. Suite 5,543 (+9 across M0/M1), module discipline lint green on modules/.
+
 - **Added** PHP-85-READY — the framework is deprecation-clean on PHP 8.5 and the CI
   matrix runs it: php.net's migration85.deprecated list swept against src (curl_close ×4
   removed — handles free out of scope since 8.0; `$http_response_header` behind a

@@ -178,7 +178,16 @@ class XHR
     }
 
     /**
-     * Use a pre-built flat JSON body ({@see ContextHandler::reject()} / {@see resolve()}).
+     * Emit a pre-built flat JSON body NOW (headers + {@see responseCode()}),
+     * ending dispatch via the HttpException control-flow the readiness 503
+     * rail already uses.
+     *
+     * v1.2 history (FORMREQUEST-RAIL M1): this call once only STORED the
+     * body and required a separate sendEnvelope() tail — which every
+     * consumer in the repo forgot (queue-admin and oauth shipped empty
+     * bodies for their whole JSON surface). An API used wrong by 100% of
+     * its callers is the bug; the emission moved here. sendEnvelope()
+     * remains idempotent for any chain that still ends with it.
      *
      * @param array<string, mixed> $body
      */
@@ -186,18 +195,28 @@ class XHR
     {
         $this->envelopeBody = $body;
 
+        if ($this->returnAsArray) {
+            return $this; // array mode: the caller pulls via sendEnvelope()
+        }
+
+        $this->envelopeBody = null;
+        $this->output($body); // throws HttpException: dispatch ends gracefully
+
         return $this;
     }
 
     /**
-     * Emit the body set by {@see responseAsBody()} with headers and {@see responseCode()}.
+     * Pull the body set by {@see responseAsBody()} in array mode
+     * (`$this->xhr(true)`); a no-op returning true in normal mode, where
+     * responseAsBody() has already emitted (kept so pre-v1.2 chains ending
+     * with this call still read correctly).
      *
      * @return array<string, mixed>|true
      */
     public function sendEnvelope(): mixed
     {
         if ($this->envelopeBody === null) {
-            throw new Error('XHR envelope body not set — call responseAsBody() first.');
+            return true; // already emitted by responseAsBody()
         }
         $response = $this->envelopeBody;
         if ($this->returnAsArray) {

@@ -26,6 +26,7 @@ use Razy\Exception\RedirectException;
 use Razy\ORM\Model;
 use Razy\Template\Source;
 use Razy\Util\PathUtil;
+use Razy\Validation\FormRequest;
 use Throwable;
 
 /**
@@ -533,6 +534,63 @@ class Controller
     {
         return '<input type="hidden" name="' . CsrfMiddleware::TOKEN_FIELD
             . '" value="' . \htmlspecialchars($this->csrfToken(), ENT_QUOTES, 'UTF-8') . '">';
+    }
+
+    /**
+     * Validate the incoming request through a FormRequest class — the door
+     * for the validation family (FORMREQUEST-RAIL.md M1), same one-call
+     * doctrine that made csrfField() the whole CSRF last mile.
+     *
+     * PASS → returns the validated payload (array, one line per handler —
+     * the five-line fromGlobals/fails/respond tax that kept this family
+     * unconsumed for two years is paid once, HERE).
+     * FAIL → the helper answers itself and ENDS dispatch: 403
+     * {"error":"forbidden",…} when the request denies itself, 422
+     * {"error":"validation-failed","errors":{…},"fix":…} when the payload
+     * misses a rule — named envelopes of the 419/503 family (Q4). The end
+     * rides the same HttpException control-flow as every other Razy rail
+     * ("thrower sends, dispatcher ends gracefully"): a rejected request
+     * PHYSICALLY cannot continue into the handler body.
+     *
+     * Usage:
+     * ```php
+     * $data = $this->validated(UserRequest::class); // only runs on PASS
+     * ```
+     *
+     * Content-Type decides the source (application/json → fromJson(), else
+     * the form globals); authorize and validation stay TWO verdicts (Q4).
+     *
+     * @param class-string<FormRequest> $requestClass
+     *
+     * @return array<string, mixed>|null validated data, or null when answered
+     */
+    final public function validated(string $requestClass): ?array
+    {
+        $request = \str_contains((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+            ? $requestClass::fromJson()
+            : $requestClass::fromGlobals();
+
+        if (!$request->isAuthorized()) {
+            $this->xhr()->responseCode(403)->responseAsBody([
+                'error' => 'forbidden',
+                'message' => 'This action is unauthorized.',
+                'fix' => "the endpoint's FormRequest ({$requestClass}) denied the current actor — check authentication/ownership before resending",
+            ]);
+
+            return null;
+        }
+
+        if ($request->validate()->fails()) {
+            $this->xhr()->responseCode(422)->responseAsBody([
+                'error' => 'validation-failed',
+                'errors' => $request->errors(),
+                'fix' => 'correct the listed fields and resend the full payload (rules live in ' . $requestClass . ')',
+            ]);
+
+            return null;
+        }
+
+        return $request->validated();
     }
 
     /**
