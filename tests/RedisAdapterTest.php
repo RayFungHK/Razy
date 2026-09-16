@@ -142,8 +142,14 @@ class RedisAdapterTest extends TestCase
     {
         $this->adapter->set('true', true);
         $this->adapter->set('false', false);
-        $this->assertTrue($this->adapter->get('true'));
-        $this->assertFalse($this->adapter->get('false'));
+
+        // Failure messages carry the RAW stored bytes: the false arm of this
+        // pair is the one that exposed phpredis's miss-sentinel vs stored-false
+        // ambiguity in CI (2026-09) — if it ever reddens again, the raw line
+        // names the culprit without another blind fix round.
+        $rawFalse = $this->adapter->getRedis()->get($this->prefix . 'false');
+        $this->assertTrue($this->adapter->get('true'), 'true round-trip; raw=' . \var_export($this->adapter->getRedis()->get($this->prefix . 'true'), true));
+        $this->assertFalse($this->adapter->get('false'), 'false round-trip; raw=' . \var_export($rawFalse, true));
     }
 
     public function testStoresAndRetrievesString(): void

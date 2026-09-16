@@ -57,7 +57,9 @@ class DatabaseSharedInstanceTest extends TestCase
     {
         $db = Database::getInstance('main');
         // Unresolvable path: driver connect fails (caught internally) => connected flag stays false.
-        $this->assertFalse($db->connectWithDriver('sqlite', ['database' => 'Q:\definitely-not-a-drive\x.db']));
+        // The missing-PARENT-DIRECTORY shape fails on every platform: an old 'Q:\…' literal was a
+        // legal *relative filename* on Linux, where sqlite happily created it (CI-only red, 2026-09).
+        $this->assertFalse($db->connectWithDriver('sqlite', ['database' => \sys_get_temp_dir() . '/razy-no-such-dir-9f2b/app.db']));
 
         $this->assertNull(Database::getSharedInstance(), 'a failed connect must NOT flip the shared-instance gate');
     }

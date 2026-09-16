@@ -155,7 +155,9 @@ class PermissionsTemplateTest extends TestCase
             'system_actors' => ['user:7'],
             'database' => [
                 'type' => 'sqlite',
-                'connection' => ['database' => 'Q:\definitely-not-a-drive\x.db'],
+                // missing PARENT dir = guaranteed-dead on every platform (the old
+                // 'Q:\…' literal was a creatable relative filename on Linux).
+                'connection' => ['database' => \sys_get_temp_dir() . '/razy-no-such-dir-9f2b/app.db'],
                 'name' => 'perm_tpl_dead',
             ],
         ]);

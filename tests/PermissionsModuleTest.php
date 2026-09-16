@@ -218,7 +218,9 @@ class PermissionsModuleTest extends TestCase
         $this->assertNull($resolve(['type' => '', 'connection' => []]));
         $this->assertNull($resolve(['type' => 'nosuchdriver', 'connection' => []]));
         $this->assertNull(
-            $resolve(['type' => 'sqlite', 'connection' => ['database' => 'Q:\definitely-not-a-drive\x.db']]),
+            // missing PARENT dir fails on every platform; the old 'Q:\…' literal was
+            // a legal relative filename on Linux and sqlite created it (CI-only red).
+            $resolve(['type' => 'sqlite', 'connection' => ['database' => \sys_get_temp_dir() . '/razy-no-such-dir-9f2b/app.db']]),
             'failed connect must surface as null, not an unconnected handle',
         );
     }

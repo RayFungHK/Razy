@@ -61,6 +61,10 @@ class RedisQueueStoreTest extends TestCase
 
     public function testEnsureStoragePings(): void
     {
+        // The contract IS "does not throw" against a live server — declared,
+        // so the suite's failOnRisky doesn't mistake intent for oversight.
+        $this->expectNotToPerformAssertions();
+
         $this->store->ensureStorage(); // must not throw against a live server
     }
 
