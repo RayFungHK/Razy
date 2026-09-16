@@ -194,7 +194,6 @@ final class WizardRunner
     private function showForm(string $moduleCode): void
     {
         $safe = \htmlspecialchars($moduleCode, ENT_QUOTES, 'UTF-8');
-        $self = \htmlspecialchars($this->selfPath($moduleCode), ENT_QUOTES, 'UTF-8');
 
         $this->page(
             200,
@@ -202,7 +201,11 @@ final class WizardRunner
             '<p>Module <code>' . $safe . '</code> declares the wizard provisioning door and is waiting for its schema.</p>'
             . '<p>An operator with shell access must first mint a single-use token:</p>'
             . '<pre>php Razy.phar module wizard-token ' . \htmlspecialchars($this->distributor->getCode(), ENT_QUOTES, 'UTF-8') . ' ' . $safe . '</pre>'
-            . '<form method="post" action="' . $self . '">'
+            // NO action attribute: a formless-action form posts to its own URL,
+            // which is the only form target that survives every mount — a
+            // hand-built '/__setup/...' absolute path lost the dist prefix on
+            // subpath distributors and POSTed into a 404 (live web dogfood).
+            . '<form method="post">'
             . '<label for="wizard_token">Setup token</label><br>'
             . '<input type="text" id="wizard_token" name="wizard_token" size="72" autocomplete="off">'
             . '<button type="submit">Run setup</button>'
@@ -284,11 +287,6 @@ final class WizardRunner
             . $count . ' migration(s) applied. <code>module.installed</code> has fired.</p>'
             . '<p>Return to the module — its routes stop answering 503/302 from the next request onward.</p>',
         );
-    }
-
-    private function selfPath(string $moduleCode): string
-    {
-        return '/' . self::PATH_PREFIX . '/' . \rawurlencode($moduleCode);
     }
 
     /**

@@ -163,6 +163,28 @@ final class ModuleLifecycleL3Test extends TestCase
         }
     }
 
+    public function testWizard302SendsHeadersBeforeTheThrow(): void
+    {
+        // Live web dogfood (playground, manual/12 tutorial) caught what the
+        // object-level assertion above structurally CANNOT see: main.php's
+        // HttpException catch means "response already sent" — a bare throw
+        // here produced a silent 200-empty instead of the 302. Contract: the
+        // thrower sends the response first (503 branch and the redirect-route
+        // precedent at the dispatcher's redirect block both do).
+        $source = \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Distributor/RouteDispatcher.php');
+        $wizardBlock = \substr($source, (int) \strpos($source, "getProvision() === 'wizard'"));
+
+        $codeAt = \strpos($wizardBlock, 'http_response_code(302)');
+        $headerAt = \strpos($wizardBlock, "header('Location: ' . \$url, true)");
+        $throwAt = \strpos($wizardBlock, 'throw new RedirectException');
+
+        self::assertNotFalse($codeAt, 'wizard branch must set 302 status before throwing');
+        self::assertNotFalse($headerAt, 'wizard branch must send the Location header before throwing');
+        self::assertNotFalse($throwAt);
+        self::assertLessThan($throwAt, $codeAt, 'headers must be sent BEFORE the RedirectException throw');
+        self::assertLessThan($throwAt, $headerAt);
+    }
+
     public function testGateWithoutProbeWarnsAndRefuses(): void
     {
         // No probe = framework wiring bug: loud, and closed (never open).

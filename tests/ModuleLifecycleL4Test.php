@@ -194,6 +194,11 @@ final class ModuleLifecycleL4Test extends TestCase
         self::assertStringContainsString("createEmitter('module.installed')", $source, 'Q3: the event fires where migrations ran');
         self::assertStringContainsString("'via' => 'wizard'", $source);
         self::assertStringContainsString('[Razy][wizard]', $source, 'every mint, spend, and refusal is audited');
+        // Live web dogfood: a built action="/__setup/..." lost the dist prefix
+        // on subpath distributors and POSTed into a 404. Formless-action posts
+        // to the current URL — correct under EVERY mount. Never hand-build it.
+        self::assertStringContainsString(". '<form method=\"post\">'", $source, 'the form must post to its own URL, not a hand-built path');
+        self::assertStringNotContainsString('action=', $source, 'no form-action construction may return');
     }
 
     public function testCliMintingDoorRailsArePinned(): void

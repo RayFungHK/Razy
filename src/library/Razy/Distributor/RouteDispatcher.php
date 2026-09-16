@@ -709,11 +709,12 @@ class RouteDispatcher
      * Answer a not-ready gate (dossier MODULE-LIFECYCLE.md L3). The named
      * module ships the answer style itself through its declared provision:
      * 'wizard' gets a 302 into the framework wizard runner (token-gated at
-     * L4 — until the runner lands, the route simply 404s at the target);
-     * anything else gets a 503 naming the module and the exact deploy
-     * command, JSON-shaped for XHR. Response headers are sent HERE; the
-     * HttpException then ends the request through main.php's graceful
-     * HttpException pass (same contract as RedirectException).
+     * L4 — the runner refuses un-tokened POSTs); anything else gets a 503
+     * naming the module and the exact deploy command, JSON-shaped for XHR.
+     * Response headers are sent HERE for BOTH answers — main.php's
+     * HttpException catch means "already sent, end gracefully", so any
+     * thrower that skips the send produces a silent 200-empty (live web
+     * dogfood found exactly that on the wizard branch).
      *
      * @throws RedirectException 302 for declared-wizard modules
      * @throws HttpException 503 response already delivered
@@ -724,6 +725,13 @@ class RouteDispatcher
 
         if ($target !== null && $target->getModuleInfo()->getProvision() === 'wizard') {
             $url = PathUtil::append($siteURL, '__setup/' . \rawurlencode($gateCode));
+
+            // Same contract as the 503 branch and the redirect-route precedent
+            // (:512): the THROWER sends the response — main.php's HttpException
+            // catch means "already sent, end gracefully", so throwing bare here
+            // produced a silent 200-empty. Live web dogfood found this.
+            \http_response_code(302);
+            \header('Location: ' . $url, true);
 
             throw new RedirectException($url, 302);
         }
