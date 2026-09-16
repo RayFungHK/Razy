@@ -111,7 +111,13 @@ class DatabaseDriverTest extends TestCase
         $this->assertSame(PDO::ERRMODE_EXCEPTION, $opts[PDO::ATTR_ERRMODE]);
         $this->assertTrue($opts[PDO::ATTR_PERSISTENT]);
         $this->assertSame(5, $opts[PDO::ATTR_TIMEOUT]);
-        $this->assertTrue($opts[PDO::MYSQL_ATTR_FOUND_ROWS]);
+        // Same constant the driver file resolves (see MySQL.php — \Pdo\Mysql is
+        // 8.4+ AND extension-registered; below that the legacy PDO:: constant
+        // is the only spelling that exists).
+        $foundRowsKey = \class_exists(\Pdo\Mysql::class, false)
+            ? \Pdo\Mysql::ATTR_FOUND_ROWS
+            : PDO::MYSQL_ATTR_FOUND_ROWS;
+        $this->assertTrue($opts[$foundRowsKey]);
     }
 
     public function testSQLiteConnectionOptions(): void

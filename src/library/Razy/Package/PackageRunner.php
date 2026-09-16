@@ -821,8 +821,16 @@ class PackageRunner
             return false;
         }
 
-        if (!empty($http_response_header)) {
-            foreach ($http_response_header as $header) {
+        // The $http_response_header local is deprecated in PHP 8.5; the function
+        // form exists only since 8.4, so the floor (8.2) keeps the variable
+        // branch until the floor moves. (function_exists, not a version check:
+        // it is the runtime truth AND phpstan narrows it.)
+        $headers = \function_exists('http_get_last_response_headers')
+            ? (\http_get_last_response_headers() ?? [])
+            : ($http_response_header ?: []);
+
+        if (!empty($headers)) {
+            foreach ($headers as $header) {
                 if (\preg_match('/^HTTP\/[\d.]+ (\d{3})/', $header, $m)) {
                     $code = (int) $m[1];
                     return $code >= 200 && $code < 300;

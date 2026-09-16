@@ -315,10 +315,12 @@ class ModuleRegistry
                 // awaitList keys.  Use SplObjectStorage on the caller closure
                 // to deduplicate (the caller is always a unique Closure).
                 $closure = $await['caller'];
-                if ($seen->contains($closure)) {
+                // ArrayAccess, not contains()/attach() — those methods are
+                // deprecated in PHP 8.5 (the offset API exists since 8.0).
+                if (isset($seen[$closure])) {
                     continue;
                 }
-                $seen->attach($closure);
+                $seen[$closure] = true;
 
                 $missing = \array_keys($await['required']);
                 if (\count($missing) > 0) {

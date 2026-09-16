@@ -793,8 +793,9 @@ class HttpClient implements ClientInterface
             }
 
             if ($sinkHandle === null) {
-                \curl_close($ch);
-
+                // No curl_close: CurlHandle frees itself out of scope since PHP 8.0,
+                // and the explicit close is deprecated in 8.5 (kept as a comment so
+                // nobody "restores" it).
                 throw new HttpTransportException('Cannot open download sink: ' . (string) $options['sink']);
             }
 
@@ -850,7 +851,7 @@ class HttpClient implements ClientInterface
         if ($body === false) {
             $error = \curl_error($ch);
             $errno = \curl_errno($ch);
-            \curl_close($ch);
+            // handle frees out of scope (see sink-branch note; PHP 8.5 deprecates curl_close)
 
             // Fail loud (S1): a request that never produced a response is an
             // error, not a fabricated status-0 response. The old synthetic
@@ -861,8 +862,7 @@ class HttpClient implements ClientInterface
             );
         }
 
-        \curl_close($ch);
-
+        // handle frees out of scope (PHP 8.5 deprecates curl_close)
         return new HttpResponse($statusCode, \is_string($body) ? $body : '', $responseHeaders);
     }
 

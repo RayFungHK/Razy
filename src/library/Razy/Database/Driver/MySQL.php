@@ -69,8 +69,16 @@ class MySQL extends Driver
             PDO::ATTR_PERSISTENT => true,
             PDO::ATTR_TIMEOUT => 5,
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            // Report matched rows instead of changed rows for UPDATE operations
-            PDO::MYSQL_ATTR_FOUND_ROWS => true,
+            // Report matched rows instead of changed rows for UPDATE operations.
+            // 8.5 deprecates PDO::MYSQL_ATTR_*; the replacement class \Pdo\Mysql
+            // is a PHP **8.4** addition (verified: absent from a 8.3.1 that has
+            // pdo_mysql loaded) AND extension-registered — so with the ^8.2
+            // floor, or with the driver missing, this array must evaluate on
+            // the legacy constant (PDO-core-registered, same value). The
+            // class_exists picks the clean spelling exactly where it exists,
+            // and constant deprecations only fire on executed branches, so
+            // 8.4+/driver-present installs never touch the deprecated one.
+            (\class_exists(\Pdo\Mysql::class, false) ? \Pdo\Mysql::ATTR_FOUND_ROWS : PDO::MYSQL_ATTR_FOUND_ROWS) => true,
         ];
     }
 

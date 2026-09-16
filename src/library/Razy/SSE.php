@@ -179,8 +179,7 @@ class SSE
         if ($ok === false) {
             $this->send('Proxy error: ' . \curl_error($ch), 'error');
         }
-
-        \curl_close($ch);
+        // no curl_close: the handle frees out of scope (8.5 deprecates it)
     }
 
     /**
