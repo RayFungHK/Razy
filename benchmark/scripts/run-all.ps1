@@ -9,7 +9,7 @@
 #>
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('razy','laravel')]
+    [ValidateSet('razy','laravel','razy-fpm','laravel-fpm')]
     [string]$Target,
 
     [Parameter(Mandatory)]
@@ -63,7 +63,7 @@ export default function () {
 $dockerHealthFile = $healthFile -replace '\\','/' -replace '^C:','/c'
 docker run --rm --network benchmark_default `
     -v "${dockerHealthFile}:/scripts/health.js:ro" `
-    grafana/k6:2.0.0 run --quiet --no-summary --vus 1 --iterations 1 `
+    grafana/k6:2.0.0 run --quiet --summary-mode=disabled --vus 1 --iterations 1 `
     /scripts/health.js 2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {
@@ -89,7 +89,7 @@ $warmupScript | Set-Content -Path $warmupFile -Encoding UTF8
 $dockerWarmupFile = $warmupFile -replace '\\','/' -replace '^C:','/c'
 docker run --rm --network benchmark_default `
     -v "${dockerWarmupFile}:/scripts/warmup.js:ro" `
-    grafana/k6:2.0.0 run --quiet --no-summary `
+    grafana/k6:2.0.0 run --quiet --summary-mode=disabled `
     --vus $WarmupVUs --duration "${WarmupDuration}s" `
     /scripts/warmup.js 2>&1 | Out-Null
 

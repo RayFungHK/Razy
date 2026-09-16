@@ -77,6 +77,20 @@ Found present while writing this (do not let folklore re-list them as gaps):
 
 ## 5. Should the benchmark be updated? — YES, and it is a FIX-FIRST job
 
+> **Status 2026-09 — the fix-first work is DONE, the re-run is executing.**
+> Defect 1: opponent rebuilt as Laravel 13.32 + Octane 2.19 on the *same*
+> FrankenPHP 1.10 image family (`benchmark/docker/Dockerfile.laravel`). Defect 2:
+> all four symmetry defects fixed — real template engine + real builder endpoints
+> (`benchmark/razy/standalone/controller/app.php`), persistent DB on both sides,
+> raw JSON mandatory via `--summary-export` into `results/<target>/`, toolchain
+> receipts recorded into the images and `results/toolchain.txt`. The audit's
+> FPM-baseline recommendation is built too (profile `fpm`: both stacks plain
+> php:8.3-fpm behind one Caddy). Scope honest-cut this round: scenarios 01–06
+> only — the v1.1 gate scenarios 07–10 need a module-bearing dist site in the
+> worker and land as their own follow-up (they measure the gate, not symmetry).
+> Numbers, once settled, go to `readme.md` + `deploy/k8s/README.md`; REPORT.md
+> is generated from raw JSON only — no receipts, no verdict.
+
 The existing suite (`benchmark/`, 6 k6 scenarios, FrankenPHP worker vs Octane/Swoole) has
 three compounding problems as of today:
 

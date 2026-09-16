@@ -70,6 +70,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   until its upstream EOL **2026-12-31**; the first release after raises to `^8.3`.
   readme verified-stats line refreshed to the real current numbers (was a 2026-07 drift).
 
+- **Fixed** CI blackout wave 2 — with the structural rot gone (entry above), each round's
+  stragglers fell one by one until the matrix was fully green for the first time in ~7
+  months (run 35130380042, all 10 jobs): `RedisAdapter::unserializeValue()` turned a
+  STORED `false` into a cache MISS (`b:0;` unserialized cleanly, then the `!== false`
+  tail threw it away — corruption detection moved to an error-handler probe, honest
+  `false` now survives round-trip); the SQLite driver REJECTS NUL bytes loudly on every
+  PHP (8.5's `PDO::quote` refuses them where pre-8.5 silently truncated — data-loss by
+  default retired); every framework status emitter moved from `http_response_code()` to
+  `header('HTTP/1.1 N', true, N)` — 8.5 warns "has no effect" when a status line was
+  already chosen (long-lived worker/CLI processes; `headers_sent()` is never true in
+  CLI so guards cannot help) — **worker-mode users: bare `http_response_code()` in
+  module code after the pipeline set a status shares that fate, use the same header()
+  form**; `.gitattributes` (`* text=auto eol=lf`, binaries `-text`) ended CRLF-checkout
+  physics on source-pinning tests; CI extension lists gained `sodium`; the redis-suite
+  gate greps `^OK (` instead of the never-printed "Skipped: 0" (it redded a GREEN run);
+  the coverage job's first-ever real run exposed 87 warnings — `#[CoversClass()]` on
+  INTERFACES is invalid to the collector, both interface-test classes dropped it;
+  Windows-job test portability (Agent.php part reads, isolated-process attributes on the
+  header-state-sharing responder suites).
+
+- **Fixed** `Database` persistent-link death — a MySQL link idle past `wait_timeout`
+  dies server-side while PDO's pool hands the DEAD handle back; every later query threw
+  2006 "MySQL server has gone away" **forever**, and a worker process outlives every
+  idle timeout (live-caught by the benchmark worker; production ERP workers hold the
+  same overnight shape — zero reconnect/ping machinery existed anywhere). `execute()`
+  now distinguishes link death (2006/2013/lost-connection wording) from query errors:
+  `driver->reconnect()` (MySQL forces a FRESH non-persistent link — asking the pool for
+  persistent again may draw another corpse) and ONE retry of the statement. The subtle
+  half is resynchronization: `Database`'s adapter reference, the prepared-statement pool
+  AND the `Transaction` wrapper all cache the old PDO link — all three rebuild or the
+  retry dies identically (proved by fault-injection: real MySQL, `KILL` the connection
+  mid-session, next query succeeds on a new connection id). Raw direct-adapter callers
+  outside `execute()` are not retried — the shared door carries the traffic.
+
 - **Changed** CSRF-RAIL L4 — `razymod/queue-admin` (v1.2.0, RZ-012 minor) now runs on the
   door instead of its own: `support/csrf.php` deleted (the confession docblock is false by
   construction), `/ui` issues via `csrfToken()`, `/act`+`/purge` lost their double-submit
