@@ -37,6 +37,22 @@ abstract class Driver
     /** @var array Cached character set information keyed by charset name */
     protected array $charset = [];
 
+    /** @var array The config array connect() was last called with (fuel for reconnect()) */
+    protected array $lastConnectConfig = [];
+
+    /**
+     * Re-establish a dropped connection (server closed an idle persistent link;
+     * the pool hands back the dead handle). Default: run connect() again with
+     * the recorded config — correct for non-persistent drivers; persistent
+     * drivers override to force a fresh (non-pooled) link.
+     *
+     * @return bool True if the connection lives again
+     */
+    public function reconnect(): bool
+    {
+        return $this->connect($this->lastConnectConfig);
+    }
+
     /**
      * Get the driver type identifier.
      *

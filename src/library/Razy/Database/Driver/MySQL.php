@@ -40,22 +40,41 @@ class MySQL extends Driver
      */
     public function connect(array $config): bool
     {
+        $this->lastConnectConfig = $config;
+
         try {
-            $host = $config['host'] ?? 'localhost';
-            $database = $config['database'] ?? '';
-            $username = $config['username'] ?? '';
-            $password = $config['password'] ?? '';
-            $port = $config['port'] ?? 3306;
-            $charset = $config['charset'] ?? 'UTF8';
-
-            $dsn = "mysql:host={$host};port={$port};dbname={$database};charset={$charset}";
-
-            $this->adapter = new PDO($dsn, $username, $password, $this->getConnectionOptions());
+            $this->adapter = new PDO($this->buildDsn($config), $config['username'] ?? '', $config['password'] ?? '', $this->getConnectionOptions());
             $this->connected = true;
 
             return true;
         } catch (PDOException) {
             $this->connected = false;
+
+            return false;
+        }
+    }
+
+    /**
+     * A persistent connection idle past wait_timeout dies server-side while the
+     * pool hands the dead handle back — every later query dies with MySQL 2006
+     * ("gone away") and nothing in the stack could recover (a worker process
+     * outlives the idle link; live-caught by the benchmark worker 2026-09).
+     * Ping honestly; on death, force a FRESH non-persistent link for this
+     * request. PDO's pool may hand back another dead persistent link if we
+     * asked for persistent again — one-shot fresh is the recovery that works.
+     *
+     * Callers hold only this adapter object, so the swap is transparent.
+     */
+    public function reconnect(): bool
+    {
+        try {
+            $this->adapter = new PDO($this->buildDsn($this->lastConnectConfig), $this->lastConnectConfig['username'] ?? '', $this->lastConnectConfig['password'] ?? '', $this->getReconnectOptions());
+            $this->connected = true;
+
+            return true;
+        } catch (PDOException) {
+            $this->connected = false;
+
             return false;
         }
     }
@@ -208,5 +227,31 @@ class MySQL extends Driver
     {
         // MySQL uses backticks for identifiers; escape by doubling existing backticks
         return '`' . \str_replace('`', '``', $identifier) . '`';
+    }
+
+    /**
+     * Build the DSN from a connect config array.
+     *
+     * @param array $config
+     */
+    private function buildDsn(array $config): string
+    {
+        $host = $config['host'] ?? 'localhost';
+        $database = $config['database'] ?? '';
+        $port = $config['port'] ?? 3306;
+        $charset = $config['charset'] ?? 'UTF8';
+
+        return "mysql:host={$host};port={$port};dbname={$database};charset={$charset}";
+    }
+
+    /**
+     * Reconnect options: the getConnectionOptions set with persistence OFF.
+     */
+    private function getReconnectOptions(): array
+    {
+        $options = $this->getConnectionOptions();
+        $options[PDO::ATTR_PERSISTENT] = false;
+
+        return $options;
     }
 }

@@ -346,7 +346,22 @@ class Database implements DatabaseInterface
                 $this->affected_rows = $pdoStatement->rowCount();
             }
         } catch (Exception $e) {
-            throw new QueryException($e->getMessage() . "\n" . $sql, 500, $e);
+            if ($this->isConnectionLoss($e) && $this->recoverConnection()) {
+                // One honest retry on the resurrected link (pool purged inside).
+                try {
+                    $pdoStatement = $this->statementPool
+                        ? $this->statementPool->getOrPrepare($sql)
+                        : $this->adapter->prepare($sql);
+                    if ($pdoStatement) {
+                        $pdoStatement->execute();
+                        $this->affected_rows = $pdoStatement->rowCount();
+                    }
+                } catch (Exception $again) {
+                    throw new QueryException($again->getMessage() . "\n" . $sql, 500, $again);
+                }
+            } else {
+                throw new QueryException($e->getMessage() . "\n" . $sql, 500, $e);
+            }
         }
 
         // Record the executed SQL in the query history (ring buffer)
@@ -807,6 +822,50 @@ class Database implements DatabaseInterface
     public function getTransaction(): ?Transaction
     {
         return $this->transaction;
+    }
+
+    /**
+     * Does this exception mean "the server closed the link" (MySQL 2006/2013,
+     * PDO HY000 transport errors) rather than a bad query?
+     */
+    private function isConnectionLoss(Exception $e): bool
+    {
+        $message = $e->getMessage();
+
+        if (\str_contains($message, '2006') || \str_contains($message, '2013')) {
+            return true;
+        }
+
+        return \str_contains($message, 'gone away')
+            || \str_contains($message, 'Lost connection')
+            || \str_contains($message, 'server has gone')
+            || (\str_contains($message, 'General error: 20') && \str_contains($message, 'MySQL'));
+    }
+
+    /**
+     * Ask the driver to rebuild the link and resynchronize the state this
+     * object caches from it: the adapter reference and the prepared-statement
+     * pool (every cached PDOStatement belongs to the dead link).
+     */
+    private function recoverConnection(): bool
+    {
+        if ($this->driver === null || !$this->driver->reconnect()) {
+            return false;
+        }
+
+        $this->adapter = $this->driver->getAdapter();
+        if ($this->adapter === null) {
+            return false;
+        }
+
+        // The pool and the transaction wrapper both hold the OLD link object —
+        // both are rebuilt against the resurrected adapter, or the retry dies
+        // on the dead handle exactly like before (caught by fault-injection
+        // probe 2026-09).
+        $this->statementPool = new StatementPool($this->adapter);
+        $this->transaction = new Transaction($this->adapter);
+
+        return true;
     }
 
     /**
