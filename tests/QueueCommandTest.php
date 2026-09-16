@@ -24,7 +24,9 @@ class QueueCommandTest extends TestCase
         parent::setUp();
         $path = SYSTEM_ROOT . '/src/system/terminal/queue.inc.php';
         $this->assertFileExists($path);
-        $this->src = \file_get_contents($path);
+        // CRLF-normalized: Windows CI checkouts hand us \r\n and every needle
+        // in this file is written LF (windows matrix red, 2026-09).
+        $this->src = \str_replace("\r\n", "\n", (string) \file_get_contents($path));
     }
 
     public function testTheSwallowIsGone(): void

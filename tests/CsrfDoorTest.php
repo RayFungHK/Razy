@@ -80,7 +80,7 @@ class CsrfDoorTest extends TestCase
         // The wrapper closure hides the engine instance from reflection, so
         // the good default is pinned at source; its BEHAVIOR (a bad token
         // still dies) is pinned by testWrapperValidatesWhenNotExempted.
-        $source = (string) \file_get_contents(
+        $source = (string) $this->readSource(
             \dirname(__DIR__) . '/src/library/Razy/Csrf/CsrfDoor.php'
         );
 
@@ -338,7 +338,7 @@ class CsrfDoorTest extends TestCase
 
     public function testDistributorParsesThreeStatesAndFailsLoudOnLies(): void
     {
-        $source = (string) \file_get_contents(
+        $source = (string) $this->readSource(
             \dirname(__DIR__) . '/src/library/Razy/Distributor.php'
         );
 
@@ -351,7 +351,7 @@ class CsrfDoorTest extends TestCase
 
     public function testValidatePrintsTheUnarmedWarning(): void
     {
-        $source = (string) \file_get_contents(
+        $source = (string) $this->readSource(
             \dirname(__DIR__) . '/src/system/terminal/validate.inc.php'
         );
 
@@ -376,7 +376,7 @@ class CsrfDoorTest extends TestCase
         $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base));
         foreach ($it as $file) {
             if ($file->isFile() && \str_ends_with($file->getFilename(), '.php')
-                && \str_contains((string) \file_get_contents($file->getPathname()), 'support/csrf.php')) {
+                && \str_contains((string) $this->readSource($file->getPathname()), 'support/csrf.php')) {
                 $hit = $file->getFilename();
             }
         }
@@ -386,13 +386,13 @@ class CsrfDoorTest extends TestCase
         // queue-admin.* — L4 also fixed a dormant deploy bug: the module
         // shipped queueadmin.* but the dist layout expects the class name
         // queue-admin.php, so the module could never load in any dist.)
-        $this->assertStringContainsString('$this->csrfToken()', (string) \file_get_contents(
+        $this->assertStringContainsString('$this->csrfToken()', (string) $this->readSource(
             $base . '/default/controller/queue-admin.ui.php'
         ));
-        $this->assertStringContainsString('$this->csrfToken()', (string) \file_get_contents(
+        $this->assertStringContainsString('$this->csrfToken()', (string) $this->readSource(
             $base . '/default/controller/queue-admin.act.php'
         ));
-        $this->assertStringContainsString('$this->csrfToken()', (string) \file_get_contents(
+        $this->assertStringContainsString('$this->csrfToken()', (string) $this->readSource(
             $base . '/default/controller/queue-admin.purge.php'
         ));
     }
@@ -414,5 +414,15 @@ class CsrfDoorTest extends TestCase
         $module->method('getContainer')->willReturn($container);
 
         return new class($module) extends Controller {};
+    }
+
+    /**
+     * Source pins are written LF; Windows CI checkouts hand us CRLF (the whole
+     * CsrfDoorTest went red on the windows matrix 2026-09 for nothing else).
+     * Normalize at the single read point.
+     */
+    private function readSource(string $path): string
+    {
+        return \str_replace("\r\n", "\n", (string) \file_get_contents($path));
     }
 }

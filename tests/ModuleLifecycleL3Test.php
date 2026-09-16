@@ -191,7 +191,12 @@ final class ModuleLifecycleL3Test extends TestCase
         $warned = false;
         $levelsSeen = '';
         \set_error_handler(static function (int $level) use (&$warned, &$levelsSeen): bool {
-            $warned = $level === E_USER_WARNING;
+            // STICKY, the 8.5 witness explained why: the gate's E_USER_WARNING
+            // arrived (levels [512,2]) — and a later E_WARNING from the 503
+            // emit path (http_response_code, itself now 8.5-guarded in XHR)
+            // overwrote a non-sticky flag back to false. Announced stays
+            // announced regardless of what noise follows it.
+            $warned = $warned || $level === E_USER_WARNING;
             $levelsSeen = '' === $levelsSeen ? (string) $level : $levelsSeen . ',' . $level;
 
             return true;

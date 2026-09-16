@@ -342,7 +342,15 @@ class XHR
      */
     private function output(array $data): void
     {
-        \http_response_code($this->httpStatus);
+        // PHP 8.5 warns when http_response_code() arrives after the status line
+        // is already sent (CLI/test runs accumulate that state across cases; the
+        // 8.5 CI matrix caught it live, 2026-09). In normal web dispatch headers
+        // are not yet sent and behavior is byte-identical — the guard only skips
+        // a call PHP would refuse anyway.
+        if (!\headers_sent()) {
+            \http_response_code($this->httpStatus);
+        }
+
         \header('Content-Type: application/json');
         \header('Access-Control-Allow-Origin: ' . $this->allowOrigin);
         \header('Cross-Origin-Resource-Policy: ' . $this->corp);
