@@ -254,7 +254,12 @@ class PackageManager
         // Package name and dist URL arrive from remote metadata and must never
         // reach a filesystem path or an unencrypted transport unchecked.
         $safeName = ArchiveSafety::sanitizePackageName($this->name);
-        $allowInsecure = self::$allowInsecureTransport || (bool) \env('RAZY_ALLOW_INSECURE_TRANSPORT', false);
+        // env() is a bootstrap helper defined INSIDE the Razy namespace — the
+        // legacy global \env() check was always false, so the operator switch
+        // silently never worked here. Fully-qualified (not bare — the cs fixer
+        // re-globalizes bare words), with getenv for no-bootstrap contexts.
+        $insecureEnv = \function_exists('Razy\env') ? \Razy\env('RAZY_ALLOW_INSECURE_TRANSPORT', false) : \getenv('RAZY_ALLOW_INSECURE_TRANSPORT');
+        $allowInsecure = self::$allowInsecureTransport || (bool) $insecureEnv;
         if ($safeName === null || !\is_string($distUrl) || !ArchiveSafety::isSecureUrl($distUrl, $allowInsecure)) {
             $this->notify(self::TYPE_ERROR, [$this->name, 'Rejected: hostile package name or insecure distribution URL']);
 
@@ -335,7 +340,13 @@ class PackageManager
                 $autoload = $this->package['autoload']['psr-4'] ?? $this->package['autoload']['psr-0'] ?? [];
                 foreach ($autoload as $namespace => $extract) {
                     $this->notify(self::TYPE_EXTRACT, [$this->name, $namespace, $extract ?: '/']);
-                    \xcopy(PathUtil::append($temporaryExtractPath, $path, $extract), PathUtil::append($pathOfExtract, $namespace));
+                    // xcopy is defined in bootstrap.inc.php INSIDE the Razy
+                    // namespace (Phase 2.5) — the legacy \xcopy() global form
+                    // has never resolved since that refactor. Fully-qualified
+                    // because the cs fixer's native_function_invocation rule
+                    // re-globalizes bare words and would silently undo a bare
+                    // unqualified call.
+                    \Razy\xcopy(PathUtil::append($temporaryExtractPath, $path, $extract), PathUtil::append($pathOfExtract, $namespace));
                 }
 
                 $this->status = self::STATUS_UPDATED;

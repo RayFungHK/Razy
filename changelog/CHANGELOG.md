@@ -9,6 +9,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Fixed** the wizard door's web halves, both found only by live browser-level dogfood
+  (unit tests structurally could not see either): the gate's not-ready **302** now sends
+  `http_response_code(302)` + `Location` before throwing — `main.php`'s HttpException catch
+  means "already sent", so the bare throw had produced a silent 200-empty; and the token
+  form no longer hand-builds `action="/__setup/…"` (loses the dist prefix on subpath mounts
+  → POST into a 404) but posts to its own URL, correct under every mount. Pinned by a
+  source-order test and two runner rails.
+- **Fixed** `compose` extraction and `RAZY_ALLOW_INSECURE_TRANSPORT` — dead since the
+  Phase 2.5 refactor moved `env`/`xcopy` inside the `Razy` namespace while callers kept
+  the never-resolving global `\env()`/`\xcopy()` form: a fresh package extract died
+  "undefined function xcopy()", and the insecure-transport switch silently never fired.
+  Call sites repaired to fully-qualified `\Razy\…` (the cs fixer re-globalizes bare words
+  — pins hold the shape), re-verified by a forced live re-extract in playground.
 - **Added** MODULE-LIFECYCLE L5 — the chapter and the declarations that make the doctrine usable.
   `manual/12-module-lifecycle.md` (derived readiness, `provision` values, route gates and their
   503/302 answers, the operator verbs, wizard rails diagrammed, honest `module.installed`, the

@@ -246,7 +246,10 @@ return function (string $moduleCode = '', string $version = '', string $outputPa
                 removeDirectory($assetsOutputPath);
             }
 
-            \xcopy($assetsPath, $assetsOutputPath);
+            // fully-qualified: xcopy lives in the Razy namespace since Phase
+            // 2.5 (the \xcopy global form has never resolved; bare form would
+            // be re-globalized by the cs fixer and silently die again)
+            \Razy\xcopy($assetsPath, $assetsOutputPath);
             $this->writeLineLogging('[{@c:green}✓{@reset}] Assets copied to: ' . \basename($assetsOutputPath) . '/', true);
         }
 
