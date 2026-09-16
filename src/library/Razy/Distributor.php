@@ -17,6 +17,7 @@ namespace Razy;
 use Razy\Config\ConfigLoader;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
+use Razy\Csrf\CsrfDoor;
 use Razy\Database\MigrationManager;
 use Razy\Database\ModuleDatabaseConnector;
 use Razy\Distributor\ModuleRegistry;
@@ -71,6 +72,13 @@ class Distributor implements DistributorInterface
 
     /** @var bool Whether unmatched requests fall back to index.php for route matching */
     private bool $fallback = true;
+
+    /**
+     * CSRF posture parsed from dist.php (CSRF-RAIL.md L1): 'on' | 'off'.
+     * Missing key = 'off' (upgrade-neutral); the UNARMED noise lives with
+     * `validate`, not with a stored flag — this is config, read once.
+     */
+    private string $csrfMode = 'off';
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
@@ -135,7 +143,24 @@ class Distributor implements DistributorInterface
         $this->strict = (bool) ($config['strict'] ?? false);
         $this->fallback = (bool) ($config['fallback'] ?? true);
 
+        // CSRF-RAIL L1: one key arms the shipped engine for the whole dist.
+        // Missing/off keeps today's behavior EXACTLY (upgrade-neutral) but
+        // `validate` prints UNARMED loudly; anything else is a config lie
+        // and dies at boot, not silently in the middleware.
+        $csrfRaw = $config['csrf'] ?? 'off';
+        if (!\is_string($csrfRaw) || !\in_array($csrfRaw, ['on', 'off'], true)) {
+            throw new ConfigurationException(
+                "dist.php 'csrf' must be the string 'on' or 'off' for dist '{$distCode}', got: "
+                . (\is_scalar($csrfRaw) ? \var_export($csrfRaw, true) : \get_debug_type($csrfRaw)),
+            );
+        }
+        $this->csrfMode = $csrfRaw;
+
         $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
+
+        if ('on' === $this->csrfMode) {
+            CsrfDoor::arm($this);
+        }
     }
 
     /**
@@ -679,6 +704,17 @@ class Distributor implements DistributorInterface
     public function isStrict(): bool
     {
         return $this->strict;
+    }
+
+    /**
+     * Whether this dist armed the CSRF door (dist.php `'csrf' => 'on'`).
+     *
+     * CSRF-RAIL.md L1 — read by `validate` for the posture report and by
+     * anyone who needs the truth without inspecting middleware internals.
+     */
+    public function isCsrfArmed(): bool
+    {
+        return 'on' === $this->csrfMode;
     }
 
     /**

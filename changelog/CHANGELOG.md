@@ -9,6 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** CSRF-RAIL L1 — the door: one config key arms the engine. `'csrf' => 'on'` in
+  `dist.php` boots the full chain at Distributor init (`CsrfDoor::arm`): file-backed Session
+  (temp dir, per-dist filename prefix, zero disk touch at arm), `CsrfTokenManager` over it,
+  global middleware onion `SessionMiddleware → CsrfMiddleware` (session outermost so the token
+  validates between start/save), and the manager published on the container for
+  `Controller::csrfToken()/csrfField()` — an unarmed dist calling the helper dies with a
+  LogicException carrying the fix, never an empty hidden field that 419s every submit.
+  `rotateOnSuccess` on at the door (Q5); rejection answers via `CsrfRejection`: `csrf.failed`
+  event with module/route/method context (announce-only, resolver-miss tolerated), then the
+  L3-gate-shaped pair — 419 JSON envelope for XHR, small honest HTML page otherwise, the
+  submitted token never echoed. Missing/`'off'` = today's behavior exactly, but
+  `validate` now prints a **UNARMED** warning line with the arm instruction (upgrade-neutral
+  *and* loud — Q1); any other value is a config lie refused at boot and ✗ in validate.
+  Shared-module scaffold next-steps now hint arming new dists from day one.
+
 - **Added** CSRF-RAIL L0 — the session finally owns its cookie. `SessionConfig` had carried
   every cookie field (name/lifetime/path/domain/secure/httpOnly/sameSite) since v0.5 and
   NOTHING consumed them: `start()` never read `$_COOKIE`, so an existing session could not be

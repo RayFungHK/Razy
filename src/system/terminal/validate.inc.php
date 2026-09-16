@@ -283,6 +283,36 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             $this->writeLineLogging('', true);
         }
 
+        // ── CSRF posture (CSRF-RAIL.md L1) ────────────────────────────
+        // The upgrade-neutral 'off' default is only neutral when it is
+        // LOUD: an unarmed dist keeps today's exact behavior, but `validate`
+        // refuses to be quiet about every mutating route accepting
+        // cross-site form submissions. Armed reads as a green posture line;
+        // anything but the two declared strings is a config lie → ✗.
+        $this->writeLineLogging('{@s:b}CSRF Posture{@reset}', true);
+
+        $csrfRaw = null;
+        $csrfDistConfigPath = PathUtil::append($distPath, 'dist.php');
+
+        if (\is_file($csrfDistConfigPath)) {
+            $csrfParsed = require $csrfDistConfigPath;
+            $csrfRaw = (\is_array($csrfParsed) ? $csrfParsed : [])['csrf'] ?? null;
+        }
+
+        if ('on' === $csrfRaw) {
+            $this->writeLineLogging("  {@c:green}✓ armed (dist.php 'csrf' => 'on'){@reset}", true);
+        } elseif (null === $csrfRaw || 'off' === $csrfRaw) {
+            $this->writeLineLogging('  {@c:yellow}⚠ UNARMED — mutating routes accept cross-site form submissions{@reset}', true);
+            $this->writeLineLogging('      to arm: dist.php \'csrf\' => \'on\''
+                . '   (forms: Controller::csrfField(); XHR: X-CSRF-TOKEN header)', true);
+            ++$totalWarnings;
+        } else {
+            $this->writeLineLogging("  {@c:red}✗ 'csrf' must be the string 'on' or 'off' (boot would refuse){@reset}", true);
+            ++$totalErrors;
+        }
+
+        $this->writeLineLogging('', true);
+
         // ── FM-2 route audit (coexistence Phase 3, dossier option (f)) ──
         // Functional probes over the route table's COMPILED regexes. Foreign
         // namespaces = declared exclude_paths + sibling mounts on domains this

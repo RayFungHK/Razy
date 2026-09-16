@@ -14,7 +14,10 @@ namespace Razy;
 use BadMethodCallException;
 use Closure;
 use InvalidArgumentException;
+use LogicException;
 use Razy\Contract\ContainerInterface;
+use Razy\Csrf\CsrfMiddleware;
+use Razy\Csrf\CsrfTokenManager;
 use Razy\Database\MigrationManager;
 use Razy\Database\Statement;
 use Razy\Exception\ContainerException;
@@ -488,6 +491,48 @@ class Controller
     {
         $container = $this->container();
         return $container !== null && $container->has($abstract);
+    }
+
+    /**
+     * Current CSRF token for this session (CSRF-RAIL.md L1).
+     *
+     * Resolves the manager the ARMED door published — no RZ-005 fence
+     * crossing: the manager is a service, not a privilege object (same
+     * standing as the shipped `resolve(Database::class)` precedent).
+     *
+     * @throws LogicException when the dist is unarmed — a template asking
+     *                        for a token while dist.php says `'csrf'` =>
+     *                        'off' is a config lie, and it dies HERE with
+     *                        instructions, not as an empty hidden field
+     *                        that silently 419s every submit
+     */
+    final public function csrfToken(): string
+    {
+        if (!$this->hasService(CsrfTokenManager::class)) {
+            throw new LogicException(
+                'csrfToken(): this distributor is UNARMED —'
+                . " set 'csrf' => 'on' in its dist.php to activate the CSRF door,"
+                . ' or remove this call (and the form field) if this dist deliberately stays unprotected.',
+            );
+        }
+
+        /** @var CsrfTokenManager $manager */
+        $manager = $this->resolve(CsrfTokenManager::class);
+
+        return $manager->token();
+    }
+
+    /**
+     * Ready-to-echo hidden input for forms:  <input type="hidden" name="_token" …>.
+     *
+     * Explicit by design (CSRF-RAIL.md Q4): the template engine never
+     * rewrites rendered HTML, so the token lives in the author's markup
+     * where grep (and the AI reading it) can find it.
+     */
+    final public function csrfField(): string
+    {
+        return '<input type="hidden" name="' . CsrfMiddleware::TOKEN_FIELD
+            . '" value="' . \htmlspecialchars($this->csrfToken(), ENT_QUOTES, 'UTF-8') . '">';
     }
 
     /**

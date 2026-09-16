@@ -309,6 +309,8 @@ return function (string $moduleCode = '', ...$args) use (&$parameters) {
         $this->writeLineLogging('     Then type: {@c:yellow}run /' . $controllerName . '/{@reset}', true);
     } elseif ($isShared) {
         $this->writeLineLogging('  1. Add this module to a distributor\'s dist.php, then test with runapp', true);
+        $this->writeLineLogging('     New distributor? Set {@c:yellow}\'csrf\' => \'on\'{@reset} in its dist.php from day one'
+            . ' ({@c:yellow}validate{@reset} prints UNARMED otherwise)', true);
     }
     $this->writeLineLogging('  2. Edit {@c:yellow}controller/' . $controllerName . '.php{@reset} to add more routes', true);
     $this->writeLineLogging('  3. Edit {@c:yellow}controller/' . $controllerName . '.index.php{@reset} to customize the page', true);
