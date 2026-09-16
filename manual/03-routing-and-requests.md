@@ -217,4 +217,65 @@ Module guidance:
   (`src/library/Razy/Worker/`), not wired into the default request path
   (`RAZY-ANALYSIS-REPORT.md` §8.2). Treat zero-downtime hotplug as **[planned]**.
 
+## 6. Validating input — the FormRequest door (v1.2+)
+
+The Validation family (`src/library/Razy/Validation/`) had an engine since v0.5 but no
+door until FORMREQUEST-RAIL: handlers used to pay a five-line boilerplate tax per
+endpoint and almost nobody paid it. One call now owns the whole surface:
+
+```php
+$data = $this->validated(UserRequest::class); // only ever runs on PASS
+// $data is the validated payload, rules-scoped (unlisted junk never appears)
+```
+
+The Request class is the payload contract, written once:
+
+```php
+final class UserRequest extends \Razy\Validation\FormRequest
+{
+    protected function rules(): array
+    {
+        return ['name' => [new Required(), new MinLength(2), new MaxLength(64)]];
+    }
+
+    protected function messages(): array          // key: field.ruleName (lcfirst'd class)
+    {
+        return ['data.minLength' => 'At least 2 characters, please.'];
+    }
+
+    protected function authorize(): bool { return true; }          // your 403 verdict
+    protected function prepareForValidation(array $data): array { return $data; }
+}
+```
+
+Content-Type picks the source (`application/json` → `fromJson()`, else `$_GET`+`$_POST`;
+**no `$_FILES`** — file validation is out of scope by decision). Failure answers itself
+with a **named envelope** and ends dispatch on the same `HttpException` control-flow as
+every other rail — the handler physically never runs on rejected input:
+
+| verdict | code | envelope |
+|---|---|---|
+| `authorize()` false | 403 | `{"error":"forbidden","message":…,"fix":…}` |
+| rule miss | 422 | `{"error":"validation-failed","errors":{field:[msgs]},"fix":…}` |
+
+The door sits **behind** the CSRF door (manual/07 §4) — 419 means "you aren't this
+session's client", 422 means "you are, and your data is wrong". Captured live from the
+playground's `demo/csrfdemo` (armed dist, valid CSRF token, payload `'a'` under a
+2-character minimum — so the ONLY possible answer is the validation door's):
+
+```
+$ curl -s -i -b cj --data-urlencode "_token=$TOKEN" -d 'data=a' .../csrfdemo/save/
+HTTP/1.1 422
+Content-Type: application/json
+
+{"error":"validation-failed","errors":{"data":["At least 2 characters, please."]},
+ "fix":"correct the listed fields and resend the full payload (rules live in CsrfdemoSaveRequest)"}
+```
+
+Hand-rolled access keeps working (`fromGlobals()/fromJson()/validate()/errors()/validated()`)
+— with one honest caveat: `passes()` ANDs authorize into the verdict, which is why the
+door reads `isAuthorized()` and `validate()` as two verdicts instead. The family's two
+doc-era lies (`$_FILES` claimed in `fromGlobals`, `messages()` taught but never consumed)
+were retired at the same milestone — see `architecture/FORMREQUEST-RAIL.md`.
+
 Next: [04-database.md](04-database.md).

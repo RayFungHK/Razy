@@ -199,7 +199,9 @@ Four JSON dialects: `xhr()` **771** sites (incl. unused `sendEnvelope`);
 `{result,message,response}` via raw `echo json_encode` **233**; help's `{success,…}`, itself
 forked in two (`minter/api/help/chapters.php:28` vs `active_manager/api/help/chapters.php:32`);
 bare arrays for the lookup protocol. Error keys differ per dialect and the frontend JS already
-compensates per module — real, counted maintenance pain. **Shape**: canonical = `XHR::sendEnvelope`
+compensates per module — real, counted maintenance pain. **Shape**: canonical = `XHR::responseAsBody`
+(v1.2 note: the old `sendEnvelope` tail this line pointed at is retired — `responseAsBody()`
+now emits and ends dispatch directly; the ERP's 771 `xhr()` sites keep working untouched)
 + `xhr()->list($rows, $paginator)` (the C3a shape) + a lint (RZ-019 candidate: handlers answer via
 XHR/View, not `echo`+`header`+`exit`). **M** (mostly migration rails).
 

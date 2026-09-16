@@ -116,3 +116,37 @@ now on PHPUnit 11.5), phar rebuilt on src change, push only on word.
 **SIGNED 2026-09 — Q1–Q5 ALL per recommendation** (Controller::validated() helper /
 wire `messages()` / doc-fix only, no files / named 403+422 envelopes / manual/03 + live
 dogfood), M0→M2 in order. Execution tracked as goal-a2d4c43e.
+
+> **As-built (M0, 2026-09):** messages() wired via a `field.ruleName` map (ruleName =
+> lcfirst'd short class name) with the override applied at FieldValidator's
+> message-build time — an OPTIONAL third parameter, so the 293-test validation surface
+> and NestedValidator saw zero edits. One honest self-own en route: the first docblock
+> pin's needle appeared inside my own honesty comment about the lie; converted to the
+> house positive-form pin (assert the wiring exists, not that the old string is gone).
+
+> **As-built (M1, 2026-09):** the door shipped on the established HttpException
+> control-flow (thrower sends, dispatcher ends gracefully) — a FAIL physically cannot
+> continue into the handler, stronger than "returns null" as ever drafted here. The door
+> test then caught the milestone's real prize before any consumer existed:
+> `XHR::responseAsBody()` only STORED its body — emission needed a `sendEnvelope()` tail
+> that **zero call sites repo-wide ever called** (and the docblock pointed at a
+> `ContextHandler` class that does not exist): queue-admin and oauth had been shipping
+> EMPTY bodies for their whole JSON error surface since birth. Doctrine applied — an API
+> used wrong by 100% of its callers IS the bug: responseAsBody now emits-and-dies
+> directly, sendEnvelope survives as an idempotent array-mode pull; eight first-party
+> call sites revived with zero module edits (queue-admin 1.2.1 — also realigning its
+> module.php/package.php version desync slipped at CSRF-L4 — and oauth 0.1.1, patches).
+> manual/01's page that had TAUGHT the two-step chain (and blamed the readme for
+> omitting it) got corrected — the readme's usage turned out to be the future-correct
+> one. The phpstan pushback on a defensive `$_GET ?? []` was right: superglobals always
+> exist; the unset-superglobal landmine belonged to a test tearDown and died there.
+
+> **As-built (M2, 2026-09):** manual/03 §6 "Validating input" is the family's first
+> manual chapter ever; manual/01's XHR section rewritten for the one-call emission.
+> Live dogfood on the armed playground: `demo/csrfdemo` save now runs
+> `$this->validated(CsrfdemoSaveRequest::class)` — token-valid POST `data=hello` → 200
+> through BOTH doors, token-valid POST `data=a` → real 422 with the custom
+> `messages()` text verbatim on the wire ("At least 2 characters, please."), captured in
+> the chapter. Queue-admin's revived body proved live too: `act` with valid token now
+> answers `{"ok":false,"error":"no database connection available…"}` where M1-pre
+> answered 200-with-nothing.

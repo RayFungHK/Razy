@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
-- **Added** FORMREQUEST-RAIL M0+M1 — the Validation family (shipped v0.5, never had a
+- **Added** FORMREQUEST-RAIL M0–M2 — the Validation family (shipped v0.5, never had a
   consumer or a manual chapter) gets its door: `Controller::validated(RequestClass)`
   resolves source by Content-Type, PASS returns the validated payload in one call, FAIL
   answers 403 `{error:"forbidden"}` or 422 `{error:"validation-failed",errors,fix}` as
@@ -25,7 +25,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   reviving eight first-party call sites with zero module edits (both modules patched:
   queue-admin 1.2.1 — also realigning its module.php/package.php version desync from L4 —
   and oauth 0.1.1). The docblock reference to the non-existent ContextHandler class died
-  too. Suite 5,543 (+9 across M0/M1), module discipline lint green on modules/.
+  too. **M2**: manual/03 §6 is the family's first manual chapter ever (two-verdict door,
+  419-vs-422 boundary, live-captured 422 with custom `messages()` text from the armed
+  playground); manual/01's XHR section rewritten for one-call emission. Suite 5,543
+  (+9 across M0/M1), module discipline lint green on modules/.
 
 - **Added** PHP-85-READY — the framework is deprecation-clean on PHP 8.5 and the CI
   matrix runs it: php.net's migration85.deprecated list swept against src (curl_close ×4

@@ -19,7 +19,7 @@ rather than a copied pattern are marked *illustrative*.
 | — | [README.md](README.md) (this file) | Index, reading paths, conventions, known doc drift |
 | 01 | [01-getting-started.md](01-getting-started.md) | Install, CLI, project layout, first module end-to-end, Docker dev, subdirectory installs, pitfalls |
 | 02 | [02-modules-and-lifecycle.md](02-modules-and-lifecycle.md) | Module anatomy, lifecycle hooks, versions/tags, `dist.php`, API/bind/events, permission gates |
-| 03 | [03-routing-and-requests.md](03-routing-and-requests.md) | Routing APIs, routed info, `xhr()`, superglobals policy, worker-mode request handling |
+| 03 | [03-routing-and-requests.md](03-routing-and-requests.md) | Routing APIs, routed info, `xhr()`, input validation (`validated()` door), superglobals policy, worker-mode request handling |
 | 04 | [04-database.md](04-database.md) | Connections, Statement builder, Simple Syntax, transactions, migrations, ORM, injection discipline |
 | 05 | [05-templates.md](05-templates.md) | Real template syntax, modifiers, blocks, plugin format, DOM builder, XSS discipline |
 | 06 | [06-packages-and-deployment.md](06-packages-and-deployment.md) | `package.php`, compose, autoload isolation, standalone packages, phar, Docker reality, deployment checklist |

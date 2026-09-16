@@ -256,17 +256,17 @@ use Razy\Controller;
 return function (): void {
     /** @var Controller $this */
     $this->xhr()
-        ->responseAsBody(['ok' => true, 'route' => $this->getRoutedInfo()['route']])
-        ->sendEnvelope();
+        ->responseAsBody(['ok' => true, 'route' => $this->getRoutedInfo()['route']]);
 };
 ```
 
-`$this->xhr(): XHR` — `Controller.php:370`. `responseAsBody(array)` **sets** the body
-(`XHR.php:185-190`); `sendEnvelope()` emits it with your `responseCode()` (throws if unset,
-`XHR.php:197-201`). Note: `responseAsBody()` alone does **not** output — the readme
-Quick Start omits `sendEnvelope()` (drift listed in [README](README.md)); the terminal
-`output()` also unwinds the dispatch stack via an internal exception (`XHR.php:342`), so a
-later `echo` never runs. Full XHR surface: [03](03-routing-and-requests.md).
+`$this->xhr(): XHR` — `Controller.php`. `responseAsBody(array)` **emits** (headers +
+your `responseCode()` + JSON) and ends dispatch: the internal `output()` unwinds the
+dispatch stack via the same `HttpException` control-flow the readiness 503 rail uses,
+so a later `echo` never runs. (Since v1.2 this is one call: the older two-step
+`responseAsBody()` + `sendEnvelope()` chain only shipped bodies when BOTH were called —
+no call site in the wild ever got that right; `sendEnvelope()` survives as an
+idempotent no-op / array-mode pull.) Full XHR surface: [03](03-routing-and-requests.md).
 
 ### 6. View — `.../view/main.tpl`
 
