@@ -18,6 +18,10 @@
 
 The ERP evidence below shows what the absence costs: **38 wizard-step registrations with 5 colliding order numbers, 15 byte-similar route-whitelist copies, 6 stored `installed` flags, and a four-layer existence guard that is literally dead code.**
 
+> As-built correction (2026-09, `ERP-GENERALIZATION.md` survey): the "6 flags" counted distinct
+> config keys; the flag **references** number 69 across ~35 controllers. Same shape, larger N —
+> the doctrine stands, the sales number was conservative.
+
 ---
 
 ## 1. Evidence (all file:line verified this campaign)
