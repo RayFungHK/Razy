@@ -206,7 +206,7 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
             // the CLI mint refuses the same shape at the other door.)
             if ($provisionDeclared === 'wizard' && !\is_dir(PathUtil::append($moduleInfo->getPath(), 'migration'))) {
                 $this->writeLineLogging("  {@c:red}✗ Declares 'wizard' provision but ships no migration/ directory — "
-                    . "nothing for the runner to run{@reset}", true);
+                    . 'nothing for the runner to run{@reset}', true);
                 $totalErrors++;
             }
 

@@ -115,7 +115,7 @@ class GateHookListTest extends TestCase
         $gate->addAfter(function ($u, $ability, $result) {
             $this->trace[] = 'a2 sees ' . \var_export($result, true);
 
-                                   // abstains: a1's flip survives
+            // abstains: a1's flip survives
         });
 
         $this->assertTrue($gate->allows('act'));

@@ -161,7 +161,7 @@ return function () {
             $failures++;
             $this->writeLineLogging('  {@c:red}[FAIL]{@reset} ' . $e->getMessage(), true);
 
-            return null;
+            return;
         }
     };
 
@@ -281,7 +281,7 @@ return function () {
                         'module' => $code,
                         'version' => $module->getModuleInfo()->getVersion(),
                         'via' => 'cli',
-                        'applied' => count($executed),
+                        'applied' => \count($executed),
                     ]);
                 }
             }

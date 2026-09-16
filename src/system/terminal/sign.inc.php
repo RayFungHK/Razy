@@ -60,7 +60,7 @@ return function (string $mode = '', ...$args) {
 
         // Absolute (drive-letter or leading slash) or hex material passes through
         // untouched; hex detection mirrors PackageSignature::resolveHexOrFile.
-        if (\preg_match('#^([a-zA-Z]:[\\\\/]|[\\\\/])#', $path) === 1) {
+        if (\preg_match('#^([a-zA-Z]:[\\\/]|[\\\/])#', $path) === 1) {
             return $path;
         }
 

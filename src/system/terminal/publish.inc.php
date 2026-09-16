@@ -62,11 +62,11 @@ function githubApiRequest(string $method, string $url, string $token, ?string $r
 /**
  * Flatten an HttpResponse to the githubApiRequest result shape.
  *
- * @param \Razy\Http\HttpResponse $response
+ * @param Http\HttpResponse $response
  *
  * @return array{status:int, body:string, error:string}
  */
-function ghResult(\Razy\Http\HttpResponse $response): array
+function ghResult(Http\HttpResponse $response): array
 {
     return ['status' => $response->status(), 'body' => $response->body(), 'error' => ''];
 }
