@@ -250,3 +250,174 @@ mechanics (`require` warnings, key audits) → L1 derive readiness → L2 operat
 L3 the gate → L4 the door → L5 the docs you are reading. Each shipped green; the two real
 bugs the dogfood caught (a blacklist that let `Processing` through; a dead `required` key that
 had silently disabled a dependency graph) are pinned by tests, not folklore.
+
+## 9. Tutorial — a module's first run, end to end
+
+A walkthrough you can type. Every expected output below was taken from an actual run (the
+playground `appdemo` site, `demo/livedemo` + `demo/firstrun` as the teaching modules — swap
+in your own module codes anywhere).
+
+### 0 · What you need
+
+A distributor with a working `php Razy.phar module status <dist>` (if that exits 0 already,
+good — the tutorial's first half works regardless), and a MySQL the module may declare. No
+MySQL on hand? Everything still works — the failures ARE half the lesson (§"reading the
+honest failures").
+
+### 1 · Declare, don't install
+
+A module that owns schema is three declarations and a migration file:
+
+```text
+sites/<dist>/shop/orders/
+├── module.php                    # module_code => 'shop/orders'
+└── default/
+    ├── package.php               # name/version + the two lifecycle keys
+    ├── controller/orders.php     # __onInit registers routes
+    └── migration/
+        └── 2026_09_20_120000_CreateOrdersTables.php
+```
+
+```php
+// default/package.php — the lifecycle half
+return [
+    'name' => 'Orders',
+    'version' => '1.0.0',
+    'migration' => 'deploy',   // schema ships with deploys (bulk-safe door)
+    'provision' => 'wizard',   // first-run setup may ALSO run through the token door
+];
+```
+
+`migration => 'deploy'` answers *how the schema lands*; `provision => 'wizard'` answers
+*who may run first-run steps*. There is no `installed` flag anywhere in these files — that
+is the point (§1). A `provision => 'wizard'` that ships no `migration/` directory is a
+`validate` **error** (§7) — the declaration must mean something.
+
+### 2 · Gate the routes you expose
+
+```php
+// default/controller/orders.php
+use Razy\Agent;
+use Razy\Controller;
+use Razy\Route;
+
+return new class () extends Controller {
+    public function __onInit(Agent $agent): bool
+    {
+        $agent->readyRoutes('self');                      // module-wide default
+        $agent->addLazyRoute('list', 'list');             // now gated on self
+        $agent->addLazyRoute('ping', 'ping');             // scripts never gate
+        $agent->addLazyRoute('audit', (new Route('audit'))->ready('vendor/logger')); // peer gate
+        return true;
+    }
+};
+```
+
+`readyRoutes('self')` is the one-line version of "every route handler starts with an
+installed check" — except the dispatcher answers before your closure runs, and the answer
+comes from the ledger, not a stored flag. An ungated route is a deliberate statement, not
+an oversight (a `/ping` that must answer even while pending is a legitimate ungated route).
+
+### 3 · Declare the database — one door, one shape
+
+`config/<dist>/orders.php`:
+
+```php
+return [
+    'database' => [
+        'type' => 'mysql',
+        'connection' => [
+            'host' => '127.0.0.1', 'port' => 3306,
+            'user' => '…', 'password' => '…', 'database' => '…',
+        ],
+    ],
+];
+```
+
+This ONE declaration is what `migrate`, the readiness gate, and the wizard runner all
+resolve through (`ModuleDatabaseConnector`). There is no second engine and no ambient-DB
+fallback — misdeclare it and every door tells you so.
+
+### 4 · Ask, don't guess: the operator verbs
+
+```bash
+php Razy.phar module status <dist>            # READY column per module, non-zero exit if any not-ready
+php Razy.phar migrate <dist> --status         # ledger view: applied vs pending per module
+php Razy.phar module enable <dist> shop/orders
+php Razy.phar module disable <dist> shop/orders   # flag flip only — data untouched
+```
+
+A module that declares nothing shows `PENDING -` / `READY yes` — **vacuous** readiness, zero
+DB touched. A module whose ledger is unreachable shows `PENDING ???` / `READY UNREACHABLE`
+with the named cause and exit 1:
+
+```text
+  MODULE                       VERSION   PROVISION ENABLED  PENDING  READY
+  demo/firstrun                default   wizard   yes      ???      UNREACHABLE
+    Module 'demo/firstrun': database connection refused
+```
+
+Reading the honest failures — real outputs, all exit 1, all naming the fix:
+
+| You see | It means |
+|---|---|
+| `no config-connect database declared` | §3's file is missing or misshapen |
+| `database connection refused` | declared DB unreachable — check server/credentials |
+| `Ledger unreachable, refusing to mint: …` | `wizard-token` will NOT hand out a token it cannot verify pending>0 for |
+| `[SKIP] ... nothing to apply` (exit 0) | pending==0 — a token would be spent on nothing |
+| `PENDING -` / `READY yes` | vacuous truth: no migrations declared, nothing to wait for |
+
+### 5 · Deploy the schema (the door migrations run behind)
+
+```bash
+php Razy.phar migrate <dist> shop/orders      # applies pending in file order
+```
+
+Non-empty apply is the ONLY thing that fires `module.installed` (payload includes
+`via: cli`) — seeding lives in your listener (§6), never in a step registry. Re-run the
+same command: `[SKIP]`, exit 0, nothing fires. The command is idempotent; your listener
+is what made the install mean something.
+
+### 6 · Or let the web finish it: the wizard door
+
+For a `provision => 'wizard'` module whose routes a visitor just hit — the gate answered
+`302 /__setup/shop%2Forders`. Nobody can run schema from that page: the operator mints a
+one-time token on the shell:
+
+```bash
+php Razy.phar module wizard-token <dist> shop/orders
+# [TOKEN] b64url(…).b64url(HMAC…)  (valid 600s, single-use, bound to this dist+module)
+```
+
+Paste it into the page's form, POST runs `migrate` through the same door as CLI, fires
+`module.installed` with `via: wizard`, and prints the applied count. Wrong/expired token →
+403, the attempt is audited (`[Razy][wizard][<dist>] …`); a spent token stays spent even if
+the migration then fails — retry with a fresh mint. The framework never touches accounts:
+there is no login at this door because there is no user row to log into yet.
+
+### 7 · Watch the gate answer live
+
+```bash
+php -S 127.0.0.1:8093 router.php          # from the site root; NOTE: after ANY Razy.phar
+                                          # swap RESTART this server — it keeps the old
+                                          # phar loaded in-process
+curl http://127.0.0.1:8093/<dist>/orders/list/
+# pending  → 503, names shop/orders + the exact migrate command
+curl -H 'X-Requested-With: XMLHttpRequest' …/<dist>/orders/list/
+# pending  → {"error":"module-not-ready","module":…,"fix":"php Razy.phar migrate <dist> …"}
+curl …/<dist>/orders/audit/               # peer gated on a wizard module
+# not ready → 302, Location: …/__setup/vendor%2Flogger
+```
+
+`php Razy.phar module disable <dist> vendor/logger` and the peer route flips to the 503
+without touching logger's files; `enable` again and the very next request passes — the
+answer is derived per request, so there is nothing to resync. (Route keys are alias-based —
+`/orders/…`, not `/shop/orders/…`: the vendor segment is not part of the URL.)
+
+### 8 · What you now own
+
+- readiness you never store and can never desync;
+- schema that lands at exactly two doors, both auditable;
+- an install event that means migrations ran — not "the wizard finished";
+- a `module.php`-clean upgrade path: `validate <dist>` + `module status <dist>` tell you,
+  at deploy time, what the old checkbox folklore hid until the first request crashed.

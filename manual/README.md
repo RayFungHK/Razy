@@ -47,11 +47,16 @@ is held. Numbering follows the dossiers' own reservations, not first-available.)
 2. [05-templates.md](05-templates.md) — shipped syntax + the built-in `->escape` modifier (v1.0.3-beta+; no auto-escaping — discipline still required).
 3. [04-database.md](04-database.md) — values only via `assign()`; identifier rules.
 4. [03-routing-and-requests.md](03-routing-and-requests.md) — placeholders, `xhr()`, statelessness in worker mode.
+5. [12-module-lifecycle.md](12-module-lifecycle.md) §9 — **hands-on tutorial**: a module's
+   first run end to end — declarations, route gates, both migration doors, the live
+   503/302 answers. Every expected output was taken from an actual run.
 
 ### Operations — "I deploy and babysit this thing"
 1. [06-packages-and-deployment.md](06-packages-and-deployment.md) — the Docker reality table is mandatory reading.
 2. [07-security-guide.md](07-security-guide.md) §checklist — non-root, HTTPS, gated bridges, health endpoint.
 3. [01-getting-started.md](01-getting-started.md) §CLI — to know what the dev commands actually do.
+4. [12-module-lifecycle.md](12-module-lifecycle.md) §4 + §9 — `module status` as the deploy
+   gate (non-zero exit = pending/unreachable), and the wizard-token door for first-run setup.
 
 ### AI agent — "I generate Razy code"
 1. Read [`skills/RAZY-AI-RULES.md`](../skills/RAZY-AI-RULES.md) and [`AGENTS.md`](../AGENTS.md) **first** —
