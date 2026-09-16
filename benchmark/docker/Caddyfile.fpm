@@ -1,8 +1,16 @@
 # Caddyfile — PHP-FPM baseline front (one Caddy, both apps)
 #
-# :8083 -> Razy on plain fpm   (bench-razy-fpm:9000,     root /app/site)
-# :8084 -> Laravel on plain fpm (bench-laravel-fpm:9000, root /app/public)
+# :8083 -> Razy on plain fpm    (bench-razy-fpm:9000,     root /app/site)
+# :8084 -> Laravel on plain fpm (bench-laravel-fpm:9000,  root /app/public)
 # No worker, no Octane — every request pays full framework boot.
+#
+# Why an explicit rewrite (learned live, 2026-09): php_fastcgi's automatic
+# clean-path matcher probes the LOCAL filesystem for {path}.php existence — and
+# this Caddy is a separate container with no app files, so every auto-matched
+# route 404'd file_server-side before FastCGI ever saw it. A hard rewrite to
+# the front controller matches *.php purely, and Caddy still sends the
+# UNREWRITTEN original REQUEST_URI, so both frameworks route correctly.
+# (FPM opens the SCRIPT inside its own container; root just parameterizes it.)
 
 {
 	admin off
@@ -11,24 +19,19 @@
 :8083 {
 	root * /app/site
 
+	rewrite * /index.php?{query}
+
 	php_fastcgi razy-fpm:9000 {
 		root /app/site
 	}
-
-	file_server
 }
 
 :8084 {
 	root * /app/public
 
+	rewrite * /index.php?{query}
+
 	php_fastcgi laravel-fpm:9000 {
 		root /app/public
 	}
-
-	file_server {
-		prefer_file
-	}
-
-	# Laravel front-controller fallback
-	try_files {path} /index.php?{query}
 }

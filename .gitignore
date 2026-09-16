@@ -104,3 +104,6 @@ packages/publish.inc.php
 # (2026-09 CI reddening: unpinned phpstan/cs-fixer patches changed rules on
 # untouched code) ===
 !composer.lock
+
+# k6 timestamped byproducts (canonical records are results/<target>/*_runN.json)
+benchmark/results/*_20*T*Z.json

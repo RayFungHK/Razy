@@ -43,21 +43,28 @@ def load_k6_summary(filepath: Path) -> dict:
 
 
 def extract_metrics(summary: dict) -> dict:
+    """Handle both summary-export schemas: k6 ≤1 wrapped stats in 'values',
+    k6 2.0 flattened them and renamed nothing (http_reqs → also total_requests).
+    Note 2.0's default trend stats carry NO p(99) — rendered as '—', not 0."""
     metrics = summary.get('metrics', {})
-    http_reqs = metrics.get('http_reqs', {})
-    http_dur = metrics.get('http_req_duration', {})
+    reqs = metrics.get('http_reqs') or metrics.get('total_requests') or {}
+    dur = metrics.get('http_req_duration', {})
     checks = metrics.get('checks', {})
 
+    def g(stat, key):
+        # legacy wrapped form, then flat 2.0 form
+        return (stat.get('values') or stat).get(key, None)
+
     return {
-        'rps': http_reqs.get('values', {}).get('rate', 0),
-        'total_reqs': http_reqs.get('values', {}).get('count', 0),
-        'p50': http_dur.get('values', {}).get('med', 0),
-        'p90': http_dur.get('values', {}).get('p(90)', 0),
-        'p95': http_dur.get('values', {}).get('p(95)', 0),
-        'p99': http_dur.get('values', {}).get('p(99)', 0),
-        'avg': http_dur.get('values', {}).get('avg', 0),
-        'max': http_dur.get('values', {}).get('max', 0),
-        'success_rate': checks.get('values', {}).get('rate', 0) * 100,
+        'rps': g(reqs, 'rate') or 0,
+        'total_reqs': g(reqs, 'count') or 0,
+        'p50': g(dur, 'med') or 0,
+        'p90': g(dur, 'p(90)') or 0,
+        'p95': g(dur, 'p(95)') or 0,
+        'p99': g(dur, 'p(99)'),
+        'avg': g(dur, 'avg') or 0,
+        'max': g(dur, 'max') or 0,
+        'success_rate': (g(checks, 'value') or 0) * 100,
     }
 
 
@@ -66,7 +73,9 @@ def aggregate_runs(run_metrics: list) -> dict:
         return {}
     result = {}
     for key in run_metrics[0].keys():
-        values = [m[key] for m in run_metrics]
+        values = [m[key] for m in run_metrics if m.get(key) is not None]
+        if not values:
+            continue
         result[key] = {
             'mean': statistics.mean(values),
             'stddev': statistics.stdev(values) if len(values) > 1 else 0,
@@ -159,10 +168,11 @@ def detail_sections(lines: list, stacks_results: dict):
         for sc in sorted(res.keys()):
             runs = res[sc]
             agg = aggregate_runs(runs)
+            p99 = f'p99 {fmt(agg["p99"]["mean"], "ms")}, ' if 'p99' in agg else ''
             lines.append('')
             lines.append(f'**{SCENARIO_LABELS.get(sc, sc)}** ({len(runs)} runs): RPS {fmt(agg["rps"]["mean"])} ±{fmt(agg["rps"]["stddev"])}, '
                          f'p50 {fmt(agg["p50"]["mean"], "ms")}, p95 {fmt(agg["p95"]["mean"], "ms")}, '
-                         f'p99 {fmt(agg["p99"]["mean"], "ms")}, success {fmt(agg["success_rate"]["mean"], "%")}')
+                         f'{p99}success {fmt(agg["success_rate"]["mean"], "%")}')
 
 
 def main():

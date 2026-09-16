@@ -30,7 +30,13 @@ COPY Razy.phar /app/Razy.phar
 COPY vendor /app/vendor
 COPY composer.json /app/composer.json
 
-RUN mkdir -p /app/site/data/cache /app/site/plugins
+RUN mkdir -p /app/site/data/cache /app/site/plugins \
+    && chown -R www-data:www-data /app/site
+#   ^ the fpm pool runs as www-data; without this the runtime cache tree was
+#   root-owned and UNWRITABLE — every template re-compiled and every cache write
+#   silently failed (first fpm pass read Razy at 0.17-0.41x with multi-second
+#   p95; the Laravel fpm image always had its equivalent `chown /app/storage`).
+#   That pass was invalid, not a result; fair rerun 2026-09.
 
 COPY benchmark/razy/config.inc.php /app/site/config.inc.php
 COPY benchmark/razy/standalone /app/site/standalone

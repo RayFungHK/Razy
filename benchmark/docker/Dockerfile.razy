@@ -52,7 +52,11 @@ COPY benchmark/razy/standalone /app/site/standalone
 RUN printf '<?php\nnamespace Razy;\nuse Exception;\nuse Phar;\n\nchdir(__DIR__);\n$razyConfig = require __DIR__ . "/config.inc.php";\n$pharPath = ($razyConfig["phar_location"] ?? __DIR__) . "/Razy.phar";\nPhar::loadPhar($pharPath, "Razy.phar");\ninclude "phar://Razy.phar/main.php";\n' > /app/site/index.php
 
 # Caddyfile for worker mode
-COPY benchmark/docker/Caddyfile.razy /etc/caddy/Caddyfile
+# Caddyfile — frankenphp 1.10 images read /etc/frankenphp/Caddyfile (NOT
+# /etc/caddy/Caddyfile; the old COPY target was silently ignored and caddy ran
+# its stock default site on 80/443 — caught when container-to-container k6
+# found 8080 refusing, 2026-09).
+COPY benchmark/docker/Caddyfile.razy /etc/frankenphp/Caddyfile
 
 # Toolchain receipt (mirror of the Laravel side): docker exec bench-razy cat /toolchain.txt
 RUN { echo "php=$(php -r 'echo PHP_VERSION;')"; \
