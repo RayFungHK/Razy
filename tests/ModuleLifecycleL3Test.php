@@ -189,8 +189,10 @@ final class ModuleLifecycleL3Test extends TestCase
     {
         // No probe = framework wiring bug: loud, and closed (never open).
         $warned = false;
-        \set_error_handler(static function (int $level) use (&$warned): bool {
+        $levelsSeen = '';
+        \set_error_handler(static function (int $level) use (&$warned, &$levelsSeen): bool {
             $warned = $level === E_USER_WARNING;
+            $levelsSeen = '' === $levelsSeen ? (string) $level : $levelsSeen . ',' . $level;
 
             return true;
         });
@@ -207,7 +209,10 @@ final class ModuleLifecycleL3Test extends TestCase
             \ob_end_clean();
         }
 
-        self::assertTrue($warned, 'the wiring bug is announced, never silent');
+        // levels-seen turns "handler never fired" into a diagnosable fact:
+        // empty string = no error reached us; digits = what DID (8.5-only red
+        // witness, 2026-09 — the refuse half passed, the announce half didn't).
+        self::assertTrue($warned, 'the wiring bug is announced, never silent; handler saw levels: [' . $levelsSeen . ']');
     }
 
     public function testUngatedRouteReturnsImmediately(): void

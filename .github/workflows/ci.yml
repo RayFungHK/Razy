@@ -32,7 +32,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl
+          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, sodium
           coverage: pcov
           tools: composer:v2
 
@@ -67,7 +67,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl
+          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, sodium
           coverage: pcov
           tools: composer:v2
 
@@ -103,7 +103,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl
+          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, sodium
           coverage: none
           tools: composer:v2, cs2pr
 
@@ -124,7 +124,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl
+          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, sodium
           coverage: none
           tools: composer:v2
 
@@ -177,7 +177,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, redis
+          extensions: zip, curl, json, mbstring, pdo_sqlite, ftp, openssl, sodium, redis
           coverage: none
           tools: composer:v2
 
@@ -189,4 +189,8 @@ jobs:
         run: |
           set -o pipefail
           vendor/bin/phpunit --no-coverage --filter "RedisQueueStoreTest|SessionRedisDriverTest|RedisAdapterTest" 2>&1 | tee redis.log
-          grep -qE 'Skipped: 0' redis.log || { echo "::error::redis-backed suites were skipped — ext-redis or service missing"; exit 1; }
+          # The old gate grepped 'Skipped: 0' — a line PHPUnit 11.5 only prints
+          # on non-clean summaries: a FULLY GREEN run ("OK (82 tests, …)") had
+          # no such line and reddened itself as "skipped". Gate the positive way:
+          # an OK summary must appear; anything else (skip lines, failures) fails.
+          grep -qE '^OK \([0-9]+ tests' redis.log || { echo "::error::redis-backed suites not fully green (skips or failures — see log above)"; exit 1; }

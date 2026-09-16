@@ -41,7 +41,9 @@ class ValueEscapeTest extends TestCase
             'single quote' => ["'", 'single quote'],
             'double quote' => ['"', 'double quote'],
             'backslash' => ['\\', 'backslash'],
-            'null byte' => ["\0", 'null byte'],
+            // 'null byte' left this provider on purpose: SQLite cannot quote it
+            // (PHP 8.5 made that explicit; the Statement guard rejects it loudly
+            // on every version now) — see testNullByteEscaping.
             'tab' => ["\t", 'tab'],
             'newline' => ["\n", 'newline'],
             'carriage return' => ["\r", 'carriage return'],
@@ -141,11 +143,15 @@ class ValueEscapeTest extends TestCase
 
     public function testNullByteEscaping(): void
     {
-        $result = $this->quoteValue("before\0after");
-        $this->assertIsString($result);
-        // PDO::quote() may truncate at null byte (SQLite returns '')
-        // The key safety property: it must still be a valid SQL literal
-        $this->assertMatchesRegularExpression("/^'.*'$/s", $result);
+        // Since the 8.5 matrix went live (2026-09): SQLite cannot store NUL and
+        // pre-8.5 PDO SILENTLY truncated such values. The Statement guard now
+        // rejects the case loudly on every PHP version — silent data loss is
+        // not an escape strategy. (MySQL quotes NUL safely and is unaffected;
+        // its path keeps its own coverage.)
+        $this->expectException(\Razy\Exception\QueryException::class);
+        $this->expectExceptionMessageMatches('/NUL/');
+
+        $this->quoteValue("before\0after");
     }
 
     public function testNewlineEscaping(): void

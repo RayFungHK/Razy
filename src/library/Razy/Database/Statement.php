@@ -465,10 +465,25 @@ class Statement
 
         if (\is_scalar($value)) {
             if (\is_string($value)) {
+                // NUL bytes are a SQLite boundary, not an escaping problem: the
+                // C API's text strings terminate at \0. Pre-8.5 PDO::quote
+                // SILENTLY truncated such values (data loss); PHP 8.5's PDO
+                // finally throws. Guard here so every PHP version gets the same
+                // loud, honest answer — and MySQL (which quotes \0 safely) is
+                // untouched. (Caught live by the 8.5 CI matrix, 2026-09.)
+                if (\str_contains($value, "\0") && $this->database->getDriverType() === 'sqlite') {
+                    throw new QueryException(
+                        'SQLite cannot store NUL bytes in SQL string literals — the value was truncated'
+                        . ' silently before PHP 8.5 and is rejected here since; encode (base64) or use a BLOB column.'
+                    );
+                }
+
                 // Use PDO::quote() for safe SQL escaping instead of addslashes()
                 $adapter = $this->database->getDBAdapter();
+
                 return $adapter->quote($value);
             }
+
             return (string) $value;
         }
 
