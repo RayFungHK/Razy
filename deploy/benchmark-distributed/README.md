@@ -171,7 +171,7 @@ threshold semantics, or you will gate each shard on the whole 15k.
 | `ok_rate{kind:probe}` | `> 99.9%` | probe latency means the worker threads are fully occupied — pods will flake in Kubernetes before this test even finishes (§ "surge behaviour" in [`../k8s/README.md`](../k8s/README.md)) |
 | `http_req_duration{kind:probe}` | `p95<25ms, p99<50ms` | probe path is pre-routing ([`src/library/Razy/Health.php:33-54`](../../src/library/Razy/Health.php)) — if it is slow, the edge or the network is, not Razy |
 | `http_req_duration{kind:business}` | `p95<150ms, p99<400ms` | per-container p95 anchors were 18–72 ms; a fleet 2× that is TLS+hop+queue, 5× that is DB/pooler |
-| `…{scenario:db_read}` / `db_write` | `p95<120/300ms` | MySQL + pooler first (db-read anchor 3,763 RPS, db-write 754 RPS) |
+| `…{scenario:db_read}` / `db_write` | `p95<120/300ms` | MySQL + pooler first (db-read anchor 4,327 RPS, db-write 808 RPS — 2026-09 epoch) |
 | `…{scenario:heavy}` | `p95<1200ms` | CPU-bound by design; only in `cpu-mixed` at 1% |
 | `health_degraded` | `rate < 1%` | counts the literal string `"degraded"` in the probe body — the stock probe only ever emits `"ok"` (`Health.php:67-71`), so a non-zero rate means something *added* degraded reporting |
 | `checks` | `rate > 98%` | body-shape drift (e.g. template route changed) rather than capacity |
@@ -202,8 +202,8 @@ It does **not** mean:
   see [`../php-opcache.ini`](../php-opcache.ini) PHP VERSION NOTES).
 
 Per-pod expectations for the default profile, derived from the measured anchors in
-[`benchmark/results`](../../benchmark/results) (composite 4,528 / db-read 3,763 /
-static 6,331 RPS per 2 vCPU container, discounted ×0.6 ⇒ ≈ 2,745 mixed RPS/pod):
+[`benchmark/results`](../../benchmark/results) (composite 3,600 / db-read 4,327 /
+static 6,336 RPS per 2 vCPU container, discounted ×0.6 ⇒ ≈ 2,567 mixed RPS/pod):
 6 pods is the floor, ~10 pods is the HPA's steady state at the 15k objective, 20 pods
 is ~3.7× headroom. Full derivation:
 [`../k8s/README.md` §3](../k8s/README.md).

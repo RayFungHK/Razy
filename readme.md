@@ -393,26 +393,37 @@ php Razy.phar pkg list
 
 ## Performance
 
-Measured on this repo's `benchmark/` suite (k6, 2 vCPU/4 GB containers, MySQL 8.0,
-single Docker Desktop host, 2026-02): Razy on **FrankenPHP worker mode** (boot-once
-dispatch) vs Laravel 12 **Octane/Swoole**:
+Measured on this repo's `benchmark/` suite, **2026-09 symmetric epoch** (raw k6
+JSON for every pass under `benchmark/results/`, toolchain receipts embedded in
+`benchmark/REPORT.md`; protocol and invalid-pass log in
+[`benchmark/EPOCH-2026-09.md`](benchmark/EPOCH-2026-09.md)): both stacks run the
+**identical FrankenPHP 1.10 runtime** (Razy worker vs Laravel 13.32 + Octane's
+FrankenPHP driver — the Swoole-vs-FrankenPHP asymmetry of the 2026-02 table is
+gone), both render through their real engines and query-builder layer, both on
+persistent links, 2 vCPU/4 GB containers, MySQL 8.0.43, 3 runs per scenario.
 
 | Scenario | Razy | Laravel | Verdict |
 |---|---:|---:|---|
-| Static route | 6,331 RPS | 1,254 | Razy 5.0× |
-| Template render | 6,264 | 1,137 | Razy 5.5× — **caveat 1** |
-| DB read | 3,763 | 952 | Razy 4.0× — caveat 2 |
-| DB write | 754 | 842 | Laravel 1.1× (MySQL-bound) |
-| Composite | 4,528 | 958 | Razy 4.7× — caveat 1 |
-| Heavy CPU | 144 | 325 | **Laravel 2.3×** (Swoole coroutines) |
+| Static route | **6,336 RPS** | 2,146 | Razy 2.95× |
+| Template render (real engine both sides) | **4,950** | 1,961 | Razy 2.52× |
+| DB read | **4,327** | 1,456 | Razy 2.97× |
+| DB write | 808 | 779 | ≈ equal (MySQL-bound — as the audit predicted) |
+| Composite (DB + template) | **3,600** | 1,464 | Razy 2.46× |
+| Heavy CPU | 144 | 121 | ≈ same runtime, as expected |
 
-**Caveats, stated plainly** (our own audit, [`RAZY-ANALYSIS-REPORT.md`](RAZY-ANALYSIS-REPORT.md)):
-*caveat 1* — the benchmark's Razy endpoints built HTML by string concatenation instead of
-exercising Razy's own template engine; *caveat 2* — Razy used persistent PDO connections
-while Laravel did not. Treat stack-vs-stack numbers as directional, not as
-framework-vs-framework. A symmetric rerun (real templates, aligned connection policy,
-PHP-FPM baseline, pinned toolchain) is the standing benchmark task. Worker-mode
-per-request framework overhead is ~0.05 ms (boot-once, verified in `src/main.php`).
+Plain **PHP-FPM baseline** (both stacks on stock php:8.3-fpm, every request pays
+full boot) isolates what worker mode buys each framework: Laravel's FPM pass
+measured 921/900/473/444/482 RPS on the first five scenarios (worker mode ≈ 2.3×
+its own FPM cost); the Razy FPM pass is rerunning after an ownership bug
+invalidated its first pass (log cited above — numbers land in REPORT.md, not
+fabricated here).
+
+These numbers carry no caveats about methodology because the 2026-02 caveats
+were **fixed**: string-concatenation endpoints, connection-policy asymmetry,
+missing raw data and unpinned toolchains are all closed items
+([`RAZY-ANALYSIS-REPORT.md`](RAZY-ANALYSIS-REPORT.md) → absorption tracked in
+`architecture/COMPETITOR-LANDSCAPE.md` §5). Worker-mode per-request framework
+overhead is ~0.05 ms (boot-once, verified in `src/main.php`).
 
 **Autoscaling out of the box (unreleased):** the framework serves
 `GET /_razy/metrics` (Prometheus text format, answered pre-dispatch by `Razy\Metrics`)

@@ -23,10 +23,11 @@
  *   probes all point at this path).
  *
  * 15000-TPS RELEVANCE — the numbers behind the thresholds
- *   Measured per 2 vCPU / 4 GB worker container (benchmark/results):
- *       static 6,331 RPS  p95  18.1ms   template 6,264 RPS  p95  19.0ms
- *       composite 4,528 RPS p95 72.4ms   db-read 3,763 RPS   p95  38.5ms
- *       db-write 754 RPS  p95 182ms      heavy CPU 144 RPS   p50 571ms
+ *   Measured per 2 vCPU / 4 GB worker container (2026-09 epoch, raw JSON in
+ *   benchmark/results/razy, receipts in benchmark/REPORT.md):
+ *       static 6,336 RPS  p95  19.0ms   template 4,950 RPS  p95  35.1ms
+ *       composite 3,600 RPS p95 107ms    db-read 4,327 RPS   p95  38.3ms
+ *       db-write 808 RPS  p95 171ms      heavy CPU 144 RPS   p50 ~500ms
  *   Thresholds below are those per-container numbers, relaxed for a fleet behind
  *   an Ingress (TLS, hop, autoscaling churn). If p95 breaches them, the first
  *   suspects are: pod count vs. HPA lag, worker queue saturation

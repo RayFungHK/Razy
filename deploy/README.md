@@ -28,7 +28,7 @@ deploy/
    ([`Caddyfile`](Caddyfile)), reusing the launch pattern proven in
    [`benchmark/docker/Dockerfile.razy`](../benchmark/docker/Dockerfile.razy) +
    [`benchmark/docker/Caddyfile.razy`](../benchmark/docker/Caddyfile.razy), which is
-   how Razy measured **3,763–6,331 RPS per 2 vCPU container**
+   how Razy measured **3,600–6,336 RPS per 2 vCPU container**
    ([`benchmark/results/COMPARISON-REPORT.md:140-147`](../benchmark/results/COMPARISON-REPORT.md)).
 2. **A committed OPcache/JIT profile.** [`php-opcache.ini`](php-opcache.ini) keeps
    `validate_timestamps=0`, JIT tracing (`opcache.jit = 1255`, the measured value),
@@ -55,10 +55,10 @@ kubectl -n razy-prod apply -f deploy/benchmark-distributed/k6-distributed-job.ya
 
 ## Sizing, in one line
 
-Discounted (×0.6) mixed read-dominant capacity is **≈ 2,745 RPS per 2 vCPU pod** ⇒
+Discounted (×0.6) mixed read-dominant capacity is **≈ 2,567 RPS per 2 vCPU pod** ⇒
 **6 pods** is the floor for 15,000 TPS, ~10 pods is the HPA steady state, 20 pods
 (`maxReplicas`) is ~3.7× headroom. Derivation, sources, and the correction of a
-circulating "db-read 8.8k RPS" figure (the measured value is **3,763**):
+circulating "db-read 8.8k RPS" figure (the measured values: 3,763 in 2026-02, 4,327 in the 2026-09 symmetric epoch):
 [`k8s/README.md` §3](k8s/README.md).
 
 ## Scope notes

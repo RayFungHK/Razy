@@ -69,26 +69,27 @@ Expected probe body (worker mode, `RAZY_HEALTH_VERBOSE=1`):
 
 ## 3. The 15,000-TPS sizing math
 
-### 3.1 Measured anchors (no extrapolation — these are the runs in `benchmark/results`)
+### 3.1 Measured anchors (no extrapolation — these are the 2026-09 runs in `benchmark/results`)
 
 Container: **2 vCPU / 4 GB**, PHP 8.3, FrankenPHP **worker mode**, OPcache+JIT 1255
-(`benchmark/results/BENCHMARK-REPORT.md:4-9`).
+(same policy as the benchmark harness; receipts in `benchmark/REPORT.md`).
 
 | Route | Per-container RPS | p95 | Source |
 |---|---:|---:|---|
-| `/benchmark/static` (dispatch only) | **6,331** | 18.6 ms | `results/COMPARISON-REPORT.md:59,62` |
-| `/benchmark/template` | **6,264** | 19.0 ms | `results/COMPARISON-REPORT.md:72,75` |
-| `/benchmark/db-read` | **3,763** | 38.5 ms | `results/COMPARISON-REPORT.md:85,88` |
-| `/benchmark/composite` (DB read + render) | **4,528** | 72.4 ms | `results/COMPARISON-REPORT.md:113,116` |
-| `/benchmark/db-write` (INSERT) | **754** | 182 ms | `results/COMPARISON-REPORT.md:98,101` |
-| `/benchmark/heavy` (CPU-bound) | **144** | 595 ms | `results/COMPARISON-REPORT.md:129-131,147` |
+| `/benchmark/static` (dispatch only) | **6,336** | 19.0 ms | `results/razy/01_static_route_run*.json` |
+| `/benchmark/template` (real engine) | **4,950** | 35.1 ms | `results/razy/02_template_render_run*.json` |
+| `/benchmark/db-read` | **4,327** | 38.3 ms | `results/razy/03_db_read_run*.json` |
+| `/benchmark/db-write` (INSERT) | **808** | 171 ms | `results/razy/04_db_write_run*.json` |
+| `/benchmark/composite` (DB read + render) | **3,600** | 107 ms | `results/razy/05_composite_run*.json` |
+| `/benchmark/heavy` (CPU-bound) | **144** | 586 ms | `results/razy/06_heavy_cpu_run*.json` |
 
-> ⚠️ **Correction to a circulating draft figure.** An earlier sizing note quoted
-> "db-read ≈ 8.8k RPS". No such number exists in `benchmark/results`: the measured
-> db-read is **3,763 RPS** (`results/03_razy_v2.txt:994`,
-> `COMPARISON-REPORT.md:85`), and the "4.7k" figure is the composite
-> *Razy-vs-Laravel ratio* (`Razy (4.7x)`), whose RPS is **4,528**. The fleet sizing
-> below uses the measured values, which is why it lands at 6 pods, not 3.
+> ⚠️ **Correction, still true, now historical.** An earlier sizing draft quoted
+> "db-read ≈ 8.8k RPS" — no such number ever existed in `benchmark/results`,
+> in any epoch. The 2026-02 epoch measured 3,763 (its template/composite figures
+> later failed our own audit — string-concatenation endpoints); the 2026-09
+> symmetric epoch measures **4,327**. Fleet sizing below uses the new anchors;
+> it lands at 6 pods, unchanged — the honest template number (4,950, down from
+> the inflated 6,264) is the one row that tightened.
 
 ### 3.2 Discount, then division
 
@@ -99,9 +100,10 @@ still has cold JIT traces.
 
 | Route | Measured | ×0.6 ⇒ per-pod budget | Pods for 15,000 |
 |---|---:|---:|---:|
-| static/template only | 6,331 / 6,264 | 3,799 / 3,758 | **4** |
-| composite (read+render) | 4,528 | 2,717 | 5.5 ⇒ **6** |
-| db-read dominant | 3,763 | 2,258 | 6.6 ⇒ **7** |
+| static only | 6,336 | 3,802 | 3.95 ⇒ **4** |
+| template (real engine) | 4,950 | 2,970 | 5.05 ⇒ **6** |
+| db-read dominant | 4,327 | 2,596 | 5.78 ⇒ **6** |
+| composite (read+render) | 3,600 | 2,160 | 6.94 ⇒ **7** |
 
 **Mixed read-dominant traffic** — the `read-dominant` profile in
 `deploy/benchmark-distributed/load-test.js` (45% composite, 30% db-read, 20% static,
@@ -109,18 +111,18 @@ still has cold JIT traces.
 
 ```
 per-pod mixed RPS = 1 / Σ(weight_i / discounted_rps_i)
-                  = 1 / (0.45/2717 + 0.30/2258 + 0.20/3799 + 0.05/3799)
-                  ≈ 2,745 mixed requests/s per 2 vCPU pod
+                  = 1 / (0.45/2160 + 0.30/2596 + 0.20/3802 + 0.05/3802)
+                  ≈ 2,567 mixed requests/s per 2 vCPU pod
 
-15,000 / 2,745 = 5.47  ⇒  6 pods  (deployment.yaml ships replicas: 6)
+15,000 / 2,567 = 5.84  ⇒  6 pods  (deployment.yaml ships replicas: 6)
 ```
 
-Without the discount the same mix is ≈ 4,575 RPS/pod ⇒ 3.3 ⇒ 4 pods. **That 4-vs-6
+Without the discount the same mix is ≈ 4,277 RPS/pod ⇒ 3.5 ⇒ 4 pods. **That 4-vs-6
 gap is the whole point of the discount**: it is what you pay for a node loss, a
 JIT-cold pod during scale-out, and p99 instead of mean.
 
-Fleet envelope at `maxReplicas: 20` ⇒ 20 × 2,745 ≈ **54.9k RPS** discounted
-composite-equivalent ⇒ ~3.7× headroom over the objective (HPA sizing in
+Fleet envelope at `maxReplicas: 20` ⇒ 20 × 2,567 ≈ **51.3k RPS** discounted
+composite-equivalent ⇒ ~3.4× headroom over the objective (HPA sizing in
 [`hpa.yaml`](hpa.yaml): 15,000 ÷ 1,500 RPS/pod target ⇒ ~10 pods steady).
 
 ### 3.3 What the sizing is NOT
