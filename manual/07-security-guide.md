@@ -127,7 +127,71 @@ audit trails). `validate <dist>` prints **⚠ UNARMED** for dists that never set
 ✗ for any other value; new dists should arm from day one. Unarmed dist calling
 `csrfToken()` → `LogicException` with the fix in the message, never an empty field.
 
+### Tutorial — the armed loop, end to end (every output below is real)
+
+The playground ships the teaching module: `demo/csrfdemo` (three routes —
+`/form` GET renders with `$this->csrfField()`, `/save` POST-only answers when the
+door validates, `/hook` POST carries `->csrfExempt('webhook: HMAC-verified …')`).
+`appdemo` runs `'csrf' => 'on'`. Serve it the documented way (`php -S 127.0.0.1:8097
+router.php` from `playground/`; **restart the server after every phar rebuild** — the
+built-in server caches the phar in-process) and watch the four answers:
+
+```
+$ curl -s -i -c cj -b cj http://127.0.0.1:8097/appdemo/csrfdemo/form/
+HTTP/1.1 200 OK
+Set-Cookie: RAZY_SESSION=35d2398c85efa0051f12fd2bd326d2769787ce76; path=/; HttpOnly; SameSite=Lax
+# <form method="post" action="save"><input type="hidden" name="_token" value="b12e2519… (64 hex)">…
+
+$ curl -s -i -c cj -b cj .../form/          # second visit, same cookie jar
+# no re-mint: the carried id is ADOPTED, the token is STABLE (b12e2519 == b12e2519)
+
+$ curl -s -i -b cj -d 'data=hi' .../save/   # no token
+HTTP/1.1 419 Unknown Status Code            # HTML page; with -H 'X-Requested-With:
+                                            # XMLHttpRequest' instead:
+{"error":"csrf-token-mismatch","module":"demo/csrfdemo","message":"The CSRF token is
+missing or no longer valid for this session.","fix":"refresh the page and resend the
+X-CSRF-TOKEN header (forms: include the _token field)"}
+
+$ curl -s -i -b cj --data-urlencode "_token=b12e2519…" -d 'data=hi' .../save/
+HTTP/1.1 200 OK    "received": "hi", "token_seen": "b12e2519… (len 64)"
+
+$ curl -s -i -b cj --data-urlencode "_token=b12e2519…" -d 'data=hi' .../save/   # REPLAY
+HTTP/1.1 419 Unknown Status Code            # the door rotates on success (Q5): a
+                                            # consumed token dies with the request
+
+$ curl -s -i -d 'sig=x' .../hook/           # no cookie, no token — DECLARED exemption
+HTTP/1.1 200 OK
+{"exempt":true,"reason":"webhook: HMAC-verified demo upstream …"}   # the reason the
+                                            # Route carried surfaces right where it acts
+```
+
+`validate appdemo` states the posture in one line: `✓ armed (dist.php 'csrf' => 'on')`.
+Flip the key to `off` and both halves change honestly —
+
+```
+⚠ UNARMED — mutating routes accept cross-site form submissions
+    to arm: dist.php 'csrf' => 'on'   (forms: Controller::csrfField(); XHR: X-CSRF-TOKEN header)
+```
+
+— `/save` answers 200 to the tokenless POST (that is what "UNARMED" means, demonstrated),
+and the form page dies LOUD at render time instead of quietly shipping a field nobody
+will ever validate:
+
+```
+csrfToken(): this distributor is UNARMED — set 'csrf' => 'on' in its dist.php …
+```
+
+What you own after this loop: one dist key arms/stands down the whole surface; forms and
+XHR clients carry the token via the two helpers; every machine door EXEMPTS BY DECLARATION
+with its reason visible in the response; and the rotation means a stolen POST body is
+worth one replay, not a session.
+
 ## 5. Sessions — `Session/`
+
+Since v1.2 the session owns its cookie (`Session::start()` adopts a valid carried id,
+emits on mint/rotate, `destroy()` expires — CSRF-RAIL.md L0); the armed door (`§4`) wires
+`SessionMiddleware` for you, so most authors never touch this section. Manual users: the
+table below now actually reaches the browser.
 
 `Session\SessionConfig` defaults (verified `Session/SessionConfig.php:40-49`):
 

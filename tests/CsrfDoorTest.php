@@ -51,7 +51,7 @@ class CsrfDoorTest extends TestCase
 
     protected function tearDown(): void
     {
-        unset($_SERVER['HTTP_X_REQUESTED_WITH'], $_SERVER['HTTP_ACCEPT']);
+        unset($_SERVER['HTTP_X_REQUESTED_WITH'], $_SERVER['HTTP_ACCEPT'], $_SERVER['REQUEST_METHOD']);
     }
     // ────────────────────────────────────────────────────────────
     // Section 1: arm() wiring
@@ -96,6 +96,8 @@ class CsrfDoorTest extends TestCase
 
         $wrapper = $dispatcher->getGlobalMiddleware()[1];
 
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+
         // POST with NO token anywhere — only an exemption can pass this.
         $context = ['method' => 'POST', 'route' => '/hook', 'module' => 'demo/x',
             'csrf_exempt' => 'webhook: HMAC-verified upstream'];
@@ -118,10 +120,12 @@ class CsrfDoorTest extends TestCase
 
         $wrapper = $dispatcher->getGlobalMiddleware()[1];
 
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+
         $nextRan = false;
         \ob_start();
         $answer = $wrapper(
-            ['method' => 'POST', 'route' => '/save', 'module' => 'demo/x'],
+            ['method' => '*', 'route' => '/save', 'module' => 'demo/x'],
             static function (array $c) use (&$nextRan): string {
                 $nextRan = true;
 
@@ -133,6 +137,34 @@ class CsrfDoorTest extends TestCase
         $this->assertFalse($nextRan, 'no exemption, no token: the handler must not run');
         $this->assertNull($answer);
         $this->assertStringContainsString('419', $body);
+    }
+
+    public function testSafeRequestMethodPassesEvenUnderStarRouteConstraint(): void
+    {
+        // L3 live regression: routedInfo['method'] is the ROUTE CONSTRAINT
+        // ('*' for unconstrained routes) — feeding that to the engine's
+        // safe-method check dragged every GET into validation and the
+        // armed form page 419ed its own demo. The wrapper judges the
+        // REQUEST method from $_SERVER (the only truth in worker mode).
+        $dispatcher = new RouteDispatcher();
+        CsrfDoor::arm($this->distributorDouble($dispatcher, new Container()));
+
+        $wrapper = $dispatcher->getGlobalMiddleware()[1];
+
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+
+        $nextRan = false;
+        $answer = $wrapper(
+            ['method' => '*', 'route' => '/form', 'module' => 'demo/x'],
+            static function (array $c) use (&$nextRan): string {
+                $nextRan = true;
+
+                return 'form-rendered';
+            }
+        );
+
+        $this->assertTrue($nextRan);
+        $this->assertSame('form-rendered', $answer);
     }
 
     public function testRouteEntityRefusesReasonlessExemption(): void

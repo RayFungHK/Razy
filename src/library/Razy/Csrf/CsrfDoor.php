@@ -85,7 +85,21 @@ class CsrfDoor
             // declaration into `csrf_exempt` at match time). The reason is
             // enforced on the Route entity, so a bypass can never be
             // reasonless — this reads the flag, it cannot create one.
+            //
+            // The safe-method short-circuit HERE is load-bearing (found
+            // live at L3, the form page itself 419ed): the engine checks
+            // $context['method'], but the dispatcher fills that with the
+            // ROUTE CONSTRAINT — an unconstrained route says '*', not the
+            // actual GET. The request method is only ever true in
+            // $_SERVER (worker mode refreshes it per request). Everything
+            // non-safe delegates to the engine untouched.
             static function (array $context, Closure $next) use ($csrf): mixed {
+                $requestMethod = \strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+
+                if (\in_array($requestMethod, ['GET', 'HEAD', 'OPTIONS'], true)) {
+                    return $next($context);
+                }
+
                 if (($context['csrf_exempt'] ?? null) !== null) {
                     return $next($context);
                 }

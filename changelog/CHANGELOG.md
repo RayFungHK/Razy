@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** CSRF-RAIL L3 — live dogfood, and it immediately earned its keep: the armed
+  playground (`demo/csrfdemo`: form/save/hook trio, appdemo `'csrf' => 'on'`) proved the
+  full loop end to end — cookie mint+adopt (2nd visit keeps id AND token), tokenless POST
+  419 HTML/JSON pair, valid POST 200, **replay of a consumed token 419 (rotation at work)**,
+  declared-exemption 200 answering with its reason, `validate` ✓ armed / ⚠ UNARMED (with
+  honest behavior flip demonstrated), and the unarmed `csrfToken()` crash carrying its own
+  fix. Full outputs recorded as a tutorial in manual/07 §4. Two findings: **(1) the first
+  real one** — the wrapper fed the engine `routedInfo['method']` (the ROUTE *constraint*,
+  `'*'` for unconstrained routes) where the safe-method check needed the REQUEST method:
+  every GET on an armed dist would 419 its own form page; fixed in the wrapper (short-
+  circuits real GET/HEAD/OPTIONS from `$_SERVER`, worker-refreshed) + regression test —
+  unit tests had passed the whole L1/L2 suite while the demo page itself 419ed. **(2)**
+  the loop's early confusion was harness, not code: curl's `-c` silently no-ops against a
+  sandbox-unwritable jar path and every later `-b` shipped no cookie — a reminder that
+  "the framework is lying" investigations must start at the wire. Playground teaching
+  files + appdemo `dist.php` `'csrf' => 'on'` ship with this commit.
+
 - **Added** CSRF-RAIL L2 — exemptions are declarations, not string lists. `(new Route('hook'))
   ->csrfExempt('webhook: HMAC-verified upstream X')` rides the same Route entity as the L3
   ready gates; **a reasonless exemption is unrepresentable** — the method throws at
