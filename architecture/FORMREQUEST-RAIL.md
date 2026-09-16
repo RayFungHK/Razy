@@ -113,6 +113,6 @@ now on PHPUnit 11.5), phar rebuilt on src change, push only on word.
 
 ## 5. Sign-off
 
-Requested: Q1 Controller helper / Q2 wire `messages()` / Q3 doc-fix only, no files /
-Q4 named 403+422 envelopes / Q5 manual/03 + live dogfood — all per recommendation,
-M0→M2 in order.
+**SIGNED 2026-09 — Q1–Q5 ALL per recommendation** (Controller::validated() helper /
+wire `messages()` / doc-fix only, no files / named 403+422 envelopes / manual/03 + live
+dogfood), M0→M2 in order. Execution tracked as goal-a2d4c43e.

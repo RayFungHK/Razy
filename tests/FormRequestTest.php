@@ -447,6 +447,57 @@ class FormRequestTest extends TestCase
         $this->assertNotSame($valid->passes(), $valid->fails());
         $this->assertNotSame($invalid->passes(), $invalid->fails());
     }
+
+    // ═══════════════════════════════════════════════════════
+    //  14. FORMREQUEST-RAIL M0 — messages wired, verdicts separable
+    // ═══════════════════════════════════════════════════════
+
+    public function testMessagesHookIsActuallyConsumed(): void
+    {
+        // E2's regression lock: messages() was a hook the docblock taught and
+        // no code called. The override must surface in errors(), keyed
+        // field.ruleName with ruleName = lcfirst'd short class name.
+        $req = FRTest_MessagesRequest::fromArray(['name' => 'ab']);
+        $errors = $req->errors();
+
+        $this->assertSame(['Please give a longer name.'], $errors['name']);
+    }
+
+    public function testUnlistedRulesKeepTheirOwnMessageUnderTheMap(): void
+    {
+        // Only name.minLength is overridden; name.required keeps the default.
+        $req = FRTest_MessagesRequest::fromArray(['name' => '']);
+
+        $this->assertSame('The name field is required.', $req->errors()['name'][0]);
+    }
+
+    public function testTheDoorTwoStepsAreIndividuallyTrue(): void
+    {
+        // Q4's foundation: the door reads isAuthorized() and validate() as two
+        // verdicts — an unauthorized-but-valid payload must show authorize
+        // failing while the data itself passes (passes() conflates; the door
+        // never calls it).
+        $req = FRTest_UnauthorizedRequest::fromArray($this->validData());
+
+        $this->assertFalse($req->isAuthorized());
+        $this->assertTrue($req->validate()->passes());
+    }
+
+    public function testFromGlobalsDocblockNoLongerClaimsFiles(): void
+    {
+        // E3: the lie was from birth (v0.5). The implementation is GET+POST;
+        // the doc must say so.
+        $source = (string) \file_get_contents(
+            \dirname(__DIR__) . '/src/library/Razy/Validation/FormRequest.php'
+        );
+
+        $this->assertStringNotContainsString('$_POST + $_GET + $_FILES', $source);
+        // Positive pins: the wiring exists and the usage example answers with
+        // the two named verdicts (E6's teaching fix), not a bare string return.
+        $this->assertStringContainsString('$validator->messages($this->messages())', $source);
+        $this->assertStringContainsString('->responseCode(422)', $source);
+    }
+
     // ─────────────────────────────────────────────────────
     //  Helpers
     // ─────────────────────────────────────────────────────
@@ -475,6 +526,22 @@ class FRTest_UserRequest extends FormRequest
             'name' => [new Required()],
             'email' => [new Required(), new Email()],
         ];
+    }
+}
+
+/** @internal */
+class FRTest_MessagesRequest extends FormRequest
+{
+    protected function rules(): array
+    {
+        return [
+            'name' => [new Required(), new MinLength(5)],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return ['name.minLength' => 'Please give a longer name.'];
     }
 }
 

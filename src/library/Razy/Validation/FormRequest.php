@@ -45,10 +45,17 @@ namespace Razy\Validation;
  *     }
  * }
  *
- * // In controller:
+ * // In controller (or use Controller::validated(), FORMREQUEST-RAIL M1):
  * $request = CreateUserRequest::fromGlobals();
- * if ($request->fails()) {
- *     return $request->errorsAsJson();
+ * if (!$request->isAuthorized()) {
+ *     $this->xhr()->responseCode(403)->responseAsBody(
+ *         ['error' => 'forbidden', 'message' => 'This action is unauthorized.']);
+ *     return;
+ * }
+ * if ($request->validate()->fails()) {
+ *     $this->xhr()->responseCode(422)->responseAsBody(
+ *         ['error' => 'validation-failed', 'errors' => $request->errors()]);
+ *     return;
  * }
  * $validated = $request->validated();
  * ```
@@ -88,9 +95,11 @@ abstract class FormRequest
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Create from PHP globals ($_POST + $_GET + $_FILES).
+     * Create from PHP globals ($_POST + $_GET).
      *
-     * POST data takes precedence over GET data.
+     * POST data takes precedence over GET data. Files are NOT merged in —
+     * file validation is out of scope (FORMREQUEST-RAIL Q3; an earlier
+     * docblock promised $_FILES, which the implementation never did).
      */
     public static function fromGlobals(): static
     {
@@ -139,6 +148,7 @@ abstract class FormRequest
 
         $validator = new Validator($data);
         $validator->defaults($this->defaults());
+        $validator->messages($this->messages());
         $validator->fields($this->rules());
 
         $this->result = $validator->validate();
@@ -148,6 +158,11 @@ abstract class FormRequest
 
     /**
      * Whether validation passed.
+     *
+     * Convenience AND of authorize+validate for hand-rolled flows; the
+     * Controller::validated() door never uses this — it answers 403 from
+     * isAuthorized() and 422 from validate()->fails() as two distinct
+     * verdicts (FORMREQUEST-RAIL Q4).
      */
     public function passes(): bool
     {
@@ -258,6 +273,12 @@ abstract class FormRequest
 
     /**
      * Get errors formatted as a JSON string.
+     *
+     * A string helper only — it sets no status code and no Content-Type;
+     * handlers on the door get the named 422 envelope from
+     * Controller::validated() instead of returning this (the old docblock
+     * example that said `return $request->errorsAsJson()` was the bug,
+     * FORMREQUEST-RAIL E6).
      */
     public function errorsAsJson(int $options = 0): string
     {

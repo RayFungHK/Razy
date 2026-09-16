@@ -14,6 +14,8 @@
 
 namespace Razy\Validation;
 
+use ReflectionClass;
+
 /**
  * Per-field rule pipeline.
  *
@@ -123,10 +125,18 @@ class FieldValidator
      *
      * @param mixed $value The raw field value
      * @param array $data The full dataset (for cross-field rules)
+     * @param array<string, string> $messages Optional per-rule overrides keyed
+     *                                        `field.ruleName` (ruleName = the
+     *                                        lcfirst'd short class name, e.g.
+     *                                        MinLength -> 'minLength'). Applied
+     *                                        at message-build time so the
+     *                                        return shape is untouched; rules
+     *                                        carrying their own withMessage()
+     *                                        keep priority below this map.
      *
      * @return array{value: mixed, errors: list<string>} Processed value and error messages
      */
-    public function validate(mixed $value, array $data = []): array
+    public function validate(mixed $value, array $data = [], array $messages = []): array
     {
         $errors = [];
 
@@ -134,7 +144,8 @@ class FieldValidator
             $value = $rule->validate($value, $this->field, $data);
 
             if (!$rule->passed()) {
-                $errors[] = $rule->message($this->field);
+                $key = $this->field . '.' . \lcfirst((new ReflectionClass($rule))->getShortName());
+                $errors[] = $messages[$key] ?? $rule->message($this->field);
 
                 if ($this->bail) {
                     break;

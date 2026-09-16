@@ -47,6 +47,15 @@ class Validator
     private bool $stopOnFirstFailure = false;
 
     /**
+     * Per-rule message overrides keyed `field.ruleName` (ruleName = the
+     * lcfirst'd short class name). FORMREQUEST-RAIL Q2: FormRequest::messages()
+     * flows in here; FieldValidator applies it at message-build time.
+     *
+     * @var array<string, string>
+     */
+    private array $messages = [];
+
+    /**
      * @var list<callable(array<string, mixed>): array<string, mixed>> Before-hooks (data transforms)
      */
     private array $beforeHooks = [];
@@ -139,6 +148,21 @@ class Validator
     }
 
     /**
+     * Set per-rule message overrides (keyed `field.ruleName`, e.g.
+     * ['name.minLength' => 'Name is too short']). Later calls merge.
+     *
+     * @param array<string, string> $messages
+     *
+     * @return $this
+     */
+    public function messages(array $messages): static
+    {
+        $this->messages = \array_merge($this->messages, $messages);
+
+        return $this;
+    }
+
+    /**
      * Toggle stop-on-first-field-failure (global bail).
      * Mirrors Pipeline::execute() stopping on first Action rejection.
      *
@@ -202,7 +226,7 @@ class Validator
 
         foreach ($this->fields as $name => $fieldValidator) {
             $value = $data[$name] ?? null;
-            $result = $fieldValidator->validate($value, $data);
+            $result = $fieldValidator->validate($value, $data, $this->messages);
 
             if (!empty($result['errors'])) {
                 $errors[$name] = $result['errors'];
