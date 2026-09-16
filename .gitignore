@@ -77,8 +77,7 @@
 !benchmark/**
 
 # === Documentation v2 (2026-07 redesign) + first-party modules ===
-!AGENTS.md
-!RAZY-ANALYSIS-REPORT.md
+!AGENTS.md!RAZY-ANALYSIS-REPORT.md
 !manual/
 !manual/**
 !skills/
@@ -93,3 +92,15 @@
 !tools/**
 !deploy/
 !deploy/**
+
+# === First-party package tree (tests/DashboardPackageTest reads it; a CI
+# checkout without it can never pass) ===
+!packages/
+!packages/**
+# ...except the publish credentials — its own header says DO NOT commit
+packages/publish.inc.php
+
+# === Lock file: CI must install THE verified dependency set, not re-resolve
+# (2026-09 CI reddening: unpinned phpstan/cs-fixer patches changed rules on
+# untouched code) ===
+!composer.lock

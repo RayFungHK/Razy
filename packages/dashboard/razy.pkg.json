@@ -1,0 +1,15 @@
+{
+  "package_name": "dashboard",
+  "version": "1.0.0",
+  "description": "Web-based GUI dashboard for managing Razy packages and modules",
+  "mode": "serve",
+  "strict": true,
+  "on_depend": [],
+  "healthcheck": {
+    "url": "http://localhost:3900/api/health",
+    "interval": 2,
+    "timeout": 30,
+    "start_period": 3
+  },
+  "prerequisite": {}
+}

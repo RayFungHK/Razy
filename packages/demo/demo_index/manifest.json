@@ -1,0 +1,20 @@
+{
+    "module_code": "demo/demo_index",
+    "description": "Central index for all demo modules with shared styling",
+    "author": "Razy Framework",
+    "latest": "1.0.0",
+    "versions": [
+        "1.0.0"
+    ],
+    "updated": "2026-02-10 21:53:38",
+    "releases": {
+        "1.0.0": {
+            "file": "1.0.0.phar",
+            "size": 13199,
+            "checksum": "f13c295e42f18720b645fdc2c0c418538ae7cefc243186157883a373c7ca7e0b",
+            "created": "2026-02-10 21:53:38",
+            "php_version": "8.0",
+            "razy_version": "0.5.0-237"
+        }
+    }
+}

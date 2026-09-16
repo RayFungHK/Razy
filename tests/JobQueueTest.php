@@ -1223,6 +1223,28 @@ class JobQueueTest extends TestCase
         $this->assertSame(1, $manager->count('low', JobStatus::Pending));
     }
 
+    /**
+     * Create a DatabaseStore backed by SQLite in-memory.
+     */
+    public function testRedisStorePushRegistersTheIdToQueueIndex(): void
+    {
+        // The id→queue index is READ by locate() and DELETED by removeJob() —
+        // and shipped from day one WITHOUT ITS WRITER: every release()/bury()/
+        // find() threw "job not found" (the real-redis CI suite was the only
+        // one with ext-redis to witness it — and nobody read that red for
+        // months). ext-redis is absent on dev boxes, so the writer is pinned
+        // at source shape inside push(), positive form per house rule.
+        $source = (string) \file_get_contents(
+            \dirname(__DIR__) . '/src/library/Razy/Queue/RedisQueueStore.php'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/public function push\(.*?\$this->redis->set\(\$this->indexKey\(\$id\), \$queue\);.*?return \$id;/s',
+            $source,
+            'push() must SET the id → queue index that locate() reads'
+        );
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Helpers
     // ═══════════════════════════════════════════════════════════════
@@ -1239,9 +1261,6 @@ class JobQueueTest extends TestCase
         return $db;
     }
 
-    /**
-     * Create a DatabaseStore backed by SQLite in-memory.
-     */
     private function createDatabaseStore(): DatabaseStore
     {
         return new DatabaseStore($this->createSqliteDb());

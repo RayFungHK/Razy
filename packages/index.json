@@ -1,0 +1,19 @@
+{
+    "demo/demo_index": {
+        "description": "Central index for all demo modules with shared styling",
+        "author": "Razy Framework",
+        "latest": "1.0.0",
+        "versions": [
+            "1.0.0"
+        ]
+    },
+    "dashboard": {
+        "description": "Web-based GUI dashboard for managing Razy packages and modules",
+        "author": "",
+        "type": "package",
+        "latest": "1.0.0",
+        "versions": [
+            "1.0.0"
+        ]
+    }
+}

@@ -95,6 +95,13 @@ class RedisQueueStore implements QueueStoreInterface
 
         $this->redis->zAdd($this->zKey($queue, JobStatus::Pending->value), $this->score($availableAt, $priority), (string) $id);
 
+        // The design (idsKey() below) says "the push-time index maps id →
+        // queue" — and this SET was the line the implementation never wrote:
+        // locate() read an index nobody created, so release()/bury()/find()
+        // threw "job not found" for EVERY job since this store shipped. CI's
+        // real-redis suite caught it 47 releases of red later (2026-09).
+        $this->redis->set($this->indexKey($id), $queue);
+
         return $id;
     }
 

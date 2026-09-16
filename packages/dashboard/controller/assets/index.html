@@ -1,0 +1,631 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Razy Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #252836;
+    --border: #2e3140;
+    --text: #e4e6eb;
+    --text2: #8b8fa3;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00b894;
+    --red: #ff6b6b;
+    --orange: #fdcb6e;
+    --blue: #74b9ff;
+    --radius: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; min-height:100vh; }
+
+  /* Header */
+  .header { background:var(--surface); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .logo { width:32px; height:32px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#fff; }
+  .header h1 { font-size:18px; font-weight:600; }
+  .header h1 span { color:var(--text2); font-weight:400; font-size:14px; }
+  .header-right { display:flex; align-items:center; gap:12px; }
+  .status-badge { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:500; }
+  .status-badge.ok { background:rgba(0,184,148,.15); color:var(--green); }
+  .status-badge.err { background:rgba(255,107,107,.15); color:var(--red); }
+  .status-badge.loading { background:rgba(253,203,110,.15); color:var(--orange); }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:currentColor; animation:pulse 2s infinite; }
+  @keyframes pulse { 50%{opacity:.4} }
+
+  /* Tabs */
+  .tab-bar { background:var(--surface); border-bottom:1px solid var(--border); display:flex; overflow-x:auto; padding:0 24px; gap:0; }
+  .tab { padding:10px 18px; font-size:13px; font-weight:500; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; transition:all .15s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent2); border-bottom-color:var(--accent2); }
+
+  /* Main */
+  .main { max-width:1280px; margin:0 auto; padding:20px 24px; }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* Cards */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:16px; }
+  .card-header { padding:12px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .card-header h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--text2); }
+  .card-body { padding:16px 18px; }
+
+  /* Stats Grid */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+  .stat-item { background:var(--surface2); padding:14px; border-radius:var(--radius); }
+  .stat-label { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .stat-value { font-size:18px; font-weight:600; }
+  .stat-value.green { color:var(--green); }
+  .stat-value.blue { color:var(--blue); }
+  .stat-value.accent { color:var(--accent2); }
+
+  /* Extensions */
+  .ext-grid { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .ext-tag { padding:3px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+  .ext-tag.yes { background:rgba(0,184,148,.15); color:var(--green); }
+  .ext-tag.no { background:rgba(255,107,107,.15); color:var(--red); }
+
+  /* Tables */
+  .data-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .data-table th { text-align:left; padding:8px 14px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--text2); border-bottom:1px solid var(--border); }
+  .data-table td { padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:rgba(255,255,255,.02); }
+
+  /* Badges */
+  .badge { display:inline-block; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600; text-transform:uppercase; }
+  .badge.exec { background:rgba(116,185,255,.15); color:var(--blue); }
+  .badge.serve { background:rgba(0,184,148,.15); color:var(--green); }
+  .badge.unknown { background:rgba(139,143,163,.15); color:var(--text2); }
+  .badge.phar { background:rgba(162,155,254,.15); color:var(--accent2); }
+  .badge.directory { background:rgba(116,185,255,.15); color:var(--blue); }
+  .mono { font-family:'SF Mono','Cascadia Code',Consolas,monospace; font-size:12px; }
+
+  /* CLI Terminal */
+  .cli-bar { display:flex; gap:8px; margin-bottom:12px; }
+  .cli-bar select,.cli-bar input { padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-family:inherit; }
+  .cli-bar input { flex:1; }
+  .cli-bar select { min-width:120px; }
+  .cli-output { background:#000; border-radius:var(--radius); padding:16px; font-family:'SF Mono','Cascadia Code',Consolas,monospace; font-size:12px; line-height:1.5; color:#b8c0d0; max-height:400px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; }
+  .cli-output .line-cmd { color:var(--green); }
+  .cli-output .line-err { color:var(--red); }
+
+  /* Buttons */
+  .btn { padding:6px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface2); color:var(--text); font-size:12px; cursor:pointer; transition:background .15s; font-family:inherit; }
+  .btn:hover { background:var(--border); }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn-primary:hover { background:#5a4bd6; }
+  .btn-danger { border-color:var(--red); color:var(--red); }
+  .btn-danger:hover { background:rgba(255,107,107,.1); }
+  .btn-sm { padding:4px 10px; font-size:11px; }
+
+  /* Empty / Loading */
+  .empty { text-align:center; padding:32px 16px; color:var(--text2); }
+  .empty-icon { font-size:36px; margin-bottom:8px; }
+  .spinner { display:inline-block; width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent2); border-radius:50%; animation:spin .6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* Dist Selector */
+  .dist-selector { display:flex; gap:8px; margin-bottom:16px; align-items:center; }
+  .dist-selector select { padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-family:inherit; min-width:200px; }
+
+  /* Footer */
+  .footer { text-align:center; padding:12px; color:var(--text2); font-size:11px; border-top:1px solid var(--border); margin-top:20px; }
+
+  @media(max-width:640px) {
+    .main { padding:10px 12px; }
+    .stats-grid { grid-template-columns:1fr 1fr; }
+    .data-table { font-size:11px; }
+    .data-table th,.data-table td { padding:6px; }
+    .tab { padding:8px 12px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">R</div>
+    <h1>Razy <span>Dashboard <span id="razy-ver"></span></span></h1>
+  </div>
+  <div class="header-right">
+    <div id="health-status" class="status-badge loading">
+      <span class="status-dot"></span> Connecting&hellip;
+    </div>
+  </div>
+</header>
+
+<!-- Tab Bar -->
+<nav class="tab-bar">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="packages">Packages</div>
+  <div class="tab" data-tab="sites">Sites &amp; Distributors</div>
+  <div class="tab" data-tab="cache">Cache</div>
+  <div class="tab" data-tab="inspector">Inspector</div>
+  <div class="tab" data-tab="terminal">Terminal</div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+
+  <!-- Overview Tab -->
+  <section id="tab-overview" class="tab-content active">
+    <div class="card">
+      <div class="card-header">
+        <h2>System Information</h2>
+        <button class="btn btn-sm" onclick="loadOverview()">Refresh</button>
+      </div>
+      <div class="card-body">
+        <div class="stats-grid" id="overview-stats">
+          <div class="stat-item"><div class="stat-label">Razy Version</div><div class="stat-value accent" id="sys-version">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">PHP Version</div><div class="stat-value blue" id="sys-php">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">OS</div><div class="stat-value" id="sys-os">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">Razy.phar</div><div class="stat-value" id="sys-phar">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">Packages</div><div class="stat-value green" id="sys-pkgs">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">Sites</div><div class="stat-value blue" id="sys-sites">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">Memory Limit</div><div class="stat-value" id="sys-mem">&mdash;</div></div>
+          <div class="stat-item"><div class="stat-label">Last Refreshed</div><div class="stat-value" id="sys-time" style="font-size:13px;">&mdash;</div></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="stat-label">Extensions</div>
+          <div class="ext-grid" id="ext-grid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Packages Tab -->
+  <section id="tab-packages" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h2>Installed Packages</h2>
+        <span class="mono" style="color:var(--text2)" id="pkg-summary"></span>
+      </div>
+      <div class="card-body" style="padding:0" id="pkg-container">
+        <div class="empty"><div class="spinner"></div><p style="margin-top:8px">Loading&hellip;</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sites Tab -->
+  <section id="tab-sites" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h2>Site Configuration</h2>
+        <button class="btn btn-sm" onclick="loadSites()">Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0" id="sites-container">
+        <div class="empty"><div class="spinner"></div><p style="margin-top:8px">Loading&hellip;</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Distributors</h2></div>
+      <div class="card-body" style="padding:0" id="dist-container">
+        <div class="empty"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cache Tab -->
+  <section id="tab-cache" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h2>Cache Status</h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="loadCache()">Refresh</button>
+          <button class="btn btn-sm btn-danger" onclick="cacheAction('clear')">Clear Cache</button>
+          <button class="btn btn-sm" onclick="cacheAction('gc')">Garbage Collect</button>
+        </div>
+      </div>
+      <div class="card-body" id="cache-container">
+        <div class="empty"><div class="spinner"></div><p style="margin-top:8px">Loading&hellip;</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Inspector Tab -->
+  <section id="tab-inspector" class="tab-content">
+    <div class="dist-selector">
+      <label style="color:var(--text2);font-size:13px;">Distributor:</label>
+      <select id="inspector-dist"></select>
+      <button class="btn btn-sm btn-primary" onclick="runInspect()">Inspect</button>
+      <button class="btn btn-sm" onclick="runRoutes()">Routes</button>
+      <button class="btn btn-sm" onclick="runValidate()">Validate</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2 id="inspector-title">Select a Distributor</h2></div>
+      <div class="card-body">
+        <div class="cli-output" id="inspector-output" style="min-height:120px">Ready. Select a distributor and click Inspect, Routes, or Validate.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terminal Tab -->
+  <section id="tab-terminal" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h2>CLI Terminal</h2></div>
+      <div class="card-body">
+        <div class="cli-bar">
+          <select id="cli-cmd">
+            <option value="help">help</option>
+            <option value="version">version</option>
+            <option value="cache">cache</option>
+            <option value="inspect">inspect</option>
+            <option value="routes">routes</option>
+            <option value="validate">validate</option>
+            <option value="pkg">pkg</option>
+            <option value="search">search</option>
+          </select>
+          <input type="text" id="cli-args" placeholder="Arguments (e.g. status, list, mysite --details)">
+          <button class="btn btn-primary" id="cli-run" onclick="runCli()">Run</button>
+        </div>
+        <div class="cli-output" id="cli-output" style="min-height:200px">Welcome to Razy Dashboard CLI.
+Allowed commands: help, version, cache, inspect, routes, validate, pkg, search
+
+Type arguments in the input field and click Run.
+Example: Select "cache" and type "status"
+Example: Select "pkg" and type "list"</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  Razy Dashboard &middot; Serve-mode package &middot; <span id="footer-time"></span>
+</footer>
+
+<script>
+(function() {
+  'use strict';
+
+  // Tab switching
+  var tabs = document.querySelectorAll('.tab');
+  var panels = document.querySelectorAll('.tab-content');
+  var loaded = {};
+
+  tabs.forEach(function(t) {
+    t.addEventListener('click', function() {
+      tabs.forEach(function(x) { x.classList.remove('active'); });
+      panels.forEach(function(x) { x.classList.remove('active'); });
+      t.classList.add('active');
+      var id = t.dataset.tab;
+      document.getElementById('tab-' + id).classList.add('active');
+      if (!loaded[id]) { loaded[id] = true; loadTab(id); }
+    });
+  });
+
+  function loadTab(id) {
+    switch(id) {
+      case 'packages': loadPackages(); break;
+      case 'sites': loadSites(); break;
+      case 'cache': loadCache(); break;
+      case 'inspector': loadDistList(); break;
+    }
+  }
+
+  // Fetch helpers
+  async function api(path, opts) {
+    var r = await fetch(path, opts);
+    if (!r.ok) {
+      // Try to read error body for more details
+      var errBody = '';
+      try { errBody = await r.text(); } catch(_) {}
+      throw new Error('HTTP ' + r.status + (errBody ? ': ' + errBody.substring(0, 200) : ''));
+    }
+    var text = await r.text();
+    if (!text || !text.trim()) {
+      throw new Error('Empty response from server (possible encoding or server error)');
+    }
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      throw new Error('Invalid JSON: ' + text.substring(0, 200));
+    }
+  }
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+
+  // Health Check
+  async function checkHealth() {
+    var el = document.getElementById('health-status');
+    try {
+      var d = await api('/api/health');
+      if (d.status === 'ok') { el.className='status-badge ok'; el.innerHTML='<span class="status-dot"></span> Online'; }
+      else throw 0;
+    } catch(e) { el.className='status-badge err'; el.innerHTML='<span class="status-dot"></span> Offline'; }
+  }
+
+  // Overview
+  async function loadOverview() {
+    try {
+      var d = await api('/api/system');
+      setText('sys-version', d.razy_version || '\u2014');
+      setText('razy-ver', d.razy_version ? 'v' + d.razy_version : '');
+      setText('sys-php', d.php_version || '\u2014');
+      setText('sys-os', d.os || '\u2014');
+      setText('sys-phar', d.razy_phar || '\u2014');
+      setText('sys-pkgs', String(d.package_count != null ? d.package_count : '\u2014'));
+      setText('sys-sites', String(d.site_count != null ? d.site_count : '\u2014'));
+      setText('sys-mem', d.memory_limit || '\u2014');
+      setText('sys-time', new Date().toLocaleTimeString());
+
+      var grid = document.getElementById('ext-grid');
+      grid.innerHTML = '';
+      if (d.extensions) {
+        for (var name in d.extensions) {
+          var ok = d.extensions[name];
+          var t = document.createElement('span');
+          t.className = 'ext-tag ' + (ok ? 'yes' : 'no');
+          t.textContent = name + ' ' + (ok ? '\u2713' : '\u2717');
+          grid.appendChild(t);
+        }
+      }
+    } catch(e) { console.error('Overview error:', e); }
+  }
+  window.loadOverview = loadOverview;
+
+  // Packages
+  async function loadPackages() {
+    var c = document.getElementById('pkg-container');
+    try {
+      var d = await api('/api/packages');
+      var pkgs = d.packages || [];
+      document.getElementById('pkg-summary').textContent = pkgs.length + ' package' + (pkgs.length !== 1 ? 's' : '');
+
+      if (!pkgs.length) {
+        c.innerHTML = '<div class="empty"><div class="empty-icon">\uD83D\uDCE6</div><p>No packages found.</p></div>';
+        return;
+      }
+
+      var h = '<table class="data-table"><thead><tr><th>Package</th><th>Version</th><th>Mode</th><th>Source</th><th>Description</th></tr></thead><tbody>';
+      for (var i = 0; i < pkgs.length; i++) {
+        var p = pkgs[i];
+        var m = p.mode || 'unknown';
+        h += '<tr>';
+        h += '<td class="mono" style="font-weight:600">' + esc(p.package_name||'\u2014') + '</td>';
+        h += '<td class="mono">' + esc(p.version||'\u2014') + '</td>';
+        h += '<td><span class="badge ' + m + '">' + esc(m) + '</span></td>';
+        h += '<td><span class="badge ' + (p.source_type||'unknown') + '">' + esc(p.source_type||'\u2014') + '</span></td>';
+        h += '<td style="color:var(--text2)">' + esc(p.description||'') + '</td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table>';
+      c.innerHTML = h;
+    } catch(e) {
+      c.innerHTML = '<div class="empty"><p>Failed to load: ' + esc(e.message) + '</p></div>';
+    }
+  }
+  window.loadPackages = loadPackages;
+
+  // Sites
+  var distList = [];
+
+  async function loadSites() {
+    var sc = document.getElementById('sites-container');
+    var dc = document.getElementById('dist-container');
+    try {
+      var d = await api('/api/sites');
+      var sites = d.sites || [];
+      distList = d.distributors || [];
+
+      if (d.error) {
+        sc.innerHTML = '<div class="empty"><p>' + esc(d.error) + '</p></div>';
+        dc.innerHTML = '';
+        return;
+      }
+
+      if (!sites.length) {
+        sc.innerHTML = '<div class="empty"><p>No site bindings defined.</p></div>';
+      } else {
+        var h = '<table class="data-table"><thead><tr><th>Domain</th><th>Path</th><th>Distributor</th><th>Tag</th></tr></thead><tbody>';
+        for (var i = 0; i < sites.length; i++) {
+          var s = sites[i];
+          h += '<tr>';
+          h += '<td class="mono">' + esc(s.domain) + '</td>';
+          h += '<td class="mono">' + esc(s.path) + '</td>';
+          h += '<td><span class="badge serve">' + esc(s.dist_code) + '</span></td>';
+          h += '<td class="mono" style="color:var(--text2)">' + esc(s.tag) + '</td>';
+          h += '</tr>';
+        }
+        h += '</tbody></table>';
+        sc.innerHTML = h;
+      }
+
+      if (!distList.length) {
+        dc.innerHTML = '<div class="empty"><p>No distributors.</p></div>';
+      } else {
+        var h2 = '<table class="data-table"><thead><tr><th>Code</th><th>Domains</th></tr></thead><tbody>';
+        for (var j = 0; j < distList.length; j++) {
+          var dd = distList[j];
+          var doms = dd.domains.map(function(dm) { return dm.domain + dm.path; }).join(', ');
+          h2 += '<tr>';
+          h2 += '<td class="mono" style="font-weight:600">' + esc(dd.code) + '</td>';
+          h2 += '<td style="color:var(--text2)">' + esc(doms) + '</td>';
+          h2 += '</tr>';
+        }
+        h2 += '</tbody></table>';
+        dc.innerHTML = h2;
+      }
+
+      populateDistDropdown();
+    } catch(e) {
+      sc.innerHTML = '<div class="empty"><p>Error: ' + esc(e.message) + '</p></div>';
+    }
+  }
+  window.loadSites = loadSites;
+
+  // Cache
+  async function loadCache() {
+    var c = document.getElementById('cache-container');
+    try {
+      var results = await Promise.all([api('/api/cache/status'), api('/api/cache/stats')]);
+      var status = results[0];
+      var stats = results[1];
+      var statusLines = status.output || [];
+      var statsLines = stats.output || [];
+
+      var kvs = {};
+      for (var i = 0; i < statusLines.length; i++) {
+        var m = statusLines[i].match(/^\s*(.+?):\s+(.+)$/);
+        if (m) kvs[m[1].trim()] = m[2].trim();
+      }
+
+      var skvs = {};
+      for (var j = 0; j < statsLines.length; j++) {
+        var m2 = statsLines[j].match(/^\s*(.+?):\s+(.+)$/);
+        if (m2) skvs[m2[1].trim()] = m2[2].trim();
+      }
+
+      var h = '<div class="stats-grid">';
+      h += statBox('Initialized', kvs['Initialized'] || '\u2014', kvs['Initialized'] === 'Yes' ? 'green' : '');
+      h += statBox('Enabled', kvs['Enabled'] || '\u2014', kvs['Enabled'] === 'Yes' ? 'green' : '');
+      h += statBox('Adapter', kvs['Adapter'] || '\u2014', 'blue');
+      h += statBox('Storage', kvs['Storage'] || '\u2014', '');
+      if (skvs['Files'] || skvs['Size']) {
+        h += statBox('Files', skvs['Files'] || '\u2014', 'accent');
+        h += statBox('Size', skvs['Size'] || '\u2014', '');
+      }
+      h += '</div>';
+      c.innerHTML = h;
+    } catch(e) {
+      c.innerHTML = '<div class="empty"><p>Error: ' + esc(e.message) + '</p></div>';
+    }
+  }
+  window.loadCache = loadCache;
+
+  async function cacheAction(action) {
+    if (action === 'clear' && !confirm('Clear ALL cache data?')) return;
+    try {
+      var d = await api('/api/cache/' + action, { method: 'POST' });
+      var text = (d.output || []).join('\n') || d.raw || 'Done';
+      alert(text);
+      loadCache();
+    } catch(e) { alert('Error: ' + e.message); }
+  }
+  window.cacheAction = cacheAction;
+
+  function statBox(label, value, cls) {
+    return '<div class="stat-item"><div class="stat-label">' + esc(label) + '</div><div class="stat-value ' + cls + '">' + esc(value) + '</div></div>';
+  }
+
+  // Inspector
+  async function loadDistList() {
+    if (distList.length) { populateDistDropdown(); return; }
+    try {
+      var d = await api('/api/sites');
+      distList = d.distributors || [];
+      populateDistDropdown();
+    } catch(e) { console.error(e); }
+  }
+
+  function populateDistDropdown() {
+    var sel = document.getElementById('inspector-dist');
+    sel.innerHTML = '';
+    if (!distList.length) {
+      sel.innerHTML = '<option value="">No distributors found</option>';
+      return;
+    }
+    for (var i = 0; i < distList.length; i++) {
+      var o = document.createElement('option');
+      o.value = distList[i].code;
+      o.textContent = distList[i].code;
+      sel.appendChild(o);
+    }
+  }
+
+  async function runInspectCmd(endpoint, label) {
+    var dist = document.getElementById('inspector-dist').value;
+    if (!dist) { alert('Select a distributor first'); return; }
+    var out = document.getElementById('inspector-output');
+    var title = document.getElementById('inspector-title');
+    title.textContent = label + ': ' + dist;
+    out.innerHTML = '<span class="spinner"></span> Running...';
+
+    try {
+      var d = await api(endpoint + encodeURIComponent(dist));
+      if (d.error) {
+        out.innerHTML = '<span class="line-err">' + esc(d.error) + '</span>';
+      } else {
+        var lines = d.output || [];
+        out.innerHTML = lines.length
+          ? '<span class="line-cmd">$ php Razy.phar ' + esc(d.command) + '</span>\n\n' + lines.map(function(l) { return esc(l); }).join('\n')
+          : (d.raw ? esc(d.raw) : 'No output');
+        if (d.stderr) out.innerHTML += '\n\n<span class="line-err">' + esc(d.stderr) + '</span>';
+      }
+    } catch(e) {
+      out.innerHTML = '<span class="line-err">Error: ' + esc(e.message) + '</span>';
+    }
+  }
+
+  window.runInspect = function() { runInspectCmd('/api/inspect/', 'Inspect'); };
+  window.runRoutes = function() { runInspectCmd('/api/routes/', 'Routes'); };
+  window.runValidate = function() { runInspectCmd('/api/validate/', 'Validate'); };
+
+  // Terminal
+  async function runCli() {
+    var cmd = document.getElementById('cli-cmd').value;
+    var argsStr = document.getElementById('cli-args').value.trim();
+    var args = argsStr ? argsStr.split(/\s+/) : [];
+    var out = document.getElementById('cli-output');
+    var runBtn = document.getElementById('cli-run');
+
+    runBtn.disabled = true;
+    out.innerHTML += '\n<span class="line-cmd">$ php Razy.phar ' + esc(cmd + (argsStr ? ' ' + argsStr : '')) + '</span>\n';
+    out.innerHTML += '<span style="color:var(--orange)">Running...</span>\n';
+    out.scrollTop = out.scrollHeight;
+
+    try {
+      var d = await api('/api/cli', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd, args: args }),
+      });
+
+      // Remove Running... line
+      var htmlLines = out.innerHTML.split('\n');
+      htmlLines.pop(); htmlLines.pop();
+      out.innerHTML = htmlLines.join('\n') + '\n';
+
+      if (d.error) {
+        out.innerHTML += '<span class="line-err">Error: ' + esc(d.error) + '</span>\n';
+      } else {
+        var olines = d.output || [];
+        out.innerHTML += olines.map(function(l) { return esc(l); }).join('\n') + '\n';
+        if (d.stderr) out.innerHTML += '<span class="line-err">' + esc(d.stderr) + '</span>\n';
+        out.innerHTML += '<span style="color:var(--text2)">[exit: ' + d.exit_code + ']</span>\n';
+      }
+    } catch(e) {
+      out.innerHTML += '<span class="line-err">Fetch error: ' + esc(e.message) + '</span>\n';
+    }
+
+    runBtn.disabled = false;
+    out.scrollTop = out.scrollHeight;
+  }
+  window.runCli = runCli;
+
+  document.getElementById('cli-args').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') runCli();
+  });
+
+  // Init
+  checkHealth();
+  loadOverview();
+  setInterval(checkHealth, 10000);
+
+  function updateFooter() {
+    document.getElementById('footer-time').textContent = new Date().toLocaleString();
+  }
+  updateFooter();
+  setInterval(updateFooter, 1000);
+})();
+</script>
+</body>
+</html>

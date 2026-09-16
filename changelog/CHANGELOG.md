@@ -9,6 +9,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Fixed** `RedisQueueStore`: `push()` never wrote the id→queue index that
+  `locate()` reads (and `removeJob()` deletes) — every `release()`, `bury()`, `find()`
+  and id-addressed `complete()` threw "Queue job not found" for EVERY job since the
+  store shipped (v1.1.0-beta era). The class' own docblock documents the push-time
+  index; the SET line was simply missing from the implementation. Only CI's
+  real-redis suite could witness it — and CI had been red since then without anyone
+  reading it (see the CI-hygiene entry below). Source-shape pin added (dev boxes lack
+  ext-redis, so the writer is pinned where it can run).
+- **Fixed** repository/CI hygiene — the reddening that hid the bug above was itself a
+  three-part rot, all repaired: (1) the `.gitignore` catch-all never whitelisted
+  `packages/`, so `tests/DashboardPackageTest` ran against files NO CI checkout ever
+  had (every PHP-matrix job red since the test shipped) and first-party package assets
+  lived only on one laptop — whitelisted now (with `packages/publish.inc.php`, which
+  holds a publish token, explicitly re-excluded); (2) `composer.lock` was untracked, so
+  CI re-resolved dependencies every run and third-party patch releases could (and did)
+  redden untouched code — the lock is now tracked and CI installs the verified set;
+  (3) `.php-cs-fixer.dist.php` (what CI checks) and `.php-cs-fixer.php` (what local
+  ran) had diverged for seven months — CI enforced ~16 rules local never applied and
+  local never covered `modules/`; the living ruleset is now the single committed
+  dist config (gaining `modules/`), the local fork is deleted, and the union is green
+  over all 523 files.
+
 - **Added** FORMREQUEST-RAIL M0–M2 — the Validation family (shipped v0.5, never had a
   consumer or a manual chapter) gets its door: `Controller::validated(RequestClass)`
   resolves source by Content-Type, PASS returns the validated payload in one call, FAIL

@@ -1,0 +1,5 @@
+Initial release of demo_index module
+
+- Central index page for all demo modules
+- Shared header/footer API for consistent styling
+- Event system for demo registration
