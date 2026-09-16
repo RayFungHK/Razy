@@ -6,6 +6,7 @@ namespace Razy\Tests;
 
 use PDO;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\Configuration;
 use Razy\Database;
@@ -251,9 +252,9 @@ class PermissionsModuleTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider gateMatrix
-     */
+    // the repo's last doc-comment metadata — PHPUnit 12 deletes it (every other
+    // provider in the suite was already on attributes)
+    #[DataProvider('gateMatrix')]
     public function testApiGateMatrix(string $method, string $callerCode, array $config, bool $allowed): void
     {
         $controller = $this->gateController($config);

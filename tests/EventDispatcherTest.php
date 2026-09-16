@@ -13,6 +13,7 @@ use Razy\Exception\ModuleException;
 use Razy\Module\ClosureLoader;
 use Razy\Module\EventDispatcher;
 use RuntimeException;
+use Throwable;
 
 /**
  * Tests for EventDispatcher — event listener registration, lookup, and firing.
@@ -219,15 +220,20 @@ class EventDispatcherTest extends TestCase
         // Register event with a string path (not a closure)
         $this->dispatcher->listen('vendor/module:on_ready', '/handler/path');
 
-        // Create a controller mock with on_ready method
-        $controller = $this->getMockBuilder(Controller::class)
-            ->setConstructorArgs([null])
-            ->addMethods(['on_ready'])
-            ->getMock();
+        // A real subclass, not addMethods(['on_ready']) — that MockBuilder
+        // API is deprecated in 11 and dies in 12 "without replacement"; the
+        // house stub pattern also tests the real method_exists dispatch path
+        // rather than a mock-provided surface.
+        $controller = new class(null) extends Controller {
+            public int $readyCalls = 0;
 
-        $controller->expects($this->once())
-            ->method('on_ready')
-            ->willReturn('controller_method_result');
+            public function on_ready(): string
+            {
+                $this->readyCalls++;
+
+                return 'controller_method_result';
+            }
+        };
 
         $closureLoader = $this->createMock(ClosureLoader::class);
         // ClosureLoader should NOT be called since controller method matches
@@ -236,26 +242,29 @@ class EventDispatcherTest extends TestCase
 
         $result = $this->dispatcher->fireEvent('vendor/module', 'on_ready', [], $controller, $closureLoader);
         $this->assertSame('controller_method_result', $result);
+        $this->assertSame(1, $controller->readyCalls);
     }
 
     public function testFireEventStringPathMatchesControllerMethodWithArgs(): void
     {
         $this->dispatcher->listen('vendor/module:on_save', '/handler/path');
 
-        $controller = $this->getMockBuilder(Controller::class)
-            ->setConstructorArgs([null])
-            ->addMethods(['on_save'])
-            ->getMock();
+        $controller = new class(null) extends Controller {
+            public array $argsSeen = [];
 
-        $controller->expects($this->once())
-            ->method('on_save')
-            ->with('arg1', 'arg2')
-            ->willReturn('saved');
+            public function on_save(...$args): string
+            {
+                $this->argsSeen = $args;
+
+                return 'saved';
+            }
+        };
 
         $closureLoader = $this->createMock(ClosureLoader::class);
 
         $result = $this->dispatcher->fireEvent('vendor/module', 'on_save', ['arg1', 'arg2'], $controller, $closureLoader);
         $this->assertSame('saved', $result);
+        $this->assertSame(['arg1', 'arg2'], $controller->argsSeen);
     }
 
     public function testFireEventStringPathFallsBackToClosureLoader(): void
@@ -325,23 +334,31 @@ class EventDispatcherTest extends TestCase
 
         $exception = new RuntimeException('string path error');
 
-        $controller = $this->getMockBuilder(Controller::class)
-            ->setConstructorArgs([null])
-            ->addMethods(['error_handler'])
-            ->onlyMethods(['__onError'])
-            ->getMock();
+        // Stub instead of addMethods()+onlyMethods() (12-killed API); the
+        // thrower is injected via public property because Controller's
+        // constructor is final.
+        $controller = new class(null) extends Controller {
+            public ?Throwable $throwThis = null;
 
-        $controller->expects($this->once())
-            ->method('error_handler')
-            ->willThrowException($exception);
+            /** @var list<array{0: string, 1: Throwable}> */
+            public array $errorsSeen = [];
 
-        $controller->expects($this->once())
-            ->method('__onError')
-            ->with('error_handler', $exception);
+            public function error_handler(): void
+            {
+                throw $this->throwThis;
+            }
+
+            public function __onError(string $path, Throwable $e): void
+            {
+                $this->errorsSeen[] = [$path, $e];
+            }
+        };
+        $controller->throwThis = $exception;
 
         $closureLoader = $this->createMock(ClosureLoader::class);
 
         $result = $this->dispatcher->fireEvent('vendor/module', 'error_handler', [], $controller, $closureLoader);
         $this->assertNull($result);
+        $this->assertSame([['error_handler', $exception]], $controller->errorsSeen);
     }
 }
