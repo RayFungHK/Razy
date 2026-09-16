@@ -25,6 +25,7 @@ use Closure;
 use FilesystemIterator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunTestInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Razy\Cache\NullAdapter;
 use Razy\Contract\MiddlewareInterface;
@@ -829,6 +830,7 @@ class RateLimitTest extends TestCase
         $this->assertSame('handler_result', $result);
     }
 
+    #[RunTestInSeparateProcess]
     public function testMiddlewareBlocksWhenLimitExceeded(): void
     {
         $this->limiter->for('api', fn () => Limit::perMinute(2)->by('test-ip'));
@@ -1039,6 +1041,7 @@ class RateLimitTest extends TestCase
     //  RateLimitMiddleware — Per-User Isolation
     // ══════════════════════════════════════════════════════════════
 
+    #[RunTestInSeparateProcess]
     public function testMiddlewareIsolatesRateLimitsByKey(): void
     {
         $this->limiter->for(
@@ -1149,6 +1152,7 @@ class RateLimitTest extends TestCase
     //  Integration — Full Request Lifecycle
     // ══════════════════════════════════════════════════════════════
 
+    #[RunTestInSeparateProcess]
     public function testFullLifecycleWithAttemptAndExpiry(): void
     {
         $this->store->setCurrentTime(1000);
@@ -1188,6 +1192,7 @@ class RateLimitTest extends TestCase
         $this->assertSame('login_ok', $result);
     }
 
+    #[RunTestInSeparateProcess]
     public function testDifferentLimitsForDifferentRoutes(): void
     {
         $this->limiter->for('strict', fn () => Limit::perMinute(2)->by('ip'));
@@ -1288,6 +1293,7 @@ class RateLimitTest extends TestCase
         $this->assertSame(['before_logging', 'after_logging'], $loggingMw->entries);
     }
 
+    #[RunTestInSeparateProcess]
     public function testMiddlewareShortCircuitInPipeline(): void
     {
         $this->limiter->for('api', fn () => Limit::perMinute(1)->by('test'));
@@ -1449,6 +1455,7 @@ class RateLimitTest extends TestCase
         }
     }
 
+    #[RunTestInSeparateProcess]
     public function testMiddlewareWithDynamicLimitBasedOnContext(): void
     {
         // Different limits based on user type
@@ -1522,6 +1529,7 @@ class RateLimitTest extends TestCase
         }
     }
 
+    #[RunTestInSeparateProcess]
     public function testLimiterContextualResolution(): void
     {
         $this->limiter->for('per_route', function (array $ctx) {
@@ -1555,6 +1563,7 @@ class RateLimitTest extends TestCase
         $this->assertSame('ok', $result);
     }
 
+    #[RunTestInSeparateProcess]
     public function testClearAfterExceedingLimitAllowsAgain(): void
     {
         $this->limiter->for('api', fn () => Limit::perMinute(2)->by('test'));

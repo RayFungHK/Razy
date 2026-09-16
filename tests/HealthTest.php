@@ -9,6 +9,7 @@
 namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Razy\Health;
 
@@ -74,6 +75,7 @@ class HealthTest extends TestCase
         $this->assertArrayHasKey('memory_mb', $granted['checks']);
     }
 
+    #[RunTestInSeparateProcess]
     public function testRespondIfRequestedEmitsJsonForHealthPath(): void
     {
         // A trailing slash and a query string must both still hit the endpoint.

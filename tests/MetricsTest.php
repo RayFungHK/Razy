@@ -9,6 +9,7 @@
 namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Razy\Metrics;
 
@@ -37,6 +38,7 @@ class MetricsTest extends TestCase
         $this->assertFalse(Metrics::respondIfRequested('/_razy/metricsX'));
     }
 
+    #[RunTestInSeparateProcess]
     public function testRespondsAndRendersPrometheusFormat(): void
     {
         Metrics::recordRequest();
@@ -55,6 +57,7 @@ class MetricsTest extends TestCase
         $this->assertStringContainsString('razy_memory_bytes', $body);
     }
 
+    #[RunTestInSeparateProcess]
     public function testTrailingSlashAndQueryStillMatch(): void
     {
         foreach (['/_razy/metrics', '/_razy/metrics/', '/_razy/metrics?format=prom'] as $path) {

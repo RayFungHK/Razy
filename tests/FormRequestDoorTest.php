@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversMethod;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 use Razy\Controller;
 use Razy\Validation\FormRequest;
@@ -18,8 +19,16 @@ use Razy\Validation\Rule\Required;
  * The one-call contract (Q1) and the two named envelopes (Q4): pass hands the
  * handler validated data; every failure answers itself and returns null, so a
  * handler that only checks null can never touch rejected input.
+ *
+ * Every test answers (sets a status line), and PHP 8.5 warns when a LATER
+ * status-set finds the process-level status line already set — a fact of the
+ * shared CLI process, never of production (one request = one fresh state in
+ * fpm/FrankenPHP). PHPUnit's own remedy: run these responders in separate
+ * processes, each with pristine header state (the 8.5 matrix taught us this,
+ * 2026-09).
  */
 #[CoversMethod(Controller::class, 'validated')]
+#[RunTestsInSeparateProcesses]
 final class FormRequestDoorTest extends TestCase
 {
     private Controller $controller;
