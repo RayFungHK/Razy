@@ -165,7 +165,9 @@ final class WizardRunner
         $method = \strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
         if ($method !== 'GET' && $method !== 'POST') {
-            \http_response_code(405);
+            if (!\headers_sent()) {
+                \http_response_code(405);
+            }
             \header('Allow: GET, POST');
 
             return;
@@ -296,7 +298,9 @@ final class WizardRunner
      */
     private function page(int $status, string $title, string $bodyHtml): void
     {
-        \http_response_code($status);
+        if (!\headers_sent()) {
+            \http_response_code($status);
+        }
         \header('Content-Type: text/html; charset=utf-8');
 
         echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>'

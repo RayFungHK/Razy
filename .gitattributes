@@ -1,0 +1,41 @@
+# ============================================================
+# Checkout physics: ONE canonical form inside git, ONE form on disk.
+#
+# Why this file exists (windows matrix, 2026-09): several tests pin framework
+# source strings (needle = LF, written by hand). Windows runners' default
+# core.autocrlf=true handed those checkouts CRLF and reddened assertions about
+# content with a newline-formatting difference. eol=lf here OVERRIDES
+# autocrlf at checkout time — the matrix, and any Windows dev box, now gets
+# exactly what every other platform sees.
+# ============================================================
+
+* text=auto eol=lf
+
+# Explicit for the types this repo actually reads as text
+*.php      text eol=lf
+*.phtml    text eol=lf
+*.tpl      text eol=lf
+*.js       text eol=lf
+*.css      text eol=lf
+*.html     text eol=lf
+*.json     text eol=lf
+*.md       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.neon     text eol=lf
+*.txt      text eol=lf
+*.sql      text eol=lf
+*.sh       text eol=lf
+*.ini      text eol=lf
+*.dist     text eol=lf
+Caddyfile* text eol=lf
+Dockerfile* text eol=lf
+*.phar     -text
+
+# Line-ending-matters build products kept byte-exact
+*.zip      -text
+*.gz       -text
+*.png      -text
+*.jpg      -text
+*.gif      -text
+*.ico      -text

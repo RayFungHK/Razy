@@ -739,7 +739,9 @@ class RouteDispatcher
             // (:512): the THROWER sends the response — main.php's HttpException
             // catch means "already sent, end gracefully", so throwing bare here
             // produced a silent 200-empty. Live web dogfood found this.
-            \http_response_code(302);
+            if (!\headers_sent()) {
+                \http_response_code(302);
+            }
             \header('Location: ' . $url, true);
 
             throw new RedirectException($url, 302);
@@ -749,7 +751,9 @@ class RouteDispatcher
         $wantsJson = \strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
             || \str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
 
-        \http_response_code(503);
+        if (!\headers_sent()) {
+            \http_response_code(503);
+        }
         \header('Retry-After: 60');
 
         if ($wantsJson) {

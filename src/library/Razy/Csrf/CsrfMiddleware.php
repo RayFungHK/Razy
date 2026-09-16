@@ -210,7 +210,9 @@ class CsrfMiddleware implements MiddlewareInterface
             return ($this->onMismatch)($context);
         }
 
-        \http_response_code(419);
+        if (!\headers_sent()) {
+            \http_response_code(419);
+        }
 
         return null;
     }

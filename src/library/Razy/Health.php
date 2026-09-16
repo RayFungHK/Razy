@@ -44,7 +44,9 @@ class Health
 
         $payload = self::payload($query);
 
-        \http_response_code(200);
+        if (!\headers_sent()) {
+            \http_response_code(200);
+        }
         \header('Content-Type: application/json; charset=UTF-8');
         \header('Cache-Control: no-store');
         \header('X-Content-Type-Options: nosniff');

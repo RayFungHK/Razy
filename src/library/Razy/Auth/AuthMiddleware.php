@@ -65,7 +65,9 @@ class AuthMiddleware implements MiddlewareInterface
                 return ($this->onUnauthorized)($context);
             }
 
-            \http_response_code(401);
+            if (!\headers_sent()) {
+                \http_response_code(401);
+            }
 
             return null;
         }

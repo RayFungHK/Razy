@@ -201,7 +201,9 @@ class RateLimitMiddleware implements MiddlewareInterface
             return ($this->onLimitExceeded)($context, $limit, $retryAfter);
         }
 
-        \http_response_code(429);
+        if (!\headers_sent()) {
+            \http_response_code(429);
+        }
 
         return null;
     }

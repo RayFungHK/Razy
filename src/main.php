@@ -137,7 +137,9 @@ if (WEB_MODE) {
         $handler = function () use ($razyConfig, $isStandaloneMode, $relativeRoot, $app, &$firstRequestHandled) {
             try {
                 // --- Per-request state reset (prevent cross-request leaks) ---
-                \http_response_code(200);
+                if (!\headers_sent()) {
+                    \http_response_code(200);
+                }
                 \header_remove();           // Clear headers from previous request
                 // Note: Error::reset() is only called in the finally block below
                 // to avoid redundant double-reset per request.

@@ -60,7 +60,9 @@ class Metrics
         $query = [];
         \parse_str((string) (\parse_url($urlQuery, \PHP_URL_QUERY) ?: ''), $query);
 
-        \http_response_code(200);
+        if (!\headers_sent()) {
+            \http_response_code(200);
+        }
         \header('Content-Type: text/plain; version=0.0.4; charset=utf-8');
         \header('Cache-Control: no-store');
         \header('X-Content-Type-Options: nosniff');

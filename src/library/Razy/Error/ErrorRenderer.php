@@ -121,7 +121,9 @@ class ErrorRenderer
             }
             echo $source->output();
             // Set the HTTP status code; default to 400 if code is non-numeric
-            \http_response_code(\is_numeric($exception->getCode()) ? $exception->getCode() : 400);
+            if (!\headers_sent()) {
+                \http_response_code(\is_numeric($exception->getCode()) ? $exception->getCode() : 400);
+            }
         } else {
             echo $exception;
         }
