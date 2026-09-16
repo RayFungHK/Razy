@@ -129,10 +129,34 @@ audit trails). `validate <dist>` prints **⚠ UNARMED** for dists that never set
 
 ### Tutorial — the armed loop, end to end (every output below is real)
 
-The playground ships the teaching module: `demo/csrfdemo` (three routes —
-`/form` GET renders with `$this->csrfField()`, `/save` POST-only answers when the
-door validates, `/hook` POST carries `->csrfExempt('webhook: HMAC-verified …')`).
-`appdemo` runs `'csrf' => 'on'`. Serve it the documented way (`php -S 127.0.0.1:8097
+The teaching module lives at `playground/sites/appdemo/demo/csrfdemo/` (the playground
+tree stays out of git like every manual/12 walkthrough — recreate it from the four
+files below). Registration:
+
+```php
+// default/controller/csrfdemo.php
+use Razy\Agent; use Razy\Controller; use Razy\Route;
+
+return new class () extends Controller {
+    public function __onInit(Agent $agent): bool
+    {
+        $agent->addLazyRoute('form', 'form');
+        $agent->addLazyRoute('save', (new Route('save'))->method('POST'));
+        $agent->addLazyRoute('hook', (new Route('hook'))
+            ->method('POST')
+            ->csrfExempt('webhook: HMAC-verified demo upstream'));
+
+        return true;
+    }
+};
+```
+
+`form` renders with `$this->csrfField()` (closure files are bound to the Controller —
+`Module\ClosureLoader` binds them at load, so helpers work in lazy handlers too);
+`save` echoes `$_POST['data']` + the token's first 8 chars; `hook` answers with
+`getRoutedInfo()['csrf_exempt']` — the reason the Route registered with, visible where
+it acts. `module.php`/`default/package.php` are plain metadata; appdemo's `dist.php`
+carries `'csrf' => 'on'`. Serve it the documented way (`php -S 127.0.0.1:8097
 router.php` from `playground/`; **restart the server after every phar rebuild** — the
 built-in server caches the phar in-process) and watch the four answers:
 

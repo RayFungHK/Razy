@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Changed** CSRF-RAIL L4 — `razymod/queue-admin` (v1.2.0, RZ-012 minor) now runs on the
+  door instead of its own: `support/csrf.php` deleted (the confession docblock is false by
+  construction), `/ui` issues via `csrfToken()`, `/act`+`/purge` lost their double-submit
+  verify blocks, and the shell's fetch needed **zero changes** — its `X-CSRF-Token` header
+  already matched the engine's `TOKEN_HEADER` case-insensitively. Intentional semantic
+  changes: mismatch is the door's 419 (was handler-level 403), and an UNARMED dist makes
+  the admin surface THROW rather than run mutations unprotected (fail-closed; the old
+  hand-roll defended itself anywhere, the door defends better where armed and says so
+  loudly where not). Verified live on the armed playground: ui 200 + session-backed
+  64-hex meta token, tokenless `act` 419, header-carrying `act` 200 into the store-null
+  handler. The dogfood also exposed a defect predating CSRF entirely: the module shipped
+  `queueadmin.*` controller files while the dist layout expects the class-name form
+  `queue-admin.php` — it could not load in ANY dist; six files renamed via `git mv` and
+  loading verified. Double-submit demotes to the documented stateless recipe. manual/07
+  §4 tutorial now self-contained (playground is git-ignored house convention); ERP
+  arming sequence for the 270-route target appended to CSRF-RAIL.md as an appendix.
+
 - **Added** CSRF-RAIL L3 — live dogfood, and it immediately earned its keep: the armed
   playground (`demo/csrfdemo`: form/save/hook trio, appdemo `'csrf' => 'on'`) proved the
   full loop end to end — cookie mint+adopt (2nd visit keeps id AND token), tokenless POST
@@ -23,8 +40,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   unit tests had passed the whole L1/L2 suite while the demo page itself 419ed. **(2)**
   the loop's early confusion was harness, not code: curl's `-c` silently no-ops against a
   sandbox-unwritable jar path and every later `-b` shipped no cookie — a reminder that
-  "the framework is lying" investigations must start at the wire. Playground teaching
-  files + appdemo `dist.php` `'csrf' => 'on'` ship with this commit.
+  "the framework is lying" investigations must start at the wire. (L4 follow-up honesty:
+  the playground tree is git-ignored house convention — the teaching files and the
+  appdemo `'csrf' => 'on'` are local like every manual/12 walkthrough, and manual/07 §4
+  now carries the full recreate.)
 
 - **Added** CSRF-RAIL L2 — exemptions are declarations, not string lists. `(new Route('hook'))
   ->csrfExempt('webhook: HMAC-verified upstream X')` rides the same Route entity as the L3

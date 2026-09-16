@@ -17,9 +17,12 @@ return function (): void {
     /** @var Controller $this */
     header('Content-Type: text/html; charset=UTF-8');
 
-    /** @var array{issue: callable, verify: callable} $csrf */
-    $csrf = require __DIR__ . '/support/csrf.php';
-    $token = $csrf['issue']();
+    // The dist's armed CSRF door owns the token now (CSRF-RAIL.md L4): the
+    // session-backed value matches the X-CSRF-Token header the shell's fetch
+    // already sends (name matches CsrfMiddleware::TOKEN_HEADER
+    // case-insensitively). On an UNARMED dist this call throws loudly — the
+    // admin panel refuses to render a form it cannot defend.
+    $token = $this->csrfToken();
 
     $source = $this->loadTemplate('shell');
     $source->assign([

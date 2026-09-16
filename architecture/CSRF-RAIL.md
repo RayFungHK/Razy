@@ -151,6 +151,58 @@ fail-loud everywhere a config lie could hide.
 > the door's wrapper middleware reading the routed `csrf_exempt` context — the dispatcher
 > copies the entity's declaration at match time; the engine never sees Route objects.
 
+> **As-built (L3, 2026-09):** the live loop earned the milestone's keep twice. (1) A real
+> bug the unit suite could not see: the wrapper fed the engine `routedInfo['method']` —
+> the ROUTE *constraint* (`'*'` unconstrained), not the REQUEST method — so every GET on
+> an armed dist 419ed its own form page; the wrapper now short-circuits real
+> GET/HEAD/OPTIONS from `$_SERVER` (worker-refreshed) and a regression test pins the
+> `'*'`-constraint + GET case. Dispatch-level semantics need live coverage — second
+> data point after the wizard 302. (2) The loop's early "session amnesia" was curl: `-c`
+> against a sandbox-unwritable jar path silently no-ops, so every later `-b` shipped no
+> cookie; suspect the jar before the framework. The captured loop (all real, in
+> manual/07 §4): mint → adopt (2nd visit, no re-mint, token stable) → tokenless 419 →
+> valid 200 → **replay of the consumed token 419** (Q5 rotation working) → exempt 200
+> answering with its reason; `validate` ✓ armed / ⚠ UNARMED with the behavior honestly
+> flipping too, and the unarmed `csrfToken()` crash carrying its own fix text.
+
+> **As-built (L4, 2026-09):** queue-admin migrated and verified live on an armed dist —
+> `support/csrf.php` deleted (its confession docblock is now false by construction), the
+> three handlers speak `csrfToken()`, and the shell's fetch **needed zero changes** (its
+> `X-CSRF-Token` header already matches the engine's `TOKEN_HEADER` case-insensitively —
+> the old hand-roll had silently kept header-compatible). Guard semantics intentionally
+> changed: mismatch is now the door's 419, not a handler-level 403, and an UNARMED dist
+> makes the admin surface throw at `csrfToken()` rather than run mutations unprotected
+> (fail-closed; module 1.1.0 → 1.2.0, RZ-012 minor). The dogfood also exposed a dormant
+> deploy defect predating CSRF entirely: the module shipped `queueadmin.*` filenames
+> while the dist layout expects the class-name form `queue-admin.php` — the module could
+> not load in **any** dist; renamed (git mv, six files) and verified loadable. Double-
+> submit stays the documented stateless recipe (§1) — demoted, not deleted.
+
+## Appendix — ERP arming sequence (the 270-route target, when its owner green-lights)
+
+The ERP dogfood app is the real migration subject; queue-admin (a whole admin UI in one
+form-loop) walked steps 2–4 end to end at L4. For the ERP's 270+ mutating routes:
+
+1. **Inventory first**: `validate <dist>` + the Route audit list every POST/PUT/DELETE/
+   PATCH route per module; classify into form/XHR (needs token), machine door (needs
+   `->csrfExempt('<signature scheme + runbook>')` — webhook/callback handlers are the
+   only legitimate candidates), or dead (delete with owner sign-off).
+2. **Client pass first, while still unarmed**: every form gains `<?= $this->csrfField() ?>`,
+   every shared fetch/XHR helper adds one `X-CSRF-TOKEN` header from a `<meta>` tag the
+   layout gains. Unarmed dists accept these requests either way — the deploy is
+   behavior-neutral and reviewable before any arming commit exists.
+3. **Declare exemptions in the same client-pass commit**: every `csrfExempt` line carries
+   its reason (the entity throws otherwise), so the PR review IS the exemption review.
+4. **Arm per-dist, one dist per deploy**: `'csrf' => 'on'` flips that dist's whole
+   surface; one `csrf.failed` listener per app (audit-log shaped) names the exact
+   module/route/method that missed the header within hours — a miss is a user-visible
+   419, which is why step 2 must land first.
+5. **Rotation is free** (door default): any screen caching a token across two POSTs
+   (multi-step modals holding `_token` in JS state) must re-read it after each success —
+   grep for tokens stored outside form/meta tags during step 2.
+
+No framework work needed for any of it.
+
 ## 4. Do not build
 
 - No CAPTCHA/2FA coupling (that's `Authenticator`'s), no per-form token TTLs, no token

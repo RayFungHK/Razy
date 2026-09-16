@@ -3,11 +3,12 @@
 /**
  * razymod/queue-admin — guarded mutation route (POST /<module-alias>/act).
  *
- * Guards, in order: POST-only (405), CSRF double-submit (403), then the
- * service's own existence/kind validation (ok:false, no exceptions). The
- * module's existing __onAPICall tightening note applies: this HTTP surface
- * inherits the operator-trust boundary of the route itself — deploy behind
- * your edge auth like any admin panel.
+ * Guards, in order: POST-only (405), the dist's armed CSRF door (419 —
+ * CSRF-RAIL.md L4; the handler itself refuses to run on an unarmed dist),
+ * then the service's own existence/kind validation (ok:false, no
+ * exceptions). The module's existing __onAPICall tightening note applies:
+ * this HTTP surface inherits the operator-trust boundary of the route
+ * itself — deploy behind your edge auth like any admin panel.
  */
 
 use Razy\Controller;
@@ -21,14 +22,14 @@ return function (): void {
         return;
     }
 
-    /** @var array{issue: callable, verify: callable} $csrf */
-    $csrf = require __DIR__ . '/support/csrf.php';
-
-    if ($csrf['verify']() !== true) {
-        $this->xhr()->responseCode(403)->responseAsBody(['ok' => false, 'error' => 'CSRF token missing or mismatched']);
-
-        return;
-    }
+    // CSRF is the armed dist's door now (CSRF-RAIL.md L4): a request only
+    // reaches this handler with a validated token (this route carries no
+    // exemption). Resolving the manager doubles as the fail-closed guard —
+    // an UNARMED dist throws HERE rather than running an admin mutation
+    // surface unprotected (the old hand-rolled double-submit defended itself
+    // anywhere; the door defends better where armed and says so loudly where
+    // not). Mismatch answers are the door's 419, not a handler-level 403.
+    $this->csrfToken();
 
     $resolver = require __DIR__ . '/support/store.php';
     $store = $resolver();

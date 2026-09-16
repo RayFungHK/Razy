@@ -3,9 +3,9 @@
 /**
  * razymod/queue-admin — guarded purge route (POST /<module-alias>/purge).
  *
- * Same guard chain as /act: POST-only, CSRF double-submit, then service
- * semantics (clear finished/buried jobs of ONE queue — queue name is
- * required, no implicit-all on purpose).
+ * Same guard chain as /act: POST-only, the armed CSRF door (419), then
+ * service semantics (clear finished/buried jobs of ONE queue — queue name
+ * is required, no implicit-all on purpose).
  */
 
 use Razy\Controller;
@@ -19,14 +19,10 @@ return function (): void {
         return;
     }
 
-    /** @var array{issue: callable, verify: callable} $csrf */
-    $csrf = require __DIR__ . '/support/csrf.php';
-
-    if ($csrf['verify']() !== true) {
-        $this->xhr()->responseCode(403)->responseAsBody(['ok' => false, 'error' => 'CSRF token missing or mismatched']);
-
-        return;
-    }
+    // CSRF is the armed dist's door now (CSRF-RAIL.md L4) — same guard
+    // story as /act: validated-or-never-here, and an UNARMED dist throws at
+    // csrfToken() instead of running purge unprotected.
+    $this->csrfToken();
 
     $resolver = require __DIR__ . '/support/store.php';
     $store = $resolver();

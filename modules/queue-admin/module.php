@@ -15,5 +15,5 @@ return [
     'name' => 'Queue Admin',
     'author' => 'Razy Framework',
     'description' => 'Queue dashboard: per-queue status counts, job lookup, release/bury/delete actions over any QueueStoreInterface — with an optional self-contained HTML shell (/ui)',
-    'version' => '1.1.0', // RZ-012: minor — new HTTP surface (/ui /job /act /purge), nothing removed
+    'version' => '1.2.0', // RZ-012: minor — CSRF transport moved onto the dist's armed door (CSRF-RAIL.md L4; the HTTP surface now REQUIRES an armed dist and fails loud without one); no surface removed
 ];

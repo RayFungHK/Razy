@@ -33,6 +33,8 @@ use Razy\Session\Driver\ArrayDriver;
 use Razy\Session\Session;
 use Razy\Session\SessionConfig;
 use Razy\Session\SessionMiddleware;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 /**
  * CSRF-RAIL L1: the door arms the engine from one config key.
@@ -356,6 +358,43 @@ class CsrfDoorTest extends TestCase
         $this->assertStringContainsString('CSRF Posture', $source);
         $this->assertStringContainsString('UNARMED — mutating routes accept cross-site form submissions', $source);
         $this->assertStringContainsString('(forms: Controller::csrfField(); XHR: X-CSRF-TOKEN header)', $source);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Section 5: the first-party hand-roll is dead (L4)
+    // ────────────────────────────────────────────────────────────
+
+    public function testQueueAdminRunsOnTheDoorNotItsOwn(): void
+    {
+        $base = \dirname(__DIR__) . '/modules/queue-admin';
+
+        // The confession artifact is gone …
+        $this->assertFileDoesNotExist($base . '/default/controller/support/csrf.php');
+
+        // … nothing in the module references it …
+        $hit = '';
+        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base));
+        foreach ($it as $file) {
+            if ($file->isFile() && \str_ends_with($file->getFilename(), '.php')
+                && \str_contains((string) \file_get_contents($file->getPathname()), 'support/csrf.php')) {
+                $hit = $file->getFilename();
+            }
+        }
+        $this->assertSame('', $hit, 'no handler may reach for the retired hand-roll');
+
+        // … and the three HTTP guards now speak to the door. (Filenames are
+        // queue-admin.* — L4 also fixed a dormant deploy bug: the module
+        // shipped queueadmin.* but the dist layout expects the class name
+        // queue-admin.php, so the module could never load in any dist.)
+        $this->assertStringContainsString('$this->csrfToken()', (string) \file_get_contents(
+            $base . '/default/controller/queue-admin.ui.php'
+        ));
+        $this->assertStringContainsString('$this->csrfToken()', (string) \file_get_contents(
+            $base . '/default/controller/queue-admin.act.php'
+        ));
+        $this->assertStringContainsString('$this->csrfToken()', (string) \file_get_contents(
+            $base . '/default/controller/queue-admin.purge.php'
+        ));
     }
 
     private function distributorDouble(RouteDispatcher $dispatcher, Container $container): Distributor

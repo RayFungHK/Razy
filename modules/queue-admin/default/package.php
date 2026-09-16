@@ -18,4 +18,7 @@ return [
     'description' => 'Queue dashboard over QueueStoreInterface with an optional HTML shell (/ui)',
     'api_name' => 'queue_admin_api',
     'provision' => 'none',
+    // CSRF-RAIL.md L4: the HTTP surface expects an ARMED dist
+    // ('csrf' => 'on') — the handlers call csrfToken() and refuse loudly
+    // on an unarmed one rather than run admin mutations unprotected.
 ];
