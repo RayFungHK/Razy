@@ -17,6 +17,7 @@ namespace Razy\Cache;
 use DateInterval;
 use DateTime;
 use Redis;
+use Throwable;
 
 /**
  * Redis-backed PSR-16 cache adapter.
@@ -276,14 +277,36 @@ class RedisAdapter implements CacheInterface
     /**
      * Unserialize a value from Redis storage.
      *
+     * 'b:0;' is a perfectly legal stored FALSE — the old tail (`return $result
+     * !== false ? $result : null`) destroyed every cached false (PSR-16
+     * round-trip; caught by CI's real-redis suite, invisible on ext-redis-less
+     * dev boxes, 2026-09). Corruption is told from a genuine false by the
+     * notice unserialize() emits on malformed bytes: notice ⇒ miss (null),
+     * clean parse ⇒ the value verbatim, false included.
+     *
      * @param string $value
      *
      * @return mixed
      */
     private function unserializeValue(string $value): mixed
     {
-        $result = @\unserialize($value, ['allowed_classes' => false]);
+        $corrupted = false;
+        $result = null; // definite on every path, including the throw one
 
-        return $result !== false ? $result : null;
+        \set_error_handler(static function () use (&$corrupted): bool {
+            $corrupted = true;
+
+            return true;
+        });
+
+        try {
+            $result = \unserialize($value, ['allowed_classes' => false]);
+        } catch (Throwable) {
+            $corrupted = true;
+        } finally {
+            \restore_error_handler();
+        }
+
+        return $corrupted ? null : $result;
     }
 }

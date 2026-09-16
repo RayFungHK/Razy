@@ -183,7 +183,13 @@ class Agent
         }
 
         $event = \trim($event);
-        [$moduleCode, $eventName] = \explode(':', $event, 2);
+        // Parts-read, not list-destructure: a bare event name (no ':') must
+        // reach the clean throw below WITHOUT first emitting an
+        // "Undefined array key 1" warning (PHPUnit 11.5 counts source
+        // notices as suite warnings — exit 1 — and CI reads that as red).
+        $parts = \explode(':', $event, 2);
+        $moduleCode = $parts[0];
+        $eventName = $parts[1] ?? '';
         if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode)
             || !\preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
             throw new InvalidArgumentException('Invalid event name format');
@@ -217,7 +223,10 @@ class Agent
         }
 
         $event = \trim($event);
-        [$moduleCode, $eventName] = \explode(':', $event, 2);
+        // Same parts-read as listen(): no list-destructure warning before the throw.
+        $parts = \explode(':', $event, 2);
+        $moduleCode = $parts[0];
+        $eventName = $parts[1] ?? '';
         if (!\preg_match(ModuleInfo::REGEX_MODULE_CODE, $moduleCode)
             || !\preg_match('/^[a-z]\w*(\.[a-z][\w-]*)*$/i', $eventName)) {
             throw new InvalidArgumentException('Invalid event name format');
