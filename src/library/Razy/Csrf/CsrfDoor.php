@@ -14,6 +14,7 @@
 
 namespace Razy\Csrf;
 
+use Closure;
 use Razy\Distributor;
 use Razy\Session\Driver\FileDriver;
 use Razy\Session\Session;
@@ -64,20 +65,33 @@ class CsrfDoor
             static fn (string $moduleCode) => $distributor->getRegistry()->get($moduleCode),
         );
 
+        $csrf = new CsrfMiddleware(
+            tokenManager: $manager,
+            // First-class callable: the engine's onMismatch is typed
+            // ?Closure (shipped signature), the answer surface is a
+            // class — the (...) form bridges without widening a released API.
+            onMismatch: $rejection(...),
+            // The door ships the GOOD default (Q5): a validated token
+            // rotates per request, shrinking the replay window.
+            rotateOnSuccess: true,
+        );
+
         // Registration order IS the onion order (pipeMany keeps array order,
         // first-piped is outermost): session wraps token validation.
         $distributor->getRouter()->addGlobalMiddleware(
             new SessionMiddleware($session),
-            new CsrfMiddleware(
-                tokenManager: $manager,
-                // First-class callable: the engine's onMismatch is typed
-                // ?Closure (shipped signature), the answer surface is a
-                // class — the (...) form bridges without widening a released API.
-                onMismatch: $rejection(...),
-                // The door ships the GOOD default (Q5): a validated token
-                // rotates per request, shrinking the replay window.
-                rotateOnSuccess: true,
-            ),
+            // L2 wrapper: a route declaring ->csrfExempt(reason) skips
+            // validation via its routed context (RouteDispatcher copies the
+            // declaration into `csrf_exempt` at match time). The reason is
+            // enforced on the Route entity, so a bypass can never be
+            // reasonless — this reads the flag, it cannot create one.
+            static function (array $context, Closure $next) use ($csrf): mixed {
+                if (($context['csrf_exempt'] ?? null) !== null) {
+                    return $next($context);
+                }
+
+                return $csrf->handle($context, $next);
+            },
         );
 
         if ($container = $distributor->getContainer()) {

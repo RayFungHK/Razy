@@ -9,6 +9,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** CSRF-RAIL L2 — exemptions are declarations, not string lists. `(new Route('hook'))
+  ->csrfExempt('webhook: HMAC-verified upstream X')` rides the same Route entity as the L3
+  ready gates; **a reasonless exemption is unrepresentable** — the method throws at
+  registration (stronger than the promised `validate` ✗: the static scan has nothing left to
+  find, so the as-built rail is enforcement-by-construction). At match time the dispatcher
+  copies the declaration into routed context (`csrf_exempt`), and the armed door's wrapper
+  middleware honors ONLY that context flag — it cannot create one, and the engine stays
+  object-free. The ctor's `excludedRoutes` string list survives untouched for BC but the
+  manual now teaches only the declaration form (manual/07 §4 gained the armed-door section
+  with the XHR meta recipe).
+
 - **Added** CSRF-RAIL L1 — the door: one config key arms the engine. `'csrf' => 'on'` in
   `dist.php` boots the full chain at Distributor init (`CsrfDoor::arm`): file-backed Session
   (temp dir, per-dist filename prefix, zero disk touch at arm), `CsrfTokenManager` over it,

@@ -14,24 +14,25 @@
 
 namespace Razy\Tests;
 
+use Closure;
+use InvalidArgumentException;
 use LogicException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Container;
 use Razy\Controller;
 use Razy\Csrf\CsrfDoor;
-use Razy\Csrf\CsrfMiddleware;
 use Razy\Csrf\CsrfRejection;
 use Razy\Csrf\CsrfTokenManager;
 use Razy\Distributor;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Module;
+use Razy\Route;
 use Razy\Session\Driver\ArrayDriver;
 use Razy\Session\Session;
 use Razy\Session\SessionConfig;
 use Razy\Session\SessionMiddleware;
-use ReflectionProperty;
 
 /**
  * CSRF-RAIL L1: the door arms the engine from one config key.
@@ -68,19 +69,88 @@ class CsrfDoorTest extends TestCase
         // Onion order IS registration order: the token must validate
         // between session start() and save(), so session wraps csrf.
         $this->assertInstanceOf(SessionMiddleware::class, $middleware[0]);
-        $this->assertInstanceOf(CsrfMiddleware::class, $middleware[1]);
+        // [1] is the L2 exempt-aware wrapper around the engine middleware.
+        $this->assertInstanceOf(Closure::class, $middleware[1]);
     }
 
     public function testArmSetsRotationOnSuccessAtTheDoor(): void
     {
+        // The wrapper closure hides the engine instance from reflection, so
+        // the good default is pinned at source; its BEHAVIOR (a bad token
+        // still dies) is pinned by testWrapperValidatesWhenNotExempted.
+        $source = (string) \file_get_contents(
+            \dirname(__DIR__) . '/src/library/Razy/Csrf/CsrfDoor.php'
+        );
+
+        $this->assertStringContainsString('rotateOnSuccess: true,', $source);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Section 1b: the exempt-aware wrapper (L2)
+    // ────────────────────────────────────────────────────────────
+
+    public function testWrapperLetsDeclaredExemptionThroughUntouched(): void
+    {
         $dispatcher = new RouteDispatcher();
         CsrfDoor::arm($this->distributorDouble($dispatcher, new Container()));
 
-        $csrf = $dispatcher->getGlobalMiddleware()[1];
-        $rotate = (new ReflectionProperty(CsrfMiddleware::class, 'rotateOnSuccess'))->getValue($csrf);
+        $wrapper = $dispatcher->getGlobalMiddleware()[1];
 
-        // Q5: the door ships the good default, not the engine's compat one.
-        $this->assertTrue($rotate);
+        // POST with NO token anywhere — only an exemption can pass this.
+        $context = ['method' => 'POST', 'route' => '/hook', 'module' => 'demo/x',
+            'csrf_exempt' => 'webhook: HMAC-verified upstream'];
+
+        $reached = null;
+        $answer = $wrapper($context, static function (array $c) use (&$reached): string {
+            $reached = $c['route'];
+
+            return 'handler-ran';
+        });
+
+        $this->assertSame('handler-ran', $answer);
+        $this->assertSame('/hook', $reached);
+    }
+
+    public function testWrapperValidatesWhenNotExempted(): void
+    {
+        $dispatcher = new RouteDispatcher();
+        CsrfDoor::arm($this->distributorDouble($dispatcher, new Container()));
+
+        $wrapper = $dispatcher->getGlobalMiddleware()[1];
+
+        $nextRan = false;
+        \ob_start();
+        $answer = $wrapper(
+            ['method' => 'POST', 'route' => '/save', 'module' => 'demo/x'],
+            static function (array $c) use (&$nextRan): string {
+                $nextRan = true;
+
+                return 'never';
+            }
+        );
+        $body = (string) \ob_get_clean();
+
+        $this->assertFalse($nextRan, 'no exemption, no token: the handler must not run');
+        $this->assertNull($answer);
+        $this->assertStringContainsString('419', $body);
+    }
+
+    public function testRouteEntityRefusesReasonlessExemption(): void
+    {
+        $route = new Route('save');
+
+        try {
+            $route->csrfExempt('   ');
+            $this->fail('reasonless exemption must be unrepresentable');
+        } catch (InvalidArgumentException $e) {
+            $this->assertStringContainsString('non-empty reason', $e->getMessage());
+        }
+
+        $this->assertFalse($route->isCsrfExempt());
+
+        $route->csrfExempt('webhook: HMAC-verified upstream X');
+        $this->assertTrue($route->isCsrfExempt());
+        $this->assertSame('webhook: HMAC-verified upstream X', $route->getCsrfExemptReason());
     }
 
     public function testArmPublishesTokenManagerOnTheContainer(): void

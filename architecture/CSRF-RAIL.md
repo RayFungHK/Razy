@@ -143,6 +143,14 @@ fail-loud everywhere a config lie could hide.
 > pure `cookieOptions()` seam + guarded `emitCookie()/expireCookie()` (pinned by
 > `tests/SessionCookieTest.php`). Q2's decision text stands untouched.
 
+> **As-built (L2, 2026-09):** the plan said `validate` errors on exempt-without-reason;
+> the shipped rail is one notch stronger — `Route::csrfExempt()` **throws at registration**
+> on a blank reason, so a reasonless exemption cannot exist for a scan to find (the wizard-
+> without-migrations precedent's logical end: unrepresentable beats warned-about). `validate`
+> keeps the posture lines (armed ✓ / UNARMED ⚠ / config-lie ✗); the bypass itself lives in
+> the door's wrapper middleware reading the routed `csrf_exempt` context — the dispatcher
+> copies the entity's declaration at match time; the engine never sees Route objects.
+
 ## 4. Do not build
 
 - No CAPTCHA/2FA coupling (that's `Authenticator`'s), no per-form token TTLs, no token

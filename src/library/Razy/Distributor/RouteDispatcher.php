@@ -545,6 +545,15 @@ class RouteDispatcher
                         $this->routedInfo['contains'] = $data['path']->getData();
                     }
 
+                    // CSRF-RAIL L2: an exemption travels as ROUTED CONTEXT —
+                    // the armed door's wrapper middleware reads THIS, never a
+                    // Route object (the engine stays object-free), and the
+                    // reason requirement lives on the Route entity, so a
+                    // context flag can never exist without one.
+                    if (($data['path'] ?? null) instanceof Route && $data['path']->isCsrfExempt()) {
+                        $this->routedInfo['csrf_exempt'] = (string) $data['path']->getCsrfExemptReason();
+                    }
+
                     $registry->announce($data['module']);
 
                     if ($data['type'] !== 'script') {

@@ -52,6 +52,16 @@ class Route
      */
     private ?string $readyGate = null;
 
+    /**
+     * CSRF exemption justification (CSRF-RAIL.md Q3): set only through
+     * csrfExempt(), which refuses an empty reason — an exemption nobody
+     * can explain is a hole, not a policy. The armed door consults it via
+     * the routed context; nothing string-typed crosses module lines.
+     *
+     * @var ?string
+     */
+    private ?string $csrfExemptReason = null;
+
     /** @var mixed Arbitrary data attached to this route for controller consumption */
     private mixed $data = null;
 
@@ -225,6 +235,48 @@ class Route
     public function hasReadyGate(): bool
     {
         return $this->readyGate !== null && $this->readyGate !== '';
+    }
+
+    /**
+     * Declare this route exempt from the dist's armed CSRF door, WITH the
+     * reason that justifies it (CSRF-RAIL.md Q3).
+     *
+     * The reason is mandatory AT REGISTRATION — the wizard-without-
+     * migrations rail shape: unrepresentable beats warned-about, so there
+     * is nothing left for a static scan to catch. Typical legitimate
+     * uses: signature-verified webhooks (the HMAC is the origin proof),
+     * machine-to-machine bridge doors.
+     *
+     * @param string $reason non-empty justification, human-readable
+     *
+     * @return $this Fluent interface
+     *
+     * @throws InvalidArgumentException on an empty/whitespace reason
+     */
+    public function csrfExempt(string $reason): self
+    {
+        $reason = \trim($reason);
+
+        if ($reason === '') {
+            throw new InvalidArgumentException(
+                'csrfExempt() requires a non-empty reason — every CSRF exemption must'
+                . ' name its origin proof (e.g. "webhook: HMAC-verified upstream X").',
+            );
+        }
+
+        $this->csrfExemptReason = $reason;
+
+        return $this;
+    }
+
+    public function isCsrfExempt(): bool
+    {
+        return $this->csrfExemptReason !== null;
+    }
+
+    public function getCsrfExemptReason(): ?string
+    {
+        return $this->csrfExemptReason;
     }
 
     /**

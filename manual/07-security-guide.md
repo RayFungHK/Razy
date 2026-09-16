@@ -103,6 +103,30 @@ require a valid token** (default extraction: form field + header). Tokens are
 The wiring snippet above is *illustrative* (no shipped demo wires it); every constructor
 argument is verified.
 
+### The armed door (v1.2+, CSRF-RAIL.md) — the way you should actually use it
+
+One key in `dist.php` arms everything at boot: `'csrf' => 'on'` wires the session
+(cookie-emitting since L0), this middleware pair as globals (session outermost), token
+rotation on success, and publishes the manager. Verified surfaces:
+
+```php
+// Controller (module code):
+$this->csrfField();   // <input type="hidden" name="_token" value="…"> for your form
+$this->csrfToken();   // for the meta tag XHR clients read:
+// <meta name="csrf-token" content="{$csrfToken->escape}">
+//   fetch(..., { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } })
+
+// Webhooks and machine doors declare an exemption WITH its reason —
+// reasonless is unrepresentable (throws at registration):
+(new Route('hook'))->csrfExempt('webhook: HMAC-verified upstream X (see ops runbook)');
+```
+
+Answers when armed: mismatch → 419 (JSON `{"error":"csrf-token-mismatch",…}` for XHR,
+small page for browsers) + the `csrf.failed` event (module/route/method — subscribe for
+audit trails). `validate <dist>` prints **⚠ UNARMED** for dists that never set the key,
+✗ for any other value; new dists should arm from day one. Unarmed dist calling
+`csrfToken()` → `LogicException` with the fix in the message, never an empty field.
+
 ## 5. Sessions — `Session/`
 
 `Session\SessionConfig` defaults (verified `Session/SessionConfig.php:40-49`):
