@@ -134,6 +134,15 @@ the armed middleware's per-request cost rides the `07_gated_route_*` re-run (no 
 handler diligence); no BC surprise (off-until-armed + UNARMED noise); events announce only;
 fail-loud everywhere a config lie could hide.
 
+> **As-built (L0, 2026-09):** the plan said "`SessionConfig` gains a cookie section" — the
+> survey corrected on contact with the code: that section **existed in full since v0.5**
+> (`Session/SessionConfig.php:38-49` — name/lifetime/path/domain/secure/httpOnly/sameSite);
+> the true gap was that **no consumer ever read `$_COOKIE` or emitted anything** — the same
+> pathology as the engine itself: complete parts on the shelf. L0 therefore ships consumer
+> code only: adopt-valid-carried-id / mint+emit / rotate-re-emit / destroy-expires, behind a
+> pure `cookieOptions()` seam + guarded `emitCookie()/expireCookie()` (pinned by
+> `tests/SessionCookieTest.php`). Q2's decision text stands untouched.
+
 ## 4. Do not build
 
 - No CAPTCHA/2FA coupling (that's `Authenticator`'s), no per-form token TTLs, no token

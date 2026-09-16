@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** CSRF-RAIL L0 — the session finally owns its cookie. `SessionConfig` had carried
+  every cookie field (name/lifetime/path/domain/secure/httpOnly/sameSite) since v0.5 and
+  NOTHING consumed them: `start()` never read `$_COOKIE`, so an existing session could not be
+  recognised even in principle, and no response ever issued the cookie — razymod/queue-admin
+  had cited exactly this ("the framework Session subsystem emits NO cookie anywhere") as the
+  reason it bypassed `CsrfTokenManager` with a hand-rolled transport. Now a valid carried id
+  (40-hex, the `generateId()` shape — malformed shapes are discarded, never queried) is
+  adopted, fresh mints and `regenerate()` rotations emit, and `destroy()` expires it; caller
+  `setId()` still wins over the cookie (BC). Options are built by a pure, testable
+  `cookieOptions()` seam; the real emit paths stay inert under CLI/headers-sent. Makes the
+  session-synchronizer CSRF door (L1) possible on a real per-client identity.
+
 - **Fixed** the wizard door's web halves, both found only by live browser-level dogfood
   (unit tests structurally could not see either): the gate's not-ready **302** now sends
   `http_response_code(302)` + `Location` before throwing — `main.php`'s HttpException catch

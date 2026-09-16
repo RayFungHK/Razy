@@ -24,6 +24,11 @@ use Razy\Contract\SessionInterface;
  * persistence to a `SessionDriverInterface` driver, fully decoupled from
  * PHP's native `$_SESSION` / `session_*()` functions.
  *
+ * As of CSRF-RAIL L0 the session also OWNS its cookie: `start()` recognises
+ * a valid carried id (reads `$_COOKIE[config name]`), freshly minted and
+ * rotated ids are emitted, and `destroy()` expires it — the SessionConfig
+ * cookie fields are no longer decoration that only GC consumed.
+ *
  * Flash data uses a two-generation lifecycle:
  *   - On `flash('key', value)`: key is placed in `_flash.new`
  *   - On `save()`: `_flash.old` items are removed, `_flash.new` → `_flash.old`
@@ -74,12 +79,33 @@ class Session implements SessionInterface
 
         $this->driver->open();
 
+        // CSRF-RAIL L0: recognise our own cookie — a browser carrying a
+        // valid session id gets ITS session back, not a fresh one. The
+        // shape mirrors generateId() (40 hex chars); anything else is
+        // discarded rather than trusted (the driver is never queried with
+        // attacker-shaped bytes).
+        $carried = $_COOKIE[$this->config->name] ?? '';
+
+        if ($this->id === '' && \is_string($carried)
+            && \strlen($carried) === 40 && \ctype_xdigit($carried)) {
+            $this->id = $carried;
+        }
+
+        $isNew = false;
+
         if ($this->id === '') {
             $this->id = $this->generateId();
+            $isNew = true;
         }
 
         $this->attributes = $this->driver->read($this->id);
         $this->started = true;
+
+        // A brand-new session must reach the browser or no identity
+        // survives the response; an ADOPTED one needs no re-send.
+        if ($isNew) {
+            $this->emitCookie();
+        }
 
         // Probabilistic GC
         if ($this->config->gcDivisor > 0
@@ -113,6 +139,7 @@ class Session implements SessionInterface
     public function destroy(): void
     {
         $this->driver->destroy($this->id);
+        $this->expireCookie();
         $this->attributes = [];
         $this->driver->close();
         $this->started = false;
@@ -157,6 +184,10 @@ class Session implements SessionInterface
 
         if ($this->started) {
             $this->driver->write($this->id, $this->attributes);
+
+            // The browser must learn the NEW id or the rotation is
+            // invisible (and the next request resurrects the old one).
+            $this->emitCookie();
         }
 
         return true;
@@ -294,6 +325,63 @@ class Session implements SessionInterface
     public function getDriver(): SessionDriverInterface
     {
         return $this->driver;
+    }
+
+    /**
+     * Build the setcookie() options array from this session's config.
+     *
+     * Pure function (never sends) so the config→cookie mapping is directly
+     * testable; $expire flips it to the "remove now" variant destroy() uses.
+     * lifetime 0 means browser-session cookie (expires 0), matching the
+     * SessionConfig contract.
+     *
+     * @return array{expires:int,path:string,domain:string,secure:bool,httponly:bool,samesite:string}
+     */
+    protected function cookieOptions(bool $expire = false): array
+    {
+        return [
+            'expires' => $expire
+                ? \time() - 3600
+                : ($this->config->lifetime > 0 ? \time() + $this->config->lifetime : 0),
+            'path' => $this->config->path,
+            'domain' => $this->config->domain,
+            'secure' => $this->config->secure,
+            'httponly' => $this->config->httpOnly,
+            'samesite' => $this->config->sameSite,
+        ];
+    }
+
+    /**
+     * Send the session cookie for the current id (CSRF-RAIL L0).
+     *
+     * SessionConfig has carried these cookie fields since v0.5 and NOTHING
+     * consumed them — razymod/queue-admin's hand-roll even cited "the
+     * framework Session subsystem emits NO cookie anywhere" as the reason
+     * it bypassed CsrfTokenManager (support/csrf.php docblock). This method
+     * makes that confession false by construction. Protected seam: tests
+     * override to record; the real one is inert under CLI or once headers
+     * have flown (worker mode re-boots per request, so headers_sent()
+     * starts false on every handled request).
+     */
+    protected function emitCookie(): void
+    {
+        if (\PHP_SAPI === 'cli' || \headers_sent()) {
+            return;
+        }
+
+        \setcookie($this->config->name, $this->id, $this->cookieOptions());
+    }
+
+    /**
+     * Ask the client to drop the session cookie (paired with destroy()).
+     */
+    protected function expireCookie(): void
+    {
+        if (\PHP_SAPI === 'cli' || \headers_sent()) {
+            return;
+        }
+
+        \setcookie($this->config->name, '', $this->cookieOptions(true));
     }
 
     // ── Internal ──────────────────────────────────────────────
