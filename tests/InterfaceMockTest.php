@@ -22,8 +22,10 @@ use stdClass;
 /**
  * Tests that all core interfaces can be mocked/stubbed properly,
  * verifying their contracts work with PHPUnit's mock builder.
+ *
+ * No CoversClass on purpose — interface targets are rejected by the coverage
+ * collector (see InterfaceUserScenarioTest's note; same family, 2026-09).
  */
-#[CoversClass(ContainerInterface::class)]
 class InterfaceMockTest extends TestCase
 {
     public static function moduleStatusProvider(): array

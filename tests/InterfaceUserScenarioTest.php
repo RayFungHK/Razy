@@ -29,8 +29,12 @@ use stdClass;
  * for typical usage patterns: service registries, CRUD repositories,
  * template rendering, cross-module communication, and event-driven
  * architectures.
+ *
+ * (No CoversClass here on purpose: PHPUnit's coverage collector rejects
+ * interface targets — this attribute was an 87-warning machine (one per test),
+ * visible only once the coverage job ever got to run; the CI blackout hid it
+ * for months, 2026-09.)
  */
-#[CoversClass(ContainerInterface::class)]
 class InterfaceUserScenarioTest extends TestCase
 {
     public static function tablePrefixProvider(): array
