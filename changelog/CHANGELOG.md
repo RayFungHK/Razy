@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** PHP-85-READY — the framework is deprecation-clean on PHP 8.5 and the CI
+  matrix runs it: php.net's migration85.deprecated list swept against src (curl_close ×4
+  removed — handles free out of scope since 8.0; `$http_response_header` behind a
+  `function_exists` branch since the function replacement is 8.4-only; SplObjectStorage
+  dedup moved to ArrayAccess; `PDO::MYSQL_ATTR_FOUND_ROWS` resolved via `class_exists`
+  ternary — `\Pdo\Mysql` turned out to be a **8.4** class, verified live absent on a
+  driver-loaded 8.3.1, so the ^8.2 floor keeps the legacy constant exactly where the
+  clean one cannot exist). The 8.5-CI-open question (not touched blind):
+  `Module::await()`'s `$caller(...)->bindTo(...)` vs 8.5's rebinding deprecation — every
+  call site passes plain closures; the matrix will tell the truth. PHPUnit upgraded
+  10.5 → **11.5** (10 cannot pass on 8.5): config migrated to the 11.5 schema with all
+  strictness flags intact, the suite's three `MockBuilder::addMethods()` mocks became
+  real-subclass stubs (API dies in PHPUnit 12), and the repo's single remaining
+  doc-comment `@dataProvider` moved to `#[DataProvider]` — PHPUnit reports **zero**
+  deprecations at 5,534 tests. Support policy (maintainer sign-off): floor stays `^8.2`
+  until its upstream EOL **2026-12-31**; the first release after raises to `^8.3`.
+  readme verified-stats line refreshed to the real current numbers (was a 2026-07 drift).
+
 - **Changed** CSRF-RAIL L4 — `razymod/queue-admin` (v1.2.0, RZ-012 minor) now runs on the
   door instead of its own: `support/csrf.php` deleted (the confession docblock is false by
   construction), `/ui` issues via `csrfToken()`, `/act`+`/purge` lost their double-submit

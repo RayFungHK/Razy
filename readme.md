@@ -67,7 +67,10 @@ one framework binary (`Razy.phar`).
 
 ## Quick Start
 
-Requirements: **PHP 8.2+**, `ext-zip`, `ext-curl`, `ext-json`.
+Requirements: **PHP 8.2+** (CI-tested through **8.5**), `ext-zip`, `ext-curl`, `ext-json`.
+Support policy: the 8.2 floor retires at its upstream EOL (**2026-12-31**) — the first
+release after that date raises the floor to 8.3 (RZ-012 minor); 8.3+ users are unaffected
+in the meantime.
 
 ```bash
 # 1. Build (or grab the prebuilt Razy.phar from this repo root)
@@ -427,10 +430,10 @@ composer test → OK, but there were issues!
 Tests: 4845, Assertions: 8672, Warnings: 2, Skipped: 87   [40s]
 ```
 
-- **4,845 tests / 121 test classes**, 0 failures. The 87 skips are platform-conditional
-  (1× Windows `/proc`, ~53× Redis ext, 32× SSH2 ext) — all execute under
+- **5,534 tests / 167 test classes**, 0 failures (2 warnings, 116 skips). The skips are
+  platform-conditional (Windows `/proc`, Redis ext, SSH2 ext, …) — all execute under
   `.docker/docker-compose.test.yml`.
-- **CI**: PHP 8.2/8.3/8.4 matrix (Ubuntu) + Windows, pcov **50% line-coverage gate**,
+- **CI**: PHP 8.2/8.3/8.4/8.5 matrix (Ubuntu) + Windows, pcov **50% line-coverage gate**,
   php-cs-fixer (PSR-12 extended) via `cs2pr`, PHPStan level 5.
 - `composer quality` = cs-check + phpstan + test. `.githooks/pre-commit` enforces
   cs-check + phpstan locally (`git config core.hooksPath .githooks`); tests and the

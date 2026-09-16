@@ -16,7 +16,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3', '8.4']
+        # 8.5 added by PHP-85-READY (deprecations defused + PHPUnit 11.5); 8.2's
+        # floor retires at its EOL (2026-12-31) per readme's support policy.
+        php: ['8.2', '8.3', '8.4', '8.5']
         os: [ubuntu-latest]
         include:
           - php: '8.3'
