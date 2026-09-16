@@ -1,0 +1,79 @@
+# Laravel Benchmark — PHP-FPM Baseline (Octane NOT used; plain fpm)
+#
+# Symmetric fpm baseline for the Laravel side (audit: "PHP-FPM baseline for
+# both"). Same app/routes/views as the frankenphp image, booted through
+# php-fpm per request. Build is heavier than Razy's (composer create-project
+# runs here too) — one epoch build, then docker layer cache carries it.
+
+FROM php:8.3-fpm-alpine
+
+RUN apk add --no-cache git icu-dev oniguruma-dev libzip-dev linux-headers \
+    && docker-php-ext-install pdo_mysql opcache pcntl zip intl bcmath
+
+COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+# Same pinned opponent as the frankenphp image (one measurement epoch)
+RUN composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-interaction --no-dev \
+    --no-scripts || composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-interaction
+
+# --no-scripts skips Laravel's create-env hook — materialize .env by hand
+RUN cp -n /app/.env.example /app/.env || true
+
+RUN sed -i 's/APP_ENV=local/APP_ENV=production/' /app/.env \
+    && sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' /app/.env \
+    && sed -i 's/^DB_CONNECTION=sqlite/DB_CONNECTION=mysql/' /app/.env \
+    && sed -i 's/^# DB_HOST=127.0.0.1/DB_HOST=mysql/' /app/.env \
+    && sed -i 's/^# DB_PORT=3306/DB_PORT=3306/' /app/.env \
+    && sed -i 's/^# DB_DATABASE=laravel/DB_DATABASE=benchmark/' /app/.env \
+    && sed -i 's/^# DB_USERNAME=root/DB_USERNAME=benchmark/' /app/.env \
+    && sed -i 's/^# DB_PASSWORD=/DB_PASSWORD=benchmark/' /app/.env \
+    && sed -i 's/^SESSION_DRIVER=database/SESSION_DRIVER=array/' /app/.env \
+    && sed -i 's/^CACHE_STORE=database/CACHE_STORE=array/' /app/.env
+
+COPY benchmark/laravel/routes/benchmark.php /app/routes/benchmark.php
+COPY benchmark/laravel/views/benchmark /app/resources/views/benchmark
+
+RUN printf "\nrequire __DIR__.'/benchmark.php';\n" >> /app/routes/web.php
+
+RUN sed -i "s/->withMiddleware(function (Middleware \$middleware): void {/->withMiddleware(function (Middleware \$middleware): void {\n        \$middleware->validateCsrfTokens(except: ['benchmark\/*']);/" /app/bootstrap/app.php
+
+RUN php artisan key:generate --force \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && chown -R www-data:www-data /app/storage
+
+# Byte-identical OPcache policy (symmetry law)
+RUN { echo "opcache.enable=1"; \
+      echo "opcache.enable_cli=1"; \
+      echo "opcache.memory_consumption=256"; \
+      echo "opcache.interned_strings_buffer=32"; \
+      echo "opcache.max_accelerated_files=10000"; \
+      echo "opcache.validate_timestamps=0"; \
+      echo "opcache.jit_buffer_size=128M"; \
+      echo "opcache.jit=1255"; \
+      echo "realpath_cache_size=4096K"; \
+      echo "realpath_cache_ttl=600"; \
+      echo "memory_limit=256M"; \
+    } > /usr/local/etc/php/conf.d/benchmark.ini
+
+# fpm pool determinism mirror of the Razy fpm image
+RUN { echo "[www]"; \
+      echo "user = www-data"; \
+      echo "group = www-data"; \
+      echo "listen = 9000"; \
+      echo "pm = static"; \
+      echo "pm.max_children = 32"; \
+      echo "pm.status_path = /fpm-status"; \
+      echo "clear_env = no"; \
+    } > /usr/local/etc/php-fpm.d/zz-benchmark.conf \
+    && sed -i '/^listen.acl/d' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+
+RUN { echo "laravel=$(composer show laravel/framework --no-interaction 2>/dev/null | awk '/^versions/{print $NF}')"; \
+      echo "php=$(php -r 'echo PHP_VERSION;')"; \
+      echo "runtime=php-fpm (octane NOT used)"; \
+    } > /toolchain.txt && cat /toolchain.txt
+
+EXPOSE 9000

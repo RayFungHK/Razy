@@ -1,0 +1,34 @@
+# Caddyfile — PHP-FPM baseline front (one Caddy, both apps)
+#
+# :8083 -> Razy on plain fpm   (bench-razy-fpm:9000,     root /app/site)
+# :8084 -> Laravel on plain fpm (bench-laravel-fpm:9000, root /app/public)
+# No worker, no Octane — every request pays full framework boot.
+
+{
+	admin off
+}
+
+:8083 {
+	root * /app/site
+
+	php_fastcgi razy-fpm:9000 {
+		root /app/site
+	}
+
+	file_server
+}
+
+:8084 {
+	root * /app/public
+
+	php_fastcgi laravel-fpm:9000 {
+		root /app/public
+	}
+
+	file_server {
+		prefer_file
+	}
+
+	# Laravel front-controller fallback
+	try_files {path} /index.php?{query}
+}

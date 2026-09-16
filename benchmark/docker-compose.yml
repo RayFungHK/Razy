@@ -1,23 +1,26 @@
 # ============================================================
-# Benchmark Docker Compose — Razy vs Laravel + Octane
+# Benchmark Docker Compose — Razy vs Laravel (symmetric runtimes)
 # ============================================================
 #
 # Usage:
 #   cd benchmark
-#   docker compose up -d                    # Start all services
-#   docker compose --profile laravel up -d  # Include Laravel
+#   docker compose up -d                          # mysql + Razy worker
+#   docker compose --profile laravel up -d        # + Laravel worker (same runtime family)
+#   docker compose --profile fpm up -d            # + PHP-FPM baselines (both apps, one Caddy front)
 #
-# Architecture:
-#   ┌──────────┐     ┌──────────────┐     ┌─────────┐
-#   │ k6 client│────►│ razy (:8081) │────►│  mysql   │
-#   │ (host)   │     │ FrankenPHP   │     │ (:3306)  │
-#   │          │────►│ laravel(:8082│────►│          │
-#   └──────────┘     └──────────────┘     └─────────┘
+# Architecture (2026-09 symmetry re-run, COMPETITOR-LANDSCAPE.md §5):
+#   k6 (host) ──► razy      :8081  FrankenPHP worker      ─┐
+#             ──► laravel   :8082  Octane/frankenphp      ─┼─► mysql :13306
+#             ──► fpm-caddy :8083 (razy-fpm) / :8084 (laravel-fpm, php:8.3-fpm) ┘
+#
+# The old table compared Razy-on-FrankenPHP vs Laravel-on-Swoole — a runtime
+# verdict, not a framework one. Both stacks now share the identical FrankenPHP
+# runtime; the fpm profile adds the plain-FPM baseline for both, per the audit.
 
 services:
-  # ── Shared MySQL Database ──────────────────────────────────
+  # ── Shared MySQL Database (pin: bump with the Dockerfiles — one epoch) ──
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.43
     container_name: bench-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -50,6 +53,7 @@ services:
     ports:
       - "8081:8080"
     environment:
+      BENCH_DB_HOST: "mysql"
       BENCH_DB_DSN:  "mysql:host=mysql;port=3306;dbname=benchmark"
       BENCH_DB_USER: "benchmark"
       BENCH_DB_PASS: "benchmark"
@@ -62,7 +66,7 @@ services:
           cpus: '2.0'
           memory: 4G
 
-  # ── Laravel + Octane (Swoole) ──────────────────────────────
+  # ── Laravel + Octane (FRANKENPHP driver — same runtime family) ──
   #    Activate with: docker compose --profile laravel up -d
   laravel:
     build:
@@ -82,7 +86,6 @@ services:
       DB_PASSWORD: benchmark
       APP_ENV: production
       APP_DEBUG: "false"
-      OCTANE_SERVER: swoole
       LOG_CHANNEL: stderr
     depends_on:
       mysql:
@@ -92,6 +95,70 @@ services:
         limits:
           cpus: '2.0'
           memory: 4G
+
+  # ── PHP-FPM baseline (audit recommendation): BOTH apps on plain fpm ──
+  #    Activate with: docker compose --profile fpm up -d
+  #    One Caddy fronts both: :8083 → razy-fpm, :8084 → laravel-fpm
+  razy-fpm:
+    build:
+      context: ..
+      dockerfile: benchmark/docker/Dockerfile.razy-fpm
+    container_name: bench-razy-fpm
+    profiles:
+      - fpm
+    environment:
+      BENCH_DB_HOST: "mysql"
+      BENCH_DB_DSN:  "mysql:host=mysql;port=3306;dbname=benchmark"
+      BENCH_DB_USER: "benchmark"
+      BENCH_DB_PASS: "benchmark"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  laravel-fpm:
+    build:
+      context: ..
+      dockerfile: benchmark/docker/Dockerfile.laravel-fpm
+    container_name: bench-laravel-fpm
+    profiles:
+      - fpm
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: benchmark
+      DB_USERNAME: benchmark
+      DB_PASSWORD: benchmark
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  fpm-caddy:
+    image: caddy:2.10-alpine
+    container_name: bench-fpm-caddy
+    profiles:
+      - fpm
+    ports:
+      - "8083:8083"
+      - "8084:8084"
+    volumes:
+      - ./docker/Caddyfile.fpm:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - razy-fpm
+      - laravel-fpm
 
 volumes:
   bench_mysql_data:

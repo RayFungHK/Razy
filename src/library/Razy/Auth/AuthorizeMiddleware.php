@@ -79,9 +79,7 @@ class AuthorizeMiddleware implements MiddlewareInterface
                 return ($this->onForbidden)($context);
             }
 
-            if (!\headers_sent()) {
-                \http_response_code(403);
-            }
+            \header('HTTP/1.1 403', true, 403);
 
             return null;
         }

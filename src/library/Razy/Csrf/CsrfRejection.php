@@ -74,9 +74,7 @@ class CsrfRejection
         $wantsJson = \strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
             || \str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
 
-        if (!\headers_sent()) {
-            \http_response_code(419);
-        }
+        \header('HTTP/1.1 419', true, 419);
 
         if ($wantsJson) {
             \header('Content-Type: application/json; charset=utf-8');

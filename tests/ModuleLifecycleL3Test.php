@@ -174,7 +174,7 @@ final class ModuleLifecycleL3Test extends TestCase
         $source = \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Distributor/RouteDispatcher.php');
         $wizardBlock = \substr($source, (int) \strpos($source, "getProvision() === 'wizard'"));
 
-        $codeAt = \strpos($wizardBlock, 'http_response_code(302)');
+        $codeAt = \strpos($wizardBlock, "header('HTTP/1.1 302', true, 302)");
         $headerAt = \strpos($wizardBlock, "header('Location: ' . \$url, true)");
         $throwAt = \strpos($wizardBlock, 'throw new RedirectException');
 
@@ -193,9 +193,10 @@ final class ModuleLifecycleL3Test extends TestCase
         \set_error_handler(static function (int $level) use (&$warned, &$levelsSeen): bool {
             // STICKY, the 8.5 witness explained why: the gate's E_USER_WARNING
             // arrived (levels [512,2]) — and a later E_WARNING from the 503
-            // emit path (http_response_code, itself now 8.5-guarded in XHR)
-            // overwrote a non-sticky flag back to false. Announced stays
-            // announced regardless of what noise follows it.
+            // emit path (status lines — since the 8.5 conversion all emitted via
+            // header()-replace, never http_response_code) overwrote a non-sticky
+            // flag back to false. Announced stays announced regardless of what
+            // noise follows it.
             $warned = $warned || $level === E_USER_WARNING;
             $levelsSeen = '' === $levelsSeen ? (string) $level : $levelsSeen . ',' . $level;
 

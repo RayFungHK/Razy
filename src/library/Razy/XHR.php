@@ -347,9 +347,7 @@ class XHR
         // 8.5 CI matrix caught it live, 2026-09). In normal web dispatch headers
         // are not yet sent and behavior is byte-identical — the guard only skips
         // a call PHP would refuse anyway.
-        if (!\headers_sent()) {
-            \http_response_code($this->httpStatus);
-        }
+        \header('HTTP/1.1 ' . $this->httpStatus, true, $this->httpStatus);
 
         \header('Content-Type: application/json');
         \header('Access-Control-Allow-Origin: ' . $this->allowOrigin);

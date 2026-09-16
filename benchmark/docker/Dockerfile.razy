@@ -2,8 +2,13 @@
 #
 # Uses the official FrankenPHP image with PHP 8.3.
 # Runs Razy in Caddy worker mode (persistent process).
+#
+# PINNED per the audit's pinned-toolchain rule (was :latest-php8.3 — floats, and
+# a floating runtime makes historical numbers non-comparable). Bump together
+# with Dockerfile.laravel: one bump = one measurement epoch.
+#   FrankenPHP 1.10 / PHP 8.3
 
-FROM dunglas/frankenphp:latest-php8.3-alpine
+FROM dunglas/frankenphp:1.10-php8.3-alpine
 
 # Install PHP extensions needed for benchmarks
 RUN install-php-extensions \
@@ -48,5 +53,11 @@ RUN printf '<?php\nnamespace Razy;\nuse Exception;\nuse Phar;\n\nchdir(__DIR__);
 
 # Caddyfile for worker mode
 COPY benchmark/docker/Caddyfile.razy /etc/caddy/Caddyfile
+
+# Toolchain receipt (mirror of the Laravel side): docker exec bench-razy cat /toolchain.txt
+RUN { echo "php=$(php -r 'echo PHP_VERSION;')"; \
+      echo "frankenphp=$(frankenphp version 2>/dev/null | head -1 | tr -d '\r')"; \
+      echo "razy_phar_sha256=$(sha256sum /app/Razy.phar | cut -d' ' -f1)"; \
+    } > /toolchain.txt && cat /toolchain.txt
 
 EXPOSE 8080

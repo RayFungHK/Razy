@@ -63,7 +63,7 @@ export default function () {
 $dockerHealthFile = $healthFile -replace '\\','/' -replace '^C:','/c'
 docker run --rm --network benchmark_default `
     -v "${dockerHealthFile}:/scripts/health.js:ro" `
-    grafana/k6:latest run --quiet --no-summary --vus 1 --iterations 1 `
+    grafana/k6:2.0.0 run --quiet --no-summary --vus 1 --iterations 1 `
     /scripts/health.js 2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {
@@ -89,7 +89,7 @@ $warmupScript | Set-Content -Path $warmupFile -Encoding UTF8
 $dockerWarmupFile = $warmupFile -replace '\\','/' -replace '^C:','/c'
 docker run --rm --network benchmark_default `
     -v "${dockerWarmupFile}:/scripts/warmup.js:ro" `
-    grafana/k6:latest run --quiet --no-summary `
+    grafana/k6:2.0.0 run --quiet --no-summary `
     --vus $WarmupVUs --duration "${WarmupDuration}s" `
     /scripts/warmup.js 2>&1 | Out-Null
 
@@ -126,7 +126,7 @@ foreach ($scenario in $Scenarios) {
         $output = docker run --rm --network benchmark_default -w / `
             -v "${dockerK6Dir}:/scripts:ro" `
             -v "${dockerParentResultsDir}:/benchmark/results" `
-            grafana/k6:latest run `
+            grafana/k6:2.0.0 run `
             -e "TARGET_HOST=$TargetHost" `
             --summary-export="/benchmark/results/${Target}/${scenario}_run${run}.json" `
             "/scripts/$scenario.js" 2>&1

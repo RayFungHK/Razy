@@ -1,20 +1,26 @@
-# Laravel + Octane (Swoole) Benchmark Image
+# Laravel + Octane (FRANKENPHP driver) Benchmark Image
 #
-# Creates a fresh Laravel 11 project with Octane (Swoole) during build,
-# wires in the benchmark routes and views, and starts the Octane server.
-# PHP 8.3 with Swoole, OPcache tuned identically to Razy for fair comparison.
+# 2026-09 re-run (COMPETITOR-LANDSCAPE.md §5): the 2026-02 suite measured
+# FrankenPHP-worker Razy vs Swoole-coroutine Laravel — the audit correctly called
+# that a runtime-vs-runtime comparison, not a framework one. This image puts BOTH
+# sides on the identical FrankenPHP runtime (Octane's frankenphp driver), which is
+# also Laravel's own production-recommended worker today.
+#
+# Toolchain PINNED per the audit's pinned-toolchain rule. Bump all together — one
+# bump = one new measurement epoch, old results belong to the old epoch:
+#   FrankenPHP 1.10 / PHP 8.3 / Laravel ^13 / Octane ^2
 
-FROM php:8.3-cli
+FROM dunglas/frankenphp:1.10-php8.3-alpine
 
-# Install system deps + Swoole
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpq-dev libzip-dev libcurl4-openssl-dev unzip git \
-    && docker-php-ext-install pdo_mysql opcache pcntl zip \
-    && pecl install swoole \
-    && docker-php-ext-enable swoole \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN install-php-extensions \
+    pdo_mysql \
+    opcache \
+    pcntl \
+    zip \
+    intl \
+    bcmath
 
-# OPcache tuning (same as Razy for fairness)
+# Byte-identical OPcache policy to the Razy side (symmetry law)
 RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/benchmark.ini && \
     echo "opcache.enable_cli=1" >> /usr/local/etc/php/conf.d/benchmark.ini && \
     echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/benchmark.ini && \
@@ -27,19 +33,23 @@ RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/benchmark.ini && \
     echo "realpath_cache_ttl=600" >> /usr/local/etc/php/conf.d/benchmark.ini && \
     echo "memory_limit=256M" >> /usr/local/etc/php/conf.d/benchmark.ini
 
-# Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Create fresh Laravel project (no interaction, prefer-dist for speed)
-RUN composer create-project laravel/laravel /app --prefer-dist --no-interaction --no-dev
+# Fresh Laravel, pinned major (the old image floated to whatever main was).
+# The frankenphp base ships a non-empty /app — create-project into a staging
+# dir, then transplant.
+RUN composer create-project laravel/laravel:^13.0 /tmp/lf --prefer-dist --no-interaction --no-dev \
+    --no-scripts && cp -a /tmp/lf/. /app/ && rm -rf /tmp/lf
 
-# Install Octane with Swoole (already installed as PHP extension above)
-RUN composer require laravel/octane --no-interaction \
-    && php artisan octane:install --server=swoole --no-interaction
+# --no-scripts skips Laravel's create-env hook — materialize .env by hand
+RUN cp -n /app/.env.example /app/.env || true
 
-# Set production environment and configure MySQL connection BEFORE caching config
+RUN composer require laravel/octane:^2.0 --no-interaction \
+    && php artisan octane:install --server=frankenphp --no-interaction || true
+
+# Production env + the SAME shared benchmark MySQL the Razy side uses
 RUN sed -i 's/APP_ENV=local/APP_ENV=production/' /app/.env \
     && sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' /app/.env \
     && sed -i 's/^DB_CONNECTION=sqlite/DB_CONNECTION=mysql/' /app/.env \
@@ -51,22 +61,35 @@ RUN sed -i 's/APP_ENV=local/APP_ENV=production/' /app/.env \
     && sed -i 's/^SESSION_DRIVER=database/SESSION_DRIVER=array/' /app/.env \
     && sed -i 's/^CACHE_STORE=database/CACHE_STORE=array/' /app/.env
 
-# Copy benchmark routes and views into the Laravel project
+# Benchmark routes and views (real Blade + real Eloquent — symmetry law)
 COPY benchmark/laravel/routes/benchmark.php /app/routes/benchmark.php
 COPY benchmark/laravel/views/benchmark /app/resources/views/benchmark
 
-# Append benchmark routes to web.php so they are registered
-RUN echo "\nrequire __DIR__.'/benchmark.php';" >> /app/routes/web.php
+# Register the benchmark routes (printf, NOT echo: busybox ash leaves \n literal
+# and the stray "\nrequire" was a PHP ParseError at __DIR__, caught live 2026-09)
+RUN printf "\nrequire __DIR__.'/benchmark.php';\n" >> /app/routes/web.php
 
-# Disable CSRF verification for benchmark routes (POST /benchmark/db-write)
+# POST /benchmark/db-write must skip CSRF (k6 carries no session) — same waiver as the old suite
 RUN sed -i "s/->withMiddleware(function (Middleware \$middleware): void {/->withMiddleware(function (Middleware \$middleware): void {\n        \$middleware->validateCsrfTokens(except: ['benchmark\/*']);/" /app/bootstrap/app.php
 
-# Cache everything (config, routes, views) after all changes are in place
-RUN php artisan config:cache \
+# Cache everything after all changes are in place.
+# key:generate first: --no-scripts above skipped create-project's own
+# key:generate hook, and Octane's worker dies at boot (never reaching
+# frankenphp_handle_request) with "No application encryption key".
+RUN php artisan key:generate --force \
+    && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
+# Record the resolved toolchain INTO the image — a run without this receipt is
+# not a run (pinned-toolchain rule): docker exec bench-laravel cat /toolchain.txt
+RUN { echo "laravel=$(composer show laravel/framework --no-interaction 2>/dev/null | awk '/^versions/{print $NF}')"; \
+      echo "octane=$(composer show laravel/octane --no-interaction 2>/dev/null | awk '/^versions/{print $NF}')"; \
+      echo "php=$(php -r 'echo PHP_VERSION;')"; \
+      echo "frankenphp=$(frankenphp version 2>/dev/null | head -1 | tr -d '\r')"; \
+    } > /toolchain.txt && cat /toolchain.txt
+
 EXPOSE 8080
 
-# Start Octane with Swoole
-CMD ["php", "artisan", "octane:start", "--server=swoole", "--host=0.0.0.0", "--port=8080", "--workers=auto"]
+# Octane on the frankenphp driver — the same runtime family the Razy worker runs on
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080", "--workers=auto"]

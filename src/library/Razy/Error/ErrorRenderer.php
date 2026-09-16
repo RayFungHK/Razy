@@ -120,10 +120,11 @@ class ErrorRenderer
                 \ob_clean();
             }
             echo $source->output();
-            // Set the HTTP status code; default to 400 if code is non-numeric
-            if (!\headers_sent()) {
-                \http_response_code(\is_numeric($exception->getCode()) ? $exception->getCode() : 400);
-            }
+            // Set the HTTP status code; default to 400 if code is non-numeric.
+            // header()-replace form: same wire result, and unlike
+            // http_response_code() it never trips PHP 8.5's new late-status
+            // warning when the (CLI/test) process already chose one (2026-09).
+            \header('HTTP/1.1 ' . (\is_numeric($exception->getCode()) ? $exception->getCode() : 400), true, \is_numeric($exception->getCode()) ? (int) $exception->getCode() : 400);
         } else {
             echo $exception;
         }

@@ -5,16 +5,25 @@
  *
  * All 6 benchmark endpoints as controller methods for maximum performance.
  * No file I/O at route dispatch time (no separate closure files).
+ *
+ * SYMMETRY REWRITE (COMPETITOR-LANDSCAPE.md §5, absorbing RAZY-ANALYSIS-REPORT
+ * §6.2): the 2026-02 original measured string concatenation where Laravel ran
+ * Blade, and raw PDO where Laravel ran Eloquent — the audit called the "5x"
+ * headline an exaggeration and was right. Everything measured now goes through
+ * Razy's own production path: loadTemplate()/Source (vs Blade), Database +
+ * Statement query builder (vs Eloquent/Query Builder). Worker persistence is
+ * kept on both sides (Octane workers persist connections too).
  */
 
 namespace Razy\Module\app;
 
 use Razy\Agent;
 use Razy\Controller;
+use Razy\Database;
 
 return new class() extends Controller {
-    /** @var \PDO|null Persistent DB connection (reused across worker requests) */
-    private static ?\PDO $pdo = null;
+    /** @var Database|null Persistent Razy Database handle (reused across worker requests) */
+    private static ?Database $db = null;
 
     public function __onInit(Agent $agent): bool
     {
@@ -36,6 +45,7 @@ return new class() extends Controller {
     }
 
     // ── Scenario 2: Template render (10 variables) ──────────
+    // Razy Template engine (vs Laravel Blade) — the symmetry fix for caveat 1.
     public function templateRender(): void
     {
         $vars = [];
@@ -45,15 +55,14 @@ return new class() extends Controller {
 
         \header('Content-Type: text/html; charset=utf-8');
 
-        $html = '<!DOCTYPE html><html><head><title>Benchmark Template</title></head><body>';
-        foreach ($vars as $key => $value) {
-            $html .= "<p><strong>{$key}</strong>: {$value}</p>\n";
-        }
-        $html .= '</body></html>';
-        echo $html;
+        $source = $this->loadTemplate('benchmark/vars');
+        $source->assign($vars);
+        echo $source->output();
     }
 
     // ── Scenario 3: DB read — single-row SELECT ─────────────
+    // Razy Database + Statement builder vs Laravel's Query Builder (DB::table)
+    // — same layer both sides; neither stack runs its ORM model layer here.
     public function dbRead(): void
     {
         \header('Content-Type: application/json; charset=utf-8');
@@ -61,14 +70,19 @@ return new class() extends Controller {
         $id = (int) ($_GET['id'] ?? 1);
 
         try {
-            $pdo = self::getPdo();
-            $stmt = $pdo->prepare('SELECT id, title, body, created_at FROM benchmark_posts WHERE id = :id LIMIT 1');
-            $stmt->execute(['id' => $id]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $db = self::getDb();
+            $row = $db->prepare()
+                ->select('id,title,body,created_at')
+                ->from('benchmark_posts')
+                ->where('id=:id')
+                ->assign(['id' => $id])
+                ->limit(1)
+                ->lazy();
 
             if (!$row) {
                 \http_response_code(404);
                 echo \json_encode(['error' => 'not found']);
+
                 return;
             }
 
@@ -89,13 +103,16 @@ return new class() extends Controller {
         $level = $input['level'] ?? 'info';
 
         try {
-            $pdo = self::getPdo();
-            $stmt = $pdo->prepare('INSERT INTO benchmark_logs (message, level, created_at) VALUES (:message, :level, NOW())');
-            $stmt->execute(['message' => $message, 'level' => $level]);
+            $db = self::getDb();
+            $db->execute($db->insert('benchmark_logs', ['message', 'level', 'created_at'])
+                ->assign([
+                    'message' => $message,
+                    'level' => $level,
+                    'created_at' => \date('Y-m-d H:i:s'),
+                ]));
 
-            $id = $pdo->lastInsertId();
             \http_response_code(201);
-            echo \json_encode(['id' => (int) $id, 'message' => $message]);
+            echo \json_encode(['id' => $db->lastID(), 'message' => $message]);
         } catch (\Throwable $e) {
             \http_response_code(500);
             echo \json_encode(['error' => $e->getMessage()]);
@@ -110,23 +127,22 @@ return new class() extends Controller {
         $id = (int) ($_GET['id'] ?? 1);
 
         try {
-            $pdo = self::getPdo();
-            $stmt = $pdo->prepare('SELECT id, title, body, created_at FROM benchmark_posts WHERE id = :id LIMIT 1');
-            $stmt->execute(['id' => $id]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $db = self::getDb();
+            $row = $db->prepare()
+                ->select('id,title,body,created_at')
+                ->from('benchmark_posts')
+                ->where('id=:id')
+                ->assign(['id' => $id])
+                ->limit(1)
+                ->lazy();
 
             if (!$row) {
                 $row = ['id' => 0, 'title' => 'Not Found', 'body' => '', 'created_at' => ''];
             }
 
-            $html = '<!DOCTYPE html><html><head><title>' . \htmlspecialchars($row['title']) . '</title></head><body>';
-            $html .= '<article>';
-            $html .= '<h1>' . \htmlspecialchars($row['title']) . '</h1>';
-            $html .= '<time>' . \htmlspecialchars($row['created_at']) . '</time>';
-            $html .= '<div class="body">' . \nl2br(\htmlspecialchars($row['body'])) . '</div>';
-            $html .= '</article>';
-            $html .= '</body></html>';
-            echo $html;
+            $source = $this->loadTemplate('benchmark/post');
+            $source->assign($row);
+            echo $source->output();
         } catch (\Throwable $e) {
             \http_response_code(500);
             echo '<!DOCTYPE html><html><body><p>Error: ' . \htmlspecialchars($e->getMessage()) . '</p></body></html>';
@@ -155,22 +171,22 @@ return new class() extends Controller {
         ]);
     }
 
-    // ── Persistent PDO connection ───────────────────────────
-    private static function getPdo(): \PDO
+    // ── Persistent Database handle ──────────────────────────
+    private static function getDb(): Database
     {
-        if (self::$pdo === null) {
-            $dsn  = \getenv('BENCH_DB_DSN')  ?: 'mysql:host=127.0.0.1;port=3306;dbname=benchmark';
-            $user = \getenv('BENCH_DB_USER') ?: 'benchmark';
-            $pass = \getenv('BENCH_DB_PASS') ?: 'benchmark';
-
-            self::$pdo = new \PDO($dsn, $user, $pass, [
-                \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
-                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-                \PDO::ATTR_EMULATE_PREPARES   => false,
-                \PDO::ATTR_PERSISTENT         => true,
+        if (self::$db === null) {
+            $db = new Database('benchmark');
+            $db->connectWithDriver('mysql', [
+                'host' => \getenv('BENCH_DB_HOST') ?: 'mysql',
+                'port' => (int) (\getenv('BENCH_DB_PORT') ?: 3306),
+                'database' => 'benchmark',
+                'username' => \getenv('BENCH_DB_USER') ?: 'benchmark',
+                'password' => \getenv('BENCH_DB_PASS') ?: 'benchmark',
+                'persistent' => true,
             ]);
+            self::$db = $db;
         }
 
-        return self::$pdo;
+        return self::$db;
     }
 };
