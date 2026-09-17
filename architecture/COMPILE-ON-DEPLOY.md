@@ -2,6 +2,7 @@
 
 Status: **shipped (M1 + M2 incl. standalone arm), default-off per dist/app** · Added 2026-09 · Owner decision:
 「效能是 RAZY 其中一個重要的優勢」— compile-on-deploy 全面化.
+App-side adoption (ERP): [ERP-COMPILE-PROPOSAL.md](ERP-COMPILE-PROPOSAL.md) — owner-gated, three reversible steps.
 
 ## Why
 
