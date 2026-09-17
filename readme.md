@@ -426,6 +426,21 @@ stack's strength lives on a different runtime; the tables and receipts are in
 first FPM pass (a cache-ownership bug — found, logged, rerun fair) in
 [`benchmark/EPOCH-2026-09.md`](benchmark/EPOCH-2026-09.md).
 
+Update 2026-09-17 (compiled column, published from paired runs only): the
+deploy-time compile landed — the baked classmap needs **no opt-in** and lifts
+the FPM static plateau from 229.1 into the 370–396 RPS band (~+73%; the same
+host's noise floor was measured at ±2x and is documented, so the band is the
+claim, not a point). The boot-snapshot replay, measured PAIRED on a purpose-built
+60-module fpm dist, now ships with the stat fingerprint auto-shortening where
+opcache freezes bytecode (the case where its protection target no longer
+exists): +10…+23% across runs (never lost a pair; the shortening keeps a
+structure floor — an artifact naming folders that don't exist here is refused
+outright, the one case frozen bytecode can't see coming). With the fingerprint
+forcing full stats it cost -22% — the measurement that drove the fix (all
+columns in [`benchmark/EPOCH-2026-09.md`](benchmark/EPOCH-2026-09.md)).
+Dev (opcache off / vt=1) keeps the full stats. Worker deployments were always
+the fingerprint-free case — boot once — and the replay earns its keep there.
+
 These numbers carry no caveats about methodology because the 2026-02 caveats
 were **fixed**: string-concatenation endpoints, connection-policy asymmetry,
 missing raw data and unpinned toolchains are all closed items

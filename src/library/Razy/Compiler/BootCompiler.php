@@ -123,6 +123,30 @@ final class BootCompiler
     }
 
     /**
+     * Minimum trust floor when the fingerprint is skipped: every module
+     * folder the snapshot names must EXIST here. Cheap (a few is_dir calls
+     * against the realpath cache, no stat-hashing), and it catches the one
+     * case skipping cannot otherwise see: an artifact BAKED ON ANOTHER HOST
+     * (a dev machine's data/ COPY'd into an image) whose folder keys are
+     * foreign absolute paths. Live-fire 2026-09-17: benchgate's entry
+     * replayed exactly such an artifact and died at ModuleInfo — the
+     * fingerprint used to save this path via STALE; shortening must not
+     * lower the floor to zero. Missing structure => no replay, full boot,
+     * one loud line.
+     */
+    public static function originLooksLocal(array $data): bool
+    {
+        foreach ($data['modules'] ?? [] as $decl) {
+            $folder = $decl['manifest']['folder'] ?? null;
+            if (!\is_string($folder) || !\is_dir($folder)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Where the artifact lives for a dist@tag (DATA_FOLDER is the writable
      * runtime tree; the compile CLI writes it at deploy, the runtime only
      * ever reads it — opcache makes each boot one hot require).
@@ -184,6 +208,14 @@ final class BootCompiler
 
                 return null;
             }
+        } elseif (!self::originLooksLocal($data)) {
+            // fingerprint shortened — the structure floor still applies: a
+            // foreign-host artifact (baked by COPY from another machine) has
+            // folder keys that cannot exist here; replaying it would crash
+            // the boot rather than slow it (benchgate live-fire 2026-09-17).
+            \error_log('[Razy] compiled boot FOREIGN for standalone \'' . $folder . '\' — artifact names folders that do not exist here; full boot this process; rerun: php Razy.phar compile --standalone ' . $folder);
+
+            return null;
         }
 
         return $data;
@@ -274,6 +306,10 @@ final class BootCompiler
 
                 return null;
             }
+        } elseif (!self::originLooksLocal($data)) {
+            \error_log('[Razy] compiled boot FOREIGN for \'' . $distributor->getIdentity() . '\' — artifact names module folders that do not exist here (baked on another host?); full boot this process; rerun: php Razy.phar compile ' . $distributor->getCode());
+
+            return null;
         }
 
         return $data;

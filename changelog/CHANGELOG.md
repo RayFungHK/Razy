@@ -59,6 +59,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   measured unchanged because it read `$status['opcache']['enabled']` where the
   STATUS array is FLAT (`opcache_enabled`; the nested tree is get_CONFIGURATION)
   — failed SAFE, caught by the paired re-run, pinned in tests both ways.
+  **The shortening's own live-fire (same day, gate trio):** a dev-machine
+  artifact COPY'd into an image replays under vt=0 with staleness shortened
+  — boot crash; the old fingerprint had been the invisible floor. Shipped
+  `originLooksLocal()` as the floor shortening can NEVER skip (TRUST too):
+  every folder the snapshot names must exist here, else `FOREIGN` line and
+  full boot; entries clear artifacts before the first boot; gate image
+  strips `data/compiled` from the build context. Re-verified: trio green,
+  zero STALE/FOREIGN in the serving window, paired run on the floor phar
+  median 1.102 — never lost, same claim band.
   Also corrects EPOCH-2026-09's
   closed-section CPU numbers (the first saturation probe's k6 runs lacked checks and
   counted 502s — published invalidation + corrected 8.7 vs 2.35 ms CPU/req divided

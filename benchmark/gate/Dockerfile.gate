@@ -39,6 +39,12 @@ RUN mkdir -p /app/site/data && \
     cp -a /tmp/gate/site/. /app/site/ && \
     rm -rf /tmp/gate
 
+# NEVER ship a compiled artifact through the build context: a dev-machine
+# data/compiled/ baked here carries foreign-host folder keys, and with the
+# fingerprint auto-shortened (vt=0) only the FOREIGN floor — not staleness —
+# catches it. entry recompiles in-container anyway (live-fire 2026-09-17).
+RUN rm -rf /app/site/data/compiled
+
 # data/ must be writable by the worker (frankenphp runs as root here, but the
 # fpm lesson says: state the ownership, do not inherit assumptions)
 RUN chown -R www-data:www-data /app/site/data

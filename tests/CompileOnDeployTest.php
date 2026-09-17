@@ -346,6 +346,54 @@ return new class(null) extends Controller {
         self::assertStringContainsString('opcache.validate_timestamps', $src);
     }
 
+    public function testForeignArtifactIsRefusedWhereTheFingerprintIsShortened(): void
+    {
+        // benchgate live-fire 2026-09-17: a dev-machine artifact COPY'd into
+        // an image carries foreign folder keys; with the fingerprint
+        // shortened, staleness can NO LONGER catch it — the structure floor
+        // (every named folder exists here) must, or replay crashes the boot.
+        self::assertTrue(BootCompiler::originLooksLocal(['modules' => []]), 'an empty module set is vacuously local');
+        self::assertTrue(
+            BootCompiler::originLooksLocal(['modules' => ['a/b' => ['manifest' => ['folder' => SYSTEM_ROOT]]]]),
+            'a folder that exists here is local'
+        );
+        self::assertFalse(
+            BootCompiler::originLooksLocal(['modules' => ['a/b' => ['manifest' => ['folder' => 'C:\Users\someone\site\modules\a\b']]]]),
+            'a Windows-shaped folder cannot exist on this Linux test box (and vice versa: the floor is shape-blind, it only asks is_dir)'
+        );
+        self::assertFalse(
+            BootCompiler::originLooksLocal(['modules' => ['a/b' => ['manifest' => []]]]),
+            'a declaration without a folder fails the floor too — replay could not place it anyway'
+        );
+
+        // the floor runs where the fingerprint does not: TRUST declared (the
+        // suite has no opcache, so TRUST is the only reachable skip here)
+        $distMock = $this->createMock(Distributor::class);
+        $distMock->method('getCode')->willReturn('unittest-foreign');
+        $distMock->method('getTag')->willReturn('*');
+        $distMock->method('getIdentity')->willReturn('unittest-foreign@*');
+        BootCompiler::clear('unittest-foreign');
+
+        $dump = [
+            'modules' => ['a/b' => ['manifest' => ['folder' => PathUtil::append(SYSTEM_ROOT, 'no', 'such', 'folder')]]],
+            'queue_order' => [],
+            'routes' => [],
+            'named' => [],
+            'module_middleware' => [],
+        ];
+        $this->sweep[] = BootCompiler::write($distMock, $dump);
+
+        $trust = \getenv('RAZY_COMPILE_TRUST');
+        \putenv('RAZY_COMPILE_TRUST=1');
+        try {
+            self::assertNull(BootCompiler::usableData($distMock), 'TRUST shortens the fingerprint but never the structure floor');
+        } finally {
+            \putenv(false === $trust ? 'RAZY_COMPILE_TRUST' : "RAZY_COMPILE_TRUST={$trust}");
+        }
+
+        BootCompiler::clear('unittest-foreign');
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────
 
     private function createModule(): Module

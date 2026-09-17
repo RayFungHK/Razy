@@ -128,6 +128,19 @@ must declare now. Test pins assert the flat key AND forbid the nested one
 (the suite itself runs opcache-less, which is exactly why it could not catch
 this and why the pins exist).
 
+**Floor for the floor (same-day live-fire):** shortening removed the
+fingerprint's OTHER job — catching artifacts whose folder keys belong to
+another machine (a dev `data/compiled/` COPY'd into an image: benchgate
+replayed Windows paths and crashed at ModuleInfo; under the old stats,
+staleness always caught this). `originLooksLocal()` is the structure floor:
+every module folder the snapshot names must `is_dir` here — a few
+realpath-cached calls, no stat-hashing — and NO shortening (TRUST included)
+may skip it; failing it logs `FOREIGN` and takes the full boot. Entries
+clear artifacts before the FIRST boot (migrate boots the site too), and
+images strip `data/compiled` from the build context. The law refines:
+staleness can be shortened where bytecode is frozen; **structure never can**,
+because a snapshot of a machine that isn't here is not stale — it is wrong.
+
 ## Measurement
 
 Live-verified on the gate bench site (benchgate: 4 modules, 4 readiness-gate
