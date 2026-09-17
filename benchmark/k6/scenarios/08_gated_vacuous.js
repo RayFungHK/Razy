@@ -1,11 +1,10 @@
 /**
- * Scenario 8: Gated Route, VACUOUS � the default case (no migrations declared) *
+ * Scenario 8: Gated Route, VACUOUS — the default case (no migrations declared)
  *
- * The module declares migrations AND they are applied (entry migrated at
- * deploy). First request pays the probe (DB isUpToDate); every later request
- * rides the readinessMemo. THIS is the v1.1 per-request gate tax on the
- * common healthy path — compare against scenario 09b (plain-plain, identical
- * handler, no gate).
+ * The overwhelmingly common production shape: the module gates itself
+ * (readyRoutes('self')) but declares no migrations at all. The probe finds no
+ * migration/ directory, answers vacuously true (no DB round-trip ever), and
+ * the memo pins it. What this measures: the cheapest possible honest gate.
  *
  * Usage: TARGET_HOST=localhost:8085 k6 run benchmark/k6/scenarios/08_gated_vacuous.js
  */
@@ -73,4 +72,3 @@ export function handleSummary(data) {
 }
 
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.3/index.js';
-
