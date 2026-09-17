@@ -41,6 +41,16 @@ RUN mkdir -p /app/site/data/cache /app/site/plugins \
 COPY benchmark/razy/config.inc.php /app/site/config.inc.php
 COPY benchmark/razy/standalone /app/site/standalone
 
+# COMPILE-ON-DEPLOY: the fpm baseline image gains the deploy step Laravel
+# images always had (route/config cache equivalents). ARG COMPILED=0 rebuilds
+# the pure legacy baseline for A/B. The artifact's existence IS the standalone
+# opt-in; stale/missing = full boot (never wrong). Compile boots with no DB
+# (declarations only), so build-time is safe.
+ARG COMPILED=1
+RUN if [ "$COMPILED" = "1" ]; then \
+      cd /app/site && php /app/Razy.phar compile --standalone=./standalone && chown -R www-data:www-data /app/site/data; \
+    fi
+
 # Same front controller as the worker image (chdir pins SYSTEM_ROOT to /app/site)
 RUN printf '<?php\nnamespace Razy;\nuse Exception;\nuse Phar;\n\nchdir(__DIR__);\n$razyConfig = require __DIR__ . "/config.inc.php";\n$pharPath = ($razyConfig["phar_location"] ?? __DIR__) . "/Razy.phar";\nPhar::loadPhar($pharPath, "Razy.phar");\ninclude "phar://Razy.phar/main.php";\n' > /app/site/index.php
 
@@ -59,6 +69,7 @@ RUN { echo "[www]"; \
 # Toolchain receipt (mirror of worker images)
 RUN { echo "php=$(php -r 'echo PHP_VERSION;')"; \
       echo "runtime=php-fpm (no worker)"; \
+      echo "compiled_boot=${COMPILED}"; \
       echo "razy_phar_sha256=$(sha256sum /app/Razy.phar | cut -d' ' -f1)"; \
     } > /toolchain.txt && cat /toolchain.txt
 

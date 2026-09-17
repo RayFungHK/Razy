@@ -53,18 +53,88 @@ return function () {
         }
     }
 
-    if ($distCode === null) {
+    if ($distCode === null && !isset($options['standalone'])) {
         $this->writeLineLogging('{@s:b}Compile — deploy-time boot snapshot{@reset}', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('Usage:', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> [tag]{@reset}   Compile (or refresh) the artifact', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> --status{@reset} Artifact state (read-only)', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> --clear{@reset}  Remove artifact(s) — instant revert', true);
+        $this->writeLineLogging('  {@c:cyan}php Razy.phar compile --standalone=<path>[--clear]{@reset}  Same, for a standalone app folder', true);
         $this->writeLineLogging('', true);
-        $this->writeLineLogging('  Opt-in per dist: dist.php \'compiled_boot\' => true.', true);
+        $this->writeLineLogging('  Opt-in per dist: dist.php \'compiled_boot\' => true (standalone: the artifact\'s presence is the opt-in).', true);
         $this->writeLineLogging('  Recompile after ANY module change (deploy step, like migrate).', true);
         $this->writeLineLogging('', true);
         exit(1);
+    }
+
+    // ---- standalone application arm: same laws, folder-keyed artifact ----
+    if (isset($options['standalone'])) {
+        // The artifact is keyed by the folder path AS RUNTIME SEES IT —
+        // Application hands Standalone an absolute path, so resolve here too
+        // (a relative './standalone' would otherwise key an artifact nothing
+        // ever finds).
+        $folder = \realpath((string) $options['standalone']);
+        if ($folder === false) {
+            $this->writeLineLogging('{@c:red}[REFUSED]{@reset} not a directory: ' . $options['standalone'], true);
+            exit(1);
+        }
+        $folder = \rtrim($folder, '\\/');
+
+        if (isset($options['clear'])) {
+            $removed = BootCompiler::clearStandalone($folder);
+            $this->writeLineLogging($removed === [] ? "No compiled artifact for {$folder}." : '[removed] ' . $removed[0], true);
+            exit(0);
+        }
+
+        if (!\is_file($folder . '/module.php') && !\is_file($folder . '/controller/App.php') && !\is_file($folder . '/controller/app.php')) {
+            $this->writeLineLogging("{@c:red}[REFUSED]{@reset} {$folder} does not look like a standalone app folder (module.php / controller/App.php missing)", true);
+            exit(1);
+        }
+
+        try {
+            $sa = new Standalone($folder);
+            $sa->initialize();
+            $dumpA = BootCompiler::dump($sa);
+
+            $second = new Standalone($folder);
+            $second->initialize();
+            $dumpB = BootCompiler::dump($second);
+        } catch (Throwable $e) {
+            $this->writeLineLogging("{@c:red}[REFUSED]{@reset} {$e->getMessage()}", true);
+            exit(1);
+        }
+
+        if ($dumpA !== $dumpB) {
+            $this->writeLineLogging('{@c:red}[REFUSED]{@reset} registration is not deterministic — two boots produced different declarations.', true);
+            exit(1);
+        }
+
+        $artifact = BootCompiler::writeStandalone($sa, $dumpA);
+
+        // Replay self-proof (third boot now finds the artifact and replays):
+        $replay = new Standalone($folder);
+        $replay->initialize();
+        $sig = function (array $rows): array {
+            $out = [];
+            foreach ($rows as $key => $r) {
+                $path = $r['path'];
+                $rowCode = $r['module_code'] ?? $r['module']->getModuleInfo()->getCode();
+                $out[$key] = $rowCode . '|' . $r['method'] . '|' . $r['route'] . '|'
+                    . ($path instanceof Route ? $path->getClosurePath() : (\is_string($path) ? $path : '?'));
+            }
+            ksort($out);
+            return $out;
+        };
+        if ($sig($sa->getRouter()->getRoutes()) !== $sig($replay->getRouter()->getRoutes())) {
+            BootCompiler::clearStandalone($folder);
+            $this->writeLineLogging('{@c:red}[REFUSED]{@reset} compiled replay diverged from the legacy boot — artifact discarded.', true);
+            exit(1);
+        }
+
+        $this->writeLineLogging("{@c:green}[compiled]{@reset} {$folder} (replay verified: " . \count($dumpA['routes']) . ' routes match)', true);
+        $this->writeLineLogging("  artifact: {$artifact} (" . \round(\filesize($artifact) / 1024, 1) . ' KiB)', true);
+        exit(0);
     }
 
     if (isset($options['clear'])) {

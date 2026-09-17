@@ -25,8 +25,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   fingerprint (mtime+size of every dist `.php`, the trust level worker mode already
   uses) auto-degrades to the full boot, loudly, when stale. `__onInit` is not re-run —
   legal under RZ-009's declaration-purity, and `__onLoad`/`__onRequire` still run live.
-  `--status` / `--clear` for deploy pipelines. Live-verified: benchgate compiles,
-  replays with `4 routes match`, artifact 5.3 KiB. Also corrects EPOCH-2026-09's
+  `--status` / `--clear` for deploy pipelines. **Standalone arm (same week)**:
+  `compile --standalone=<path>` covers standalone apps — with no dist.php to hold
+  a flag, the artifact's existence IS the opt-in (deleting it is the revert);
+  folder-keyed (realpath, as runtime sees it), fingerprint = every `.php` under
+  the app folder (config.inc.php excluded — runtime config is read live around
+  the replay), and a loadModule-injected (PackageRunner) co-module graph takes
+  the whole boot legacy rather than replaying half a graph. The fpm benchmark
+  image ships `ARG COMPILED=1` (deploy-time compile baked in; `=0` rebuilds the
+  pure legacy baseline for A/B). Live-verified: benchgate compiles,
+  replays with `4 routes match`, artifact 5.3 KiB. **Published
+  (EPOCH-2026-09 compiled column, 7 checked zero-502 passes):** M1
+  classmap ≈ +73% on the fpm 01 plateau (229.1 → 370–396 RPS, no opt-in needed),
+  with the same-host noise floor measured at ±2x and documented; M2 replay is
+  within noise for the single-module standalone benchmark — stated openly, its
+  lane is multi-site dists and worker thread boot (both live-verified serving).
+  Also corrects EPOCH-2026-09's
   closed-section CPU numbers (the first saturation probe's k6 runs lacked checks and
   counted 502s — published invalidation + corrected 8.7 vs 2.35 ms CPU/req divided
   only from clean checked re-runs). Tests: `tests/CompileOnDeployTest.php`.

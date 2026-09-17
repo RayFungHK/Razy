@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Razy\Compiler\BootCompiler;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
 use Razy\Distributor\ModuleRegistry;
@@ -163,18 +164,31 @@ class Standalone implements DistributorInterface
     {
         $modules = &$this->registry->getModulesRef();
 
-        // Create a single Module directly with synthesized config (no ModuleScanner)
-        $moduleConfig = [
-            'module_code' => 'standalone/app',
-            'author' => 'standalone',
-            'description' => 'Standalone application module',
-        ];
-        $module = new Module($this, $this->folderPath, $moduleConfig, 'default', false, true);
-        $modules['standalone/app'] = $module;
+        // COMPILE-ON-DEPLOY (M2, standalone arm): the artifact's existence IS
+        // the opt-in (there is no dist.php here) — running the compile CLI on
+        // this folder is the deploy decision. Any miss (no artifact, stale
+        // fingerprint, schema/version drift) drops to the exact legacy
+        // assembly below; staleness costs speed, never correctness. A
+        // non-empty registry at this point means code injected co-modules via
+        // loadModule() (PackageRunner case) — those are NOT in the snapshot's
+        // queue, so the whole boot takes the legacy path rather than serving
+        // a half-replayed graph.
+        if ($modules === [] && ($boot = BootCompiler::usableStandalone($this)) !== null) {
+            $this->assembleCompiled($boot, $modules);
+        } else {
+            // Create a single Module directly with synthesized config (no ModuleScanner)
+            $moduleConfig = [
+                'module_code' => 'standalone/app',
+                'author' => 'standalone',
+                'description' => 'Standalone application module',
+            ];
+            $module = new Module($this, $this->folderPath, $moduleConfig, 'default', false, true);
+            $modules['standalone/app'] = $module;
 
-        // Resolve module dependencies (recursively)
-        foreach ($this->registry->getModules() as $mod) {
-            $this->require($mod);
+            // Resolve module dependencies (recursively)
+            foreach ($this->registry->getModules() as $mod) {
+                $this->require($mod);
+            }
         }
 
         if ($initialOnly) {
@@ -409,6 +423,40 @@ class Standalone implements DistributorInterface
         }
 
         return $this->globalTemplate;
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2, standalone arm): replay of a verified artifact.
+     * Same contract as Distributor::assembleCompiled — module shells rebuilt
+     * from the dumped manifest (config fed to the real ModuleInfo so full
+     * validation still runs live), declarations through the real doors,
+     * queue order preserved, routes with their precomputed regexes,
+     * __onInit's recorded output standing in (RZ-009 territory), while
+     * __onLoad/__onRequire run live below. Co-modules that code injected via
+     * loadModule() before initialize() already sit in the registry as
+     * Pending shells — applyDeclarations finishes them, never duplicates.
+     */
+    private function assembleCompiled(array $boot, array &$modules): void
+    {
+        foreach ($boot['modules'] as $code => $decl) {
+            $m = $decl['manifest'];
+            $module = $modules[$code] ?? new Module($this, $m['folder'], $m['config'], $m['version'], $m['shared'], $m['standalone'] ?? true);
+            $module->applyDeclarations($decl);
+            $modules[$code] = $module;
+        }
+
+        $order = $boot['queue_order'] ?? \array_keys($boot['modules']);
+        foreach ($order as $code) {
+            $module = $modules[$code] ?? null;
+            if ($module === null || $module->getStatus() === ModuleStatus::Disabled) {
+                continue;
+            }
+            $this->registry->enqueue($code, $module);
+        }
+
+        $this->router->loadCompiled($boot['routes'], $modules);
+        $this->router->loadCompiledNames($boot['named']);
+        $this->router->loadCompiledMiddleware($boot['module_middleware']);
     }
 
     /**

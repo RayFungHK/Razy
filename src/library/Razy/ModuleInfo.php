@@ -132,6 +132,9 @@ class ModuleInfo
     /** @var ConfigLoader Configuration file loader (injectable for testing) */
     private ConfigLoader $configLoader;
 
+    /** @var array COMPILE-ON-DEPLOY (M2): the manifest array as it arrived, verbatim */
+    private array $rawConfig = [];
+
     /** @var bool Whether this module is in standalone (lite) mode */
     private bool $standalone = false;
 
@@ -149,6 +152,12 @@ class ModuleInfo
      */
     public function __construct(private readonly string $containerPath, array $moduleConfig, private string $version = 'default', private readonly bool $sharedModule = false, ?ConfigLoader $configLoader = null, bool $standalone = false)
     {
+        // COMPILE-ON-DEPLOY (M2): the manifest array as it arrived (module.php
+        // for multisite, the synthesized/standalone array for standalone mode).
+        // The compiled artifact dumps THIS — the replay then feeds ModuleInfo
+        // the identical input, so the full validation above runs live on the
+        // same bytes a legacy boot would have read.
+        $this->rawConfig = $moduleConfig;
         $this->configLoader = $configLoader ?? new ConfigLoader();
         $this->standalone = $standalone;
         // Compute the relative path from SYSTEM_ROOT for URL generation
@@ -541,6 +550,16 @@ class ModuleInfo
      *
      * @return string
      */
+    /**
+     * COMPILE-ON-DEPLOY (M2): the manifest array this Info was built from,
+     * verbatim — dumped by BootCompiler and fed back into the same
+     * constructor on replay.
+     */
+    public function getRawConfig(): array
+    {
+        return $this->rawConfig;
+    }
+
     public function getVersion(): string
     {
         return $this->version;

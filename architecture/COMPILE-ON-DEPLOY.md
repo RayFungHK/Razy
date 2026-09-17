@@ -1,6 +1,6 @@
 # COMPILE-ON-DEPLOY — the deploy-time boot snapshot
 
-Status: **shipped (M1 + M2), default-off per dist** · Added 2026-09 · Owner decision:
+Status: **shipped (M1 + M2 incl. standalone arm), default-off per dist/app** · Added 2026-09 · Owner decision:
 「效能是 RAZY 其中一個重要的優勢」— compile-on-deploy 全面化.
 
 ## Why
@@ -84,10 +84,16 @@ future lint rule can flag state-setting in `__onInit` directly.
 - **DI container bindings (M3-deferred)**: the reflection bucket profiled ~5% —
   replaying container state is the riskiest slice for the smallest gain; if
   post-M2 numbers still demand it, it lands as its own decision.
-- **Standalone apps**: `Standalone::initialize` assembles a single Module by hand
-  (no scanner, no manifest walk); its boot is a fraction of a dist boot. Covering
-  it is a follow-up with the same pieces; the fpm benchmark numbers for compiled
-  standalone will be published only when that lands.
+- **Standalone apps (same week)**: `Standalone::initialize` carries the same
+  compiled arm. With no dist.php to hold a flag, **the artifact's existence IS
+  the opt-in** — running `php Razy.phar compile --standalone=<path>` is the
+  deploy decision, deleting it is the revert. The artifact is keyed by the
+  realpath'd folder (as runtime sees it); the fingerprint covers every `.php`
+  under the app folder (config.inc.php deliberately excluded — runtime config
+  is read LIVE around the replay, it never fed declarations). A non-empty
+  registry at initialize time (PackageRunner co-modules via `loadModule()`)
+  routes the WHOLE boot to the legacy path rather than serving a
+  half-replayed graph.
 - **App-level middleware, CSRF rail config, session**: registered outside module
   assembly, so replay never touched them.
 
@@ -103,6 +109,7 @@ only from clean, checked runs, per the benchmark honesty law.
 
 - `src/library/Razy/Compiler/BootCompiler.php` — dump / refuse / fingerprint / write
 - `src/library/Razy/Distributor.php` — `initialize()` fast path + `assembleCompiled()`
+- `src/library/Razy/Standalone.php` — standalone arm (artifact-existence opt-in)
 - `src/library/Razy/Module.php` — `buildController()` / `dumpDeclarations()` / `applyDeclarations()`
 - `src/library/Razy/Distributor/RouteDispatcher.php` — `loadCompiled*`
 - `src/system/terminal/compile.inc.php` — the deploy CLI (migrate-pattern)

@@ -268,6 +268,54 @@ return new class(null) extends Controller {
         self::assertStringContainsString('misfiring', $cli, 'a diverging replay deletes its own artifact');
     }
 
+    // ── standalone arm ────────────────────────────────────────────────────
+
+    public function testStandaloneArtifactIsFolderKeyedAndRoundTrips(): void
+    {
+        $folder = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'razy_sa_' . \uniqid();
+        \mkdir($folder, 0o777, true);
+        \file_put_contents($folder . '/module.php', '<?php return ["module_code" => "standalone/app"];');
+        $this->sweep[] = $folder . '/module.php';
+        $this->sweep[] = $folder;
+
+        $sa = $this->createMock(\Razy\Standalone::class);
+        $sa->method('getFolderPath')->willReturn($folder);
+
+        // the artifact path keys the normalized folder — not a dist code
+        $artifact = BootCompiler::standaloneArtifactPath($folder);
+        self::assertStringContainsString('standalone@' . \md5(\str_replace('\\', '/', $folder)), $artifact);
+
+        // existence IS the opt-in: none yet -> full boot
+        self::assertNull(BootCompiler::usableStandalone($sa));
+
+        $dump = ['modules' => [], 'queue_order' => [], 'routes' => [], 'named' => [], 'module_middleware' => []];
+        BootCompiler::writeStandalone($sa, $dump);
+        self::assertIsArray(BootCompiler::usableStandalone($sa), 'artifact present + fingerprint fresh => replay');
+
+        $late = $folder . '/late.php';
+        \file_put_contents($late, '<?php return [];');
+        $this->sweep[] = $late;
+        \clearstatcache();
+        self::assertNull(BootCompiler::usableStandalone($sa), 'an edit under the app folder degrades to the full boot');
+
+        BootCompiler::clearStandalone($folder);
+        self::assertNull(BootCompiler::usableStandalone($sa), 'clear is the revert door');
+    }
+
+    public function testStandaloneArmIsWiredNotHinted(): void
+    {
+        $sa = (string) \file_get_contents(SYSTEM_ROOT . '/src/library/Razy/Standalone.php');
+        self::assertStringContainsString('$modules === [] && ($boot = BootCompiler::usableStandalone($this)) !== null', $sa, 'artifact-existence opt-in AND the co-module escape hatch (loadModule-injected graphs take the legacy path whole)');
+        self::assertStringContainsString('assembleCompiled($boot, $modules)', $sa, 'the replay replaces assembly, not lifecycle');
+
+        $cli = (string) \file_get_contents(SYSTEM_ROOT . '/src/system/terminal/compile.inc.php');
+        self::assertStringContainsString('writeStandalone', $cli);
+        self::assertStringContainsString('realpath', $cli, 'the folder key must be the path AS RUNTIME SEES IT');
+
+        $df = (string) \file_get_contents(SYSTEM_ROOT . '/benchmark/docker/Dockerfile.razy-fpm');
+        self::assertStringContainsString('ARG COMPILED=1', $df, 'the fpm benchmark image carries the A/B switch');
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────
 
     private function createModule(): Module
