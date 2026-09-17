@@ -155,51 +155,96 @@ class Module implements ModuleInterface
 
         // If the Controller entity does not initialize
         if (null === $this->controller) {
-            // Build the expected controller file path from module metadata
-            $controllerPath = PathUtil::append($this->moduleInfo->getPath(), 'controller', $this->moduleInfo->getClassName() . '.php');
+            $this->buildController();
 
-            if (\is_file($controllerPath)) {
-                // Include the controller file, which should return an anonymous class
-                $controller = include $controllerPath;
+            // Run initialization: __onInit returns false on failure
+            $this->status = ModuleStatus::Initialing;
+            $this->status = (!$this->controller->__onInit($this->agent)) ? ModuleStatus::Failed : ModuleStatus::InQueue;
+            $this->initialized = true;
 
-                $reflected = new ReflectionClass($controller);
-
-                if ($reflected->isAnonymous()) {
-                    // Instantiate the anonymous controller class, passing this Module
-                    $this->controller = $reflected->newInstance($this);
-
-                    // Validate the controller extends the abstract Controller class
-                    if (!$this->controller instanceof Controller) {
-                        throw new ModuleLoadException(
-                            "Controller for module '{$this->moduleInfo->getCode()}' must extend Razy\\Controller, got '" . $reflected->getName() . "'.\n" .
-                            "File: {$controllerPath}",
-                        );
-                    }
-
-                    // Run initialization: __onInit returns false on failure
-                    $this->status = ModuleStatus::Initialing;
-                    $this->status = (!$this->controller->__onInit($this->agent)) ? ModuleStatus::Failed : ModuleStatus::InQueue;
-                    $this->initialized = true;
-
-                    return true;
-                }
-
-                throw new ModuleLoadException(
-                    "Controller at '{$controllerPath}' for module '{$this->moduleInfo->getCode()}' must return an anonymous class extending Controller.\n" .
-                    'Got: ' . \get_class($controller),
-                );
-            }
-
-            // D2 Fix: Improved error message with expected file path and naming convention
-            throw new ModuleLoadException(
-                "Main controller file not found for module '{$this->moduleInfo->getCode()}'.\n" .
-                "Expected file: {$controllerPath}\n" .
-                "The controller filename must match the module class name: {$this->moduleInfo->getClassName()}.php\n" .
-                'Ensure the file exists and follows the naming convention.',
-            );
+            return true;
         }
 
         return true;
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): capture every declaration table __onInit has
+     * produced. String-path declarations are data and travel; Closure
+     * registrations cannot be serialized and are reported in _refusals so
+     * the compiler can REFUSE compilation loudly (never replay a partial
+     * semantic silently).
+     */
+    public function dumpDeclarations(): array
+    {
+        $refusals = [];
+        $events = [];
+        $observers = [];
+
+        // Storage shape (Module\EventDispatcher): events[moduleCode][eventName] => path.
+        // The dump keys the FULL 'vendor/module:event' so replay feeds listen()
+        // exactly what the live path fed it — the event name must survive.
+        $regs = $this->eventDispatcher->getRegistrations();
+        foreach ($regs['events'] as $moduleCode => $byName) {
+            foreach ($byName as $eventName => $p) {
+                if ($p instanceof Closure) {
+                    $refusals[] = "closure listener on '{$moduleCode}:{$eventName}'";
+
+                    continue;
+                }
+                $events[$moduleCode . ':' . $eventName] = $p;
+            }
+        }
+        foreach ($regs['observers'] as $moduleCode => $byName) {
+            foreach ($byName as $eventName => $p) {
+                if ($p instanceof Closure) {
+                    $refusals[] = "closure observer on '{$moduleCode}:{$eventName}'";
+
+                    continue;
+                }
+                $observers[$moduleCode . ':' . $eventName] = $p;
+            }
+        }
+
+        return [
+            'api' => $this->getAPICommands(),
+            'bridge' => $this->getBridgeCommands(),
+            'bindings' => $this->closureLoader->getBindings(),
+            'events' => $events,
+            'observers' => $observers,
+            '_refusals' => $refusals,
+        ];
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): replay a recorded declaration table (see
+     * dumpDeclarations) — the controller is built (opcache-hot include, no
+     * __onInit), every table re-registered through its real door so side
+     * tables (registry listener index etc.) stay consistent by
+     * construction.
+     */
+    public function applyDeclarations(array $decl): void
+    {
+        $this->buildController();
+
+        foreach ($decl['api'] ?? [] as $command => $path) {
+            $this->addAPICommand($command, $path);
+        }
+        foreach ($decl['bridge'] ?? [] as $command => $path) {
+            $this->addBridgeCommand($command, $path);
+        }
+        foreach ($decl['bindings'] ?? [] as $method => $path) {
+            $this->closureLoader->bind($method, $path);
+        }
+        foreach ($decl['events'] ?? [] as $event => $p) {
+            $this->listen($event, $p);
+        }
+        foreach ($decl['observers'] ?? [] as $event => $p) {
+            $this->observe($event, $p);
+        }
+
+        $this->status = ModuleStatus::InQueue;
+        $this->initialized = true;
     }
 
     /**
@@ -1115,6 +1160,57 @@ class Module implements ModuleInterface
     {
         $this->controller->__onDispose();
         return $this;
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): include + instantiate the module's controller
+     * WITHOUT running `__onInit` — the compiled replay supplies __onInit's
+     * recorded output via applyDeclarations() instead. RZ-009 is the
+     * contract that makes this equivalent: __onInit registers, it does not
+     * act; live state belongs to __onLoad/__onRequire, which still run.
+     *
+     * Body is the exact block initialize() used inline — same file, same
+     * error texts, zero drift.
+     */
+    private function buildController(): void
+    {
+        // Build the expected controller file path from module metadata
+        $controllerPath = PathUtil::append($this->moduleInfo->getPath(), 'controller', $this->moduleInfo->getClassName() . '.php');
+
+        if (\is_file($controllerPath)) {
+            // Include the controller file, which should return an anonymous class
+            $controller = include $controllerPath;
+
+            $reflected = new ReflectionClass($controller);
+
+            if ($reflected->isAnonymous()) {
+                // Instantiate the anonymous controller class, passing this Module
+                $this->controller = $reflected->newInstance($this);
+
+                // Validate the controller extends the abstract Controller class
+                if (!$this->controller instanceof Controller) {
+                    throw new ModuleLoadException(
+                        "Controller for module '{$this->moduleInfo->getCode()}' must extend Razy\\Controller, got '" . $reflected->getName() . "'.\n" .
+                        "File: {$controllerPath}",
+                    );
+                }
+
+                return;
+            }
+
+            throw new ModuleLoadException(
+                "Controller at '{$controllerPath}' for module '{$this->moduleInfo->getCode()}' must return an anonymous class extending Controller.\n" .
+                'Got: ' . \get_class($controller),
+            );
+        }
+
+        // D2 Fix: Improved error message with expected file path and naming convention
+        throw new ModuleLoadException(
+            "Main controller file not found for module '{$this->moduleInfo->getCode()}'.\n" .
+            "Expected file: {$controllerPath}\n" .
+            "The controller filename must match the module class name: {$this->moduleInfo->getClassName()}.php\n" .
+            'Ensure the file exists and follows the naming convention.',
+        );
     }
 
     /**

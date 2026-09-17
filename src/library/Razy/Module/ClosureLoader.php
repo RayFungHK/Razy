@@ -89,6 +89,14 @@ class ClosureLoader
     }
 
     /**
+     * COMPILE-ON-DEPLOY (M2): full binding table for the deploy-time dump.
+     */
+    public function getBindings(): array
+    {
+        return $this->binding;
+    }
+
+    /**
      * Load the closure under the module controller folder.
      *
      * Resolves the path, checks for a direct controller method,

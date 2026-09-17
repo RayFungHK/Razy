@@ -250,6 +250,16 @@ class ModuleRegistry
     }
 
     /**
+     * COMPILE-ON-DEPLOY (M2): await() registrations cannot be replayed from
+     * data (runtime callables) — the compiler asks this count and REFUSES
+     * compilation rather than silently dropping them.
+     */
+    public function countAwaits(): int
+    {
+        return \count($this->awaitList);
+    }
+
+    /**
      * Put the callable into the list to wait for executing until other specified modules are ready.
      *
      * @param string $moduleCode Comma-separated module codes to wait for

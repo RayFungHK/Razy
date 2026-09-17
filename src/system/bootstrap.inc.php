@@ -306,6 +306,30 @@ function env(string $key, mixed $default = null): mixed
  */
 function autoload(string $className, string $path = ''): bool
 {
+    // COMPILE-ON-DEPLOY M1: the phar bake carries a class => file map
+    // (build.php). For phar-library lookups a map hit is ONE array read
+    // where the legacy ladder below pays is_dir + up to 3 is_file probes
+    // over the phar stream per class (the biggest per-request boot bucket,
+    // profiled 2026-09). Correctness is probe-neutral: a miss falls through,
+    // and a hit whose include does not define the class ALSO falls through.
+    static $classmap = false;
+    if (false === $classmap) {
+        $mapFile = (\defined('PHAR_PATH') && \strlen(PHAR_PATH) > 0)
+            ? \rtrim(PHAR_PATH, '\\/') . '/system/classmap.php'
+            : '';
+        $classmap = ($mapFile && \is_file($mapFile)) ? (array) require $mapFile : [];
+    }
+    if ($classmap && isset($classmap[$className]) && \str_ends_with($path, 'library')) {
+        $mapped = \rtrim($path, '\\/') . '/' . $classmap[$className];
+        if (\is_file($mapped)) {
+            include_once $mapped;
+            if (\class_exists($className, false)) {
+                return true;
+            }
+            // fall through to the legacy ladder — the map never answers wrong
+        }
+    }
+
     if (\is_dir($path)) {
         $libraryPath = PathUtil::append($path, $className . '.php');
 

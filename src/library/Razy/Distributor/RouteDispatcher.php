@@ -403,6 +403,92 @@ class RouteDispatcher
     }
 
     /**
+     * COMPILE-ON-DEPLOY (M2): load the route table captured by the deploy
+     * compile (BootCompiler). Rows arrive with their precomputed scalars
+     * (compiled regex, redirect flags, tidied paths) and re-link the live
+     * Module objects by code; Route entities are rehydrated through their
+     * real fluent constructors so dispatch sees byte-identical shapes to a
+     * live-registration boot. The named-route table is replayed as-is.
+     *
+     * @param array $rows dumped rows (getRoutes() shape, 'module' => code)
+     * @param array $modules live Module objects keyed by code
+     *
+     * @return $this
+     */
+    public function loadCompiled(array $rows, array $modules): static
+    {
+        foreach ($rows as $key => $row) {
+            $code = $row['module'];
+            if (!isset($modules[$code])) {
+                // Module absent from this boot (disabled etc.) — the whole
+                // dist fingerprint would have moved; skipping is belt and
+                // braces, never a silent semantic change.
+                continue;
+            }
+            $row['module'] = $modules[$code];
+
+            if (\is_array($row['path']) && isset($row['path']['__route'])) {
+                $spec = $row['path']['__route'];
+                $route = new Route($spec['closure_path']);
+
+                if ('*' !== $spec['method']) {
+                    $route->method($spec['method']);
+                }
+                if (!empty($spec['name'])) {
+                    $route->name($spec['name']);
+                }
+                if (!empty($spec['ready_gate'])) {
+                    $route->ready($spec['ready_gate']);
+                }
+                if (!empty($spec['csrf_exempt'])) {
+                    $route->csrfExempt($spec['csrf_exempt']);
+                }
+                foreach ($spec['middleware'] as $mwClass) {
+                    $route->middleware(new $mwClass());
+                }
+                if (\array_key_exists('data', $spec)) {
+                    $route->contain($spec['data']);
+                }
+
+                $row['path'] = $route;
+            }
+
+            $this->routes[$key] = $row;
+        }
+
+        $this->routesDirty = true;
+
+        return $this;
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): replay the named-route index.
+     */
+    public function loadCompiledNames(array $named): static
+    {
+        foreach ($named as $name => $routeKey) {
+            $this->registerNamedRoute($name, $routeKey);
+        }
+
+        return $this;
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): replay module middleware (class names — the
+     * compiler refused anything else).
+     */
+    public function loadCompiledMiddleware(array $stack): static
+    {
+        foreach ($stack as $code => $classes) {
+            foreach ($classes as $class) {
+                $this->addModuleMiddleware($code, new $class());
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Get the routed information after the route is matched.
      *
      * @return array

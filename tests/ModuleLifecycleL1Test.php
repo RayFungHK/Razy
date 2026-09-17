@@ -178,7 +178,11 @@ final class ModuleLifecycleL1Test extends TestCase
         self::assertStringContainsString('$this->applyEnableList();', $source, 'enable-list runs right after scan');
         self::assertStringContainsString("config', \$this->code, 'modules.php'", $source, 'the Q5 path, absent = all enabled');
         self::assertStringContainsString('names no module in dist', $source, 'zombie enable-list entries warn');
-        self::assertStringContainsString('ModuleStatus::Disabled) {' . "\n" . '                continue; // operator-disabled', $source, 'disabled modules never enter require()');
+        // COMPILE-ON-DEPLOY (M2): this block moved one indent level deeper
+        // (the legacy assembly now lives in the else-branch beside the new
+        // compiled fast path) — the wiring itself is unchanged, the pin
+        // follows the code, not the other way around.
+        self::assertStringContainsString('ModuleStatus::Disabled) {' . "\n" . '                    continue; // operator-disabled', $source, 'disabled modules never enter require()');
         self::assertStringContainsString('$reqModule->getStatus() === ModuleStatus::Disabled', $source, 'a disabled dependency blocks its dependents like a Failed one');
     }
 

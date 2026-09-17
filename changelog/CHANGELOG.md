@@ -9,6 +9,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Added** COMPILE-ON-DEPLOY (M1 + M2), the deploy-time boot snapshot — default-off,
+  opt-in per dist (dossier: `architecture/COMPILE-ON-DEPLOY.md`). M1: `build.php` bakes
+  an authoritative classmap into the phar; `autoload()` answers phar-library lookups
+  from one array read where the legacy ladder paid `is_dir` + up to 3 `is_file` probes
+  per class — probe-neutral by construction (misses and failed hits fall through).
+  M2: `php Razy.phar compile <dist>` captures the module manifest and every
+  `__onInit` declaration table (routes with their precomputed regexes, API/bridge
+  commands, bindings, listeners/observers, module middleware) into
+  `data/compiled/<dist>@<tag>.php`; dists carrying `'compiled_boot' => true` replay
+  it at boot (fpm kills the per-request assembly; worker cuts thread boot). Guards,
+  all fail-toward-today's-boot: closure/await/shadow-route registrations REFUSE
+  compilation with every offender named; the command boots twice (determinism) and
+  then boots the compiled path itself and refuses if the replay diverges; a stat
+  fingerprint (mtime+size of every dist `.php`, the trust level worker mode already
+  uses) auto-degrades to the full boot, loudly, when stale. `__onInit` is not re-run —
+  legal under RZ-009's declaration-purity, and `__onLoad`/`__onRequire` still run live.
+  `--status` / `--clear` for deploy pipelines. Live-verified: benchgate compiles,
+  replays with `4 routes match`, artifact 5.3 KiB. Also corrects EPOCH-2026-09's
+  closed-section CPU numbers (the first saturation probe's k6 runs lacked checks and
+  counted 502s — published invalidation + corrected 8.7 vs 2.35 ms CPU/req divided
+  only from clean checked re-runs). Tests: `tests/CompileOnDeployTest.php`.
 - **Fixed** `ErrorRenderer` worker-mode status-code integrity (live-caught by the
   2026-09 benchmark gate site): worker dispatch runs with NO output buffer, so
   `show404()`'s unconditional `ob_clean()` emitted a notice — itself output — poisoning

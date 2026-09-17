@@ -1,0 +1,404 @@
+<?php
+
+/**
+ * This file is part of Razy v0.5.
+ *
+ * (c) Ray Fung <hello@rayfung.hk>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
+
+namespace Razy\Compiler;
+
+use Closure;
+use FilesystemIterator;
+use Razy\Distributor;
+use Razy\Exception\ConfigurationException;
+use Razy\Route;
+use Razy\Util\PathUtil;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ReflectionClass;
+use Throwable;
+
+/**
+ * COMPILE-ON-DEPLOY — deploy-time boot snapshot (M2).
+ *
+ * A distributor boot assembles pure data every single time: the module
+ * manifest (module.php/package.php), the merged dist config, and — through
+ * each module's `__onInit` — the declaration tables (routes, API/bridge
+ * commands, bindings, event listeners/observers, module middleware). Under
+ * plain php-fpm that assembly is paid PER REQUEST (profiled 2026-09: route
+ * churn + FS probing dominate the per-request CPU); under worker mode it is
+ * paid per thread at boot (pod start-up, scale-from-zero, cold first
+ * request). This class captures the assembly once, at deploy, and replays
+ * it verbatim.
+ *
+ * Contract (the honest trade, same bargain Laravel's route:cache strikes):
+ * - `__onInit` stays DECLARATION-PURE — Golden Rule RZ-009 already says
+ *   "register in __onInit, act in __onReady/__onRouted/__onEntry". Compiled
+ *   boot replays __onInit's OUTPUT and does not re-run it; state setup
+ *   belongs in __onLoad/__onRequire, which still run, every boot, live.
+ * - Anything a snapshot cannot carry — a Closure listener, a closure
+ *   middleware, `await()`-registered runtime callbacks, non-serializable
+ *   route payloads — makes the dist REFUSE compilation with the offending
+ *   items named. No silent semantic change, ever (Laravel precedent).
+ * - Registration determinism is compile-verified: the dist boots twice from
+ *   clean state and the dumps must match, else compilation is refused
+ *   (conditional-by-clock/env registration must be made explicit).
+ * - The artifact self-inactivates: schema id, framework version, and a
+ *   stat fingerprint (mtime+size of every .php in the dist + its config
+ *   files) are checked at boot; mismatch falls back to the full legacy
+ *   boot, loudly once in the error log. Deploy discipline
+ *   (`php Razy.phar compile <dist>`) stays in the pipeline; staleness can
+ *   only cost speed, never correctness.
+ *
+ * The opt-in door is dist.php: `'compiled_boot' => true`. Absent (default)
+ * = today's boot, byte for byte.
+ *
+ * @license MIT
+ */
+final class BootCompiler
+{
+    /** Artifact schema + replay-semantics id; bump on ANY shape change. */
+    public const SCHEMA = 'compiled-boot-1';
+
+    /** env RAZY_COMPILE_TRUST=1 skips the stat fingerprint (pure deploy discipline). */
+    private const TRUST_ENV = 'RAZY_COMPILE_TRUST';
+
+    private function __construct()
+    {
+        // static surface only
+    }
+
+    /**
+     * Where the artifact lives for a dist@tag (DATA_FOLDER is the writable
+     * runtime tree; the compile CLI writes it at deploy, the runtime only
+     * ever reads it — opcache makes each boot one hot require).
+     * The wildcard tag '*' is filed as '_' (a literal '*' is not a legal
+     * filename on Windows-family filesystems).
+     */
+    public static function artifactPath(string $distCode, string $tag = '*'): string
+    {
+        return PathUtil::append(DATA_FOLDER, 'compiled', $distCode . '@' . \str_replace('*', '_', $tag) . '.php');
+    }
+
+    /**
+     * Stat fingerprint: mtime+size of every .php under the dist folder and
+     * its per-distributor config folder. No file CONTENT is read — a stat
+     * per file, realpath-cache warm. Worker mode already trusts exactly
+     * this granularity for its in-process distributor cache
+     * (getConfigFingerprint), so compiled boot inherits the established
+     * trust level rather than inventing a new one.
+     */
+    public static function fingerprint(string $distCode): string
+    {
+        $parts = [self::SCHEMA, self::frameworkVersion()];
+
+        foreach (
+            [
+                PathUtil::append(SITES_FOLDER, $distCode),
+                PathUtil::append(SYSTEM_ROOT, 'config', $distCode),
+            ] as $dir
+        ) {
+            if (!\is_dir($dir)) {
+                $parts[] = $dir . ':!';
+
+                continue;
+            }
+            $files = [];
+            $it = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($it as $file) {
+                if ($file->isFile() && 'php' === \strtolower($file->getExtension())) {
+                    $files[] = $file->getPathname();
+                }
+            }
+            \sort($files);
+            foreach ($files as $f) {
+                $parts[] = $f . '|' . \filesize($f) . '|' . \filemtime($f);
+            }
+        }
+
+        return \md5(\implode("\n", $parts));
+    }
+
+    /**
+     * Is a compiled boot usable RIGHT NOW for this distributor?
+     * (opt-in flag set, artifact exists, identity + fingerprint match).
+     * Returns the artifact data on success, null for "full boot today".
+     */
+    public static function usableData(Distributor $distributor): ?array
+    {
+        $artifact = self::artifactPath($distributor->getCode(), $distributor->getTag());
+        if (!\is_file($artifact)) {
+            return null;
+        }
+
+        $data = @require $artifact; // opcache-hot; legacy path pays worse anyway
+        if (!\is_array($data) || ($data['schema'] ?? '') !== self::SCHEMA || ($data['framework'] ?? '') !== self::frameworkVersion()) {
+            return null;
+        }
+
+        if ('1' !== (string) \getenv(self::TRUST_ENV)) {
+            if (($data['fingerprint'] ?? '') !== self::fingerprint($distributor->getCode())) {
+                \error_log('[Razy] compiled boot STALE for \'' . $distributor->getIdentity() . '\' — full boot this process; rerun: php Razy.phar compile ' . $distributor->getCode());
+
+                return null;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Capture every declaration the compiled replay must reproduce.
+     * Called at compile time on a fully-initialized distributor.
+     *
+     * @return array{modules: array, routes: array, named: array, module_middleware: array}
+     *
+     * @throws ConfigurationException listing EVERY uncompilable item
+     */
+    public static function dump(Distributor $distributor): array
+    {
+        $refusals = [];
+        $modules = [];
+
+        if ($distributor->getRegistry()->countAwaits() > 0) {
+            $refusals[] = 'await() runtime callbacks are registered (compiled boot replays declarations; RZ-009)';
+        }
+
+        foreach ($distributor->getRegistry()->getModules() as $code => $module) {
+            $decl = $module->dumpDeclarations();
+
+            foreach ($decl['_refusals'] as $what) {
+                $refusals[] = "{$code}: {$what}";
+            }
+            unset($decl['_refusals']);
+
+            // Replay needs exactly what the scanner's cached-manifest path
+            // already carries: the module root (module.php lives here —
+            // getPath() is the VERSIONED folder the controller/action files
+            // live in), the resolved version, and the raw module.php array
+            // (opcache-hot require; ModuleInfo validation then runs live,
+            // identical semantics).
+            $moduleConfig = require PathUtil::append($module->getModuleInfo()->getContainerPath(), 'module.php');
+            try {
+                \serialize($moduleConfig);
+            } catch (Throwable) {
+                // module.php is meant to be a plain array (RZ-009 territory);
+                // anything carrying runtime objects refuses, never truncates.
+                $refusals[] = "{$code}: module.php carries non-serializable values";
+
+                continue;
+            }
+
+            $decl['manifest'] = [
+                'folder' => $module->getModuleInfo()->getContainerPath(),
+                'version' => $module->getModuleInfo()->getVersion(),
+                'shared' => $module->getModuleInfo()->isShared(),
+                'config' => $moduleConfig,
+            ];
+
+            $modules[$code] = $decl;
+        }
+
+        // Route table: getRoutes() rows carry the live Module object and
+        // sometimes a Route entity — reduce both to data (and REFUSE
+        // anything data cannot carry).
+        $routes = [];
+        foreach ($distributor->getRouter()->getRoutes() as $key => $row) {
+            $path = $row['path'];
+
+            if ($path instanceof Route) {
+                $spec = self::dumpRoute($path, $key, $refusals);
+                if ($spec === null) {
+                    continue; // refusal already recorded
+                }
+                $row['path'] = ['__route' => $spec];
+            } elseif ($path instanceof Closure) {
+                $refusals[] = "route {$key}: closure handler";
+                unset($row);
+
+                continue;
+            }
+
+            $row['module'] = $row['module_code'] ?? $row['module']->getModuleInfo()->getCode(); // replay re-links by code (lazy rows carry no module_code column)
+            unset($row['target']);
+            if (isset($row['is_script'])) {
+                // CLI script rows are not an HTTP concern; skip
+            }
+            $routes[$key] = $row;
+        }
+
+        // Shadow routes reference Module objects — refuse for M1 honesty.
+        foreach ($distributor->getRouter()->getRoutes() as $key => $row) {
+            if (isset($row['target'])) {
+                $refusals[] = "shadow route {$key}: cross-module target reference";
+            }
+        }
+
+        if ($refusals !== []) {
+            throw new ConfigurationException(
+                "Distributor '{$distributor->getIdentity()}' is not compilable:\n  - "
+                . \implode("\n  - ", \array_unique($refusals))
+                . "\nCompiled boot replays declarations only (RZ-009 territory)."
+            );
+        }
+
+        return [
+            'modules' => $modules,
+            'queue_order' => \array_keys($distributor->getRegistry()->getQueue()),
+            'routes' => $routes,
+            'named' => $distributor->getRouter()->getNamedRoutes(),
+            'module_middleware' => self::dumpModuleMiddleware($distributor, $refusals),
+        ];
+    }
+
+    /**
+     * Write the artifact (deploy-time, CLI context).
+     */
+    public static function write(Distributor $distributor, array $dump): string
+    {
+        $artifact = self::artifactPath($distributor->getCode(), $distributor->getTag());
+
+        $data = [
+            'schema' => self::SCHEMA,
+            'framework' => self::frameworkVersion(),
+            'identity' => $distributor->getIdentity(),
+            'fingerprint' => self::fingerprint($distributor->getCode()),
+            'generated' => \date('c'),
+        ] + $dump;
+
+        if (!\is_dir($dir = \dirname($artifact))) {
+            \mkdir($dir, 0775, true);
+        }
+
+        $php = "<?php\n\n/**\n * Razy compiled boot artifact — GENERATED by `php Razy.phar compile`.\n * Dist: {$data['identity']}  Generated: {$data['generated']}\n * Do not edit; delete (or recompile) to fall back to the full boot.\n */\n\nreturn " . \var_export($data, true) . ";\n";
+
+        if (\file_put_contents($artifact, $php, \LOCK_EX) === false) {
+            throw new ConfigurationException("Could not write compiled artifact: {$artifact}");
+        }
+
+        if (\function_exists('opcache_invalidate')) {
+            \opcache_invalidate($artifact, true);
+        }
+
+        return $artifact;
+    }
+
+    /**
+     * Delete a dist's artifacts (all tags). Returns paths removed.
+     */
+    public static function clear(string $distCode): array
+    {
+        $removed = [];
+        $dir = PathUtil::append(DATA_FOLDER, 'compiled');
+        foreach ((array) \glob(PathUtil::append($dir, $distCode . '@*.php')) as $f) {
+            if (\unlink($f)) {
+                $removed[] = $f;
+            }
+        }
+
+        return $removed;
+    }
+
+    /**
+     * Framework version for the identity stamp. RAZY_VERSION is defined by
+     * bootstrap.inc.php in real runs; tests boot without it (Health.php uses
+     * the same guarded read), so fall back to the installed code's release
+     * marker rather than fatal on an undefined constant.
+     */
+    private static function frameworkVersion(): string
+    {
+        return \defined('RAZY_VERSION') ? RAZY_VERSION : 'unversioned';
+    }
+
+    /**
+     * @throws ConfigurationException on any middleware closure
+     */
+    private static function dumpModuleMiddleware(Distributor $distributor, array &$refusals): array
+    {
+        $out = [];
+        foreach (\array_keys($distributor->getRegistry()->getModules()) as $code) {
+            foreach ($distributor->getRouter()->getModuleMiddleware($code) as $mw) {
+                if ($mw instanceof Closure) {
+                    $refusals[] = "{$code}: closure module middleware";
+
+                    continue;
+                }
+                if (!self::defaultConstructible($mw, $refusals, (string) $code)) {
+                    continue;
+                }
+                $out[$code][] = \get_class($mw);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Replay rebuilds middleware with `new $class()` — a middleware whose
+     * constructor demands arguments cannot ride the artifact. Probe it at
+     * compile time with pure reflection (no instantiation, zero side
+     * effects) so the dist is REFUSED here instead of exploding at replay.
+     */
+    private static function defaultConstructible(object $mw, array &$refusals, string $where): bool
+    {
+        $class = \get_class($mw);
+        $ctor = (new ReflectionClass($class))->getConstructor();
+
+        if ($ctor !== null && $ctor->getNumberOfRequiredParameters() > 0) {
+            $refusals[] = "{$where}: middleware {$class} requires constructor arguments (replay rebuilds with none)";
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Route entity -> plain spec (constructor path + the fluent metadata
+     * dispatch actually reads). Null + a recorded refusal when it carries
+     * anything closures can't wear.
+     */
+    private static function dumpRoute(Route $route, string $key, array &$refusals): ?array
+    {
+        $spec = [
+            'closure_path' => $route->getClosurePath(),
+            'method' => $route->getMethod(),
+            'name' => $route->getName(),
+            'ready_gate' => $route->hasReadyGate() ? $route->getReadyGate() : null,
+            'csrf_exempt' => $route->isCsrfExempt() ? $route->getCsrfExemptReason() : null,
+            'middleware' => [],
+        ];
+
+        foreach ($route->getMiddleware() as $mw) {
+            if ($mw instanceof Closure) {
+                $refusals[] = "route {$key}: closure middleware";
+
+                return null;
+            }
+            if (!self::defaultConstructible($mw, $refusals, "route {$key}")) {
+                return null;
+            }
+            $spec['middleware'][] = \get_class($mw);
+        }
+
+        $data = $route->getData();
+        if ($data !== null) {
+            try {
+                \serialize($data);
+            } catch (Throwable) {
+                $refusals[] = "route {$key}: non-serializable contain() payload";
+
+                return null;
+            }
+            $spec['data'] = $data;
+        }
+
+        return $spec;
+    }
+}

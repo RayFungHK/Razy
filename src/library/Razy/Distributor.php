@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Razy\Compiler\BootCompiler;
 use Razy\Config\ConfigLoader;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
@@ -79,6 +80,9 @@ class Distributor implements DistributorInterface
      * `validate`, not with a stored flag — this is config, read once.
      */
     private string $csrfMode = 'off';
+
+    /** @var bool COMPILE-ON-DEPLOY (M2): dist.php 'compiled_boot' opt-in */
+    private bool $compiledBoot = false;
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
@@ -156,11 +160,30 @@ class Distributor implements DistributorInterface
         }
         $this->csrfMode = $csrfRaw;
 
+        // COMPILE-ON-DEPLOY (M2): opt-in door — dist.php 'compiled_boot' =>
+        // true. Default absent/false = today's boot, byte for byte.
+        $this->compiledBoot = (bool) ($config['compiled_boot'] ?? false);
+
         $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
 
         if ('on' === $this->csrfMode) {
             CsrfDoor::arm($this);
         }
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): force the compiled-boot door on without
+     * editing dist.php — used by the compile command's replay self-proof
+     * and by the framework's own tests. Production sites flip the dist.php
+     * flag; this method changes nothing on disk.
+     *
+     * @return $this
+     */
+    public function enableCompiledBoot(): static
+    {
+        $this->compiledBoot = true;
+
+        return $this;
     }
 
     /**
@@ -203,50 +226,61 @@ class Distributor implements DistributorInterface
         // Load all modules into the pending list from the configured module source path
         $modules = &$this->registry->getModulesRef();
 
-        $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules);
-        if ($this->globalModule) {
-            $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
-        }
-
-        // Enable-list (MODULE-LIFECYCLE.md Q5): config/<dist>/modules.php is the
-        // CLI-written, git-tracked enable/disable ledger. Absent file = every
-        // listed module is enabled — today's distributors behave identically.
-        $this->applyEnableList();
-
-        // Put all modules into queue by priority with its require module.
-        foreach ($this->registry->getModules() as $module) {
-            if ($module->getStatus() === ModuleStatus::Disabled) {
-                continue; // operator-disabled: visible in the registry, never initialized
+        // COMPILE-ON-DEPLOY (M2): opt-in compiled boot — the deploy-time
+        // snapshot replays the module manifest and every declaration table;
+        // only its freshness checks run here. Any miss (flag off, artifact
+        // gone, stale fingerprint, schema/version drift) drops to the exact
+        // legacy assembly below — staleness can only cost speed, never
+        // correctness. Lifecycle stages after assembly (prepare/validate)
+        // run identically for both paths.
+        if ($this->compiledBoot && ($boot = BootCompiler::usableData($this)) !== null) {
+            $this->assembleCompiled($boot, $modules);
+        } else {
+            $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules);
+            if ($this->globalModule) {
+                $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
             }
 
-            $this->require($module);
-        }
+            // Enable-list (MODULE-LIFECYCLE.md Q5): config/<dist>/modules.php is the
+            // CLI-written, git-tracked enable/disable ledger. Absent file = every
+            // listed module is enabled — today's distributors behave identically.
+            $this->applyEnableList();
 
-        // Fail-loud (MODULE-LIFECYCLE.md L0): modules skipped because a declared
-        // 'require' dependency was absent or failed used to vanish with zero
-        // diagnostics — the silent-failure class the ERP audit named as hardest
-        // to debug. Mirror the await-unresolved warning below (same file, same
-        // shape) for every module left unqueued by an unsatisfied require.
-        foreach ($this->registry->getModules() as $module) {
-            if ($module->getStatus() === ModuleStatus::InQueue || $module->getStatus() === ModuleStatus::Disabled) {
-                continue; // queued, or deliberately disabled by the operator (not an accident)
-            }
-
-            $missing = [];
-            foreach ($module->getModuleInfo()->getRequire() as $depCode => $depVersion) {
-                $dep = $this->registry->get($depCode);
-                if ($dep === null || $dep->getStatus() !== ModuleStatus::InQueue) {
-                    $missing[] = $depCode;
+            // Put all modules into queue by priority with its require module.
+            foreach ($this->registry->getModules() as $module) {
+                if ($module->getStatus() === ModuleStatus::Disabled) {
+                    continue; // operator-disabled: visible in the registry, never initialized
                 }
+
+                $this->require($module);
             }
 
-            if ($missing !== []) {
-                \trigger_error(
-                    'Razy: Module \'' . $module->getModuleInfo()->getCode() . '\' was NOT loaded — its \'require\' '
-                    . 'dependenc' . (\count($missing) === 1 ? 'y' : 'ies') . ' never loaded: ' . \implode(', ', $missing)
-                    . '. Either install/enable them, or the key is misspelled — the manifest key is \'require\' (singular).',
-                    E_USER_WARNING,
-                );
+            // Fail-loud (MODULE-LIFECYCLE.md L0): modules skipped because a declared
+            // 'require' dependency was absent or failed used to vanish with zero
+            // diagnostics — the silent-failure class the ERP audit named as hardest
+            // to debug. Mirror the await-unresolved warning below (same file, same
+            // shape) for every module left unqueued by an unsatisfied require.
+            foreach ($this->registry->getModules() as $module) {
+                if ($module->getStatus() === ModuleStatus::InQueue || $module->getStatus() === ModuleStatus::Disabled) {
+                    continue; // queued, or deliberately disabled by the operator (not an accident)
+                }
+
+                $missing = [];
+                foreach ($module->getModuleInfo()->getRequire() as $depCode => $depVersion) {
+                    $dep = $this->registry->get($depCode);
+                    if ($dep === null || $dep->getStatus() !== ModuleStatus::InQueue) {
+                        $missing[] = $depCode;
+                    }
+                }
+
+                if ($missing !== []) {
+                    \trigger_error(
+                        'Razy: Module \'' . $module->getModuleInfo()->getCode() . '\' was NOT loaded — its \'require\' '
+                        . 'dependenc' . (\count($missing) === 1 ? 'y' : 'ies') . ' never loaded: ' . \implode(', ', $missing)
+                        . '. Either install/enable them, or the key is misspelled — the manifest key is \'require\' (singular).',
+                        E_USER_WARNING,
+                    );
+                }
             }
         }
 
@@ -832,6 +866,43 @@ class Distributor implements DistributorInterface
         }
 
         return false;
+    }
+
+    /**
+     * COMPILE-ON-DEPLOY (M2): assemble the registry + route table from a
+     * verified artifact. Module shells are built with the exact scanner
+     * manifest data (folder/version/shared/raw module.php), declarations
+     * replay through the real doors, queue order is preserved, and routes
+     * load with their precomputed compiled regexes. `__onInit` is NOT
+     * re-run — its recorded output stands in (see BootCompiler's contract:
+     * RZ-009 keeps __onInit declaration-pure; live state belongs to the
+     * __onLoad/__onRequire stages which still run in this path too).
+     */
+    private function assembleCompiled(array $boot, array &$modules): void
+    {
+        foreach ($boot['modules'] as $code => $decl) {
+            $m = $decl['manifest'];
+            $module = new Module($this, $m['folder'], $m['config'], $m['version'], $m['shared']);
+            $module->applyDeclarations($decl);
+            $modules[$code] = $module;
+        }
+
+        // Enable-list still rules (the ledger file is in the fingerprint's
+        // stat set — editing it without recompiling is visible right here).
+        $this->applyEnableList();
+
+        $order = $boot['queue_order'] ?? \array_keys($boot['modules']);
+        foreach ($order as $code) {
+            $module = $modules[$code] ?? null;
+            if ($module === null || $module->getStatus() === ModuleStatus::Disabled) {
+                continue;
+            }
+            $this->registry->enqueue($code, $module);
+        }
+
+        $this->router->loadCompiled($boot['routes'], $modules);
+        $this->router->loadCompiledNames($boot['named']);
+        $this->router->loadCompiledMiddleware($boot['module_middleware']);
     }
 
     /**

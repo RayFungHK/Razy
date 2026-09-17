@@ -185,6 +185,16 @@ class EventDispatcher implements EventDispatcherInterface
     }
 
     /**
+     * COMPILE-ON-DEPLOY (M2): raw registration tables for the deploy-time
+     * dump (BootCompiler). Closures in these tables are the compiler's
+     * refusal signal, never silently dropped.
+     */
+    public function getRegistrations(): array
+    {
+        return ['events' => $this->events, 'observers' => $this->observers];
+    }
+
+    /**
      * Reset all event listeners (used in worker mode between requests).
      */
     public function reset(): void
