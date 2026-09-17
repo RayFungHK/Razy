@@ -412,11 +412,15 @@ persistent links, 2 vCPU/4 GB containers, MySQL 8.0.43, 3 runs per scenario.
 | Heavy CPU | 144 | 121 | ≈ same runtime, as expected |
 
 Plain **PHP-FPM baseline** (both stacks on stock php:8.3-fpm, every request pays
-full boot) isolates what worker mode buys each framework: Laravel's FPM pass
-measured 921/900/473/444/482 RPS on the first five scenarios (worker mode ≈ 2.3×
-its own FPM cost); the Razy FPM pass is rerunning after an ownership bug
-invalidated its first pass (log cited above — numbers land in REPORT.md, not
-fabricated here).
+full boot) isolates what worker mode buys each framework — and the answer is
+asymmetric, which is the honest headline: **worker mode multiplies Razy's own
+FPM throughput by 21–30×, Laravel's by ~2.2–3×**. Under plain FPM the ranking
+flips (Laravel's compiled config/route/view artifacts boot cheaper than Razy's
+phar-boot per-request assembly: 921 vs 295 static RPS at 200 VUs). Each stack's
+strength lives on a different runtime; the tables and receipts are in
+[`benchmark/REPORT.md`](benchmark/REPORT.md), the protocol and the invalidated
+first FPM pass (a cache-ownership bug — found, logged, rerun fair) in
+[`benchmark/EPOCH-2026-09.md`](benchmark/EPOCH-2026-09.md).
 
 These numbers carry no caveats about methodology because the 2026-02 caveats
 were **fixed**: string-concatenation endpoints, connection-policy asymmetry,

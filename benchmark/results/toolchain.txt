@@ -1,0 +1,27 @@
+epoch=2026-09
+k6=grafana/k6:2.0.0
+
+== bench-razy ==
+php=8.3.28
+frankenphp=FrankenPHP v1.10.1 PHP 8.3.28 Caddy v2.10.2 h1:g/gTYjGMD0dec+UgMw8SnfmJ3I9+M2TdvoRL/Ovu6U8=
+razy_phar_sha256=033b6953a81c492c81a31658f4a94eb86ed3495c1558311d5ddbf1a128e049f5
+pdo=mysql
+== bench-laravel ==
+laravel=v13.32.0
+octane=v2.19.1
+php=8.3.28
+frankenphp=FrankenPHP v1.10.1 PHP 8.3.28 Caddy v2.10.2 h1:g/gTYjGMD0dec+UgMw8SnfmJ3I9+M2TdvoRL/Ovu6U8=
+pdo=mysql
+== bench-razy-fpm ==
+php=8.3.33
+runtime=php-fpm (no worker)
+razy_phar_sha256=033b6953a81c492c81a31658f4a94eb86ed3495c1558311d5ddbf1a128e049f5
+pdo=mysql
+== bench-laravel-fpm ==
+laravel=v13.32.0
+php=8.3.33
+runtime=php-fpm (octane NOT used)
+pdo=mysql
+== bench-mysql ==
+OCI runtime exec failed: exec failed: unable to start container process: exec: "php": executable file not found in $PATH
+mysql_version=mysqladmin  Ver 8.0.43 for Linux on x86_64 (MySQL Community Server - GPL)
