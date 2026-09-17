@@ -31,7 +31,11 @@ php /app/Razy.phar migrate benchgate bench/gate-ready || {
 
 echo '[gate-entry] staging gate-refused migration (declared, never applied)...'
 mkdir -p /app/site/sites/benchgate/bench/gate-refused/default/migration
-mv /app/site/sites/benchgate/bench/gate-refused/default/_pending/*.php /app/site/sites/benchgate/bench/gate-refused/default/migration/
+# idempotent: a container RESTART finds the files already moved (fresh up is
+# not the only lifecycle — a restart crashed here on exactly this mv, 2026-09-17)
+if [ -n "$(ls -A /app/site/sites/benchgate/bench/gate-refused/default/_pending 2>/dev/null)" ]; then
+  mv /app/site/sites/benchgate/bench/gate-refused/default/_pending/*.php /app/site/sites/benchgate/bench/gate-refused/default/migration/
+fi
 
 # COMPILE-ON-DEPLOY: the deploy step the flag asks for. dist.php carries
 # 'compiled_boot' => true, so after this line every boot replays the
