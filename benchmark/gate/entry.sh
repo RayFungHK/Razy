@@ -31,7 +31,11 @@ mv /app/site/sites/benchgate/bench/gate-refused/default/_pending/*.php /app/site
 # snapshot; delete the artifact (or leave compile to fail) and the site
 # falls back to the full boot — the two paths serve identical traffic by
 # the replay self-proof in `compile` itself.
+# clear-first: the site tree may carry a foreign-host artifact (baked by a
+# COPY from a dev machine); its fingerprint can never match here — drop it
+# so no boot before this line logs its STALE warning.
 echo '[gate-entry] compiling benchgate (compiled_boot dist)...'
+php /app/Razy.phar compile benchgate --clear >/dev/null 2>&1
 php /app/Razy.phar compile benchgate || echo '[gate-entry] compile FAILED — serving full boot'
 
 echo '[gate-entry] handing over to frankenphp'
