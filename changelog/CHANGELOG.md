@@ -40,6 +40,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   with the same-host noise floor measured at ±2x and documented; M2 replay is
   within noise for the single-module standalone benchmark — stated openly, its
   lane is multi-site dists and worker thread boot (both live-verified serving).
+  **The paired instrument then measured it properly (EPOCH, 60-module fpm
+  dist, alternating-order pairs, 6 valid pairs, zero-502 throughout): the
+  replay WINS with the stat fingerprint skipped (trust/legacy median 1.172,
+  never lost) and LOSES -22% with it on (0.781) — under every-request boot the
+  ~240-file stat sweep costs more than the replay saves. The fix is designed
+  from this data (fingerprint auto-shortens where opcache already freezes
+  bytecode) and tracked in the dossier; until it ships, fpm + `compiled_boot`
+  means TRUST knowingly.** New bench tooling: `benchmark/pair_ab.py` (paired
+  harness, failed!=0 invalidates), `benchmark/scale/` (60-module dist,
+  scaffold-in-image, per-arm nginx fronts — the shared-Caddy multi-block path
+  hung under Windows Docker, fossil documented in `scale/Caddyfile.pair`).
   Also corrects EPOCH-2026-09's
   closed-section CPU numbers (the first saturation probe's k6 runs lacked checks and
   counted 502s — published invalidation + corrected 8.7 vs 2.35 ms CPU/req divided

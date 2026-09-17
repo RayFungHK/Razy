@@ -1,0 +1,21 @@
+# Caddyfile.pair — one SITE PER PROXY for the pair arms.
+#
+# Each scale arm gets its own single-block Caddy, byte-mirroring the proven
+# :8083 block of Caddyfile.fpm. Multiple php_fastcgi server blocks in ONE
+# proxy hung in-network requests under Windows Docker (live-fire 2026-09-17,
+# symptom logged there); the one-site topology has carried every published
+# pass — the measurement instrument copies what is known to work.
+#
+# Per-arm env: PAIR_UPSTREAM (fpm service name). The LISTEN port is written
+# literally in each arm's file ({env.X} placeholders are NOT expanded in
+# server-block keys — caddy crash logged 2026-09-17).
+
+:8091 {
+	root * /app/site
+
+	rewrite * /index.php?{query}
+
+	php_fastcgi {env.PAIR_UPSTREAM}:9000 {
+		root /app/site
+	}
+}

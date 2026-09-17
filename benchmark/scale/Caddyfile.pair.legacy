@@ -1,0 +1,12 @@
+# Caddyfile.pair.legacy — :8092 twin of Caddyfile.pair (compiled arm).
+# Same single-site topology; only the upstream differs (env).
+
+:8092 {
+	root * /app/site
+
+	rewrite * /index.php?{query}
+
+	php_fastcgi {env.PAIR_UPSTREAM}:9000 {
+		root /app/site
+	}
+}

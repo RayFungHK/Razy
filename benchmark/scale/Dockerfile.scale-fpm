@@ -1,0 +1,73 @@
+# Razy Benchmark — assembly-scale fpm (compiled vs legacy PAIR-A/B)
+#
+# The instrument EPOCH-2026-09's compiled column called for: a MULTI-SITE dist
+# with N modules (default 60) on plain fpm, so the compiled-boot replay is
+# measured where assembly is actually big — the standalone baseline (6 routes)
+# sits beneath the ±2x host noise floor by construction. Same image, one ARG:
+#
+#   --build-arg COMPILED=1   bake the artifact at build (replay arm)
+#   --build-arg COMPILED=0   no artifact (legacy arm; the dist.php flag is set
+#                            in both — artifact absence alone selects the boot)
+#
+# Same OPcache/pool policy as Dockerfile.razy-fpm (symmetry law).
+
+FROM php:8.3-fpm-alpine
+
+RUN docker-php-ext-install pdo_mysql opcache pcntl
+
+RUN { echo "opcache.enable=1"; \
+      echo "opcache.enable_cli=1"; \
+      echo "opcache.memory_consumption=256"; \
+      echo "opcache.interned_strings_buffer=32"; \
+      echo "opcache.max_accelerated_files=10000"; \
+      echo "opcache.validate_timestamps=0"; \
+      echo "opcache.jit_buffer_size=128M"; \
+      echo "opcache.jit=1255"; \
+      echo "realpath_cache_size=4096K"; \
+      echo "realpath_cache_ttl=600"; \
+      echo "memory_limit=256M"; \
+    } > /usr/local/etc/php/conf.d/benchmark.ini
+
+WORKDIR /app
+
+COPY Razy.phar /app/Razy.phar
+COPY vendor /app/vendor
+COPY composer.json /app/composer.json
+
+COPY benchmark/scale /tmp/scale
+RUN php /tmp/scale/scaffold.scale.php --scale=${SCALE:-60} \
+    && cp -r /tmp/scale/site /app/site \
+    && mkdir -p /app/site/data/cache \
+    && chown -R www-data:www-data /app/site
+
+# front controller: chdir pins SYSTEM_ROOT to /app/site (same as razyc-fpm)
+RUN printf '<?php\nnamespace Razy;\nuse Exception;\nuse Phar;\n\nchdir(__DIR__);\n$razyConfig = require __DIR__ . "/config.inc.php";\n$pharPath = ($razyConfig["phar_location"] ?? __DIR__) . "/Razy.phar";\nPhar::loadPhar($pharPath, "Razy.phar");\ninclude "phar://Razy.phar/main.php";\n' > /app/site/index.php
+
+# the deploy step — compile (boots N modules twice + replay self-proof; no DB
+# needed, declarations only). COMPILED=0 skips it: the legacy control arm.
+ARG COMPILED=1
+RUN if [ "$COMPILED" = "1" ]; then \
+      cd /app/site && php /app/Razy.phar compile scaletest && chown -R www-data:www-data /app/site/data; \
+    fi
+
+RUN { echo "[www]"; \
+      echo "user = www-data"; \
+      echo "group = www-data"; \
+      echo "listen = 9000"; \
+      echo "pm = static"; \
+      echo "pm.max_children = 32"; \
+      echo "pm.status_path = /fpm-status"; \
+      echo "clear_env = no"; \
+    } > /usr/local/etc/php-fpm.d/zz-benchmark.conf \
+    && sed -i '/^listen.acl/d' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+
+ARG SCALE=60
+RUN { echo "php=$(php -r 'echo PHP_VERSION;')"; \
+      echo "runtime=php-fpm (no worker)"; \
+      echo "arms=pair-ab"; \
+      echo "modules=${SCALE}"; \
+      echo "compiled_boot=${COMPILED}"; \
+      echo "razy_phar_sha256=$(sha256sum /app/Razy.phar | cut -d' ' -f1)"; \
+    } > /toolchain.txt && cat /toolchain.txt
+
+EXPOSE 9000

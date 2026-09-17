@@ -97,6 +97,28 @@ future lint rule can flag state-setting in `__onInit` directly.
 - **App-level middleware, CSRF rail config, session**: registered outside module
   assembly, so replay never touched them.
 
+## Measured on fpm (2026-09-17, paired) — and what it changed
+
+Purpose-built instrument (`benchmark/pair_ab.py` + `benchmark/scale/`, a
+60-module multi-site fpm dist, arms from one phar one ARG apart, alternating
+order, `failed!=0` invalidates) produced:
+
+- replay **with** the stat fingerprint: **-22% vs legacy** (ratios .711/.781/.804)
+- replay **without** it (`RAZY_COMPILE_TRUST=1`): **median +17%, never lost a
+  pair** (1.387/1.172/1.002)
+
+Mechanism: under fpm's every-request boot the fingerprint's ~240-stat sweep is
+itself linear in module count and exceeds what replay saves. The safety law
+("stale never serves wrong") stays; what changes is WHO the fingerprint
+protects: with opcache `validate_timestamps=0` (production posture) PHP serves
+frozen bytecode — hot-edited files are already invisible, so the fingerprint's
+protection target does not exist there, while correct deploys (recompile in
+rebuild) re-verify it anyway. **Designed next step:** the fingerprint
+auto-shortens when `validate_timestamps=0` and keeps full stats under `=1`
+(dev, where hot edits are real and throughput isn't the point). Until that
+ships, worker mode remains the replay's clean win (boot once) and fpm +
+`compiled_boot` means TRUST knowingly.
+
 ## Measurement
 
 Live-verified on the gate bench site (benchgate: 4 modules, 4 readiness-gate

@@ -35,3 +35,10 @@
 		root /app/public
 	}
 }
+
+# :8091/:8092 pair arms deliberately live in their OWN single-site Caddy
+# containers (Caddyfile.pair) — a 2nd/3rd php_fastcgi server block in this
+# shared process hung in-network requests under Windows Docker while host
+# probes kept answering from the forwarding queue (live-fire 2026-09-17;
+# symptom logged, exact mechanism left to Caddy upstream — the proven
+# one-site-per-proxy topology of :8083 is what measurement honesty buys).
