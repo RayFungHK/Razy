@@ -306,7 +306,14 @@ class Application
         if (\is_array($this->config['domains'] ?? null)) {
             foreach ($this->config['domains'] as $domain => $distPaths) {
                 $domain = NetworkUtil::formatFqdn($domain);
-                if (NetworkUtil::isFqdn($domain, true) && \is_array($distPaths)) {
+                // A bare '*' is the DEFAULT-SITE key matchDomain() falls back to
+                // when nothing else matches (see matchDomain's trailing
+                // `isset($sites['*'])` branch). isFqdn() rejects it — its label
+                // grammar needs 2+ characters — so validation must not be the
+                // only gate here, or the documented default site is unreachable
+                // by construction (proven live 2026-09: a worker pod with a '*'
+                // entry booted to "No domain matched for ''").
+                if (('*' === $domain || NetworkUtil::isFqdn($domain, true)) && \is_array($distPaths)) {
                     foreach ($distPaths as $relativePath => $distCode) {
                         // Recursively validate distributor identifiers and register them
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {

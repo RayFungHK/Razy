@@ -90,6 +90,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   Windows-job test portability (Agent.php part reads, isolated-process attributes on the
   header-state-sharing responder suites).
 
+- **Fixed** multisite worker boot — no FrankensteinPHP-worker multisite site could EVER
+  start: the boot pass has no request, so `bootstrap.inc.php` leaves HOSTNAME at its
+  `'UNKNOWN'` sentinel, and the worker branch's `host(HOSTNAME:PORT)` died in FQDN
+  validation on every thread — Caddy then panicked the whole pool ("too many consecutive
+  worker failures"). Caught live 2026-09 booting the benchmark gate site; the standalone
+  path had masked it everywhere (benchmark, deploy docs, CI — nobody had booted multisite
+  under worker). The boot pass now collapses the sentinel to `host('')`, i.e. boots the
+  documented default (`'*'`) site; the standard request path keeps the live host.
+  Pin-test: `tests/WorkerBootHostTest.php`.
+
+- **Fixed** the unreachable default site — `Application::matchDomain()` ends with a
+  documented `'*'` fallback, but `updateSites()` validated every domain key through
+  `isFqdn()`, whose grammar needs a 2+ character label, so the bare `'*'` could never
+  ENTER the multisite table: the default-tenant site was unreachable by construction
+  (the same boot proved it — `host('')` answering "No domain matched for ''" with a
+  `'*'` entry sitting right there in sites.inc.php). `'*'` now passes validation as the
+  default-site key while malformed keys stay rejected (behavioral test with a fixture
+  dist: `tests/DefaultSiteTest.php`). Adjacent doc-trap, unchanged-but-true: sites.inc.php's
+  own stock comment advertises a string shortcut (`'domain' => 'dist'`) that no parser
+  reads — `updateSites()` only consumes the array path-map form.
+
 - **Fixed** `Database` persistent-link death — a MySQL link idle past `wait_timeout`
   dies server-side while PDO's pool hands the DEAD handle back; every later query threw
   2006 "MySQL server has gone away" **forever**, and a worker process outlives every

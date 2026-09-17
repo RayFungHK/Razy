@@ -128,7 +128,17 @@ if (WEB_MODE) {
         if ($isStandaloneMode) {
             $app->standalone($standalonePath);
         } else {
-            $app->host(HOSTNAME . ':' . PORT);
+            // Multisite worker: the boot pass has NO request, so SERVER_NAME is
+            // the bootstrap's 'UNKNOWN' sentinel — host('UNKNOWN:8080') would
+            // die in matchDomain validation and frankenphp would panic the
+            // whole worker pool ("too many consecutive worker failures",
+            // observed 2026-09 booting the benchmark gate site). Boot the
+            // default site instead: host('') resolves the '*' entry of
+            // sites.inc.php, which is the documented contract for worker pods
+            // (a pod serves the domain table its sites.inc.php pins; per-request
+            // dispatch stays on this booted domain by Application design).
+            $bootHost = ('' === HOSTNAME || 'UNKNOWN' === HOSTNAME) ? '' : HOSTNAME . ':' . PORT;
+            $app->host($bootHost);
         }
 
         Application::Lock();
