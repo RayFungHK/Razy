@@ -316,6 +316,36 @@ return new class(null) extends Controller {
         self::assertStringContainsString('ARG COMPILED=1', $df, 'the fpm benchmark image carries the A/B switch');
     }
 
+    public function testFingerprintShortensOnlyWhereBytecodeIsFrozen(): void
+    {
+        // The suite runs WITHOUT opcache — the guard must therefore keep the
+        // full stats here (and in any dev box): a stale artifact still falls
+        // back, which the round-trip test's staleness assertion proves live.
+        $trust = \getenv('RAZY_COMPILE_TRUST');
+        \putenv('RAZY_COMPILE_TRUST');
+        try {
+            self::assertFalse(BootCompiler::fingerprintSkipped(), 'no opcache => no shortening, stats stay on');
+
+            \putenv('RAZY_COMPILE_TRUST=1');
+            self::assertTrue(BootCompiler::fingerprintSkipped(), 'the declared-trust door still works');
+        } finally {
+            \putenv(false === $trust ? 'RAZY_COMPILE_TRUST' : "RAZY_COMPILE_TRUST={$trust}");
+        }
+
+        // The frozen-bytecode branch (opcache on + vt=0) cannot be built in
+        // this process — pin the wiring so nobody re-inlines the env check.
+        $src = (string) \file_get_contents(SYSTEM_ROOT . '/src/library/Razy/Compiler/BootCompiler.php');
+        self::assertStringContainsString('if (!self::fingerprintSkipped()) {', $src, 'both usable() gates run through the decision point');
+        self::assertSame(2, \substr_count($src, 'if (!self::fingerprintSkipped()) {'), 'both usable() gates run through the decision point');
+        self::assertStringContainsString('opcache_get_status', $src);
+        // the STATUS shape is FLAT ('opcache_enabled' top-level); the nested
+        // ['opcache']['enabled'] belongs to get_CONFIGURATION — reading it
+        // from the status array shipped a dead gate once (2026-09-17):
+        self::assertStringContainsString("\$status['opcache_enabled']", $src);
+        self::assertStringNotContainsString("\$status['opcache']['enabled']", $src);
+        self::assertStringContainsString('opcache.validate_timestamps', $src);
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────
 
     private function createModule(): Module

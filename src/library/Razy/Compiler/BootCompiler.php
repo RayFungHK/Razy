@@ -52,7 +52,11 @@ use Throwable;
  * - The artifact self-inactivates: schema id, framework version, and a
  *   stat fingerprint (mtime+size of every .php in the dist + its config
  *   files) are checked at boot; mismatch falls back to the full legacy
- *   boot, loudly once in the error log. Deploy discipline
+ *   boot, loudly once in the error log. The fingerprint AUTO-SHORTENS when
+ *   OPcache is on with validate_timestamps off (frozen bytecode makes its
+ *   protection target invisible — see fingerprintSkipped()) and is skippable
+ *   via RAZY_COMPILE_TRUST=1; every other process pays the full stats.
+ *   Deploy discipline
  *   (`php Razy.phar compile <dist>`) stays in the pipeline; staleness can
  *   only cost speed, never correctness.
  *
@@ -72,6 +76,50 @@ final class BootCompiler
     private function __construct()
     {
         // static surface only
+    }
+
+    /**
+     * Does the stat fingerprint apply THIS process? It shortens in exactly
+     * two situations, each measured or argued from evidence (EPOCH-2026-09
+     * paired runs: the fingerprint's per-request file sweep cost -22% at
+     * 60-module scale, while the replay it guards was worth +17%):
+     *
+     *  1. the operator declares trust: RAZY_COMPILE_TRUST=1;
+     *  2. OPcache is genuinely on AND validate_timestamps is off — the
+     *     frozen-bytecode case. The fingerprint protects against hot-edited
+     *     files arriving at boot; under frozen opcache PHP serves the OLD
+     *     bytecode to every boot anyway, so the protection target does not
+     *     exist (a hot edit is already invisible), and correct deploys
+     *     (recompile inside the rebuild) re-verify it for free. Dev
+     *     (opcache off, or vt=1 where hot edits are REAL) keeps the full
+     *     stats — there the sweep guards a live threat and throughput is
+     *     not the point.
+     *
+     * @codeCoverageIgnore trivial env/ini reads; the gate's WIRING is pinned
+     * in tests (the opcache branch cannot be built in the suite, which runs
+     * without opcache and must keep full stats).
+     */
+    public static function fingerprintSkipped(): bool
+    {
+        if ('1' === (string) \getenv(self::TRUST_ENV)) {
+            return true;
+        }
+
+        if (!\function_exists('opcache_get_status')) {
+            return false;
+        }
+
+        $status = @\opcache_get_status(false);
+        // The STATUS shape is flat: 'opcache_enabled' is a top-level key
+        // (the nested ['opcache'][...] tree belongs to opcache_get_
+        // CONFIGURATION — confusing the two shipped a gate that silently
+        // always fell back to full stats; caught by the paired re-run,
+        // 2026-09-17. The safe direction, but it cost a measurement round).
+        if (!\is_array($status) || !($status['opcache_enabled'] ?? false)) {
+            return false;
+        }
+
+        return !\filter_var(\ini_get('opcache.validate_timestamps'), \FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -130,7 +178,7 @@ final class BootCompiler
             return null;
         }
 
-        if ('1' !== (string) \getenv(self::TRUST_ENV)) {
+        if (!self::fingerprintSkipped()) {
             if (($data['fingerprint'] ?? '') !== self::standaloneFingerprint($folder)) {
                 \error_log('[Razy] compiled boot STALE for standalone \'' . $folder . '\' — full boot this process; rerun: php Razy.phar compile --standalone ' . $folder);
 
@@ -220,7 +268,7 @@ final class BootCompiler
             return null;
         }
 
-        if ('1' !== (string) \getenv(self::TRUST_ENV)) {
+        if (!self::fingerprintSkipped()) {
             if (($data['fingerprint'] ?? '') !== self::fingerprint($distributor->getCode())) {
                 \error_log('[Razy] compiled boot STALE for \'' . $distributor->getIdentity() . '\' — full boot this process; rerun: php Razy.phar compile ' . $distributor->getCode());
 

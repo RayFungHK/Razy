@@ -113,11 +113,20 @@ itself linear in module count and exceeds what replay saves. The safety law
 protects: with opcache `validate_timestamps=0` (production posture) PHP serves
 frozen bytecode — hot-edited files are already invisible, so the fingerprint's
 protection target does not exist there, while correct deploys (recompile in
-rebuild) re-verify it anyway. **Designed next step:** the fingerprint
-auto-shortens when `validate_timestamps=0` and keeps full stats under `=1`
-(dev, where hot edits are real and throughput isn't the point). Until that
-ships, worker mode remains the replay's clean win (boot once) and fpm +
-`compiled_boot` means TRUST knowingly.
+rebuild) re-verify it anyway.
+
+**SHIPPED (same day, after one instructive round-trip):** `fingerprintSkipped()`
+— TRUST env, or opcache genuinely on with vt off; every other process (dev,
+test suite, opcache-less hosts) keeps the full stats. The FIRST build read
+`$status['opcache']['enabled']`, but the STATUS array is FLAT
+(`opcache_enabled` top-level; the nested tree belongs to
+`opcache_get_configuration`) — the gate failed SAFE (always full stats), the
+re-run measured it unchanged (0.771), and the key fix shipped with the paired
+instrument as witness: auto-shorten vs legacy = 1.418/1.230/0.958, **median
++23%, never lost a pair** — indistinguishable from hand-TRUST, which nobody
+must declare now. Test pins assert the flat key AND forbid the nested one
+(the suite itself runs opcache-less, which is exactly why it could not catch
+this and why the pins exist).
 
 ## Measurement
 

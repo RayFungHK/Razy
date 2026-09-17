@@ -189,10 +189,10 @@ services:
     profiles:
       - fpm
     environment:
-      # mechanism control for the paired harness: skip the per-request stat
-      # fingerprint (trust the artifact). Flip to "0" for the safe-fingerprint
-      # arm — pair_ab measures both against legacy. See EPOCH compiled column.
-      RAZY_COMPILE_TRUST: "1"
+      # 0 = the shipping posture: the fingerprint now auto-shortens on its
+      # own because this image's opcache runs validate_timestamps=0 (the
+      # frozen-bytecode case). Set 1 to force-skip even without opcache.
+      RAZY_COMPILE_TRUST: "0"
     depends_on:
       mysql:
         condition: service_healthy

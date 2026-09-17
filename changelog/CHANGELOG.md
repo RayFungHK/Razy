@@ -51,6 +51,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
   harness, failed!=0 invalidates), `benchmark/scale/` (60-module dist,
   scaffold-in-image, per-arm nginx fronts — the shared-Caddy multi-block path
   hung under Windows Docker, fossil documented in `scale/Caddyfile.pair`).
+  **The fix shipped the same day and was re-measured with the same instrument**:
+  the fingerprint now AUTO-SHORTENS when opcache is genuinely on with
+  `validate_timestamps=0` (frozen bytecode = its protection target is
+  invisible; dev keeps full stats) — median **+1.23** vs legacy, never lost a
+  pair, TRUST no longer needs declaring. First shipping build of the gate
+  measured unchanged because it read `$status['opcache']['enabled']` where the
+  STATUS array is FLAT (`opcache_enabled`; the nested tree is get_CONFIGURATION)
+  — failed SAFE, caught by the paired re-run, pinned in tests both ways.
   Also corrects EPOCH-2026-09's
   closed-section CPU numbers (the first saturation probe's k6 runs lacked checks and
   counted 502s — published invalidation + corrected 8.7 vs 2.35 ms CPU/req divided
