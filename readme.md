@@ -417,7 +417,10 @@ asymmetric, which is the honest headline: **worker mode multiplies Razy's own
 FPM throughput by 21–30× on request-shaped scenarios (4.4× write-bound, 1.8×
 CPU-bound), Laravel's by 1.75–3.1× (0.5× on heavy CPU)**. Under plain FPM the
 ranking flips (Laravel's compiled config/route/view artifacts boot cheaper than
-Razy's phar-boot per-request assembly: 921 vs 295 static RPS at 200 VUs). Each
+Razy's phar-boot per-request assembly: 921 vs 295 static RPS at 200 VUs; the
+attribution is measured, not assumed — a 3× CPU/request gap confirmed by
+cgroup probes, its buckets profiled: phar autoload, FS probing, per-request
+route assembly, reflection DI — see the EPOCH doc). Each
 stack's strength lives on a different runtime; the tables and receipts are in
 [`benchmark/REPORT.md`](benchmark/REPORT.md), the protocol and the invalidated
 first FPM pass (a cache-ownership bug — found, logged, rerun fair) in
