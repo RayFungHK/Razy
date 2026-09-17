@@ -160,5 +160,35 @@ services:
       - razy-fpm
       - laravel-fpm
 
+  # ---- gate site (v1.1 readiness-gate scenarios 07-09) -------------------
+  gate:
+    build:
+      context: ..
+      dockerfile: benchmark/gate/Dockerfile.gate
+    container_name: bench-gate
+    profiles:
+      - gate
+    ports:
+      - "8085:8080"
+    depends_on:
+      - mysql
+
+  # ---- scale site (scenario 10 boot curve; rebuild per SCALE) ------------
+  # Usage:  docker compose build --build-arg SCALE=25 scale
+  #         docker compose --profile scale up -d scale
+  scale:
+    build:
+      context: ..
+      dockerfile: benchmark/gate/Dockerfile.gate
+      args:
+        SCALE: "5"
+    container_name: bench-scale
+    profiles:
+      - scale
+    ports:
+      - "8086:8080"
+    depends_on:
+      - mysql
+
 volumes:
   bench_mysql_data:

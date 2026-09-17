@@ -1,0 +1,22 @@
+# Caddyfile — benchgate worker site (scenarios 07-10)
+# Same worker policy as the main benchmark site (Caddyfile.razy); frankenphp
+# 1.10 reads /etc/frankenphp/Caddyfile (see Dockerfile.razy lesson).
+
+{
+	frankenphp {
+		worker /app/site/index.php
+	}
+	order php_server before file_server
+}
+
+:8080 {
+	root * /app/site
+
+	php_server
+
+	log {
+		output stderr
+		format console
+		level WARN
+	}
+}

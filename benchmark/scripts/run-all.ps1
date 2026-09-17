@@ -9,7 +9,7 @@
 #>
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('razy','laravel','razy-fpm','laravel-fpm')]
+    [ValidateSet('razy','laravel','razy-fpm','laravel-fpm','gate')]
     [string]$Target,
 
     [Parameter(Mandatory)]
@@ -29,14 +29,24 @@ $BenchDir   = Split-Path -Parent $ScriptDir
 $K6Dir      = Join-Path $BenchDir 'k6\scenarios'
 $ResultsDir = Join-Path $BenchDir "results\$Target"
 
-$Scenarios = @(
-    '01_static_route'
-    '02_template_render'
-    '03_db_read'
-    '04_db_write'
-    '05_composite'
-    '06_heavy_cpu'
-)
+$Scenarios = if ($Target -eq 'gate') {
+    # v1.1 readiness-gate suite — Razy-internal regression (no opponent side)
+    @(
+        '07_gated_ready'
+        '08_gated_vacuous'
+        '09_gate_refusal'
+        '09b_ungated_control'
+    )
+} else {
+    @(
+        '01_static_route'
+        '02_template_render'
+        '03_db_read'
+        '04_db_write'
+        '05_composite'
+        '06_heavy_cpu'
+    )
+}
 
 # Create results dir
 New-Item -ItemType Directory -Force -Path $ResultsDir | Out-Null
@@ -51,11 +61,12 @@ Write-Host "========================================================`n"
 
 # Pre-flight health check (via Docker network)
 Write-Host "[Pre-flight] Checking $TargetHost ..."
+$ProbePath = if ($Target -eq 'gate') { '/pp/ping' } else { '/benchmark/static' }
 $healthFile = Join-Path $env:TEMP "k6_health_$Target.js"
 @"
 import http from 'k6/http';
 export default function () {
-    let r = http.get('http://${TargetHost}/benchmark/static');
+    let r = http.get('http://${TargetHost}${ProbePath}');
     if (r.status !== 200) throw new Error('Health check failed: ' + r.status);
 }
 "@ | Set-Content -Path $healthFile -Encoding UTF8
@@ -78,7 +89,7 @@ $warmupScript = @"
 import http from 'k6/http';
 import { sleep } from 'k6';
 export default function () {
-    http.get('http://${TargetHost}/benchmark/static');
+    http.get('http://${TargetHost}${ProbePath}');
     sleep(0.01);
 }
 "@

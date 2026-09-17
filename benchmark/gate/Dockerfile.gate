@@ -1,0 +1,60 @@
+# benchgate — the readiness-gate measurement site (scenarios 07-10)
+#
+# Full dist site (dist.php + bench/* modules) on the SAME FrankenPHP 1.10 base
+# as the main worker. SCALE=N additionally scaffolds N plain modules for the
+# boot-curve pass (scenario 10); default 0 (gate scenarios only).
+
+FROM dunglas/frankenphp:1.10-php8.3-alpine
+
+RUN install-php-extensions \
+    pdo_mysql \
+    opcache \
+    pcntl
+
+# Byte-identical OPcache policy to the worker images (symmetry law)
+RUN { echo "opcache.enable=1"; \
+      echo "opcache.enable_cli=1"; \
+      echo "opcache.memory_consumption=256"; \
+      echo "opcache.interned_strings_buffer=32"; \
+      echo "opcache.max_accelerated_files=10000"; \
+      echo "opcache.validate_timestamps=0"; \
+      echo "opcache.jit_buffer_size=128M"; \
+      echo "opcache.jit=1255"; \
+      echo "realpath_cache_size=4096K"; \
+      echo "realpath_cache_ttl=600"; \
+      echo "memory_limit=256M"; \
+    } > /usr/local/etc/php/conf.d/benchmark.ini
+
+WORKDIR /app
+
+COPY Razy.phar /app/Razy.phar
+COPY vendor /app/vendor
+COPY composer.json /app/composer.json
+
+# The scaffold runs AT BUILD with the desired scale baked into the receipt.
+ARG SCALE=0
+COPY benchmark/gate /tmp/gate
+RUN mkdir -p /app/site/data && \
+    php /tmp/gate/scaffold.php --scale=${SCALE} && \
+    cp -a /tmp/gate/site/. /app/site/ && \
+    rm -rf /tmp/gate
+
+# data/ must be writable by the worker (frankenphp runs as root here, but the
+# fpm lesson says: state the ownership, do not inherit assumptions)
+RUN chown -R www-data:www-data /app/site/data
+
+COPY benchmark/gate/Caddyfile.gate /etc/frankenphp/Caddyfile
+COPY benchmark/gate/entry.sh /usr/local/bin/gate-entry
+RUN sed -i 's/\r$//' /usr/local/bin/gate-entry && chmod +x /usr/local/bin/gate-entry
+
+# Toolchain receipt (mirror of the other images; SCALE visible)
+RUN { echo "php=$(php -r 'echo PHP_VERSION;')"; \
+      echo "frankenphp=$(frankenphp version 2>/dev/null | head -1)"; \
+      echo "razy_phar_sha256=$(sha256sum /app/Razy.phar | cut -d ' ' -f1)"; \
+      echo "site=benchgate"; \
+      echo "scale=${SCALE}"; \
+    } > /toolchain.txt && cat /toolchain.txt
+
+ENTRYPOINT ["/usr/local/bin/gate-entry"]
+
+EXPOSE 8080
