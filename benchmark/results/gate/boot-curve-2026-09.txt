@@ -1,0 +1,57 @@
+# Scenario 10 raw output — boot-curve.sh, 2026-09-17, same machine as epoch passes.
+# Command per scale: docker compose build --build-arg SCALE=N scale && boot-curve.sh N 3
+# bench-razy was stopped first so the curve owned the CPUs.
+
+=== SCALE=5 ===
+round 1: boot_to_first_200_ms=1478
+round 1: req1_seconds=0.007181
+round 1: req2_seconds=0.003503
+round 1: req3_seconds=0.004188
+round 1: container_mem=140.5MiB / 30.18GiB
+round 2: boot_to_first_200_ms=1363
+round 2: req1_seconds=0.004367
+round 2: req2_seconds=0.003473
+round 2: req3_seconds=0.003152
+round 2: container_mem=140.9MiB / 30.18GiB
+round 3: boot_to_first_200_ms=1339
+round 3: req1_seconds=0.004867
+round 3: req2_seconds=0.003399
+round 3: req3_seconds=0.004223
+round 3: container_mem=141.7MiB / 30.18GiB
+=== SCALE=25 ===
+round 1: boot_to_first_200_ms=1436
+round 1: req1_seconds=0.007501
+round 1: req2_seconds=0.004108
+round 1: req3_seconds=0.003902
+round 1: container_mem=140.9MiB / 30.18GiB
+round 2: boot_to_first_200_ms=1466
+round 2: req1_seconds=0.007057
+round 2: req2_seconds=0.003621
+round 2: req3_seconds=0.003429
+round 2: container_mem=158.2MiB / 30.18GiB
+round 3: boot_to_first_200_ms=1395
+round 3: req1_seconds=0.005434
+round 3: req2_seconds=0.003074
+round 3: req3_seconds=0.003273
+round 3: container_mem=139.1MiB / 30.18GiB
+=== SCALE=50 ===
+round 1: boot_to_first_200_ms=1415
+round 1: req1_seconds=0.010077
+round 1: req2_seconds=0.003906
+round 1: req3_seconds=0.002949
+round 1: container_mem=140.4MiB / 30.18GiB
+round 2: boot_to_first_200_ms=1355
+round 2: req1_seconds=0.007877
+round 2: req2_seconds=0.004177
+round 2: req3_seconds=0.003752
+round 2: container_mem=143.8MiB / 30.18GiB
+round 3: boot_to_first_200_ms=1454
+round 3: req1_seconds=0.007827
+round 3: req2_seconds=0.003569
+round 3: req3_seconds=0.004558
+round 3: container_mem=142MiB / 30.18GiB
+
+# Migration ledger at the same moment (real MySQL, razymigrations):
+# id=1 migration=2026_09_17_000000_CreateBenchLog batch=1 scope=bench/gate-ready
+#     checksum=32a5fa6e771b8b16f4b655eeb8e2268c7f592c6e51bac8dd9ca5433cb5b3bdfc
+# gate-refused appears NOWHERE (declared, never applied — the 503 was real).

@@ -90,6 +90,16 @@ Found present while writing this (do not let folklore re-list them as gaps):
 > worker and land as their own follow-up (they measure the gate, not symmetry).
 > Numbers, once settled, go to `readme.md` + `deploy/k8s/README.md`; REPORT.md
 > is generated from raw JSON only — no receipts, no verdict.
+>
+> **Follow-up DONE 2026-09-17:** scenarios 07–10 shipped on a module-bearing
+> dist site (`benchmark/gate/`, dist `benchgate`): gate tax over the identical
+> ungated handler is **within noise (+0.2% RPS)**, the vacuous default equals the
+> control, the honest 503 costs +0.09 ms at 200 VUs, and boot is **flat 5→50
+> modules** (~1.4 s, ~141 MiB, cold-dispatch +3 ms). The suite also caught — by
+> existing — that no multisite worker could ever boot and that the '*' default
+> site was unreachable by construction (both fixed, `tests/WorkerBootHostTest`,
+> `tests/DefaultSiteTest`). Data + receipts: `benchmark/EPOCH-2026-09.md` §07–10,
+> `benchmark/results/gate/`.
 
 The existing suite (`benchmark/`, 6 k6 scenarios, FrankenPHP worker vs Octane/Swoole) has
 three compounding problems as of today:

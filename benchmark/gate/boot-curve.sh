@@ -35,7 +35,7 @@ while [ "$r" -le "$ROUNDS" ]; do
   first=""
   i=0
   while [ $i -lt 300 ]; do
-    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$URL" 2>/dev/null)
+    code=$(curl -s -o /dev/null -H 'Host: bench-scale' -w '%{http_code}' --max-time 2 "$URL" 2>/dev/null)
     if [ "$code" = "200" ]; then
       now=$(date +%s%N)
       first=$now
@@ -48,10 +48,12 @@ while [ "$r" -le "$ROUNDS" ]; do
   done
   [ -z "$first" ] && { echo "round $r: NEVER READY (300 polls)"; r=$((r+1)); continue; }
 
-  # First three answered-request latencies (cold dispatch on request 1)
+  # First three answered-request latencies (cold dispatch on request 1).
+  # -H forces an explicit Host: Caddy binds ':8080' (no site name) and
+  # refuses requests without a Host header (400 otherwise).
   j=1
   while [ $j -le 3 ]; do
-    t=$(curl -s -o /dev/null -w '%{time_total}' --max-time 5 "$URL")
+    t=$(curl -s -o /dev/null -H 'Host: bench-scale' -w '%{time_total}' --max-time 5 "$URL")
     echo "round $r: req${j}_seconds=${t}"
     j=$((j+1))
   done
