@@ -12,22 +12,28 @@
 return [
 	'domains' => [
 		/*
-		 * The key is the domain and the value is the string of distribution path.
-		 * You can set the value as an array for advanced distribution setup.
+		 * The key is the domain ('*' = default site: serves any host nothing
+		 * else matched) and the value MUST BE AN ARRAY of URL-path prefix =>
+		 * distribution code. String values are parsed nowhere — Application's
+		 * updateSites() requires is_array() (verified 2026-09; an earlier
+		 * revision of this comment advertised a string shortcut that was
+		 * never implemented, and entries written that way were silently
+		 * dropped).
 		 *
 		 * The distribution folder must contain a dist.php
 		 *
-		 * Basic usage:
-		 * 'domain.name' => (string) The module distribution path
+		 * Usage:
+		 * 'domain.name' => [ '/' => 'mysite' ]        // whole host
+		 * '*'           => [ '/' => 'fallback' ]      // default site
 		 *
-		 * Advanced usage:
-		 * (The module folder will not be loaded if it is a distribution folder)
-		 * 'domain.name' => (array) [
-		 *   'path' => (string) The module distribution path in sites folder
+		 * Path mapping (longest prefix wins):
+		 * 'domain.name' => [
+		 *   '/'      => 'main',
+		 *   '/docs'  => 'docs',
 		 * ]
 		 *
-		 * Tagging:
-		 * '/path' => 'mysite@v2'   // use the 'v2' tag from dist.php modules
+		 * Tagging (a '@' tag selects from dist.php's declared tags):
+		 * 'domain.name' => [ '/' => 'mysite@v2' ]
 		 *
 		 * Per-domain config folder mapping is handled via config_mapping in dist.php.
 		 */

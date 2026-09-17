@@ -37,8 +37,23 @@ class ErrorRenderer
      */
     public static function show404(): void
     {
-        \ob_clean();
-        \header('HTTP/1.0 404 Not Found');
+        // Only discard a buffer when one exists. Worker-mode dispatch runs
+        // with NO output buffer (main.php drains it per request), and the
+        // naked ob_clean() raised a PHP notice there — the notice itself is
+        // output, so headers counted as "already sent" and the 404 status
+        // header below silently failed: live-caught 2026-09 on the benchmark
+        // gate site, where curl reported `[200]` around a 404 body. Every
+        // crawler, monitor, and CDN cache in front of a worker deploy was
+        // being served wrong status codes.
+        if (\ob_get_level() > 0) {
+            \ob_clean();
+        }
+
+        // Replace form (true, 404) for the same reason as showException's
+        // status header below: a long-lived worker process has already
+        // "chosen" 200 for this response, and PHP 8.5 warns on late bare
+        // status assignments — the replace form is the 2026-09 house style.
+        \header('HTTP/1.1 404 Not Found', true, 404);
 
         if (WEB_MODE) {
             echo '<h1>404 Not Found</h1>';
@@ -119,12 +134,19 @@ class ErrorRenderer
                 ErrorConfig::setCached(\ob_get_contents());
                 \ob_clean();
             }
-            echo $source->output();
-            // Set the HTTP status code; default to 400 if code is non-numeric.
+
+            // Set the HTTP status BEFORE emitting the page. Once the first
+            // byte is out, header() is a no-op that merely warns — in worker
+            // mode (no buffer) the old echo-first order fired exactly that
+            // warning on this line all through the 2026-09 gate-site boot
+            // logs, and the error page shipped under the previous
+            // response's status.
             // header()-replace form: same wire result, and unlike
             // http_response_code() it never trips PHP 8.5's new late-status
             // warning when the (CLI/test) process already chose one (2026-09).
             \header('HTTP/1.1 ' . (\is_numeric($exception->getCode()) ? $exception->getCode() : 400), true, \is_numeric($exception->getCode()) ? (int) $exception->getCode() : 400);
+
+            echo $source->output();
         } else {
             echo $exception;
         }

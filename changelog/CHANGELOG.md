@@ -9,6 +9,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **Fixed** `ErrorRenderer` worker-mode status-code integrity (live-caught by the
+  2026-09 benchmark gate site): worker dispatch runs with NO output buffer, so
+  `show404()`'s unconditional `ob_clean()` emitted a notice — itself output — poisoning
+  `headers_sent()` and leaving every 404 page to arrive under **status 200** (curl
+  measured `[200]` around a genuine 404 body); `showException()` echoed the page BEFORE
+  setting its status header, so error pages shipped under the previous response's status
+  (that `header()` warning fired on its line throughout the gate-site boot logs). Both
+  doors now guard `ob_clean()` behind an existing-buffer check and set the status —
+  replace-form `header()`, the PHP-8.5-safe house style above — before any output;
+  `show404`'s stale `HTTP/1.0` status line retired with it. Crawlers, monitors, and CDN
+  caches in front of worker deployments were eating wrong status codes on every error.
+  Pins: `tests/ErrorStatusOrderTest.php` (WEB_MODE is a bootstrap constant, so these are
+  source-order pins, same precedent as the reconnect fix).
+
+- **Fixed** `sites.inc.php`'s stock comment — it documented a string shortcut
+  (`'domain.name' => 'dist'`) that **no parser implements**: `updateSites()` requires
+  `is_array()` (Application.php:316; proven live 2026-09 — entries written per the old
+  comment were silently dropped, one wasted benchmark session later). The template
+  comment now tells the array-form-only truth, and documents `'*'` as the default-site
+  key and the `@tag` syntax as actually implemented. This retires the doc-trap footnote
+  of the unreachable-default-site entry below.
+
 - **Fixed** `RedisQueueStore`: `push()` never wrote the id→queue index that
   `locate()` reads (and `removeJob()` deletes) — every `release()`, `bury()`, `find()`
   and id-addressed `complete()` threw "Queue job not found" for EVERY job since the
