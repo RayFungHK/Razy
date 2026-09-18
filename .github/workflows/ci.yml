@@ -150,15 +150,13 @@ jobs:
       - name: Lint golden demos (blocking — demos must stay rule-clean)
         run: php tools/lint-module-discipline.php demos --strict
 
-      - name: Lint shipped demos (blocking — migrated to Golden Rules 2026-07)
-        run: php tools/lint-module-discipline.php demo_modules --strict
-
       # RZ-009 policy carve-out: await() REGISTRATION inside __onInit is the
       # sanctioned dependency pattern and reports as warn — a legitimate,
-      # permanent warn in the await teaching demo. Gate only errors here
+      # permanent warn in the await teaching demo. This gate blocks on ERRORS
       # (IO/api/getDB in init proper stay blocking); demos/* and modules/*
-      # keep --strict (teach zero-await).
-      - name: Lint shipped demos — RZ-009 purity (errors block, sanctioned await warns inform)
+      # keep --strict (teach zero-await). (v1 shipped the carve-out as an
+      # ADDED step while the --strict twin lived on — CI live-fire caught it.)
+      - name: Lint shipped demos (blocking on errors — sanctioned await warns inform)
         run: php tools/lint-module-discipline.php demo_modules
 
       - name: Lint first-party modules (blocking — same Golden Rules bar as framework code)
