@@ -248,6 +248,18 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Raw listener/observer registration tables (closure values included).
+     * The door for READ-ONLY consumers (SkillsGenerator's module skills):
+     * who listens to what, closures counted too. Compile replay uses
+     * dumpDeclarations() instead — closures are refusal material THERE,
+     * documentation material HERE.
+     */
+    public function getEventRegistrations(): array
+    {
+        return $this->eventDispatcher->getRegistrations();
+    }
+
+    /**
      * Check if a module is loaded and available in the current distributor.
      *
      * Use this to conditionally integrate with optional modules:

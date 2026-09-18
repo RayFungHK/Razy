@@ -26,7 +26,6 @@ use Razy\Template;
 use Razy\Template\Entity;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use ReflectionClass;
 use Throwable;
 
 /**
@@ -317,8 +316,11 @@ class SkillsGenerator
         $module = $moduleData['module'];
         $moduleInfo = $moduleData['module_info'];
 
-        // Get module path from module instance
-        $modulePath = $module->getPath();
+        // Module path lives on ModuleInfo (ModuleInfo.php:400) — Module has no
+        // getPath(); this call being wrong is why every module skill silently
+        // failed in the dogfood of 2026-09 (the command reported per-module ✗
+        // but the feature shipped unbaked).
+        $modulePath = $moduleInfo->getPath();
 
         $description = $moduleInfo->getDescription() ?? 'No description';
         $author = $moduleInfo->getAuthor() ?? 'Unknown';
@@ -357,11 +359,17 @@ class SkillsGenerator
         $content = $source->output();
 
         $distDir = $this->skillsDir . '/' . $distCode;
-        @\mkdir($distDir, 0o755, true);
-
-        $filename = $moduleCode . '-' . $version . '.md';
+        // Module codes carry a slash ('io/api_provider') — the filename nests
+        // it into subdirectories, so the write dir must be created DEEP
+        // (the old flat mkdir never made them and file_put_contents then died
+        // silently — the run said 30x ✓ while writing 0 files; a false
+        // receipt of the kind this repo has learned to name on sight).
+        $filename = \str_replace(['/', '\\'], '/', $moduleCode) . '-' . $version . '.md';
         $filePath = $distDir . '/' . $filename;
-        \file_put_contents($filePath, $content);
+        @\mkdir(\dirname($filePath), 0o755, true);
+        if (@\file_put_contents($filePath, $content) === false) {
+            throw new Exception("cannot write module skill: {$filePath}");
+        }
     }
 
     /**
@@ -377,37 +385,20 @@ class SkillsGenerator
      */
     private function buildAPISection(Entity $root, Module $module): self
     {
-        // Get API commands from module if available
-        $apiCommands = [];
-
-        try {
-            // Module may have getAPI() or similar method to retrieve registered commands
-            if (\method_exists($module, 'getAPI')) {
-                $api = $module->getAPI();
-                if (\is_array($api)) {
-                    foreach ($api as $command => $config) {
-                        $apiCommands[] = [
-                            'command' => $command,
-                            'description' => $config['description'] ?? 'No description',
-                            'path' => $config['path'] ?? 'unknown',
-                        ];
-                    }
-                }
-            }
-        } catch (Throwable $e) {
-            // Skip if API extraction fails
+        // Real registry, not a probe: getAPICommands() has existed since the
+        // command registry's birth (Module.php:570) — the method_exists('getAPI')
+        // guess here matched NO method, so the API section (the heart of a
+        // module skill) shipped empty for EVERY module since the feature did.
+        // One section block, many command blocks (template contract).
+        $sectionBlock = $root->newBlock('api_commands_section');
+        foreach ($module->getAPICommands() as $command => $path) {
+            $sectionBlock->newBlock('api_command')->assign([
+                'command' => $command,
+                'description' => 'handler: ' . $path,
+                'path' => $path,
+            ]);
         }
 
-        if (\count($apiCommands) > 0) {
-            $sectionBlock = $root->newBlock('api_commands_section');
-            foreach ($apiCommands as $api) {
-                $sectionBlock->newBlock('api_command')->assign([
-                    'command' => $api['command'],
-                    'description' => $api['description'],
-                    'path' => $api['path'],
-                ]);
-            }
-        }
         return $this;
     }
 
@@ -424,28 +415,35 @@ class SkillsGenerator
      */
     private function buildEventsSection(Entity $root, Module $module): self
     {
-        $events = [];
-
-        try {
-            // Module may have getListeners() or similar method
-            if (\method_exists($module, 'getListeners')) {
-                $listeners = $module->getListeners();
-                if (\is_array($listeners)) {
-                    $events = \array_keys($listeners);
-                }
+        // Real tables via the read-only door Module::getEventRegistrations():
+        // closures INCLUDED — a closure listener is still a listener for
+        // documentation (only compile replay treats them as refusals, which
+        // is dumpDeclarations' filtered job — wrong tool for this one). The
+        // old method_exists('getListeners') guess matched nothing and the
+        // events section was ever-empty; every inline-closure listener in the
+        // playground (event_receiver x4...) would have stayed invisible.
+        $regs = $module->getEventRegistrations();
+        $lines = [];
+        foreach ($regs['events'] as $moduleCode => $byName) {
+            foreach ($byName as $eventName => $path) {
+                $who = "{$moduleCode}:{$eventName}";
+                $lines[] = \is_string($path) ? "listens {$who} (handler: {$path})" : "listens {$who} (inline closure)";
             }
-        } catch (Throwable $e) {
-            // Skip if events extraction fails
+        }
+        foreach ($regs['observers'] as $moduleCode => $byName) {
+            foreach ($byName as $eventName => $path) {
+                $who = "{$moduleCode}:{$eventName}";
+                $lines[] = \is_string($path) ? "observes {$who} (handler: {$path})" : "observes {$who} (inline closure)";
+            }
         }
 
-        if (\count($events) > 0) {
+        if ($lines !== []) {
             $sectionBlock = $root->newBlock('events_section');
-            foreach ($events as $event) {
-                $sectionBlock->newBlock('event')->assign([
-                    'event_name' => $event,
-                ]);
+            foreach ($lines as $line) {
+                $sectionBlock->newBlock('event')->assign(['event_name' => $line]);
             }
         }
+
         return $this;
     }
 
@@ -462,10 +460,15 @@ class SkillsGenerator
      */
     private function buildFileStructureSection(Entity $root, string $modulePath): self
     {
+        // The layout modules ACTUALLY have (the old list knew a 'src' folder
+        // none ever shipped, and missed the four that carry the semantics).
         $dirs = [
-            'src' => 'Source code and classes',
-            'controller' => 'API command handlers',
+            'controller' => 'handlers: routes closures + API command files (paths relative to here, .php added by the loader)',
+            'model' => 'Model classes (module-private data layer)',
             'view' => 'Template files (.tpl)',
+            'migration' => 'schema ledger — applied only via `php Razy.phar migrate <dist>` (RZ-016) or the wizard door',
+            'api' => 'legacy location for API closures — NOT loadable here; closures live under controller/',
+            'src' => 'Source code and classes (library-style modules)',
             'plugin' => 'Module-specific plugins',
             'data' => 'Persistent data storage',
         ];
@@ -552,25 +555,28 @@ class SkillsGenerator
      * - TPL: {#llm prompt}...{/}
      *
      * Used by buildPromptsSection() to populate prompt blocks.
+     */
 
     /**
-     * Scan PHP files for @llm directives using Reflection.
+     * Scan a module's PHP tree for @llm prompt directives.
      *
-     * Uses PHP Reflection API to parse valid docblocks only, preventing false positives
-     * from regular comments. Extracts @llm prompt directives from class/method docblocks.
+     * Docblock regex over the real module tree (controller/ etc), reporting
+     * honest line numbers; the reflection predecessor it replaces scanned a
+     * '/src' folder no module layout has and only ever saw already-loaded
+     * classes under identical global names.
      *
      * @param string $modulePath Module path
      * @param array $prompts Prompts array reference
      */
     private function scanPHPPrompts(string $modulePath, array &$prompts): void
     {
-        $srcPath = $modulePath . '/src';
-        if (!\is_dir($srcPath)) {
-            return;
-        }
-
+        // The module's WHOLE tree, not a '/src' folder that module layout
+        // never had (the old scan's root) — and honest line numbers from the
+        // match offset. Regex over docblocks is deliberate: the reflection
+        // version it replaces could only see classes already loaded under the
+        // same global name (class_exists(name, false)), i.e. almost never.
         $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($srcPath, RecursiveDirectoryIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator($modulePath, RecursiveDirectoryIterator::SKIP_DOTS),
             RecursiveIteratorIterator::SELF_FIRST,
         );
 
@@ -579,81 +585,24 @@ class SkillsGenerator
                 continue;
             }
 
-            try {
-                // Load and reflect on the file content
-                $content = \file_get_contents($file->getPathname());
-
-                // Extract class/function definitions using regex
-                if (\preg_match_all('/(?:class|function)\s+(\w+)/', $content, $matches)) {
-                    foreach ($matches[1] as $name) {
-                        try {
-                            // Try to use Reflection on the loaded class/function
-                            if (\class_exists($name, false)) {
-                                $reflection = new ReflectionClass($name);
-
-                                // Get class docblock
-                                $docBlock = $reflection->getDocComment();
-                                $this->parseDocBlockPrompts($docBlock, $file->getPathname(), $modulePath, $prompts);
-
-                                // Get methods docblocks
-                                foreach ($reflection->getMethods() as $method) {
-                                    $docBlock = $method->getDocComment();
-                                    $this->parseDocBlockPrompts($docBlock, $file->getPathname(), $modulePath, $prompts, $method->getStartLine());
-                                }
-                            }
-                        } catch (Throwable $e) {
-                            // Skip if reflection fails for this class
-                        }
-                    }
-                }
-
-                // Also check for standalone @llm prompt comments in docblocks using regex
-                // This catches function docblocks
-                if (\preg_match_all('/\/\*\*.*?@llm\s+prompt:\s*(.+?).*?\*\//s', $content, $matches)) {
-                    foreach ($matches[1] as $prompt) {
-                        $relPath = \str_replace($modulePath . '/', '', $file->getPathname());
-                        if (!isset($prompts[$relPath])) {
-                            $prompts[$relPath] = [];
-                        }
-
-                        $prompts[$relPath][] = [
-                            'line' => 0, // Line number uncertain with regex approach
-                            'prompt' => \trim(\preg_replace('/\s+/', ' ', $prompt)),
-                        ];
-                    }
-                }
-            } catch (Throwable $e) {
-                // Skip files that fail to parse
-            }
-        }
-    }
-
-    /**
-     * Parse docblock for @llm prompt directives.
-     *
-     * @param string|false $docBlock Docblock from getDocComment()
-     * @param string $filePath File path
-     * @param string $modulePath Module base path
-     * @param array $prompts Prompts array reference
-     * @param int $lineNum Line number (optional)
-     */
-    private function parseDocBlockPrompts($docBlock, string $filePath, string $modulePath, array &$prompts, int $lineNum = 0): void
-    {
-        if (!\is_string($docBlock)) {
-            return;
-        }
-
-        // Extract @llm prompt: directive from docblock
-        if (\preg_match('/@llm\s+prompt:\s*(.+?)(?:\n|\*|$)/', $docBlock, $matches)) {
-            $relPath = \str_replace($modulePath . '/', '', $filePath);
-            if (!isset($prompts[$relPath])) {
-                $prompts[$relPath] = [];
+            $content = @\file_get_contents($file->getPathname());
+            if ($content === false) {
+                continue;
             }
 
-            $prompts[$relPath][] = [
-                'line' => $lineNum ?: 0,
-                'prompt' => \trim(\preg_replace('/\s+/', ' ', $matches[1])),
-            ];
+            if (\preg_match_all('/\/\*\*.*?@llm\s+prompt:\s*(.+?).*?\*\//s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+                $relPath = \str_replace($modulePath . '/', '', \str_replace('\\', '/', $file->getPathname()));
+                foreach ($matches[1] as $hit) {
+                    if (!isset($prompts[$relPath])) {
+                        $prompts[$relPath] = [];
+                    }
+
+                    $prompts[$relPath][] = [
+                        'line' => \substr_count(\substr($content, 0, $hit[1]), "\n") + 1,
+                        'prompt' => \trim(\preg_replace('/\s+/', ' ', $hit[0])),
+                    ];
+                }
+            }
         }
     }
 

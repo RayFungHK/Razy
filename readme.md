@@ -3,9 +3,9 @@
 **A modular PHP platform for multi-site, multi-distributor application delivery.**
 
 [![CI](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml/badge.svg)](https://github.com/RayFungHK/Razy/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.3--beta-blue.svg)](changelog/)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](changelog/)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
-[![Tests](https://img.shields.io/badge/tests-4%2C845_passing-success.svg)](#testing--quality)
+[![Tests](https://img.shields.io/badge/tests-5%2C565_passing-success.svg)](#testing--quality)
 [![Dependencies](https://img.shields.io/badge/runtime_deps-0-brightgreen.svg)](#what-razy-is-and-is-not)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
