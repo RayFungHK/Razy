@@ -54,3 +54,8 @@ Not "trust compile-on-deploy". Three separable yes/no's: (1) does ERP take the p
 upgrade anyway; (2) does staging run the zero-risk refusal-list audit; (3) later, per
 dist, the flag. Each step's evidence and reversibility above; this side will not touch the
 ERP repo without a per-step go.
+
+> **And one decision this page deliberately does not carry:** the survey's only *active*
+> exposure (zero CSRF defense across ~270 mutating routes) is a separate, larger question —
+> a phar upgrade changes none of it. It has its own page and its own ask:
+> [ERP-SECURITY-EXPOSURE.md](ERP-SECURITY-EXPOSURE.md).
