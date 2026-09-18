@@ -26,9 +26,9 @@ return new class () extends Controller {
     public function __onInit(Agent $agent): bool
     {
         // Register API commands for cross-module access
-        $agent->addAPICommand('parse', 'api/parse.php');
-        $agent->addAPICommand('parseFile', 'api/parse_file.php');
-        $agent->addAPICommand('getInfo', 'api/get_info.php');
+        $agent->addAPICommand('parse', 'api/parse');
+        $agent->addAPICommand('parseFile', 'api/parse_file');
+        $agent->addAPICommand('getInfo', 'api/get_info');
         
         // Register routes for web demo
         $agent->addLazyRoute([

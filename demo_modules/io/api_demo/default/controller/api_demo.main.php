@@ -24,7 +24,7 @@ return function (): void {
         
         <h4>Provider Module (api_provider)</h4>
         <pre>// In controller __onInit():
-\$agent->addAPICommand('greet', 'api/greet.php');
+\$agent->addAPICommand('greet', 'api/greet'); // path under controller/ — the loader adds .php
 
 // In api/greet.php:
 return function (string \$name = 'Guest'): array {

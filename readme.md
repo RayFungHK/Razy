@@ -121,7 +121,7 @@ return new class extends Controller {
     public function __onInit(Agent $agent): bool
     {
         $agent->addLazyRoute(['dashboard' => 'dashboard']);
-        $agent->addAPICommand('getPost', 'api/get_post.php');
+        $agent->addAPICommand('getPost', 'api/get_post');
         $agent->listen('core/auth:onLogin', 'onUserLogin');
         return true;
     }

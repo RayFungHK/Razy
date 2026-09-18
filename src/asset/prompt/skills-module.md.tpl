@@ -82,10 +82,10 @@ Check `/workbook/examples/` for sample implementations similar to this module.
 
 ### Adding a New API Command
 
-1. Create `controller/command_name.php` with closure
-2. Register in Controller::__onInit():
+1. Create `controller/api/command_name.php` with closure
+2. Register in Controller::__onInit() (path under `controller/`, NO extension — the loader appends `.php`):
    ```php
-   $agent->addAPICommand('command_name', 'controller/command_name.php');
+   $agent->addAPICommand('command_name', 'api/command_name');
    ```
 3. Add `// @llm prompt: description` above the return statement
 4. Run: `php Razy.phar generate-skills`
