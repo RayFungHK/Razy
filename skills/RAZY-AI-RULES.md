@@ -284,6 +284,16 @@ frameworks depends on that. In worker mode, do not accumulate per-request state 
 module-level properties (it leaks across requests; audited reset list in
 `Module::resetForWorker` does not cover your statics).
 
+**Machine-check status (lint v2026-09).** `php tools/lint-module-discipline.php` now
+enforces the *direct path* of `__onInit` (token-level scan): peer `api()`/`bridge()`,
+`getDB()`/`getMigrationManager()`, file/network IO, and thread/child spawns → **error**.
+Policy semantics the scan encodes: (1) bodies of deferred callbacks — `listen()`,
+`addAPICommand()`, route closures — are NOT init's direct path; acting inside them is
+the sanctioned shape and stays clean. (2) `await(...)` registration is sanctioned and
+reports **warn only** (review its callback body by eye; `BootCompiler` refuses impure
+await callbacks at compile time — deploy-time backstop). (3) A constant `return false`
+arm proves the abort path; a missing return or never-true/never-false tail → **warn**.
+
 ---
 
 ## RZ-010 — API vs binding, and contracts are real (error)

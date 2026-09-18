@@ -38,6 +38,11 @@ const DEFAULT_EXCLUDES = [
     'vendor/', 'autoload/', '.git/', 'node_modules/', '.venv/', 'storage/',
     'Razy.wiki', 'memory/', 'docs/', 'documentation/', 'coverage/',
     '.phpunit.cache/', 'demo_backup', 'test-razy-cli/', 'sites/nonexistent',
+    // frozen documentation fixture (ERP-GENERALIZATION.md's ground truth,
+    // "phar 1.0.3") — its rule violations ARE the survey data; scanning it
+    // live would tempt editing the evidence. Point the lint at it explicitly
+    // to re-audit; it never joins a default run.
+    'production-sample/',
 ];
 
 /**
@@ -86,8 +91,12 @@ const RULES = [
      'regex' => ['#\b(?:file_put_contents|fwrite)\s*\([^;]*(?:\.htaccess|Caddyfile)#']],
     ['id' => 'RZ-016', 'level' => 'error', 'scope' => 'php', 'desc' => 'Migration execution in module code — migrations run at the deploy door (`php Razy.phar migrate`) only, never from web-triggered module paths (dossier MODULE-LIFECYCLE.md; needs a written lint-allow justification for the CLI-command exemption)',
      'regex' => ['#\bgetMigrationManager\s*\(\s*\)#']],
-    // RZ-009/010/012/014 are semantic (lifecycle usage, contracts, tests) — not
-    // statically detectable with confidence; enforced by review + composer quality.
+    // RZ-010/012/014 are semantic (contracts, tests) — not statically detectable
+    // with confidence; enforced by review + composer quality.
+    // RZ-009 (init purity) is structural, not per-line regex — implemented as
+    // rz009Scan() below (token-level __onInit body analysis, mirroring the
+    // refusal list of `BootCompiler::dump`, which rejects the same shape at
+    // compile time; the lint moves that feedback to authoring time).
     // RZ-017 (cross-module namespace import) is structural, not per-line regex —
     // implemented as the two-pass scan below (module manifests, then import check).
 ];
@@ -199,6 +208,17 @@ foreach ($paths as $root) {
             }
         }
 
+        // RZ-009 (structural): __onInit must be DECLARATION-PURE — the same
+        // shape `BootCompiler::dump` refuses at compile time (peer api() where
+        // peers aren't loaded, await() callbacks, DB/file/network IO, worker
+        // spawns). Authoring-time feedback for a deploy-time rejection.
+        if ($scope === 'php' && str_contains($body, '__onInit')) {
+            foreach (rz009Scan(implode('', $lines)) as [$lineNo, $level, $why]) {
+                if (isSuppressed($lines, $lineNo - 1, 'RZ-009')) { $lineSuppressions++; continue; }
+                $violations[] = violation($file, $lineNo, 'RZ-009', $level, $why);
+            }
+        }
+
         // Regex rules ('any' rules apply to both php and tpl scopes)
         foreach (RULES as $rule) {
             if ($rule['scope'] !== $scope && $rule['scope'] !== 'any') continue;
@@ -284,6 +304,249 @@ function findModuleRoot(string $file): ?string
         $dir = $parent;
     }
     return null;
+}
+
+/**
+ * RZ-009 matcher: token-level analysis of every __onInit body in the file.
+ *
+ * Why tokens, not regex: __onInit bodies are exactly where sloppy nesting
+ * lives; a brace-counting walk over token_get_all() cannot be fooled by
+ * strings/braces-in-quotes, and method/function names arrive as clean T_STRING.
+ * The forbidden set mirrors what `BootCompiler::dump` REFUSES at compile time
+ * (+ the peer/DB cases RZ-009 names), so anything that would block
+ * compiled-boot is flagged here at authoring time.
+ *
+ * Returns [] for files without a parsable __onInit (including syntax-error
+ * files — the linter never becomes the parser's bad day; token_get_all on
+ * PHP < 8 error mode is wrapped).
+ *
+ * @return list<array{0: int, 1: string, 2: string}> [lineNo, level, message]
+ */
+function rz009Scan(string $code): array
+{
+    // ->method(...) calls on $this that break declaration purity, and why.
+    $forbiddenMethods = [
+        'api'   => 'peer api() call in __onInit — peers are not loaded yet (RZ-009; move to __onReady+)',
+        'bridge' => 'peer bridge() call in __onInit — peers are not loaded yet (RZ-009)',
+        'getdb' => 'DB access in __onInit (RZ-009/RZ-016 territory — act in __onReady+ or migrate at the deploy door)',
+        'getmigrationmanager' => 'migration manager in __onInit — migrations run at the deploy door only (RZ-016)',
+        // await() itself is the sanctioned __onInit dependency pattern — its
+        // CALLBACK BODY is the violation (runs post-boot; compiled boot refuses).
+        // The rule fires inside the callback frame only (seenAwait below).
+        'await' => 'await() callback registered in __onInit — the callback runs post-boot and compiled boot refuses it (RZ-009: declare in init, act in the lifecycle hook you listen to)',
+        'thread' => 'thread spawn in __onInit — boot-time side effect (RZ-009)',
+        'spawnphpfile' => 'child-process spawn in __onInit — boot-time side effect (RZ-009)',
+        'spawnphpcode' => 'child-process spawn in __onInit (RZ-009; and RZ-011 deprecated)',
+        'getsearchtextsyntax' => 'DB-syntax helper in __onInit (implies query building at boot; RZ-009)',
+    ];
+    // bare function calls that are IO/network/sleep by name.
+    $forbiddenFunctions = [
+        'file_get_contents' => true, 'file_put_contents' => true, 'fopen' => true, 'fwrite' => true,
+        'unlink' => true, 'rename' => true, 'copy' => true, 'mkdir' => true, 'rmdir' => true,
+        'touch' => true, 'scandir' => true, 'opendir' => true, 'glob' => true,
+        'curl_init' => true, 'curl_exec' => true, 'fsockopen' => true, 'stream_socket_client' => true,
+        'sleep' => true, 'usleep' => true,
+        'header' => true, 'setcookie' => true, // request-shaped acts in a boot-scoped hook
+    ];
+
+    try {
+        $tokens = @token_get_all($code);
+    } catch (Throwable) {
+        return [];
+    }
+
+    $hits = [];
+    $count = count($tokens);
+
+    for ($t = 0; $t < $count; $t++) {
+        $tok = $tokens[$t];
+        // match the function NAME token (definitions are confirmed against a
+        // preceding T_FUNCTION below; calls like $m->__onInit() are filtered)
+        $isName = is_array($tok) && T_STRING === $tok[0];
+        if (!$isName || '__onInit' !== $tok[1]) {
+            continue;
+        }
+        // confirm it is a function DEFINITION (previous meaningful token T_FUNCTION)
+        $prev = null;
+        for ($p = $t - 1; $p >= 0 && $prev === null; $p--) {
+            $cand = $tokens[$p];
+            if (is_array($cand) && T_WHITESPACE === $cand[0]) {
+                continue;
+            }
+            $prev = $cand;
+        }
+        if (!is_array($prev) || T_FUNCTION !== $prev[0]) {
+            continue; // a CALL to $module->__onInit(), not a definition
+        }
+
+        // locate the body: walk the signature (paren-balanced) to its first
+        // depth-0 '{'; a ';' before that is an abstract/interface declaration.
+        $paren = 0; $bodyStart = -1;
+        for ($b = $t; $b < $count; $b++) {
+            $c = $tokens[$b];
+            $txt = is_array($c) ? $c[1] : (string) $c;
+            if ('(' === $txt) { $paren++; continue; }
+            if (')' === $txt) { $paren--; continue; }
+            if (';' === $txt && 0 === $paren) { break; } // abstract/interface decl
+            if ('{' === $txt && 0 === $paren) { $bodyStart = $b; break; }
+        }
+        if ($bodyStart < 0) {
+            continue;
+        }
+
+        $depth = 0;
+        $seenReturnTrue = false;
+        $anyReturn = false;
+        $sawFalsePath = false; // `return false;` as a constant arm proves the abort path is real
+        // Literal tokens ('{', '}' …) carry NO line — resolve the body-open line
+        // from the nearest array token BEFORE the brace (the signature line;
+        // scanning forward would land on the next real statement and point the
+        // contract warning one-plus lines into the body — found by dogfood).
+        $bodyOpenLine = 0;
+        for ($p = $bodyStart - 1; $p >= 0 && 0 === $bodyOpenLine; $p--) {
+            if (is_array($tokens[$p])) {
+                $bodyOpenLine = $tokens[$p][2];
+            }
+        }
+        if (0 === $bodyOpenLine) {
+            $bodyOpenLine = is_array($tokens[$t]) ? $tokens[$t][2] : 1;
+        }
+        $curLine = max(1, (int) $bodyOpenLine);
+        $startLine = max(1, (int) $bodyOpenLine - 1); // report the contract at the signature line
+        for ($b = $bodyStart; $b < $count; $b++) {
+            $c = $tokens[$b];
+            $txt = is_array($c) ? $c[1] : (string) $c;
+            if (is_array($c)) {
+                $curLine = $c[2];
+            }
+            if ('{' === $txt) { $depth++; continue; }
+            if ('}' === $txt) { $depth--; if (0 === $depth) { break; } continue; }
+            $line = is_array($c) ? $c[2] : $curLine;
+
+            // DEFERRED-CODE SKIPPED — the semantic core (false-positive lesson
+            // of the first dogfood: 69/69 hits were api() INSIDE listen()/
+            // addAPICommand() callbacks, which is the SANCTIONED shape; event
+            // callbacks run when the event fires, not at init). Closure bodies
+            // are not init's direct path; the await() warn below is the one
+            // deliberate, bounded look into a deferred frame.
+            if (is_array($c) && (T_FUNCTION === $c[0] || T_FN === $c[0])) {
+                $nx = null;
+                for ($p = $b + 1; $p < $count && $nx === null; $p++) {
+                    $pc = $tokens[$p];
+                    if (is_array($pc) && (T_WHITESPACE === $pc[0] || T_COMMENT === $pc[0] || T_DOC_COMMENT === $pc[0])) {
+                        continue;
+                    }
+                    $nx = $pc;
+                }
+                if (is_array($nx) && T_STRING === $nx[0]) {
+                    continue; // named function — a method, not a closure
+                }
+                // closure: jump past fn () => expr  OR  { balanced body }
+                if (is_array($nx) && T_FN === $nx[0]) {
+                    $pp = 0;
+                    for ($p = $b + 1; $p < $count; $p++) {
+                        $pt = is_array($tokens[$p]) ? $tokens[$p][1] : (string) $tokens[$p];
+                        if ('(' === $pt) { $pp++; }
+                        elseif (')' === $pt) { $pp--; }
+                        elseif (';' === $pt && 0 === $pp) { $b = $p - 1; break; }
+                    }
+                    continue;
+                }
+                $cd = 0; $opened = false;
+                for ($p = $b + 1; $p < $count; $p++) {
+                    $pt = is_array($tokens[$p]) ? $tokens[$p][1] : (string) $tokens[$p];
+                    if ('{' === $pt) { $cd++; $opened = true; }
+                    elseif ('}' === $pt) { $cd--; if ($opened && 0 === $cd) { $b = $p; break; } }
+                }
+                continue;
+            }
+
+            if (is_array($c) && T_RETURN === $c[0]) {
+                $anyReturn = true;
+                // next meaningful token == true? (or == false as a constant arm:
+                // a real `return false;` proves the abort path is deliberate,
+                // which satisfies the contract alongside any conditional true)
+                for ($r = $b + 1; $r < $count; $r++) {
+                    $rc = $tokens[$r];
+                    if (is_array($rc) && (T_WHITESPACE === $rc[0] || T_COMMENT === $rc[0] || T_DOC_COMMENT === $rc[0])) { continue; }
+                    if (is_array($rc) && T_STRING === $rc[0] && 'true' === strtolower($rc[1])) { $seenReturnTrue = true; }
+                    if (is_array($rc) && T_STRING === $rc[0] && 'false' === strtolower($rc[1])) { $sawFalsePath = true; }
+                    break;
+                }
+                continue;
+            }
+            if (!is_array($c) || (T_STRING !== $c[0] && T_NAME_QUALIFIED !== $c[0])) {
+                continue;
+            }
+            // PHP 8 lexes reserved-ish method names (getDB!) as T_NAME_QUALIFIED;
+            // normalize to the last segment so member checks still see them.
+            $name = strtolower((T_STRING === $c[0])
+                ? $c[1]
+                : (string) substr($c[1], (int) strrpos($c[1], '\\') + 1));
+            // $this->name( ?  previous meaningful token is ->/::
+            $pm = null;
+            for ($p = $b - 1; $p >= 0 && $pm === null; $p--) {
+                $pc = $tokens[$p];
+                if (is_array($pc) && (T_WHITESPACE === $pc[0] || T_COMMENT === $pc[0] || T_DOC_COMMENT === $pc[0])) { continue; }
+                $pm = $pc;
+            }
+            $isMember = is_array($pm) && (T_OBJECT_OPERATOR === $pm[0] || T_DOUBLE_COLON === $pm[0]);
+            // followed by '('?
+            $isCall = false;
+            for ($n = $b + 1; $n < $count; $n++) {
+                $nc = $tokens[$n];
+                if (is_array($nc) && T_WHITESPACE === $nc[0]) { continue; }
+                $isCall = ('(' === (is_array($nc) ? $nc[1] : (string) $nc));
+                break;
+            }
+            if (!$isCall) {
+                continue;
+            }
+            if ($isMember && isset($forbiddenMethods[$name])) {
+                if ('await' === $name) {
+                    // await() registration itself is the SANCTIONED __onInit
+                    // dependency pattern — warn (not error) once per callback
+                    // frame so the author reviews the body by eye; compiled
+                    // boot refuses impure callback bodies at deploy time.
+                    // Scan each function/fn token that appears as an argument
+                    // to this await() call (paren-balanced), report at the
+                    // callback's own line, once per callback.
+                    $pd = 0; $started = false;
+                    for ($n = $b + 1; $n < $count; $n++) {
+                        $nc = $tokens[$n];
+                        $nt = is_array($nc) ? $nc[1] : (string) $nc;
+                        if ('(' === $nt) {
+                            $pd++;
+                            $started = true;
+                            continue;
+                        }
+                        if (')' === $nt) {
+                            $pd--;
+                            if ($started && 0 === $pd) {
+                                break; // await(...) closed; anything after is not a callback arg
+                            }
+                            continue;
+                        }
+                        if ($pd > 0 && is_array($nc) && (T_FUNCTION === $nc[0] || T_FN === $nc[0])) {
+                            $hits[] = [$nc[2], 'warn', $forbiddenMethods['await']];
+                        }
+                    }
+                    continue;
+                }
+                $hits[] = [$line, 'error', $forbiddenMethods[$name]];
+            } elseif (!$isMember && isset($forbiddenFunctions[$name])) {
+                $hits[] = [$line, 'error', "IO/network call '{$name}()' in __onInit (RZ-009: __onInit registers, it does not act; act in __onReady+ / __onRouted)"];
+            }
+        }
+
+        if (!$anyReturn) {
+            $hits[] = [$startLine, 'warn', '__onInit has no return statement — lifecycle bool contract says return true (a void init reads as an abort signal; RZ-009)'];
+        } elseif (!$seenReturnTrue && !$sawFalsePath) {
+            $hits[] = [$startLine, 'warn', '__onInit returns values but never `return true` — verify every path is meaningful (RZ-009: false aborts, silence is not a value)'];
+        }
+    }
+
+    return $hits;
 }
 
 /**
@@ -440,6 +703,39 @@ function selfTest(): int
         $failed += $pass ? 0 : 1;
         printf("%s  expect=RZ-017 got=%s  (structural)\n", $pass ? 'ok  ' : 'FAIL', $pass ? 'as expected' : 'MISSED');
     }
+    // RZ-009 structural fixtures: token-level __onInit purity (compile's
+    // refusal list, surfaced at authoring time). [label, code, expected-hits]
+    $rz009 = [
+        ['clean: registration + return true', "<?php\nclass M extends Razy\\Module {\n  public function __onInit(): bool {\n    \$agent = \$this->getAgent();\n    \$agent->addLazyRoute('ping', 'ping');\n    \$agent->addAPICommand('go', fn () => 'ok');\n    return true;\n  }\n}\n", 0],
+        ['peer api() is a hit', "<?php\nclass M {\n  public function __onInit(): bool {\n    \$u = \$this->api('core/user')->current();\n    return true;\n  }\n}\n", 1],
+        ['getDB() is a hit', "<?php\nclass M {\n  public function __onInit(): bool {\n    \$rows = \$this->getDB()->prepare()->select('*')->from('t')->query();\n    return true;\n  }\n}\n", 1],
+        ['await() is a hit', "<?php\nclass M {\n  public function __onInit() {\n    \$this->await(function () { return true; });\n    return true;\n  }\n}\n", 1],
+        ['await REGISTRATION alone stays clean (callback body polices itself via nested hits)', "<?php\nclass M {\n  public function __onInit(): bool {\n    \$agent->await('system/helper', function () { return true; });\n    return true;\n  }\n}\n", 1], // the callback's own frame is the report unit — still 1 (its line), registration alone below is 0
+        ['await with string-only callback args is clean', "<?php\nclass M {\n  public function __onInit(): bool {\n    \$agent->await('system/helper', 'onHelper');\n    return true;\n  }\n}\n", 0],
+        ['file IO is a hit', "<?php\nclass M {\n  public function __onInit(): bool {\n    file_put_contents('/tmp/x', 'boot');\n    return true;\n  }\n}\n", 1],
+        ['no return at all is a warn-hit', "<?php\nclass M {\n  public function __onInit(): void {\n    \$this->getAgent()->addRoute('x', 'x');\n  }\n}\n", 1],
+        ['a CALL to __onInit is not a definition', "<?php\n\$module->__onInit();\n", 0],
+        ['IO outside __onInit is not RZ-009', "<?php\nclass M {\n  public function __onInit(): bool { return true; }\n  public function __onReady(): bool { file_get_contents('/tmp/x'); return true; }\n}\n", 0],
+        ['sanctioned await REGISTRATION is exempt — warn, never error', "<?php\nclass M {\n  public function __onInit(): bool {\n    \$agent->await('system/helper', function () { return true; });\n    return true;\n  }\n}\n", '0error+1warn'],
+        ['nested braces stay balanced', "<?php\nclass M {\n  public function __onInit(): bool {\n    \$agent->group(['prefix' => 'v1'], function (Agent \$a) {\n      \$a->addRoute('ping', 'ping');\n    });\n    return true;\n  }\n  public function helper() { return [1, 2]; }\n}\n", 0],
+        ['deferred listener body is the SANCTIONED shape (false-positive killer)', "<?php\nclass M {\n  public function __onInit(Agent \$agent): bool {\n    \$agent->listen('mod:fetchinfo', function (\$resolve) {\n      \$u = \$this->api('mod_user')->getUser();\n      \$dba = \$this->api('core')->getDB();\n      \$dba->prepare()->select('*')->from('t')->query();\n      \$resolve(['ok' => true]);\n    });\n    return true;\n  }\n}\n", 0],
+        ['guard `return false` arm proves the abort path — computed tail is clean', "<?php\nclass M {\n  public function __onInit(Agent \$agent): bool {\n    if (!\$agent->hasDB()) {\n      return false;\n    }\n    \$agent->addRoute('x', 'x');\n    return \$this->finish();\n  }\n}\n", 0],
+    ];
+    foreach ($rz009 as [$label, $code, $expectHits]) {
+        $got = rz009Scan($code);
+        if (is_int($expectHits)) {
+            $pass = count($got) === $expectHits;
+            $gotLabel = (string) count($got);
+        } else { // '0error+1warn' style
+            $err = count(array_filter($got, static fn ($h) => 'error' === $h[1]));
+            $warn = count($got) - $err;
+            $pass = (0 === $err && 1 === $warn);
+            $gotLabel = $err . 'err/' . $warn . 'warn';
+        }
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=%s got=%s  %s (RZ-009)\n", $pass ? 'ok  ' : 'FAIL', (string) (is_int($expectHits) ? $expectHits : '0err/1warn'), $gotLabel, $label);
+    }
+
     printf("\n%s: %d/%d fixtures passed\n", $failed === 0 ? 'PASSED' : 'FAILED', count($cases) - $failed, count($cases));
     return $failed === 0 ? 0 : 1;
 }

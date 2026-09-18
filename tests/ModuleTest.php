@@ -776,6 +776,8 @@ return new class(null) extends Controller {
                 $this->returnValues[$method] = $value;
             }
 
+            // Deliberate: this test double EXISTS to inject non-true lifecycle
+            // lint-allow: RZ-009 — returns (the false-aborts contract under test).
             public function __onInit($agent): bool
             {
                 $this->calls[] = ['__onInit', [$agent]];
