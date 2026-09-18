@@ -1,6 +1,12 @@
 # RELEASE-V1.2.md — the v1.2.0 cut: facts, shape, and the one decision left
 
-> **Status: PROPOSAL — release is a release-owner act; nothing here is done without a go.**
+> **Status: RATIFIED & EXECUTED — owner approved "1.2.0 stable 全套" 2026-09-18; the release
+> commit carries steps 1–6, the tag follows per §4 (owner-side act).**
+> Errata found mid-execution: a FOURTH version constant exists — root `VERSION:1` (read by
+> `packages/dashboard/controller/router.php:158` and `SkillsGenerator.php:207`), last synced
+> by a NON-release commit (e35e647) — exactly the skew `manual/README.md:140` once diagnosed.
+> The trio (bootstrap/composer/VERSION) is bumped together here and the ritual table reads
+> 2 constants + VERSION.
 > Everything FActual below was verified against the tree on 2026-09-18; file:line cited.
 
 ## 1. Why this release exists, in one paragraph

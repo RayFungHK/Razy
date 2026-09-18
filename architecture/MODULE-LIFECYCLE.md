@@ -200,7 +200,7 @@ Suite 5,441 → 5,501+ across the arc; every gate stayed green at every commit; 
 
 ## 7. ERP migration appendix (L5 — the concrete substitution)
 
-Ground rule FIRST: the ERP ships phar `1.0.3` while this framework line is `1.1.0-beta.2+` —
+Ground rule FIRST: the ERP ships phar `1.0.3` while this framework line is `1.2.0` (released) —
 **upgrade the phar first**, re-run `validate` + the discipline linter on the ERP tree (the L0
 evidence run flagged RZ-017 ×104 and RZ-016 ×2 there), and only then substitute shapes.
 Order within the ERP is otherwise free; each row is independent.

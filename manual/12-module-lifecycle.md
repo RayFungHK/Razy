@@ -1,6 +1,6 @@
 # 12 — Module Lifecycle: Readiness, Provisioning, the Wizard Door
 
-*Code-verified against v1.1.0-beta.2+ (built 2026-09). Doctrine source:
+*Code-verified against v1.2.0 (built 2026-09, from the v1.1.0-beta.2+ verification). Doctrine source:
 [`architecture/MODULE-LIFECYCLE.md`](../architecture/MODULE-LIFECYCLE.md) — maintainer sign-off
 2026-09-17, Q1–Q6 all approved.*
 
