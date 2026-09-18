@@ -1,4 +1,4 @@
-﻿# Razy Framework Skills
+# Razy Framework Skills
 
 **Type**: Coder Assistant Skills (LLM Navigation Hub) | **Framework**: Razy v1.0.2-beta | **Updated**: March 1, 2026
 
@@ -89,7 +89,7 @@ php Razy.phar generate-skills --root-only # Generate only root skills.md
 |------|---------|
 | `skills.md` | Framework overview for the project |
 | `skills/{dist_code}.md` | Distribution context (domains, modules, config) |
-| `skills/{dist_code}/{module}.md` | Module context (APIs, events, files, `@llm` prompts) |
+| `skills/{dist_code}/{vendor}/{module}-{version}.md` | Module context: registered API commands + handler paths, listens/observers (inline closures included), directory layout, dependencies, `@llm` prompts |
 
 **Templates** in `src/asset/prompt/` use Razy Template Engine syntax (`{$app_name}`, `{$version}`, block tags) to generate structured documentation. Module templates support `@llm prompt:` comments in PHP/TPL files for LLM-readable code annotations.
 

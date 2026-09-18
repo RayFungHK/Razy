@@ -463,8 +463,18 @@ php Razy.phar <span class="hl-fn">bridge</span> <span class="hl-var">&lt;json_pa
     <p>Miscellaneous utility commands.</p>
 
     <h3 id="generate-skills"><code>generate-skills</code></h3>
-    <p>Generate <code>skills.md</code> documentation files from the current project structure. Creates a comprehensive architecture summary for LLM-assisted development.</p>
-    <pre><code>php Razy.phar <span class="hl-fn">generate-skills</span></code></pre>
+    <p>Regenerate the LLM-context documentation tree for the whole project. Boots every distributor and module for real, then writes one Markdown file per level from the current code — so AI assistants get each module's registered <strong>API commands</strong>, <strong>event listeners/observers</strong> (inline closures included), <strong>directory layout</strong>, dependencies, and <code>@llm prompt:</code> annotations without re-reading the codebase. Run it after any structural change (module added, API command or listener registered); it is overwrite-only, never hand-edit the output.</p>
+    <pre><code>php Razy.phar <span class="hl-fn">generate-skills</span>                <span class="hl-cmt"># refresh everything</span></code></pre>
+    <pre><code>php Razy.phar <span class="hl-fn">generate-skills</span> --root-only    <span class="hl-cmt"># just skills.md, skip dists/modules</span></code></pre>
+    <table>
+      <thead><tr><th>Output</th><th>Contains</th></tr></thead>
+      <tbody>
+        <tr><td><code>skills.md</code></td><td>Framework overview (version stamped from <code>VERSION</code>)</td></tr>
+        <tr><td><code>skills/&lt;dist&gt;.md</code></td><td>Distribution context: domains, module list, runtime config</td></tr>
+        <tr><td><code>skills/&lt;dist&gt;/&lt;vendor&gt;/&lt;module&gt;-&lt;version&gt;.md</code></td><td>One per module: API commands + handler paths, listens/observes, layout, deps, <code>@llm</code> prompts</td></tr>
+      </tbody>
+    </table>
+    <p>Feed an AI agent the root file plus the specific <code>skills/&lt;dist&gt;/...</code> files it is working on.</p>
 
     <!-- ============================== -->
     <!-- Quick Reference                -->

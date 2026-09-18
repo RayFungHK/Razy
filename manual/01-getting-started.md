@@ -83,6 +83,25 @@ CLI), `install <owner/repo>` (module from GitHub — read the trust caveat in
 `scaffold`, `standalone`, `sync`, `link`/`unlink`, `remove`, `search`, `bridge`,
 `generate-skills`, `version`, `help`.
 
+### Keeping AI context fresh: `generate-skills`
+
+If you develop with an AI assistant, do not hand-maintain context files and do not
+make the agent re-read your codebase — regenerate them:
+
+```bash
+php Razy.phar generate-skills              # after any structural change (new module,
+                                           # new API command, new listener...)
+```
+
+It boots every distributor for real and writes `skills.md` (framework),
+`skills/<dist>.md` (per site), and one `skills/<dist>/<vendor>/<module>-<version>.md`
+per module — each carrying that module's **registered** API commands with handler
+paths, its event listeners/observers (inline closures included), directory layout,
+dependencies, and every `@llm prompt:` annotation with line numbers. Feed the agent
+the root file plus the module files it is working on. Overwrite-only: never hand-edit
+the output; teach the module instead (register commands properly, write `@llm prompt:`
+docblocks) and re-run. `--root-only` skips dists/modules.
+
 ---
 
 ## Project layout
