@@ -608,6 +608,30 @@ return new class(null) extends Controller {
 
     // ==================== VALIDATE ====================
 
+    /**
+     * The read-only door SkillsGenerator depends on (b822edb): the raw
+     * registration table must contain BOTH registration flavours — the
+     * string-path listener AND the inline-closure listener. Closure
+     * listeners are exactly what documentation must never lose (only the
+     * compile door filters them); keys nest [sourceModule][eventName].
+     */
+    public function testGetEventRegistrationsIncludesClosureAndStringListeners(): void
+    {
+        $module = $this->createModule();
+        $closure = function (): void {
+        };
+
+        $module->listen('other/module:onReady', 'handler.php');
+        $module->listen('other/module:onData', $closure);
+        $module->observe('other/module:onSave', 'observer.php');
+
+        $regs = $module->getEventRegistrations();
+
+        $this->assertSame('handler.php', $regs['events']['other/module']['onReady']);
+        $this->assertSame($closure, $regs['events']['other/module']['onData']);
+        $this->assertSame('observer.php', $regs['observers']['other/module']['onSave']);
+    }
+
     public function testValidateReturnsTrueWhenNoRequires(): void
     {
         $module = $this->createModule();

@@ -55,6 +55,14 @@ jobs:
       - name: Run tests
         run: vendor/bin/phpunit --no-coverage
 
+      # generate-skills shipped broken for a whole product cycle printing
+      # green ✓s — nothing outside the repo ever ran it (changelog v1.2.0
+      # §Pre-tag). This step is the never-again: real build, real fixture
+      # modules, real generate-skills run, assertions on generated FILE
+      # CONTENT (guard itself proven to bite: negative-needle run exits 1).
+      - name: generate-skills smoke (receipts, not ✓)
+        run: php tools/skills-smoke.php
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest

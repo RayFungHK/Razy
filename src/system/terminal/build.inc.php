@@ -125,11 +125,20 @@ return function (string $installPath = '') use (&$parameters) {
             $this->writeLineLogging('+----------------------------------------+');
         } else {
             $this->writeLineLogging('{@c:red}Installation failed', true);
+
+            // was: fall through to the trailing `return true` — a failed
+            // install exited 0 (an exit-code liar caught by the smoke of
+            // b822edb's guard; CI must be able to trust this number)
+            return false;
         }
     } else {
         $this->writeLineLogging('{@c:red}[Error] The directory (' . $path . ') does not exist.', true);
-        $this->run();
 
+        // was: $this->run() — Terminal::run is run(callable $callback, ...)
+        // (Terminal.php:352), NOT a re-run-myself door; zero-arg reached a
+        // TypeError every single time this branch fired (fatal, exit-code
+        // chaos). CLI users re-type the command; no in-process retry loop
+        // ever existed here.
         return false;
     }
 
