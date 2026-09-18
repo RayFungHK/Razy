@@ -67,3 +67,25 @@ that line is exactly where "agent never pushes unprompted" earns its keep.
 commit, one push, owner watches CI green, owner (or their word) pushes the tag,
 CI paints the image semver tags, `manual/07:106` finally points at a version
 that exists.*
+
+---
+
+## Errata — as executed (2026-09-18)
+
+Proposed `680402f`, signed off (`1.2.0 stable 全套`), release commit `45ea258`
+(steps 1–6, pushed). One table correction and one deviation, both recorded here
+rather than quietly:
+
+- **Step 8 correction:** the ritual's "four version locations" is really a
+  trio **plus the root `VERSION` file** (consumed by the dashboard router and
+  `SkillsGenerator`) — the proposal itself had missed the fourth until
+  `git grep` recounted mid-execution. All four moved.
+- **Step 9 deviation — the tag lands on the post-fix tip, not on `45ea258`.**
+  Release-time use found two defects inside the release's own surface
+  (`markdown_service` API never loadable; `generate-skills` writing zero module
+  skills with green ✓s) plus drifted README badges. Both fixed pre-tag, both
+  documented in `changelog/v1.2.0.md` §"Pre-tag corrections". The ritual says
+  tag-on-release-commit so tag tree == phar tree; honoring the letter would
+  have tagged a tree with lying badges and a broken advertised command.
+  The tag-bearing commit is the one whose tree IS the release: version ritual
+  intact, fixes folded, `Razy.phar` rebuilt at the same tip.
