@@ -1,9 +1,12 @@
 # CSRF-RAIL — Arming the Engine That Already Ships
 
-**Status: DRAFT — awaiting maintainer sign-off.** Q1–Q6 each carry a recommendation;
-milestones L0–L4 activate only after sign-off. Rails inherited from the doctrine this repo
-already lives by: fail-loud, ONE door per policy, no unannounced BC (L3 route-gate precedent),
-declarations beat string lists, events announce but never carry truth.
+**Status: SHIPPED (v1.2+, L0–L4) — maintainer-ratified 2026-09-18 (§5).** The dossier
+stayed "DRAFT — awaiting sign-off" after the milestones shipped because each L landed on
+its own owner-gated push and nobody closed the paperwork; §5 now records the ratification,
+with the as-built notes as the accepted form of each decision. Rails inherited from the
+doctrine this repo already lives by: fail-loud, ONE door per policy, no unannounced BC
+(L3 route-gate precedent), declarations beat string lists, events announce but never carry
+truth.
 
 The two surveys agree on the top row: `ERP-GENERALIZATION.md` C5 (**0 CSRF checks across
 ~270 mutating routes** in the flagship app — the only *active security exposure* on either
@@ -213,10 +216,20 @@ No framework work needed for any of it.
 
 ## 5. Sign-off
 
-- [ ] Q1 `csrf` dist key, off-default-for-upgrades + UNARMED warning + armed-by-default for new scaffolds
-- [ ] Q2 session-synchronizer main door + Session cookie fix (double-submit demoted to documented recipe)
-- [ ] Q3 `->csrfExempt(reason)` Route declaration; ctor `excludedRoutes` BC-kept but untaught; validate errors reasonless
-- [ ] Q4 `csrfToken()/csrfField()` helpers, no auto-injection
-- [ ] Q5 419/JSON answers, `rotateOnSuccess` on at the door, `csrf.failed` event
-- [ ] Q6 validate warning/error surface, no new lint rule, benchmark rides the §5 re-run
-- [ ] L0–L4 milestone shape accepted
+**Ratified by the maintainer 2026-09-18 — all six decisions and the milestone shape, as
+shipped.** This list was overtaken by events (L0–L4 shipped with the owner gating each
+push; the boxes had not caught up). Where reality beat the plan, the as-built notes above
+stand as the record — and the ratification deliberately names the three deltas as
+decisions-in-force, not incidents: (1) Q3's validate-error was upgraded to a registration
+THROW, so a reasonless exemption is unrepresentable, not merely reported; (2) Q1's UNARMED
+warning is validate-only and stays non-blocking — arming remains an operator deployment
+decision, the tool only refuses silence; (3) Q6's no-new-lint stands precisely because the
+door is structural — route coverage is by-construction, so there is no diligence to grade.
+
+- [x] Q1 `csrf` dist key, off-default-for-upgrades + UNARMED warning + armed-by-default for new scaffolds
+- [x] Q2 session-synchronizer main door + Session cookie fix (double-submit demoted to documented recipe)
+- [x] Q3 `->csrfExempt(reason)` Route declaration; ctor `excludedRoutes` BC-kept but untaught; validate errors reasonless *(as-built: registration throws — stronger)*
+- [x] Q4 `csrfToken()/csrfField()` helpers, no auto-injection
+- [x] Q5 419/JSON answers, `rotateOnSuccess` on at the door, `csrf.failed` event
+- [x] Q6 validate warning/error surface, no new lint rule, benchmark rides the §5 re-run
+- [x] L0–L4 milestone shape accepted *(as-built notes are the accepted form)*

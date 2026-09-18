@@ -111,3 +111,6 @@ benchmark/results/*_20*T*Z.json
 # local compiled-boot artifacts (bench hosts) - baked per-image at build, never committed
 benchmark/razy/data/
 benchmark/gate/site/data/
+
+benchmark/scale/site/data/
+benchmark/scale/site/sites/scaletest/
