@@ -134,6 +134,63 @@ class SessionTest extends TestCase
         $this->assertSame(1, $driver->count());
     }
 
+    public function testSetBeforeStartSurvivesStartAndPersists(): void
+    {
+        // CSRF-RAIL found live in the field (ERP client pass, v1.2.0):
+        // a module's __onReady fires BEFORE the middleware onion, so
+        // `csrfToken()` writes to the session pre-start(). start() must
+        // ADOPT pending writes, not clobber them — dropping them renders
+        // a token that no session ever validates: every armed POST 419s.
+        $session = $this->makeSession();
+        $driver = $this->getDriver($session);
+        $session->set('_csrf_token', 'pre-start-mint');
+
+        $session->start();
+        $this->assertSame('pre-start-mint', $session->get('_csrf_token'));
+
+        $id = $session->getId();
+        $session->save();
+        $stored = $driver->read($id);
+        $this->assertSame('pre-start-mint', $stored['_csrf_token'] ?? null);
+    }
+
+    public function testGetAutoStartsAndSeesStoredDataForCarriedCookie(): void
+    {
+        // The pre-start bag is BLIND without lazy start: token() reading
+        // an unstarted session mints fresh every request, so the stored
+        // token it should have returned never surfaces (the second half
+        // of the same live ERP failure the adoption fix alone couldn't
+        // close — minting pre-start must SEE the carried session).
+        $writer = $this->makeSession();
+        $writer->start();
+        $writer->set('_csrf_token', 'stored-token');
+        $id = $writer->getId();
+        $writer->save();
+
+        $readerDriver = $this->getDriver($writer);
+        $reader = $this->makeSessionWithDriver($readerDriver);
+        $_COOKIE['RAZY_SESSION'] = $id;
+
+        try {
+            $this->assertFalse($reader->isStarted(), 'reader must start on demand');
+            $this->assertSame('stored-token', $reader->get('_csrf_token'));
+            $this->assertTrue($reader->isStarted());
+        } finally {
+            unset($_COOKIE['RAZY_SESSION']);
+        }
+    }
+
+    public function testSetWithoutExplicitStartPersistsOnSave(): void
+    {
+        $session = $this->makeSession();
+        $session->set('late-write', 'value');
+        $session->save();
+
+        $driver = $this->getDriver($session);
+        $stored = $driver->read($session->getId());
+        $this->assertSame('value', $stored['late-write'] ?? null);
+    }
+
     public function testSaveWithoutStartIsNoOp(): void
     {
         $session = $this->makeSession();
@@ -1041,5 +1098,10 @@ class SessionTest extends TestCase
         \assert($driver instanceof ArrayDriver);
 
         return $driver;
+    }
+
+    private function makeSessionWithDriver(ArrayDriver $driver): Session
+    {
+        return new Session($driver, new SessionConfig(gcProbability: 0));
     }
 }

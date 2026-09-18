@@ -115,6 +115,10 @@ $this->csrfField();   // <input type="hidden" name="_token" value="…"> for you
 $this->csrfToken();   // for the meta tag XHR clients read:
 // <meta name="csrf-token" content="{$csrfToken->escape}">
 //   fetch(..., { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } })
+//   Minting at source level (core module __onReady assigns the token so every
+//   page inherits it) is supported since v1.2.1: Session::start() now ADOPTS
+//   writes that landed before the middleware onion — before that fix such a
+//   token was silently clobbered at start() and every armed POST 419ed.
 
 // Webhooks and machine doors declare an exemption WITH its reason —
 // reasonless is unrepresentable (throws at registration):

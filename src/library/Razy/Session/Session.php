@@ -69,6 +69,14 @@ class Session implements SessionInterface
     // ── Lifecycle ─────────────────────────────────────────────
 
     /**
+     * Data accessors LAZILY start() (v1.2.1, found live in the ERP armed
+     * rollout): a module's __onReady fires before the middleware onion, and
+     * an unstarted bag is blind to the carried session — `csrfToken()`
+     * minted there re-minted a fresh token every request and 419'd every
+     * armed POST. get/set/has/remove now transparently adopt the carried
+     * session (start() is idempotent); start() additionally ADOPTS writes
+     * that landed before it as belt and braces for hand-wired setups.
+     *
      * {@inheritdoc}
      */
     public function start(): bool
@@ -98,7 +106,14 @@ class Session implements SessionInterface
             $isNew = true;
         }
 
-        $this->attributes = $this->driver->read($this->id);
+        // Writes that landed BEFORE start() must survive it (found live:
+        // a module's __onReady fires outside the middleware onion and mints
+        // its csrfToken() here — RZ-009 sanctions acting at that point, and
+        // silently clobbering the write rendered a token no session would
+        // ever validate, 419ing every armed POST). Pending values win over
+        // stored ones; the rest of the stored session comes back around
+        // them, so adopted cookies keep their data.
+        $this->attributes = \array_merge($this->driver->read($this->id), $this->attributes);
         $this->started = true;
 
         // A brand-new session must reach the browser or no identity
@@ -200,6 +215,8 @@ class Session implements SessionInterface
      */
     public function get(string $key, mixed $default = null): mixed
     {
+        $this->start();
+
         return $this->attributes[$key] ?? $default;
     }
 
@@ -208,6 +225,8 @@ class Session implements SessionInterface
      */
     public function set(string $key, mixed $value): void
     {
+        $this->start();
+
         $this->attributes[$key] = $value;
     }
 
@@ -216,6 +235,8 @@ class Session implements SessionInterface
      */
     public function has(string $key): bool
     {
+        $this->start();
+
         return \array_key_exists($key, $this->attributes);
     }
 
@@ -224,6 +245,8 @@ class Session implements SessionInterface
      */
     public function remove(string $key): void
     {
+        $this->start();
+
         unset($this->attributes[$key]);
     }
 
