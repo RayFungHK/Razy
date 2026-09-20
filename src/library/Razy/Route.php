@@ -62,6 +62,9 @@ class Route
      */
     private ?string $csrfExemptReason = null;
 
+    /** @var string|null ability name this route requires (AUTHZ-RAIL) */
+    private ?string $authzAbility = null;
+
     /** @var mixed Arbitrary data attached to this route for controller consumption */
     private mixed $data = null;
 
@@ -277,6 +280,50 @@ class Route
     public function getCsrfExemptReason(): ?string
     {
         return $this->csrfExemptReason;
+    }
+
+    /**
+     * Declare the named ability this route requires (AUTHZ-RAIL).
+     *
+     * The name must match an ability a module registered via
+     * `Agent::addAuthzAbility()` — the framework never learns what it
+     * means; the owning module's predicate answers. An undefined name
+     * FAILS CLOSED at request time (a missing guard refuses, it does not
+     * wave traffic past), mirroring the CSRF rail's honest posture.
+     *
+     * Guards EVERY verb — including GET page views (who may see is exactly
+     * what view-abilities protect).
+     *
+     * @param string $ability non-empty ability name (e.g. "user.manage")
+     *
+     * @return $this Fluent interface
+     *
+     * @throws InvalidArgumentException on an empty/whitespace name
+     */
+    public function can(string $ability): self
+    {
+        $ability = \trim($ability);
+
+        if ($ability === '') {
+            throw new InvalidArgumentException(
+                'can() requires a non-empty ability name — a route guard must say which'
+                . ' ability it checks (e.g. ->can("user.manage")).',
+            );
+        }
+
+        $this->authzAbility = $ability;
+
+        return $this;
+    }
+
+    public function hasAuthzAbility(): bool
+    {
+        return $this->authzAbility !== null;
+    }
+
+    public function getAuthzAbility(): ?string
+    {
+        return $this->authzAbility;
     }
 
     /**

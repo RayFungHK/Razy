@@ -443,6 +443,9 @@ class RouteDispatcher
                 if (!empty($spec['csrf_exempt'])) {
                     $route->csrfExempt($spec['csrf_exempt']);
                 }
+                if (!empty($spec['authz'])) {
+                    $route->can($spec['authz']);
+                }
                 foreach ($spec['middleware'] as $mwClass) {
                     $route->middleware(new $mwClass());
                 }
@@ -638,6 +641,14 @@ class RouteDispatcher
                     // context flag can never exist without one.
                     if (($data['path'] ?? null) instanceof Route && $data['path']->isCsrfExempt()) {
                         $this->routedInfo['csrf_exempt'] = (string) $data['path']->getCsrfExemptReason();
+                    }
+
+                    // AUTHZ-RAIL: same travel shape as csrf_exempt — the
+                    // gate middleware reads the NAME the route declared,
+                    // never a Route object; the predicate behind the name
+                    // lives in the owning module (RZ-017 boundary holds).
+                    if (($data['path'] ?? null) instanceof Route && $data['path']->hasAuthzAbility()) {
+                        $this->routedInfo['authz'] = (string) $data['path']->getAuthzAbility();
                     }
 
                     $registry->announce($data['module']);

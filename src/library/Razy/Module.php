@@ -526,6 +526,31 @@ class Module implements ModuleInterface
     }
 
     /**
+     * Get the module's controller instance.
+     *
+     * FRAMEWORK-INTERNAL (the MCP provider reflects bridge handler
+     * signatures through it) — not an api() Emitter probe and not a
+     * module-code surface; RZ-017's trap does not apply here, same
+     * standing as the CSRF door's module-resolver access.
+     */
+    public function getController(): ?Controller
+    {
+        return $this->controller;
+    }
+
+    /**
+     * Get the module's closure loader.
+     *
+     * FRAMEWORK-INTERNAL for the same reason as getController(): handler
+     * introspection (MCP tool schemas) must resolve handlers exactly the
+     * way execution will, through this same loader and its cache.
+     */
+    public function getClosureLoader(): ClosureLoader
+    {
+        return $this->closureLoader;
+    }
+
+    /**
      * Get the module's data folder of the application.
      *
      * @param string $module
@@ -1077,6 +1102,17 @@ class Module implements ModuleInterface
         [$method, $route] = RouteDispatcher::parseMethodPrefix($route);
 
         $this->distributor->getRouter()->setLazyRoute($this, $route, $path, $method);
+
+        return $this;
+    }
+
+    /**
+     * Define a dist-wide authorization ability (AUTHZ-RAIL). Delegates to
+     * the distributor's gate — same delegation shape as addLazyRoute().
+     */
+    public function addAuthzAbility(string $ability, Closure $check): static
+    {
+        $this->distributor->getAuthzGate()->define($ability, $check);
 
         return $this;
     }

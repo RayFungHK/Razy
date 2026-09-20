@@ -48,6 +48,7 @@ return function () {
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'module', 'Module lifecycle: status, enable, disable, wizard-token.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'schedule', 'Run cron-scheduled jobs from scheduler.inc.php (run, list, test).'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'bridge', 'Execute internal API commands across distributors via JSON payload.'));
+    $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'mcp', 'Serve a distributor as an MCP (Model Context Protocol) stdio server over its bridge surface.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', 'sign', 'Registry publisher signatures (keygen, sign index.json, verify vs pinned key).' . PHP_EOL));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', '-f', 'The folder which is installed the Razy framework.'));
     $this->writeLineLogging(\sprintf('  {@c:green}%-14s{@reset} %s', '-debug', 'Enable logging and save the log to a file.'));

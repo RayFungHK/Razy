@@ -22,6 +22,7 @@ the 2026 audit (`RAZY-ANALYSIS-REPORT.md`) and the rule pack
 | Command grammar | `/^#?[a-z]\w*$/i` names; duplicate registration throws | `Agent.php:65-67`, `Module/CommandRegistry.php:61-63` |
 | Template file contract | A closure file that doesn't return a `Closure` → `ModuleLoadException` | `Module/ClosureLoader.php:136-138` |
 | Process hygiene | Child processes scrub dangerous env vars (see §7) | `ThreadManager.php:59-67, 667` |
+| Route abilities (fail-closed) | A route declaring `->can('ability')` is refused (403 + `authz.failed` event) unless a registered predicate says `true` — an UNDEFINED ability denies, never passes; inert on dists that never declare | `Authz/Middleware.php`, `Authz/Gate.php`; `manual/11` §10 |
 
 Everything else in this page is **your responsibility by design** — and each section marks
 the exact trap.
@@ -260,6 +261,8 @@ enforces an HMAC-SHA256 envelope (`Razy\BridgeSignature`: canonical-binds source
 module + command + args + ts + nonce, ±60s window, `hash_equals`) whenever
 `RAZY_BRIDGE_SECRET` is set — self-declared-source spoofing then fails verification.
 The CLI `bridge` command stays local-IPC operator trust (shell access = code-exec trust).
+The same standing now applies to `php Razy.phar mcp <dist>` (manual/10): source identity
+`mcp-cli`, same HMAC gate — the MCP tool surface IS this bridge surface, nothing more.
 3. Bridge HTTP/CLI execution does consult the gate before running
    (`Module/CommandRegistry.php:168-176` `executeBridgeCommand` → `__onBridgeCall`), so the
    only thing missing is your implementation.
@@ -342,10 +345,12 @@ sandboxing — same OS user, same filesystem. Tenant isolation by process bounda
 ## 9. Hardening checklist (aggregated)
 
 Framework-implemented (today): Crypt/2FA/CSRF/session-primitives/DI fence/command
-grammar/env scrub (`:59-67`/`:667` verified). **App-level required:**
+grammar/env scrub (`:59-67`/`:667` verified) and the fail-closed route-ability door
+(`Route::can` + `Agent::addAuthzAbility`, manual/11 §10). **App-level required:**
 
 - [ ] `__onAPICall` default-deny on every module with sensitive commands (§6)
 - [ ] `__onBridgeCall` allow-list on every bridge module (RZ-002) — default-allow is a trap
+- [ ] Every mutating route protected: CSRF-armed dists get the door (manual/07 §4); authorization uses declared abilities — `->can()` refuses when the predicate says no or the ability is undefined (manual/11 §10)
 - [ ] Set `RAZY_BRIDGE_SECRET` (OS secret store) to activate HMAC enforcement on
       `executeBridgeCommand` — unsigned/self-declared-source calls are then denied
       (`Razy\BridgeSignature`; sender uses `signedPayload()`)

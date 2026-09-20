@@ -567,6 +567,7 @@ final class BootCompiler
             'name' => $route->getName(),
             'ready_gate' => $route->hasReadyGate() ? $route->getReadyGate() : null,
             'csrf_exempt' => $route->isCsrfExempt() ? $route->getCsrfExemptReason() : null,
+            'authz' => $route->hasAuthzAbility() ? $route->getAuthzAbility() : null,
             'middleware' => [],
         ];
 

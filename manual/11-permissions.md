@@ -148,3 +148,38 @@ never reach this table — it records gated denials, not traffic.
 The loop shape is deliberately identical — the razit sample is the proof
 that user rows living elsewhere still work; what changed is the security
 debt (ambient db, flag ambiguity, no audit, no gate).
+
+## 10. The route-level seam (`Route::can`, shipped v1.2.1)
+
+The framework door that the PERMISSION-MODULE dossier deferred (its §
+"Route gating v1" documented the razit loop because nothing declarative
+existed yet) now exists: `Razy\Authz` — permanently mounted at boot,
+**inert on every dist that never declares `->can()`** (zero-BC), reading
+only the routed context (object-free, like `csrf_exempt`), and
+**fail-closed**: an ability nobody defined refuses the request and says
+so honestly (browser page + XHR JSON + `authz.failed` event for audit).
+
+Policy stays in this module; the door only ever asks yes/no. The wiring
+module code (RZ-001/017-clean — one `api()` call):
+
+```php
+// in the wiring module's __onInit (register, never act — RZ-009)
+$agent->addAuthzAbility('queue-admin.purge', function (array $ctx): bool {
+    return $this->api('razymod/permissions')->can('queue-admin.purge') === true;
+});
+
+// and the protected route declares the name
+(new Route('queue/purge'))->can('queue-admin.purge')
+```
+
+The predicate may equally delegate to `Razy\Auth\Gate::allows()` for
+sites that adopted the `Razy\Auth` guard stack (`Gate::addBefore()` is
+the seam razymod/permissions answers through, §3 grammar unchanged) —
+the door is deliberately policy-agnostic.
+
+Distinct from the older `Razy\Auth\AuthorizeMiddleware`: that one is the
+imperative per-route form for sites running `AuthManager` themselves —
+the `Razy\Auth` stack has **no boot wiring** and stays a module-side
+opt-in; `->can()` is the declarative form that survives the compiler
+round-trip (compile/replay re-declares it byte-identically) and guards
+every verb including GET page views.

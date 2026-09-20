@@ -14,6 +14,9 @@
 
 namespace Razy;
 
+use Razy\Authz\Denial as AuthzDenial;
+use Razy\Authz\Gate as AuthzGate;
+use Razy\Authz\Middleware as AuthzMiddleware;
 use Razy\Compiler\BootCompiler;
 use Razy\Config\ConfigLoader;
 use Razy\Contract\ContainerInterface;
@@ -114,6 +117,9 @@ class Distributor implements DistributorInterface
     /** @var ConfigLoader Configuration file loader (injectable for testing) */
     private ConfigLoader $configLoader;
 
+    /** @var AuthzGate dist-wide ability registry (AUTHZ-RAIL; inert until a route declares one) */
+    private AuthzGate $authzGate;
+
     /**
      * Distributor constructor.
      *
@@ -168,6 +174,19 @@ class Distributor implements DistributorInterface
 
         if ('on' === $this->csrfMode) {
             CsrfDoor::arm($this);
+        }
+
+        // AUTHZ-RAIL: permanently mounted gate — no config key, no arming
+        // ceremony, zero-BC: with no route ever calling Route::can() the
+        // middleware passes every context through untouched (it reads
+        // $context['authz'], which only a can()-declaring route produces).
+        // Mounted AFTER the CSRF onion so the CSRF door answers first.
+        $this->authzGate = new AuthzGate();
+        $denial = new AuthzDenial(fn (string $moduleCode) => $this->registry->get($moduleCode));
+        $this->router->addGlobalMiddleware(new AuthzMiddleware($this->authzGate, $denial(...)));
+
+        if ($container = $this->getContainer()) {
+            $container->instance(AuthzGate::class, $this->authzGate);
         }
     }
 
@@ -641,6 +660,16 @@ class Distributor implements DistributorInterface
     public function getRouter(): RouteDispatcher
     {
         return $this->router;
+    }
+
+    /**
+     * Get the dist-wide authorization gate (AUTHZ-RAIL). Modules declare
+     * ability predicates through Agent::addAuthzAbility(); routes
+     * reference them by name via Route::can().
+     */
+    public function getAuthzGate(): AuthzGate
+    {
+        return $this->authzGate;
     }
 
     /**

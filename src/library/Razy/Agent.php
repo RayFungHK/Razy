@@ -158,6 +158,30 @@ class Agent
     }
 
     /**
+     * Define a dist-wide authorization ability (AUTHZ-RAIL).
+     *
+     * The predicate receives the routed context (module, route, method,
+     * params...) and returns bool — it reads the MODULE's own session/
+     * permission shape, so the framework never crosses a module boundary
+     * (RZ-017 intact). Routes reference the ability by name:
+     * `(new Route('users'))->can('user.manage')`. Undefined names fail
+     * CLOSED at request time; register in __onInit (register, never act).
+     *
+     * @param string $ability ability name (e.g. "user.manage")
+     * @param callable $check fn(array $context): bool
+     *
+     * @return $this Fluent interface
+     *
+     * @throws Throwable
+     */
+    public function addAuthzAbility(string $ability, callable $check): static
+    {
+        $this->module->addAuthzAbility($ability, $check(...));
+
+        return $this;
+    }
+
+    /**
      * Register a listener for an event ({@code vendor/module:event_name}).
      *
      * The module code is the <strong>emitter</strong> (who calls {@see Controller::trigger()} with a bare
