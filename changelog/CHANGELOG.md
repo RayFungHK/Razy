@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [v1.2.1](changelog/v1.2.1.md) — 2026-09-19
+
+**The Release That Armed a Real Site, and the Two Machine Doors** — the armed session's token-blindness fixed at the root (lazy start; the 419 loop found live on a production-shaped dist and closed with receipts), the MCP server (`php Razy.phar mcp <dist>` — the bridge surface served to AI clients, no new door), and the fail-closed route-ability rail (`Route::can` + `Agent::addAuthzAbility`, inert until declared). Includes two documented retractions: Model casts already shipped complete; `Razy\Auth`'s Gate has no boot wiring (now documented and bridged). Suite 5,565 → **5,605**. Full narrative: [v1.2.1](changelog/v1.2.1.md).
+
 ## [v1.2.0](changelog/v1.2.0.md) — 2026-09-18
 
 **The Security Release · Compile-on-Deploy · MODULE-LIFECYCLE L0–L5 · CSRF-RAIL L0–L4 · FORMREQUEST-RAIL · Worker Integrity** — the release the manual had already been advertising as "v1.2+": the armed CSRF door (`'csrf' => 'on'`), deploy-time boot snapshots, derived module readiness with the wizard door, validation's first real consumer, and the worker status/reconnect integrity fixes under everything. Suite 5,441 → **5,565** (+124). Full narrative: [v1.2.0](changelog/v1.2.0.md).

@@ -129,7 +129,7 @@ spec:
         - name: worker
           # Pin a DIGEST in production (registry.example.com/razy/worker@sha256:…).
           # `images:` in kustomization.yaml rewrites this tag at build time.
-          image: registry.example.com/razy/worker:1.2.0
+          image: registry.example.com/razy/worker:1.2.1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
