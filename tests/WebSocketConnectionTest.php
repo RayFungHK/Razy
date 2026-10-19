@@ -23,6 +23,9 @@ use RuntimeException;
 #[CoversClass(Connection::class)]
 class WebSocketConnectionTest extends TestCase
 {
+    /** Upper bound for waiting on loopback data; a healthy pair is readable in microseconds. */
+    private const READ_TIMEOUT_SECONDS = 2;
+
     // ── Identity ─────────────────────────────────────────────────
 
     #[Test]
@@ -109,6 +112,7 @@ class WebSocketConnectionTest extends TestCase
             . "\r\n";
 
         \fwrite($clientStream, $request);
+        $this->waitForReadable($serverStream);
 
         $server = new Connection($serverStream);
         $result = $server->performServerHandshake();
@@ -119,6 +123,7 @@ class WebSocketConnectionTest extends TestCase
         $this->assertSame('websocket', $server->getHeader('upgrade'));
 
         // Read the response the server wrote
+        $this->waitForReadable($clientStream);
         $response = \fread($clientStream, 4096);
         $this->assertStringContainsString('101 Switching Protocols', $response);
         $this->assertStringContainsString('Sec-WebSocket-Accept:', $response);
@@ -134,6 +139,7 @@ class WebSocketConnectionTest extends TestCase
 
         // Send an incomplete request (no double CRLF terminator)
         \fwrite($clientStream, "GET /chat HTTP/1.1\r\nHost: localhost\r\n");
+        $this->waitForReadable($serverStream);
 
         $server = new Connection($serverStream);
         $this->assertFalse($server->performServerHandshake());
@@ -153,6 +159,7 @@ class WebSocketConnectionTest extends TestCase
             . "\r\n";
 
         \fwrite($clientStream, $request);
+        $this->waitForReadable($serverStream);
 
         $server = new Connection($serverStream);
         $this->expectException(RuntimeException::class);
@@ -176,6 +183,7 @@ class WebSocketConnectionTest extends TestCase
             . "\r\n";
 
         \fwrite($clientStream, $request);
+        $this->waitForReadable($serverStream);
 
         $server = new Connection($serverStream);
         $this->expectException(RuntimeException::class);
@@ -202,8 +210,7 @@ class WebSocketConnectionTest extends TestCase
 
         $sender->sendText('Hello');
 
-        // Give the data a moment to traverse the stream
-        \usleep(10000);
+        $this->waitForReadable($s2);
 
         $frame = $receiver->readFrame();
         $this->assertNotNull($frame);
@@ -226,7 +233,7 @@ class WebSocketConnectionTest extends TestCase
 
         $data = \random_bytes(128);
         $sender->sendBinary($data);
-        \usleep(10000);
+        $this->waitForReadable($s2);
 
         $frame = $receiver->readFrame();
         $this->assertNotNull($frame);
@@ -249,7 +256,7 @@ class WebSocketConnectionTest extends TestCase
 
         // Send a ping from s1
         $pinger->sendPing('beat');
-        \usleep(10000);
+        $this->waitForReadable($s2);
 
         // Receiver reads frame — the ping should be transparently handled
         // and a pong sent back, readFrame returns null (ping consumed)
@@ -258,7 +265,7 @@ class WebSocketConnectionTest extends TestCase
         $this->assertNull($frame); // no more frames
 
         // The pinger should see a pong
-        \usleep(10000);
+        $this->waitForReadable($s1);
         $pong = $pinger->readFrame();
         $this->assertNotNull($pong);
         $this->assertTrue($pong->isPong());
@@ -279,7 +286,7 @@ class WebSocketConnectionTest extends TestCase
         $this->markHandshakeComplete($receiver);
 
         $closer->sendClose(1000, 'bye');
-        \usleep(10000);
+        $this->waitForReadable($s2);
 
         $frame = $receiver->readFrame();
         $this->assertNotNull($frame);
@@ -318,9 +325,14 @@ class WebSocketConnectionTest extends TestCase
         $sender->sendText('one');
         $sender->sendText('two');
         $sender->sendText('three');
-        \usleep(10000);
 
-        $frames = $receiver->readFrames();
+        // The three writes may surface separately; collect until all arrive.
+        $frames = [];
+        $deadline = \microtime(true) + self::READ_TIMEOUT_SECONDS;
+        while (\count($frames) < 3 && \microtime(true) < $deadline) {
+            $this->waitForReadable($s2);
+            $frames = \array_merge($frames, $receiver->readFrames());
+        }
         $this->assertCount(3, $frames);
         $this->assertSame('one', $frames[0]->getPayload());
         $this->assertSame('two', $frames[1]->getPayload());
@@ -341,7 +353,7 @@ class WebSocketConnectionTest extends TestCase
         $this->markHandshakeComplete($receiver);
 
         $sender->sendText('masked msg');
-        \usleep(10000);
+        $this->waitForReadable($s2);
 
         $frame = $receiver->readFrame();
         $this->assertNotNull($frame);
@@ -365,7 +377,7 @@ class WebSocketConnectionTest extends TestCase
         $this->assertFalse($a->isCloseComplete());
 
         $a->sendClose(1000, 'done');
-        \usleep(10000);
+        $this->waitForReadable($s2);
 
         // B reads close frame — auto-replies with close
         $frame = $b->readFrame();
@@ -373,7 +385,7 @@ class WebSocketConnectionTest extends TestCase
         $this->assertTrue($frame->isClose());
         $this->assertTrue($b->isCloseComplete()); // received + sent
 
-        \usleep(10000);
+        $this->waitForReadable($s1);
 
         // A reads the echoed close
         $echoClose = $a->readFrame();
@@ -445,6 +457,7 @@ class WebSocketConnectionTest extends TestCase
             . "\r\n";
 
         \fwrite($s2, $response);
+        $this->waitForReadable($s1);
 
         $client = new Connection($s1, maskOutput: true);
         $result = $client->completeClientHandshake($expectedAccept);
@@ -462,6 +475,7 @@ class WebSocketConnectionTest extends TestCase
         [$s1, $s2] = $this->createStreamPair();
 
         \fwrite($s2, "HTTP/1.1 400 Bad Request\r\n\r\n");
+        $this->waitForReadable($s1);
 
         $client = new Connection($s1, maskOutput: true);
         $this->expectException(RuntimeException::class);
@@ -484,6 +498,7 @@ class WebSocketConnectionTest extends TestCase
             . "\r\n";
 
         \fwrite($s2, $response);
+        $this->waitForReadable($s1);
 
         $client = new Connection($s1, maskOutput: true);
         $this->expectException(RuntimeException::class);
@@ -501,6 +516,7 @@ class WebSocketConnectionTest extends TestCase
 
         // Partial response without double CRLF
         \fwrite($s2, "HTTP/1.1 101 Switching Protocols\r\n");
+        $this->waitForReadable($s1);
 
         $client = new Connection($s1, maskOutput: true);
         $this->assertFalse($client->completeClientHandshake('any'));
@@ -526,6 +542,7 @@ class WebSocketConnectionTest extends TestCase
             . "Sec-WebSocket-Version: 13\r\n"
             . "\r\n";
         \fwrite($clientStream, $request);
+        $this->waitForReadable($serverStream);
 
         // Server completes handshake
         $server = new Connection($serverStream, maskOutput: false);
@@ -538,12 +555,12 @@ class WebSocketConnectionTest extends TestCase
         );
 
         $client = new Connection($clientStream, maskOutput: true);
-        \usleep(10000);
+        $this->waitForReadable($clientStream);
         $this->assertTrue($client->completeClientHandshake($expectedAccept));
 
         // Client sends a masked text frame
         $client->sendText('ping from client');
-        \usleep(10000);
+        $this->waitForReadable($serverStream);
 
         $frame = $server->readFrame();
         $this->assertNotNull($frame);
@@ -551,7 +568,7 @@ class WebSocketConnectionTest extends TestCase
 
         // Server responds
         $server->sendText('pong from server');
-        \usleep(10000);
+        $this->waitForReadable($clientStream);
 
         $reply = $client->readFrame();
         $this->assertNotNull($reply);
@@ -590,6 +607,25 @@ class WebSocketConnectionTest extends TestCase
     }
 
     // ── Helpers ──────────────────────────────────────────────────
+
+    /**
+     * Block until $stream has readable data (bounded by READ_TIMEOUT_SECONDS).
+     *
+     * The pair is non-blocking and Connection reads only what is already buffered,
+     * so reading immediately after the peer's fwrite() races the loopback delivery
+     * (observed on gVisor/Linux sandboxes). stream_select() removes the race without
+     * a fixed sleep.
+     *
+     * @param resource $stream
+     */
+    private function waitForReadable($stream): void
+    {
+        $read = [$stream];
+        $write = null;
+        $except = null;
+        $ready = \stream_select($read, $write, $except, self::READ_TIMEOUT_SECONDS, 0);
+        $this->assertSame(1, $ready, 'Timed out waiting for readable data on the test stream pair');
+    }
 
     /**
      * Force-complete the handshake on a Connection for unit testing.
