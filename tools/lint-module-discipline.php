@@ -355,7 +355,7 @@ function jsonAttributeScan(array $lines): array
 
     // One pass over the whole template: markup state (text, start tag, quoted
     // or unquoted attribute value) is tracked across lines, `>` inside a quoted
-    // value does not end the tag, and template tags are skipped as opaque.
+    // value does not end the tag, and template tags and comments are skipped.
     $hits = [];
     $state = 'text';
     $afterEq = false;
@@ -368,6 +368,13 @@ function jsonAttributeScan(array $lines): array
             if ($state === 'tag' && $afterEq) $state = 'unq';
             $afterEq = false;
             $i = $tagEnd[$i];
+            continue;
+        }
+        // `{# ... }` is a Razy template comment, stripped before the markup is
+        // emitted: skip it whole so its contents never change markup state.
+        if ($source[$i] === '{' && ($source[$i + 1] ?? '') === '#') {
+            $close = strpos($source, '}', $i + 2);
+            $i = false === $close ? $len : $close;
             continue;
         }
         $c = $source[$i];
@@ -937,6 +944,8 @@ function selfTest(): int
         ['<p title="a > b">{$s->json}</p>', 0],
         ['<div data-a="{$a->json}" data-b="{$b->json}"></div>', 1],
         ['<!-- <div data-s="x --> {$s->json}', 0],
+        ['{# <script> }<div data-s="{$s->json}"></div>', 1],
+        ['{# <p title="x }<p>{$s->json}</p>', 0],
         ['<script>if (a<b) { x = "{$s->json}"; }</script>', 0],
         ["<div\n  class=\"x\"\n  data-s=\"{\$s->json}\"\n></div>", [3]],
         ["<div data-a=\"{\$a->json}\"></div>\n<p>ok</p>\n<i data-b={\$b->json}></i>", [1, 3]],
