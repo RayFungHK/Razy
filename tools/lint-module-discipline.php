@@ -302,7 +302,10 @@ function rawOutputScan(array $lines): array
 {
     $hits = [];
     foreach ($lines as $i => $line) {
-        if (!preg_match('#\{\$[^}]*->raw\b#', $line)) continue;
+        // Blank quoted text first: a quoted path key, modifier argument or
+        // fallback (`{$nick|'->raw'}`) is not a raw modifier.
+        $unquoted = (string) preg_replace('/(?<q>[\'"])(?:\\\\.|(?!\k<q>).)*\k<q>/', "''", $line);
+        if (!preg_match('#\{\$[^}]*->raw(?!\w)#', $unquoted)) continue;
         if (isJustified($lines, $i, 'RZ-004')) continue;
         $hits[] = $i + 1;
     }
@@ -316,10 +319,15 @@ function rawOutputScan(array $lines): array
  */
 function isJustified(array $lines, int $index, string $ruleId): bool
 {
-    $re = '#lint-allow:\s*' . preg_quote($ruleId, '#') . '\b[\s:—-]*(?!-->|\*/)(\S[^\n]{2,})#u';
+    $re = '#lint-allow:\s*' . preg_quote($ruleId, '#') . '(?!\w)(.*)$#u';
     foreach ([$index, $index - 1] as $i) {
         if ($i < 0 || !isset($lines[$i])) continue;
-        if (preg_match($re, $lines[$i], $m) && trim(str_replace(['-->', '*/', '}'], '', $m[1])) !== '') return true;
+        if (!preg_match($re, rtrim($lines[$i], "\r\n"), $m)) continue;
+        // The reason is the text before the comment terminator; markup or a
+        // template tag after the comment never counts as a reason.
+        $reason = preg_split('#-->|\*/|\{\$#', $m[1])[0] ?? '';
+        $reason = trim($reason, " \t:-—");
+        if (preg_match_all('/[\p{L}\p{N}]/u', $reason) >= 3) return true;
     }
 
     return false;
@@ -737,6 +745,9 @@ function selfTest(): int
     $rawCases = [
         [["<div>{\$html->raw}</div>"], 1],
         [["<!-- lint-allow: RZ-004 -->", "<div>{\$html->raw}</div>"], 1],
+        [["<!-- lint-allow: RZ-004 -->{\$html->raw}"], 1],
+        [["<li>{\$nick|'->raw'}</li>"], 0],
+        [["<li>{\$u.'bio->raw'}</li>"], 0],
         [["<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->", "<div>{\$html->raw}</div>"], 0],
         [["<div>{\$html->escape}</div>"], 0],
     ];

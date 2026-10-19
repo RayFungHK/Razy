@@ -72,6 +72,22 @@ class Entity
     }
 
     /**
+     * Whether the tag's modifier chain contains ->raw or ->escape. Quoted path
+     * keys and quoted modifier arguments are blanked first, so text such as
+     * `{$u.'bio->raw'}` or `->truncate:5:'->raw'` cannot switch escaping off.
+     *
+     * @param string $clip One pipe-delimited alternative of a tag
+     *
+     * @return bool
+     */
+    private static function hasSafeModifier(string $clip): bool
+    {
+        $unquoted = (string) \preg_replace('/(?<q>[\'"])(?:\\\.|(?!\k<q>).)*\k<q>/s', "''", $clip);
+
+        return 1 === \preg_match('/->(?:raw|escape)(?![\w])/', $unquoted);
+    }
+
+    /**
      * Get the module which was loaded the template file.
      *
      * @return ModuleInfo|null
@@ -506,7 +522,7 @@ class Entity
                     $value = $value ? '1' : '';
                 }
                 $value = (string) $value;
-                if ($this->block->isAutoEscape() && !\preg_match('/->(?:raw|escape)\b/', $clip)) {
+                if ($this->block->isAutoEscape() && !self::hasSafeModifier($clip)) {
                     return \htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
                 }
 

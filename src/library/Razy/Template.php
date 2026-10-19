@@ -85,7 +85,10 @@ class Template implements TemplateInterface
      */
     public static function autoEscapeFromConfig(array $config, string $distCode): bool
     {
-        $flag = $config['auto_escape'] ?? false;
+        if (!\array_key_exists('auto_escape', $config)) {
+            return false;
+        }
+        $flag = $config['auto_escape'];
         if (!\is_bool($flag)) {
             throw new ConfigurationException(
                 "dist.php 'auto_escape' must be true or false for dist '{$distCode}', got: "

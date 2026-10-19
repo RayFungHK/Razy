@@ -317,10 +317,12 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
         // Off is the upgrade-neutral default for dists that predate the
         // flag; say so loudly, like the CSRF posture above.
         $this->writeLineLogging('{@s:b}Template Auto-Escape{@reset}', true);
-        $escapeRaw = (\is_file($csrfDistConfigPath) && \is_array($csrfParsed ?? null)) ? ($csrfParsed['auto_escape'] ?? null) : null;
+        $escapeConfig = (\is_file($csrfDistConfigPath) && \is_array($csrfParsed ?? null)) ? $csrfParsed : [];
+        $escapeSet = \array_key_exists('auto_escape', $escapeConfig);
+        $escapeRaw = $escapeConfig['auto_escape'] ?? null;
         if (true === $escapeRaw) {
             $this->writeLineLogging("  {@c:green}✓ on (dist.php 'auto_escape' => true){@reset}", true);
-        } elseif (null === $escapeRaw || false === $escapeRaw) {
+        } elseif (!$escapeSet || false === $escapeRaw) {
             $this->writeLineLogging('  {@c:yellow}⚠ OFF — {$tag} output is raw unless the template adds ->escape{@reset}', true);
             $this->writeLineLogging("      to enable: dist.php 'auto_escape' => true   (trusted HTML: ->raw)", true);
             ++$totalWarnings;

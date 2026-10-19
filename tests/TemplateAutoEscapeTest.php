@@ -81,6 +81,18 @@ class TemplateAutoEscapeTest extends TestCase
         $this->assertSame('<i>&amp;</i>|&lt;i&gt;&amp;amp;&lt;/i&gt;|<i>&amp;</i>', $out);
     }
 
+    public function testQuotedTextCannotFakeASafeModifier(): void
+    {
+        $tpl = (new Template())->setAutoEscape(true);
+        $out = $this->render(
+            $tpl,
+            "{\$u.'bio->raw'}|{\$v->truncate:50:'->raw'}|{\$v->trim:'->escape'}",
+            ['u' => ['bio->raw' => '<b>'], 'v' => '<i>'],
+        );
+
+        $this->assertSame('&lt;b&gt;|&lt;i&gt;|&lt;i&gt;', $out);
+    }
+
     public function testRawModifierIsANoOpWithoutAutoEscape(): void
     {
         $this->assertSame('<i>', $this->render(new Template(), '{$v->raw}', ['v' => '<i>']));
@@ -110,6 +122,12 @@ class TemplateAutoEscapeTest extends TestCase
         $this->assertFalse(Template::autoEscapeFromConfig(['auto_escape' => false], 'site'));
     }
 
+    public function testDistFlagRejectsExplicitNull(): void
+    {
+        $this->expectException(ConfigurationException::class);
+        Template::autoEscapeFromConfig(['auto_escape' => null], 'site');
+    }
+
     public function testDistFlagRejectsNonBoolean(): void
     {
         $this->expectException(ConfigurationException::class);
@@ -136,6 +154,8 @@ class TemplateAutoEscapeTest extends TestCase
         \file_put_contents($this->dir . '/bad.tpl', "<div>{\$html->raw}</div>\n");
         \file_put_contents($this->dir . '/ok.tpl', "<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->\n<div>{\$html->raw}</div>\n");
         \file_put_contents($this->dir . '/bare.tpl', "<!-- lint-allow: RZ-004 -->\n<div>{\$html->raw}</div>\n");
+        \file_put_contents($this->dir . '/inline.tpl', "<!-- lint-allow: RZ-004 -->{\$html->raw}\n");
+        \file_put_contents($this->dir . '/fallback.tpl', "<li>{\$nick|'->raw'}</li>\n");
 
         $out = (string) \shell_exec(\escapeshellarg(PHP_BINARY) . ' ' . \escapeshellarg(SYSTEM_ROOT . '/tools/lint-module-discipline.php')
             . ' ' . \escapeshellarg($this->dir) . ' --format=json');
@@ -149,7 +169,7 @@ class TemplateAutoEscapeTest extends TestCase
         $files = \array_map(fn (array $v) => \basename($v['file']), $rawHits);
         \sort($files);
 
-        $this->assertSame(['bad.tpl', 'bare.tpl'], $files, 'raw output needs a written justification');
+        $this->assertSame(['bad.tpl', 'bare.tpl', 'inline.tpl'], $files, 'raw output needs a written justification');
         $this->assertSame('error', $rawHits[0]['level']);
     }
 
