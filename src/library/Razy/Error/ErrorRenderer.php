@@ -13,7 +13,9 @@ namespace Razy\Error;
 
 use Razy\Error;
 use Razy\Exception\NotFoundException;
+use Razy\Exception\QueryException;
 use Razy\Template;
+use Razy\Template\Source;
 use Razy\Terminal;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -69,8 +71,10 @@ class ErrorRenderer
     /**
      * Render the custom exception page for the given exception.
      *
-     * In web mode, uses the template engine to render a styled error page
-     * with optional debug information (backtrace, console messages).
+     * In web mode the exception is reported first (Error::report(): full details
+     * go to the server log under a fresh error id), then a page is rendered:
+     * in production it shows the heading and the error id only; in debug mode
+     * it adds the escaped message, file, line, SQL, console and stack trace.
      * In CLI mode, outputs the exception as plain text.
      *
      * @param Throwable $exception The exception to display
@@ -80,54 +84,8 @@ class ErrorRenderer
     public static function showException(Throwable $exception): void
     {
         if (WEB_MODE) {
-            // Resolve the exception template: use status-code-specific file if available, fallback to generic
-            $tplFolder = PathUtil::append(PHAR_PATH, 'asset', 'exception');
-            if (\is_file(PathUtil::append($tplFolder, $exception->getCode() . '.html'))) {
-                $tplFile = PathUtil::append($tplFolder, $exception->getCode() . '.html');
-            } else {
-                $tplFile = PathUtil::append($tplFolder, 'any.html');
-            }
-
-            $template = new Template();
-            $source = $template->load($tplFile);
-            $root = $source->getRoot();
-
-            $root->assign([
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'message' => $exception->getMessage(),
-                'heading' => ($exception instanceof Error) ? $exception->getHeading() : 'There seems to is something wrong...',
-            ]);
-
-            if (ErrorConfig::isDebug()) {
-                // Build debug information block with debug message, console output, and stack trace
-                $debugBlock = $root->newBlock('debug');
-                if ($exception instanceof Error && $debugMessage = $exception->getDebugMessage()) {
-                    $debugBlock->assign([
-                        'debug_message' => $debugMessage,
-                    ]);
-                }
-                $debugConsole = ErrorConfig::getDebugConsole();
-                if (\count($debugConsole)) {
-                    $debugBlock->newBlock('console')->assign([
-                        'console' => \implode("\n", $debugConsole),
-                    ]);
-                }
-
-                // Parse the stack trace string into individual frames for template rendering
-                $stacktrace = \explode("\n", $exception->getTraceAsString());
-                \array_pop($stacktrace);
-
-                $index = 0;
-                foreach ($stacktrace as $trace) {
-                    // Extract trace detail after the "#N " prefix
-                    \preg_match('/^#\d+ (.+)$/', $trace, $matches);
-                    $debugBlock->newBlock('backtrace')->assign([
-                        'index' => $index++,
-                        'stack' => \htmlspecialchars($matches[1]),
-                    ]);
-                }
-            }
+            $errorId = ErrorReporter::report($exception);
+            $source = self::buildPage($exception, $errorId);
 
             // Capture any buffered output before replacing with the error page
             if (\ob_get_level() > 0) {
@@ -145,10 +103,115 @@ class ErrorRenderer
             // http_response_code() it never trips PHP 8.5's new late-status
             // warning when the (CLI/test) process already chose one (2026-09).
             \header('HTTP/1.1 ' . (\is_numeric($exception->getCode()) ? $exception->getCode() : 400), true, \is_numeric($exception->getCode()) ? (int) $exception->getCode() : 400);
+            \header('X-Error-Id: ' . $errorId);
 
             echo $source->output();
         } else {
+            // CLI is operator-facing: print the exception and, for a failed
+            // query, the SQL that QueryException keeps out of its message.
             echo $exception;
+            if ($exception instanceof QueryException && null !== $exception->getSql()) {
+                echo PHP_EOL . 'SQL: ' . $exception->getSql() . PHP_EOL;
+            }
         }
+    }
+
+    /**
+     * Render the exception page HTML without sending it.
+     *
+     * @param Throwable $exception The exception to render
+     * @param string $errorId The id from Error::report(), shown to the visitor
+     *
+     * @return string
+     */
+    public static function render(Throwable $exception, string $errorId): string
+    {
+        return self::buildPage($exception, $errorId)->output();
+    }
+
+    /**
+     * Build the exception page template. Every value is HTML-escaped here; the
+     * template prints them raw.
+     *
+     * @param Throwable $exception
+     * @param string $errorId
+     *
+     * @return Source
+     */
+    private static function buildPage(Throwable $exception, string $errorId): Source
+    {
+        // Resolve the exception template: use status-code-specific file if available, fallback to generic
+        $tplFolder = PathUtil::append(PHAR_PATH, 'asset', 'exception');
+        if (\is_file(PathUtil::append($tplFolder, $exception->getCode() . '.html'))) {
+            $tplFile = PathUtil::append($tplFolder, $exception->getCode() . '.html');
+        } else {
+            $tplFile = PathUtil::append($tplFolder, 'any.html');
+        }
+
+        $template = new Template();
+        $source = $template->load($tplFile);
+        $root = $source->getRoot();
+
+        $root->assign([
+            'heading' => self::escape(($exception instanceof Error) ? $exception->getHeading() : Error::DEFAULT_HEADING),
+            'error_id' => self::escape($errorId),
+        ]);
+
+        if (!ErrorConfig::isDebug()) {
+            return $source;
+        }
+
+        // Debug information: message, location, SQL, debug message, console output, stack trace
+        $debugBlock = $root->newBlock('debug');
+        $debugBlock->assign([
+            // Razy\Error pre-escapes (and nl2br()s) its message; everything else is escaped here
+            'message' => ($exception instanceof Error) ? $exception->getMessage() : \nl2br(self::escape($exception->getMessage())),
+            'file' => self::escape($exception->getFile()),
+            'line' => $exception->getLine(),
+        ]);
+        if ($exception instanceof Error && $debugMessage = $exception->getDebugMessage()) {
+            $debugBlock->assign([
+                'debug_message' => self::escape($debugMessage),
+            ]);
+        }
+        if ($exception instanceof QueryException && null !== $exception->getSql()) {
+            $debugBlock->newBlock('sql')->assign([
+                'sql' => self::escape($exception->getSql()),
+            ]);
+        }
+        $debugConsole = ErrorConfig::getDebugConsole();
+        if (\count($debugConsole)) {
+            $debugBlock->newBlock('console')->assign([
+                'console' => self::escape(\implode("\n", $debugConsole)),
+            ]);
+        }
+
+        // Parse the stack trace string into individual frames for template rendering
+        $stacktrace = \explode("\n", $exception->getTraceAsString());
+        \array_pop($stacktrace);
+
+        $index = 0;
+        foreach ($stacktrace as $trace) {
+            // Extract trace detail after the "#N " prefix
+            \preg_match('/^#\d+ (.+)$/', $trace, $matches);
+            $debugBlock->newBlock('backtrace')->assign([
+                'index' => $index++,
+                'stack' => self::escape($matches[1] ?? $trace),
+            ]);
+        }
+
+        return $source;
+    }
+
+    /**
+     * HTML-escape a value for the exception page.
+     *
+     * @param string $value
+     *
+     * @return string
+     */
+    private static function escape(string $value): string
+    {
+        return \htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }
