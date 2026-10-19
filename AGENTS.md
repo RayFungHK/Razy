@@ -62,7 +62,9 @@ and flag it for human review.
 - `{$var}` outputs raw unless the dist sets `'auto_escape' => true` in dist.php (RZ-03;
   new dists get it from the skeleton, older dists keep raw output until they opt in).
   Without it, use the built-in `->escape` modifier. Under auto-escape, `->raw` prints
-  trusted HTML and needs `lint-allow: RZ-004 <reason>` next to it.
+  trusted HTML and needs a `<!-- lint-allow: RZ-004 <reason> -->` (or `{# … }`) comment
+  next to it; a chain ending in `->json` also prints unescaped (`<script>`-safe; in an
+  attribute use `'{$x->json}'` or `"{$x->json->escape}"`).
 - `ThreadManager::spawnPHPCode()` uses `eval(base64_decode())` in the child — never feed
   it input-derived code (RZ-011). It is **deprecated** as of v1.0.3-beta; migrate to
   `spawnPHPFile()` (one-shot) or `Razy\WorkerPool::submitCode()` (boot/CPU-heavy repeats).

@@ -72,9 +72,15 @@ class Entity
     }
 
     /**
-     * Whether the tag's modifier chain contains ->raw or ->escape. Quoted path
-     * keys and quoted modifier arguments are blanked first, so text such as
-     * `{$u.'bio->raw'}` or `->truncate:5:'->raw'` cannot switch escaping off.
+     * Whether the tag's modifier chain already makes its output safe, so
+     * auto-escape must not touch it: ->raw or ->escape anywhere in the chain,
+     * or ->json as the LAST modifier (its JSON_HEX_TAG/AMP/APOS/QUOT output
+     * holds no `<`, `>`, `&`, `'` or `"`, so it is safe in <script> and in
+     * attributes; entity-encoding it would break `const c = {$cfg->json};`).
+     * ->json only counts when last because a later modifier may reintroduce
+     * markup. Quoted path keys and quoted modifier arguments are blanked first,
+     * so text such as `{$u.'bio->raw'}` or `->truncate:5:'->raw'` cannot switch
+     * escaping off.
      *
      * @param string $clip One pipe-delimited alternative of a tag
      *
@@ -82,9 +88,10 @@ class Entity
      */
     private static function hasSafeModifier(string $clip): bool
     {
-        $unquoted = (string) \preg_replace('/(?<q>[\'"])(?:\\\.|(?!\k<q>).)*\k<q>/s', "''", $clip);
+        $unquoted = \trim((string) \preg_replace('/(?<q>[\'"])(?:\\\.|(?!\k<q>).)*\k<q>/s', "''", $clip));
 
-        return 1 === \preg_match('/->(?:raw|escape)(?![\w])/', $unquoted);
+        return 1 === \preg_match('/->(?:raw|escape)(?![\w])/', $unquoted)
+            || 1 === \preg_match('/->json(?::(?:\w+|\'\'|-?\d+(?:\.\d+)?))*$/', $unquoted);
     }
 
     /**
@@ -505,7 +512,8 @@ class Entity
     /**
      * Render one `{$tag}`: the first pipe-delimited alternative that yields a
      * renderable value wins. With auto-escape on (RZ-03) the value is
-     * HTML-escaped unless that alternative's modifier chain has ->raw or ->escape.
+     * HTML-escaped unless that alternative's modifier chain has ->raw or ->escape,
+     * or ends in ->json (already context-safe; see hasSafeModifier()).
      *
      * @param array<int, string> $clips The pipe-delimited alternatives
      *

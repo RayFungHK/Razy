@@ -93,6 +93,50 @@ class TemplateAutoEscapeTest extends TestCase
         $this->assertSame('&lt;b&gt;|&lt;i&gt;|&lt;i&gt;', $out);
     }
 
+    public function testJsonOutputIsNotEntityEncodedUnderAutoEscape(): void
+    {
+        // ->json is documented for <script> blocks: entity-encoding its output
+        // (&quot;) would break `const cfg = {$cfg->json};`.
+        $tpl = (new Template())->setAutoEscape(true);
+        $out = $this->render($tpl, '<script>const cfg = {$cfg->json};</script>', ['cfg' => ['a' => 'b', 'n' => 1]]);
+
+        $this->assertSame('<script>const cfg = {"a":"b","n":1};</script>', $out);
+    }
+
+    public function testJsonKeepsScriptBreakoutNeutralizedUnderAutoEscape(): void
+    {
+        $tpl = (new Template())->setAutoEscape(true);
+        $data = ['x' => self::XSS . "&'"];
+        $out = $this->render(
+            $tpl,
+            "<script>var d = {\$d->json};</script><i data-d='{\$d->json}'></i><b data-d=\"{\$d->json->escape}\"></b>",
+            ['d' => $data],
+        );
+
+        $json = '{"x":"\u0022\u003E\u003Cscript\u003Ealert(1)\u003C\/script\u003E\u0026\u0027"}';
+        $this->assertSame(
+            '<script>var d = ' . $json . ";</script><i data-d='" . $json . "'></i>"
+            . '<b data-d="' . \htmlspecialchars($json, ENT_QUOTES, 'UTF-8') . '"></b>',
+            $out,
+        );
+        $this->assertSame(1, \substr_count($out, '</script>'), 'data must not close the script element');
+        $this->assertSame($data, \json_decode($json, true));
+    }
+
+    public function testJsonCountsAsSafeOnlyWhenLastInTheChain(): void
+    {
+        $tpl = (new Template())->setAutoEscape(true);
+        // A modifier after ->json may reintroduce markup, so the chain is escaped again;
+        // ->json:depth arguments keep it last; a quoted '->json' is not a modifier.
+        $out = $this->render(
+            $tpl,
+            "{\$v->json->upper}|{\$v->json:4}|{\$u.'a->json'}",
+            ['v' => 'a"b', 'u' => ['a->json' => '<b>']],
+        );
+
+        $this->assertSame('&quot;A\U0022B&quot;|"a\u0022b"|&lt;b&gt;', $out);
+    }
+
     public function testRawModifierIsANoOpWithoutAutoEscape(): void
     {
         $this->assertSame('<i>', $this->render(new Template(), '{$v->raw}', ['v' => '<i>']));
@@ -160,6 +204,9 @@ class TemplateAutoEscapeTest extends TestCase
         \file_put_contents($this->dir . '/attr-dq.tpl', "<input value=\"{\$html->raw}\">\n");
         \file_put_contents($this->dir . '/attr-sq.tpl', "<a href='{\$url->raw}'>x</a>\n");
         \file_put_contents($this->dir . '/attr-fallback.tpl', "<input value=\"{\$nick|'->raw'}\">\n");
+        \file_put_contents($this->dir . '/razy-comment.tpl', "{# lint-allow: RZ-004 sanitized by the markdown renderer #}{\$html->raw}\n");
+        \file_put_contents($this->dir . '/json-attr.tpl', "<div data-s=\"{\$s->json}\"></div>\n<script>var s = {\$s->json};</script>\n");
+        \file_put_contents($this->dir . '/visible.tpl', "<span>lint-allow: RZ-004 sanitized</span>\n<div>{\$html->raw}</div>\n");
 
         $out = (string) \shell_exec(\escapeshellarg(PHP_BINARY) . ' ' . \escapeshellarg(SYSTEM_ROOT . '/tools/lint-module-discipline.php')
             . ' ' . \escapeshellarg($this->dir) . ' --format=json');
@@ -173,8 +220,14 @@ class TemplateAutoEscapeTest extends TestCase
         $files = \array_map(fn (array $v) => \basename($v['file']), $rawHits);
         \sort($files);
 
-        $this->assertSame(['attr-dq.tpl', 'attr-sq.tpl', 'bad.tpl', 'bare.tpl', 'inline.tpl'], $files, 'raw output needs a written justification');
+        $this->assertSame(['attr-dq.tpl', 'attr-sq.tpl', 'bad.tpl', 'bare.tpl', 'inline.tpl', 'visible.tpl'], $files, 'raw output needs a written justification');
         $this->assertSame('error', $rawHits[0]['level']);
+
+        $jsonHits = \array_values(\array_filter(
+            $report['violations'] ?? [],
+            fn (array $v) => \str_starts_with($v['message'] ?? '', '->json in'),
+        ));
+        $this->assertSame([['json-attr.tpl', 1]], \array_map(fn (array $v) => [\basename($v['file']), $v['line']], $jsonHits), '->json may not sit in a double-quoted attribute');
     }
 
     /**

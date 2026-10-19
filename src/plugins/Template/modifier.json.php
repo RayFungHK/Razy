@@ -13,17 +13,19 @@
  * Template Modifier Plugin: json.
  *
  * JSON-encodes a value for embedding in views. The encoder flags
- * (JSON_HEX_TAG/AMP/APOS/QUOT) make the output safe inside <script> blocks
- * and inside HTML attributes without a further ->escape hop: '</script>'
- * payloads and '<'/'>'/'&'/'\''/'"' all become hex entities.
+ * (JSON_HEX_TAG/AMP/APOS/QUOT) turn '<'/'>'/'&'/'\''/'"' inside values into
+ * \uXXXX escapes, so a '</script>' payload cannot end a <script> block. Under
+ * auto-escape (RZ-03) a chain ENDING in ->json prints unescaped, like ->raw.
  *
  * Usage in templates:
  *   <script>const cfg = {$config->json};</script>
- *   <div data-state="{$state->json}">     (attribute-safe)
+ *   <div data-state='{$state->json}'>            (single-quoted attribute)
+ *   <div data-state="{$state->json->escape}">    (double-quoted: escape the JSON's own quotes)
  *
+ * Never `attr="{$x->json}"` or an unquoted attribute: the JSON's structural
+ * `"` closes the attribute (the module-discipline lint reports it as RZ-004).
  * Encoding failure (invalid UTF-8, INF/NAN, depth) renders an empty string —
- * never broken JSON silently. Chain ->escape after this only if you are
- * inserting into a context the hex flags do not cover.
+ * never broken JSON silently.
  *
  * @package Razy
  *

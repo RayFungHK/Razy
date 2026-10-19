@@ -34,8 +34,9 @@ return [
 	'fallback'       => true,
 
 	// Template auto-escape: every variable tag is HTML-escaped unless it has ->raw
-	// (trusted HTML; the lint wants a `lint-allow: RZ-004 <reason>` next to it)
-	// or ->escape. Dists created before this flag existed default to false.
+	// (trusted HTML; the lint wants a `<!-- lint-allow: RZ-004 <reason> -->` comment
+	// next to it), ->escape, or ends in ->json (<script>-safe JSON). Dists created
+	// before this flag existed default to false.
 	'auto_escape'    => true,
 
 	// Custom module path: Load modules from a different directory within the Razy project

@@ -62,11 +62,12 @@ entirely. The framework cannot see the dependency, so `validate`/`compose`/`pack
 either.
 
 ✅ **Right** — turn on auto-escape for the dist (RZ-03): `'auto_escape' => true` in
-dist.php HTML-escapes every `{$tag}` unless its chain has `->escape` (already escaped) or
-`->raw` (trusted HTML). New dists get the flag from the dist.php skeleton; existing dists
+dist.php HTML-escapes every `{$tag}` unless its chain has `->escape` (already escaped),
+`->raw` (trusted HTML), or ends in `->json` (`<script>`-safe; in an attribute write
+`'{$x->json}'` or `"{$x->json->escape}"`). New dists get the flag from the dist.php skeleton; existing dists
 keep raw output until they opt in. Every `->raw` needs a reason on the same or previous
-line, `<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->`, or the lint
-reports an error. Under auto-escape write `{$text->escape->nl2br}` for line breaks:
+line, inside a comment — `<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->`
+or `{# lint-allow: RZ-004 … }` — or the lint reports an error (visible text does not count). Under auto-escape write `{$text->escape->nl2br}` for line breaks:
 `->nl2br` output is escaped like any other value.
 
 **Self-check.** `grep -rnE "(require|include)(_once)?\s*\(?\s*['\"][^'\"]*(\.\./|sites/|autoload/|shared/module)" <dir>`
