@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\Metrics — /_razy/metrics Prometheus endpoint (HPA metric source).
  *
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

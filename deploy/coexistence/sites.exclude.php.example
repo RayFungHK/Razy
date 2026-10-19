@@ -18,7 +18,7 @@
  * is documented in manual/08-coexistence.md §3 (validation errors throw at `rewrite`
  * time with the offending entry named).
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  * (c) Ray Fung <hello@rayfung.hk>
  * MIT license — see LICENSE.
  */

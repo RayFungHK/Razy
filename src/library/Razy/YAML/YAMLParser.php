@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * YAML parser implementation for the Razy framework.
  * Converts YAML strings into PHP data structures.

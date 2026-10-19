@@ -6,7 +6,7 @@
  * Vectors mirror the 2026 audit finding §S2 (PackageManager + RepoInstaller
  * extractTo with attacker-controlled entry names).
  *
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

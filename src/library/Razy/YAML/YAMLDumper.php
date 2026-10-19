@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * YAML dumper implementation for the Razy framework.
  * Serializes PHP data structures into YAML format.

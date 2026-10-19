@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\Database\Table\TableHelper and Razy\Database\Table\ColumnHelper.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

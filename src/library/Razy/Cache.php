@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Cache facade for the Razy framework. Provides a static interface to
  * the underlying PSR-16 cache adapter, with auto-initialization using

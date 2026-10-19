@@ -9,7 +9,7 @@
  * (verify-before-extractTo ordering, HTTPS guards, loud warnings) is pinned by
  * source-text assertions in the same style as ScaffoldCommandTest.
  *
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

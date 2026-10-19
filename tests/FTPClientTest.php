@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\FTPClient.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  * Tests constructor validation, parameter checks, and transfer mode settings.
  * FTP operations requiring a live server are tested via integration tests.
  */

@@ -5,7 +5,7 @@
  *
  * Tests the handshake logic and frame I/O using in-memory stream pairs.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

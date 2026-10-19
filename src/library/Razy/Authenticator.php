@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * TOTP/HOTP Authenticator for two-factor authentication (2FA).
  * Implements RFC 6238 (TOTP) and RFC 4226 (HOTP) with support for

@@ -8,7 +8,7 @@
  * - Method Injection (call())
  * - Parent Container delegation (hierarchy)
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

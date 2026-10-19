@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\Logger (PSR-3 compliant logger).
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

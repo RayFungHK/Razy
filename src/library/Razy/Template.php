@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Template engine for the Razy framework. Provides a powerful template parsing
  * system with support for variables, modifiers, functions, and block-based

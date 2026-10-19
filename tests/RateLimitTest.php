@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Comprehensive tests for the Rate Limiting system:
  * - Limit value object (perMinute, perHour, perDay, every, none, by)

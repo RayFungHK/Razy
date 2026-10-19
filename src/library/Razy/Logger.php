@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * PSR-3 compliant logger for the Razy framework. Supports file-based
  * logging with configurable log level threshold, PSR-3 message

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Terminal CLI interface for the Razy framework. Provides styled text output,
  * user input reading, logging, and ANSI color/formatting support for

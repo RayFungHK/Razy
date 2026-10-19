@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * (c) Ray Fung <hello@rayfung.hk>
  *

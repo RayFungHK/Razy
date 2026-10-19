@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Thread pool manager for async task execution. Supports inline (synchronous
  * callable) and process (asynchronous shell command via proc_open) modes
