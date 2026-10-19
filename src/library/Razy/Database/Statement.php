@@ -441,53 +441,133 @@ class Statement
     }
 
     /**
-     * Convert a column's assigned parameter value into its SQL literal representation.
+     * Convert a column's assigned parameter value into its SQL representation.
      * Handles NULL, boolean, array (JSON), string, and numeric values.
+     *
+     * Inside compile() strings, booleans and JSON become bound placeholders;
+     * outside it (getSyntax(), debug output) they are driver-aware literals.
+     * NULL and numbers are always inlined: they carry no quoting risk.
      *
      * @param string $column The parameter/column name to look up
      *
-     * @return string The SQL literal value
+     * @return string The SQL placeholder or literal
      */
     public function getValueAsStatement(string $column): string
     {
         $value = $this->getValue($column);
-        if ($value === null) {
-            return 'NULL';
-        }
-
-        if (\is_bool($value)) {
-            return (string) (int) $value;
-        }
-
         if (\is_array($value)) {
             $value = \json_encode($value);
         }
 
-        if (\is_scalar($value)) {
-            if (\is_string($value)) {
-                // NUL bytes are a SQLite boundary, not an escaping problem: the
-                // C API's text strings terminate at \0. Pre-8.5 PDO::quote
-                // SILENTLY truncated such values (data loss); PHP 8.5's PDO
-                // finally throws. Guard here so every PHP version gets the same
-                // loud, honest answer — and MySQL (which quotes \0 safely) is
-                // untouched. (Caught live by the 8.5 CI matrix, 2026-09.)
-                if (\str_contains($value, "\0") && $this->database->getDriverType() === 'sqlite') {
-                    throw new QueryException(
-                        'SQLite cannot store NUL bytes in SQL string literals — the value was truncated'
-                        . ' silently before PHP 8.5 and is rejected here since; encode (base64) or use a BLOB column.'
-                    );
-                }
-
-                // Use PDO::quote() for safe SQL escaping instead of addslashes()
-                $adapter = $this->database->getDBAdapter();
-
-                return $adapter->quote($value);
-            }
-
-            return (string) $value;
+        if (null === $value || \is_scalar($value)) {
+            return $this->sqlValue($value);
         }
 
         throw new QueryException('Unsupported value type ' . \get_debug_type($value) . ' for column `' . $column . '` in SQL statement.');
+    }
+
+    /**
+     * Turn a scalar value into SQL: a bound placeholder while compile() runs,
+     * otherwise a driver-aware literal (see literal()). NULL and numbers are inlined.
+     *
+     * @param string|int|float|bool|null $value
+     *
+     * @return string
+     *
+     * @internal Used by syntax builders
+     */
+    public function sqlValue(string|int|float|bool|null $value): string
+    {
+        if (\is_string($value)) {
+            $this->assertStorable($value);
+        }
+        $binder = ParameterBinder::active();
+        if (null !== $binder && (\is_string($value) || \is_bool($value))) {
+            return $binder->add($value);
+        }
+
+        return $this->literal($value);
+    }
+
+    /**
+     * Driver-aware SQL literal of a value, for debug output and getSyntax():
+     * strings are PDO::quote()d, booleans are TRUE/FALSE on Postgres and 1/0
+     * elsewhere, NULL is NULL, numbers are inlined.
+     *
+     * @param string|int|float|bool|null $value
+     *
+     * @return string
+     */
+    public function literal(string|int|float|bool|null $value): string
+    {
+        if (null === $value) {
+            return 'NULL';
+        }
+        if (\is_bool($value)) {
+            if ('pgsql' === $this->database->getDriverType()) {
+                return $value ? 'TRUE' : 'FALSE';
+            }
+
+            return $value ? '1' : '0';
+        }
+        if (\is_string($value)) {
+            $adapter = $this->database->getDBAdapter();
+            if (null === $adapter) {
+                throw new QueryException('Cannot quote a value without a database connection.');
+            }
+
+            return (string) $adapter->quote($value);
+        }
+
+        return (string) $value;
+    }
+
+    /**
+     * Compile the statement into an SQL template with named placeholders and
+     * the values to bind (RZ-02). The template depends only on the query shape,
+     * so it is a stable key for the statement pool.
+     *
+     * @return array{sql: string, params: array<string, mixed>}
+     *
+     * @throws Throwable
+     */
+    public function compile(): array
+    {
+        $binder = ParameterBinder::begin();
+
+        try {
+            $sql = $this->getSyntax();
+        } finally {
+            ParameterBinder::end($binder);
+        }
+
+        return [
+            'sql' => $sql,
+            'params' => $binder->paramsUsedIn($sql),
+        ];
+    }
+
+    /**
+     * Render a compiled statement as literal SQL for logs and debugging. Never
+     * execute the result; execute the template with its params instead.
+     *
+     * @param array{sql: string, params: array<string, mixed>} $compiled
+     *
+     * @return string
+     */
+    public function interpolate(array $compiled): string
+    {
+        if (!$compiled['params']) {
+            return $compiled['sql'];
+        }
+
+        return (string) \preg_replace_callback(
+            '/:(' . ParameterBinder::PREFIX . '\d+)(?!\w)/',
+            fn (array $m) => \array_key_exists($m[1], $compiled['params'])
+                ? $this->literal($compiled['params'][$m[1]])
+                : $m[0],
+            $compiled['sql'],
+        );
     }
 
     /**
@@ -968,6 +1048,27 @@ class Statement
     public function getType(): string
     {
         return $this->type->value ?? '';
+    }
+
+    /**
+     * Reject values the driver cannot store faithfully.
+     *
+     * NUL bytes are a SQLite boundary, not an escaping problem: the C API's
+     * text strings terminate at \0. Pre-8.5 PDO::quote SILENTLY truncated such
+     * values (data loss); PHP 8.5's PDO finally throws. Guard here so every
+     * PHP version gets the same loud, honest answer — and MySQL (which stores
+     * \0 safely) is untouched. (Caught live by the 8.5 CI matrix, 2026-09.)
+     *
+     * @param string $value
+     */
+    private function assertStorable(string $value): void
+    {
+        if (\str_contains($value, "\0") && $this->database->getDriverType() === 'sqlite') {
+            throw new QueryException(
+                'SQLite cannot store NUL bytes in SQL string literals — the value was truncated'
+                . ' silently before PHP 8.5 and is rejected here since; encode (base64) or use a BLOB column.'
+            );
+        }
     }
 
     /**

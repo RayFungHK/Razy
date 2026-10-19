@@ -21,6 +21,7 @@ use Razy\Database\Driver;
 use Razy\Database\Driver\MySQL;
 use Razy\Database\Driver\PostgreSQL;
 use Razy\Database\Driver\SQLite;
+use Razy\Database\ParameterBinder;
 use Razy\Database\Query;
 use Razy\Database\Statement;
 use Razy\Database\StatementPool;
@@ -294,9 +295,19 @@ class Database implements DatabaseInterface
     }
 
     /**
-     * Get the driver type.
+     * Get the prepared-statement pool (keyed on SQL templates), or null when not connected.
      *
-     * @return string|null
+     * @return StatementPool|null
+     */
+    public function getStatementPool(): ?StatementPool
+    {
+        return $this->statementPool;
+    }
+
+    /**
+     * Get the database driver type.
+     *
+     * @return string|null 'mysql', 'pgsql', 'sqlite' or null when not connected
      */
     public function getDriverType(): ?string
     {
@@ -334,7 +345,12 @@ class Database implements DatabaseInterface
      */
     public function execute(Statement $statement): Query
     {
-        $sql = $statement->getSyntax();
+        // RZ-02: values are bound, never interpolated. The SQL template only
+        // depends on the query shape, so the statement pool reuses it.
+        $compiled = $statement->compile();
+        $sql = $compiled['sql'];
+        $params = $compiled['params'];
+        $driverType = $this->getDriverType();
 
         try {
             // Use statement pool for cached prepare (LRU eviction), fallback to direct prepare
@@ -342,6 +358,7 @@ class Database implements DatabaseInterface
                 ? $this->statementPool->getOrPrepare($sql)
                 : $this->adapter->prepare($sql);
             if ($pdoStatement) {
+                ParameterBinder::bindAll($pdoStatement, $params, $driverType);
                 $pdoStatement->execute();
                 $this->affected_rows = $pdoStatement->rowCount();
             }
@@ -353,6 +370,7 @@ class Database implements DatabaseInterface
                         ? $this->statementPool->getOrPrepare($sql)
                         : $this->adapter->prepare($sql);
                     if ($pdoStatement) {
+                        ParameterBinder::bindAll($pdoStatement, $params, $driverType);
                         $pdoStatement->execute();
                         $this->affected_rows = $pdoStatement->rowCount();
                     }
@@ -364,8 +382,9 @@ class Database implements DatabaseInterface
             }
         }
 
-        // Record the executed SQL in the query history (ring buffer)
-        $this->recordQuery($sql);
+        // Record the executed SQL in the query history (ring buffer) as a
+        // debug literal, so getQueried()/getLastQueried() read as before.
+        $this->recordQuery($statement->interpolate($compiled));
 
         return new Query($statement, $pdoStatement);
     }
