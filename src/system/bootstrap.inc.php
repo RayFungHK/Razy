@@ -19,6 +19,8 @@ namespace Razy;
 
 use Exception;
 use Razy\Database\Statement;
+use Razy\Http\Request;
+use Razy\Http\TrustedProxies;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -69,6 +71,12 @@ require_once PHAR_PATH . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR .
     return true;
 });
 
+// RZ-04: reverse proxies whose X-Forwarded-* headers are believed.
+// RAZY_TRUSTED_PROXIES (env) wins over config.inc.php 'trusted_proxies'.
+// Unset = no proxy is trusted (forwarded headers are ignored, except the
+// deprecated X-Forwarded-Proto fallback in NetworkUtil::isSsl()).
+TrustedProxies::configure(TrustedProxies::fromConfig(isset($razyConfig) && \is_array($razyConfig) ? $razyConfig : []));
+
 // Detect the runtime mode and define mode-specific constants
 if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
     // CLI mode, define environmental variable
@@ -83,7 +91,10 @@ if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
 
     // Declare `HOSTNAME`
     // The hostname, if the REQUEST PATH is http://yoursite.com:8080/Razy, the HOSTNAME will declare as yoursite.com
-    $rawHost = $_SERVER['SERVER_NAME'] ?? 'UNKNOWN';
+    // Behind a trusted proxy (RZ-04) the public host from X-Forwarded-Host is used.
+    $razyRequest = Request::fromGlobals();
+    $razyBehindProxy = $razyRequest->isFromTrustedProxy();
+    $rawHost = $razyBehindProxy ? $razyRequest->host() : ($_SERVER['SERVER_NAME'] ?? 'UNKNOWN');
     // Strip any characters that are not valid in a hostname to prevent host-header injection
     \define('HOSTNAME', \preg_replace('/[^a-zA-Z0-9.\-]/', '', $rawHost));
 
@@ -127,11 +138,14 @@ if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
 
     // Declare `PORT`
     // The protocol, if the REQUEST PATH is http://yoursite.com:8080/Razy, the PORT will declare as 8080
-    \define('PORT', (int) $_SERVER['SERVER_PORT']);
+    // Behind a trusted proxy (RZ-04) the public port (X-Forwarded-Port / scheme default) is used.
+    \define('PORT', $razyBehindProxy ? $razyRequest->port() : (int) ($_SERVER['SERVER_PORT'] ?? 80));
 
     // Declare `SITE_URL_ROOT`
+    // Standard ports are omitted: 80 always was; 443 used to leak as
+    // "https://host:443" (RZ-04 port fix).
     $protocol = (NetworkUtil::isSsl()) ? 'https' : 'http';
-    \define('SITE_URL_ROOT', $protocol . '://' . HOSTNAME . ((PORT != '80') ? ':' . PORT : ''));
+    \define('SITE_URL_ROOT', $protocol . '://' . HOSTNAME . (\in_array(PORT, [80, 443], true) ? '' : ':' . PORT));
 
     // Declare `RAZY_URL_ROOT`
     \define('RAZY_URL_ROOT', PathUtil::append(SITE_URL_ROOT, RELATIVE_ROOT));
