@@ -158,7 +158,7 @@ machine-checked by [`tools/lint-module-discipline.php`](tools/lint-module-discip
 | RZ-001 | Never `require`/`include` another module's files | `$agent->addAPICommand(...)` + `$this->api('vendor/mod')->cmd(...)` |
 | RZ-002 | Never reach across distributor boundaries casually | Bridge commands + a **mandatory** `__onBridgeCall()` gate (the framework default allows all — you must close it, see [Security](#security-posture-honest-edition)) |
 | RZ-003 | Never hand-write SQL from user input; never `new PDO` | `$db->prepare()->select(...)->where('x=:x')->assign([...])` or ORM (`Model`) named params |
-| RZ-004 | **Templates do not auto-escape** — never output user data raw | `htmlspecialchars(..., ENT_QUOTES)` in code, the DOM builder in views, or `->escape` [planned core modifier] |
+| RZ-004 | **Templates do not auto-escape** — never output user data raw | `htmlspecialchars(..., ENT_QUOTES)` in code, the DOM builder in views, or the built-in `->escape` template modifier (`src/plugins/Template/modifier.escape.php`) |
 | RZ-005 | Never resolve framework internals through DI (`SecurityException` is a fence — do not climb it) | Module DI child only; services via documented Controller helpers |
 | RZ-006 | Never write outside your module's `getDataPath()` / `getAssetPath()` | `getDataPath()`, `getAssetPath()` |
 | RZ-007 | Never hand-edit `autoload/` or `lock.json`; declare deps in `package.php` | `require` (module deps), `prerequisite` (Composer deps) + `php Razy.phar compose <dist>` |
@@ -169,6 +169,9 @@ machine-checked by [`tools/lint-module-discipline.php`](tools/lint-module-discip
 | RZ-012 | A released module's API/Event surface is a **contract**: changes need version discipline | semver in `module.php`/`package.php`; new major dir for breaking changes |
 | RZ-013 | Routes are registered through `Agent` only; never hand-edit generated rewrite/Caddyfile output | `addRoute`/`addLazyRoute`/`group` + `php Razy.phar rewrite` |
 | RZ-014 | Every published API command ships a test; never weaken PHPStan/fixer configs to pass CI | `composer quality` |
+| RZ-015 | No third-party runtime dependency in framework core (`src/`) | Harden the in-house primitive, or ship the dependency in a module/package (RZ-007 manifest) |
+| RZ-016 | Never run migrations from module/web paths (`getMigrationManager()` in a handler) | `php Razy.phar migrate <dist>` at deploy |
+| RZ-017 | Never import a sibling module's classes (`use vendor\other\Helper;`) | `addAPICommand` + `api()` or events; probe with `api('vendor/mod')->has('cmd')` |
 
 If an AI agent proposes code violating a Golden Rule, reject and re-prompt with the rule
 ID. The rules are greppable — CI fails on them.
@@ -517,21 +520,24 @@ docker compose -f .docker/docker-compose.yml -f .docker/docker-compose.dev.yml u
 docker compose -f .docker/docker-compose.test.yml up --build --abort-on-container-exit   # full suite, 0 skips
 ```
 
-- **Reality check:** the official image currently CMDs the PHP **built-in server**
-  (dev-grade) as root. For production, serve the built phar with your own
-  Caddy/FrankenPHP or PHP-FPM, run **non-root**, and add health probes on your own
-  endpoint (`/_razy/health` is **[planned]**).
+- **Reality check:** the official `.docker/Dockerfile` image runs non-root with a
+  `HEALTHCHECK` on `/_razy/health`, but its CMD is still the PHP **built-in server**
+  (dev-grade). For production, use the FrankenPHP worker image in
+  [`deploy/Dockerfile.worker`](deploy/Dockerfile.worker) or serve the built phar with
+  your own Caddy/FrankenPHP or PHP-FPM.
 - The benchmark FrankenPHP worker setup in `benchmark/docker/` (Caddyfile `worker`
   pattern) is the reference for persistent-worker deployment.
-- Kubernetes support (Helm, NetworkPolicy, per-tenant PVCs) is **[planned]** — none of it
-  exists today; do not deploy the manifests shown in `architecture/` docs as if shipped.
+- Kubernetes: plain kustomize manifests for a stateless worker fleet ship in
+  [`deploy/k8s/`](deploy/k8s/README.md) (Deployment, Service, HPA, PDB, Ingress).
+  Helm charts, NetworkPolicy and per-tenant PVCs are **[planned]**; do not deploy
+  the manifests shown in `architecture/` docs as if shipped.
 
 ## AI Agents & Coding Assistants
 
 Load these before writing any Razy project code — they are designed to be read by LLMs:
 
 1. **[AGENTS.md](AGENTS.md)** — compact rule digest (every agent reads this file automatically).
-2. **[skills/RAZY-AI-RULES.md](skills/RAZY-AI-RULES.md)** — full rule pack RZ-001…RZ-014:
+2. **[skills/RAZY-AI-RULES.md](skills/RAZY-AI-RULES.md)** — full rule pack RZ-001…RZ-017:
    forbidden patterns (cross-module `require`, direct file access into other modules,
    raw SQL, raw template output, DI fence-climbing), correct alternatives, self-check greps.
 3. **`skills.md` + generated per-dist/module context** — regenerate with
