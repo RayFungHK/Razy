@@ -166,6 +166,49 @@ class TrustedProxiesTest extends TestCase
         $this->assertSame('198.51.100.9', $r->clientIp());
     }
 
+    public function testTrustAllOnlyVouchesForThePeer(): void
+    {
+        $r = new Request([
+            'REMOTE_ADDR' => '10.0.0.2',
+            'HTTP_X_FORWARDED_FOR' => '1.2.3.4, 198.51.100.9',
+        ], TrustedProxies::fromList('*'));
+
+        $this->assertSame('198.51.100.9', $r->clientIp(), 'the client-supplied leftmost hop is never the client');
+    }
+
+    public function testProxyWithoutForwardedPortUsesPublicDefault(): void
+    {
+        $r = new Request([
+            'REMOTE_ADDR' => '10.0.0.2',
+            'SERVER_NAME' => 'app.example.com',
+            'HTTP_HOST' => 'app.example.com',
+            'SERVER_PORT' => '8188',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ], TrustedProxies::fromList('10.0.0.0/8'));
+
+        $this->assertSame(443, $r->port(), 'the backend SERVER_PORT is not the public port');
+        $this->assertSame('https://app.example.com', $r->origin());
+
+        $r = new Request([
+            'REMOTE_ADDR' => '10.0.0.2',
+            'HTTP_HOST' => 'app.example.com:8443',
+            'SERVER_PORT' => '8188',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ], TrustedProxies::fromList('10.0.0.0/8'));
+        $this->assertSame(8443, $r->port());
+    }
+
+    public function testOutOfRangeForwardedHostPortIsIgnored(): void
+    {
+        $r = new Request([
+            'REMOTE_ADDR' => '10.0.0.2',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+            'HTTP_X_FORWARDED_HOST' => 'app.example.com:99999',
+        ], TrustedProxies::fromList('10.0.0.0/8'));
+
+        $this->assertSame(443, $r->port());
+    }
+
     public function testIpv6ProxyAndForwardedPort(): void
     {
         $r = new Request([

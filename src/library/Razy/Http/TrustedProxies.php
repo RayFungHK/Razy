@@ -19,8 +19,10 @@ use Razy\Util\NetworkUtil;
  *
  * A request's forwarded headers are honoured only when REMOTE_ADDR (the
  * peer that actually connected) is inside one of these ranges. Ranges are
- * IPv4 or IPv6 addresses or CIDR blocks; `*` trusts every peer (only for
- * setups where the app port is unreachable except through the proxy).
+ * IPv4 or IPv6 addresses or CIDR blocks; `*` trusts every connected peer
+ * (only for setups where the app port is unreachable except through the
+ * proxy). With `*` alone the client IP is the hop the proxy appended (the
+ * rightmost X-Forwarded-For entry); list the proxy ranges to skip further hops.
  *
  * Configuration: `RAZY_TRUSTED_PROXIES` (comma/space separated) wins over
  * config.inc.php `'trusted_proxies'` (array or string).
@@ -161,13 +163,8 @@ final class TrustedProxies
         if ($this->trustAll) {
             return true;
         }
-        foreach ($this->ranges as $range) {
-            if (NetworkUtil::ipInRange($ip, $range)) {
-                return true;
-            }
-        }
 
-        return false;
+        return $this->inRanges($ip);
     }
 
     /**
@@ -187,6 +184,8 @@ final class TrustedProxies
             return $remoteAddr;
         }
 
+        // Hops inside the chain are checked against the explicit ranges only:
+        // `*` vouches for the connected peer, never for client-supplied entries.
         $client = $remoteAddr;
         foreach (\array_reverse(\explode(',', $forwardedFor)) as $hop) {
             $hop = \trim($hop);
@@ -194,11 +193,29 @@ final class TrustedProxies
                 break;
             }
             $client = $hop;
-            if (!$this->isTrusted($hop)) {
+            if (!$this->inRanges($hop)) {
                 break;
             }
         }
 
         return $client;
+    }
+
+    /**
+     * Whether the address is inside one of the explicit ranges (ignores `*`).
+     *
+     * @param string $ip
+     *
+     * @return bool
+     */
+    private function inRanges(string $ip): bool
+    {
+        foreach ($this->ranges as $range) {
+            if (NetworkUtil::ipInRange($ip, $range)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -131,6 +131,16 @@ final class Request
     }
 
     /**
+     * @param int $port
+     *
+     * @return bool Whether the port is 1-65535
+     */
+    private static function isValidPort(int $port): bool
+    {
+        return $port >= 1 && $port <= 65535;
+    }
+
+    /**
      * @param string $scheme
      * @param string $host
      * @param int|null $port
@@ -210,8 +220,9 @@ final class Request
     }
 
     /**
-     * The public port: X-Forwarded-Port (trusted), the port in X-Forwarded-Host
-     * (trusted), the scheme default behind a trusted proxy, or SERVER_PORT.
+     * The public port. Behind a trusted proxy: X-Forwarded-Port, else the port
+     * in X-Forwarded-Host, else the port in the Host header, else the scheme
+     * default (never the backend SERVER_PORT). Direct: SERVER_PORT.
      *
      * @return int
      */
@@ -219,20 +230,28 @@ final class Request
     {
         if ($this->isFromTrustedProxy()) {
             $forwardedPort = \trim(\explode(',', (string) ($this->server['HTTP_X_FORWARDED_PORT'] ?? ''))[0]);
-            if (1 === \preg_match('/^\d{1,5}$/', $forwardedPort) && (int) $forwardedPort <= 65535) {
+            if (1 === \preg_match('/^\d{1,5}$/', $forwardedPort) && self::isValidPort((int) $forwardedPort)) {
                 return (int) $forwardedPort;
             }
-            $forwardedHost = $this->forwardedHost();
-            if (null !== $forwardedHost) {
-                [, $port] = self::splitHostPort($forwardedHost);
-
-                return $port ?? ('https' === $this->scheme() ? 443 : 80);
+            $hostHeaders = [$this->forwardedHost(), \is_string($this->server['HTTP_HOST'] ?? null) ? $this->server['HTTP_HOST'] : null];
+            foreach ($hostHeaders as $hostHeader) {
+                if (null === $hostHeader) {
+                    continue;
+                }
+                [, $port] = self::splitHostPort($hostHeader);
+                if (null !== $port && self::isValidPort($port)) {
+                    return $port;
+                }
+                // The first host header present decides; without a port it means the scheme default
+                break;
             }
+
+            return 'https' === $this->scheme() ? 443 : 80;
         }
 
         $port = (int) ($this->server['SERVER_PORT'] ?? 0);
 
-        return $port > 0 ? $port : ('https' === $this->scheme() ? 443 : 80);
+        return self::isValidPort($port) ? $port : ('https' === $this->scheme() ? 443 : 80);
     }
 
     /**

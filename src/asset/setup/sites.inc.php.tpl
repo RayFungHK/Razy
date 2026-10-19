@@ -38,7 +38,8 @@ return [
 		 * Per-domain config folder mapping is handled via config_mapping in dist.php.
 		 *
 		 * Hosts from the environment instead of this file (RZ-04): this file is
-		 * plain PHP, so it may build the table from RAZY_DOMAINS, e.g.
+		 * plain PHP, so it may build the table from RAZY_DOMAINS. Replace the
+		 * whole top-level 'domains' => [ ... ] entry of the returned array with:
 		 *   'domains' => \Razy\Config\DomainList::fromEnv(['/' => 'mysite'], 'RAZY_DOMAINS', ['localhost']),
 		 * RAZY_DOMAINS="app.example.com,*.example.com,localhost:8080,docs.example.com=docs"
 		 */
