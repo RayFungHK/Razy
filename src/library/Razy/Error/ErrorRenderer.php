@@ -107,7 +107,12 @@ class ErrorRenderer
 
             echo $source->output();
         } else {
+            // CLI is operator-facing: print the exception and, for a failed
+            // query, the SQL that QueryException keeps out of its message.
             echo $exception;
+            if ($exception instanceof QueryException && null !== $exception->getSql()) {
+                echo PHP_EOL . 'SQL: ' . $exception->getSql() . PHP_EOL;
+            }
         }
     }
 

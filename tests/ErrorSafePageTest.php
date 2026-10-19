@@ -24,6 +24,8 @@ use Razy\Error\ErrorReporter;
 use Razy\Exception\QueryException;
 use Razy\Logger;
 use RuntimeException;
+use stdClass;
+use Stringable;
 
 #[CoversClass(ErrorRenderer::class)]
 #[CoversClass(ErrorReporter::class)]
@@ -32,9 +34,13 @@ class ErrorSafePageTest extends TestCase
 {
     private Logger $logger;
 
+    /** @var string|false RAZY_DEBUG as the process had it before the test */
+    private string|false $previousDebugEnv = false;
+
     protected function setUp(): void
     {
         Error::reset();
+        $this->previousDebugEnv = \getenv('RAZY_DEBUG');
         \putenv('RAZY_DEBUG');
         $this->logger = new Logger(null, 'debug', 'Y-m-d', true);
         Error::setLogger($this->logger);
@@ -44,7 +50,7 @@ class ErrorSafePageTest extends TestCase
     {
         Error::reset();
         Error::setLogger(null);
-        \putenv('RAZY_DEBUG');
+        \putenv(false === $this->previousDebugEnv ? 'RAZY_DEBUG' : 'RAZY_DEBUG=' . $this->previousDebugEnv);
     }
 
     // -- Production page ---------------------------------------------------
@@ -118,6 +124,12 @@ class ErrorSafePageTest extends TestCase
         $this->assertNull($e->getSql());
     }
 
+    public function testCliOutputStillShowsSqlOfQueryException(): void
+    {
+        $this->expectOutputRegex('/SQL: SELECT \* FROM `missing`/');
+        ErrorRenderer::showException(new QueryException('no such table', 500, null, 'SELECT * FROM `missing`'));
+    }
+
     public function testDatabaseExecuteDoesNotPutSqlInMessage(): void
     {
         $src = (string) \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Database.php');
@@ -151,6 +163,47 @@ class ErrorSafePageTest extends TestCase
     {
         $e = new RuntimeException('x');
         $this->assertNotSame(Error::report($e), Error::report($e));
+    }
+
+    public function testReportFallbackSurvivesNonStringSqlContext(): void
+    {
+        Error::setLogger(null);
+        $log = \tempnam(\sys_get_temp_dir(), 'razy_err');
+        $previous = \ini_set('error_log', (string) $log);
+
+        try {
+            $id = Error::report(new RuntimeException('x'), ['sql' => new stdClass()]);
+            $this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $id);
+            $this->assertStringContainsString($id, (string) \file_get_contents((string) $log));
+        } finally {
+            \ini_set('error_log', (string) $previous);
+            @\unlink((string) $log);
+        }
+    }
+
+    public function testReportFallbackRecordsLoggerFailure(): void
+    {
+        $broken = new class(null) extends Logger {
+            public function log(mixed $level, string|Stringable $message, array $context = []): void
+            {
+                throw new RuntimeException('disk full');
+            }
+        };
+        Error::setLogger($broken);
+        $log = \tempnam(\sys_get_temp_dir(), 'razy_err');
+        $previous = \ini_set('error_log', (string) $log);
+
+        try {
+            $id = Error::report(new RuntimeException('original problem'));
+            $written = (string) \file_get_contents((string) $log);
+            $this->assertStringContainsString('original problem', $written);
+            $this->assertStringContainsString('configured error logger failed', $written);
+            $this->assertStringContainsString('disk full', $written);
+            $this->assertStringContainsString($id, $written);
+        } finally {
+            \ini_set('error_log', (string) $previous);
+            @\unlink((string) $log);
+        }
     }
 
     // -- RAZY_DEBUG env override -------------------------------------------

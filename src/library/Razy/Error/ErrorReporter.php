@@ -13,6 +13,7 @@ namespace Razy\Error;
 
 use Razy\Contract\Log\LoggerInterface;
 use Razy\Exception\QueryException;
+use Stringable;
 use Throwable;
 
 /**
@@ -28,7 +29,13 @@ use Throwable;
  */
 class ErrorReporter
 {
-    /** @var LoggerInterface|null Logger that receives reports; null = error_log() */
+    /**
+     * @var LoggerInterface|null Logger that receives reports; null = error_log().
+     *                           Process-wide configuration: Error::reset() (the
+     *                           per-request worker cleanup) does not clear it.
+     *                           Register a process-wide logger at boot; do not
+     *                           register request- or tenant-scoped loggers here.
+     */
     private static ?LoggerInterface $logger = null;
 
     /**
@@ -88,21 +95,33 @@ class ErrorReporter
             $context['sql'] = $exception->getSql();
         }
 
+        $loggerFailure = null;
         if (null !== self::$logger) {
             try {
                 self::$logger->error($message, $context);
 
                 return $errorId;
-            } catch (Throwable) {
+            } catch (Throwable $failure) {
                 // A broken logger must never hide the original error: fall through to error_log().
+                $loggerFailure = $failure;
             }
         }
 
         $line = $message;
         if (isset($context['sql'])) {
-            $line .= ' | SQL: ' . $context['sql'];
+            $line .= ' | SQL: ' . self::stringify($context['sql']);
         }
         \error_log('[Razy] ' . $line . "\n" . $exception->getTraceAsString());
+        if (null !== $loggerFailure) {
+            \error_log(\sprintf(
+                '[Razy] [%s] configured error logger failed: %s: %s in %s:%d',
+                $errorId,
+                $loggerFailure::class,
+                $loggerFailure->getMessage(),
+                $loggerFailure->getFile(),
+                $loggerFailure->getLine(),
+            ));
+        }
 
         return $errorId;
     }
@@ -141,5 +160,22 @@ class ErrorReporter
         }
 
         return $message;
+    }
+
+    /**
+     * Text form of an arbitrary context value for the error_log() fallback.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    private static function stringify(mixed $value): string
+    {
+        if (\is_scalar($value) || $value instanceof Stringable) {
+            return (string) $value;
+        }
+        $json = \json_encode($value, JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+
+        return false === $json ? \get_debug_type($value) : $json;
     }
 }
