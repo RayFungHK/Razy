@@ -16,6 +16,7 @@ namespace Razy\Database;
 
 use PDO;
 use PDOStatement;
+use WeakReference;
 
 /**
  * Class StatementPool.
@@ -37,6 +38,14 @@ class StatementPool
 
     /** @var int Monotonically increasing counter for tracking access order */
     private int $accessCounter = 0;
+
+    /**
+     * @var array<string, WeakReference<object>> The result object (Query) still reading each
+     *                                           pooled statement. While it is alive the statement
+     *                                           is busy and must not be re-executed (RZ-02: one
+     *                                           SQL template now serves many different values).
+     */
+    private array $owners = [];
 
     /**
      * StatementPool constructor.
@@ -65,6 +74,15 @@ class StatementPool
     public function getOrPrepare(string $sql): PDOStatement|false
     {
         if (isset($this->pool[$sql])) {
+            if ($this->isBusy($sql)) {
+                // A live result set still reads the pooled statement (e.g. an
+                // N+1 loop running the same template): give this execution a
+                // dedicated, uncached statement instead of resetting that cursor.
+                // The template is still hot, so keep it away from LRU eviction.
+                $this->accessOrder[$sql] = ++$this->accessCounter;
+                return $this->pdo->prepare($sql);
+            }
+
             // Reuse cached statement — close any active cursor first
             $this->pool[$sql]->closeCursor();
             $this->accessOrder[$sql] = ++$this->accessCounter;
@@ -91,6 +109,34 @@ class StatementPool
     }
 
     /**
+     * Record the object that reads the result set of a pooled statement.
+     * The statement stays busy until that object is garbage collected.
+     * Statements that are not the pooled one for $sql are ignored.
+     *
+     * @param string $sql The SQL template the statement was prepared from
+     * @param PDOStatement $statement The statement returned by getOrPrepare()
+     * @param object $owner The result object (Query) reading the statement
+     */
+    public function claim(string $sql, PDOStatement $statement, object $owner): void
+    {
+        if (($this->pool[$sql] ?? null) === $statement) {
+            $this->owners[$sql] = WeakReference::create($owner);
+        }
+    }
+
+    /**
+     * Whether the pooled statement for $sql is still read by a live result object.
+     *
+     * @param string $sql
+     *
+     * @return bool
+     */
+    public function isBusy(string $sql): bool
+    {
+        return null !== ($this->owners[$sql] ?? null)?->get();
+    }
+
+    /**
      * Get the current number of cached statements.
      *
      * @return int
@@ -112,17 +158,37 @@ class StatementPool
         $this->pool = [];
         $this->accessOrder = [];
         $this->accessCounter = 0;
+        $this->owners = [];
     }
 
     /**
      * Evict the least recently used statement from the pool.
+     *
+     * Busy statements (still read by a live Query) are skipped so their open
+     * result set is never reset. If every pooled statement is busy, the oldest
+     * one is only dropped from the pool, without closeCursor(): its Query keeps
+     * the PDOStatement reference and finishes reading it.
      */
     private function evictLRU(): void
     {
-        $lruKey = \array_search(\min($this->accessOrder), $this->accessOrder, true);
-        if ($lruKey !== false) {
-            $this->pool[$lruKey]->closeCursor();
-            unset($this->pool[$lruKey], $this->accessOrder[$lruKey]);
+        if ($this->accessOrder === []) {
+            return;
         }
+
+        \asort($this->accessOrder);
+        $lruKey = null;
+        foreach ($this->accessOrder as $key => $_) {
+            if (!$this->isBusy($key)) {
+                $lruKey = $key;
+                break;
+            }
+        }
+
+        if ($lruKey !== null) {
+            $this->pool[$lruKey]->closeCursor();
+        } else {
+            $lruKey = \array_key_first($this->accessOrder);
+        }
+        unset($this->pool[$lruKey], $this->accessOrder[$lruKey], $this->owners[$lruKey]);
     }
 }

@@ -208,3 +208,50 @@ jobs:
           # no such line and reddened itself as "skipped". Gate the positive way:
           # an OK summary must appear; anything else (skip lines, failures) fails.
           grep -qE '^OK \([0-9]+ tests' redis.log || { echo "::error::redis-backed suites not fully green (skips or failures — see log above)"; exit 1; }
+
+  postgres-integration:
+    name: Postgres-backed suites (real server)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: razy
+          POSTGRES_PASSWORD: razy
+          POSTGRES_DB: razy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U razy -d razy_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      RAZY_TEST_PGSQL_HOST: 127.0.0.1
+      RAZY_TEST_PGSQL_PORT: 5432
+      RAZY_TEST_PGSQL_DB: razy_test
+      RAZY_TEST_PGSQL_USER: razy
+      RAZY_TEST_PGSQL_PASSWORD: razy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip, curl, json, mbstring, pdo_sqlite, pdo_pgsql, ftp, openssl, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      # RZ-02: parameter binding must hold on Postgres (booleans, quotes, JSON,
+      # LIKE). Skips here are FAILURES — the service exists.
+      - name: Run Postgres-backed suites
+        shell: bash
+        run: |
+          set -o pipefail
+          vendor/bin/phpunit --no-coverage --filter "ParameterBindingTest" 2>&1 | tee pg.log
+          grep -qE '^OK \([0-9]+ tests' pg.log || { echo "::error::postgres-backed suites not fully green (skips or failures — see log above)"; exit 1; }

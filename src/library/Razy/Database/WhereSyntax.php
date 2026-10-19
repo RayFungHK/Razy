@@ -294,7 +294,7 @@ class WhereSyntax
                             $rightOperand['expr'] = '(' . $value->getSyntax() . ')';
                         } else {
                             $rightOperand['value'] = $value;
-                            $rightOperand['expr'] = (\is_string($value)) ? $this->statement->getDatabase()->getDBAdapter()->quote($value) : (float) $value;
+                            $rightOperand['expr'] = $this->scalarExpr($value);
                         }
                     }
                 } else {
@@ -306,7 +306,7 @@ class WhereSyntax
                     $rightOperand['expr'] = '(' . $value->getSyntax() . ')';
                 } else {
                     $rightOperand['value'] = $value;
-                    $rightOperand['expr'] = (\is_string($value)) ? $this->statement->getDatabase()->getDBAdapter()->quote($value) : (float) $value;
+                    $rightOperand['expr'] = $this->scalarExpr($value);
                 }
             }
 
@@ -372,7 +372,7 @@ class WhereSyntax
                     'type' => 'parameter',
                     'name' => $matches[1],
                     'value' => $value,
-                    'expr' => (\is_scalar($value)) ? $this->statement->getDatabase()->getDBAdapter()->quote((string) $value) : null,
+                    'expr' => (\is_scalar($value)) ? $this->statement->sqlValue(\is_bool($value) ? $value : (string) $value) : null,
                 ];
             }
             // Quoted string literal (single or double quoted)
@@ -380,7 +380,7 @@ class WhereSyntax
                 return [
                     'type' => 'text',
                     'text' => $matches[2],
-                    'expr' => $this->statement->getDatabase()->getDBAdapter()->quote($matches[2]),
+                    'expr' => $this->statement->sqlValue($matches[2]),
                 ];
             }
 
@@ -489,12 +489,7 @@ class WhereSyntax
         // Handle both 'parameter' and 'array' types with array values
         if (('parameter' === $right['type'] || 'array' === $right['type']) && \is_array($right['value'])) {
             if (\count($right['value'])) {
-                $rightExpr = '';
-                $adapter = $this->statement->getDatabase()->getDBAdapter();
-                foreach ($right['value'] as $val) {
-                    $val = \is_numeric($val) ? $val : $adapter->quote((string) $val);
-                    $rightExpr .= ($rightExpr) ? ', ' . $val : $val;
-                }
+                $rightExpr = $this->valueList($right['value']);
             } else {
                 return $left['expr'] . ' IS ' . (($negative) ? ' NOT' : '') . ' NULL';
             }
@@ -519,42 +514,83 @@ class WhereSyntax
     private function buildPatternMatch(string $operator, array $left, array $right, bool $negative): string
     {
         // Pattern matching operators: #= (REGEXP), *= (LIKE %x%), ^= (LIKE x%), $= (LIKE %x)
-        $adapter = $this->statement->getDatabase()->getDBAdapter();
-        $convertor = function ($operand) use ($adapter) {
-            if ('parameter' === $operand['type']) {
-                if (\is_array($operand['value']) || \is_scalar($operand['value'])) {
-                    if (\is_scalar($operand['value'])) {
-                        $quoted = $adapter->quote((string) $operand['value']);
-                        return \substr($quoted, 1, -1);
-                    }
-                    return $this->jsonEncodeForSQL($operand['value']);
-                }
-
-                return '';
-            }
-
-            if ('text' === $operand['type']) {
-                $quoted = $adapter->quote($operand['text']);
-                return \substr($quoted, 1, -1);
-            }
-
-            if ('expr' === $operand['type']) {
-                return $operand['expr'];
-            }
-
-            return '';
-        };
-
-        $leftExpr = ('column' != $left['type']) ? $convertor($left) : $left['expr'];
+        $leftExpr = ('column' != $left['type']) ? $this->patternOperandExpr($left) : $left['expr'];
         if ('#=' === $operator) {
             $comparison = ' REGEXP ';
             $rightExpr = $right['expr'];
         } else {
             $comparison = 'LIKE';
-            $rightExpr = ('column' != $right['type']) ? $this->insertWildcard($convertor($right), $operator) : $right['expr'];
+            $rightExpr = ('column' != $right['type']) ? $this->likeOperandExpr($right, $operator) : $right['expr'];
+            // MySQL and Postgres escape LIKE patterns with a backslash by default; SQLite has no default
+            if ('column' != $right['type'] && 'sqlite' === $this->statement->getDatabase()->getDriverType()) {
+                $rightExpr .= " ESCAPE '\\'";
+            }
         }
 
         return $leftExpr . (($negative) ? ' NOT' : '') . ' ' . $comparison . ' ' . $rightExpr;
+    }
+
+    /**
+     * The raw text of a parameter or text operand for pattern matching
+     * (arrays are JSON-encoded), or '' when there is none.
+     *
+     * @param array $operand Parsed operand
+     *
+     * @return string
+     */
+    private function patternText(array $operand): string
+    {
+        if ('parameter' === $operand['type']) {
+            if (\is_bool($operand['value'])) {
+                return (string) (int) $operand['value'];
+            }
+            if (\is_scalar($operand['value'])) {
+                return (string) $operand['value'];
+            }
+            if (\is_array($operand['value'])) {
+                return Statement::encodeJson($operand['value']);
+            }
+
+            return '';
+        }
+        if ('text' === $operand['type']) {
+            return $operand['text'];
+        }
+
+        return '';
+    }
+
+    /**
+     * SQL for a non-column left operand of a pattern match: a bound value for
+     * parameters and text, the raw expression for expressions.
+     *
+     * @param array $operand Parsed operand
+     *
+     * @return string
+     */
+    private function patternOperandExpr(array $operand): string
+    {
+        if ('expr' === $operand['type']) {
+            return $operand['expr'];
+        }
+
+        return $this->statement->sqlValue($this->patternText($operand));
+    }
+
+    /**
+     * SQL for the right operand of LIKE: the escaped, wildcarded value, bound.
+     * A raw expression keeps its historical meaning: its text is the pattern.
+     *
+     * @param array $operand Parsed operand
+     * @param string $operator *=, ^= or $=
+     *
+     * @return string
+     */
+    private function likeOperandExpr(array $operand, string $operator): string
+    {
+        $text = ('expr' === $operand['type']) ? $operand['expr'] : $this->patternText($operand);
+
+        return $this->insertWildcard($text, $operator);
     }
 
     /**
@@ -573,34 +609,33 @@ class WhereSyntax
         $leftExpr = $this->castAsJSON($left, true);
 
         $isArray = false;
-        $rightExpr = '';
-        $adapter = $this->statement->getDatabase()->getDBAdapter();
+        $rightText = '';
         if ('parameter' === $right['type']) {
             if (\is_array($right['value'])) {
                 $isArray = true;
-                $rightExpr = $this->jsonEncodeForSQL($right['value']);
+                $rightText = Statement::encodeJson($right['value']);
+            } elseif (\is_bool($right['value'])) {
+                $rightText = (string) (int) $right['value'];
             } elseif (\is_scalar($right['value'])) {
-                $quoted = $adapter->quote((string) $right['value']);
-                $rightExpr = \substr($quoted, 1, -1);
+                $rightText = (string) $right['value'];
             }
         } elseif ('text' === $right['type']) {
-            $quoted = $adapter->quote($right['text']);
-            $rightExpr = \substr($quoted, 1, -1);
+            $rightText = $right['text'];
         } elseif ('expr' === $right['type']) {
-            $quoted = $adapter->quote($right['expr']);
-            $rightExpr = \substr($quoted, 1, -1);
+            $rightText = $right['expr'];
         } elseif ('array' === $right['type']) {
             // Handle inline array literals for JSON key matching
             $isArray = true;
-            $rightExpr = $this->jsonEncodeForSQL($right['value']);
+            $rightText = Statement::encodeJson($right['value']);
         }
+        $rightExpr = $this->statement->sqlValue($rightText);
 
         if ($isArray) {
             // Use JSON_OVERLAPS for array matching (MySQL 8.0+)
-            return 'JSON_OVERLAPS(JSON_KEYS(' . $leftExpr . '), CAST(\'' . $rightExpr . '\' AS JSON)) = ' . (($negative) ? '0' : '1');
+            return 'JSON_OVERLAPS(JSON_KEYS(' . $leftExpr . '), CAST(' . $rightExpr . ' AS JSON)) = ' . (($negative) ? '0' : '1');
         }
 
-        return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", CAST(\'' . $rightExpr . '\' AS CHAR)) IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
+        return 'JSON_SEARCH(JSON_KEYS(' . $leftExpr . '), "one", CAST(' . $rightExpr . ' AS CHAR)) IS ' . (($negative) ? '' : 'NOT ') . 'NULL';
     }
 
     /**
@@ -660,7 +695,7 @@ class WhereSyntax
         if ('~=' === $operator) {
             if ('text' == $right['type'] || ('parameter' == $right['type'] && \is_scalar($right['value']))) {
                 $rawValue = $right['text'] ?? $right['value'];
-                $rightExpr = $this->statement->getDatabase()->getDBAdapter()->quote('"' . \str_replace(['\\', '"'], ['\\\\', '\"'], (string) $rawValue) . '"');
+                $rightExpr = $this->statement->sqlValue('"' . \str_replace(['\\', '"'], ['\\\\', '\"'], (string) $rawValue) . '"');
                 $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $rightExpr . ') = 1';
             } else {
                 $operand = 'JSON_CONTAINS(' . $leftExpr . ', ' . $this->castAsJSON($right, true) . ') = 1';
@@ -697,9 +732,8 @@ class WhereSyntax
 
         if ($arrayValue !== null && \count($arrayValue) === 2) {
             $values = \array_values($arrayValue);
-            $adapter = $this->statement->getDatabase()->getDBAdapter();
-            $min = \is_numeric($values[0]) ? $values[0] : $adapter->quote((string) $values[0]);
-            $max = \is_numeric($values[1]) ? $values[1] : $adapter->quote((string) $values[1]);
+            $min = $this->listItem($values[0]);
+            $max = $this->listItem($values[1]);
 
             return $leftExpr . (($negative) ? ' NOT' : '') . ' BETWEEN ' . $min . ' AND ' . $max;
         }
@@ -729,12 +763,8 @@ class WhereSyntax
             // Handle array values -> convert to IN/NOT IN for = and != operators
             if ('array' === $right['type'] && \is_array($right['value'])) {
                 if (\count($right['value'])) {
-                    $adapter = $this->statement->getDatabase()->getDBAdapter();
-                    $values = '';
-                    foreach ($right['value'] as $val) {
-                        $val = \is_numeric($val) ? $val : $adapter->quote((string) $val);
-                        $values .= ($values) ? ', ' . $val : $val;
-                    }
+                    $values = $this->valueList($right['value']);
+
                     return $left['expr'] . (($negative) ? ' NOT' : '') . ' IN(' . $values . ')';
                 }
                 return $left['expr'] . ' IS ' . (($negative) ? 'NOT ' : '') . 'NULL';
@@ -756,18 +786,60 @@ class WhereSyntax
     }
 
     /**
-     * Safely encode value as JSON for use in SQL string literal.
-     * Escapes single quotes to prevent SQL injection.
+     * JSON-encode a value and emit it as a bound value (a literal outside compile()).
      *
      * @param mixed $value
      *
      * @return string
      */
-    private function jsonEncodeForSQL(mixed $value): string
+    private function jsonValue(mixed $value): string
     {
-        // json_encode handles all JSON escaping (double quotes, backslashes, unicode, etc.)
-        // Then we escape single quotes for SQL string literal context
-        return \str_replace("'", "\\'", \json_encode($value));
+        return $this->statement->sqlValue(Statement::encodeJson($value));
+    }
+
+    /**
+     * SQL for a single scalar right operand: strings and booleans are bound,
+     * anything else is inlined as a number (the historical behaviour).
+     *
+     * @param mixed $value
+     *
+     * @return string|float
+     */
+    private function scalarExpr(mixed $value): string|float
+    {
+        if (\is_string($value) || \is_bool($value)) {
+            return $this->statement->sqlValue($value);
+        }
+
+        return (float) $value;
+    }
+
+    /**
+     * One item of an IN / BETWEEN list: numbers inline, everything else bound.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    private function listItem(mixed $value): string
+    {
+        if (\is_numeric($value)) {
+            return (string) $value;
+        }
+
+        return $this->statement->sqlValue(\is_bool($value) ? $value : (string) $value);
+    }
+
+    /**
+     * Comma-separated list of values for IN(...).
+     *
+     * @param array $values
+     *
+     * @return string
+     */
+    private function valueList(array $values): string
+    {
+        return \implode(', ', \array_map(fn ($val) => $this->listItem($val), $values));
     }
 
     /**
@@ -783,16 +855,16 @@ class WhereSyntax
     {
         if ('parameter' === $operand['type']) {
             if (\is_array($operand['value'])) {
-                return 'CAST(\'' . $this->jsonEncodeForSQL(($acceptObject) ? $operand['value'] : \array_values($operand['value'])) . '\' AS JSON)';
+                return 'CAST(' . $this->jsonValue(($acceptObject) ? $operand['value'] : \array_values($operand['value'])) . ' AS JSON)';
             }
             if (\is_scalar($operand['value'])) {
-                return 'CAST(\'' . $this->jsonEncodeForSQL([$operand['value']]) . '\' AS JSON)';
+                return 'CAST(' . $this->jsonValue([$operand['value']]) . ' AS JSON)';
             }
 
             return 'CAST(\'[]\' AS JSON)';
         }
         if ('text' === $operand['type']) {
-            return 'CAST(\'' . $this->jsonEncodeForSQL([$operand['text']]) . '\' AS JSON)';
+            return 'CAST(' . $this->jsonValue([$operand['text']]) . ' AS JSON)';
         }
 
         return $operand['expr'];
@@ -809,8 +881,8 @@ class WhereSyntax
      */
     private function insertWildcard(string $value, string $type = '*='): string
     {
-        // Escape LIKE metacharacters in the value itself
-        $value = \str_replace(['%', '_'], ['\%', '\_'], $value);
+        // Escape LIKE metacharacters (and the escape character itself) in the value
+        $value = \str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $value);
 
         if ('*=' == $type || '$=' == $type) {
             $value = $value . '%';
@@ -820,6 +892,6 @@ class WhereSyntax
             $value = '%' . $value;
         }
 
-        return '\'' . $value . '\'';
+        return $this->statement->sqlValue($value);
     }
 }
