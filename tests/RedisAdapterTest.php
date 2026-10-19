@@ -6,7 +6,7 @@
  * Covers RedisAdapter — PSR-16 cache operations with Redis.
  * Tests are SKIPPED if the Redis extension or server is unavailable.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

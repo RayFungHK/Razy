@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\Health — /_razy/health liveness endpoint (audit §checklist).
  *
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

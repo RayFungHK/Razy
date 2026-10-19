@@ -1,9 +1,13 @@
 # Razy Framework — 類別總覽與 Stage 2 重構對照
 
-> **版本：** v0.5.x（Stage 2 重構完成後）  
-> **統計：** 113 個類別 / 介面 / Trait / Enum，橫跨 15 個命名空間群組  
-> **最終測試基線：** 1247 tests / 2054 assertions / 34 skipped — ALL PASS ✅  
+> **快照版本：** v0.5.x（Stage 2 重構完成後）  
+> **快照統計：** 113 個類別 / 介面 / Trait / Enum，橫跨 15 個命名空間群組  
+> **快照測試基線：** 1247 tests / 2054 assertions / 34 skipped — ALL PASS ✅  
 > **文件日期：** 2026-02-23
+>
+> **現況（2026-10，代碼實查）：** 框架版本 v1.2.1（`VERSION`）；`src/library/` 共 320 個類別 / 介面 / Trait / Enum
+> （`php build.php` 烘焙 classmap 的計數）；測試基線 5,605 tests / 115 skipped。本檔主體是上述 v0.5 快照，
+> 僅文末附錄按代碼實查補記 v1.x 類別；未列出的類別以 `src/library/Razy/` 為準（AGENTS.md「Code beats docs」）。
 
 ---
 

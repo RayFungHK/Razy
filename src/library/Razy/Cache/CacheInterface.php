@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * PSR-16 compatible Simple Cache interface for the Razy framework.
  * Provides a standard contract for cache adapters with get/set/delete operations,

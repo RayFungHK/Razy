@@ -17,18 +17,22 @@
 
 try {
     $pharFile = 'Razy.phar';
+    // One absolute path for build, chmod and copy. A bare 'Razy.phar' resolves
+    // against the CWD while the chmod/copy below used __DIR__, so running the
+    // script from another directory built one file and chmod'ed another.
+    $pharPath = __DIR__ . DIRECTORY_SEPARATOR . $pharFile;
 
     // clean up
-    if (file_exists($pharFile)) {
-        unlink($pharFile);
+    if (file_exists($pharPath)) {
+        unlink($pharPath);
     }
 
-    if (file_exists($pharFile . '.gz')) {
-        unlink($pharFile . '.gz');
+    if (file_exists($pharPath . '.gz')) {
+        unlink($pharPath . '.gz');
     }
 
     // create phar
-    $phar = new Phar($pharFile);
+    $phar = new Phar($pharPath);
 
     // start buffering. Mandatory to modify stub to add shebang
     $phar->startBuffering();
@@ -87,11 +91,11 @@ try {
     $phar->compressFiles(Phar::GZ);
 
     # Make the file executable
-    if (PHP_OS_FAMILY !== 'Windows') {
-        chmod(__DIR__ . '/' . $pharFile, 0770);
+    if (PHP_OS_FAMILY !== 'Windows' && !chmod($pharPath, 0770)) {
+        throw new RuntimeException("Could not chmod $pharPath");
     }
 
-    echo "$pharFile successfully created" . PHP_EOL;
+    echo "$pharPath successfully created" . PHP_EOL;
 
     // Copy to target paths passed as CLI arguments
     $targets = array_slice($argv, 1);
@@ -102,12 +106,13 @@ try {
             continue;
         }
         $dest = $target . DIRECTORY_SEPARATOR . $pharFile;
-        if (copy(__DIR__ . '/' . $pharFile, $dest)) {
+        if (copy($pharPath, $dest)) {
             echo "  [OK]   Copied to $dest" . PHP_EOL;
         } else {
             echo "  [FAIL] Could not copy to $dest" . PHP_EOL;
         }
     }
 } catch (Exception $e) {
-    echo $e->getMessage();
+    fwrite(STDERR, $e->getMessage() . PHP_EOL);
+    exit(1);
 }

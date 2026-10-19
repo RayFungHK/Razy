@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\Authenticator.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  * Tests TOTP/HOTP generation, verification, Base32 encoding/decoding,
  * provisioning URIs, backup codes, and RFC 6238 test vectors.
  */

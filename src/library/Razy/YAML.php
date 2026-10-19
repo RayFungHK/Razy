@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Native YAML parser and dumper facade for the Razy framework. Delegates
  * parsing to YAMLParser and dumping to YAMLDumper.

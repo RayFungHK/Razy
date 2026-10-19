@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * File-based cache adapter implementing the PSR-16 CacheInterface.
  * Stores each cache entry as a serialized file with TTL metadata,

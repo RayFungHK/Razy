@@ -13,7 +13,7 @@
  *   (compared against tests/fixtures/coexistence/*.golden captured from the
  *   pre-Phase-1 generators)
  *
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

@@ -7,7 +7,7 @@
  * actions, be transformed, and finally be resolved through the DI Container —
  * exercising three core Razy subsystems in a single end-to-end scenario.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

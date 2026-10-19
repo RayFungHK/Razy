@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Comprehensive tests for P12: Database Transaction Wrapper.
  *

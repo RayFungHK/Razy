@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * XHR (XMLHttpRequest) response handler for the Razy framework.
  * Provides a fluent API for building and sending JSON API responses

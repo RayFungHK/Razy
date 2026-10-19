@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Represents a single execution thread (inline or process-based) managed by ThreadManager.
  * Tracks status, result, timing, and I/O streams for the executed task.

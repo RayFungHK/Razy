@@ -6,7 +6,7 @@
  * Covers FormRequest — fromArray, rules, authorize, passes/fails,
  * validated, errors, input helpers, response helpers, hooks.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

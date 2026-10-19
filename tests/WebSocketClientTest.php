@@ -5,7 +5,7 @@
  *
  * Tests URL parsing and the connect-handshake flow using local stream pairs.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

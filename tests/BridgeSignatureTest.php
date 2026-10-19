@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\BridgeSignature — cross-distributor bridge HMAC (audit §S3).
  *
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

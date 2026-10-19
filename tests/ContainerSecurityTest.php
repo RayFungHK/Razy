@@ -8,7 +8,7 @@
  * module code from resolving internal system classes or traversing the
  * container hierarchy to reach the Application-level container.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 namespace Razy\Tests;

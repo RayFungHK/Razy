@@ -3,7 +3,7 @@
 /**
  * Unit tests for Razy\SFTPClient.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  * Tests constructor validation, parameter checks, and disconnected state handling.
  * SFTP operations requiring a live SSH server are tested via integration tests.
  *

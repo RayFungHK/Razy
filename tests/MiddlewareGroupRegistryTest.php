@@ -7,7 +7,7 @@
  * appendTo, prependTo, remove, has, count, getGroupNames, and all
  * edge cases for practical integration testing.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

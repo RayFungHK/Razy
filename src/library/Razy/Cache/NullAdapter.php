@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  *
  * Null cache adapter implementing the PSR-16 CacheInterface.
  * A no-op adapter that never stores anything — used when caching

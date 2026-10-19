@@ -6,7 +6,7 @@
  * Covers NullHandler, FileHandler, StderrHandler, LogManager,
  * LogLevel, PSR-3 convenience methods, buffering, and integration.
  *
- * This file is part of Razy v0.5.
+ * This file is part of Razy.
  */
 
 declare(strict_types=1);

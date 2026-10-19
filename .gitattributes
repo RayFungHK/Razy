@@ -37,5 +37,10 @@ Dockerfile* text eol=lf
 *.gz       -text
 *.png      -text
 *.jpg      -text
+*.jpeg     -text
+*.webp     -text
 *.gif      -text
 *.ico      -text
+*.woff     -text
+*.woff2    -text
+*.pdf      -text

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of Razy v1.0.
+ * This file is part of Razy.
  *
  * Redis session driver tests (Lane B1: horizontal-scale session storage).
  *
