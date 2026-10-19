@@ -15,8 +15,10 @@
 namespace Razy;
 
 use Exception;
+use Razy\Contract\Log\LoggerInterface;
 use Razy\Error\ErrorConfig;
 use Razy\Error\ErrorRenderer;
+use Razy\Error\ErrorReporter;
 use Throwable;
 
 /**
@@ -71,6 +73,30 @@ class Error extends Exception
     public static function configure(array $config): void
     {
         ErrorConfig::configure($config);
+    }
+
+    /**
+     * Log the exception (message, file, line, SQL, trace) server-side and return
+     * the error id that the production error page shows instead of the details.
+     *
+     * @param Throwable $exception
+     * @param array<string, mixed> $context Extra log context
+     *
+     * @return string The error id
+     */
+    public static function report(Throwable $exception, array $context = []): string
+    {
+        return ErrorReporter::report($exception, $context);
+    }
+
+    /**
+     * Set the logger used by report(). Null falls back to PHP's error_log().
+     *
+     * @param LoggerInterface|null $logger
+     */
+    public static function setLogger(?LoggerInterface $logger): void
+    {
+        ErrorReporter::setLogger($logger);
     }
 
     /**

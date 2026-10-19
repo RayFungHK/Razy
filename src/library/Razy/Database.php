@@ -357,10 +357,10 @@ class Database implements DatabaseInterface
                         $this->affected_rows = $pdoStatement->rowCount();
                     }
                 } catch (Exception $again) {
-                    throw new QueryException($again->getMessage() . "\n" . $sql, 500, $again);
+                    throw new QueryException($again->getMessage(), 500, $again, $sql);
                 }
             } else {
-                throw new QueryException($e->getMessage() . "\n" . $sql, 500, $e);
+                throw new QueryException($e->getMessage(), 500, $e, $sql);
             }
         }
 
@@ -409,7 +409,7 @@ class Database implements DatabaseInterface
             }
             return true;
         } catch (Exception $e) {
-            throw new QueryException($e->getMessage() . "\n" . $sql, 500, $e);
+            throw new QueryException($e->getMessage(), 500, $e, $sql);
         }
     }
 

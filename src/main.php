@@ -150,7 +150,11 @@ if (WEB_MODE) {
                 \header('HTTP/1.1 200', true, 200);
                 \header_remove();           // Clear headers from previous request
                 // Note: Error::reset() is only called in the finally block below
-                // to avoid redundant double-reset per request.
+                // to avoid redundant double-reset per request. That reset also
+                // clears debug, so re-apply the config (and the per-request
+                // loopback check of RAZY_DEBUG) here, or every request after
+                // the first would silently run with debug off (RZ-01).
+                Error::configure($razyConfig);
 
                 // Drain any leftover output buffers from a previous request
                 // that threw before flushing (e.g. ob_start in XHR/SSE).

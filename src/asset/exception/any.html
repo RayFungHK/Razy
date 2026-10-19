@@ -116,6 +116,10 @@
             padding-top: 1rem;
         }
 
+        .error-id {
+            margin: 1rem 0;
+        }
+
         .wrapper {
             max-width: 960px;
             margin: 0 auto;
@@ -126,14 +130,19 @@
 <body>
 <div class="wrapper">
     <h1>{$heading}</h1>
+    <div class="error-id">Error ID: <code>{$error_id}</code></div>
+
+    <!-- START BLOCK: debug -->
     <div class="error-message">{$message}</div>
     <div class="error-detail"><span>File</span>{$file}</div>
     <div class="error-detail"><span>Line</span>{$line}</div>
-
-    <!-- START BLOCK: debug -->
     {@if debug_message}
     <pre>{$debug_message}</pre>
     {/if}
+    <!-- START BLOCK: sql -->
+    <h2>SQL</h2>
+    <pre>{$sql}</pre>
+    <!-- END BLOCK: sql -->
     <h2>Stack Trace</h2>
     <div class="debug-box">
         <!-- START BLOCK: backtrace -->
