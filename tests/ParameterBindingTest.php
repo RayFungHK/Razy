@@ -124,6 +124,37 @@ class ParameterBindingTest extends TestCase
         $this->assertSame(1, $this->db->getStatementPool()?->getPoolSize());
     }
 
+    public function testPooledTemplateDoesNotClobberAnOpenResultSet(): void
+    {
+        foreach (['a', 'b', 'c'] as $name) {
+            $this->db->insert('t', ['name'])->assign(['name' => $name])->query();
+        }
+
+        // Outer cursor over all rows; an inner query with the SAME template runs
+        // while the outer one is still being read (classic N+1 loop).
+        $outer = $this->db->prepare()->from('t')->where('name!=:skip')->assign(['skip' => 'none'])->query();
+        $seen = [];
+        while ($row = $outer->fetch()) {
+            $inner = $this->db->prepare()->from('t')->where('name!=:skip')->assign(['skip' => $row['name']])->query()->fetchAll();
+            $this->assertCount(2, $inner);
+            $seen[] = $row['name'];
+        }
+
+        $this->assertSame(['a', 'b', 'c'], $seen, 'the outer result set must not be reset by the pooled inner query');
+    }
+
+    public function testJsonEncodeFailureIsAnError(): void
+    {
+        $this->expectException(\Razy\Exception\QueryException::class);
+        $this->db->insert('t', ['meta'])->assign(['meta' => ['bad' => "\xB1\x31"]])->compile();
+    }
+
+    public function testJsonEncodeFailureInWhereIsAnError(): void
+    {
+        $this->expectException(\Razy\Exception\QueryException::class);
+        $this->db->prepare()->from('t')->where('meta~=:v')->assign(['v' => ['bad' => "\xB1\x31"]])->compile();
+    }
+
     // -- Postgres ------------------------------------------------------------
 
     public function testPostgresBooleanAndStringRoundTrip(): void

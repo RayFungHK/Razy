@@ -386,7 +386,11 @@ class Database implements DatabaseInterface
         // debug literal, so getQueried()/getLastQueried() read as before.
         $this->recordQuery($statement->interpolate($compiled));
 
-        return new Query($statement, $pdoStatement);
+        $query = new Query($statement, $pdoStatement);
+        // The pooled statement stays busy while this result can still be read.
+        $this->statementPool?->claim($sql, $pdoStatement, $query);
+
+        return $query;
     }
 
     /**

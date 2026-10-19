@@ -11,6 +11,7 @@
 
 namespace Razy\Database;
 
+use JsonException;
 use Razy\Database;
 use Razy\Database\Statement\Builder;
 use Razy\Database\Statement\DeleteSyntaxBuilder;
@@ -162,6 +163,28 @@ class Statement
         }
 
         return '';
+    }
+
+    /**
+     * JSON-encode a value for storage or comparison. A value that cannot be
+     * encoded (invalid UTF-8, INF/NAN, ...) is an error rather than a silent
+     * `false` that would be stored as 0/FALSE.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     *
+     * @throws QueryException
+     *
+     * @internal Used by syntax builders
+     */
+    public static function encodeJson(mixed $value): string
+    {
+        try {
+            return \json_encode($value, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new QueryException('Cannot JSON-encode the value for the SQL statement: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     /**
@@ -456,7 +479,7 @@ class Statement
     {
         $value = $this->getValue($column);
         if (\is_array($value)) {
-            $value = \json_encode($value);
+            $value = self::encodeJson($value);
         }
 
         if (null === $value || \is_scalar($value)) {

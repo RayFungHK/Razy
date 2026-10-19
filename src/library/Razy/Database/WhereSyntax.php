@@ -548,7 +548,7 @@ class WhereSyntax
                 return (string) $operand['value'];
             }
             if (\is_array($operand['value'])) {
-                return (string) \json_encode($operand['value']);
+                return Statement::encodeJson($operand['value']);
             }
 
             return '';
@@ -613,7 +613,7 @@ class WhereSyntax
         if ('parameter' === $right['type']) {
             if (\is_array($right['value'])) {
                 $isArray = true;
-                $rightText = (string) \json_encode($right['value']);
+                $rightText = Statement::encodeJson($right['value']);
             } elseif (\is_bool($right['value'])) {
                 $rightText = (string) (int) $right['value'];
             } elseif (\is_scalar($right['value'])) {
@@ -626,7 +626,7 @@ class WhereSyntax
         } elseif ('array' === $right['type']) {
             // Handle inline array literals for JSON key matching
             $isArray = true;
-            $rightText = (string) \json_encode($right['value']);
+            $rightText = Statement::encodeJson($right['value']);
         }
         $rightExpr = $this->statement->sqlValue($rightText);
 
@@ -794,7 +794,7 @@ class WhereSyntax
      */
     private function jsonValue(mixed $value): string
     {
-        return $this->statement->sqlValue((string) \json_encode($value));
+        return $this->statement->sqlValue(Statement::encodeJson($value));
     }
 
     /**
