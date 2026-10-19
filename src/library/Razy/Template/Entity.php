@@ -387,15 +387,8 @@ class Entity
         // Replace parameter tags {$var} with resolved values, supporting dot-path access and modifier chains
         return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
             $clips = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
-            // Try each pipe-delimited alternative until a renderable value is found
-            foreach ($clips as $clip) {
-                $value = $this->parseValue($clip) ?? '';
-                if (\is_scalar($value) || (\is_object($value) && \method_exists($value, '__toString'))) {
-                    return $value;
-                }
-            }
 
-            return '';
+            return $this->renderTag($clips);
         }, $content);
     }
 
@@ -487,16 +480,41 @@ class Entity
                 $result .= $segment;
             } else {
                 // Resolve pipe-delimited variable alternatives (pre-split during compilation)
-                foreach ($segment['clips'] as $clip) {
-                    $value = $this->parseValue($clip) ?? '';
-                    if (\is_scalar($value) || (\is_object($value) && \method_exists($value, '__toString'))) {
-                        $result .= $value;
-                        break;
-                    }
-                }
+                $result .= $this->renderTag($segment['clips']);
             }
         }
         return $result;
+    }
+
+    /**
+     * Render one `{$tag}`: the first pipe-delimited alternative that yields a
+     * renderable value wins. With auto-escape on (RZ-03) the value is
+     * HTML-escaped unless that alternative's modifier chain has ->raw or ->escape.
+     *
+     * @param array<int, string> $clips The pipe-delimited alternatives
+     *
+     * @return string
+     *
+     * @throws Throwable
+     */
+    private function renderTag(array $clips): string
+    {
+        foreach ($clips as $clip) {
+            $value = $this->parseValue($clip) ?? '';
+            if (\is_scalar($value) || (\is_object($value) && \method_exists($value, '__toString'))) {
+                if (\is_bool($value)) {
+                    $value = $value ? '1' : '';
+                }
+                $value = (string) $value;
+                if ($this->block->isAutoEscape() && !\preg_match('/->(?:raw|escape)\b/', $clip)) {
+                    return \htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                }
+
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**

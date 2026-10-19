@@ -33,6 +33,11 @@ return [
 	// don't match an existing file or directory will return 404 at the server level.
 	'fallback'       => true,
 
+	// Template auto-escape: every variable tag is HTML-escaped unless it has ->raw
+	// (trusted HTML; the lint wants a `lint-allow: RZ-004 <reason>` next to it)
+	// or ->escape. Dists created before this flag existed default to false.
+	'auto_escape'    => true,
+
 	// Custom module path: Load modules from a different directory within the Razy project
 	// The path must be inside SYSTEM_ROOT. Useful for organizing modules in a shared location.
 	// Example: 'modules/' or 'dev/my_modules/' (relative to SYSTEM_ROOT)

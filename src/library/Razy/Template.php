@@ -18,6 +18,7 @@ namespace Razy;
 use Exception;
 use InvalidArgumentException;
 use Razy\Contract\TemplateInterface;
+use Razy\Exception\ConfigurationException;
 use Razy\Exception\TemplateException;
 use Razy\Template\Block;
 use Razy\Template\Plugin\TFunction;
@@ -57,6 +58,9 @@ class Template implements TemplateInterface
     /** @var array<string, Block> Global template blocks indexed by name */
     private array $templates = [];
 
+    /** @var bool HTML-escape every `{$tag}` unless it ends in ->raw / ->escape (RZ-03) */
+    private bool $autoEscape = false;
+
     /**
      * Template constructor.
      *
@@ -65,6 +69,31 @@ class Template implements TemplateInterface
     public function __construct(string $folder = '')
     {
         $this->addPluginFolder($folder);
+    }
+
+    /**
+     * Read the dist.php `auto_escape` flag (RZ-03). Absent means false, so
+     * existing dists keep raw `{$tag}` output until they opt in; new dists get
+     * `'auto_escape' => true` from the dist.php skeleton.
+     *
+     * @param array<string, mixed> $config The dist.php config array
+     * @param string $distCode The dist code, for the error message
+     *
+     * @return bool
+     *
+     * @throws ConfigurationException When the flag is not a boolean
+     */
+    public static function autoEscapeFromConfig(array $config, string $distCode): bool
+    {
+        $flag = $config['auto_escape'] ?? false;
+        if (!\is_bool($flag)) {
+            throw new ConfigurationException(
+                "dist.php 'auto_escape' must be true or false for dist '{$distCode}', got: "
+                . (\is_scalar($flag) ? \var_export($flag, true) : \get_debug_type($flag)),
+            );
+        }
+
+        return $flag;
     }
 
     /**
@@ -238,6 +267,32 @@ class Template implements TemplateInterface
         }
 
         return null;
+    }
+
+    /**
+     * Turn auto-escape on or off. When on, every `{$tag}` is HTML-escaped
+     * (ENT_QUOTES, UTF-8) unless its modifier chain contains `->raw` (trusted
+     * HTML, opt-out) or `->escape` (already escaped).
+     *
+     * @param bool $enable
+     *
+     * @return $this
+     */
+    public function setAutoEscape(bool $enable): static
+    {
+        $this->autoEscape = $enable;
+
+        return $this;
+    }
+
+    /**
+     * Whether `{$tag}` output is HTML-escaped by default.
+     *
+     * @return bool
+     */
+    public function isAutoEscape(): bool
+    {
+        return $this->autoEscape;
     }
 
     /**
