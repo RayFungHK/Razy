@@ -78,6 +78,8 @@ class StatementPool
                 // A live result set still reads the pooled statement (e.g. an
                 // N+1 loop running the same template): give this execution a
                 // dedicated, uncached statement instead of resetting that cursor.
+                // The template is still hot, so keep it away from LRU eviction.
+                $this->accessOrder[$sql] = ++$this->accessCounter;
                 return $this->pdo->prepare($sql);
             }
 
@@ -161,13 +163,32 @@ class StatementPool
 
     /**
      * Evict the least recently used statement from the pool.
+     *
+     * Busy statements (still read by a live Query) are skipped so their open
+     * result set is never reset. If every pooled statement is busy, the oldest
+     * one is only dropped from the pool, without closeCursor(): its Query keeps
+     * the PDOStatement reference and finishes reading it.
      */
     private function evictLRU(): void
     {
-        $lruKey = \array_search(\min($this->accessOrder), $this->accessOrder, true);
-        if ($lruKey !== false) {
-            $this->pool[$lruKey]->closeCursor();
-            unset($this->pool[$lruKey], $this->accessOrder[$lruKey], $this->owners[$lruKey]);
+        if ($this->accessOrder === []) {
+            return;
         }
+
+        \asort($this->accessOrder);
+        $lruKey = null;
+        foreach ($this->accessOrder as $key => $_) {
+            if (!$this->isBusy($key)) {
+                $lruKey = $key;
+                break;
+            }
+        }
+
+        if ($lruKey !== null) {
+            $this->pool[$lruKey]->closeCursor();
+        } else {
+            $lruKey = \array_key_first($this->accessOrder);
+        }
+        unset($this->pool[$lruKey], $this->accessOrder[$lruKey], $this->owners[$lruKey]);
     }
 }

@@ -9,6 +9,7 @@ use PDOStatement;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Razy\Database\StatementPool;
+use stdClass;
 use ValueError;
 
 /**
@@ -138,6 +139,49 @@ class StatementPoolTest extends TestCase
         // 'SELECT 1' should still be cached (same object)
         $stmt1Again = $pool->getOrPrepare('SELECT 1');
         $this->assertSame($stmt1, $stmt1Again);
+    }
+
+    public function testLRUEvictionSkipsBusyStatement(): void
+    {
+        $this->pdo->exec("INSERT INTO test (id, name) VALUES (3, 'Carol')");
+        $pool = new StatementPool($this->pdo, maxSize: 2);
+        $sql = 'SELECT name FROM test ORDER BY id';
+
+        // A live result object (Query) is iterating the pooled statement...
+        $stmt = $pool->getOrPrepare($sql);
+        $stmt->execute();
+        $owner = new stdClass();
+        $pool->claim($sql, $stmt, $owner);
+        $seen = [$stmt->fetchColumn()];
+
+        // ...while other templates fill the pool past its size.
+        foreach (['SELECT 1', 'SELECT 2', 'SELECT 3'] as $other) {
+            $pool->getOrPrepare($other);
+        }
+        $this->assertSame(2, $pool->getPoolSize());
+
+        while (false !== ($name = $stmt->fetchColumn())) {
+            $seen[] = $name;
+        }
+        $this->assertSame(['Alice', 'Bob', 'Carol'], $seen, 'eviction must not reset a busy statement');
+        $this->assertTrue($pool->isBusy($sql), 'the busy statement must stay pooled');
+    }
+
+    public function testLRUEvictionWhenAllBusyLeavesCursorOpen(): void
+    {
+        $pool = new StatementPool($this->pdo, maxSize: 1);
+        $sql = 'SELECT name FROM test ORDER BY id';
+
+        $stmt = $pool->getOrPrepare($sql);
+        $stmt->execute();
+        $owner = new stdClass();
+        $pool->claim($sql, $stmt, $owner);
+        $this->assertSame('Alice', $stmt->fetchColumn());
+
+        // Every pooled statement is busy: it is dropped from the pool, not reset.
+        $pool->getOrPrepare('SELECT 1');
+        $this->assertSame(1, $pool->getPoolSize());
+        $this->assertSame('Bob', $stmt->fetchColumn());
     }
 
     // ─── Clear ───────────────────────────────────────────────────
