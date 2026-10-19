@@ -156,6 +156,10 @@ class TemplateAutoEscapeTest extends TestCase
         \file_put_contents($this->dir . '/bare.tpl', "<!-- lint-allow: RZ-004 -->\n<div>{\$html->raw}</div>\n");
         \file_put_contents($this->dir . '/inline.tpl', "<!-- lint-allow: RZ-004 -->{\$html->raw}\n");
         \file_put_contents($this->dir . '/fallback.tpl', "<li>{\$nick|'->raw'}</li>\n");
+        \file_put_contents($this->dir . '/pathkey.tpl', "<li>{\$u.'bio->raw'}</li>\n");
+        \file_put_contents($this->dir . '/attr-dq.tpl', "<input value=\"{\$html->raw}\">\n");
+        \file_put_contents($this->dir . '/attr-sq.tpl', "<a href='{\$url->raw}'>x</a>\n");
+        \file_put_contents($this->dir . '/attr-fallback.tpl', "<input value=\"{\$nick|'->raw'}\">\n");
 
         $out = (string) \shell_exec(\escapeshellarg(PHP_BINARY) . ' ' . \escapeshellarg(SYSTEM_ROOT . '/tools/lint-module-discipline.php')
             . ' ' . \escapeshellarg($this->dir) . ' --format=json');
@@ -169,7 +173,7 @@ class TemplateAutoEscapeTest extends TestCase
         $files = \array_map(fn (array $v) => \basename($v['file']), $rawHits);
         \sort($files);
 
-        $this->assertSame(['bad.tpl', 'bare.tpl', 'inline.tpl'], $files, 'raw output needs a written justification');
+        $this->assertSame(['attr-dq.tpl', 'attr-sq.tpl', 'bad.tpl', 'bare.tpl', 'inline.tpl'], $files, 'raw output needs a written justification');
         $this->assertSame('error', $rawHits[0]['level']);
     }
 

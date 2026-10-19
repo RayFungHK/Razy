@@ -53,6 +53,11 @@ const DEFAULT_EXCLUDES = [
 /** RZ-004 raw-output message (structural check: rawOutputScan()) */
 const RAW_OUTPUT_DESC = '->raw prints unescaped HTML — justify it with `lint-allow: RZ-004 <reason>` on the same or previous line';
 
+/** RZ-004: a `{$...}` template tag; quoted spans inside it are skipped whole */
+const RAW_TAG_RE = '/\{\$(?:\'(?:\\\\.|[^\'\\\\])*\'|"(?:\\\\.|[^"\\\\])*"|[^}\'"])*/';
+/** RZ-004: a quoted literal inside a tag body */
+const RAW_QUOTED_RE = '/(?<q>[\'"])(?:\\\\.|(?!\k<q>).)*\k<q>/';
+
 const RULES = [
     ['id' => 'RZ-001', 'level' => 'error', 'scope' => 'php', 'desc' => 'Cross-module file access via require/include',
      'regex' => ['#\b(?:require|include|require_once|include_once)\s*\(?\s*[\'"][^\'"]*(?:\.\.[/\\\\]|sites[/\\\\]|shared[/\\\\]module|vendor[/\\\\]module)#i',
@@ -302,12 +307,18 @@ function rawOutputScan(array $lines): array
 {
     $hits = [];
     foreach ($lines as $i => $line) {
-        // Blank quoted text first: a quoted path key, modifier argument or
-        // fallback (`{$nick|'->raw'}`) is not a raw modifier.
-        $unquoted = (string) preg_replace('/(?<q>[\'"])(?:\\\\.|(?!\k<q>).)*\k<q>/', "''", $line);
-        if (!preg_match('#\{\$[^}]*->raw(?!\w)#', $unquoted)) continue;
-        if (isJustified($lines, $i, 'RZ-004')) continue;
-        $hits[] = $i + 1;
+        // Find each `{$...}` tag first (a quoted span inside a tag may hold
+        // `}`), then blank quoted text only within that tag: a quoted path
+        // key, modifier argument or fallback (`{$nick|'->raw'}`) is not a raw
+        // modifier, but HTML/JS attribute quotes around the whole tag
+        // (`value="{$html->raw}"`) must not hide it.
+        if (!preg_match_all(RAW_TAG_RE, $line, $tags)) continue;
+        foreach ($tags[0] as $tag) {
+            $unquoted = (string) preg_replace(RAW_QUOTED_RE, "''", $tag);
+            if (!preg_match('#->raw(?!\w)#', $unquoted)) continue;
+            if (!isJustified($lines, $i, 'RZ-004')) $hits[] = $i + 1;
+            break;
+        }
     }
 
     return $hits;
@@ -748,6 +759,13 @@ function selfTest(): int
         [["<!-- lint-allow: RZ-004 -->{\$html->raw}"], 1],
         [["<li>{\$nick|'->raw'}</li>"], 0],
         [["<li>{\$u.'bio->raw'}</li>"], 0],
+        [["<li>{\$u.\"bio->raw\"}</li>"], 0],
+        [["<li>{\$a|'}->raw'}</li>"], 0],
+        [["<input value=\"{\$html->raw}\">"], 1],
+        [["<a href='{\$url->raw}'>x</a>"], 1],
+        [["<a title=\"{\$t}\" href=\"{\$url->raw}\">x</a>"], 1],
+        [["<button onclick='go(\"{\$js->raw}\")'>x</button>"], 1],
+        [["<input value=\"{\$nick|'->raw'}\">"], 0],
         [["<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->", "<div>{\$html->raw}</div>"], 0],
         [["<div>{\$html->escape}</div>"], 0],
     ];
