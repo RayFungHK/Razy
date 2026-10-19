@@ -61,6 +61,14 @@ or isn't installed in this distributor — and it bypasses `__onAPICall` permiss
 entirely. The framework cannot see the dependency, so `validate`/`compose`/`pack` can't
 either.
 
+✅ **Right** — turn on auto-escape for the dist (RZ-03): `'auto_escape' => true` in
+dist.php HTML-escapes every `{$tag}` unless its chain has `->escape` (already escaped) or
+`->raw` (trusted HTML). New dists get the flag from the dist.php skeleton; existing dists
+keep raw output until they opt in. Every `->raw` needs a reason on the same or previous
+line, `<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->`, or the lint
+reports an error. Under auto-escape write `{$text->escape->nl2br}` for line breaks:
+`->nl2br` output is escaped like any other value.
+
 **Self-check.** `grep -rnE "(require|include)(_once)?\s*\(?\s*['\"][^'\"]*(\.\./|sites/|autoload/|shared/module)" <dir>`
 
 ---

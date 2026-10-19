@@ -50,6 +50,9 @@ const DEFAULT_EXCLUDES = [
  * fields: id, level (error|warn), scope (php|tpl|any|php-special), desc, regex (array)
  * 'any' = applies to php AND tpl files (catches PHP teaching snippets embedded in .tpl).
  */
+/** RZ-004 raw-output message (structural check: rawOutputScan()) */
+const RAW_OUTPUT_DESC = '->raw prints unescaped HTML — justify it with `lint-allow: RZ-004 <reason>` on the same or previous line';
+
 const RULES = [
     ['id' => 'RZ-001', 'level' => 'error', 'scope' => 'php', 'desc' => 'Cross-module file access via require/include',
      'regex' => ['#\b(?:require|include|require_once|include_once)\s*\(?\s*[\'"][^\'"]*(?:\.\.[/\\\\]|sites[/\\\\]|shared[/\\\\]module|vendor[/\\\\]module)#i',
@@ -63,7 +66,7 @@ const RULES = [
                  '#\b(?:->getDB\(\))->prepare\s*\(\s*[\'"]#i']],
     ['id' => 'RZ-003', 'level' => 'warn', 'scope' => 'php', 'desc' => 'Input superglobal read — cast/validate immediately; route args preferred via getRoutedInfo(); never interpolate into SQL',
      'regex' => ['#\$_(?:GET|POST|REQUEST|COOKIE)\b#']],
-    ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Template variable output without modifier — engine does NOT auto-escape (review data provenance)',
+    ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Template variable output without modifier — escaped only where the dist sets \'auto_escape\' => true (review data provenance)',
      'regex' => ['#{\$[A-Za-z_][\w.]*\}#']],
     ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Legacy modifier pipe — the engine treats | as a FALLBACK chain, so the piped modifier is a silent no-op (rewrite as ->modifier)',
      'regex' => ['#{\$[A-Za-z_][\w.]*\|(?!\$|\x27|")[a-z][\w.]*\}#']],
@@ -219,6 +222,16 @@ foreach ($paths as $root) {
             }
         }
 
+        // RZ-004 (raw opt-out, RZ-03): `{$x->raw}` prints trusted HTML even
+        // under auto-escape. Every use needs a written reason next to it —
+        // `lint-allow: RZ-004 <reason>` on the same or previous line; a bare
+        // `lint-allow: RZ-004` does not count.
+        if ($scope === 'tpl') {
+            foreach (rawOutputScan($lines) as $lineNo) {
+                $violations[] = violation($file, $lineNo, 'RZ-004', 'error', RAW_OUTPUT_DESC . ' — ' . trim(mb_substr(strip_tags($lines[$lineNo - 1]), 0, 120)));
+            }
+        }
+
         // Regex rules ('any' rules apply to both php and tpl scopes)
         foreach (RULES as $rule) {
             if ($rule['scope'] !== $scope && $rule['scope'] !== 'any') continue;
@@ -276,6 +289,41 @@ if ($format === 'json') {
 exit($errors > 0 || ($strict && $warns > 0) ? 1 : 0);
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * RZ-004 raw-output check: line numbers (1-based) of `{$x->raw}` tags that
+ * lack a justified `lint-allow: RZ-004 <reason>` on the same or previous line.
+ *
+ * @param array<int, string> $lines
+ *
+ * @return array<int, int>
+ */
+function rawOutputScan(array $lines): array
+{
+    $hits = [];
+    foreach ($lines as $i => $line) {
+        if (!preg_match('#\{\$[^}]*->raw\b#', $line)) continue;
+        if (isJustified($lines, $i, 'RZ-004')) continue;
+        $hits[] = $i + 1;
+    }
+
+    return $hits;
+}
+
+/**
+ * Like isSuppressed(), but the allow comment must carry a reason:
+ * `lint-allow: RZ-004 sanitized by the markdown renderer`.
+ */
+function isJustified(array $lines, int $index, string $ruleId): bool
+{
+    $re = '#lint-allow:\s*' . preg_quote($ruleId, '#') . '\b[\s:—-]*(?!-->|\*/)(\S[^\n]{2,})#u';
+    foreach ([$index, $index - 1] as $i) {
+        if ($i < 0 || !isset($lines[$i])) continue;
+        if (preg_match($re, $lines[$i], $m) && trim(str_replace(['-->', '*/', '}'], '', $m[1])) !== '') return true;
+    }
+
+    return false;
+}
 
 function violation(string $file, int $line, string $rule, string $level, string $message): array
 {
@@ -683,6 +731,19 @@ function selfTest(): int
         $ok = $hit === $expect;
         $failed += $ok ? 0 : 1;
         printf("%s  expect=%-7s got=%-7s  %.60s\n", $ok ? 'ok  ' : 'FAIL', $expect ?? '-', $hit ?? '-', str_replace("\n", ' ', trim($code)));
+    }
+
+    // RZ-004 raw-output fixture: unjustified raw hits, a written reason clears it.
+    $rawCases = [
+        [["<div>{\$html->raw}</div>"], 1],
+        [["<!-- lint-allow: RZ-004 -->", "<div>{\$html->raw}</div>"], 1],
+        [["<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->", "<div>{\$html->raw}</div>"], 0],
+        [["<div>{\$html->escape}</div>"], 0],
+    ];
+    foreach ($rawCases as [$rawLines, $expectHits]) {
+        $pass = count(rawOutputScan($rawLines)) === $expectHits;
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=RZ-004 x%d  (raw output)  %.50s\n", $pass ? 'ok  ' : 'FAIL', $expectHits, implode(' ', $rawLines));
     }
 
     // RZ-017 structural fixture: sibling import hits, own-namespace import and

@@ -23,7 +23,7 @@ The Golden Rules below are the short form; rule IDs are stable and quotable.
 | RZ-001 | `require`/`include`/`file_get_contents` into another module's files | Published API: `$this->api('vendor/mod')->cmd()` |
 | RZ-002 | Cross-distributor calls without a gate | `addBridgeCommand` + implement `__onBridgeCall` allow-list |
 | RZ-003 | Raw SQL with interpolated input, `new PDO`, `getDB()->prepare('SELECT…')`, `getSearchTextSyntax($userText)` | `$db->prepare()->select()->where('x=:x')->assign([...])`, ORM named params |
-| RZ-004 | Raw `{$var}` of user data in templates (engine does **not** auto-escape) | `->escape` modifier (built-in v1.0.3-beta+), `htmlspecialchars()`, DOM builder |
+| RZ-004 | Raw `{$var}` of user data in templates (auto-escape only where dist.php sets `'auto_escape' => true`); unjustified `->raw` | `'auto_escape' => true`, `->escape` modifier, `htmlspecialchars()`, DOM builder; `->raw` only with `lint-allow: RZ-004 <reason>` |
 | RZ-005 | Resolving `Razy\Application/Container/Module/...` via DI (SecurityException = fence) | Controller helpers + your module's own bindings |
 | RZ-006 | File writes outside your module paths | `getDataPath()` / `getAssetPath()` roots |
 | RZ-007 | Editing `autoload/` or `autoload/lock.json` by hand | `package.php` → `require` / `prerequisite` + `php Razy.phar compose` |
@@ -59,8 +59,10 @@ and flag it for human review.
   will deny calls lacking a valid HMAC (`Razy\BridgeSignature`) — but the secret gates
   `executeBridgeCommand`, not the CLI `bridge` command (local IPC stays operator-trust).
 - `__onAPICall` must be implemented for sensitive commands — no gate means open.
-- `{$var}` outputs raw — there is **no auto-escaping**; use the built-in `->escape`
-  modifier (shipped v1.0.3-beta+; older installs: RZ-004 patch in the rules doc).
+- `{$var}` outputs raw unless the dist sets `'auto_escape' => true` in dist.php (RZ-03;
+  new dists get it from the skeleton, older dists keep raw output until they opt in).
+  Without it, use the built-in `->escape` modifier. Under auto-escape, `->raw` prints
+  trusted HTML and needs `lint-allow: RZ-004 <reason>` next to it.
 - `ThreadManager::spawnPHPCode()` uses `eval(base64_decode())` in the child — never feed
   it input-derived code (RZ-011). It is **deprecated** as of v1.0.3-beta; migrate to
   `spawnPHPFile()` (one-shot) or `Razy\WorkerPool::submitCode()` (boot/CPU-heavy repeats).
