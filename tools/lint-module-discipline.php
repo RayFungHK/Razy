@@ -343,26 +343,78 @@ function rawOutputScan(array $lines): array
  */
 function jsonAttributeScan(array $lines): array
 {
+    $source = implode("\n", array_map(static fn ($l) => rtrim((string) $l, "\r\n"), $lines));
+    if (!preg_match_all(RAW_TAG_RE, $source, $tags, PREG_OFFSET_CAPTURE)) return [];
+    $tagEnd = [];
+    $jsonAt = [];
+    foreach ($tags[0] as [$tag, $offset]) {
+        $tagEnd[$offset] = $offset + strlen($tag);
+        $unquoted = (string) preg_replace(RAW_QUOTED_RE, "''", $tag);
+        if (preg_match('/->json(?::(?:\w+|\'\'|-?\d+(?:\.\d+)?))*\s*(?:\||$)/', $unquoted)) $jsonAt[$offset] = true;
+    }
+
+    // One pass over the whole template: markup state (text, start tag, quoted
+    // or unquoted attribute value) is tracked across lines, `>` inside a quoted
+    // value does not end the tag, and template tags are skipped as opaque.
     $hits = [];
-    foreach ($lines as $i => $line) {
-        if (!preg_match_all(RAW_TAG_RE, $line, $tags, PREG_OFFSET_CAPTURE)) continue;
-        foreach ($tags[0] as [$tag, $offset]) {
-            $unquoted = (string) preg_replace(RAW_QUOTED_RE, "''", $tag);
-            if (!preg_match('/->json(?::(?:\w+|\'\'|-?\d+(?:\.\d+)?))*\s*(?:\||$)/', $unquoted)) continue;
-            $prefix = substr($line, 0, $offset);
-            $lt = strrpos($prefix, '<');
-            if (false === $lt || str_contains(substr($prefix, $lt), '>')) continue;
-            // Inside a start tag: drop complete quoted values, then an open `"` or a bare `=` remains.
-            $rest = (string) preg_replace('/"[^"]*"|\'[^\']*\'/', '', substr($prefix, $lt));
-            if (str_contains($rest, '\'')) continue;
-            if (str_contains($rest, '"') || preg_match('/=\s*$/', $rest)) {
-                $hits[] = $i + 1;
-                break;
+    $state = 'text';
+    $afterEq = false;
+    $len = strlen($source);
+    for ($i = 0; $i < $len; $i++) {
+        if (isset($tagEnd[$i])) {
+            if (isset($jsonAt[$i]) && ($state === 'dq' || $state === 'unq' || ($state === 'tag' && $afterEq))) {
+                $hits[substr_count($source, "\n", 0, $i) + 1] = true;
             }
+            if ($state === 'tag' && $afterEq) $state = 'unq';
+            $afterEq = false;
+            $i = $tagEnd[$i];
+            continue;
+        }
+        $c = $source[$i];
+        switch ($state) {
+            case 'text':
+                if (substr_compare($source, '<!--', $i, 4) === 0) {
+                    $close = strpos($source, '-->', $i + 4);
+                    $i = false === $close ? $len : $close + 2;
+                } elseif ($c === '<' && preg_match('/\G<([A-Za-z][\w:-]*)/', $source, $m, 0, $i)) {
+                    $state = 'tag';
+                    $element = strtolower($m[1]);
+                    $i += strlen($m[0]) - 1;
+                }
+                break;
+            case 'tag':
+                if ($c === '>') {
+                    $state = 'text';
+                    if ($element === 'script' || $element === 'style') {
+                        $close = stripos($source, '</' . $element, $i);
+                        $i = (false === $close ? $len : $close) - 1;
+                    }
+                } elseif ($afterEq && $c === '"') {
+                    $state = 'dq';
+                } elseif ($afterEq && $c === '\'') {
+                    $state = 'sq';
+                } elseif ($c === '=') {
+                    $afterEq = true;
+                    break;
+                } elseif ($afterEq && !ctype_space($c)) {
+                    $state = 'unq';
+                }
+                if (!ctype_space($c)) $afterEq = false;
+                break;
+            case 'dq':
+                if ($c === '"') $state = 'tag';
+                break;
+            case 'sq':
+                if ($c === '\'') $state = 'tag';
+                break;
+            case 'unq':
+                if (ctype_space($c)) $state = 'tag';
+                elseif ($c === '>') { $state = 'tag'; $i--; }
+                break;
         }
     }
 
-    return $hits;
+    return array_keys($hits);
 }
 
 /**
@@ -881,11 +933,20 @@ function selfTest(): int
         ['<div data-s="{$s->json->escape}"></div>', 0],
         ['<script>const s = {$s->json};</script>', 0],
         ['<p title="x">{$s->json}</p>', 0],
+        ['<p title="a > b" data-s="{$s->json}"></p>', 1],
+        ['<p title="a > b">{$s->json}</p>', 0],
+        ['<div data-a="{$a->json}" data-b="{$b->json}"></div>', 1],
+        ['<!-- <div data-s="x --> {$s->json}', 0],
+        ['<script>if (a<b) { x = "{$s->json}"; }</script>', 0],
+        ["<div\n  class=\"x\"\n  data-s=\"{\$s->json}\"\n></div>", [3]],
+        ["<div data-a=\"{\$a->json}\"></div>\n<p>ok</p>\n<i data-b={\$b->json}></i>", [1, 3]],
     ];
-    foreach ($jsonCases as [$jsonLine, $expectHits]) {
-        $pass = count(jsonAttributeScan([$jsonLine])) === $expectHits;
+    foreach ($jsonCases as [$jsonSource, $expect]) {
+        $jsonLines = preg_split('/(?<=\n)/', $jsonSource);
+        $got = jsonAttributeScan($jsonLines);
+        $pass = is_array($expect) ? $got === $expect : count($got) === $expect;
         $failed += $pass ? 0 : 1;
-        printf("%s  expect=RZ-004 x%d  (json attr)   %.50s\n", $pass ? 'ok  ' : 'FAIL', $expectHits, $jsonLine);
+        printf("%s  expect=RZ-004 %s  (json attr)   %.50s\n", $pass ? 'ok  ' : 'FAIL', is_array($expect) ? '@' . implode(',', $expect) : 'x' . $expect, str_replace("\n", ' ', $jsonSource));
     }
 
     // RZ-017 structural fixture: sibling import hits, own-namespace import and
