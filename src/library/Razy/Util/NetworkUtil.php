@@ -17,6 +17,9 @@
 
 namespace Razy\Util;
 
+use Razy\Http\Request;
+use Razy\Http\TrustedProxies;
+
 /**
  * Network-related utilities.
  *
@@ -31,6 +34,9 @@ class NetworkUtil
      * @var list<string>
      */
     public const RESERVED_LEFT_LABELS = ['www', 'console', 'admin', 'api', 'stage'];
+
+    /** @var bool Whether the deprecated untrusted X-Forwarded-Proto fallback was logged */
+    private static bool $legacyProtoWarned = false;
 
     /**
      * Check if the string is a valid FQDN.
@@ -132,14 +138,32 @@ class NetworkUtil
     /**
      * Check if SSL is used.
      *
+     * Reads HTTPS / REQUEST_SCHEME / SERVER_PORT (compared as an integer:
+     * $_SERVER holds it as a string), and X-Forwarded-Proto only from a
+     * trusted proxy (RZ-04, see Razy\Http\TrustedProxies).
+     *
+     * Deprecated fallback: while no trusted proxy is configured, an
+     * `X-Forwarded-Proto: https` header from any peer is still honoured, as
+     * before RZ-04, and logged once per process. Configure
+     * `RAZY_TRUSTED_PROXIES` (or config.inc.php 'trusted_proxies') to switch to
+     * the strict behaviour; the fallback will be removed in the next major.
+     *
      * @return bool True if the connection is using SSL/HTTPS
      */
     public static function isSsl(): bool
     {
-        if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO']) {
+        if (Request::fromGlobals()->isSecure()) {
             return true;
         }
-        if (!empty($_SERVER['HTTPS']) && 'off' !== $_SERVER['HTTPS'] || 443 === $_SERVER['SERVER_PORT']) {
+
+        if (!TrustedProxies::current()->isConfigured()
+            && 'https' === \strtolower(\trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')))) {
+            if (!self::$legacyProtoWarned) {
+                self::$legacyProtoWarned = true;
+                \error_log('[Razy] Deprecated: X-Forwarded-Proto trusted from an unconfigured peer. '
+                    . 'Set RAZY_TRUSTED_PROXIES to your proxy CIDRs; untrusted forwarded headers will be ignored in the next major.');
+            }
+
             return true;
         }
 
@@ -149,50 +173,53 @@ class NetworkUtil
     /**
      * Get the visitor IP.
      *
-     * Returns REMOTE_ADDR by default. Forwarded headers (X-Forwarded-For,
-     * etc.) are NOT trusted because they can be spoofed by any client.
-     * If you are behind a trusted reverse proxy, extract the real IP from
-     * the forwarded header in your application layer after verifying
-     * REMOTE_ADDR is your proxy.
+     * Returns REMOTE_ADDR, or — when REMOTE_ADDR is a trusted proxy (RZ-04,
+     * see Razy\Http\TrustedProxies) — the first untrusted hop of
+     * X-Forwarded-For. Forwarded headers from any other peer are ignored.
      *
      * @return string The IP address
      */
     public static function getIP(): string
     {
-        if (isset($_SERVER['REMOTE_ADDR'])) {
-            return $_SERVER['REMOTE_ADDR'];
-        }
-
-        return 'UNKNOWN';
+        return Request::fromGlobals()->clientIp();
     }
 
     /**
-     * Check if the IP is in the CIDR range.
+     * Check if the IP is in the CIDR range. Supports IPv4 and IPv6; a bare
+     * address is a single-host range. Addresses of different families never match.
      *
      * @param string $ip The IP address to check
-     * @param string $cidr The CIDR notation range (e.g. '192.168.1.0/24')
+     * @param string $cidr The CIDR notation range (e.g. '192.168.1.0/24', '2001:db8::/32')
      *
      * @return bool True if the IP is within the CIDR range
      */
     public static function ipInRange(string $ip, string $cidr): bool
     {
-        if (!\preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/', $ip)) {
+        [$range, $bits] = \array_pad(\explode('/', \trim($cidr), 2), 2, null);
+        $ipBin = false !== \filter_var($ip, FILTER_VALIDATE_IP) ? \inet_pton($ip) : false;
+        $rangeBin = false !== \filter_var($range, FILTER_VALIDATE_IP) ? \inet_pton((string) $range) : false;
+        if (false === $ipBin || false === $rangeBin || \strlen($ipBin) !== \strlen($rangeBin)) {
             return false;
         }
 
-        if (!\preg_match('/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$/', $cidr)) {
+        $maxBits = \strlen($ipBin) * 8;
+        if (null === $bits) {
+            $bits = $maxBits;
+        } elseif (1 !== \preg_match('/^\d{1,3}$/', $bits) || (int) $bits > $maxBits) {
             return false;
         }
+        $bits = (int) $bits;
 
-        if (!\str_contains($cidr, '/')) {
-            $cidr .= '/32';
+        $fullBytes = \intdiv($bits, 8);
+        if (\substr($ipBin, 0, $fullBytes) !== \substr($rangeBin, 0, $fullBytes)) {
+            return false;
         }
+        $remainder = $bits % 8;
+        if (0 === $remainder) {
+            return true;
+        }
+        $mask = (0xFF << (8 - $remainder)) & 0xFF;
 
-        [$range, $netmask] = \explode('/', $cidr, 2);
-        $rangeDecimal = \ip2long($range);
-        $ipDecimal = \ip2long($ip);
-        $wildcardDecimal = \pow(2, (32 - (int) $netmask)) - 1;
-        $netmaskDecimal = ~$wildcardDecimal;
-        return (($ipDecimal & $netmaskDecimal) === ($rangeDecimal & $netmaskDecimal));
+        return (\ord($ipBin[$fullBytes]) & $mask) === (\ord($rangeBin[$fullBytes]) & $mask);
     }
 }

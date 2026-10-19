@@ -29,6 +29,7 @@ use Razy\Distributor\ModuleScanner;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
+use Razy\Http\Request;
 use Razy\Module\ModuleStatus;
 use Razy\Setup\WizardRunner;
 use Razy\Util\NetworkUtil;
@@ -86,6 +87,9 @@ class Distributor implements DistributorInterface
 
     /** @var bool COMPILE-ON-DEPLOY (M2): dist.php 'compiled_boot' opt-in */
     private bool $compiledBoot = false;
+
+    /** @var string|null RZ-04: dist.php 'origin' — canonical scheme://host[:port] for absolute URLs */
+    private ?string $canonicalOrigin = null;
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
@@ -169,6 +173,19 @@ class Distributor implements DistributorInterface
         // COMPILE-ON-DEPLOY (M2): opt-in door — dist.php 'compiled_boot' =>
         // true. Default absent/false = today's boot, byte for byte.
         $this->compiledBoot = (bool) ($config['compiled_boot'] ?? false);
+
+        // RZ-04: canonical origin. When set, getSiteURL() builds absolute URLs
+        // from it instead of the request Host, so a spoofed Host header cannot
+        // leak into links, redirects or e-mails. Absent = today's behaviour.
+        if (isset($config['origin'])) {
+            $origin = \is_string($config['origin']) ? Request::normalizeOrigin($config['origin']) : null;
+            if (null === $origin) {
+                throw new ConfigurationException(
+                    "dist.php 'origin' must be a bare http(s) origin like 'https://app.example.com' for dist '{$distCode}'.",
+                );
+            }
+            $this->canonicalOrigin = $origin;
+        }
 
         $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
 
@@ -787,11 +804,27 @@ class Distributor implements DistributorInterface
      */
     public function getSiteURL(): string
     {
+        if (null !== $this->canonicalOrigin) {
+            $relativeRoot = \defined('RELATIVE_ROOT') ? RELATIVE_ROOT : '';
+
+            return PathUtil::tidy(PathUtil::append($this->canonicalOrigin, $relativeRoot, $this->urlPath), false, '/');
+        }
+
         if (!\defined('RAZY_URL_ROOT')) {
             return '';
         }
 
         return PathUtil::tidy(PathUtil::append(RAZY_URL_ROOT, $this->urlPath), false, '/');
+    }
+
+    /**
+     * The dist's canonical origin from dist.php 'origin' (normalised), or null when not configured.
+     *
+     * @return string|null
+     */
+    public function getCanonicalOrigin(): ?string
+    {
+        return $this->canonicalOrigin;
     }
 
     /**
