@@ -19,7 +19,7 @@ class SessionConfigTest extends TestCase
         $this->assertSame(0, $cfg->lifetime);
         $this->assertSame('/', $cfg->path);
         $this->assertSame('', $cfg->domain);
-        $this->assertFalse($cfg->secure);
+        $this->assertNull($cfg->secure, 'RZ-05: null = Secure when the request is HTTPS');
         $this->assertTrue($cfg->httpOnly);
         $this->assertSame('Lax', $cfg->sameSite);
         $this->assertSame(1440, $cfg->gcMaxLifetime);

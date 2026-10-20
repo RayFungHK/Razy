@@ -39,7 +39,7 @@ class SessionTest extends TestCase
         $this->assertSame(0, $config->lifetime);
         $this->assertSame('/', $config->path);
         $this->assertSame('', $config->domain);
-        $this->assertFalse($config->secure);
+        $this->assertNull($config->secure, 'RZ-05: null = Secure when the request is HTTPS');
         $this->assertTrue($config->httpOnly);
         $this->assertSame('Lax', $config->sameSite);
         $this->assertSame(1440, $config->gcMaxLifetime);
@@ -77,7 +77,7 @@ class SessionTest extends TestCase
         $this->assertTrue($new->secure);
         // Original unchanged
         $this->assertSame('RAZY_SESSION', $config->name);
-        $this->assertFalse($config->secure);
+        $this->assertNull($config->secure);
     }
 
     public function testConfigWithPartialOverrides(): void
@@ -150,7 +150,7 @@ class SessionTest extends TestCase
 
         $id = $session->getId();
         $session->save();
-        $stored = $driver->read($id);
+        $stored = $driver->read(Session::storageKey($id));
         $this->assertSame('pre-start-mint', $stored['_csrf_token'] ?? null);
     }
 
@@ -187,7 +187,7 @@ class SessionTest extends TestCase
         $session->save();
 
         $driver = $this->getDriver($session);
-        $stored = $driver->read($session->getId());
+        $stored = $driver->read(Session::storageKey($session->getId()));
         $this->assertSame('value', $stored['late-write'] ?? null);
     }
 
@@ -260,7 +260,7 @@ class SessionTest extends TestCase
         $session = $this->makeSession();
         $session->start();
         $id = $session->getId();
-        $this->assertMatchesRegularExpression('/^[a-f0-9]{40}$/', $id);
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $id);
     }
 
     public function testRegenerateChangesId(): void
@@ -312,7 +312,7 @@ class SessionTest extends TestCase
 
         $driver = $this->getDriver($session);
         // Old session data still exists
-        $oldData = $driver->read($oldId);
+        $oldData = $driver->read(Session::storageKey($oldId));
         $this->assertArrayHasKey('name', $oldData);
     }
 

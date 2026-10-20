@@ -404,6 +404,7 @@ class CsrfDoorTest extends TestCase
         $distributor->method('getRouter')->willReturn($dispatcher);
         $distributor->method('getRegistry')->willReturn($this->createMock(ModuleRegistry::class));
         $distributor->method('getContainer')->willReturn($container);
+        $distributor->method('getSession')->willReturn(new Session(new ArrayDriver(), new SessionConfig(gcProbability: 0)));
 
         return $distributor;
     }

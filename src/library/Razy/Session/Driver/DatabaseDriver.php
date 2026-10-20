@@ -36,7 +36,7 @@ use Throwable;
 /**
  * Database session storage driver.
  *
- * Stores serialized session data in a database table. The driver
+ * Stores session data as JSON (RZ-05) in a database table. The driver
  * operates directly on PDO for maximum portability and minimal
  * coupling to the Razy Database class.
  */
@@ -62,6 +62,27 @@ class DatabaseDriver implements SessionDriverInterface
         if (!\preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $this->table)) {
             throw new InvalidArgumentException('Invalid session table name: ' . $this->table);
         }
+    }
+
+    // ── Accessors ─────────────────────────────────────────────
+
+    /**
+     * RZ-05: rows are JSON so a non-PHP service sharing the table can read a
+     * session it found by sha256(cookie). Rows written with PHP serialize()
+     * before RZ-05 still decode (objects are never revived).
+     *
+     * @return array<mixed>
+     */
+    private static function decode(string $raw): array
+    {
+        $first = \ltrim($raw)[0] ?? '';
+        if ($first === '{' || $first === '[') {
+            $data = \json_decode($raw, true);
+        } else {
+            $data = @\unserialize($raw, ['allowed_classes' => false]);
+        }
+
+        return \is_array($data) ? $data : [];
     }
 
     /**
@@ -98,9 +119,7 @@ class DatabaseDriver implements SessionDriverInterface
                 return [];
             }
 
-            $data = @\unserialize($row['data'], ['allowed_classes' => false]);
-
-            return \is_array($data) ? $data : [];
+            return self::decode((string) $row['data']);
         } catch (Throwable) {
             return [];
         }
@@ -115,7 +134,7 @@ class DatabaseDriver implements SessionDriverInterface
     public function write(string $id, array $data): bool
     {
         try {
-            $serialized = \serialize($data);
+            $serialized = \json_encode($data, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_PRESERVE_ZERO_FRACTION);
             $time = \time();
 
             // Use a driver-agnostic approach: try to UPDATE first, INSERT if no rows affected
@@ -180,8 +199,6 @@ class DatabaseDriver implements SessionDriverInterface
             return 0;
         }
     }
-
-    // ── Accessors ─────────────────────────────────────────────
 
     /**
      * Get the configured table name.

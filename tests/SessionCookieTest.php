@@ -56,7 +56,7 @@ class SessionCookieTest extends TestCase
         $session = $this->recording();
 
         $this->assertTrue($session->start());
-        $this->assertSame(40, \strlen($session->getId()));
+        $this->assertSame(64, \strlen($session->getId()));
         $this->assertTrue(\ctype_xdigit($session->getId()));
         // Brand-new identity must reach the browser or nothing survives.
         $this->assertSame([$session->getId()], $session->emitted);
@@ -85,9 +85,9 @@ class SessionCookieTest extends TestCase
 
     public function testMalformedCookieIsDiscardedNotTrusted(): void
     {
-        // Shape mirrors generateId(): 40 hex. Both failure axes drop it —
-        // the driver is never queried with attacker-shaped bytes.
-        foreach ([\str_repeat('a', 39), \str_repeat('z', 40), 'not even close'] as $junk) {
+        // Shape mirrors generateId(): 64 hex (40 hex = pre-RZ-05 id). Both
+        // failure axes drop it — the driver is never queried with attacker-shaped bytes.
+        foreach ([\str_repeat('a', 39), \str_repeat('z', 40), \str_repeat('a', 63), \str_repeat('z', 64), 'not even close'] as $junk) {
             $_COOKIE['RAZY_SESSION'] = $junk;
             $session = $this->recording();
 
