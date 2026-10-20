@@ -266,7 +266,8 @@ class AssetsTest extends TestCase
         $src = (string) \file_get_contents(SYSTEM_ROOT . '/src/library/Razy/Distributor.php');
         $this->assertStringContainsString('Assets::fromConfig($config, $distCode)', $src);
         $this->assertStringContainsString('Assets::setCurrent($this->assets);', $src);
-        $this->assertSame(2, \substr_count($src, '$this->assets->serve($this->urlQuery)'), 'matchRoute() and dispatch() both serve');
+        $this->assertSame(3, \substr_count($src, '$this->assets->serve($this->urlQuery)'), 'matchRoute() (before the session; after the lifecycle in a worker) and dispatch()');
+        $this->assertLessThan(\strpos($src, '$this->setSession();', \strpos($src, 'public function matchRoute')), \strpos($src, '!$worker && $this->assets->serve($this->urlQuery)'));
 
         $main = (string) \file_get_contents(SYSTEM_ROOT . '/src/main.php');
         $this->assertStringContainsString('Asset\Assets::setCurrent(null);', $main, 'worker mode resets per request');

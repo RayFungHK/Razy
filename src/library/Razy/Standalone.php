@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Razy\Asset\Assets;
 use Razy\Compiler\BootCompiler;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
@@ -75,6 +76,9 @@ class Standalone implements DistributorInterface
     /** @var PrerequisiteResolver Package prerequisite tracking and conflict detection */
     private PrerequisiteResolver $prerequisites;
 
+    /** @var Assets RZ-09: hashed URLs + importmap; serves /webassets/ under the dev server */
+    private Assets $assets;
+
     /**
      * Standalone constructor.
      *
@@ -85,6 +89,21 @@ class Standalone implements DistributorInterface
     {
         $this->folderPath = $standalonePath;
         $this->initializeSubComponents();
+        // RZ-09: no dist.php here, so the defaults ('serve' on under PHP's built-in server only).
+        $this->assets = Assets::fromConfig([], $this->code)->bind(
+            fn (): array => Assets::moduleRoots($this->registry->getModules()),
+            fn (): string => $this->getSiteURL(),
+        );
+    }
+
+    /**
+     * The app's web assets (RZ-09): hashed URLs and the importmap.
+     *
+     * @return Assets
+     */
+    public function getAssets(): Assets
+    {
+        return $this->assets;
     }
 
     /**
@@ -217,6 +236,15 @@ class Standalone implements DistributorInterface
      */
     public function matchRoute(): bool
     {
+        // RZ-09: a module's web asset, before the session and the route table.
+        // A worker's first request must finish the lifecycle (dispatch() needs
+        // it), so there the asset is answered after notifyReady() below.
+        Assets::setCurrent($this->assets);
+        $worker = \defined('WORKER_MODE') && WORKER_MODE;
+        if (!$worker && $this->assets->serve($this->urlQuery)) {
+            return true;
+        }
+
         $this->setSession();
 
         $this->registry->processAwaits();
@@ -231,6 +259,12 @@ class Standalone implements DistributorInterface
         }
 
         $this->registry->notifyReady();
+
+        if ($worker && $this->assets->serve($this->urlQuery)) {
+            $this->coreInitialized = true;
+
+            return true;
+        }
 
         $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
 
@@ -277,6 +311,11 @@ class Standalone implements DistributorInterface
         // redundant PathUtil::tidy() regex call. The caller guarantees a
         // non-empty, forward-slash-normalised path (defaults to '/').
         $this->urlQuery = $urlQuery;
+
+        Assets::setCurrent($this->assets);
+        if ($this->assets->serve($this->urlQuery)) {
+            return true;
+        }
 
         // Reset stale route metadata from previous request to prevent
         // information leaking on 404 (routedInfo would otherwise retain

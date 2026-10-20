@@ -63,6 +63,20 @@ return [
 	// 	'headers'         => ['Permissions-Policy' => 'camera=(), microphone=()'],
 	// ],
 
+	// Web assets (RZ-09). In templates the asset function (file='js/app.js') prints the
+	// module's file URL with ?v=<content hash>; the importmap function (in <head>, with
+	// the CSP nonce) maps every module .js/.mjs URL to its hashed URL so each ES module loads once.
+	// 'serve' answers /webassets/{alias}/{version}/{file} in PHP (default: on under
+	// `php Razy.phar serve`, off elsewhere); a hashed URL is cached immutable_max_age
+	// seconds as immutable, any other max_age (0 = revalidate). 'imports' adds bare specifiers.
+	// 'assets' => [
+	// 	'serve'             => false,
+	// 	'max_age'           => 0,
+	// 	'immutable_max_age' => 31536000,
+	// 	'base_url'          => 'https://cdn.example.com/',
+	// 	'imports'           => ['app/ui' => 'core/js/ui.js'],
+	// ],
+
 	// Authorization (RZ-06). When a module registers $agent->identity(...), a
 	// signed-out request on a Route::can() route gets 401; an HTML GET is sent
 	// to login_url with ?next=<the page>. Signed in but refused = 403.

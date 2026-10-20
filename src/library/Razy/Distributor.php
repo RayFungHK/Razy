@@ -28,6 +28,7 @@ use Razy\Database\MigrationManager;
 use Razy\Database\ModuleDatabaseConnector;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\ModuleScanner;
+use Razy\Asset\Assets;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
@@ -101,6 +102,9 @@ class Distributor implements DistributorInterface
 
     /** @var SecurityHeaders RZ-10: dist.php 'security_headers' + the request's CSP nonce */
     private SecurityHeaders $securityHeaders;
+
+    /** @var Assets RZ-09: dist.php 'assets' — hashed URLs, importmap, /webassets/ server */
+    private Assets $assets;
 
     /** @var array<string, mixed>|null RZ-05: dist.php 'session' (null = not configured) */
     private ?array $sessionConfig = null;
@@ -218,6 +222,13 @@ class Distributor implements DistributorInterface
         // never breaks a page (nosniff, referrer policy, same-origin framing);
         // false opts out. Checked here so a typo dies at boot.
         $this->securityHeaders = SecurityHeaders::fromConfig($config, $distCode);
+
+        // RZ-09: web assets. Absent = hashed URLs and the importmap for
+        // {@asset}/{@importmap}; PHP serves /webassets/ only when 'serve' is on.
+        $this->assets = Assets::fromConfig($config, $distCode)->bind(
+            fn (): array => Assets::moduleRoots($this->registry->getModules()),
+            fn (): string => $this->getSiteURL(),
+        );
 
         // RZ-05: one session per dist (driver + cookie from dist.php 'session').
         // Checked at boot so a typo dies here, not on the first request.
@@ -481,6 +492,14 @@ class Distributor implements DistributorInterface
             return true;
         }
 
+        // RZ-09: a module's web asset, before the session and the route table.
+        // A worker's first request must finish the lifecycle (dispatch() needs
+        // it), so there the asset is answered after notifyReady() below.
+        $worker = \defined('WORKER_MODE') && WORKER_MODE;
+        if (!$worker && $this->assets->serve($this->urlQuery)) {
+            return true;
+        }
+
         $this->setSession();
 
         // Execute all await functions and notify ready
@@ -496,6 +515,12 @@ class Distributor implements DistributorInterface
         }
 
         $this->registry->notifyReady();
+
+        if ($worker && $this->assets->serve($this->urlQuery)) {
+            $this->coreInitialized = true;
+
+            return true;
+        }
 
         $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
 
@@ -552,6 +577,10 @@ class Distributor implements DistributorInterface
         // Worker-mode requests reach the setup door through this fast path
         // too — one door per channel, same runner, same rails.
         if ($this->handleWizardRequest($this->urlQuery)) {
+            return true;
+        }
+
+        if ($this->assets->serve($this->urlQuery)) {
             return true;
         }
 
@@ -927,6 +956,16 @@ class Distributor implements DistributorInterface
     }
 
     /**
+     * The dist's web assets (dist.php 'assets', RZ-09): hashed URLs, importmap.
+     *
+     * @return Assets
+     */
+    public function getAssets(): Assets
+    {
+        return $this->assets;
+    }
+
+    /**
      * The dist's security headers (dist.php 'security_headers', RZ-10).
      *
      * @return SecurityHeaders
@@ -1048,6 +1087,7 @@ class Distributor implements DistributorInterface
     {
         $nonce = $this->securityHeaders->rotateNonce();
         SecurityHeaders::setCurrent($this->securityHeaders);
+        Assets::setCurrent($this->assets);
         $this->getGlobalTemplateEntity()->assign('csp_nonce', $nonce);
         if (WEB_MODE) {
             $this->securityHeaders->send();
