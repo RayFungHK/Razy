@@ -57,20 +57,31 @@ class AssetsTest extends TestCase
         $remove($this->base);
     }
 
-    private function assets(array $config = [], string $siteUrl = 'http://localhost/app'): Assets
+    public static function unservable(): array
     {
-        return Assets::fromConfig($config, 'site')->bind(
-            fn (): array => [
-                'core' => ['version' => 'default', 'root' => $this->base . '/core/default/webassets'],
-                'ui' => ['version' => '1.0.0', 'root' => $this->base . '/ui/1.0.0/webassets'],
-            ],
-            static fn (): string => $siteUrl,
-        );
+        return [
+            'wrong version' => ['/webassets/core/1.0.0/js/app.js'],
+            'unknown alias' => ['/webassets/nope/default/js/app.js'],
+            'traversal' => ['/webassets/core/default/../package.php'],
+            'encoded traversal' => ['/webassets/core/default/%2e%2e/package.php'],
+            'no file' => ['/webassets/core/default/'],
+            'not webassets' => ['/core/default/js/app.js'],
+        ];
     }
 
-    private function hash(string $root, string $file): string
+    public static function invalidConfigs(): array
     {
-        return (string) (new AssetManifest($this->base . '/' . $root))->hash($file);
+        return [
+            'string' => ['on'],
+            'unknown key' => [['serv' => true]],
+            'serve not bool' => [['serve' => 'yes']],
+            'negative max_age' => [['max_age' => -1]],
+            'immutable_max_age not int' => [['immutable_max_age' => '1y']],
+            'base_url with newline' => [['base_url' => "https://cdn\n"]],
+            'imports not array' => [['imports' => 'x']],
+            'import target without alias' => [['imports' => ['x' => 'app.js']]],
+            'import target traversal' => [['imports' => ['x' => 'core/../secret.js']]],
+        ];
     }
 
     public function testUrlCarriesTheContentHash(): void
@@ -158,18 +169,6 @@ class AssetsTest extends TestCase
         $this->assertNotNull($assets->match('/webassets/ui/1.0.0/lib/button.mjs'));
     }
 
-    public static function unservable(): array
-    {
-        return [
-            'wrong version' => ['/webassets/core/1.0.0/js/app.js'],
-            'unknown alias' => ['/webassets/nope/default/js/app.js'],
-            'traversal' => ['/webassets/core/default/../package.php'],
-            'encoded traversal' => ['/webassets/core/default/%2e%2e/package.php'],
-            'no file' => ['/webassets/core/default/'],
-            'not webassets' => ['/core/default/js/app.js'],
-        ];
-    }
-
     #[DataProvider('unservable')]
     public function testServeRejects(string $path): void
     {
@@ -185,21 +184,6 @@ class AssetsTest extends TestCase
         $this->assertFalse($this->assets(['assets' => ['serve' => false]])->isServing());
     }
 
-    public static function invalidConfigs(): array
-    {
-        return [
-            'string' => ['on'],
-            'unknown key' => [['serv' => true]],
-            'serve not bool' => [['serve' => 'yes']],
-            'negative max_age' => [['max_age' => -1]],
-            'immutable_max_age not int' => [['immutable_max_age' => '1y']],
-            'base_url with newline' => [['base_url' => "https://cdn\n"]],
-            'imports not array' => [['imports' => 'x']],
-            'import target without alias' => [['imports' => ['x' => 'app.js']]],
-            'import target traversal' => [['imports' => ['x' => 'core/../secret.js']]],
-        ];
-    }
-
     #[DataProvider('invalidConfigs')]
     public function testInvalidConfigDiesAtBoot(mixed $config): void
     {
@@ -211,34 +195,6 @@ class AssetsTest extends TestCase
     {
         $this->assertInstanceOf(Assets::class, Assets::fromConfig([], 'site'));
         $this->assertInstanceOf(Assets::class, Assets::current());
-    }
-
-    private function plugin(string $name): TFunction
-    {
-        $factory = require SYSTEM_ROOT . '/src/plugins/Template/function.' . $name . '.php';
-        $plugin = $factory();
-        $plugin->setName($name);
-
-        return $plugin;
-    }
-
-    private function entity(): Entity
-    {
-        return new class () extends Entity {
-            public function __construct()
-            {
-            }
-
-            public function parseValue(string $content): mixed
-            {
-                return \trim(\trim($content), "'\"");
-            }
-
-            public function getModule(): ?Razy\ModuleInfo
-            {
-                return null;
-            }
-        };
     }
 
     public function testAssetTemplateFunctionPrintsTheEscapedHashedUrl(): void
@@ -284,5 +240,49 @@ class AssetsTest extends TestCase
     {
         $skeleton = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/dist.php.tpl');
         $this->assertStringContainsString("'assets'", $skeleton);
+    }
+
+    private function assets(array $config = [], string $siteUrl = 'http://localhost/app'): Assets
+    {
+        return Assets::fromConfig($config, 'site')->bind(
+            fn (): array => [
+                'core' => ['version' => 'default', 'root' => $this->base . '/core/default/webassets'],
+                'ui' => ['version' => '1.0.0', 'root' => $this->base . '/ui/1.0.0/webassets'],
+            ],
+            static fn (): string => $siteUrl,
+        );
+    }
+
+    private function hash(string $root, string $file): string
+    {
+        return (string) (new AssetManifest($this->base . '/' . $root))->hash($file);
+    }
+
+    private function plugin(string $name): TFunction
+    {
+        $factory = require SYSTEM_ROOT . '/src/plugins/Template/function.' . $name . '.php';
+        $plugin = $factory();
+        $plugin->setName($name);
+
+        return $plugin;
+    }
+
+    private function entity(): Entity
+    {
+        return new class() extends Entity {
+            public function __construct()
+            {
+            }
+
+            public function parseValue(string $content): mixed
+            {
+                return \trim(\trim($content), "'\"");
+            }
+
+            public function getModule(): ?Razy\ModuleInfo
+            {
+                return null;
+            }
+        };
     }
 }

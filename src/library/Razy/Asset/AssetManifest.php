@@ -12,9 +12,9 @@
 namespace Razy\Asset;
 
 use FilesystemIterator;
+use Razy\Http\StaticFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use Razy\Http\StaticFile;
 use UnexpectedValueException;
 
 /**
@@ -37,6 +37,28 @@ final class AssetManifest
      */
     public function __construct(private readonly string $root)
     {
+    }
+
+    /**
+     * The content hash of a file already resolved by {@see path()}.
+     *
+     * @param string $path The file's path
+     *
+     * @return string
+     */
+    public static function hashPath(string $path): string
+    {
+        \clearstatcache(true, $path);
+        $mtime = (int) @\filemtime($path);
+        $size = (int) @\filesize($path);
+        $cached = self::$hashes[$path] ?? null;
+        if (null !== $cached && $cached[0] === $mtime && $cached[1] === $size) {
+            return $cached[2];
+        }
+        $hash = \substr((string) \hash_file('xxh128', $path), 0, 16);
+        self::$hashes[$path] = [$mtime, $size, $hash];
+
+        return $hash;
     }
 
     /**
@@ -71,28 +93,6 @@ final class AssetManifest
         $path = $this->path($file);
 
         return null === $path ? null : self::hashPath($path);
-    }
-
-    /**
-     * The content hash of a file already resolved by {@see path()}.
-     *
-     * @param string $path The file's path
-     *
-     * @return string
-     */
-    public static function hashPath(string $path): string
-    {
-        \clearstatcache(true, $path);
-        $mtime = (int) @\filemtime($path);
-        $size = (int) @\filesize($path);
-        $cached = self::$hashes[$path] ?? null;
-        if (null !== $cached && $cached[0] === $mtime && $cached[1] === $size) {
-            return $cached[2];
-        }
-        $hash = \substr((string) \hash_file('xxh128', $path), 0, 16);
-        self::$hashes[$path] = [$mtime, $size, $hash];
-
-        return $hash;
     }
 
     /**

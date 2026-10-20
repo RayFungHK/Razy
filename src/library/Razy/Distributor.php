@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Razy\Asset\Assets;
 use Razy\Authz\Denial as AuthzDenial;
 use Razy\Authz\Gate as AuthzGate;
 use Razy\Authz\Identity as AuthzIdentity;
@@ -28,7 +29,6 @@ use Razy\Database\MigrationManager;
 use Razy\Database\ModuleDatabaseConnector;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\ModuleScanner;
-use Razy\Asset\Assets;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;

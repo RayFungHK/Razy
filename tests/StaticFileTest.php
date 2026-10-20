@@ -56,7 +56,7 @@ class StaticFileTest extends TestCase
             'mixed-case encoded' => ['%2E%2e/secret.php'],
             'double encoded' => ['%252e%252e/secret.php'],
             'encoded slash' => ['..%2fsecret.php'],
-            'backslash' => ['..\\secret.php'],
+            'backslash' => ['..\secret.php'],
             'encoded backslash' => ['..%5csecret.php'],
             'null byte' => ["js/app.js\0.png"],
             'encoded null byte' => ['js/app.js%00.png'],
@@ -66,6 +66,24 @@ class StaticFileTest extends TestCase
             'directory' => ['js'],
             'empty' => [''],
             'missing' => ['js/nope.js'],
+        ];
+    }
+
+    public static function contentTypes(): array
+    {
+        return [
+            ['app.js', 'text/javascript; charset=utf-8'],
+            ['app.mjs', 'text/javascript; charset=utf-8'],
+            ['site.css', 'text/css; charset=utf-8'],
+            ['data.json', 'application/json'],
+            ['app.js.map', 'application/json'],
+            ['icon.svg', 'image/svg+xml'],
+            ['font.woff2', 'font/woff2'],
+            ['lib.wasm', 'application/wasm'],
+            ['photo.JPG', 'image/jpeg'],
+            ['page.html', 'text/html; charset=utf-8'],
+            ['unknown.xyz', 'application/octet-stream'],
+            ['noextension', 'application/octet-stream'],
         ];
     }
 
@@ -88,24 +106,6 @@ class StaticFileTest extends TestCase
         $this->assertSame(\realpath($this->root . '/js/app.js'), StaticFile::resolve($this->root, 'js/app.js'));
         $this->assertSame(\realpath($this->root . '/js/app.js'), StaticFile::resolve($this->root, '/js//app.js'));
         $this->assertNull(StaticFile::resolve($this->base . '/missing-root', 'js/app.js'));
-    }
-
-    public static function contentTypes(): array
-    {
-        return [
-            ['app.js', 'text/javascript; charset=utf-8'],
-            ['app.mjs', 'text/javascript; charset=utf-8'],
-            ['site.css', 'text/css; charset=utf-8'],
-            ['data.json', 'application/json'],
-            ['app.js.map', 'application/json'],
-            ['icon.svg', 'image/svg+xml'],
-            ['font.woff2', 'font/woff2'],
-            ['lib.wasm', 'application/wasm'],
-            ['photo.JPG', 'image/jpeg'],
-            ['page.html', 'text/html; charset=utf-8'],
-            ['unknown.xyz', 'application/octet-stream'],
-            ['noextension', 'application/octet-stream'],
-        ];
     }
 
     #[DataProvider('contentTypes')]

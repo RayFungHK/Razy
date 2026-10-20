@@ -18,6 +18,7 @@ use Razy\Http\StaticFile;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
 use Razy\Util\PathUtil;
+use stdClass;
 
 /**
  * The dist's web assets (RZ-09): one content-hashed URL per file, the ES
@@ -139,23 +140,6 @@ final class Assets
     }
 
     /**
-     * Attach the dist's modules and site URL (read lazily, on first use).
-     *
-     * @param Closure(): array<string, array{version: string, root: string}> $modules Alias => version + webassets folder
-     * @param Closure(): string $siteUrl The dist's site URL
-     *
-     * @return $this
-     */
-    public function bind(Closure $modules, Closure $siteUrl): self
-    {
-        $this->modules = $modules;
-        $this->siteUrl = $siteUrl;
-        $this->roots = null;
-
-        return $this;
-    }
-
-    /**
      * The webassets folders of a dist's running modules, keyed by alias
      * (the first module wins an alias, as in the generated rewrite rules).
      *
@@ -197,6 +181,59 @@ final class Assets
     public static function setCurrent(?self $assets): void
     {
         self::$current = $assets;
+    }
+
+    /**
+     * A `/`-separated path with no empty, `.` or `..` segments, or null.
+     */
+    private static function cleanPath(string $path): ?string
+    {
+        $segments = \array_values(\array_filter(\explode('/', \str_replace('\\', '/', $path)), static fn (string $s): bool => '' !== $s));
+        if (!$segments || \preg_match('/[\x00-\x1F\x7F]/', $path)) {
+            return null;
+        }
+        foreach ($segments as $segment) {
+            if ('.' === $segment || '..' === $segment) {
+                return null;
+            }
+        }
+
+        return \implode('/', $segments);
+    }
+
+    private static function seconds(mixed $value, string $key, string $distCode): int
+    {
+        if (!\is_int($value) || $value < 0) {
+            throw self::invalid($distCode, "'{$key}' must be a number of seconds (int >= 0)", $value);
+        }
+
+        return $value;
+    }
+
+    private static function invalid(string $distCode, string $problem, mixed $value = null): ConfigurationException
+    {
+        $got = \func_num_args() > 2
+            ? ', got: ' . (\is_scalar($value) ? \var_export($value, true) : \get_debug_type($value))
+            : '';
+
+        return new ConfigurationException("dist.php 'assets' {$problem} for dist '{$distCode}'{$got}.");
+    }
+
+    /**
+     * Attach the dist's modules and site URL (read lazily, on first use).
+     *
+     * @param Closure(): array<string, array{version: string, root: string}> $modules Alias => version + webassets folder
+     * @param Closure(): string $siteUrl The dist's site URL
+     *
+     * @return $this
+     */
+    public function bind(Closure $modules, Closure $siteUrl): self
+    {
+        $this->modules = $modules;
+        $this->siteUrl = $siteUrl;
+        $this->roots = null;
+
+        return $this;
     }
 
     /**
@@ -256,7 +293,7 @@ final class Assets
         $imports = $this->importMap()['imports'];
 
         return \json_encode(
-            ['imports' => $imports ?: new \stdClass()],
+            ['imports' => $imports ?: new stdClass()],
             JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR,
         );
     }
@@ -373,41 +410,5 @@ final class Assets
         $path = \trim($path, '/');
 
         return '' === $path ? '/' : '/' . $path . '/';
-    }
-
-    /**
-     * A `/`-separated path with no empty, `.` or `..` segments, or null.
-     */
-    private static function cleanPath(string $path): ?string
-    {
-        $segments = \array_values(\array_filter(\explode('/', \str_replace('\\', '/', $path)), static fn (string $s): bool => '' !== $s));
-        if (!$segments || \preg_match('/[\x00-\x1F\x7F]/', $path)) {
-            return null;
-        }
-        foreach ($segments as $segment) {
-            if ('.' === $segment || '..' === $segment) {
-                return null;
-            }
-        }
-
-        return \implode('/', $segments);
-    }
-
-    private static function seconds(mixed $value, string $key, string $distCode): int
-    {
-        if (!\is_int($value) || $value < 0) {
-            throw self::invalid($distCode, "'{$key}' must be a number of seconds (int >= 0)", $value);
-        }
-
-        return $value;
-    }
-
-    private static function invalid(string $distCode, string $problem, mixed $value = null): ConfigurationException
-    {
-        $got = \func_num_args() > 2
-            ? ', got: ' . (\is_scalar($value) ? \var_export($value, true) : \get_debug_type($value))
-            : '';
-
-        return new ConfigurationException("dist.php 'assets' {$problem} for dist '{$distCode}'{$got}.");
     }
 }
