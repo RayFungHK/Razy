@@ -65,8 +65,7 @@ class SchemaBuilder
     {
         $table = new Table($this->database->getPrefix() . $tableName);
         $callback($table);
-        $sql = $table->getSyntax();
-        $this->database->execute($this->database->prepare($sql));
+        $this->run($table->getStatements($this->driverType()));
     }
 
     /**
@@ -84,10 +83,7 @@ class SchemaBuilder
         $table = new Table($this->database->getPrefix() . $tableName);
         $helper = $table->createHelper();
         $callback($helper);
-        $sql = $helper->getSyntax();
-        if ($sql) {
-            $this->database->execute($this->database->prepare($sql));
-        }
+        $this->run($helper->getStatements($this->driverType()));
     }
 
     /**
@@ -169,5 +165,33 @@ class SchemaBuilder
     public function getDatabase(): Database
     {
         return $this->database;
+    }
+
+    /**
+     * RZ-07: the connection's driver picks the DDL grammar (pgsql → PostgresGrammar).
+     */
+    private function driverType(): string
+    {
+        return $this->database->getDriverType() ?? Database::DRIVER_MYSQL;
+    }
+
+    /**
+     * Run DDL statements in order. Postgres DDL is transactional, so a
+     * multi-statement change there applies all-or-nothing (unless the caller
+     * already holds a transaction, which then owns the outcome).
+     *
+     * @param list<string> $statements
+     */
+    private function run(array $statements): void
+    {
+        $atomic = \count($statements) > 1
+            && $this->driverType() === Database::DRIVER_PGSQL
+            && !$this->database->inTransaction();
+        $apply = function () use ($statements): void {
+            foreach ($statements as $sql) {
+                $this->database->execute($this->database->prepare($sql));
+            }
+        };
+        $atomic ? $this->database->transaction($apply) : $apply();
     }
 }
