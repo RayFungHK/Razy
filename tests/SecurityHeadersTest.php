@@ -10,6 +10,7 @@
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Razy\Error\ErrorRenderer;
 use Razy\Exception\ConfigurationException;
 use Razy\Http\SecurityHeaders;
 
@@ -31,6 +32,8 @@ class SecurityHeadersTest extends TestCase
             'csp with newline' => [['csp' => "default-src 'self'\nscript-src *"]],
             'negative hsts' => [['hsts' => -1]],
             'referrer not string' => [['referrer_policy' => 1]],
+            'hsts include_subdomains not bool' => [['hsts' => ['max_age' => 60, 'include_subdomains' => 1]]],
+            'hsts preload not bool' => [['hsts' => ['max_age' => 60, 'preload' => 'yes']]],
         ];
     }
 
@@ -157,6 +160,42 @@ class SecurityHeadersTest extends TestCase
     {
         $this->expectException(ConfigurationException::class);
         SecurityHeaders::fromConfig(['security_headers' => $config], 'site');
+    }
+
+    public function testArrayCspAcceptsValuelessDirectives(): void
+    {
+        $headers = SecurityHeaders::fromConfig(['security_headers' => [
+            'csp' => ['default-src' => "'self'", 'upgrade-insecure-requests' => '', 'block-all-mixed-content' => []],
+        ]], 'site')->build(false);
+
+        $this->assertSame(
+            "default-src 'self'; upgrade-insecure-requests; block-all-mixed-content; frame-ancestors 'self'",
+            $headers['Content-Security-Policy'],
+        );
+    }
+
+    public function testWorkerResetsTheCurrentHeadersPerRequest(): void
+    {
+        $src = (string) \file_get_contents(SYSTEM_ROOT . '/src/main.php');
+        $reset = \strpos($src, 'SecurityHeaders::setCurrent(null);');
+        $this->assertNotFalse($reset, 'worker handler drops the previous request\'s headers');
+        $this->assertLessThan(\strpos($src, 'Health::respondIfRequested'), $reset);
+        $this->assertGreaterThan(\strpos($src, '$handler = function'), $reset);
+    }
+
+    public function testErrorPagesCarryTheCspNonce(): void
+    {
+        $headers = SecurityHeaders::fromConfig(['security_headers' => ['csp' => "style-src 'nonce-{nonce}'"]], 'site');
+        SecurityHeaders::setCurrent($headers);
+        $nonce = $headers->rotateNonce();
+
+        $page = ErrorRenderer::render(new RuntimeException('boom'), 'abc123');
+        $this->assertStringContainsString('<style nonce="' . $nonce . '">', $page);
+
+        foreach (['any.html', '404.html'] as $file) {
+            $tpl = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/exception/' . $file);
+            $this->assertSame(0, \preg_match('~<(style|script)(?![^>]*nonce=)~', $tpl), "{$file}: every inline <style>/<script> carries the nonce");
+        }
     }
 
     public function testSendEmitsEveryHeaderWithReplace(): void

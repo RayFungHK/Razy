@@ -201,7 +201,8 @@ final class SecurityHeaders
             if (!\is_string($name) || !\preg_match('/^[a-z-]+$/', $name)) {
                 throw self::invalid($distCode, "'csp' has an invalid directive name", $name);
             }
-            $parsed[$name] = self::sources($sources, "csp.{$name}", $distCode);
+            // A valueless directive ('upgrade-insecure-requests' => '') is sent bare.
+            $parsed[$name] = ('' === $sources || [] === $sources) ? '' : self::sources($sources, "csp.{$name}", $distCode);
         }
 
         return $parsed;
@@ -232,7 +233,8 @@ final class SecurityHeaders
         }
         $options = \is_int($hsts) ? ['max_age' => $hsts] : $hsts;
         if (!\is_array($options) || !\is_int($options['max_age'] ?? null) || $options['max_age'] < 0
-            || \array_diff(\array_keys($options), ['max_age', 'include_subdomains', 'preload'])) {
+            || \array_diff(\array_keys($options), ['max_age', 'include_subdomains', 'preload'])
+            || !\is_bool($options['include_subdomains'] ?? false) || !\is_bool($options['preload'] ?? false)) {
             throw self::invalid($distCode, "'hsts' must be false, a max-age in seconds, or ['max_age' => int, 'include_subdomains' => bool, 'preload' => bool]", $hsts);
         }
         $value = 'max-age=' . $options['max_age'];

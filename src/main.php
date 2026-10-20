@@ -149,6 +149,9 @@ if (WEB_MODE) {
                 // --- Per-request state reset (prevent cross-request leaks) ---
                 \header('HTTP/1.1 200', true, 200);
                 \header_remove();           // Clear headers from previous request
+                // RZ-10: drop the previous request's dist headers + nonce; a request
+                // that never reaches a dist (unmatched 404) gets the baseline.
+                Http\SecurityHeaders::setCurrent(null);
                 // Note: Error::reset() is only called in the finally block below
                 // to avoid redundant double-reset per request. That reset also
                 // clears debug, so re-apply the config (and the per-request

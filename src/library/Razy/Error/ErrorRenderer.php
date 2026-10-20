@@ -159,6 +159,8 @@ class ErrorRenderer
         $root->assign([
             'heading' => self::escape(($exception instanceof Error) ? $exception->getHeading() : Error::DEFAULT_HEADING),
             'error_id' => self::escape($errorId),
+            // RZ-10: the nonce the dist's CSP allows, for the page's inline style/script.
+            'csp_nonce' => SecurityHeaders::current()->nonce(),
         ]);
 
         if (!ErrorConfig::isDebug()) {

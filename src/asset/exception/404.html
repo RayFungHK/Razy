@@ -1,7 +1,7 @@
 <html>
 <title>Error</title>
 <head lang="en">
-    <style>
+    <style nonce="{$csp_nonce}">
         body, html {
             max-width: 100%;
             max-height: 100%;
@@ -94,7 +94,7 @@
         <div class="error-description">Looks like the page you were looking for is no longer here.</div>
     </div>
 </div>
-<script>
+<script nonce="{$csp_nonce}">
     const code = document.getElementsByClassName('error-code')[0],
         text = code.innerText;
 
