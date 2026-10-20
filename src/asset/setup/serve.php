@@ -7,8 +7,10 @@
  *
  * Handles:
  *   - Static file passthrough (CSS, JS, images, fonts) at C level
- *   - Webasset URL rewriting (standalone + multisite modules)
- *   - Data directory mapping
+ *   - Data directory mapping (realpath-guarded)
+ *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
+ *     app, which serves it (dist.php 'assets' => ['serve'], on by default
+ *     under this server; RZ-09) with hashed-URL cache headers
  *   - FQDN simulation (overrides SERVER_NAME for --dist mode)
  *   - Dashboard placeholder (/.razy/dashboard)
  *   - Fall-through to index.php for application routing
@@ -75,33 +77,19 @@ if ($uri !== '/' && is_file($filePath)) {
     return false;
 }
 
-// ── 2. Webasset URL rewriting ───────────────────────────────────────────
-// URL pattern: /<route_prefix>webassets/<vendor>/<module>/<version>/<file>
-// or for standalone: /webassets/standalone/app/<version>/<file>
-if (preg_match('#^(?:/[^/]+)?/webassets/(.+?)/(.+?)/([^/]+)/(.+)$#', $uri, $m)) {
-    $vendor  = $m[1];
-    $module  = $m[2];
-    $version = $m[3];
-    $file    = $m[4];
-
-    $resolved = resolveWebassetPath($docRoot, $vendor, $module, $version, $file);
-    if ($resolved && is_file($resolved)) {
-        serveStaticFile($resolved);
-        return true;
-    }
-}
-
-// ── 3. Data directory mapping ───────────────────────────────────────────
+// ── 2. Data directory mapping ───────────────────────────────────────────
 // URL pattern: /<route_prefix>data/<path>
+// (Webassets are not resolved here: the app knows each module's alias and
+// version folder, so /webassets/... falls through to index.php — RZ-09.)
 if (preg_match('#^(?:/[^/]+)?/data/(.+)$#', $uri, $m)) {
-    $dataFile = $docRoot . '/data/' . $m[1];
-    if (is_file($dataFile)) {
+    $dataFile = resolveStaticPath($docRoot . '/data', $m[1]);
+    if ($dataFile !== null) {
         serveStaticFile($dataFile);
         return true;
     }
 }
 
-// ── 4. Dashboard placeholder ────────────────────────────────────────────
+// ── 3. Dashboard placeholder ────────────────────────────────────────────
 // Future: Razy.phar dashboard UI. For now, returns a JSON status endpoint.
 if (str_starts_with($uri, '/.razy/')) {
     if ($uri === '/.razy/dashboard' || $uri === '/.razy/dashboard/') {
@@ -138,7 +126,7 @@ if (str_starts_with($uri, '/.razy/')) {
     }
 }
 
-// ── 5. FQDN simulation (--dist mode) ───────────────────────────────────
+// ── 4. FQDN simulation (--dist mode) ───────────────────────────────────
 // Override SERVER_NAME and HTTP_HOST so the Razy bootstrap resolves the
 // correct domain from sites.inc.php. Also prepend the FQDN path to
 // REQUEST_URI so the Domain URL-path matcher can route to the right dist.
@@ -160,7 +148,13 @@ if (!empty($__serveConfig['fqdn_domain'])) {
     $_ENV['RAZY_MULTIPLE_SITE'] = 'true';
 }
 
-// ── 6. Fall through to Razy application ─────────────────────────────────
+// ── 5. Fall through to Razy application ─────────────────────────────────
+// The built-in server sets SCRIPT_NAME to the request path when it has an
+// extension (/webassets/app/default/js/a.js), which the bootstrap would read
+// as a subdirectory install. The app is the front controller: say so.
+$_SERVER['SCRIPT_NAME']     = '/index.php';
+$_SERVER['PHP_SELF']        = '/index.php';
+$_SERVER['SCRIPT_FILENAME'] = $docRoot . '/index.php';
 require $docRoot . '/index.php';
 return true;
 
@@ -170,60 +164,38 @@ return true;
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Resolve a webasset URL to the physical file path.
+ * Map a URL path below $root to a real file inside it, or null.
  *
- * Searches in order:
- *   1. standalone/webassets/FILE                    (standalone mode)
- *   2. sites/DIST/modules/VENDOR/MODULE/VERSION/webassets/FILE
- *   3. shared/modules/VENDOR/MODULE/VERSION/webassets/FILE
- *   4. modules/VENDOR/MODULE/VERSION/webassets/FILE   (playground layout)
+ * Same rules as Razy\Http\StaticFile::resolve() (this script runs before
+ * the framework loads): one URL decode, then no null byte, backslash, '%',
+ * '.'/'..' or dotfile segment, and the realpath must stay under the root.
  */
-function resolveWebassetPath(string $docRoot, string $vendor, string $module, string $version, string $file): ?string
+function resolveStaticPath(string $root, string $relative): ?string
 {
-    // Prevent path traversal attacks
-    if (str_contains($vendor, '..') || str_contains($module, '..') ||
-        str_contains($version, '..') || str_contains($file, '..')) {
+    $decoded = rawurldecode($relative);
+    if (str_contains($decoded, "\0") || str_contains($decoded, '\\') || str_contains($decoded, '%')) {
         return null;
     }
-
-    // ── Standalone mode: flat layout, webassets at standalone/webassets/ ──
-    $standaloneAsset = $docRoot . '/standalone/webassets/' . $file;
-    if (is_file($standaloneAsset)) {
-        return $standaloneAsset;
+    $segments = array_filter(explode('/', $decoded), static fn (string $s): bool => $s !== '');
+    if (!$segments) {
+        return null;
     }
-
-    // ── Multisite: sites/<dist>/modules/<vendor>/<module>/<version>/webassets/<file> ──
-    $sitesDir = $docRoot . '/sites';
-    if (is_dir($sitesDir)) {
-        foreach (scandir($sitesDir) as $dist) {
-            if ($dist[0] === '.') continue;
-
-            $candidates = [
-                $sitesDir . '/' . $dist . '/modules/' . $vendor . '/' . $module . '/' . $version . '/webassets/' . $file,
-                $sitesDir . '/' . $dist . '/' . $vendor . '/' . $module . '/' . $version . '/webassets/' . $file,
-            ];
-
-            foreach ($candidates as $path) {
-                if (is_file($path)) {
-                    return $path;
-                }
-            }
+    foreach ($segments as $segment) {
+        if ($segment[0] === '.') {
+            return null;
         }
     }
 
-    // ── Shared modules ──
-    $sharedAsset = $docRoot . '/shared/modules/' . $vendor . '/' . $module . '/' . $version . '/webassets/' . $file;
-    if (is_file($sharedAsset)) {
-        return $sharedAsset;
+    $realRoot = realpath($root);
+    if ($realRoot === false) {
+        return null;
+    }
+    $real = realpath($realRoot . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments));
+    if ($real === false || !is_file($real) || !str_starts_with($real, rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+        return null;
     }
 
-    // ── Direct/symlinked modules ──
-    $directAsset = $docRoot . '/modules/' . $vendor . '/' . $module . '/' . $version . '/webassets/' . $file;
-    if (is_file($directAsset)) {
-        return $directAsset;
-    }
-
-    return null;
+    return $real;
 }
 
 /**
@@ -243,8 +215,8 @@ function serveStaticFile(string $path): void
     // Override map for types that mime_content_type() / libmagic gets wrong
     static $webMimeOverrides = [
         'css'   => 'text/css',
-        'js'    => 'application/javascript',
-        'mjs'   => 'application/javascript',
+        'js'    => 'text/javascript',
+        'mjs'   => 'text/javascript',
         'json'  => 'application/json',
         'map'   => 'application/json',
         'svg'   => 'image/svg+xml',

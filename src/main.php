@@ -152,6 +152,7 @@ if (WEB_MODE) {
                 // RZ-10: drop the previous request's dist headers + nonce; a request
                 // that never reaches a dist (unmatched 404) gets the baseline.
                 Http\SecurityHeaders::setCurrent(null);
+                Asset\Assets::setCurrent(null); // RZ-09: likewise the asset set
                 // Note: Error::reset() is only called in the finally block below
                 // to avoid redundant double-reset per request. That reset also
                 // clears debug, so re-apply the config (and the per-request

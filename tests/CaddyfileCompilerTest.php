@@ -524,6 +524,31 @@ class CaddyfileCompilerTest extends TestCase
         }
     }
 
+    /**
+     * RZ-09: /webassets/{alias}/{version}/{file} must map to the module's
+     * {version}/webassets/{file}. Stripping only the alias served
+     * {container}/{version}/{file} — the wrong folder, and the module's PHP
+     * source (package.php, controller/) as plain text.
+     */
+    public function testWebassetHandlerMapsIntoTheWebassetsFolder(): void
+    {
+        $source = \Razy\Template::loadFile(PHAR_PATH . '/asset/setup/caddyfile.tpl');
+        $source->getRoot()->newBlock('site')->assign([
+            'domain' => 'example.test',
+            'document_root' => '/srv',
+        ])->newBlock('webassets')->assign([
+            'mapping' => 'core',
+            'mapping_id' => 'core_',
+            'route_path' => '',
+            'container_path' => 'sites/main/core',
+        ]);
+        $out = $source->output();
+
+        $this->assertStringContainsString('uri path_regexp ^/webassets/core/([^/]+)/ /$1/webassets/', $out);
+        $this->assertStringContainsString('root * sites/main/core', $out);
+        $this->assertStringNotContainsString('uri strip_prefix /webassets/core', $out);
+    }
+
     // ═══════════════════════════════════════════════════════
     //  buildAliasMap() tests
     // ═══════════════════════════════════════════════════════
