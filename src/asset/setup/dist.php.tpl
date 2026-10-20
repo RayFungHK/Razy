@@ -51,6 +51,18 @@ return [
 	// 	'same_site' => 'Lax',
 	// ],
 
+	// Security headers on every response, error pages included (RZ-10). Absent or
+	// true = nosniff, Referrer-Policy strict-origin-when-cross-origin and
+	// same-origin framing (X-Frame-Options + CSP frame-ancestors); false = none.
+	// {nonce} in 'csp' is this request's nonce; templates print it as the csp_nonce variable.
+	// HSTS is sent over HTTPS only. 'headers' adds or (with false) removes headers.
+	// 'security_headers' => [
+	// 	'csp'             => "default-src 'self'; script-src 'self' 'nonce-{nonce}'",
+	// 	'csp_report_only' => false,
+	// 	'hsts'            => ['max_age' => 31536000, 'include_subdomains' => true],
+	// 	'headers'         => ['Permissions-Policy' => 'camera=(), microphone=()'],
+	// ],
+
 	// Authorization (RZ-06). When a module registers $agent->identity(...), a
 	// signed-out request on a Route::can() route gets 401; an HTML GET is sent
 	// to login_url with ?next=<the page>. Signed in but refused = 403.

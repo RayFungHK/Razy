@@ -32,6 +32,7 @@ use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Http\Request;
+use Razy\Http\SecurityHeaders;
 use Razy\Module\ModuleStatus;
 use Razy\Session\SessionDoor;
 use Razy\Session\SessionFactory;
@@ -97,6 +98,9 @@ class Distributor implements DistributorInterface
 
     /** @var bool RZ-03: dist.php 'auto_escape' — HTML-escape `{$tag}` output by default */
     private bool $autoEscape = false;
+
+    /** @var SecurityHeaders RZ-10: dist.php 'security_headers' + the request's CSP nonce */
+    private SecurityHeaders $securityHeaders;
 
     /** @var array<string, mixed>|null RZ-05: dist.php 'session' (null = not configured) */
     private ?array $sessionConfig = null;
@@ -209,6 +213,11 @@ class Distributor implements DistributorInterface
         // RZ-03: template auto-escape. Absent = false so existing dists render
         // exactly as before; the dist.php skeleton opts new dists in.
         $this->autoEscape = Template::autoEscapeFromConfig($config, $distCode);
+
+        // RZ-10: security headers on every response. Absent = a baseline that
+        // never breaks a page (nosniff, referrer policy, same-origin framing);
+        // false opts out. Checked here so a typo dies at boot.
+        $this->securityHeaders = SecurityHeaders::fromConfig($config, $distCode);
 
         // RZ-05: one session per dist (driver + cookie from dist.php 'session').
         // Checked at boot so a typo dies here, not on the first request.
@@ -463,6 +472,8 @@ class Distributor implements DistributorInterface
             return false;
         }
 
+        $this->beginResponse();
+
         // Framework-owned setup door (MODULE-LIFECYCLE.md L4): answered
         // before session, lifecycle, or route table — the wizard is not a
         // module and pre-dates module readiness by definition.
@@ -535,6 +546,8 @@ class Distributor implements DistributorInterface
         if (!$this->urlQuery || !\str_starts_with($this->urlQuery, '/')) {
             $this->urlQuery = '/' . \ltrim($this->urlQuery, '/');
         }
+
+        $this->beginResponse();
 
         // Worker-mode requests reach the setup door through this fast path
         // too — one door per channel, same runner, same rails.
@@ -904,6 +917,26 @@ class Distributor implements DistributorInterface
     }
 
     /**
+     * This request's CSP nonce (RZ-10); templates read it as `{$csp_nonce}`.
+     *
+     * @return string
+     */
+    public function getCspNonce(): string
+    {
+        return $this->securityHeaders->nonce();
+    }
+
+    /**
+     * The dist's security headers (dist.php 'security_headers', RZ-10).
+     *
+     * @return SecurityHeaders
+     */
+    public function getSecurityHeaders(): SecurityHeaders
+    {
+        return $this->securityHeaders;
+    }
+
+    /**
      * Whether this dist HTML-escapes `{$tag}` output by default (dist.php 'auto_escape', RZ-03).
      *
      * @return bool
@@ -1004,6 +1037,21 @@ class Distributor implements DistributorInterface
         }
 
         return false;
+    }
+
+    /**
+     * RZ-10: start a response — a fresh CSP nonce for the templates, this dist's
+     * headers made current (error pages send them too), and sent before any
+     * output. Worker mode reuses the distributor, so this runs per request.
+     */
+    private function beginResponse(): void
+    {
+        $nonce = $this->securityHeaders->rotateNonce();
+        SecurityHeaders::setCurrent($this->securityHeaders);
+        $this->getGlobalTemplateEntity()->assign('csp_nonce', $nonce);
+        if (WEB_MODE) {
+            $this->securityHeaders->send();
+        }
     }
 
     /**
