@@ -15,6 +15,7 @@ use BadMethodCallException;
 use Closure;
 use InvalidArgumentException;
 use LogicException;
+use Razy\Authz\Principal;
 use Razy\Contract\ContainerInterface;
 use Razy\Csrf\CsrfMiddleware;
 use Razy\Csrf\CsrfTokenManager;
@@ -492,6 +493,16 @@ class Controller
     {
         $container = $this->container();
         return $container !== null && $container->has($abstract);
+    }
+
+    /**
+     * RZ-06: who this request acts for (resolved once per request by the
+     * resolver a module registered with `$agent->identity()`), or null when
+     * signed out or when no module registered one.
+     */
+    final public function principal(): ?Principal
+    {
+        return $this->module?->getAuthzIdentity()->principal();
     }
 
     /**

@@ -192,17 +192,27 @@ class AuthzRailTest extends TestCase
         self::assertStringContainsString('refused this request', $payload['message']);
     }
 
-    public function testDenialNamesMisconfigurationToTheBrowser(): void
+    public function testDenialLogsMisconfigurationNotToTheBrowser(): void
     {
+        // RZ-06: the page names no internals; the operator gets the detail.
         $deny = new Denial();
+        $log = \tempnam(\sys_get_temp_dir(), 'razy_authz_log');
+        $previous = \ini_set('error_log', (string) $log);
 
-        \ob_start();
-        $deny(['module' => 'test/mod', 'route' => '/admin'], 'ghost.ability', true);
-        $body = (string) \ob_get_clean();
+        try {
+            \ob_start();
+            $deny(['module' => 'test/mod', 'route' => '/admin'], 'ghost.ability', true);
+            $body = (string) \ob_get_clean();
+            $logged = (string) \file_get_contents((string) $log);
+        } finally {
+            \ini_set('error_log', (string) $previous);
+            @\unlink((string) $log);
+        }
 
         self::assertStringContainsString('403', $body);
-        self::assertStringContainsString('ghost.ability', $body);
-        self::assertStringContainsString('fail-closed', $body, 'an undefined ability page says the guard is missing, not that the user is wrong');
+        self::assertStringNotContainsString('ghost.ability', $body);
+        self::assertStringContainsString('ghost.ability', $logged);
+        self::assertStringContainsString('fail-closed', $logged, 'the log says the guard is missing, not that the user is wrong');
     }
 
     public function testDenialAnnouncesAuthzFailedThroughTheModuleEmitter(): void
