@@ -21,7 +21,7 @@ namespace Razy\Http;
  * inside the root (symlinks out of it are refused).
  *
  * {@see response()} computes status and headers: the content type from the
- * extension (never sniffed; responses also carry `nosniff`), `ETag` +
+ * extension (never sniffed; the response sends `nosniff` itself), `ETag` +
  * `Last-Modified`, 304 on a matching `If-None-Match`, and `Cache-Control`
  * `immutable` only when the caller says the URL is content-hashed.
  *
@@ -145,6 +145,7 @@ final class StaticFile
     {
         $headers = [
             'Content-Type' => self::contentType($this->path),
+            'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => $immutable
                 ? 'public, max-age=' . $immutableMaxAge . ', immutable'
                 : ($maxAge > 0 ? 'public, max-age=' . $maxAge : 'public, max-age=0, must-revalidate'),

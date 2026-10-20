@@ -138,6 +138,26 @@ class AssetsTest extends TestCase
         ], $map['imports']);
     }
 
+    public function testImportForAModuleThatIsNotRunningIsSkippedWithAWarning(): void
+    {
+        $warnings = [];
+        \set_error_handler(static function (int $level, string $message) use (&$warnings): bool {
+            $warnings[] = $message;
+
+            return true;
+        }, E_USER_WARNING);
+        try {
+            $map = $this->assets(['assets' => ['imports' => ['gone' => 'disabled/js/x.js', 'ok' => 'core/js/app.js']]])->importMap();
+        } finally {
+            \restore_error_handler();
+        }
+
+        $this->assertArrayNotHasKey('gone', $map['imports']);
+        $this->assertArrayHasKey('ok', $map['imports']);
+        $this->assertCount(1, $warnings);
+        $this->assertStringContainsString("'disabled'", $warnings[0]);
+    }
+
     public function testImportMapTagCarriesTheNonceAndItsCspHashMatches(): void
     {
         $assets = $this->assets();

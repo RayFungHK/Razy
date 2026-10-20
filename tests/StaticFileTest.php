@@ -122,6 +122,7 @@ class StaticFileTest extends TestCase
         $this->assertSame(200, $response['status']);
         $this->assertTrue($response['body']);
         $this->assertSame('text/javascript; charset=utf-8', $response['headers']['Content-Type']);
+        $this->assertSame('nosniff', $response['headers']['X-Content-Type-Options'], 'also where no dist sends security headers (Standalone)');
         $this->assertSame((string) \filesize($this->root . '/js/app.js'), $response['headers']['Content-Length']);
         $this->assertSame('public, max-age=31536000, immutable', $response['headers']['Cache-Control']);
         $this->assertSame('"abc123"', $response['headers']['ETag']);

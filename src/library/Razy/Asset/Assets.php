@@ -277,6 +277,13 @@ final class Assets
             }
         }
         foreach ($this->imports as $specifier => [$alias, $file]) {
+            // The importmap is on every page: a configured alias whose module is
+            // disabled or has no webassets/ must not break them all.
+            if (!isset($roots[$alias])) {
+                \trigger_error("Razy: dist.php 'assets.imports.{$specifier}' names module alias '{$alias}', which has no running module with a webassets folder; the specifier is left out of the importmap.", E_USER_WARNING);
+
+                continue;
+            }
             $imports[$specifier] = $this->url($alias, $file);
         }
 
