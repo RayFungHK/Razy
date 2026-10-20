@@ -128,6 +128,12 @@ class SchemaPostgresLiveTest extends TestCase
         $schema->table('rz07_items', static fn (TableHelper $h) => $h->addColumn('sku=type(text),length(32),key(unique)'));
         $pdo = $this->db->getDBAdapter();
         $pdo->exec("INSERT INTO rz07_items (sku) VALUES ('A')");
+        try {
+            $pdo->exec("INSERT INTO rz07_items (sku) VALUES ('A')");
+            $this->fail('the unique key must refuse a duplicate');
+        } catch (\PDOException) {
+            $this->addToAssertionCount(1);
+        }
         $schema->table('rz07_items', static fn (TableHelper $h) => $h->dropIndex('sku'));
         $pdo->exec("INSERT INTO rz07_items (sku) VALUES ('A')");
         $this->assertSame(2, (int) $pdo->query("SELECT count(*) FROM rz07_items WHERE sku = 'A'")->fetchColumn());
