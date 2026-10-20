@@ -78,9 +78,9 @@ class DatabaseFromUrlTest extends TestCase
             'pg backslash in dbname' => ['postgresql://u:p@h/app%5Cx'],
             'pg bad sslmode' => ['postgresql://u:p@h/app?sslmode=off%20host%3Devil'],
             'pg non-numeric timeout' => ['postgresql://u:p@h/app?connect_timeout=1%20x'],
-            'pg quote in charset' => ["postgresql://u:p@h/app?charset=UTF8%27%3B%20DROP"],
+            'pg quote in charset' => ['postgresql://u:p@h/app?charset=UTF8%27%3B%20DROP'],
             'pg space in application_name' => ['postgresql://u:p@h/app?application_name=a%20b'],
-            'mysql quote in charset' => ["mysql://u:p@h/app?charset=utf8%27"],
+            'mysql quote in charset' => ['mysql://u:p@h/app?charset=utf8%27'],
         ];
     }
 
