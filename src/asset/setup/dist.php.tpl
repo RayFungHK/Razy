@@ -82,6 +82,12 @@ return [
 	// to login_url with ?next=<the page>. Signed in but refused = 403.
 	// 'authz' => ['login_url' => '/login'],
 
+	// Request resolvers (RZ-12) are registered by modules, not here: in __onLoad,
+	// $agent->resolveRequest(fn (RequestContext $request) => …) runs before routing on
+	// every request; it may look up the host or tenant (I/O is fine there, unlike
+	// __onInit), record it with $request->set('tenant', …) and return null, or end the
+	// request with a Response (Response::notFound(), Response::redirect('/…')).
+
 	// Custom module path: Load modules from a different directory within the Razy project
 	// The path must be inside SYSTEM_ROOT. Useful for organizing modules in a shared location.
 	// Example: 'modules/' or 'dev/my_modules/' (relative to SYSTEM_ROOT)

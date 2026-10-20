@@ -24,6 +24,7 @@ use Razy\Database\Statement;
 use Razy\Exception\ContainerException;
 use Razy\Exception\ModuleLoadException;
 use Razy\Exception\RedirectException;
+use Razy\Http\RequestContext;
 use Razy\ORM\Model;
 use Razy\Template\Source;
 use Razy\Util\PathUtil;
@@ -503,6 +504,15 @@ class Controller
     final public function principal(): ?Principal
     {
         return $this->module?->getAuthzIdentity()->principal();
+    }
+
+    /**
+     * RZ-12: this request's context — host, method, path and what the dist's
+     * request resolvers recorded (`$this->requestContext()->get('tenant')`).
+     */
+    final public function requestContext(): RequestContext
+    {
+        return $this->module?->getRequestContext() ?? RequestContext::fromGlobals('/');
     }
 
     /**
