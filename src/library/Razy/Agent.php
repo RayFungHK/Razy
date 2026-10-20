@@ -203,6 +203,27 @@ class Agent
     }
 
     /**
+     * RZ-12: add a request resolver to this dist's resolver stage.
+     *
+     * It runs on every request after the lifecycle is ready and the session
+     * is started, before the route table: look up the host or tenant (I/O is
+     * fine here, unlike __onInit), record it with `$request->set()`, and
+     * return null to route the request, or a Response (404, redirect, …) to
+     * end it. Register in __onLoad when the dist uses compiled_boot (a
+     * compiled boot does not re-run __onInit). One resolver per module.
+     *
+     * @param callable $resolver fn(\Razy\Http\RequestContext $request): ?\Razy\Http\Response
+     *
+     * @return $this Fluent interface
+     */
+    public function resolveRequest(callable $resolver): static
+    {
+        $this->module->addRequestResolver($resolver(...));
+
+        return $this;
+    }
+
+    /**
      * RZ-06: replace how this dist answers authz refusals (401 and 403).
      * The renderer receives a Refusal and writes the response itself.
      *

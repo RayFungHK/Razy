@@ -1137,6 +1137,24 @@ class Module implements ModuleInterface
     }
 
     /**
+     * RZ-12: the current request's context (what the dist's resolvers recorded).
+     */
+    public function getRequestContext(): Http\RequestContext
+    {
+        return $this->distributor->getRequestContext();
+    }
+
+    /**
+     * RZ-12: add this module's resolver to the dist's request-resolver stage.
+     */
+    public function addRequestResolver(Closure $resolver): static
+    {
+        $this->distributor->getRequestResolver()->add($resolver, $this->getModuleInfo()->getCode());
+
+        return $this;
+    }
+
+    /**
      * RZ-06: replace how the dist renders authz refusals (one owning module).
      */
     public function setAuthzDenialRenderer(Closure $renderer): static

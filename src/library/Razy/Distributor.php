@@ -33,6 +33,8 @@ use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Http\Request;
+use Razy\Http\RequestContext;
+use Razy\Http\RequestResolver;
 use Razy\Http\SecurityHeaders;
 use Razy\Module\ModuleStatus;
 use Razy\Session\SessionDoor;
@@ -151,6 +153,12 @@ class Distributor implements DistributorInterface
     /** @var AuthzDenial RZ-06: the dist's refusal answer (dist.php 'authz', pluggable renderer) */
     private AuthzDenial $authzDenial;
 
+    /** RZ-12: the request-resolver stage (host/tenant), run before the route table */
+    private RequestResolver $requestResolver;
+
+    /** RZ-12: this request's context, rebuilt by beginResponse() on every request */
+    private ?RequestContext $requestContext = null;
+
     /**
      * Distributor constructor.
      *
@@ -244,6 +252,9 @@ class Distributor implements DistributorInterface
         } elseif (null !== $this->sessionConfig) {
             SessionDoor::arm($this);
         }
+
+        // RZ-12: the request-resolver stage, filled by $agent->resolveRequest().
+        $this->requestResolver = new RequestResolver();
 
         // AUTHZ-RAIL: permanently mounted gate — no config key, no arming
         // ceremony, zero-BC: with no route ever calling Route::can() the
@@ -522,6 +533,13 @@ class Distributor implements DistributorInterface
             return true;
         }
 
+        // RZ-12: the resolver stage may answer (404, redirect) before any route runs.
+        if ($this->answeredByResolvers()) {
+            $this->coreInitialized = true;
+
+            return true;
+        }
+
         $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
 
         // Mark core as initialized — the full module lifecycle has completed.
@@ -586,6 +604,10 @@ class Distributor implements DistributorInterface
 
         // Reset stale route metadata from previous request
         $this->router->resetRoutedInfo();
+
+        if ($this->answeredByResolvers()) {
+            return true;
+        }
 
         return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
     }
@@ -784,6 +806,22 @@ class Distributor implements DistributorInterface
     public function getAuthzDenial(): AuthzDenial
     {
         return $this->authzDenial;
+    }
+
+    /**
+     * RZ-12: the dist's request-resolver stage (`$agent->resolveRequest()`).
+     */
+    public function getRequestResolver(): RequestResolver
+    {
+        return $this->requestResolver;
+    }
+
+    /**
+     * RZ-12: the current request's context (host, method, path, resolved attributes).
+     */
+    public function getRequestContext(): RequestContext
+    {
+        return $this->requestContext ??= RequestContext::fromGlobals($this->urlQuery);
     }
 
     /**
@@ -1086,12 +1124,24 @@ class Distributor implements DistributorInterface
     private function beginResponse(): void
     {
         $nonce = $this->securityHeaders->rotateNonce();
+        $this->requestContext = RequestContext::fromGlobals($this->urlQuery);
         SecurityHeaders::setCurrent($this->securityHeaders);
         Assets::setCurrent($this->assets);
         $this->getGlobalTemplateEntity()->assign('csp_nonce', $nonce);
         if (WEB_MODE) {
             $this->securityHeaders->send();
         }
+    }
+
+    /**
+     * RZ-12: run the request resolvers; true when one answered (its Response is sent).
+     */
+    private function answeredByResolvers(): bool
+    {
+        $response = $this->requestResolver->resolve($this->getRequestContext());
+        $response?->send();
+
+        return $response !== null;
     }
 
     /**
