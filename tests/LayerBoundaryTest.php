@@ -33,7 +33,7 @@ class LayerBoundaryTest extends PHPUnit\Framework\TestCase
             }
             foreach ($files as $file) {
                 $file = (string) $file;
-                if (!\preg_match('/\.(php|md|tpl|js|json|neon|txt)$/', $file)) {
+                if (!\preg_match('/\.(php|md|tpl|js|json|neon|txt|html)$/', $file)) {
                     continue;
                 }
                 foreach (\file($file) ?: [] as $i => $line) {
