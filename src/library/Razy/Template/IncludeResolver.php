@@ -29,8 +29,9 @@ use Razy\Util\PathUtil;
  *   inside that root after realpath, so `@layout/../x` and symlinks out of it fail.
  *   This is the sanctioned way for several modules to share one head/chrome/foot:
  *   the dist owns the files, no module reads another module's view folder (RZ-001).
- * - Any other path is relative to the directory of the template being parsed,
- *   exactly as before.
+ * - Any other path is relative to the directory of the root template being parsed
+ *   (the page, also for INCLUDEs inside nested files), exactly as before. Shared
+ *   layouts must therefore name other layout files as `@layout/…`.
  * - A path that does not resolve throws a TemplateException. dist.php
  *   `'templates' => ['strict_include' => false]` restores the old silent skip with an
  *   E_USER_DEPRECATED notice; that switch goes away in the next major.

@@ -79,8 +79,10 @@ Block structures are HTML-comment tags (same verified source, `demo_blocks_*.tpl
 `demo_adv_include.tpl:2`; the framework's own `src/asset/setup/sites.inc.php.tpl` uses the
 same WRAPPER/START/END machinery)
 
-INCLUDE paths are relative to the including file, or `@layout/…` for the dist's shared layout
-folder (dist.php `'templates' => ['layout_path' => 'layout']`). A path that does not resolve throws
+A relative INCLUDE path resolves against the directory of the template that was loaded (the page's
+root template), also when the INCLUDE sits inside a nested included file. `@layout/…` resolves in the
+dist's shared layout folder (dist.php `'templates' => ['layout_path' => 'layout']`), so a shared layout
+must reference other layout files as `@layout/…`, never relatively. A path that does not resolve throws
 `TemplateException` (RZ-11); before RZ-11 it was skipped silently.
 
 ## 3. What is NOT syntax (drift you will meet)
