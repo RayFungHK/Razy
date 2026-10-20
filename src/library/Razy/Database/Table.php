@@ -529,6 +529,40 @@ class Table
     }
 
     /**
+     * RZ-07: the CREATE statements for a driver. MySQL (and any non-pgsql
+     * driver) gets exactly getSyntax(); Postgres gets PostgresGrammar's
+     * statements (indexes and comments are separate statements there).
+     *
+     * @return list<string>
+     */
+    public function getStatements(string $driver = 'mysql'): array
+    {
+        return \in_array(\strtolower($driver), ['pgsql', 'postgres', 'postgresql'], true)
+            ? Schema\PostgresGrammar::createTable($this)
+            : [$this->getSyntax()];
+    }
+
+    /**
+     * RZ-07: the columns in definition order.
+     *
+     * @return list<Column>
+     */
+    public function getColumns(): array
+    {
+        return \array_values($this->columns);
+    }
+
+    /**
+     * RZ-07: named multi-column indexes from groupIndexing() (name => backticked columns).
+     *
+     * @return array<string, list<string>>
+     */
+    public function getGroupIndexing(): array
+    {
+        return $this->groupIndexingList;
+    }
+
+    /**
      * Export the table config.
      *
      * @return string

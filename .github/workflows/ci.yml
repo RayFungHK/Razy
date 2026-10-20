@@ -248,10 +248,11 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       # RZ-02: parameter binding must hold on Postgres (booleans, quotes, JSON,
-      # LIKE). Skips here are FAILURES — the service exists.
+      # LIKE). RZ-07: the schema DSL and MigrationManager run real DDL here.
+      # Skips here are FAILURES — the service exists.
       - name: Run Postgres-backed suites
         shell: bash
         run: |
           set -o pipefail
-          vendor/bin/phpunit --no-coverage --filter "ParameterBindingTest" 2>&1 | tee pg.log
+          vendor/bin/phpunit --no-coverage --filter "ParameterBindingTest|SchemaPostgresLiveTest" 2>&1 | tee pg.log
           grep -qE '^OK \([0-9]+ tests' pg.log || { echo "::error::postgres-backed suites not fully green (skips or failures — see log above)"; exit 1; }

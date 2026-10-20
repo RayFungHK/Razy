@@ -15,6 +15,7 @@
 namespace Razy\Database\Table;
 
 use Razy\Database\Column;
+use Razy\Database\Schema\PostgresGrammar;
 use Razy\Database\Table;
 use Razy\Exception\DatabaseException;
 
@@ -575,6 +576,45 @@ class TableHelper
         $tableName = \addslashes($this->table->getName());
 
         return 'ALTER TABLE `' . $tableName . '` ' . \implode(', ', $alterations) . ';';
+    }
+
+    /**
+     * RZ-07: the ALTER statements for a driver. MySQL (and any non-pgsql
+     * driver) gets exactly getSyntax() (or nothing when nothing is pending);
+     * Postgres gets PostgresGrammar's statements.
+     *
+     * @return list<string>
+     */
+    public function getStatements(string $driver = 'mysql'): array
+    {
+        if (\in_array(\strtolower($driver), ['pgsql', 'postgres', 'postgresql'], true)) {
+            return PostgresGrammar::alterTable($this);
+        }
+        $sql = $this->getSyntax();
+
+        return $sql === '' ? [] : [$sql];
+    }
+
+    /**
+     * RZ-07: the queued changes as data, for dialect grammars.
+     *
+     * @return array{table: string, rename: string, comment: string, addColumns: array<string, array{column: Column, position: string, after: string}>, modifyColumns: array<string, array{column: Column, oldName: string, position: string, after: string}>, dropColumns: list<string>, renameColumns: array<string, string>, addIndexes: array<string, array{type: string, columns: list<string>, name: string}>, dropIndexes: list<string>, addForeignKeys: array<string, array{column: string, refTable: string, refColumn: string, onDelete: string, onUpdate: string}>, dropForeignKeys: list<string>}
+     */
+    public function getPendingChanges(): array
+    {
+        return [
+            'table' => $this->table->getName(),
+            'rename' => $this->newTableName !== $this->table->getName() ? $this->newTableName : '',
+            'comment' => $this->newComment,
+            'addColumns' => $this->addColumns,
+            'modifyColumns' => $this->modifyColumns,
+            'dropColumns' => \array_values($this->dropColumns),
+            'renameColumns' => $this->renameColumns,
+            'addIndexes' => $this->addIndexes,
+            'dropIndexes' => \array_values($this->dropIndexes),
+            'addForeignKeys' => $this->addForeignKeys,
+            'dropForeignKeys' => \array_values($this->dropForeignKeys),
+        ];
     }
 
     /**

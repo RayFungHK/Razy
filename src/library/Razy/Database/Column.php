@@ -582,6 +582,18 @@ class Column
     }
 
     /**
+     * RZ-07: the column definition as data, for dialect grammars
+     * (type, length, decimal_points, nullable, default, key, auto_increment,
+     * default_current_timestamp, auto_update_timestamp, reference_*, ...).
+     *
+     * @return array<string, mixed>
+     */
+    public function getParameters(): array
+    {
+        return $this->parameters;
+    }
+
+    /**
      * Generate the FOREIGN KEY constraint SQL syntax for this column.
      *
      * @return string The FOREIGN KEY clause, with optional CONSTRAINT name when aliased
