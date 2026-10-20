@@ -72,6 +72,29 @@ class Entity
     }
 
     /**
+     * Whether the tag's modifier chain already makes its output safe, so
+     * auto-escape must not touch it: ->raw or ->escape anywhere in the chain,
+     * or ->json as the LAST modifier (its JSON_HEX_TAG/AMP/APOS/QUOT output
+     * holds no `<`, `>`, `&`, `'` or `"`, so it is safe in <script> and in
+     * attributes; entity-encoding it would break `const c = {$cfg->json};`).
+     * ->json only counts when last because a later modifier may reintroduce
+     * markup. Quoted path keys and quoted modifier arguments are blanked first,
+     * so text such as `{$u.'bio->raw'}` or `->truncate:5:'->raw'` cannot switch
+     * escaping off.
+     *
+     * @param string $clip One pipe-delimited alternative of a tag
+     *
+     * @return bool
+     */
+    private static function hasSafeModifier(string $clip): bool
+    {
+        $unquoted = \trim((string) \preg_replace('/(?<q>[\'"])(?:\\\.|(?!\k<q>).)*\k<q>/s', "''", $clip));
+
+        return 1 === \preg_match('/->(?:raw|escape)(?![\w])/', $unquoted)
+            || 1 === \preg_match('/->json(?::(?:\w+|\'\'|-?\d+(?:\.\d+)?))*$/', $unquoted);
+    }
+
+    /**
      * Get the module which was loaded the template file.
      *
      * @return ModuleInfo|null
@@ -387,15 +410,8 @@ class Entity
         // Replace parameter tags {$var} with resolved values, supporting dot-path access and modifier chains
         return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
             $clips = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
-            // Try each pipe-delimited alternative until a renderable value is found
-            foreach ($clips as $clip) {
-                $value = $this->parseValue($clip) ?? '';
-                if (\is_scalar($value) || (\is_object($value) && \method_exists($value, '__toString'))) {
-                    return $value;
-                }
-            }
 
-            return '';
+            return $this->renderTag($clips);
         }, $content);
     }
 
@@ -487,16 +503,42 @@ class Entity
                 $result .= $segment;
             } else {
                 // Resolve pipe-delimited variable alternatives (pre-split during compilation)
-                foreach ($segment['clips'] as $clip) {
-                    $value = $this->parseValue($clip) ?? '';
-                    if (\is_scalar($value) || (\is_object($value) && \method_exists($value, '__toString'))) {
-                        $result .= $value;
-                        break;
-                    }
-                }
+                $result .= $this->renderTag($segment['clips']);
             }
         }
         return $result;
+    }
+
+    /**
+     * Render one `{$tag}`: the first pipe-delimited alternative that yields a
+     * renderable value wins. With auto-escape on (RZ-03) the value is
+     * HTML-escaped unless that alternative's modifier chain has ->raw or ->escape,
+     * or ends in ->json (already context-safe; see hasSafeModifier()).
+     *
+     * @param array<int, string> $clips The pipe-delimited alternatives
+     *
+     * @return string
+     *
+     * @throws Throwable
+     */
+    private function renderTag(array $clips): string
+    {
+        foreach ($clips as $clip) {
+            $value = $this->parseValue($clip) ?? '';
+            if (\is_scalar($value) || (\is_object($value) && \method_exists($value, '__toString'))) {
+                if (\is_bool($value)) {
+                    $value = $value ? '1' : '';
+                }
+                $value = (string) $value;
+                if ($this->block->isAutoEscape() && !self::hasSafeModifier($clip)) {
+                    return \htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                }
+
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**

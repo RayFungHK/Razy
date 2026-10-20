@@ -188,8 +188,10 @@ Built-in catalogue (unreleased additions marked ★): modifiers `upper, lower, t
 nl2br, capitalize, alphabet, gettype, addslashes, escape, truncate★, date★, number★,
 json★, strip_tags★`; functions `def, each, if, repeat, template, paginate★`.
 `truncate` counts UTF-8 characters with the suffix inside the budget (`{$t->truncate:80}`,
-`{$t->truncate:120:'…':1}` = word-boundary); `json` is `<script>`/attribute-safe via
-`JSON_HEX_*`; `paginate` renders an escaped windowed nav (`{@paginate page=$p pages=$n
+`{$t->truncate:120:'…':1}` = word-boundary); `json` is `<script>`-safe via
+`JSON_HEX_*` and prints unescaped under auto-escape when it ends the chain — in an attribute
+use single quotes (`data-s='{$s->json}'`) or `data-s="{$s->json->escape}"` (lint flags
+`"{$s->json}"`); `paginate` renders an escaped windowed nav (`{@paginate page=$p pages=$n
 base=$url}` — quote parameter values; the engine's grammar accepts only `$vars`, numbers,
 `true/false`, and quoted strings).
 

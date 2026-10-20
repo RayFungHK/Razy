@@ -91,6 +91,9 @@ class Distributor implements DistributorInterface
     /** @var string|null RZ-04: dist.php 'origin' — canonical scheme://host[:port] for absolute URLs */
     private ?string $canonicalOrigin = null;
 
+    /** @var bool RZ-03: dist.php 'auto_escape' — HTML-escape `{$tag}` output by default */
+    private bool $autoEscape = false;
+
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
 
@@ -186,6 +189,10 @@ class Distributor implements DistributorInterface
             }
             $this->canonicalOrigin = $origin;
         }
+
+        // RZ-03: template auto-escape. Absent = false so existing dists render
+        // exactly as before; the dist.php skeleton opts new dists in.
+        $this->autoEscape = Template::autoEscapeFromConfig($config, $distCode);
 
         $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
 
@@ -838,6 +845,16 @@ class Distributor implements DistributorInterface
     }
 
     /**
+     * Whether this dist HTML-escapes `{$tag}` output by default (dist.php 'auto_escape', RZ-03).
+     *
+     * @return bool
+     */
+    public function isAutoEscape(): bool
+    {
+        return $this->autoEscape;
+    }
+
+    /**
      * Check if fallback routing to index.php is enabled.
      *
      * When enabled, unmatched requests under this distributor's path prefix are forwarded
@@ -859,7 +876,7 @@ class Distributor implements DistributorInterface
     public function getGlobalTemplateEntity(): Template
     {
         if (!$this->globalTemplate) {
-            $this->globalTemplate = new Template();
+            $this->globalTemplate = (new Template())->setAutoEscape($this->autoEscape);
         }
 
         return $this->globalTemplate;

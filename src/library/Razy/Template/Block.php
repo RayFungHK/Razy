@@ -418,6 +418,16 @@ class Block
     }
 
     /**
+     * Whether the owning Template HTML-escapes `{$tag}` output (RZ-03).
+     *
+     * @return bool
+     */
+    public function isAutoEscape(): bool
+    {
+        return $this->source->isAutoEscape();
+    }
+
+    /**
      * Return a new Entity object related on this Block.
      *
      * @return Entity

@@ -313,6 +313,26 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
 
         $this->writeLineLogging('', true);
 
+        // ── Template auto-escape (RZ-03) ──────────────────────────────
+        // Off is the upgrade-neutral default for dists that predate the
+        // flag; say so loudly, like the CSRF posture above.
+        $this->writeLineLogging('{@s:b}Template Auto-Escape{@reset}', true);
+        $escapeConfig = (\is_file($csrfDistConfigPath) && \is_array($csrfParsed ?? null)) ? $csrfParsed : [];
+        $escapeSet = \array_key_exists('auto_escape', $escapeConfig);
+        $escapeRaw = $escapeConfig['auto_escape'] ?? null;
+        if (true === $escapeRaw) {
+            $this->writeLineLogging("  {@c:green}✓ on (dist.php 'auto_escape' => true){@reset}", true);
+        } elseif (!$escapeSet || false === $escapeRaw) {
+            $this->writeLineLogging('  {@c:yellow}⚠ OFF — {$tag} output is raw unless the template adds ->escape{@reset}', true);
+            $this->writeLineLogging("      to enable: dist.php 'auto_escape' => true   (trusted HTML: ->raw)", true);
+            ++$totalWarnings;
+        } else {
+            $this->writeLineLogging("  {@c:red}✗ 'auto_escape' must be true or false (boot would refuse){@reset}", true);
+            ++$totalErrors;
+        }
+
+        $this->writeLineLogging('', true);
+
         // ── FM-2 route audit (coexistence Phase 3, dossier option (f)) ──
         // Functional probes over the route table's COMPILED regexes. Foreign
         // namespaces = declared exclude_paths + sibling mounts on domains this

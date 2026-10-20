@@ -50,6 +50,17 @@ const DEFAULT_EXCLUDES = [
  * fields: id, level (error|warn), scope (php|tpl|any|php-special), desc, regex (array)
  * 'any' = applies to php AND tpl files (catches PHP teaching snippets embedded in .tpl).
  */
+/** RZ-004 raw-output message (structural check: rawOutputScan()) */
+const RAW_OUTPUT_DESC = '->raw prints unescaped HTML — justify it with a `{# lint-allow: RZ-004 <reason> }` or `<!-- lint-allow: RZ-004 <reason> -->` comment on the same or previous line';
+
+/** RZ-004 ->json in an attribute message (structural check: jsonAttributeScan()) */
+const JSON_ATTR_DESC = '->json in a double-quoted or unquoted attribute — its JSON quotes end the attribute (auto-escape trusts ->json for <script>); write `attr="{$x->json->escape}"` or `attr=\'{$x->json}\'`';
+
+/** RZ-004: a `{$...}` template tag; quoted spans inside it are skipped whole */
+const RAW_TAG_RE = '/\{\$(?:\'(?:\\\\.|[^\'\\\\])*\'|"(?:\\\\.|[^"\\\\])*"|[^}\'"])*/';
+/** RZ-004: a quoted literal inside a tag body */
+const RAW_QUOTED_RE = '/(?<q>[\'"])(?:\\\\.|(?!\k<q>).)*\k<q>/';
+
 const RULES = [
     ['id' => 'RZ-001', 'level' => 'error', 'scope' => 'php', 'desc' => 'Cross-module file access via require/include',
      'regex' => ['#\b(?:require|include|require_once|include_once)\s*\(?\s*[\'"][^\'"]*(?:\.\.[/\\\\]|sites[/\\\\]|shared[/\\\\]module|vendor[/\\\\]module)#i',
@@ -63,7 +74,7 @@ const RULES = [
                  '#\b(?:->getDB\(\))->prepare\s*\(\s*[\'"]#i']],
     ['id' => 'RZ-003', 'level' => 'warn', 'scope' => 'php', 'desc' => 'Input superglobal read — cast/validate immediately; route args preferred via getRoutedInfo(); never interpolate into SQL',
      'regex' => ['#\$_(?:GET|POST|REQUEST|COOKIE)\b#']],
-    ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Template variable output without modifier — engine does NOT auto-escape (review data provenance)',
+    ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Template variable output without modifier — escaped only where the dist sets \'auto_escape\' => true (review data provenance)',
      'regex' => ['#{\$[A-Za-z_][\w.]*\}#']],
     ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Legacy modifier pipe — the engine treats | as a FALLBACK chain, so the piped modifier is a silent no-op (rewrite as ->modifier)',
      'regex' => ['#{\$[A-Za-z_][\w.]*\|(?!\$|\x27|")[a-z][\w.]*\}#']],
@@ -219,6 +230,20 @@ foreach ($paths as $root) {
             }
         }
 
+        // RZ-004 (raw opt-out, RZ-03): `{$x->raw}` prints trusted HTML even
+        // under auto-escape. Every use needs a written reason next to it —
+        // `lint-allow: RZ-004 <reason>` in a template comment on the same or
+        // previous line; a bare allow, or allow text outside a comment, does
+        // not count (see isJustified()).
+        if ($scope === 'tpl') {
+            foreach (rawOutputScan($lines) as $lineNo) {
+                $violations[] = violation($file, $lineNo, 'RZ-004', 'error', RAW_OUTPUT_DESC . ' — ' . trim(mb_substr(strip_tags($lines[$lineNo - 1]), 0, 120)));
+            }
+            foreach (jsonAttributeScan($lines) as $lineNo) {
+                $violations[] = violation($file, $lineNo, 'RZ-004', 'error', JSON_ATTR_DESC . ' — ' . trim(mb_substr(strip_tags($lines[$lineNo - 1]), 0, 120)));
+            }
+        }
+
         // Regex rules ('any' rules apply to both php and tpl scopes)
         foreach (RULES as $rule) {
             if ($rule['scope'] !== $scope && $rule['scope'] !== 'any') continue;
@@ -276,6 +301,195 @@ if ($format === 'json') {
 exit($errors > 0 || ($strict && $warns > 0) ? 1 : 0);
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * RZ-004 raw-output check: line numbers (1-based) of `{$x->raw}` tags that
+ * lack a justified `lint-allow: RZ-004 <reason>` comment on the same or previous line.
+ *
+ * @param array<int, string> $lines
+ *
+ * @return array<int, int>
+ */
+function rawOutputScan(array $lines): array
+{
+    $hits = [];
+    foreach ($lines as $i => $line) {
+        // Find each `{$...}` tag first (a quoted span inside a tag may hold
+        // `}`), then blank quoted text only within that tag: a quoted path
+        // key, modifier argument or fallback (`{$nick|'->raw'}`) is not a raw
+        // modifier, but HTML/JS attribute quotes around the whole tag
+        // (`value="{$html->raw}"`) must not hide it.
+        if (!preg_match_all(RAW_TAG_RE, $line, $tags)) continue;
+        foreach ($tags[0] as $tag) {
+            $unquoted = (string) preg_replace(RAW_QUOTED_RE, "''", $tag);
+            if (!preg_match('#->raw(?!\w)#', $unquoted)) continue;
+            if (!isJustified($lines, $i, 'RZ-004')) $hits[] = $i + 1;
+            break;
+        }
+    }
+
+    return $hits;
+}
+
+/**
+ * RZ-004 ->json-in-attribute check: line numbers (1-based) of tags whose chain
+ * ends in ->json (printed unescaped under auto-escape: safe in <script> and in
+ * single-quoted attributes thanks to JSON_HEX_*) placed inside a double-quoted
+ * or unquoted attribute value, where the JSON's own `"` closes the attribute.
+ *
+ * @param array<int, string> $lines
+ *
+ * @return array<int, int>
+ */
+function jsonAttributeScan(array $lines): array
+{
+    $source = implode("\n", array_map(static fn ($l) => rtrim((string) $l, "\r\n"), $lines));
+    if (!preg_match_all(RAW_TAG_RE, $source, $tags, PREG_OFFSET_CAPTURE)) return [];
+    $tagEnd = [];
+    $jsonAt = [];
+    foreach ($tags[0] as [$tag, $offset]) {
+        $tagEnd[$offset] = $offset + strlen($tag);
+        $unquoted = (string) preg_replace(RAW_QUOTED_RE, "''", $tag);
+        if (preg_match('/->json(?::(?:\w+|\'\'|-?\d+(?:\.\d+)?))*\s*(?:\||$)/', $unquoted)) $jsonAt[$offset] = true;
+    }
+
+    // One pass over the whole template: markup state (text, start tag, quoted
+    // or unquoted attribute value) is tracked across lines, `>` inside a quoted
+    // value does not end the tag, and template tags and comments are skipped.
+    $hits = [];
+    $state = 'text';
+    $afterEq = false;
+    $len = strlen($source);
+    for ($i = 0; $i < $len; $i++) {
+        if (isset($tagEnd[$i])) {
+            if (isset($jsonAt[$i]) && ($state === 'dq' || $state === 'unq' || ($state === 'tag' && $afterEq))) {
+                $hits[substr_count($source, "\n", 0, $i) + 1] = true;
+            }
+            if ($state === 'tag' && $afterEq) $state = 'unq';
+            $afterEq = false;
+            $i = $tagEnd[$i];
+            continue;
+        }
+        // `{# ... }` is a Razy template comment, stripped before the markup is
+        // emitted: skip it whole so its contents never change markup state.
+        if ($source[$i] === '{' && ($source[$i + 1] ?? '') === '#') {
+            $close = strpos($source, '}', $i + 2);
+            $i = false === $close ? $len : $close;
+            continue;
+        }
+        $c = $source[$i];
+        switch ($state) {
+            case 'text':
+                if (substr_compare($source, '<!--', $i, 4) === 0) {
+                    $close = strpos($source, '-->', $i + 4);
+                    $i = false === $close ? $len : $close + 2;
+                } elseif ($c === '<' && preg_match('/\G<([A-Za-z][\w:-]*)/', $source, $m, 0, $i)) {
+                    $state = 'tag';
+                    $element = strtolower($m[1]);
+                    $i += strlen($m[0]) - 1;
+                }
+                break;
+            case 'tag':
+                if ($c === '>') {
+                    $state = 'text';
+                    if ($element === 'script' || $element === 'style') {
+                        $close = stripos($source, '</' . $element, $i);
+                        $i = (false === $close ? $len : $close) - 1;
+                    }
+                } elseif ($afterEq && $c === '"') {
+                    $state = 'dq';
+                } elseif ($afterEq && $c === '\'') {
+                    $state = 'sq';
+                } elseif ($c === '=') {
+                    $afterEq = true;
+                    break;
+                } elseif ($afterEq && !ctype_space($c)) {
+                    $state = 'unq';
+                }
+                if (!ctype_space($c)) $afterEq = false;
+                break;
+            case 'dq':
+                if ($c === '"') $state = 'tag';
+                break;
+            case 'sq':
+                if ($c === '\'') $state = 'tag';
+                break;
+            case 'unq':
+                if (ctype_space($c)) $state = 'tag';
+                elseif ($c === '>') { $state = 'tag'; $i--; }
+                break;
+        }
+    }
+
+    return array_keys($hits);
+}
+
+/**
+ * Like isSuppressed(), but the allow must sit inside a template comment and
+ * carry a reason: `<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->`.
+ * Recognised comments (opened on that line): `{# ... }` (Razy template
+ * comment, stripped at render), `<!-- ... -->`, and `/* ... *\/` or `// ...`
+ * only inside a <script>/<style> element. The same text as visible markup
+ * (`<span>lint-allow: RZ-004 sanitized</span>`) does not count.
+ */
+function isJustified(array $lines, int $index, string $ruleId): bool
+{
+    $allow = '#lint-allow:\s*' . preg_quote($ruleId, '#') . '(?!\w)(.*)$#su';
+    foreach ([$index, $index - 1] as $i) {
+        if ($i < 0 || !isset($lines[$i])) continue;
+        foreach (templateComments($lines, $i) as $body) {
+            if (!preg_match($allow, $body, $m)) continue;
+            // A template tag after the allow never counts as its reason.
+            $reason = preg_split('#\{\$#', $m[1])[0] ?? '';
+            $reason = trim($reason, " \t:-—");
+            if (preg_match_all('/[\p{L}\p{N}]/u', $reason) >= 3) return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Bodies of the comments that open on line $i (an unterminated comment runs
+ * to the end of the line). See isJustified() for the recognised forms.
+ *
+ * @param array<int, string> $lines
+ *
+ * @return array<int, string>
+ */
+function templateComments(array $lines, int $i): array
+{
+    $line = rtrim($lines[$i], "\r\n");
+    $re = '#\{\#(?<razy>[^}]*)\}?|<!--(?<html>.*?)(?:-->|$)|/\*(?<block>.*?)(?:\*/|$)|//(?<line>.*)$#u';
+    if (!preg_match_all($re, $line, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL)) return [];
+    $bodies = [];
+    foreach ($matches as $m) {
+        if (null !== $m['razy'][0]) {
+            $bodies[] = $m['razy'][0];
+        } elseif (null !== $m['html'][0]) {
+            $bodies[] = $m['html'][0];
+        } elseif (inScriptOrStyle($lines, $i, $m[0][1])) {
+            $bodies[] = $m['block'][0] ?? $m['line'][0] ?? '';
+        }
+    }
+
+    return $bodies;
+}
+
+/**
+ * Whether byte offset $offset of line $i lies inside a <script> or <style>
+ * element, where `//` and `/* *\/` are real comments rather than visible text.
+ *
+ * @param array<int, string> $lines
+ */
+function inScriptOrStyle(array $lines, int $i, int $offset): bool
+{
+    $before = implode("\n", array_slice($lines, 0, $i)) . "\n" . substr($lines[$i], 0, $offset);
+    $open = preg_match_all('#<(?:script|style)\b[^>]*>#i', $before, $o, PREG_OFFSET_CAPTURE) ? end($o[0])[1] : -1;
+    $close = preg_match_all('#</(?:script|style)\s*>#i', $before, $c, PREG_OFFSET_CAPTURE) ? end($c[0])[1] : -1;
+
+    return $open > $close;
+}
 
 function violation(string $file, int $line, string $rule, string $level, string $message): array
 {
@@ -683,6 +897,65 @@ function selfTest(): int
         $ok = $hit === $expect;
         $failed += $ok ? 0 : 1;
         printf("%s  expect=%-7s got=%-7s  %.60s\n", $ok ? 'ok  ' : 'FAIL', $expect ?? '-', $hit ?? '-', str_replace("\n", ' ', trim($code)));
+    }
+
+    // RZ-004 raw-output fixture: unjustified raw hits, a written reason clears it.
+    $rawCases = [
+        [["<div>{\$html->raw}</div>"], 1],
+        [["<!-- lint-allow: RZ-004 -->", "<div>{\$html->raw}</div>"], 1],
+        [["<!-- lint-allow: RZ-004 -->{\$html->raw}"], 1],
+        [["<li>{\$nick|'->raw'}</li>"], 0],
+        [["<li>{\$u.'bio->raw'}</li>"], 0],
+        [["<li>{\$u.\"bio->raw\"}</li>"], 0],
+        [["<li>{\$a|'}->raw'}</li>"], 0],
+        [["<input value=\"{\$html->raw}\">"], 1],
+        [["<a href='{\$url->raw}'>x</a>"], 1],
+        [["<a title=\"{\$t}\" href=\"{\$url->raw}\">x</a>"], 1],
+        [["<button onclick='go(\"{\$js->raw}\")'>x</button>"], 1],
+        [["<input value=\"{\$nick|'->raw'}\">"], 0],
+        [["<!-- lint-allow: RZ-004 sanitized by the markdown renderer -->", "<div>{\$html->raw}</div>"], 0],
+        [["{# lint-allow: RZ-004 sanitized by the markdown renderer #}{\$html->raw}"], 0],
+        [["<script>", "// lint-allow: RZ-004 json_encode(JSON_HEX_TAG) in controller", "var c = {\$cfg->raw};"], 0],
+        [["<style>/* lint-allow: RZ-004 controller-authored static CSS */ {\$css->raw}</style>"], 0],
+        [["<span>lint-allow: RZ-004 sanitized by the markdown renderer</span>", "<div>{\$html->raw}</div>"], 1],
+        [["<p>lint-allow: RZ-004 sanitized {\$html->raw}</p>"], 1],
+        [["<p>// lint-allow: RZ-004 sanitized by the renderer</p>", "<div>{\$html->raw}</div>"], 1],
+        [["<p>/* lint-allow: RZ-004 sanitized by the renderer */</p>", "<div>{\$html->raw}</div>"], 1],
+        [["<script>x()</script><p>// lint-allow: RZ-004 sanitized text</p>{\$html->raw}"], 1],
+        [["<div>{\$html->escape}</div>"], 0],
+    ];
+    foreach ($rawCases as [$rawLines, $expectHits]) {
+        $pass = count(rawOutputScan($rawLines)) === $expectHits;
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=RZ-004 x%d  (raw output)  %.50s\n", $pass ? 'ok  ' : 'FAIL', $expectHits, implode(' ', $rawLines));
+    }
+
+    // RZ-004 ->json fixture: double-quoted/unquoted attribute hits; <script>,
+    // single-quoted attributes and an ->escape hop stay clean.
+    $jsonCases = [
+        ['<div data-s="{$s->json}"></div>', 1],
+        ['<div data-s={$s->json}></div>', 1],
+        ['<div class="x" data-s="a {$s->json:4}"></div>', 1],
+        ["<div data-s='{\$s->json}'></div>", 0],
+        ['<div data-s="{$s->json->escape}"></div>', 0],
+        ['<script>const s = {$s->json};</script>', 0],
+        ['<p title="x">{$s->json}</p>', 0],
+        ['<p title="a > b" data-s="{$s->json}"></p>', 1],
+        ['<p title="a > b">{$s->json}</p>', 0],
+        ['<div data-a="{$a->json}" data-b="{$b->json}"></div>', 1],
+        ['<!-- <div data-s="x --> {$s->json}', 0],
+        ['{# <script> }<div data-s="{$s->json}"></div>', 1],
+        ['{# <p title="x }<p>{$s->json}</p>', 0],
+        ['<script>if (a<b) { x = "{$s->json}"; }</script>', 0],
+        ["<div\n  class=\"x\"\n  data-s=\"{\$s->json}\"\n></div>", [3]],
+        ["<div data-a=\"{\$a->json}\"></div>\n<p>ok</p>\n<i data-b={\$b->json}></i>", [1, 3]],
+    ];
+    foreach ($jsonCases as [$jsonSource, $expect]) {
+        $jsonLines = preg_split('/(?<=\n)/', $jsonSource);
+        $got = jsonAttributeScan($jsonLines);
+        $pass = is_array($expect) ? $got === $expect : count($got) === $expect;
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=RZ-004 %s  (json attr)   %.50s\n", $pass ? 'ok  ' : 'FAIL', is_array($expect) ? '@' . implode(',', $expect) : 'x' . $expect, str_replace("\n", ' ', $jsonSource));
     }
 
     // RZ-017 structural fixture: sibling import hits, own-namespace import and
