@@ -42,7 +42,7 @@ class Builder
      *
      * @return static The builder instance for method chaining
      */
-    final public function init(Statement $statement = null): static
+    final public function init(?Statement $statement = null): static
     {
         // Only bind on first call to prevent re-initialization
         if (!$this->statement) {

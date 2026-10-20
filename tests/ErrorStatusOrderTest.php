@@ -24,6 +24,23 @@
 
 class ErrorStatusOrderTest extends PHPUnit\Framework\TestCase
 {
+    /**
+     * @return array<string, array{Throwable, int}>
+     */
+    public static function statusCases(): array
+    {
+        return [
+            'plain exception code 0' => [new RuntimeException('boom'), 500],
+            'Razy Error default 400' => [new Razy\Error('bad'), 400],
+            'explicit 403' => [new RuntimeException('no', 403), 403],
+            'explicit 503' => [new RuntimeException('down', 503), 503],
+            'non-error 200' => [new RuntimeException('odd', 200), 500],
+            'redirect 302' => [new RuntimeException('odd', 302), 500],
+            'out of range 600' => [new RuntimeException('odd', 600), 500],
+            'negative' => [new RuntimeException('odd', -1), 500],
+        ];
+    }
+
     private static function src(): string
     {
         $s = \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Error/ErrorRenderer.php');
@@ -62,7 +79,7 @@ class ErrorStatusOrderTest extends PHPUnit\Framework\TestCase
     {
         $src = self::src();
 
-        $headerPos = \strpos($src, "\\header('HTTP/1.1 ' . (\\is_numeric(");
+        $headerPos = \strpos($src, '\header(\'HTTP/1.1 \' . $status, true, $status)');
         $echoPos = \strpos($src, 'echo $source->output();');
 
         self::assertGreaterThan(0, $headerPos, 'status header call must exist');
@@ -83,5 +100,18 @@ class ErrorStatusOrderTest extends PHPUnit\Framework\TestCase
             'HTTP/1.0 status lines are retired: the replace-form header() is the '
             . 'PHP-8.5-safe house style since 2026-09',
         );
+    }
+
+    #[PHPUnit\Framework\Attributes\DataProvider('statusCases')]
+    public function testStatusForIsAlwaysAValidErrorStatus(Throwable $e, int $expected): void
+    {
+        $this->assertSame($expected, Razy\Error\ErrorRenderer::statusFor($e));
+    }
+
+    public function testPdoSqlstateCodeMapsTo500(): void
+    {
+        $e = new PDOException('db');
+        (new ReflectionProperty(Exception::class, 'code'))->setValue($e, '42P01');
+        $this->assertSame(500, Razy\Error\ErrorRenderer::statusFor($e));
     }
 }
