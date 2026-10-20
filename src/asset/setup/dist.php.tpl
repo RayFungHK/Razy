@@ -63,6 +63,11 @@ return [
 	// 	'headers'         => ['Permissions-Policy' => 'camera=(), microphone=()'],
 	// ],
 
+	// Shared layouts (RZ-11): `<!-- INCLUDE BLOCK: @layout/head.tpl -->` and
+	// loadTemplate('@layout/page') read this folder, relative to dist.php. An INCLUDE
+	// that does not resolve throws; 'strict_include' => false is deprecated.
+	// 'templates' => ['layout_path' => 'layout', 'strict_include' => true],
+
 	// Web assets (RZ-09). In templates the asset function (file='js/app.js') prints the
 	// module's file URL with ?v=<content hash>; the importmap function (in <head>, with
 	// the CSP nonce) maps every module .js/.mjs URL to its hashed URL so each ES module loads once.

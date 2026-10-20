@@ -40,6 +40,9 @@ class Source
 {
     use ParameterBagTrait;
 
+    /** Most INCLUDEs one template file may pull in, so an include cycle fails instead of looping forever. */
+    public const MAX_INCLUDES = 256;
+
     /** @var string Absolute directory path of the loaded template file */
     private string $fileDirectory = '';
 
@@ -51,6 +54,9 @@ class Source
 
     /** @var Entity|null Root entity for rendering the template */
     private ?Entity $rootEntity = null;
+
+    /** @var int INCLUDEs resolved while parsing this source */
+    private int $includes = 0;
 
     /**
      * Template Source constructor.
@@ -88,6 +94,25 @@ class Source
     public function getFileDirectory(): string
     {
         return $this->fileDirectory;
+    }
+
+    /**
+     * Resolve an INCLUDE path for the parser (RZ-11): `@layout/…` from the dist's
+     * shared layout folder, anything else relative to this template's directory.
+     *
+     * @param string $spec The path written in the INCLUDE tag
+     *
+     * @return string|null The file to read, or null when skipped (non-strict mode)
+     *
+     * @throws TemplateException When the path does not resolve, or too many includes (a cycle)
+     */
+    public function resolveInclude(string $spec): ?string
+    {
+        if (++$this->includes > self::MAX_INCLUDES) {
+            throw new TemplateException('More than ' . self::MAX_INCLUDES . ' INCLUDE BLOCKs while parsing a template; is a file including itself?');
+        }
+
+        return $this->template->getIncludeResolver()->resolve($spec, $this->fileDirectory);
     }
 
     /**
