@@ -15,6 +15,8 @@ use BadMethodCallException;
 use Closure;
 use InvalidArgumentException;
 use LogicException;
+use Razy\Authz\Identity;
+use Razy\Authz\Principal;
 use Razy\Contract\ContainerInterface;
 use Razy\Csrf\CsrfMiddleware;
 use Razy\Csrf\CsrfTokenManager;
@@ -507,6 +509,23 @@ class Controller
      *                        instructions, not as an empty hidden field
      *                        that silently 419s every submit
      */
+    /**
+     * RZ-06: who this request acts for (resolved once per request by the
+     * resolver a module registered with `$agent->identity()`), or null when
+     * signed out or when no module registered one.
+     */
+    final public function principal(): ?Principal
+    {
+        if (!$this->hasService(Identity::class)) {
+            return null;
+        }
+
+        /** @var Identity $identity */
+        $identity = $this->resolve(Identity::class);
+
+        return $identity->principal();
+    }
+
     final public function csrfToken(): string
     {
         if (!$this->hasService(CsrfTokenManager::class)) {

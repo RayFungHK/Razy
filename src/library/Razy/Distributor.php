@@ -16,6 +16,7 @@ namespace Razy;
 
 use Razy\Authz\Denial as AuthzDenial;
 use Razy\Authz\Gate as AuthzGate;
+use Razy\Authz\Identity as AuthzIdentity;
 use Razy\Authz\Middleware as AuthzMiddleware;
 use Razy\Compiler\BootCompiler;
 use Razy\Config\ConfigLoader;
@@ -136,6 +137,12 @@ class Distributor implements DistributorInterface
     /** @var AuthzGate dist-wide ability registry (AUTHZ-RAIL; inert until a route declares one) */
     private AuthzGate $authzGate;
 
+    /** @var AuthzIdentity RZ-06: request-scoped principal (inert until a module registers a resolver) */
+    private AuthzIdentity $authzIdentity;
+
+    /** @var AuthzDenial RZ-06: the dist's refusal answer (dist.php 'authz', pluggable renderer) */
+    private AuthzDenial $authzDenial;
+
     /**
      * Distributor constructor.
      *
@@ -224,11 +231,17 @@ class Distributor implements DistributorInterface
         // $context['authz'], which only a can()-declaring route produces).
         // Mounted AFTER the CSRF onion so the CSRF door answers first.
         $this->authzGate = new AuthzGate();
-        $denial = new AuthzDenial(fn (string $moduleCode) => $this->registry->get($moduleCode));
-        $this->router->addGlobalMiddleware(new AuthzMiddleware($this->authzGate, $denial(...)));
+        $this->authzIdentity = new AuthzIdentity();
+        $authz = $config['authz'] ?? [];
+        if (!\is_array($authz)) {
+            throw new ConfigurationException("dist.php 'authz' must be an array for dist '{$distCode}'.");
+        }
+        $this->authzDenial = AuthzDenial::fromConfig($authz, fn (string $moduleCode) => $this->registry->get($moduleCode));
+        $this->router->addGlobalMiddleware(new AuthzMiddleware($this->authzGate, $this->authzDenial->__invoke(...), $this->authzIdentity));
 
         if ($container = $this->getContainer()) {
             $container->instance(AuthzGate::class, $this->authzGate);
+            $container->instance(AuthzIdentity::class, $this->authzIdentity);
         }
     }
 
@@ -712,6 +725,23 @@ class Distributor implements DistributorInterface
     public function getAuthzGate(): AuthzGate
     {
         return $this->authzGate;
+    }
+
+    /**
+     * RZ-06: the dist's request-scoped principal. One module registers the
+     * resolver via Agent::identity(); controllers read it via principal().
+     */
+    public function getAuthzIdentity(): AuthzIdentity
+    {
+        return $this->authzIdentity;
+    }
+
+    /**
+     * RZ-06: the dist's refusal answer (401/403); Agent::onAuthzDenied() replaces its rendering.
+     */
+    public function getAuthzDenial(): AuthzDenial
+    {
+        return $this->authzDenial;
     }
 
     /**

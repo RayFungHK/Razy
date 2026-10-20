@@ -182,6 +182,42 @@ class Agent
     }
 
     /**
+     * RZ-06: register how this dist finds the request's principal.
+     *
+     * The resolver runs at most once per request (lazily; the Authz middleware
+     * resets it at the start of every request) and returns a Principal or null
+     * for signed out. With a resolver registered, a signed-out request on a
+     * `Route::can()` route is refused 401 (an HTML GET redirects to dist.php
+     * `'authz' => ['login_url' => '/login']`), and ability predicates receive
+     * `$context['principal']`. One module per dist owns the resolver.
+     *
+     * @param callable $resolver fn(array $context): ?\Razy\Authz\Principal
+     *
+     * @return $this Fluent interface
+     */
+    public function identity(callable $resolver): static
+    {
+        $this->module->setIdentityResolver($resolver(...));
+
+        return $this;
+    }
+
+    /**
+     * RZ-06: replace how this dist answers authz refusals (401 and 403).
+     * The renderer receives a Refusal and writes the response itself.
+     *
+     * @param callable $renderer fn(\Razy\Authz\Refusal $refusal): void
+     *
+     * @return $this Fluent interface
+     */
+    public function onAuthzDenied(callable $renderer): static
+    {
+        $this->module->setAuthzDenialRenderer($renderer(...));
+
+        return $this;
+    }
+
+    /**
      * Register a listener for an event ({@code vendor/module:event_name}).
      *
      * The module code is the <strong>emitter</strong> (who calls {@see Controller::trigger()} with a bare
