@@ -10,3 +10,6 @@
 - Non-numeric codes (PDO SQLSTATE strings) now map to 500 instead of 400, and out-of-range numeric
   codes (200, 302, 600, negatives) map to 500 instead of being sent as-is. `Razy\Error` keeps its
   400 default.
+- `Razy\Error::__construct()` and `Statement\Builder::init()` declare their nullable parameters
+  explicitly (`?Throwable`, `?Statement`). PHP 8.4+ printed an implicit-nullable deprecation when the
+  class loaded, and that output broke every later `header()` call in the same process.
