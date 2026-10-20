@@ -37,6 +37,11 @@ $pharPath = \getenv('RAZY_PHAR') ?: __DIR__ . '/Razy.phar';
 if (!\is_file($pharPath) && \is_file(__DIR__ . '/config.inc.php')) {
     try {
         $razyConfig = require __DIR__ . '/config.inc.php';
+        if (!\is_array($razyConfig)) {
+            echo 'config.inc.php must return an array.';
+
+            exit;
+        }
         $pharPath = (string) \realpath(($razyConfig['phar_location'] ?? __DIR__) . '/Razy.phar');
     } catch (Throwable) {
         echo 'Failed to load config.inc.php';

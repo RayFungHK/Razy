@@ -256,8 +256,14 @@ class Database implements DatabaseInterface
             if ($path === '') {
                 throw new ConfigurationException('Database URL: sqlite needs a file path or :memory:.');
             }
+            $path = \rawurldecode($path);
+            // No options for sqlite: a '?' would silently become part of the
+            // file name, and ';' separates PDO DSN fields.
+            if (\strpbrk($path, '?;#') !== false) {
+                throw new ConfigurationException("Database URL: sqlite path must not contain '?', ';' or '#'.");
+            }
 
-            return [self::DRIVER_SQLITE, ['database' => \rawurldecode($path)]];
+            return [self::DRIVER_SQLITE, ['database' => $path]];
         }
 
         $parts = \parse_url($url);

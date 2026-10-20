@@ -70,6 +70,9 @@ class DatabaseFromUrlTest extends TestCase
             'unknown scheme' => ['oracle://u:p@h/d'],
             'no database' => ['postgresql://u:p@h:5432'],
             'unknown option' => ['postgresql://u:p@h/d?evil=1'],
+            'sqlite query string' => ['sqlite:///var/data/app.db?mode=ro'],
+            'sqlite dsn separator' => ['sqlite:///var/data/app.db%3Bx'],
+            'sqlite raw separator' => ['sqlite:///var/data/a;b.db'],
         ];
     }
 
