@@ -29,6 +29,7 @@
 namespace Razy\Session\Driver;
 
 use InvalidArgumentException;
+use JsonException;
 use PDO;
 use Razy\Contract\SessionDriverInterface;
 use Throwable;
@@ -65,6 +66,22 @@ class DatabaseDriver implements SessionDriverInterface
     }
 
     // ── Accessors ─────────────────────────────────────────────
+
+    /**
+     * JSON when the data allows it; values JSON cannot carry (invalid UTF-8,
+     * INF/NAN) fall back to serialize() so the write is never lost (such a
+     * row is then readable by PHP only).
+     *
+     * @param array<mixed> $data
+     */
+    private static function encode(array $data): string
+    {
+        try {
+            return \json_encode($data, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_PRESERVE_ZERO_FRACTION);
+        } catch (JsonException) {
+            return \serialize($data);
+        }
+    }
 
     /**
      * RZ-05: rows are JSON so a non-PHP service sharing the table can read a
@@ -134,7 +151,7 @@ class DatabaseDriver implements SessionDriverInterface
     public function write(string $id, array $data): bool
     {
         try {
-            $serialized = \json_encode($data, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_PRESERVE_ZERO_FRACTION);
+            $serialized = self::encode($data);
             $time = \time();
 
             // Use a driver-agnostic approach: try to UPDATE first, INSERT if no rows affected

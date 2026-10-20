@@ -34,7 +34,9 @@ use Razy\Session\SessionMiddleware;
  *   configured by dist.php 'session'; without it: file driver in the system
  *   temp dir under a per-dist prefix, host-only, SameSite=Lax, HttpOnly,
  *   browser-session lifetime, Secure when the request is HTTPS (judged per
- *   request, trusted proxies included — RZ-04). arm() touches no disk.
+ *   request, trusted proxies included — RZ-04). arm() does no I/O: the file
+ *   driver creates its folder on the first request, and database/redis
+ *   drivers connect (and run create_table) on first use, not at boot.
  */
 class CsrfDoor
 {

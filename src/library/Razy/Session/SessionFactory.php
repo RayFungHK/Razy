@@ -21,6 +21,7 @@ use Razy\Exception\ConfigurationException;
 use Razy\Session\Driver\ArrayDriver;
 use Razy\Session\Driver\DatabaseDriver;
 use Razy\Session\Driver\FileDriver;
+use Razy\Session\Driver\LazyDriver;
 use Razy\Session\Driver\RedisDriver;
 use Redis;
 
@@ -38,8 +39,9 @@ use Redis;
  *
  * Driver sections: `file` => [`path`, `prefix`]; `database` => [`connection`
  * (a connected Database::getSharedInstance() name) or `pdo` (a PDO, for code
- * that builds the config), `table`, `create_table`]; `redis` => [`host`,
- * `port`, `prefix`, `password`, `database`].
+ * that builds the config), `table` (default `razy_sessions_<dist>`),
+ * `create_table`]; `redis` => [`host`, `port`, `prefix`, `password`,
+ * `database`]. Database and redis drivers are built on first use.
  */
 final class SessionFactory
 {
@@ -70,6 +72,9 @@ final class SessionFactory
     public static function create(array $session, string $distCode): Session
     {
         [$driver, $options, $cookie] = self::split($session);
+        if ($driver === 'database' && !isset($options['connection']) && !isset($options['pdo'])) {
+            throw new ConfigurationException("Session driver 'database' needs database.connection (a Database instance name).");
+        }
 
         return new Session(self::driver($driver, $options, $distCode), SessionConfig::fromArray($cookie));
     }
@@ -109,8 +114,9 @@ final class SessionFactory
                 (string) ($options['path'] ?? \rtrim(\str_replace('\\', '/', \sys_get_temp_dir()), '/') . '/razy_sessions'),
                 (string) ($options['prefix'] ?? $distCode . '_sess_'),
             ),
-            'database' => self::databaseDriver($options),
-            'redis' => self::redisDriver($options, $distCode),
+            // Built on first use: no connection or DDL at boot / CLI introspection.
+            'database' => new LazyDriver(static fn () => self::databaseDriver($options, $distCode)),
+            'redis' => new LazyDriver(static fn () => self::redisDriver($options, $distCode)),
             default => throw new ConfigurationException("Unknown session driver '{$driver}'."),
         };
     }
@@ -118,7 +124,7 @@ final class SessionFactory
     /**
      * @param array<string, mixed> $options
      */
-    private static function databaseDriver(array $options): DatabaseDriver
+    private static function databaseDriver(array $options, string $distCode): DatabaseDriver
     {
         $pdo = $options['pdo'] ?? null;
         if (!$pdo instanceof PDO) {
@@ -129,7 +135,11 @@ final class SessionFactory
                 throw new ConfigurationException("Session driver 'database' needs database.connection naming a connected Database instance.");
             }
         }
-        $driver = new DatabaseDriver($pdo, (string) ($options['table'] ?? 'sessions'));
+        // Rows are keyed by sha256(cookie) alone, so dists sharing a table (and a
+        // cookie name on one host) would read each other's sessions: the default
+        // table is per dist. Name it explicitly to share it with another service.
+        $table = $options['table'] ?? 'razy_sessions_' . \strtolower((string) \preg_replace('/[^A-Za-z0-9_]/', '_', $distCode));
+        $driver = new DatabaseDriver($pdo, (string) $table);
         if (($options['create_table'] ?? false) === true) {
             $driver->createTable();
         }

@@ -27,6 +27,7 @@ use Razy\Exception\ConfigurationException;
 use Razy\Session\Driver\ArrayDriver;
 use Razy\Session\Driver\DatabaseDriver;
 use Razy\Session\Driver\FileDriver;
+use Razy\Session\Driver\LazyDriver;
 use Razy\Session\Session;
 use Razy\Session\SessionConfig;
 use Razy\Session\SessionDoor;
@@ -190,6 +191,23 @@ class SessionUnifiedTest extends TestCase
         $this->assertSame('kept', $session->get('user'));
     }
 
+    public function testRotationSurvivesReopeningInTheSameRequest(): void
+    {
+        // setcookie() never updates $_COOKIE: the browser's old id is still
+        // there after regenerate(); reopening must keep the rotated session.
+        $driver = new ArrayDriver();
+        $_COOKIE['RAZY_SESSION'] = $old = \str_repeat('a1', 32);
+        $driver->write(Session::storageKey($old), ['user' => 'alice']);
+        $session = $this->session($driver);
+        $session->start();
+        $session->regenerate(true);
+        $new = $session->getId();
+        $session->save();
+
+        $this->assertSame('alice', $session->get('user'));
+        $this->assertSame($new, $session->getId());
+    }
+
     // ── Secure cookie ─────────────────────────────────────────
 
     public function testSecureDefaultsToAutoAndFollowsTheRequest(): void
@@ -265,8 +283,8 @@ class SessionUnifiedTest extends TestCase
 
         $pdo = new PDO('sqlite::memory:');
         $db = SessionFactory::create(['driver' => 'database', 'database' => ['pdo' => $pdo, 'table' => 'app_sessions', 'create_table' => true]], 'd');
-        $this->assertInstanceOf(DatabaseDriver::class, $db->getDriver());
-        $this->assertSame('app_sessions', $db->getDriver()->getTable());
+        $this->assertInstanceOf(DatabaseDriver::class, $db->getDriver()->resolve());
+        $this->assertSame('app_sessions', $db->getDriver()->resolve()->getTable());
     }
 
     public function testFactoryDefaultIsTheFileDriverAsBefore(): void
@@ -286,6 +304,23 @@ class SessionUnifiedTest extends TestCase
         }
     }
 
+    public function testDatabaseDefaultTableIsPerDist(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $a = SessionFactory::create(['driver' => 'database', 'database' => ['pdo' => $pdo, 'create_table' => true]], 'shop-a');
+        $b = SessionFactory::create(['driver' => 'database', 'database' => ['pdo' => $pdo, 'create_table' => true]], 'shop.b');
+        $this->assertSame('razy_sessions_shop_a', $a->getDriver()->resolve()->getTable());
+        $this->assertSame('razy_sessions_shop_b', $b->getDriver()->resolve()->getTable());
+    }
+
+    public function testDriversThatDoIoAreBuiltOnFirstUseNotAtBoot(): void
+    {
+        $session = SessionFactory::create(['driver' => 'database', 'database' => ['connection' => 'not-connected-yet']], 'd');
+        $this->assertInstanceOf(LazyDriver::class, $session->getDriver(), 'boot (and CLI introspection) does no I/O');
+        $this->expectException(ConfigurationException::class);
+        $session->getDriver()->resolve();
+    }
+
     // ── Database rows a non-PHP service can read ──────────────
 
     public function testDatabaseDriverWritesJsonAndStillReadsSerializedRows(): void
@@ -300,6 +335,15 @@ class SessionUnifiedTest extends TestCase
 
         $pdo->exec("INSERT INTO sessions (id, data, last_activity) VALUES ('old', '" . \serialize(['legacy' => true]) . "', 0)");
         $this->assertSame(['legacy' => true], $driver->read('old'));
+    }
+
+    public function testUnencodableDataStillPersists(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $driver = new DatabaseDriver($pdo);
+        $driver->createTable();
+        $this->assertTrue($driver->write('k', ['bad' => "\xB1\x31", 'n' => 1]));
+        $this->assertSame(['bad' => "\xB1\x31", 'n' => 1], $driver->read('k'));
     }
 
     // ── One session per dist; CSRF rides on it ────────────────

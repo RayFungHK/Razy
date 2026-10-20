@@ -45,7 +45,7 @@ return [
 	// redis | array. Secure defaults to 'auto' (set when the request is HTTPS).
 	// 'session' => [
 	// 	'driver'   => 'database',
-	// 	'database' => ['connection' => 'main', 'table' => 'sessions'],
+	// 	'database' => ['connection' => 'main'],   // table defaults to razy_sessions_<dist>
 	// 	'name'     => 'app_session',
 	// 	'secure'   => 'auto',
 	// 	'same_site' => 'Lax',

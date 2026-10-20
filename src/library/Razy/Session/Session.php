@@ -75,6 +75,9 @@ class Session implements SessionInterface
      */
     private ?string $endedIn = null;
 
+    /** The session cookie the browser sent when this session last started. */
+    private string $startCookie = '';
+
     public function __construct(
         private readonly SessionDriverInterface $driver,
         private readonly SessionConfig $config = new SessionConfig(),
@@ -123,9 +126,14 @@ class Session implements SessionInterface
             return true;
         }
 
+        $carried = $_COOKIE[$this->config->name] ?? '';
+        $carried = \is_string($carried) && self::isIdShape($carried) ? $carried : '';
+
         if ($this->endedIn !== null) {
-            $carried = $_COOKIE[$this->config->name] ?? '';
-            $otherCookie = \is_string($carried) && self::isIdShape($carried) && $carried !== $this->id;
+            // A different browser cookie than at the last start = another
+            // client. (Compare with that cookie, not the current id: after
+            // regenerate() $_COOKIE still holds the pre-rotation id.)
+            $otherCookie = $carried !== $this->startCookie;
             if ($this->endedIn !== self::requestMarker() || $otherCookie) {
                 $this->id = '';
                 $this->attributes = [];
@@ -139,12 +147,11 @@ class Session implements SessionInterface
         // CSRF-RAIL L0: recognise our own cookie — a browser carrying a
         // valid session id gets ITS session back, not a fresh one. The
         // shape mirrors generateId() (64 hex, RZ-05; 40 hex = pre-RZ-05 id);
-        // anything else is discarded rather than trusted.
-        $carried = $_COOKIE[$this->config->name] ?? '';
-
-        if ($this->id === '' && \is_string($carried) && self::isIdShape($carried)) {
+        // anything else is discarded rather than trusted (validated above).
+        if ($this->id === '' && $carried !== '') {
             $this->id = $carried;
         }
+        $this->startCookie = $carried;
 
         $isNew = false;
 
