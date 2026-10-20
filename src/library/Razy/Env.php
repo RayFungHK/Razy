@@ -25,6 +25,7 @@ declare(strict_types=1);
 namespace Razy;
 
 use InvalidArgumentException;
+use Razy\Exception\ConfigurationException;
 use RuntimeException;
 
 class Env
@@ -246,6 +247,110 @@ class Env
         }
 
         return self::get($key, null, $cast);
+    }
+
+    /**
+     * Get a string value. Literals like `false` are NOT cast.
+     *
+     * @param string $key Variable name.
+     * @param string|null $default Returned when unset; null makes the key required.
+     *
+     * @throws ConfigurationException If the key is required and unset.
+     */
+    public static function string(string $key, ?string $default = null): string
+    {
+        $raw = self::get($key, null, false);
+        if ($raw === null) {
+            return $default ?? throw self::missing([$key]);
+        }
+
+        return (string) $raw;
+    }
+
+    /**
+     * Get an integer value (surrounding whitespace allowed).
+     *
+     * @throws ConfigurationException If required and unset, or not an integer.
+     */
+    public static function int(string $key, ?int $default = null): int
+    {
+        $raw = self::get($key, null, false);
+        if ($raw === null) {
+            return $default ?? throw self::missing([$key]);
+        }
+        // Decimal digits with an optional sign; zero padding is fine ("0080").
+        // The round trip catches values the (int) cast would saturate.
+        if (!\preg_match('/^([+-]?)0*(\d+)$/', \trim((string) $raw), $m)) {
+            throw new ConfigurationException("Environment variable '{$key}' must be an integer.");
+        }
+        $canonical = ($m[1] === '-' && $m[2] !== '0' ? '-' : '') . $m[2];
+        $value = (int) $canonical;
+        if ((string) $value !== $canonical) {
+            throw new ConfigurationException("Environment variable '{$key}' must be an integer between " . \PHP_INT_MIN . ' and ' . \PHP_INT_MAX . '.');
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get a boolean: true/1/yes/on or false/0/no/off/empty (case-insensitive).
+     *
+     * @throws ConfigurationException If required and unset, or not a boolean word.
+     */
+    public static function bool(string $key, ?bool $default = null): bool
+    {
+        $raw = self::get($key, null, false);
+        if ($raw === null) {
+            return $default ?? throw self::missing([$key]);
+        }
+
+        return match (\strtolower(\trim((string) $raw))) {
+            'true', '1', 'yes', 'on' => true,
+            'false', '0', 'no', 'off', '' => false,
+            default => throw new ConfigurationException("Environment variable '{$key}' must be a boolean (true/false/1/0/yes/no/on/off)."),
+        };
+    }
+
+    /**
+     * Get a separated list; items are trimmed and empty items dropped.
+     *
+     * @param list<string> $default Returned when unset.
+     * @param non-empty-string $separator
+     *
+     * @return list<string>
+     */
+    public static function list(string $key, array $default = [], string $separator = ','): array
+    {
+        $raw = self::get($key, null, false);
+        if ($raw === null) {
+            return $default;
+        }
+
+        return \array_values(\array_filter(
+            \array_map('trim', \explode($separator, (string) $raw)),
+            static fn (string $item): bool => $item !== '',
+        ));
+    }
+
+    /**
+     * Check that every key is set to a non-empty value; one exception names all missing keys.
+     *
+     * @param list<string> $keys
+     *
+     * @throws ConfigurationException If any key is unset or empty.
+     */
+    public static function requireAll(array $keys): void
+    {
+        $missing = [];
+        foreach ($keys as $key) {
+            $raw = self::get($key, null, false);
+            if ($raw === null || \trim((string) $raw) === '') {
+                $missing[] = $key;
+            }
+        }
+        if ($missing !== []) {
+            throw self::missing($missing);
+        }
     }
 
     /**
@@ -495,6 +600,14 @@ class Env
         self::$loaded[$name] = $value;
         $_ENV[$name] = $value;
         \putenv("{$name}={$value}");
+    }
+
+    /**
+     * @param list<string> $keys
+     */
+    private static function missing(array $keys): ConfigurationException
+    {
+        return new ConfigurationException('Required environment variable(s) not set: ' . \implode(', ', $keys) . '.');
     }
 
     /**

@@ -26,6 +26,7 @@ use Razy\Database\Query;
 use Razy\Database\Statement;
 use Razy\Database\StatementPool;
 use Razy\Database\Transaction;
+use Razy\Exception\ConfigurationException;
 use Razy\Exception\ConnectionException;
 use Razy\Exception\QueryException;
 use Razy\Exception\TransactionException;
@@ -207,6 +208,116 @@ class Database implements DatabaseInterface
         $className = self::$driverRegistry[$normalizedType];
 
         return new $className();
+    }
+
+    /**
+     * RZ-08: create and connect a Database from a connection URL.
+     *
+     * Accepts `postgresql://`, `postgres://`, `pgsql://`, `mysql://`, `mariadb://`,
+     * `sqlite:///abs/path` and `sqlite::memory:` (see parseUrl()). On success the
+     * instance is registered under `$name`, so getSharedInstance($name) returns it.
+     *
+     * @param string $url Connection URL, e.g. `Env::string('DATABASE_URL')`
+     * @param string $name Instance name for getSharedInstance()
+     *
+     * @throws ConfigurationException If the URL is malformed
+     * @throws ConnectionException If the connection fails (the message never contains the password)
+     */
+    public static function fromUrl(string $url, string $name = 'main'): self
+    {
+        [$driver, $config] = self::parseUrl($url);
+        $db = new self($name);
+        if (!$db->connectWithDriver($driver, $config)) {
+            $where = $driver === self::DRIVER_SQLITE
+                ? (string) $config['database']
+                : ($config['host'] ?? '') . (isset($config['port']) ? ':' . $config['port'] : '') . '/' . ($config['database'] ?? '');
+            throw new ConnectionException("Cannot connect to {$driver} database at {$where}.");
+        }
+        self::$instances[$name] = $db;
+
+        return $db;
+    }
+
+    /**
+     * RZ-08: split a connection URL into a driver type and a connectWithDriver() config.
+     *
+     * Query options: `sslmode`, `connect_timeout`, `application_name`, `charset` (pgsql);
+     * `charset` (mysql). Any other option is rejected rather than ignored, and
+     * host, database and option values must be plain tokens (no whitespace,
+     * quotes, backslashes or `;`), since they are spliced into the DSN.
+     *
+     * @return array{0: string, 1: array<string, mixed>}
+     *
+     * @throws ConfigurationException If the URL is malformed or names an unknown driver/option
+     */
+    public static function parseUrl(string $url): array
+    {
+        $url = \trim($url);
+        if (\preg_match('#^sqlite3?:(.*)$#i', $url, $m)) {
+            $path = \str_starts_with($m[1], '//') ? \substr($m[1], 2) : $m[1];
+            if ($path === '') {
+                throw new ConfigurationException('Database URL: sqlite needs a file path or :memory:.');
+            }
+            $path = \rawurldecode($path);
+            // No options for sqlite: a '?' would silently become part of the
+            // file name, and ';' separates PDO DSN fields.
+            if (\strpbrk($path, '?;#') !== false) {
+                throw new ConfigurationException("Database URL: sqlite path must not contain '?', ';' or '#'.");
+            }
+
+            return [self::DRIVER_SQLITE, ['database' => $path]];
+        }
+
+        $parts = \parse_url($url);
+        $scheme = \is_array($parts) ? \strtolower($parts['scheme'] ?? '') : '';
+        $driver = match ($scheme) {
+            'postgresql', 'postgres', 'pgsql' => self::DRIVER_PGSQL,
+            'mysql', 'mariadb' => self::DRIVER_MYSQL,
+            default => throw new ConfigurationException(
+                'Database URL must start with postgresql://, mysql:// or sqlite: (got ' . ($scheme === '' ? 'no scheme' : "'{$scheme}'") . ').',
+            ),
+        };
+        $database = \rawurldecode(\ltrim($parts['path'] ?? '', '/'));
+        if (!isset($parts['host']) || $database === '') {
+            throw new ConfigurationException('Database URL needs a host and a database name.');
+        }
+
+        $config = ['host' => \trim($parts['host'], '[]')];
+        if (isset($parts['port'])) {
+            $config['port'] = (int) $parts['port'];
+        }
+        $config['username'] = \rawurldecode($parts['user'] ?? '');
+        $config['password'] = \rawurldecode($parts['pass'] ?? '');
+        $config['database'] = $database;
+
+        $allowed = $driver === self::DRIVER_PGSQL
+            ? ['sslmode', 'connect_timeout', 'application_name', 'charset']
+            : ['charset'];
+        \parse_str($parts['query'] ?? '', $options);
+        foreach ($options as $key => $value) {
+            if (!\in_array($key, $allowed, true) || !\is_string($value)) {
+                throw new ConfigurationException("Database URL option '{$key}' is not supported for {$driver}.");
+            }
+            $config[$key] = $value;
+        }
+        // Every value except the credentials lands in a DSN (libpq conninfo for
+        // pgsql: `;` and whitespace separate keywords, quotes and backslashes
+        // are syntax) or, for charset, in a SQL string. Allow only plain tokens.
+        $rules = [
+            'host' => '/^[A-Za-z0-9._:\/-]+$/',
+            'database' => '/^[A-Za-z0-9._\/-]+$/',
+            'sslmode' => '/^(disable|allow|prefer|require|verify-ca|verify-full)$/',
+            'connect_timeout' => '/^\d{1,4}$/',
+            'application_name' => '/^[A-Za-z0-9._-]{1,63}$/',
+            'charset' => '/^[A-Za-z0-9_-]{1,32}$/',
+        ];
+        foreach ($rules as $key => $pattern) {
+            if (isset($config[$key]) && !\preg_match($pattern, (string) $config[$key])) {
+                throw new ConfigurationException("Database URL {$key} has characters that are not allowed.");
+            }
+        }
+
+        return [$driver, $config];
     }
 
     /**
