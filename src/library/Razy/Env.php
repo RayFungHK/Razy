@@ -278,12 +278,12 @@ class Env
         if ($raw === null) {
             return $default ?? throw self::missing([$key]);
         }
-        $value = \trim((string) $raw);
-        if (!\preg_match('/^[+-]?\d+$/', $value)) {
-            throw new ConfigurationException("Environment variable '{$key}' must be an integer.");
+        $value = \filter_var(\trim((string) $raw), \FILTER_VALIDATE_INT);
+        if ($value === false) {
+            throw new ConfigurationException("Environment variable '{$key}' must be an integer between " . \PHP_INT_MIN . ' and ' . \PHP_INT_MAX . '.');
         }
 
-        return (int) $value;
+        return $value;
     }
 
     /**

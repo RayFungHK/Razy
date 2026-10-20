@@ -79,6 +79,13 @@ class EnvTypedTest extends TestCase
         $this->assertSame(5, Env::int('RZ08_MISSING_A', 5));
     }
 
+    public function testIntRejectsValuesOutsidePhpRange(): void
+    {
+        Env::set('RZ08_INT', '99999999999999999999');
+        $this->expectException(ConfigurationException::class);
+        Env::int('RZ08_INT');
+    }
+
     public function testIntRejectsNonInteger(): void
     {
         Env::set('RZ08_INT', '80a');
