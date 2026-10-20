@@ -131,7 +131,7 @@ class SchemaPostgresLiveTest extends TestCase
         try {
             $pdo->exec("INSERT INTO rz07_items (sku) VALUES ('A')");
             $this->fail('the unique key must refuse a duplicate');
-        } catch (\PDOException) {
+        } catch (PDOException) {
             $this->addToAssertionCount(1);
         }
         $schema->table('rz07_items', static fn (TableHelper $h) => $h->dropIndex('sku'));
