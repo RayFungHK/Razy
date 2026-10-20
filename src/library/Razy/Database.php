@@ -242,7 +242,9 @@ class Database implements DatabaseInterface
      * RZ-08: split a connection URL into a driver type and a connectWithDriver() config.
      *
      * Query options: `sslmode`, `connect_timeout`, `application_name`, `charset` (pgsql);
-     * `charset` (mysql). Any other option is rejected rather than ignored.
+     * `charset` (mysql). Any other option is rejected rather than ignored, and
+     * host, database and option values must be plain tokens (no whitespace,
+     * quotes, backslashes or `;`), since they are spliced into the DSN.
      *
      * @return array{0: string, 1: array<string, mixed>}
      *
@@ -298,10 +300,20 @@ class Database implements DatabaseInterface
             }
             $config[$key] = $value;
         }
-        foreach ($config as $key => $value) {
-            // PDO DSNs are `;`-separated: a decoded `;` would inject DSN options.
-            if ($key !== 'username' && $key !== 'password' && \is_string($value) && \str_contains($value, ';')) {
-                throw new ConfigurationException("Database URL {$key} must not contain ';'.");
+        // Every value except the credentials lands in a DSN (libpq conninfo for
+        // pgsql: `;` and whitespace separate keywords, quotes and backslashes
+        // are syntax) or, for charset, in a SQL string. Allow only plain tokens.
+        $rules = [
+            'host' => '/^[A-Za-z0-9._:\/-]+$/',
+            'database' => '/^[A-Za-z0-9._\/-]+$/',
+            'sslmode' => '/^(disable|allow|prefer|require|verify-ca|verify-full)$/',
+            'connect_timeout' => '/^\d{1,4}$/',
+            'application_name' => '/^[A-Za-z0-9._-]{1,63}$/',
+            'charset' => '/^[A-Za-z0-9_-]{1,32}$/',
+        ];
+        foreach ($rules as $key => $pattern) {
+            if (isset($config[$key]) && !\preg_match($pattern, (string) $config[$key])) {
+                throw new ConfigurationException("Database URL {$key} has characters that are not allowed.");
             }
         }
 
