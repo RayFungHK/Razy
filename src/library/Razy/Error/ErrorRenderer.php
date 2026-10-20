@@ -14,6 +14,7 @@ namespace Razy\Error;
 use Razy\Error;
 use Razy\Exception\NotFoundException;
 use Razy\Exception\QueryException;
+use Razy\Http\SecurityHeaders;
 use Razy\Template;
 use Razy\Template\Source;
 use Razy\Terminal;
@@ -58,6 +59,8 @@ class ErrorRenderer
         \header('HTTP/1.1 404 Not Found', true, 404);
 
         if (WEB_MODE) {
+            // RZ-10: the dist's security headers (or the baseline) on error pages too.
+            SecurityHeaders::sendCurrent();
             echo '<h1>404 Not Found</h1>';
             echo 'The requested URL was not found on this server.';
         } else {
@@ -104,6 +107,7 @@ class ErrorRenderer
             // warning when the (CLI/test) process already chose one (2026-09).
             \header('HTTP/1.1 ' . (\is_numeric($exception->getCode()) ? $exception->getCode() : 400), true, \is_numeric($exception->getCode()) ? (int) $exception->getCode() : 400);
             \header('X-Error-Id: ' . $errorId);
+            SecurityHeaders::sendCurrent();
 
             echo $source->output();
         } else {
