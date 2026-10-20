@@ -45,6 +45,9 @@ class Session implements SessionInterface
 
     private const FLASH_DATA = '_flash.data';
 
+    /** Length of a pre-RZ-05 session id (20 random bytes as hex). */
+    private const LEGACY_ID_LENGTH = 40;
+
     /**
      * @var array<string, mixed> Session attributes
      */
@@ -60,10 +63,48 @@ class Session implements SessionInterface
      */
     private bool $started = false;
 
+    /** Raw-keyed (pre-RZ-05) row to drop once the hashed copy is written. */
+    private ?string $legacyKey = null;
+
+    /**
+     * Request marker when save()/destroy() last ended the session, else null.
+     * Worker mode keeps the Distributor (and this object) across requests: a
+     * start() in a LATER request, or one carrying a different session cookie,
+     * begins from nothing instead of the previous request's id and data.
+     * Re-opening within the same request resumes as before.
+     */
+    private ?string $endedIn = null;
+
+    /** The session cookie the browser sent when this session last started. */
+    private string $startCookie = '';
+
     public function __construct(
         private readonly SessionDriverInterface $driver,
         private readonly SessionConfig $config = new SessionConfig(),
     ) {
+    }
+
+    /**
+     * RZ-05: the key a session is stored under: lowercase sha256 hex of the
+     * cookie value. The cookie itself is never written to the store, and any
+     * service sharing the store finds a session with sha256(cookie).
+     */
+    public static function storageKey(string $id): string
+    {
+        return \hash('sha256', $id);
+    }
+
+    /**
+     * Identifies the current request; FrankenPHP worker mode refreshes $_SERVER per request.
+     */
+    private static function requestMarker(): string
+    {
+        return (string) ($_SERVER['REQUEST_TIME_FLOAT'] ?? '');
+    }
+
+    private static function isIdShape(string $id): bool
+    {
+        return (\strlen($id) === 64 || \strlen($id) === self::LEGACY_ID_LENGTH) && \ctype_xdigit($id);
     }
 
     // ── Lifecycle ─────────────────────────────────────────────
@@ -85,19 +126,32 @@ class Session implements SessionInterface
             return true;
         }
 
+        $carried = $_COOKIE[$this->config->name] ?? '';
+        $carried = \is_string($carried) && self::isIdShape($carried) ? $carried : '';
+
+        if ($this->endedIn !== null) {
+            // A different browser cookie than at the last start = another
+            // client. (Compare with that cookie, not the current id: after
+            // regenerate() $_COOKIE still holds the pre-rotation id.)
+            $otherCookie = $carried !== $this->startCookie;
+            if ($this->endedIn !== self::requestMarker() || $otherCookie) {
+                $this->id = '';
+                $this->attributes = [];
+                $this->legacyKey = null;
+            }
+            $this->endedIn = null;
+        }
+
         $this->driver->open();
 
         // CSRF-RAIL L0: recognise our own cookie — a browser carrying a
         // valid session id gets ITS session back, not a fresh one. The
-        // shape mirrors generateId() (40 hex chars); anything else is
-        // discarded rather than trusted (the driver is never queried with
-        // attacker-shaped bytes).
-        $carried = $_COOKIE[$this->config->name] ?? '';
-
-        if ($this->id === '' && \is_string($carried)
-            && \strlen($carried) === 40 && \ctype_xdigit($carried)) {
+        // shape mirrors generateId() (64 hex, RZ-05; 40 hex = pre-RZ-05 id);
+        // anything else is discarded rather than trusted (validated above).
+        if ($this->id === '' && $carried !== '') {
             $this->id = $carried;
         }
+        $this->startCookie = $carried;
 
         $isNew = false;
 
@@ -113,7 +167,7 @@ class Session implements SessionInterface
         // ever validate, 419ing every armed POST). Pending values win over
         // stored ones; the rest of the stored session comes back around
         // them, so adopted cookies keep their data.
-        $this->attributes = \array_merge($this->driver->read($this->id), $this->attributes);
+        $this->attributes = \array_merge($this->readStored(), $this->attributes);
         $this->started = true;
 
         // A brand-new session must reach the browser or no identity
@@ -143,9 +197,12 @@ class Session implements SessionInterface
 
         $this->ageFlashData();
 
-        $this->driver->write($this->id, $this->attributes);
+        if ($this->driver->write(self::storageKey($this->id), $this->attributes)) {
+            $this->dropLegacyRow();
+        }
         $this->driver->close();
         $this->started = false;
+        $this->endedIn = self::requestMarker();
     }
 
     /**
@@ -153,11 +210,13 @@ class Session implements SessionInterface
      */
     public function destroy(): void
     {
-        $this->driver->destroy($this->id);
+        $this->driver->destroy(self::storageKey($this->id));
+        $this->dropLegacyRow();
         $this->expireCookie();
         $this->attributes = [];
         $this->driver->close();
         $this->started = false;
+        $this->endedIn = self::requestMarker();
     }
 
     /**
@@ -184,6 +243,7 @@ class Session implements SessionInterface
     public function setId(string $id): void
     {
         $this->id = $id;
+        $this->endedIn = null;
     }
 
     /**
@@ -192,13 +252,14 @@ class Session implements SessionInterface
     public function regenerate(bool $destroyOld = false): bool
     {
         if ($destroyOld && $this->id !== '') {
-            $this->driver->destroy($this->id);
+            $this->driver->destroy(self::storageKey($this->id));
+            $this->dropLegacyRow();
         }
 
         $this->id = $this->generateId();
 
         if ($this->started) {
-            $this->driver->write($this->id, $this->attributes);
+            $this->driver->write(self::storageKey($this->id), $this->attributes);
 
             // The browser must learn the NEW id or the rotation is
             // invisible (and the next request resurrects the old one).
@@ -368,7 +429,7 @@ class Session implements SessionInterface
                 : ($this->config->lifetime > 0 ? \time() + $this->config->lifetime : 0),
             'path' => $this->config->path,
             'domain' => $this->config->domain,
-            'secure' => $this->config->secure,
+            'secure' => $this->config->resolveSecure(),
             'httponly' => $this->config->httpOnly,
             'samesite' => $this->config->sameSite,
         ];
@@ -430,10 +491,38 @@ class Session implements SessionInterface
     }
 
     /**
-     * Generate a cryptographically random session ID.
+     * Read the stored session for the current id. A pre-RZ-05 (40-hex) id
+     * was stored under the raw cookie value: its data is adopted, and save()
+     * writes it under the hashed key and only then drops the raw-keyed row.
+     *
+     * @return array<string, mixed>
+     */
+    private function readStored(): array
+    {
+        $stored = $this->driver->read(self::storageKey($this->id));
+        if ($stored === [] && \strlen($this->id) === self::LEGACY_ID_LENGTH) {
+            $stored = $this->driver->read($this->id);
+            if ($stored !== []) {
+                $this->legacyKey = $this->id;
+            }
+        }
+
+        return $stored;
+    }
+
+    private function dropLegacyRow(): void
+    {
+        if ($this->legacyKey !== null) {
+            $this->driver->destroy($this->legacyKey);
+            $this->legacyKey = null;
+        }
+    }
+
+    /**
+     * Generate a cryptographically random session ID (32 bytes, 64 hex).
      */
     private function generateId(): string
     {
-        return \bin2hex(\random_bytes(20));
+        return \bin2hex(\random_bytes(32));
     }
 }

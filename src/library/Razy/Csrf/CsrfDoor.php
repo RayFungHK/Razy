@@ -16,32 +16,27 @@ namespace Razy\Csrf;
 
 use Closure;
 use Razy\Distributor;
-use Razy\Session\Driver\FileDriver;
-use Razy\Session\Session;
-use Razy\Session\SessionConfig;
+use Razy\Session\SessionDoor;
 use Razy\Session\SessionMiddleware;
 
 /**
  * The CSRF door: one config key arms the shipped engine (CSRF-RAIL.md L1).
  *
  * `dist.php` `'csrf' => 'on'` is the WHOLE authoring surface. At Distributor
- * boot this wires, in order: a file-backed Session (its cookie identity now
+ * boot this wires, in order: the dist session (its cookie identity now
  * real since L0), the CsrfTokenManager over it, the global middleware pair
  * SessionMiddleware → CsrfMiddleware (session MUST be outermost: the token
  * validates between start() and save()), and publishes the manager on the
  * DI container so `Controller::csrfToken()/csrfField()` resolve it.
  *
  * Deliberate non-config (the door stays one key):
- * - cookie defaults are the safe shape (host-only, SameSite=Lax, HttpOnly,
- *   browser-session lifetime) — SessionConfig exposes every field for an
- *   app that truly needs to deviate, by building its own wiring;
- * - `secure` stays false because TLS usually terminates upstream (a boot
- *   -time guess would be wrong more often than right);
- * - storage lives in the system temp dir under a per-dist filename prefix —
- *   writable everywhere, dist-isolated by the FileDriver prefix, GC is the
- *   driver's own probabilistic sweep, and arm() touches no disk (mkdir
- *   happens at driver open(), i.e. first real request — CLI validate/boot
- *   stays side-effect-free).
+ * - the session is the dist's one session (RZ-05, Distributor::getSession()),
+ *   configured by dist.php 'session'; without it: file driver in the system
+ *   temp dir under a per-dist prefix, host-only, SameSite=Lax, HttpOnly,
+ *   browser-session lifetime, Secure when the request is HTTPS (judged per
+ *   request, trusted proxies included — RZ-04). arm() does no I/O: the file
+ *   driver creates its folder on the first request, and database/redis
+ *   drivers connect (and run create_table) on first use, not at boot.
  */
 class CsrfDoor
 {
@@ -51,13 +46,9 @@ class CsrfDoor
      */
     public static function arm(Distributor $distributor): void
     {
-        $session = new Session(
-            new FileDriver(
-                \rtrim(\str_replace('\\', '/', \sys_get_temp_dir()), '/') . '/razy_sessions',
-                $distributor->getCode() . '_sess_',
-            ),
-            new SessionConfig(),
-        );
+        // RZ-05: the dist's one session (dist.php 'session'), not a private store.
+        $session = $distributor->getSession();
+        SessionDoor::publish($distributor, $session);
 
         $manager = new CsrfTokenManager($session);
 

@@ -21,6 +21,7 @@ use Razy\Compiler\BootCompiler;
 use Razy\Config\ConfigLoader;
 use Razy\Contract\ContainerInterface;
 use Razy\Contract\DistributorInterface;
+use Razy\Contract\SessionInterface;
 use Razy\Csrf\CsrfDoor;
 use Razy\Database\MigrationManager;
 use Razy\Database\ModuleDatabaseConnector;
@@ -31,6 +32,8 @@ use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Http\Request;
 use Razy\Module\ModuleStatus;
+use Razy\Session\SessionDoor;
+use Razy\Session\SessionFactory;
 use Razy\Setup\WizardRunner;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
@@ -93,6 +96,12 @@ class Distributor implements DistributorInterface
 
     /** @var bool RZ-03: dist.php 'auto_escape' — HTML-escape `{$tag}` output by default */
     private bool $autoEscape = false;
+
+    /** @var array<string, mixed>|null RZ-05: dist.php 'session' (null = not configured) */
+    private ?array $sessionConfig = null;
+
+    /** @var SessionInterface|null RZ-05: the dist's one session, built on first use */
+    private ?SessionInterface $session = null;
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
@@ -194,10 +203,19 @@ class Distributor implements DistributorInterface
         // exactly as before; the dist.php skeleton opts new dists in.
         $this->autoEscape = Template::autoEscapeFromConfig($config, $distCode);
 
+        // RZ-05: one session per dist (driver + cookie from dist.php 'session').
+        // Checked at boot so a typo dies here, not on the first request.
+        if (isset($config['session'])) {
+            SessionFactory::validate($config['session'], $distCode);
+            $this->sessionConfig = $config['session'];
+        }
+
         $this->initializeSubComponents((bool) ($config['autoload'] ?? false));
 
         if ('on' === $this->csrfMode) {
             CsrfDoor::arm($this);
+        } elseif (null !== $this->sessionConfig) {
+            SessionDoor::arm($this);
         }
 
         // AUTHZ-RAIL: permanently mounted gate — no config key, no arming
@@ -791,6 +809,17 @@ class Distributor implements DistributorInterface
     public function isStrict(): bool
     {
         return $this->strict;
+    }
+
+    /**
+     * RZ-05: the dist's one session — the store the CSRF door, modules and
+     * any service sharing it (key: sha256 of the cookie) all use. Built from
+     * dist.php 'session' on first call; mounted on every route when the dist
+     * configures 'session' or arms CSRF.
+     */
+    public function getSession(): SessionInterface
+    {
+        return $this->session ??= SessionFactory::create($this->sessionConfig ?? [], $this->getCode());
     }
 
     /**

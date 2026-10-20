@@ -39,6 +39,18 @@ return [
 	// before this flag existed default to false.
 	'auto_escape'    => true,
 
+	// One session for the dist (CSRF tokens included). The cookie is an opaque
+	// 64-hex token; the store keys each session by sha256(cookie) hex, so another
+	// service sharing the store can find it. Driver: file (default) | database |
+	// redis | array. Secure defaults to 'auto' (set when the request is HTTPS).
+	// 'session' => [
+	// 	'driver'   => 'database',
+	// 	'database' => ['connection' => 'main'],   // table defaults to razy_sessions_<dist>
+	// 	'name'     => 'app_session',
+	// 	'secure'   => 'auto',
+	// 	'same_site' => 'Lax',
+	// ],
+
 	// Custom module path: Load modules from a different directory within the Razy project
 	// The path must be inside SYSTEM_ROOT. Useful for organizing modules in a shared location.
 	// Example: 'modules/' or 'dev/my_modules/' (relative to SYSTEM_ROOT)
