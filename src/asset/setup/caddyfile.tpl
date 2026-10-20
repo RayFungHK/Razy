@@ -11,10 +11,10 @@
 	root * {$document_root}
 
 <!-- START BLOCK: webassets -->
-	# Webassets: {$mapping}
+	# Webassets: {$mapping} — /webassets/{alias}/{version}/{file} is {container}/{version}/webassets/{file}
 	@webasset_{$mapping_id} path /{$route_path}webassets/{$mapping}/*
 	handle @webasset_{$mapping_id} {
-		uri strip_prefix /{$route_path}webassets/{$mapping}
+		uri path_regexp ^/{$route_path}webassets/{$mapping}/([^/]+)/ /$1/webassets/
 		root * {$container_path}
 		file_server
 	}
