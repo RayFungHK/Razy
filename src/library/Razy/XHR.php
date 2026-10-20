@@ -59,7 +59,7 @@ class XHR
     /** @var int HTTP status for the next {@see output()} */
     private int $httpStatus = 200;
 
-    /** @var array<string, mixed>|null Pre-built oaao SPA envelope for {@see sendEnvelope()} */
+    /** @var array<string, mixed>|null Pre-built flat JSON body for {@see sendEnvelope()} */
     private ?array $envelopeBody = null;
 
     /**
@@ -145,7 +145,7 @@ class XHR
     }
 
     /**
-     * oaao SPA envelope — {@code {success, data?, message?, params?, hash, timestamp}}.
+     * Razy JSON envelope — {@code {success, data?, message?, params?, hash, timestamp}}.
      *
      * @return array<string, mixed>|true
      */

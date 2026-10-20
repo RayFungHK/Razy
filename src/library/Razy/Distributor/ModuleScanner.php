@@ -220,7 +220,7 @@ class ModuleScanner
             $moduleCode = $segments[0] . '/' . $segments[1];
             $libraryRelative = \implode('/', \array_slice($segments, 2));
 
-            // Registry keys use package.php module_code (oaaoai/slide-designer); library NS uses api_name (slide_designer).
+            // Registry keys use package.php module_code (acme/slide-designer); library NS uses api_name (slide_designer).
             $module = $this->resolveLoadedModule($modules, $segments[0], $segments[1]);
             if ($module !== null) {
                 $moduleCode = $module->getModuleInfo()->getCode();
@@ -272,9 +272,9 @@ class ModuleScanner
     }
 
     /**
-     * Map library namespace {@code oaaoai\{api_name}\…} to a loaded {@see Module}.
+     * Map library namespace {@code vendor\{api_name}\…} to a loaded {@see Module}.
      *
-     * Registry keys follow {@code package.php} {@code module_code} (e.g. {@code oaaoai/slide-designer});
+     * Registry keys follow {@code package.php} {@code module_code} (e.g. {@code acme/slide-designer});
      * library namespaces use {@code api_name} with underscores ({@code slide_designer}).
      */
     private function resolveLoadedModule(array $modules, string $vendor, string $packageSegment): ?Module

@@ -242,7 +242,7 @@ class Agent
      * Register a listener for an event ({@code vendor/module:event_name}).
      *
      * The module code is the <strong>emitter</strong> (who calls {@see Controller::trigger()} with a bare
-     * {@code event_name}). To hear your own module's events, pass your own code (e.g. {@code oaaoai/chat:registry.register}
+     * {@code event_name}). To hear your own module's events, pass your own code (e.g. {@code acme/chat:registry.register}
      * when {@code trigger('registry.register')} runs on chat).
      *
      * @param array|string $event Emitter {@code module_code:event_name}, or map of qualified event =&gt; handler path
