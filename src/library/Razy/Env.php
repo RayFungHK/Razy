@@ -278,8 +278,14 @@ class Env
         if ($raw === null) {
             return $default ?? throw self::missing([$key]);
         }
-        $value = \filter_var(\trim((string) $raw), \FILTER_VALIDATE_INT);
-        if ($value === false) {
+        // Decimal digits with an optional sign; zero padding is fine ("0080").
+        // The round trip catches values the (int) cast would saturate.
+        if (!\preg_match('/^([+-]?)0*(\d+)$/', \trim((string) $raw), $m)) {
+            throw new ConfigurationException("Environment variable '{$key}' must be an integer.");
+        }
+        $canonical = ($m[1] === '-' && $m[2] !== '0' ? '-' : '') . $m[2];
+        $value = (int) $canonical;
+        if ((string) $value !== $canonical) {
             throw new ConfigurationException("Environment variable '{$key}' must be an integer between " . \PHP_INT_MIN . ' and ' . \PHP_INT_MAX . '.');
         }
 

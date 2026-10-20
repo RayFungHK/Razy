@@ -79,6 +79,18 @@ class EnvTypedTest extends TestCase
         $this->assertSame(5, Env::int('RZ08_MISSING_A', 5));
     }
 
+    public function testIntAcceptsZeroPaddingAndSigns(): void
+    {
+        Env::set('RZ08_INT', '0080');
+        $this->assertSame(80, Env::int('RZ08_INT'));
+        Env::set('RZ08_INT', '+007');
+        $this->assertSame(7, Env::int('RZ08_INT'));
+        Env::set('RZ08_INT', '-0');
+        $this->assertSame(0, Env::int('RZ08_INT'));
+        Env::set('RZ08_INT', (string) \PHP_INT_MIN);
+        $this->assertSame(\PHP_INT_MIN, Env::int('RZ08_INT'));
+    }
+
     public function testIntRejectsValuesOutsidePhpRange(): void
     {
         Env::set('RZ08_INT', '99999999999999999999');
