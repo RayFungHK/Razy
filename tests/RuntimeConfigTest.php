@@ -53,7 +53,7 @@ class RuntimeConfigTest extends TestCase
     public function testLoadsDotEnvFromSystemRoot(): void
     {
         \file_put_contents($this->root . '/.env', "RZ08_FROM_FILE=from-file\n");
-        $this->assertSame($this->root . '/.env', RuntimeConfig::loadEnv($this->root));
+        $this->assertSamePath($this->root . '/.env', RuntimeConfig::loadEnv($this->root));
         $this->assertSame('from-file', Env::get('RZ08_FROM_FILE'));
         $this->assertSame('from-file', \getenv('RZ08_FROM_FILE'));
     }
@@ -77,7 +77,7 @@ class RuntimeConfigTest extends TestCase
         \file_put_contents($this->root . '/conf/app.env', "RZ08_FROM_FILE=override\n");
         \file_put_contents($this->root . '/.env', "RZ08_FROM_FILE=default\n");
         \putenv('RAZY_ENV_FILE=conf/app.env');
-        $this->assertSame($this->root . '/conf/app.env', RuntimeConfig::loadEnv($this->root));
+        $this->assertSamePath($this->root . '/conf/app.env', RuntimeConfig::loadEnv($this->root));
         $this->assertSame('override', Env::get('RZ08_FROM_FILE'));
         \unlink($this->root . '/conf/app.env');
         \rmdir($this->root . '/conf');
@@ -157,5 +157,14 @@ class RuntimeConfigTest extends TestCase
             // config.inc.php is only read when the phar is not found directly.
             $this->assertMatchesRegularExpression('/if \(!\\\?is_file\(\$pharPath\) && \\\?is_file\(__DIR__ \. \'\/config\.inc\.php\'\)\)/', $src, $file);
         }
+    }
+
+    /**
+     * PathUtil joins with DIRECTORY_SEPARATOR (backslash on Windows).
+     */
+    private function assertSamePath(string $expected, ?string $actual): void
+    {
+        $this->assertNotNull($actual);
+        $this->assertSame(\realpath($expected), \realpath((string) $actual));
     }
 }
