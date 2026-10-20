@@ -234,6 +234,9 @@ class AssetsTest extends TestCase
         $router = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/serve.php');
         $this->assertStringNotContainsString('function resolveWebassetPath', $router);
         $this->assertStringContainsString('realpath', $router);
+        // php -S sets SCRIPT_NAME to an extension-bearing request path, which the
+        // bootstrap read as a subdirectory install (URL_QUERY became '/a.js').
+        $this->assertStringContainsString("\$_SERVER['SCRIPT_NAME']     = '/index.php';", $router);
     }
 
     public function testNewDistSkeletonDocumentsTheKey(): void

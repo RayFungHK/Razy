@@ -149,6 +149,12 @@ if (!empty($__serveConfig['fqdn_domain'])) {
 }
 
 // ── 5. Fall through to Razy application ─────────────────────────────────
+// The built-in server sets SCRIPT_NAME to the request path when it has an
+// extension (/webassets/app/default/js/a.js), which the bootstrap would read
+// as a subdirectory install. The app is the front controller: say so.
+$_SERVER['SCRIPT_NAME']     = '/index.php';
+$_SERVER['PHP_SELF']        = '/index.php';
+$_SERVER['SCRIPT_FILENAME'] = $docRoot . '/index.php';
 require $docRoot . '/index.php';
 return true;
 
