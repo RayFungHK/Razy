@@ -51,8 +51,8 @@ class PostgresGrammarTest extends TestCase
             . '"created_at" TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP, '
             . '"avatar" BYTEA NULL DEFAULT NULL, '
             . '"team_id" INTEGER NOT NULL DEFAULT \'0\', '
-            . 'PRIMARY KEY ("user_id"), '
-            . 'UNIQUE ("login"))',
+            . 'PRIMARY KEY ("user_id"))',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "app_users_login_key" ON "app_users" ("login")',
             'CREATE INDEX IF NOT EXISTS "app_users_team_id_idx" ON "app_users" ("team_id")',
         ], PostgresGrammar::createTable($table));
     }
@@ -134,6 +134,9 @@ class PostgresGrammarTest extends TestCase
         $this->assertSame([
             'ALTER TABLE "app_users" DROP CONSTRAINT IF EXISTS "fk_old"',
             'DROP INDEX IF EXISTS "idx_old"',
+            'DROP INDEX IF EXISTS "app_users_idx_old_idx"',
+            'DROP INDEX IF EXISTS "app_users_idx_old_key"',
+            'DROP INDEX IF EXISTS "app_users_idx_old_ftx"',
             'ALTER TABLE "app_users" DROP COLUMN "legacy"',
             'ALTER TABLE "app_users" RENAME COLUMN "mail" TO "email"',
             'ALTER TABLE "app_users" ADD COLUMN "nickname" VARCHAR(32) NULL DEFAULT NULL',

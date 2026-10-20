@@ -27,8 +27,9 @@ use Razy\Exception\DatabaseException;
  * MEDIUMINT/INT → INTEGER; *TEXT → TEXT; DECIMAL → NUMERIC(p,s); FLOAT → REAL;
  * DOUBLE → DOUBLE PRECISION; DATETIME/TIMESTAMP → TIMESTAMP(0); JSON → JSONB;
  * *BLOB/*BINARY → BYTEA. Index keys become CREATE INDEX statements (FULLTEXT →
- * GIN over to_tsvector('simple', …)); UNIQUE and PRIMARY stay table
- * constraints; comments become COMMENT ON. Charset, collation, engine,
+ * GIN over to_tsvector('simple', …)); column UNIQUE keys are unique
+ * indexes "<table>_<col>_key" so dropIndex('<col>') removes them as on
+ * MySQL; PRIMARY stays a table constraint; comments become COMMENT ON. Charset, collation, engine,
  * zerofill and FIRST/AFTER have no Postgres meaning and are ignored.
  * ON UPDATE CURRENT_TIMESTAMP, SPATIAL, ENUM and SET are refused (a
  * DatabaseException) rather than approximated.
@@ -62,7 +63,6 @@ final class PostgresGrammar
         $name = $table->getName();
         $clips = [];
         $primary = [];
-        $unique = [];
         $after = [];
         $foreign = [];
 
@@ -74,8 +74,7 @@ final class PostgresGrammar
             $key = ($p['auto_increment'] ?? false) ? 'primary' : ($p['key'] ?? null);
             match ($key) {
                 'primary' => $primary[] = $columnName,
-                'unique' => $unique[] = $columnName,
-                'index', 'fulltext' => $after[] = self::createIndex($name, $key, [$columnName], self::indexName($name, [$columnName], $key)),
+                'unique', 'index', 'fulltext' => $after[] = self::createIndex($name, $key, [$columnName], self::indexName($name, [$columnName], $key)),
                 'spatial' => throw new DatabaseException("Column '{$columnName}': SPATIAL indexes have no Postgres mapping in the schema DSL."),
                 default => null,
             };
@@ -93,9 +92,6 @@ final class PostgresGrammar
 
         if ($primary !== []) {
             $clips[] = 'PRIMARY KEY (' . self::quoteList($primary) . ')';
-        }
-        foreach ($unique as $columnName) {
-            $clips[] = 'UNIQUE (' . self::quote($columnName) . ')';
         }
         \array_push($clips, ...$foreign);
 
@@ -125,9 +121,16 @@ final class PostgresGrammar
             $sql[] = $alter . 'DROP CONSTRAINT IF EXISTS ' . self::quote($constraint);
         }
         foreach ($c['dropIndexes'] as $index) {
-            $sql[] = $index === 'PRIMARY'
-                ? $alter . 'DROP CONSTRAINT IF EXISTS ' . self::quote(self::fit($name . '_pkey'))
-                : 'DROP INDEX IF EXISTS ' . self::quote($index);
+            if ($index === 'PRIMARY') {
+                $sql[] = $alter . 'DROP CONSTRAINT IF EXISTS ' . self::quote(self::fit($name . '_pkey'));
+                continue;
+            }
+            // MySQL names a column key after the column; here column keys are
+            // "<table>_<col>_idx|key|ftx". Drop whichever of them exists.
+            $sql[] = 'DROP INDEX IF EXISTS ' . self::quote($index);
+            foreach (['index', 'unique', 'fulltext'] as $kind) {
+                $sql[] = 'DROP INDEX IF EXISTS ' . self::quote(self::indexName($name, [$index], $kind));
+            }
         }
         foreach ($c['dropColumns'] as $columnName) {
             $sql[] = $alter . 'DROP COLUMN ' . self::quote($columnName);
