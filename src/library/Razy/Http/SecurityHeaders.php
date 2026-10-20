@@ -134,9 +134,13 @@ final class SecurityHeaders
             if (!\is_string($name) || !\preg_match('/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/', $name)) {
                 throw self::invalid($distCode, "'headers' has an invalid header name", $name);
             }
-            if (false === $value) {
-                unset($headers[$name]);
-            } else {
+            // Header names are case-insensitive: 'x-frame-options' replaces the baseline's.
+            foreach (\array_keys($headers) as $existing) {
+                if (0 === \strcasecmp($existing, $name)) {
+                    unset($headers[$existing]);
+                }
+            }
+            if (false !== $value) {
                 $headers[$name] = self::value($value, "headers.{$name}", $distCode);
             }
         }

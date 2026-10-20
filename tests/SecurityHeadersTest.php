@@ -141,6 +141,17 @@ class SecurityHeadersTest extends TestCase
         $this->assertSame('camera=()', $headers['Permissions-Policy']);
     }
 
+    public function testHeaderNamesMatchCaseInsensitively(): void
+    {
+        $headers = SecurityHeaders::fromConfig(['security_headers' => [
+            'headers' => ['x-frame-options' => false, 'referrer-policy' => 'no-referrer'],
+        ]], 'site')->build(false);
+
+        $this->assertArrayNotHasKey('X-Frame-Options', $headers);
+        $this->assertArrayNotHasKey('Referrer-Policy', $headers);
+        $this->assertSame('no-referrer', $headers['referrer-policy']);
+    }
+
     #[DataProvider('invalidConfigs')]
     public function testInvalidConfigDiesAtBoot(mixed $config): void
     {
