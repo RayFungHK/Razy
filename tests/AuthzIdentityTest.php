@@ -299,23 +299,35 @@ class AuthzIdentityTest extends TestCase
 
     public function testControllerPrincipalReadsTheDistIdentity(): void
     {
-        $container = new \Razy\Container();
-        $identity = $this->identity(new Principal('99'));
-        $container->instance(Identity::class, $identity);
         $module = $this->createMock(\Razy\Module::class);
-        $module->method('getContainer')->willReturn($container);
+        $module->method('getAuthzIdentity')->willReturn($this->identity(new Principal('99')));
         $controller = new class($module) extends \Razy\Controller {};
 
         $this->assertSame('99', $controller->principal()?->id);
     }
 
+    public function testControllerPrincipalIgnoresAnotherDistsContainerBinding(): void
+    {
+        // Two dists sharing an Application: the later one rebinds Identity in the
+        // shared container. A controller must still read its own dist's identity.
+        $container = new \Razy\Container();
+        $container->instance(Identity::class, $this->identity(new Principal('other-dist')));
+        $module = $this->createMock(\Razy\Module::class);
+        $module->method('getContainer')->willReturn($container);
+        $module->method('getAuthzIdentity')->willReturn($this->identity(new Principal('own-dist')));
+        $controller = new class($module) extends \Razy\Controller {};
+
+        $this->assertSame('own-dist', $controller->principal()?->id);
+    }
+
     public function testControllerPrincipalIsNullWithoutAnIdentity(): void
     {
         $module = $this->createMock(\Razy\Module::class);
-        $module->method('getContainer')->willReturn(new \Razy\Container());
+        $module->method('getAuthzIdentity')->willReturn(new Identity());
         $controller = new class($module) extends \Razy\Controller {};
 
         $this->assertNull($controller->principal());
+        $this->assertNull((new class() extends \Razy\Controller {})->principal());
     }
 
     public function testDistributorWiresIdentityDenialAndConfig(): void

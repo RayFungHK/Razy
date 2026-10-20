@@ -1118,6 +1118,15 @@ class Module implements ModuleInterface
     }
 
     /**
+     * RZ-06: this module's dist identity. Read it here, not from the container:
+     * dists sharing an Application rebind Identity::class in the shared container.
+     */
+    public function getAuthzIdentity(): Authz\Identity
+    {
+        return $this->distributor->getAuthzIdentity();
+    }
+
+    /**
      * RZ-06: register the dist's principal resolver (one owning module).
      */
     public function setIdentityResolver(Closure $resolver): static

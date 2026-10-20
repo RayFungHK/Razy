@@ -15,7 +15,6 @@ use BadMethodCallException;
 use Closure;
 use InvalidArgumentException;
 use LogicException;
-use Razy\Authz\Identity;
 use Razy\Authz\Principal;
 use Razy\Contract\ContainerInterface;
 use Razy\Csrf\CsrfMiddleware;
@@ -503,14 +502,7 @@ class Controller
      */
     final public function principal(): ?Principal
     {
-        if (!$this->hasService(Identity::class)) {
-            return null;
-        }
-
-        /** @var Identity $identity */
-        $identity = $this->resolve(Identity::class);
-
-        return $identity->principal();
+        return $this->module?->getAuthzIdentity()->principal();
     }
 
     /**
