@@ -73,10 +73,15 @@ Block structures are HTML-comment tags (same verified source, `demo_blocks_*.tpl
 <!-- START BLOCK: card --><!-- USE card_tpl BLOCK: content --><!-- END BLOCK: card -->
 
 <!-- INCLUDE BLOCK: include/alert.tpl -->         <!-- inline another template file -->
+<!-- INCLUDE BLOCK: @layout/head.tpl -->         <!-- dist-wide shared layout (RZ-11) -->
 ```
 (`demo_blocks_wrapper.tpl:1-6`, `demo_blocks_template_use.tpl:1-10`,
 `demo_adv_include.tpl:2`; the framework's own `src/asset/setup/sites.inc.php.tpl` uses the
 same WRAPPER/START/END machinery)
+
+INCLUDE paths are relative to the including file, or `@layout/…` for the dist's shared layout
+folder (dist.php `'templates' => ['layout_path' => 'layout']`). A path that does not resolve throws
+`TemplateException` (RZ-11); before RZ-11 it was skipped silently.
 
 ## 3. What is NOT syntax (drift you will meet)
 

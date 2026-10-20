@@ -56,6 +56,11 @@ return [
 	// same-origin framing (X-Frame-Options + CSP frame-ancestors); false = none.
 	// {nonce} in 'csp' is this request's nonce; templates print it as the csp_nonce variable.
 	// HSTS is sent over HTTPS only. 'headers' adds or (with false) removes headers.
+	// Shared layouts (RZ-11): `<!-- INCLUDE BLOCK: @layout/head.tpl -->` and
+	// loadTemplate('@layout/page') read this folder, relative to dist.php. An INCLUDE
+	// that does not resolve throws; 'strict_include' => false is deprecated.
+	// 'templates' => ['layout_path' => 'layout', 'strict_include' => true],
+
 	// 'security_headers' => [
 	// 	'csp'             => "default-src 'self'; script-src 'self' 'nonce-{nonce}'",
 	// 	'csp_report_only' => false,

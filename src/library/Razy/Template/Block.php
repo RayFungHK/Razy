@@ -24,7 +24,6 @@ use Razy\ModuleInfo;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
-use Razy\Util\PathUtil;
 use Throwable;
 
 /**
@@ -100,10 +99,10 @@ class Block
                             $concat = '';
                         }
 
-                        // INCLUDE: resolve and prepend an external template file into the reader
+                        // INCLUDE: resolve (relative, or @layout/ from the dist's shared folder) and
+                        // prepend the file into the reader; a path that does not resolve throws (RZ-11)
                         if ('INCLUDE' === $matches[1]) {
-                            $path = \realpath(PathUtil::append($this->source->getFileDirectory(), $matches[3]));
-                            if ($path) {
+                            if (null !== ($path = $this->source->resolveInclude($matches[3]))) {
                                 $reader->prepend($path);
                             }
                         } elseif ('WRAPPER' === $matches[1] || 'START' === $matches[1] || 'TEMPLATE' === $matches[1]) {

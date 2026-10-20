@@ -24,6 +24,7 @@ use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Module\ModuleStatus;
+use Razy\Template\IncludeResolver;
 use Razy\Util\PathUtil;
 use Throwable;
 
@@ -458,7 +459,10 @@ class Standalone implements DistributorInterface
     public function getGlobalTemplateEntity(): Template
     {
         if (!$this->globalTemplate) {
-            $this->globalTemplate = new Template();
+            // RZ-11: no dist.php, so the defaults: `layout/` in the app folder, strict includes.
+            $this->globalTemplate = (new Template())->setIncludeResolver(
+                new IncludeResolver(PathUtil::append($this->folderPath, IncludeResolver::DEFAULT_LAYOUT_PATH)),
+            );
         }
 
         return $this->globalTemplate;

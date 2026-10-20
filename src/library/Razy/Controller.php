@@ -349,7 +349,8 @@ class Controller
     /**
      * Load the template file.
      *
-     * @param string $path The path to the template file
+     * @param string $path A view path under this module's view/ folder, or `@layout/…`
+     *                     for the dist's shared layout folder (RZ-11)
      *
      * @return Source
      *
@@ -357,11 +358,12 @@ class Controller
      */
     final public function loadTemplate(string $path): Source
     {
-        $path = $this->getTemplateFilePath($path);
+        $template = $this->module->getGlobalTemplateEntity();
+        // RZ-11: '@layout/page' loads a dist-wide shared layout; anything else is this module's view/
+        $path = $template->getIncludeResolver()->resolveLayoutFile($path) ?? $this->getTemplateFilePath($path);
         if (!\is_file($path)) {
             throw new InvalidArgumentException('The path ' . $path . ' is not a valid path.');
         }
-        $template = $this->module->getGlobalTemplateEntity();
         return $template->load($path, $this->getModuleInfo());
     }
 

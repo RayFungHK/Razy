@@ -38,6 +38,7 @@ use Razy\Module\ModuleStatus;
 use Razy\Session\SessionDoor;
 use Razy\Session\SessionFactory;
 use Razy\Setup\WizardRunner;
+use Razy\Template\IncludeResolver;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
 use Throwable;
@@ -99,6 +100,9 @@ class Distributor implements DistributorInterface
 
     /** @var bool RZ-03: dist.php 'auto_escape' — HTML-escape `{$tag}` output by default */
     private bool $autoEscape = false;
+
+    /** RZ-11: INCLUDE resolution (dist.php 'templates': @layout/ folder, strict includes) */
+    private ?IncludeResolver $includeResolver = null;
 
     /** @var SecurityHeaders RZ-10: dist.php 'security_headers' + the request's CSP nonce */
     private SecurityHeaders $securityHeaders;
@@ -217,6 +221,11 @@ class Distributor implements DistributorInterface
         // RZ-03: template auto-escape. Absent = false so existing dists render
         // exactly as before; the dist.php skeleton opts new dists in.
         $this->autoEscape = Template::autoEscapeFromConfig($config, $distCode);
+
+        // RZ-11: INCLUDE paths. `@layout/…` reads the dist's shared layout folder
+        // (default `layout/` next to dist.php); a path that does not resolve throws
+        // unless 'templates' => ['strict_include' => false] (deprecated).
+        $this->includeResolver = IncludeResolver::fromConfig($config, $distCode, $this->folderPath);
 
         // RZ-10: security headers on every response. Absent = a baseline that
         // never breaks a page (nosniff, referrer policy, same-origin framing);
@@ -1007,7 +1016,7 @@ class Distributor implements DistributorInterface
     public function getGlobalTemplateEntity(): Template
     {
         if (!$this->globalTemplate) {
-            $this->globalTemplate = (new Template())->setAutoEscape($this->autoEscape);
+            $this->globalTemplate = (new Template())->setAutoEscape($this->autoEscape)->setIncludeResolver($this->includeResolver ?? new IncludeResolver());
         }
 
         return $this->globalTemplate;

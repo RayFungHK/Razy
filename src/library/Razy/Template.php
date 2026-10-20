@@ -21,6 +21,7 @@ use Razy\Contract\TemplateInterface;
 use Razy\Exception\ConfigurationException;
 use Razy\Exception\TemplateException;
 use Razy\Template\Block;
+use Razy\Template\IncludeResolver;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
@@ -60,6 +61,9 @@ class Template implements TemplateInterface
 
     /** @var bool HTML-escape every `{$tag}` unless it ends in ->raw / ->escape (RZ-03) */
     private bool $autoEscape = false;
+
+    /** @var IncludeResolver|null INCLUDE path resolution (RZ-11); null = strict, no layout folder */
+    private ?IncludeResolver $includeResolver = null;
 
     /**
      * Template constructor.
@@ -270,6 +274,31 @@ class Template implements TemplateInterface
         }
 
         return null;
+    }
+
+    /**
+     * Set how `<!-- INCLUDE BLOCK: … -->` paths resolve (RZ-11): the `@layout/` folder
+     * and whether a missing file throws. The Distributor sets it from dist.php 'templates'.
+     *
+     * @param IncludeResolver $resolver
+     *
+     * @return $this
+     */
+    public function setIncludeResolver(IncludeResolver $resolver): static
+    {
+        $this->includeResolver = $resolver;
+
+        return $this;
+    }
+
+    /**
+     * The INCLUDE resolver. Default: strict (a missing file throws), no layout folder.
+     *
+     * @return IncludeResolver
+     */
+    public function getIncludeResolver(): IncludeResolver
+    {
+        return $this->includeResolver ??= new IncludeResolver();
     }
 
     /**
