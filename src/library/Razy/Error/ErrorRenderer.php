@@ -72,6 +72,19 @@ class ErrorRenderer
     }
 
     /**
+     * HTTP status for an uncaught exception: its code when 4xx/5xx, else 500.
+     */
+    public static function statusFor(Throwable $exception): int
+    {
+        // Only 4xx/5xx codes are error statuses. Anything else (a plain
+        // exception's 0, a PDO SQLSTATE string, 200) is a server error;
+        // sending it verbatim produced an invalid status line.
+        $code = $exception->getCode();
+
+        return \is_int($code) && $code >= 400 && $code <= 599 ? $code : 500;
+    }
+
+    /**
      * Render the custom exception page for the given exception.
      *
      * In web mode the exception is reported first (Error::report(): full details
@@ -105,7 +118,8 @@ class ErrorRenderer
             // header()-replace form: same wire result, and unlike
             // http_response_code() it never trips PHP 8.5's new late-status
             // warning when the (CLI/test) process already chose one (2026-09).
-            \header('HTTP/1.1 ' . (\is_numeric($exception->getCode()) ? $exception->getCode() : 400), true, \is_numeric($exception->getCode()) ? (int) $exception->getCode() : 400);
+            $status = self::statusFor($exception);
+            \header('HTTP/1.1 ' . $status, true, $status);
             \header('X-Error-Id: ' . $errorId);
             SecurityHeaders::sendCurrent();
 
