@@ -100,7 +100,11 @@ final class RuntimeConfig
         try {
             Env::load($path);
         } catch (Throwable $e) {
-            throw new ConfigurationException("Cannot load environment file {$path}: " . $e->getMessage(), $e);
+            // Env's messages quote the offending line, which may hold a secret:
+            // keep only the line number (the original stays as $previous).
+            $where = \preg_match('/line (\d+)/', $e->getMessage(), $m) ? " (invalid syntax on line {$m[1]})" : '';
+
+            throw new ConfigurationException("Cannot load environment file {$path}{$where}.", $e);
         }
 
         return $path;

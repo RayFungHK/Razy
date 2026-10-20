@@ -90,6 +90,19 @@ class RuntimeConfigTest extends TestCase
         RuntimeConfig::loadEnv($this->root);
     }
 
+    public function testParseErrorNamesTheLineButNeverItsContent(): void
+    {
+        \file_put_contents($this->root . '/.env', "OK=1\nsk-live-0123456789secret\n");
+        try {
+            RuntimeConfig::loadEnv($this->root);
+            $this->fail('should throw');
+        } catch (ConfigurationException $e) {
+            $this->assertStringContainsString('line 2', $e->getMessage());
+            $this->assertStringNotContainsString('sk-live', $e->getMessage());
+            $this->assertNotNull($e->getPrevious());
+        }
+    }
+
     public function testEnvFileNoneDisablesLoading(): void
     {
         \file_put_contents($this->root . '/.env', "RZ08_FROM_FILE=from-file\n");
