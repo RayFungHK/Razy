@@ -424,22 +424,23 @@ return function (string ...$args) use (&$parameters) {
 <?php
 namespace Razy;
 
-use Exception;
 use Phar;
+use Throwable;
 
-$pharPath = './Razy.phar';
-if (is_file('./config.inc.php')) {
+// RZ-08: config.inc.php is evaluated by the framework after .env loads.
+$pharPath = getenv('RAZY_PHAR') ?: __DIR__ . '/Razy.phar';
+if (!is_file($pharPath) && is_file(__DIR__ . '/config.inc.php')) {
     try {
-        $razyConfig = require './config.inc.php';
-        $pharPath   = realpath(($razyConfig['phar_location'] ?? '.') . '/Razy.phar');
-        if (!is_file($pharPath)) {
-            echo 'Razy.phar not found. Check phar_location in config.inc.php.';
-            exit;
-        }
-    } catch (Exception) {
+        $razyConfig = require __DIR__ . '/config.inc.php';
+        $pharPath   = (string) realpath(($razyConfig['phar_location'] ?? __DIR__) . '/Razy.phar');
+    } catch (Throwable) {
         echo 'Failed to load config.inc.php';
         exit;
     }
+}
+if (!is_file($pharPath)) {
+    echo 'Razy.phar not found. Set RAZY_PHAR or check phar_location in config.inc.php.';
+    exit;
 }
 
 Phar::loadPhar($pharPath, 'Razy.phar');

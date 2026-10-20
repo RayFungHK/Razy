@@ -16,9 +16,12 @@
  * setup assets. It locates and loads the Razy.phar archive, then delegates
  * execution to the framework's main entry script.
  *
- * If a config.inc.php file exists in the same directory, it reads the
- * `phar_location` setting to resolve the path to Razy.phar. Otherwise it
- * falls back to the current directory.
+ * Razy.phar is found via the RAZY_PHAR environment variable, else next to this
+ * file. config.inc.php is NOT read here (RZ-08): the framework loads `.env` and
+ * then evaluates config.inc.php, so config can use env values. Only when the phar
+ * is elsewhere does this file fall back to reading `phar_location` from
+ * config.inc.php (the pre-RZ-08 behaviour; .env values are then not visible to
+ * config.inc.php, though they still are to the application).
  *
  * @package Razy
  * @license MIT
@@ -26,33 +29,26 @@
 
 namespace Razy;
 
-use Exception;
 use Phar;
+use Throwable;
 
-// Default path assumes Razy.phar is in the same directory
-$pharPath = './Razy.phar';
+$pharPath = \getenv('RAZY_PHAR') ?: __DIR__ . '/Razy.phar';
 
-// If a local configuration file exists, attempt to read the phar location from it
-if (is_file('./config.inc.php')) {
+if (!\is_file($pharPath) && \is_file(__DIR__ . '/config.inc.php')) {
     try {
-        // Load the configuration array (expects 'phar_location' key)
-        $razyConfig = require './config.inc.php';
-
-        // Resolve the absolute path to Razy.phar using the configured location
-        $pharPath   = realpath(($razyConfig['phar_location'] ?? '.') . '/Razy.phar');
-
-        // Abort if the resolved phar file does not exist on disk
-        if (!is_file($pharPath)) {
-            echo 'No configuration file has found.';
-
-            exit;
-        }
-    } catch (Exception) {
-        // Configuration loading failed; halt with an error message
-        echo 'No configuration file has found.';
+        $razyConfig = require __DIR__ . '/config.inc.php';
+        $pharPath = (string) \realpath(($razyConfig['phar_location'] ?? __DIR__) . '/Razy.phar');
+    } catch (Throwable) {
+        echo 'Failed to load config.inc.php';
 
         exit;
     }
+}
+
+if (!\is_file($pharPath)) {
+    echo 'Razy.phar not found. Set RAZY_PHAR or place Razy.phar next to index.php.';
+
+    exit;
 }
 
 // Register the phar archive so its internal files can be accessed via the phar:// stream wrapper

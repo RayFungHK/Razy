@@ -28,6 +28,27 @@ use Razy\Database\Driver;
 class PostgreSQL extends Driver
 {
     /**
+     * Build the PDO DSN. `sslmode`, `connect_timeout` and `application_name` are
+     * passed through when set (RZ-08: Database::fromUrl() query options).
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function buildDsn(array $config): string
+    {
+        $host = $config['host'] ?? 'localhost';
+        $port = $config['port'] ?? 5432;
+        $database = $config['database'] ?? '';
+        $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
+        foreach (['sslmode', 'connect_timeout', 'application_name'] as $option) {
+            if (isset($config[$option]) && $config[$option] !== '') {
+                $dsn .= ";{$option}={$config[$option]}";
+            }
+        }
+
+        return $dsn;
+    }
+
+    /**
      * @inheritDoc
      */
     public function getType(): string
@@ -41,13 +62,9 @@ class PostgreSQL extends Driver
     public function connect(array $config): bool
     {
         try {
-            $host = $config['host'] ?? 'localhost';
-            $database = $config['database'] ?? '';
             $username = $config['username'] ?? '';
             $password = $config['password'] ?? '';
-            $port = $config['port'] ?? 5432;
-
-            $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
+            $dsn = self::buildDsn($config);
 
             $this->adapter = new PDO($dsn, $username, $password, $this->getConnectionOptions());
             $this->connected = true;

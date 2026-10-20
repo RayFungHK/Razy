@@ -71,11 +71,32 @@ require_once PHAR_PATH . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR .
     return true;
 });
 
+// RZ-08: load `.env` (RAZY_ENV_FILE, else SYSTEM_ROOT/.env; real env wins), then
+// evaluate config.inc.php so it can read those values. A pre-RZ-08 index.php has
+// already required config.inc.php before the phar loaded; that result is kept
+// (never evaluated twice), so only the new index.php sees .env inside config.
+// Runs before the mode constants exist, so a bad .env / config fails closed here
+// (details to the log and CLI stderr; a web client only gets a generic 500).
+try {
+    Config\RuntimeConfig::loadEnv(SYSTEM_ROOT);
+    $razyConfig = Config\RuntimeConfig::loadConfig(SYSTEM_ROOT, isset($razyConfig) && \is_array($razyConfig) ? $razyConfig : null);
+} catch (\Razy\Exception\ConfigurationException $e) {
+    \error_log('[Razy] Boot configuration error: ' . $e->getMessage());
+    if (\PHP_SAPI === 'cli') {
+        \fwrite(\STDERR, 'Razy: ' . $e->getMessage() . \PHP_EOL);
+    } else {
+        \http_response_code(500);
+        echo 'Server configuration error.';
+    }
+
+    exit(1);
+}
+
 // RZ-04: reverse proxies whose X-Forwarded-* headers are believed.
 // RAZY_TRUSTED_PROXIES (env) wins over config.inc.php 'trusted_proxies'.
 // Unset = no proxy is trusted (forwarded headers are ignored, except the
 // deprecated X-Forwarded-Proto fallback in NetworkUtil::isSsl()).
-TrustedProxies::configure(TrustedProxies::fromConfig(isset($razyConfig) && \is_array($razyConfig) ? $razyConfig : []));
+TrustedProxies::configure(TrustedProxies::fromConfig($razyConfig));
 
 // Detect the runtime mode and define mode-specific constants
 if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
