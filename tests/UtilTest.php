@@ -717,18 +717,18 @@ class UtilTest extends TestCase
 
     public function testFormatFqdnLowercasesLookupKeys(): void
     {
-        $this->assertSame('console.oaao.ai', NetworkUtil::formatFqdn('Console.oaao.ai'));
+        $this->assertSame('console.example.com', NetworkUtil::formatFqdn('Console.example.com'));
     }
 
     public function testReservedLeftLabelsOneLabelSlugOnly(): void
     {
         $this->assertSame(['www', 'console', 'admin', 'api', 'stage'], NetworkUtil::RESERVED_LEFT_LABELS);
-        $this->assertSame('console', NetworkUtil::leftLabel('Console.oaao.ai'));
+        $this->assertSame('console', NetworkUtil::leftLabel('Console.example.com'));
         $this->assertTrue(NetworkUtil::isReservedLeftLabel('console'));
         $this->assertTrue(NetworkUtil::isReservedLeftLabel('www.example.com'));
-        $this->assertTrue(NetworkUtil::isReservedLeftLabel('API.oaao.ai:443'));
-        $this->assertFalse(NetworkUtil::isReservedLeftLabel('acme.oaao.ai'));
-        $this->assertFalse(NetworkUtil::isReservedLeftLabel('my-console.oaao.ai'));
+        $this->assertTrue(NetworkUtil::isReservedLeftLabel('API.example.com:443'));
+        $this->assertFalse(NetworkUtil::isReservedLeftLabel('acme.example.com'));
+        $this->assertFalse(NetworkUtil::isReservedLeftLabel('my-console.example.com'));
         $this->assertTrue(NetworkUtil::isOneLabelSlug('acme'));
         $this->assertTrue(NetworkUtil::isOneLabelSlug('Acme'));
         $this->assertFalse(NetworkUtil::isOneLabelSlug('console'));
@@ -739,8 +739,8 @@ class UtilTest extends TestCase
 
     public function testAllowsApexWildcardSeedGuardsPersonalLocalhostDefault(): void
     {
-        $this->assertTrue(NetworkUtil::allowsApexWildcardSeed('oaao.ai'));
-        $this->assertFalse(NetworkUtil::allowsApexWildcardSeed('oaao.ai', true));
+        $this->assertTrue(NetworkUtil::allowsApexWildcardSeed('example.com'));
+        $this->assertFalse(NetworkUtil::allowsApexWildcardSeed('example.com', true));
         $this->assertFalse(NetworkUtil::allowsApexWildcardSeed('localhost'));
         $this->assertFalse(NetworkUtil::allowsApexWildcardSeed('127.0.0.1'));
         $this->assertFalse(NetworkUtil::allowsApexWildcardSeed('*'));

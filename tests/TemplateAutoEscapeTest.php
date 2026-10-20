@@ -4,7 +4,7 @@
  * RZ-03 — template auto-escape (regression pins).
  *
  * Before RZ-03 `{$var}` always printed raw HTML: every template had to
- * remember `->escape`, and oaao's /login reflected `next` unescaped (C21).
+ * remember `->escape`, and a consumer app's /login reflected `next` unescaped (C21).
  * Now a dist opts in with `'auto_escape' => true` in dist.php (new dists get
  * it from the dist.php skeleton); existing dists keep raw output until they
  * opt in. `->raw` is the per-tag opt-out and the lint flags it unless it

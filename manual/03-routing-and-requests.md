@@ -116,7 +116,7 @@ sends**; there is no static JSON helper. Verified surface (`src/library/Razy/XHR
 | `->set($name, $v)` | `:254` | adds a named `params` entry to envelopes |
 | `->responseCode(int)` | `:140` | clamps to 100-599 (`:142`) |
 | `->onComplete(callable)` | `:274` | runs after output |
-| `->sendData(bool $success, string $msg='')` | `:152` | **oaao SPA envelope**: `{success, hash, timestamp, message?, data?, params?}` |
+| `->sendData(bool $success, string $msg='')` | `:152` | **Razy JSON envelope**: `{success, hash, timestamp, message?, data?, params?}` |
 | `->responseAsBody(array)` | `:185` | **sets only** a pre-built flat body — nothing is sent yet |
 | `->sendEnvelope()` | `:197` | emits the `responseAsBody` set body; throws if unset (`:199-201`) |
 | `->send(bool $success=true, string $msg='')` | `:219` | legacy envelope `{result, hash, timestamp, response, message?, params?}` |

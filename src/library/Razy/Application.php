@@ -320,12 +320,6 @@ class Application
                             if (\is_string($distIdentifier)) {
                                 // Validate distributor identifier format: code[@tag]
                                 if (\preg_match('/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i', $distIdentifier)) {
-                                    // Do not seed *.{apex} onto personal/localhost/default tenant.
-                                    $distCodeName = \strtolower(\explode('@', $distIdentifier)[0]);
-                                    $personalOrDefault = \in_array($distCodeName, ['default', 'personal', 'localhost'], true);
-                                    if (\str_starts_with($domain, '*.') && !NetworkUtil::allowsApexWildcardSeed(\substr($domain, 2), $personalOrDefault)) {
-                                        return;
-                                    }
                                     if (isset($this->distributors[$distIdentifier])) {
                                         // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
@@ -723,7 +717,7 @@ class Application
         [$domain] = \explode(':', $fqdn . ':', 2);
 
         // DNS host matching is case-insensitive. Lowercase lookup keys so
-        // Console.oaao.ai cannot miss an exact console.oaao.ai binding and
+        // Console.example.com cannot miss an exact console.example.com binding and
         // fall through to a one-label *.apex wildcard.
         // Exact FQDN always beats one-label *.apex (order below is fixed):
         // exact fqdn, exact domain, alias, then one-label wildcard (* -> [^.]+), then bare *.

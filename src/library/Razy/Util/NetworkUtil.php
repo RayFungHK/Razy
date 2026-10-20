@@ -31,6 +31,9 @@ class NetworkUtil
     /**
      * Left-labels that are never a one-label tenant slug.
      *
+     * @deprecated since RZ-21; removed in v1.3. Tenant naming is application policy: keep the list in
+     *             the app and apply it in a request resolver ({@see \Razy\Agent::resolveRequest()}).
+     *
      * @var list<string>
      */
     public const RESERVED_LEFT_LABELS = ['www', 'console', 'admin', 'api', 'stage'];
@@ -60,7 +63,7 @@ class NetworkUtil
      */
     public static function formatFqdn(string $domain): string
     {
-        // DNS matching is case-insensitive; lowercase so Console.oaao.ai hits exact keys.
+        // DNS matching is case-insensitive; lowercase so Console.example.com hits exact keys.
         return \strtolower(\trim(\ltrim($domain, '.')));
     }
 
@@ -79,6 +82,8 @@ class NetworkUtil
     /**
      * Whether the host's leftmost label is reserved (www, console, admin, api, stage).
      * Only the first label is considered.
+     *
+     * @deprecated since RZ-21; removed in v1.3. Compare {@see leftLabel()} with the app's own list.
      */
     public static function isReservedLeftLabel(string $hostOrLabel): bool
     {
@@ -87,6 +92,8 @@ class NetworkUtil
 
     /**
      * A tenant slug is exactly one DNS label and is not a reserved left-label.
+     *
+     * @deprecated since RZ-21; removed in v1.3. Tenant slug rules belong in the app's request resolver.
      */
     public static function isOneLabelSlug(string $label): bool
     {
@@ -119,6 +126,9 @@ class NetworkUtil
      * Whether a sites binding of `*.{apex}` may be seeded for this tenant.
      *
      * Do not seed *.{apex} onto personal tenants, localhost, or the default `*` catch-all.
+     *
+     * @deprecated since RZ-21; removed in v1.3. Application::updateSites() no longer filters
+     *             wildcard bindings: a `*.apex` entry in sites.inc.php registers as written.
      */
     public static function allowsApexWildcardSeed(string $apex, bool $personalOrDefaultTenant = false): bool
     {
