@@ -68,6 +68,28 @@ class AuthzIdentityTest extends TestCase
         $this->assertSame(2, $calls, 'a new request resolves again');
     }
 
+    public function testANewRequestNeverSeesTheLastPrincipalEvenBeforeTheMiddleware(): void
+    {
+        // Worker mode: __onEntry, unmatched routes and 404 handlers run before
+        // (or without) the Authz middleware's reset().
+        $who = 'alice';
+        $identity = new Identity();
+        $identity->setResolver(static function () use (&$who): Principal {
+            return new Principal($who);
+        }, 'vendor/auth');
+        $previous = $_SERVER['REQUEST_TIME_FLOAT'] ?? null;
+
+        try {
+            $_SERVER['REQUEST_TIME_FLOAT'] = 1000.0;
+            $this->assertSame('alice', $identity->principal()?->id);
+            $who = 'bob';
+            $_SERVER['REQUEST_TIME_FLOAT'] = 1001.0;
+            $this->assertSame('bob', $identity->principal()?->id);
+        } finally {
+            $_SERVER['REQUEST_TIME_FLOAT'] = $previous;
+        }
+    }
+
     public function testNullPrincipalIsAlsoCached(): void
     {
         $calls = 0;

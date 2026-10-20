@@ -497,19 +497,6 @@ class Controller
     }
 
     /**
-     * Current CSRF token for this session (CSRF-RAIL.md L1).
-     *
-     * Resolves the manager the ARMED door published — no RZ-005 fence
-     * crossing: the manager is a service, not a privilege object (same
-     * standing as the shipped `resolve(Database::class)` precedent).
-     *
-     * @throws LogicException when the dist is unarmed — a template asking
-     *                        for a token while dist.php says `'csrf'` =>
-     *                        'off' is a config lie, and it dies HERE with
-     *                        instructions, not as an empty hidden field
-     *                        that silently 419s every submit
-     */
-    /**
      * RZ-06: who this request acts for (resolved once per request by the
      * resolver a module registered with `$agent->identity()`), or null when
      * signed out or when no module registered one.
@@ -526,6 +513,19 @@ class Controller
         return $identity->principal();
     }
 
+    /**
+     * Current CSRF token for this session (CSRF-RAIL.md L1).
+     *
+     * Resolves the manager the ARMED door published — no RZ-005 fence
+     * crossing: the manager is a service, not a privilege object (same
+     * standing as the shipped `resolve(Database::class)` precedent).
+     *
+     * @throws LogicException when the dist is unarmed — a template asking
+     *                        for a token while dist.php says `'csrf'` =>
+     *                        'off' is a config lie, and it dies HERE with
+     *                        instructions, not as an empty hidden field
+     *                        that silently 419s every submit
+     */
     final public function csrfToken(): string
     {
         if (!$this->hasService(CsrfTokenManager::class)) {

@@ -34,7 +34,15 @@ final class Identity
 
     private bool $resolved = false;
 
+    /** Request marker the cached principal belongs to. */
+    private ?string $resolvedIn = null;
+
     private ?Principal $principal = null;
+
+    private static function requestMarker(): string
+    {
+        return (string) ($_SERVER['REQUEST_TIME_FLOAT'] ?? '');
+    }
 
     /**
      * @param Closure(array<string, mixed>): ?Principal $resolver
@@ -63,10 +71,17 @@ final class Identity
      */
     public function principal(array $context = []): ?Principal
     {
+        // Worker mode keeps this object: code that runs before (or without)
+        // the middleware's reset() must still never see the last request's
+        // principal. FrankenPHP refreshes $_SERVER per request.
+        if ($this->resolved && $this->resolvedIn !== self::requestMarker()) {
+            $this->reset();
+        }
         if ($this->resolved || $this->resolver === null) {
             return $this->principal;
         }
         $this->resolved = true;
+        $this->resolvedIn = self::requestMarker();
 
         try {
             $principal = ($this->resolver)($context);
@@ -85,6 +100,7 @@ final class Identity
     public function reset(): void
     {
         $this->resolved = false;
+        $this->resolvedIn = null;
         $this->principal = null;
     }
 }
