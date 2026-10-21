@@ -149,6 +149,7 @@ final class RequestIdLoggingTest extends TestCase
     {
         $line = (new JsonFormatter())->format('info', "bad \xB1 utf8", [
             'nan' => \NAN,
+            'inf' => -\INF,
             'obj' => new stdClass(),
             'deep' => [[[[[[['x']]]]]]],
         ], '2026-10-21 08:00:00.000000', '');
@@ -157,6 +158,7 @@ final class RequestIdLoggingTest extends TestCase
         $this->assertIsArray($record);
         $this->assertArrayNotHasKey('channel', $record);
         $this->assertSame('NAN', $record['context']['nan']);
+        $this->assertSame('-INF', $record['context']['inf']);
         $this->assertSame('[object stdClass]', $record['context']['obj']);
         $this->assertStringContainsString('[depth]', $line);
     }

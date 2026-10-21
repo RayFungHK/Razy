@@ -110,7 +110,12 @@ final class JsonFormatter implements LogFormatterInterface
     private function normalize(mixed $value, int $depth): mixed
     {
         if ($value === null || \is_scalar($value)) {
-            return \is_float($value) && !\is_finite($value) ? (string) $value : $value;
+            if (\is_float($value) && !\is_finite($value)) {
+                // explicit labels: (string) NAN warns on PHP 8.5
+                return \is_nan($value) ? 'NAN' : ($value > 0 ? 'INF' : '-INF');
+            }
+
+            return $value;
         }
         if ($depth >= self::MAX_DEPTH) {
             return '[depth]';
