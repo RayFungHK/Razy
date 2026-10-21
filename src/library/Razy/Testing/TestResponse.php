@@ -100,4 +100,27 @@ final class TestResponse
 
         return $cookies;
     }
+
+    /**
+     * Cookies this response told the client to drop: `Max-Age <= 0`, or an `Expires` in the past.
+     *
+     * @return list<string>
+     */
+    public function expiredCookies(): array
+    {
+        $expired = [];
+        foreach ($this->headers()['set-cookie'] ?? [] as $line) {
+            [$pair, $attributes] = \array_pad(\explode(';', $line, 2), 2, '');
+            [$name] = \array_pad(\explode('=', $pair, 2), 2, '');
+            $maxAge = \preg_match('/(?:^|;)\s*max-age\s*=\s*(-?\d+)/i', ';' . $attributes, $m) === 1 ? (int) $m[1] : null;
+            $expires = \preg_match('/(?:^|;)\s*expires\s*=\s*([^;]+)/i', ';' . $attributes, $m) === 1
+                ? \strtotime(\trim($m[1]))
+                : false;
+            if (($maxAge !== null && $maxAge <= 0) || ($expires !== false && $expires <= \time())) {
+                $expired[] = \rawurldecode(\trim($name));
+            }
+        }
+
+        return $expired;
+    }
 }

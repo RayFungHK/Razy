@@ -51,6 +51,12 @@ final class Headers
             return;
         }
 
+        // like header(): one header per line, a CR/LF drops the whole line with a warning
+        if (\strpbrk($header, "\r\n") !== false) {
+            \trigger_error('Header may not contain more than a single header, new line detected', \E_USER_WARNING);
+
+            return;
+        }
         if (\preg_match('#^HTTP/\S+\s+(\d{3})#i', $header, $m) === 1) {
             self::$capturedStatus = (int) $m[1];
 

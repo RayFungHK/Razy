@@ -50,7 +50,8 @@ final class TestingClientTest extends TestCase
                 {
                     $agent->addLazyRoute([
                         'hello' => 'hello', 'feed' => 'feed', 'echo' => 'echo', 'go' => 'go',
-                        'boom' => 'boom', 'count' => 'count', 'cookie' => 'cookie', 'method' => 'method', 'price' => 'price',
+                        'boom' => 'boom', 'count' => 'count', 'cookie' => 'cookie', 'expire' => 'expire',
+                        'method' => 'method', 'price' => 'price',
                     ]);
                     return true;
                 }
@@ -65,6 +66,7 @@ final class TestingClientTest extends TestCase
             'count' => "\$_SESSION['n'] = (\$_SESSION['n'] ?? 0) + 1; echo \$_SESSION['n'];",
             'cookie' => "\\Razy\\Http\\Headers::cookie('flavor', \$_COOKIE['flavor'] ?? 'choc', ['path' => '/']); echo \$_COOKIE['flavor'] ?? 'none';",
             'price' => 'echo \acme\shop\Price::format(1234);',
+            'expire' => "\\Razy\\Http\\Headers::cookie('flavor', 'gone', ['path' => '/', 'expires' => \\time() - 3600]); echo \$_COOKIE['flavor'] ?? 'none';",
             'method' => "echo \$_SERVER['REQUEST_METHOD'] . ' ' . json_encode(\$_POST) . ' ' . (\$_SERVER['HTTP_X_TRACE'] ?? '-');",
         ];
         \mkdir($this->distPath . '/acme/shop/default/library', 0o777, true);
@@ -76,6 +78,8 @@ final class TestingClientTest extends TestCase
 
     protected function tearDown(): void
     {
+        // a test that fails mid-capture must not leave the next one recording
+        Headers::stopCapture();
         ErrorReporter::setLogger(null);
         $this->removeDir($this->distPath);
     }
@@ -183,6 +187,52 @@ final class TestingClientTest extends TestCase
         $this->assertSame('none', $first->body());
         $this->assertSame(['flavor' => 'choc'], $first->cookies());
         $this->assertSame('choc', $client->get('/shop/cookie/')->body(), 'the jar sends it back');
+    }
+
+    public function testCookieDeletionByExpiryEmptiesTheJar(): void
+    {
+        $client = $this->client();
+        $this->assertSame('choc', $client->get('/shop/cookie/')->cookies()['flavor'] ?? null);
+        $expired = $client->get('/shop/expire/');
+        $this->assertSame(['flavor'], $expired->expiredCookies(), 'a past Expires means delete');
+        $this->assertSame('choc', $expired->body(), 'the request still carried the old value');
+        $this->assertSame('none', $client->get('/shop/cookie/')->body(), 'the jar dropped it');
+    }
+
+    public function testExpiredCookiesIgnoresLiveOnes(): void
+    {
+        $response = new TestResponse(200, [
+            ['Set-Cookie', 'keep=1; Path=/'],
+            ['Set-Cookie', 'gone=1; Max-Age=0'],
+            ['Set-Cookie', 'minus=1; max-age=-1'],
+            ['Set-Cookie', 'old=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT'],
+            ['Set-Cookie', 'later=1; Max-Age=60'],
+        ], '');
+
+        $this->assertSame(['gone', 'minus', 'old'], $response->expiredCookies());
+        $this->assertSame(['keep' => '1', 'gone' => '1', 'minus' => '1', 'old' => '1', 'later' => '1'], $response->cookies());
+    }
+
+    public function testCapturedHeaderRejectsNewlines(): void
+    {
+        Headers::startCapture();
+        $warning = null;
+        \set_error_handler(static function (int $no, string $message) use (&$warning): bool {
+            $warning = $message;
+
+            return true;
+        }, \E_USER_WARNING);
+        try {
+            Headers::send("X-Evil: 1\r\nX-Injected: 1");
+            Headers::send('X-Good: ok');
+        } finally {
+            \restore_error_handler();
+        }
+        $captured = Headers::stopCapture();
+
+        $this->assertIsString($warning);
+        $this->assertStringContainsString('single header', $warning);
+        $this->assertSame([['X-Good', 'ok']], $captured['headers'], 'the injected line never reaches the response');
     }
 
     public function testGlobalsAreRestored(): void

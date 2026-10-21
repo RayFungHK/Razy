@@ -208,6 +208,10 @@ final class Client
                 $this->cookies[$name] = $value;
             }
         }
+        // a value plus a past Expires or Max-Age=0 deletes the cookie too, as a browser does
+        foreach ($response->expiredCookies() as $name) {
+            unset($this->cookies[$name]);
+        }
 
         return $response;
     }
