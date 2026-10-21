@@ -20,6 +20,7 @@ use Razy\Http\Headers;
 use Razy\Http\RequestBody;
 use Razy\RuntimeMode;
 use Throwable;
+use WeakReference;
 
 /**
  * RZ-15: in-process HTTP test client.
@@ -296,8 +297,10 @@ final class Client
     {
         $this->domain = $domain;
         if ($this->autoloader === null) {
-            $this->autoloader = function (string $className): void {
-                $this->domain?->autoload($className);
+            // Weak: a closure holding $this would keep the client alive on the SPL stack, so __destruct never ran.
+            $self = WeakReference::create($this);
+            $this->autoloader = static function (string $className) use ($self): void {
+                $self->get()?->domain?->autoload($className);
             };
             \spl_autoload_register($this->autoloader);
         }

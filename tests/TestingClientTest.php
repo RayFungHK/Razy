@@ -127,6 +127,16 @@ final class TestingClientTest extends TestCase
         $this->assertSame('12.34', $this->client()->get('/shop/price/')->body());
     }
 
+    public function testDroppedClientUnregistersItsAutoloader(): void
+    {
+        $before = \count(\spl_autoload_functions());
+        $client = $this->client();
+        $client->get('/shop/price/');
+        $this->assertCount($before + 1, \spl_autoload_functions());
+        unset($client);
+        $this->assertCount($before, \spl_autoload_functions(), 'a dropped client must not pin its Domain on the autoload stack');
+    }
+
     public function testRedirect(): void
     {
         $response = $this->client()->get('/shop/go/');
