@@ -91,6 +91,12 @@ final class StreamProxy
             $ok = \curl_exec($ch);
             $errno = \curl_errno($ch);
             $error = \curl_error($ch);
+            // An error status with an empty body never reaches onChunk(): check it here too.
+            $code = (int) \curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            if ($code >= 400) {
+                $this->status = $code;
+                $this->upstreamError = true;
+            }
         } finally {
             \ignore_user_abort((bool) $previousIgnore);
         }

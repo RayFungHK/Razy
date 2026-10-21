@@ -2,6 +2,11 @@
 
 // RZ-16 test upstream, served by `php -S` from SseStreamProxyTest.
 $mode = $_GET['mode'] ?? 'events';
+if ($mode === 'empty-error') {
+    http_response_code(503);
+
+    return;
+}
 if ($mode === 'error') {
     http_response_code(500);
     echo 'internal secret stack trace';

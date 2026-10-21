@@ -230,6 +230,16 @@ final class SseStreamProxyTest extends TestCase
         $this->assertStringNotContainsString('s3cret', $logged, 'query strings are not logged');
     }
 
+    public function testUpstreamErrorWithEmptyBodyStillFails(): void
+    {
+        $base = $this->upstream();
+        $result = (new StreamProxy($this->sse()))->relay($base . '?mode=empty-error');
+
+        $this->assertSame(StreamProxy::RESULT_FAILED, $result);
+        $this->assertStringEndsWith("event: error\ndata: upstream unavailable\n\n", $this->out);
+        $this->assertStringContainsString('HTTP 503', \implode("\n", \array_column($this->log->getBuffer(), 'message')));
+    }
+
     public function testTransportErrorTextNeverReachesTheClient(): void
     {
         $probe = \stream_socket_server('tcp://127.0.0.1:0');
