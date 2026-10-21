@@ -285,4 +285,35 @@ door reads `isAuthorized()` and `validate()` as two verdicts instead. The family
 doc-era lies (`$_FILES` claimed in `fromGlobals`, `messages()` taught but never consumed)
 were retired at the same milestone — see `architecture/FORMREQUEST-RAIL.md`.
 
+
+## 7. Server-Sent Events (`Razy\SSE`, `Razy\SSE\StreamProxy`)
+
+```php
+$sse = new \Razy\SSE(retry: 3000, heartbeatInterval: 15);
+$from = $sse->lastEventId();               // browser's Last-Event-ID on reconnect, or null
+foreach ($feed->since($from) as $row) {
+    if ($sse->isAborted()) {               // client left: stop and release resources
+        break;
+    }
+    $sse->send(json_encode($row), 'update', (string) $row['id']);
+    $sse->heartbeatIfDue();                // ": ping" after 15 s of silence
+}
+```
+
+- `send($data, $event, $id)` splits data on every line ending into `data:` lines; an event
+  name or id containing CR, LF or NUL throws `InvalidArgumentException`. `retry($ms)` changes
+  the reconnect delay; `comment()`, `heartbeat()` and `close()` send comments.
+- `isAborted()` checks `connection_aborted()` (inject another probe in the constructor); once
+  the client is gone nothing more is written. PHP only notices a disconnect when it writes,
+  so a loop that waits on something should call `heartbeatIfDue()` regularly.
+- Relaying an upstream stream: `(new StreamProxy($sse))->relay($url, $headers, $method, $body,
+  $timeout)` returns `completed`, `aborted` or `failed`. It cancels the upstream transfer
+  when the client leaves, sends heartbeats while the upstream is idle, forwards the client's
+  `Last-Event-ID` (unless `$headers` sets one), and on a transport error or an upstream
+  4xx/5xx logs the detail through `Error::report`'s logger and sends only
+  `event: error` / `data: upstream unavailable`. `SSE::proxy()` is deprecated and delegates
+  to it.
+- Tests: pass a writer closure and an abort probe to the constructor to capture frames
+  without a client.
+
 Next: [04-database.md](04-database.md).
