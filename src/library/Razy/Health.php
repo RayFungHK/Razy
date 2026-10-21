@@ -145,7 +145,9 @@ class Health
         [$status, $payload] = self::readiness($registry, $query ?? $_GET);
 
         if (!\headers_sent()) {
-            \http_response_code($status);
+            // Replace-form status line: http_response_code() after an earlier
+            // header('HTTP/…') is ignored with a warning on PHP 8.5.
+            \header('HTTP/1.1 ' . $status, true, $status);
             \header('Content-Type: application/json; charset=UTF-8');
             \header('Cache-Control: no-store');
             \header('X-Content-Type-Options: nosniff');

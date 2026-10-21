@@ -168,7 +168,7 @@ final class RequestIdLoggingTest extends TestCase
             ->handle('warning', "a\nb", ['request_id' => 'rid-9'], '2026-10-21 08:00:00.000000', 'app');
         \rewind($stream);
 
-        $this->assertSame("[2026-10-21 08:00:00.000000] [app] [WARNING] a b rid=rid-9\n", \stream_get_contents($stream));
+        $this->assertSame('[2026-10-21 08:00:00.000000] [app] [WARNING] a b rid=rid-9' . \PHP_EOL, \stream_get_contents($stream));
     }
 
     public function testHttpClientForwardsTheRequestId(): void
