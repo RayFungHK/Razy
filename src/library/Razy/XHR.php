@@ -39,7 +39,7 @@ class XHR
     public const CORP_CROSS_ORIGIN = 'cross-origin';
 
     /** @var string Allowed origin(s) for CORS header */
-    private string $allowOrigin = SITE_URL_ROOT;
+    private string $allowOrigin;
 
     /** @var mixed The response body content */
     private mixed $content = '';
@@ -70,6 +70,16 @@ class XHR
     public function __construct(private readonly bool $returnAsArray = false)
     {
         $this->hash = StringUtil::guid(1);
+        $this->allowOrigin = self::siteOrigin();
+    }
+
+    /**
+     * RZ-18: this request's site origin (a worker serves many hosts; the
+     * SITE_URL_ROOT constant keeps the boot request's).
+     */
+    private static function siteOrigin(): string
+    {
+        return Http\RequestUrl::current()?->siteUrlRoot() ?? (\defined('SITE_URL_ROOT') ? SITE_URL_ROOT : '');
     }
 
     /**
@@ -95,7 +105,7 @@ class XHR
                 }
             }
             if (empty($clips)) {
-                $this->allowOrigin = SITE_URL_ROOT;
+                $this->allowOrigin = self::siteOrigin();
             } else {
                 $this->allowOrigin = \implode(',', $clips);
             }

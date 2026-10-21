@@ -166,25 +166,18 @@ if (WEB_MODE) {
                     \ob_end_clean();
                 }
 
-                // Recompute URL query per-request: constants like URL_QUERY are stale
-                // in worker mode because they were defined once at script startup before
-                // any real HTTP request arrived. $_SERVER is refreshed per-request by FrankenPHP.
-                if ($relativeRoot) {
-                    \preg_match('/^' . \preg_quote($relativeRoot, '/') . '(.+)$/', $_SERVER['REQUEST_URI'] ?? '', $urlMatches);
-                    $rawUrlQuery = $urlMatches[1] ?? '';
-                } else {
-                    $rawUrlQuery = $_SERVER['REQUEST_URI'] ?? '/';
-                }
-                $urlQuery = PathUtil::tidy(\strtok($rawUrlQuery, '?'), true, '/');
-                if (!$urlQuery) {
-                    $urlQuery = '/';
-                }
+                // RZ-18: this request's URL facts. The URL constants (HOSTNAME,
+                // SITE_URL_ROOT, RAZY_URL_ROOT, URL_QUERY, ...) were defined once at
+                // the worker's boot, before any real request; $_SERVER is refreshed
+                // per request by FrankenPHP, so rebuild from it. getSiteURL(), XHR
+                // and the router read RequestUrl::current().
+                $requestUrl = Http\RequestUrl::fromServer($_SERVER, $relativeRoot);
+                Http\RequestUrl::setCurrent($requestUrl);
+                $urlQuery = $requestUrl->urlQuery();
 
                 // Framework liveness probe — answered pre-dispatch, zero module context.
-                // (strip subdirectory prefix but KEEP the query string for ?token=)
-                $probeQuery = $relativeRoot
-                    ? (string) \preg_replace('#^' . \preg_quote($relativeRoot, '#') . '#', '', (string) $rawUrlQuery)
-                    : (string) $rawUrlQuery;
+                // (below the relative root, but KEEP the query string for ?token=)
+                $probeQuery = $requestUrl->fullUrlQuery();
                 if (Health::respondIfRequested($probeQuery)) {
                     return;
                 }
@@ -249,6 +242,7 @@ if (WEB_MODE) {
                 // Reset error state and close any session that user code may
                 // have opened (prevents session file-lock deadlocks).
                 Error::reset();
+                Http\RequestUrl::setCurrent(null); // RZ-18: no URL state between requests
                 if (\session_status() === PHP_SESSION_ACTIVE) {
                     \session_write_close();
                 }

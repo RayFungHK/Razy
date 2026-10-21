@@ -330,10 +330,12 @@ The dev compose brings Caddy + the framework for the `playground/` site:
 
 Verified in `src/system/bootstrap.inc.php`:
 
-- `RELATIVE_ROOT` (`:123`) — URL path from the web root to the install (e.g. `abc/`); used
-  for `RAZY_URL_ROOT`, `getAssetPath()`, and `REQUEST_URI` parsing (`:90-92` docblock).
-- `RELATIVE_COOKIE_PATH` (`:126`) — cookie path follows the install root.
-- `RAZY_URL_ROOT` (`:136`) — the effective site URL root.
+- `RELATIVE_ROOT` — URL path from the web root to the install (e.g. `/abc`); used
+  for the site URL root, `getAssetPath()`, and `REQUEST_URI` parsing
+  (`Razy\Http\RequestUrl::relativeRootFrom()`).
+- `RELATIVE_COOKIE_PATH` — cookie path follows the install root.
+- `RAZY_URL_ROOT` — the effective site URL root. Deprecated since RZ-18 (frozen at boot under
+  a worker): read `Razy\Http\RequestUrl::current()->razyUrlRoot()` or `getSiteURL()`.
 
 To serve from a path, bind `domain/path` in `sites.inc.php` (the template shows the
 `'/path' => 'dist'` form) or pass `--fqdn domain/path` to `serve`; `rewrite` regenerates

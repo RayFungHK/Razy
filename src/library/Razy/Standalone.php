@@ -446,7 +446,8 @@ class Standalone implements DistributorInterface
     /** {@inheritDoc} */
     public function getSiteURL(): string
     {
-        return (\defined('RAZY_URL_ROOT')) ? RAZY_URL_ROOT : '';
+        // RZ-18: the current request's root, not the boot constant (worker mode).
+        return Http\RequestUrl::current()?->razyUrlRoot() ?? (\defined('RAZY_URL_ROOT') ? RAZY_URL_ROOT : '');
     }
 
     /** {@inheritDoc} */

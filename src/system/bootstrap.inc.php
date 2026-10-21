@@ -19,9 +19,8 @@ namespace Razy;
 
 use Exception;
 use Razy\Database\Statement;
-use Razy\Http\Request;
+use Razy\Http\RequestUrl;
 use Razy\Http\TrustedProxies;
-use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
 use Throwable;
 
@@ -110,80 +109,33 @@ if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
     // Detect Caddy/FrankenPHP worker mode
     \define('WORKER_MODE', \function_exists('frankenphp_handle_request') || \getenv('CADDY_WORKER_MODE') === 'true');
 
-    // Declare `HOSTNAME`
-    // The hostname, if the REQUEST PATH is http://yoursite.com:8080/Razy, the HOSTNAME will declare as yoursite.com
-    // Behind a trusted proxy (RZ-04) the public host from X-Forwarded-Host is used.
-    $razyRequest = Request::fromGlobals();
-    $razyBehindProxy = $razyRequest->isFromTrustedProxy();
-    $rawHost = $razyBehindProxy ? $razyRequest->host() : ($_SERVER['SERVER_NAME'] ?? 'UNKNOWN');
-    // Strip any characters that are not valid in a hostname to prevent host-header injection
-    \define('HOSTNAME', \preg_replace('/[^a-zA-Z0-9.\-]/', '', $rawHost));
-
-    // Declare `RELATIVE_ROOT` — URL path from the web server's document root to
-    // SYSTEM_ROOT (e.g. "/abc" for https://localhost/abc/ when the project lives in
-    // htdocs/abc/). Used for RAZY_URL_ROOT, getAssetPath(), and REQUEST_URI parsing.
+    // RZ-18: the request's URL facts live in Razy\Http\RequestUrl, which the
+    // worker loop rebuilds per request (src/main.php). The constants below are
+    // kept for code that reads them, but are DEPRECATED: under a persistent
+    // worker they keep the values of the worker's boot. Read
+    // RequestUrl::current() (or Controller/Distributor getSiteURL()) instead.
     //
-    // Primary: DOCUMENT_ROOT must be a strict path prefix of SYSTEM_ROOT.
-    // Fallback: dirname(SCRIPT_NAME) when paths do not align (symlinks, bind mounts,
-    // some proxies, or DOCUMENT_ROOT not set) so subdirectory installs still resolve
-    // https://localhost/abc/webassets/... instead of https://localhost/webassets/...
-    $docRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
-    $normalizedSystemRoot = \str_replace('\\', '/', SYSTEM_ROOT);
-    $docPrefix = \rtrim(\str_replace('\\', '/', $docRoot), '/');
-
-    $relativeFromFs = '';
-    if ($docPrefix !== '') {
-        $underDoc = $normalizedSystemRoot === $docPrefix
-            || \str_starts_with($normalizedSystemRoot, $docPrefix . '/');
-        if ($underDoc) {
-            $tail = \substr($normalizedSystemRoot, \strlen($docPrefix));
-            $tail = '/' . \trim($tail, '/');
-            $relativeFromFs = ($tail === '/') ? '' : $tail;
-        }
-    }
-
-    $relativeFromScript = '';
-    $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
-    if ($scriptName !== '') {
-        $dir = \dirname(\str_replace('\\', '/', $scriptName));
-        if ($dir !== '/' && $dir !== '.' && $dir !== '\\') {
-            $relativeFromScript = '/' . \trim($dir, '/');
-        }
-    }
-
-    $relativeRoot = $relativeFromFs !== '' ? $relativeFromFs : $relativeFromScript;
-    \define('RELATIVE_ROOT', $relativeRoot);
+    // RELATIVE_ROOT — URL path from the web server's document root to
+    // SYSTEM_ROOT (e.g. "/abc" for https://localhost/abc/ when the project lives
+    // in htdocs/abc/): DOCUMENT_ROOT as a strict prefix of SYSTEM_ROOT, else
+    // dirname(SCRIPT_NAME). Fixed for the process, so it stays a constant.
+    \define('RELATIVE_ROOT', RequestUrl::relativeRootFrom($_SERVER, SYSTEM_ROOT));
 
     // Session cookie path — scope cookies to subdirectory installs (e.g. /abc).
     \define('RELATIVE_COOKIE_PATH', RELATIVE_ROOT !== '' ? RELATIVE_ROOT : '/');
 
-    // Declare `PORT`
-    // The protocol, if the REQUEST PATH is http://yoursite.com:8080/Razy, the PORT will declare as 8080
-    // Behind a trusted proxy (RZ-04) the public port (X-Forwarded-Port / scheme default) is used.
-    \define('PORT', $razyBehindProxy ? $razyRequest->port() : (int) ($_SERVER['SERVER_PORT'] ?? 80));
+    $razyRequestUrl = RequestUrl::fromServer($_SERVER, RELATIVE_ROOT);
+    RequestUrl::setCurrent($razyRequestUrl);
 
-    // Declare `SITE_URL_ROOT`
-    // Standard ports are omitted: 80 always was; 443 used to leak as
-    // "https://host:443" (RZ-04 port fix).
-    $protocol = (NetworkUtil::isSsl()) ? 'https' : 'http';
-    \define('SITE_URL_ROOT', $protocol . '://' . HOSTNAME . (\in_array(PORT, [80, 443], true) ? '' : ':' . PORT));
-
-    // Declare `RAZY_URL_ROOT`
-    \define('RAZY_URL_ROOT', PathUtil::append(SITE_URL_ROOT, RELATIVE_ROOT));
-
-    // Declare `SCRIPT_URL` (absolute URL of the current request path, without query string)
-    \define('SCRIPT_URL', PathUtil::append(SITE_URL_ROOT, \strtok($_SERVER['REQUEST_URI'], '?')));
-
-    // Declare `URL_QUERY` & `FULL_URL_QUERY`
-    if (RELATIVE_ROOT) {
-        \preg_match('/^' . \preg_quote(RELATIVE_ROOT, '/') . '(.+)$/', $_SERVER['REQUEST_URI'], $matches);
-        $urlQuery = $matches[1] ?? '';
-    } else {
-        $urlQuery = $_SERVER['REQUEST_URI'];
-    }
-
-    \define('FULL_URL_QUERY', $urlQuery);
-    \define('URL_QUERY', PathUtil::tidy(\strtok($urlQuery, '?'), true, '/'));
+    // Behind a trusted proxy (RZ-04) host and port are the public ones;
+    // 80 and 443 are omitted from SITE_URL_ROOT (RZ-04 port fix).
+    \define('HOSTNAME', $razyRequestUrl->host);
+    \define('PORT', $razyRequestUrl->port);
+    \define('SITE_URL_ROOT', $razyRequestUrl->siteUrlRoot());
+    \define('RAZY_URL_ROOT', $razyRequestUrl->razyUrlRoot());
+    \define('SCRIPT_URL', $razyRequestUrl->scriptUrl());
+    \define('FULL_URL_QUERY', $razyRequestUrl->fullUrlQuery());
+    \define('URL_QUERY', $razyRequestUrl->urlQuery());
 }
 
 // Register default plugin folders for each component from both local and phar sources

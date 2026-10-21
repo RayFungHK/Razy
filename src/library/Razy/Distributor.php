@@ -35,6 +35,7 @@ use Razy\Exception\ConfigurationException;
 use Razy\Http\Request;
 use Razy\Http\RequestContext;
 use Razy\Http\RequestResolver;
+use Razy\Http\RequestUrl;
 use Razy\Http\SecurityHeaders;
 use Razy\Module\ModuleStatus;
 use Razy\Session\SessionDoor;
@@ -965,11 +966,13 @@ class Distributor implements DistributorInterface
             return PathUtil::tidy(PathUtil::append($this->canonicalOrigin, $relativeRoot, $this->urlPath), false, '/');
         }
 
-        if (!\defined('RAZY_URL_ROOT')) {
+        // RZ-18: the current request's root (a worker serves many hosts), not the boot constant.
+        $root = RequestUrl::current()?->razyUrlRoot() ?? (\defined('RAZY_URL_ROOT') ? RAZY_URL_ROOT : null);
+        if (null === $root) {
             return '';
         }
 
-        return PathUtil::tidy(PathUtil::append(RAZY_URL_ROOT, $this->urlPath), false, '/');
+        return PathUtil::tidy(PathUtil::append($root, $this->urlPath), false, '/');
     }
 
     /**
