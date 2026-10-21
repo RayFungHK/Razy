@@ -21,6 +21,7 @@ use Razy\RuntimeMode;
 use Razy\Testing\Client;
 use Razy\Testing\TestResponse;
 use Razy\Util\PathUtil;
+use RuntimeException;
 
 #[CoversClass(Client::class)]
 #[CoversClass(TestResponse::class)]
@@ -54,6 +55,13 @@ final class TestingClientTest extends TestCase
                         'method' => 'method', 'price' => 'price', 'twocookies' => 'twocookies',
                     ]);
                     return true;
+                }
+
+                public function __onDispose(): void
+                {
+                    if ('1' === ($_GET['dispose_boom'] ?? '')) {
+                        throw new \RuntimeException('dispose kaboom');
+                    }
                 }
             };
             PHP);
@@ -258,6 +266,34 @@ final class TestingClientTest extends TestCase
 
         $this->assertSame($server, $_SERVER);
         $this->assertSame($get, $_GET);
+    }
+
+    public function testGlobalsAreRestoredEvenWhenDisposalThrows(): void
+    {
+        $server = $_SERVER;
+        $get = $_GET;
+        $client = $this->client();
+
+        try {
+            $client->get('/shop/hello/', ['dispose_boom' => '1']);
+            $this->fail('the disposal exception reaches the caller');
+        } catch (RuntimeException $e) {
+            $this->assertSame('dispose kaboom', $e->getMessage());
+        }
+
+        $this->assertSame($server, $_SERVER, 'superglobals are restored even when an __onDispose hook throws');
+        $this->assertSame($get, $_GET);
+        $this->assertSame('hello x', $client->get('/shop/hello/', ['name' => 'x'])->body(), 'the next request still works');
+    }
+
+    public function testPositiveMaxAgeBeatsAPastExpires(): void
+    {
+        $response = new TestResponse(200, [
+            ['Set-Cookie', 'both=1; Max-Age=60; Expires=Wed, 21 Oct 2015 07:28:00 GMT'],
+            ['Set-Cookie', 'age=1; Max-Age=0; Expires=Wed, 21 Oct 2099 07:28:00 GMT'],
+        ], '');
+
+        $this->assertSame(['age'], $response->expiredCookies(), 'Max-Age decides in both directions');
     }
 
     public function testHeadersCaptureSemantics(): void

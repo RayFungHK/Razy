@@ -191,12 +191,16 @@ final class Client
             RuntimeMode::simulateWeb(false);
             RequestBody::override(null);
             $this->session = $_SESSION ?? [];
-            $domain?->dispose();
-            [$_SERVER, $_GET, $_POST, $_COOKIE, $_REQUEST, $_FILES, $session] = $saved;
-            if ($session === null) {
-                unset($_SESSION);
-            } else {
-                $_SESSION = $session;
+            try {
+                $domain?->dispose();
+            } finally {
+                // a module's __onDispose may throw: still leave the process as it was found
+                [$_SERVER, $_GET, $_POST, $_COOKIE, $_REQUEST, $_FILES, $session] = $saved;
+                if ($session === null) {
+                    unset($_SESSION);
+                } else {
+                    $_SESSION = $session;
+                }
             }
         }
 

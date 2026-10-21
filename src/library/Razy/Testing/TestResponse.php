@@ -40,8 +40,9 @@ final class TestResponse
     private static function expired(string $attributes): bool
     {
         $maxAge = \preg_match('/(?:^|;)\s*max-age\s*=\s*(-?\d+)/i', ';' . $attributes, $m) === 1 ? (int) $m[1] : null;
-        if ($maxAge !== null && $maxAge <= 0) {
-            return true;
+        if ($maxAge !== null) {
+            // Max-Age wins over Expires (RFC 6265 5.3): a positive one keeps the cookie alive
+            return $maxAge <= 0;
         }
         $expires = \preg_match('/(?:^|;)\s*expires\s*=\s*([^;]+)/i', ';' . $attributes, $m) === 1
             ? \strtotime(\trim($m[1]))
