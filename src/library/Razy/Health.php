@@ -106,6 +106,15 @@ class Health
     }
 
     /**
+     * RZ-13: whether a request path (any dist mount) targets a readiness probe;
+     * used to keep probes out of the request metrics.
+     */
+    public static function isReadyProbe(string $path): bool
+    {
+        return \str_ends_with(\rtrim((string) \strtok($path, '?'), '/'), self::READY_PATH);
+    }
+
+    /**
      * RZ-13: run the readiness checks and build the response.
      *
      * @param HealthRegistry $registry The dist's checks

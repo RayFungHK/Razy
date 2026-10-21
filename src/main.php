@@ -203,7 +203,11 @@ if (WEB_MODE) {
 
                 // Business request accounting; probes/scrapes above return early and are
                 // deliberately NOT counted (scrape-driven autoscaling must not self-feed).
-                Metrics::recordRequest();
+                // RZ-13: readiness probes are answered by the dist, but they are
+                // probes too: keep them out of the request counter.
+                if (!Health::isReadyProbe($urlQuery)) {
+                    Metrics::recordRequest();
+                }
 
                 if (!$firstRequestHandled) {
                     // ── First request: full module lifecycle ──────────────
@@ -297,7 +301,9 @@ if (WEB_MODE) {
             if (Metrics::respondIfRequested($probeRaw)) {
                 return true;
             }
-            Metrics::recordRequest();
+            if (!Health::isReadyProbe($probeRaw)) { // RZ-13: probes are not business traffic
+                Metrics::recordRequest();
+            }
 
             $app = new Application();
 

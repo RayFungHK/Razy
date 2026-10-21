@@ -151,6 +151,11 @@ final class HealthReadinessTest extends TestCase
         $this->assertTrue(Health::isReadyPath('/_razy/ready/'));
         $this->assertFalse(Health::isReadyPath('/_razy/readyz'));
         $this->assertFalse(Health::isReadyPath('/api/_razy/ready'));
+
+        $this->assertTrue(Health::isReadyProbe('/_razy/ready?token=x'));
+        $this->assertTrue(Health::isReadyProbe('/shop/_razy/ready/'), 'a dist mounted below / has its own probe');
+        $this->assertFalse(Health::isReadyProbe('/_razy/readyz'));
+        $this->assertFalse(Health::isReadyProbe('/products/'));
     }
 
     public function testDistAnswersReadyFromModuleChecksBeforeRoutes(): void
