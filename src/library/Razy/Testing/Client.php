@@ -11,6 +11,7 @@
 
 namespace Razy\Testing;
 
+use Closure;
 use Razy\Application;
 use Razy\Domain;
 use Razy\Error;
@@ -56,8 +57,14 @@ final class Client
     /** @var array<string, string> Cookie jar */
     private array $cookies = [];
 
-    /** @var array<string, mixed> Emulated, kept between requests */
+    /** @var array<string, mixed> Emulated session array, kept between requests */
     private array $session = [];
+
+    /** The domain of the request in flight (module library autoloading) */
+    private ?Domain $domain = null;
+
+    /** @var Closure(string): void|null */
+    private ?Closure $autoloader = null;
 
     /**
      * @param array<string, string> $sites URL path => dist code (`code[@tag]`), as in sites.inc.php for one host
@@ -71,6 +78,13 @@ final class Client
         private readonly int $port = 80,
         private readonly bool $https = false,
     ) {
+    }
+
+    public function __destruct()
+    {
+        if ($this->autoloader !== null) {
+            \spl_autoload_unregister($this->autoloader);
+        }
     }
 
     /**
@@ -152,7 +166,7 @@ final class Client
      *
      * @param string $method HTTP method
      * @param string $uri Path with optional query string, relative to the host root
-     * @param array<string, string> $headers Request headers (merged over withHeader())
+     * @param array<string, string> $headers Request headers (win over withHeader() defaults)
      * @param string|null $body Raw body (what php://input would hold)
      * @param array<string, mixed> $post Parsed form fields for $_POST
      */
@@ -160,7 +174,8 @@ final class Client
     {
         $saved = [$_SERVER, $_GET, $_POST, $_COOKIE, $_REQUEST, $_FILES, $_SESSION ?? null];
         $level = \ob_get_level();
-        $this->install(\strtoupper($method), $uri, $this->headers + $headers, $body, $post);
+        // per-request headers win over withHeader() defaults (case-insensitive: later $_SERVER keys overwrite)
+        $this->install(\strtoupper($method), $uri, [...$this->pairs($this->headers), ...$this->pairs($headers)], $body, $post);
 
         $domain = null;
         \ob_start();
@@ -206,6 +221,7 @@ final class Client
         $domain = null;
         try {
             $domain = new Domain(new Application(), $this->host, '', $this->sites);
+            $this->registerAutoloader($domain);
             $distributor = $domain->matchQuery($path);
             if ($distributor === null || !$distributor->matchRoute()) {
                 Error::show404();
@@ -220,7 +236,7 @@ final class Client
     }
 
     /**
-     * @param array<string, string> $headers
+     * @param list<array{0: string, 1: string}> $headers
      * @param array<string, mixed> $post
      */
     private function install(string $method, string $uri, array $headers, ?string $body, array $post): void
@@ -245,7 +261,7 @@ final class Client
         if ($this->https) {
             $server['HTTPS'] = 'on';
         }
-        foreach ($headers as $name => $value) {
+        foreach ($headers as [$name, $value]) {
             $key = \strtoupper(\str_replace('-', '_', $name));
             $server[\in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true) ? $key : 'HTTP_' . $key] = $value;
         }
@@ -271,6 +287,35 @@ final class Client
         RequestBody::override($body ?? '');
         RuntimeMode::simulateWeb(true);
         Headers::startCapture();
+    }
+
+    /**
+     * Module `library/` classes load through the dist, as Application::host() arranges under FPM.
+     */
+    private function registerAutoloader(Domain $domain): void
+    {
+        $this->domain = $domain;
+        if ($this->autoloader === null) {
+            $this->autoloader = function (string $className): void {
+                $this->domain?->autoload($className);
+            };
+            \spl_autoload_register($this->autoloader);
+        }
+    }
+
+    /**
+     * @param array<string, string> $headers
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private function pairs(array $headers): array
+    {
+        $pairs = [];
+        foreach ($headers as $name => $value) {
+            $pairs[] = [(string) $name, $value];
+        }
+
+        return $pairs;
     }
 
     /**

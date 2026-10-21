@@ -50,7 +50,7 @@ final class TestingClientTest extends TestCase
                 {
                     $agent->addLazyRoute([
                         'hello' => 'hello', 'feed' => 'feed', 'echo' => 'echo', 'go' => 'go',
-                        'boom' => 'boom', 'count' => 'count', 'cookie' => 'cookie', 'method' => 'method',
+                        'boom' => 'boom', 'count' => 'count', 'cookie' => 'cookie', 'method' => 'method', 'price' => 'price',
                     ]);
                     return true;
                 }
@@ -64,8 +64,11 @@ final class TestingClientTest extends TestCase
             'boom' => "throw new \\RuntimeException('kaboom');",
             'count' => "\$_SESSION['n'] = (\$_SESSION['n'] ?? 0) + 1; echo \$_SESSION['n'];",
             'cookie' => "\\Razy\\Http\\Headers::cookie('flavor', \$_COOKIE['flavor'] ?? 'choc', ['path' => '/']); echo \$_COOKIE['flavor'] ?? 'none';",
+            'price' => 'echo \\acme\\shop\\Price::format(1234);',
             'method' => "echo \$_SERVER['REQUEST_METHOD'] . ' ' . json_encode(\$_POST) . ' ' . (\$_SERVER['HTTP_X_TRACE'] ?? '-');",
         ];
+        \mkdir($this->distPath . '/acme/shop/default/library', 0o777, true);
+        \file_put_contents($this->distPath . '/acme/shop/default/library/Price.php', "<?php\nnamespace acme\\shop;\nfinal class Price { public static function format(int \$cents): string { return number_format(\$cents / 100, 2); } }\n");
         foreach ($routes as $name => $body) {
             \file_put_contents($controller . "/shop.{$name}.php", "<?php\nreturn function () {\n{$body}\n};\n");
         }
@@ -109,6 +112,19 @@ final class TestingClientTest extends TestCase
         $client = $this->client()->withHeader('X-Trace', 't-1');
         $this->assertSame('POST {"a":"1"} t-1', $client->post('/shop/method/', ['a' => '1'])->body());
         $this->assertSame('DELETE [] t-1', $client->request('DELETE', '/shop/method/')->body());
+    }
+
+    public function testPerRequestHeadersWinOverDefaults(): void
+    {
+        $client = $this->client()->withHeader('x-trace', 'default')->withHeader('Content-Type', 'text/plain');
+
+        $this->assertSame('POST {"a":"1"} per-call', $client->post('/shop/method/', ['a' => '1'], ['X-Trace' => 'per-call'])->body());
+        $this->assertSame('application/json', $client->postJson('/shop/echo/', [])->json()['type'], 'postJson keeps its Content-Type');
+    }
+
+    public function testModuleLibraryClassesAutoload(): void
+    {
+        $this->assertSame('12.34', $this->client()->get('/shop/price/')->body());
     }
 
     public function testRedirect(): void
