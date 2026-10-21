@@ -268,7 +268,9 @@ class TrustedProxiesTest extends TestCase
     {
         $src = (string) \file_get_contents(SYSTEM_ROOT . '/src/system/bootstrap.inc.php');
         $this->assertStringContainsString('TrustedProxies::configure(TrustedProxies::fromConfig(', $src);
-        $this->assertStringContainsString("\\in_array(PORT, [80, 443], true) ? '' : ':' . PORT", $src);
+        // RZ-18: the URL constants come from RequestUrl, which omits 80/443 (RequestUrlTest).
+        $this->assertStringContainsString('RequestUrl::fromServer($_SERVER, RELATIVE_ROOT)', $src);
+        $this->assertStringContainsString('\define(\'SITE_URL_ROOT\', $razyRequestUrl->siteUrlRoot());', $src);
         $this->assertStringNotContainsString("PORT != '80'", $src);
     }
 

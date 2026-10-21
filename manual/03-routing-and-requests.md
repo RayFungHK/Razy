@@ -110,7 +110,7 @@ sends**; there is no static JSON helper. Verified surface (`src/library/Razy/XHR
 
 | Method | Line | Behaviour |
 |---|---|---|
-| `->allowOrigin(string)` | `:82` | CORS header; **defaults to `SITE_URL_ROOT`, not `*`** (`:42`) |
+| `->allowOrigin(string)` | `:92` | CORS header; **defaults to this request's site origin (`RequestUrl::current()->siteUrlRoot()`, RZ-18), not `*`** |
 | `->corp(string)` | `:114` | CORP header; default `cross-origin` (`:48`); constants `CORP_SAME_SITE/_SAME_ORIGIN/_CROSS_ORIGIN` (`:33-39`) |
 | `->data($dataset)` | `:130` | sets body content; recursively parses scalars/iterables/`__toString` (`:288-314`) |
 | `->set($name, $v)` | `:254` | adds a named `params` entry to envelopes |
@@ -200,6 +200,13 @@ requests. The per-request cost of your module code is therefore fully yours.
 
 Module guidance:
 
+- **Read URLs per request (RZ-18).** `HOSTNAME`, `PORT`, `SITE_URL_ROOT`, `RAZY_URL_ROOT`,
+  `SCRIPT_URL`, `URL_QUERY` and `FULL_URL_QUERY` are constants, so a worker keeps the values
+  of its boot (host `UNKNOWN`). They are **deprecated**. Use `$this->getSiteURL()` or
+  `Razy\Http\RequestUrl::current()` (`host`, `port`, `scheme`, `siteUrlRoot()`,
+  `razyUrlRoot()`, `scriptUrl()`, `urlQuery()`, `fullUrlQuery()`), which the worker loop
+  rebuilds from `$_SERVER` before every request. The framework's own readers (`getSiteURL()`,
+  the router, `XHR`'s default CORS origin) already do.
 - **Be stateless.** Module classes stay loaded; static properties persist across requests.
   The framework resets its own module runtime (route/closure/event registries) between
   worker dispatches (`Module::resetForWorker`, referenced by the optimization doc

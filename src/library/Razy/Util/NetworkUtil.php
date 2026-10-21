@@ -158,16 +158,19 @@ class NetworkUtil
      * `RAZY_TRUSTED_PROXIES` (or config.inc.php 'trusted_proxies') to switch to
      * the strict behaviour; the fallback will be removed in the next major.
      *
+     * @param array<string, mixed>|null $server Server variables (default: $_SERVER; RZ-18)
+     *
      * @return bool True if the connection is using SSL/HTTPS
      */
-    public static function isSsl(): bool
+    public static function isSsl(?array $server = null): bool
     {
-        if (Request::fromGlobals()->isSecure()) {
+        $server ??= $_SERVER;
+        if ((new Request($server))->isSecure()) {
             return true;
         }
 
         if (!TrustedProxies::current()->isConfigured()
-            && 'https' === \strtolower(\trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')))) {
+            && 'https' === \strtolower(\trim((string) ($server['HTTP_X_FORWARDED_PROTO'] ?? '')))) {
             if (!self::$legacyProtoWarned) {
                 self::$legacyProtoWarned = true;
                 \error_log('[Razy] Deprecated: X-Forwarded-Proto trusted from an unconfigured peer. '
