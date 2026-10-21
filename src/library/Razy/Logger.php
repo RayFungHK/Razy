@@ -138,6 +138,8 @@ class Logger implements LoggerInterface
     public function log(mixed $level, string|Stringable $message, array $context = []): void
     {
         $level = $this->validateLevel((string) $level);
+        // RZ-14: request-scoped fields (request_id, …); the call's own keys win.
+        $context = Log\LogContext::apply($context);
 
         // Check threshold — skip if below minimum level
         if ($this->getLevelPriority($level) < $this->getLevelPriority($this->minLevel)) {
@@ -243,6 +245,7 @@ class Logger implements LoggerInterface
         // Sanitize message to prevent log injection via embedded newlines
         $sanitizedMessage = \str_replace(["\r\n", "\r", "\n"], ' ', $message);
         $line = "[{$timestamp}] [{$levelUpper}] {$sanitizedMessage}";
+        $line .= Log\LineFormatter::requestIdSuffix($context);
 
         // Append context data if present (excluding interpolated keys)
         $extra = $this->getExtraContext($context);

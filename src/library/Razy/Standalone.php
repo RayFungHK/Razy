@@ -23,6 +23,7 @@ use Razy\Distributor\ModuleScanner;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
+use Razy\Health\HealthRegistry;
 use Razy\Module\ModuleStatus;
 use Razy\Template\IncludeResolver;
 use Razy\Util\PathUtil;
@@ -80,6 +81,9 @@ class Standalone implements DistributorInterface
     /** @var Assets RZ-09: hashed URLs + importmap; serves /webassets/ under the dev server */
     private Assets $assets;
 
+    /** RZ-13: readiness checks answered at /_razy/ready ($agent->addHealthCheck()) */
+    private HealthRegistry $healthChecks;
+
     /**
      * Standalone constructor.
      *
@@ -89,6 +93,7 @@ class Standalone implements DistributorInterface
     public function __construct(string $standalonePath, private readonly ?ContainerInterface $container = null)
     {
         $this->folderPath = $standalonePath;
+        $this->healthChecks = new HealthRegistry();
         $this->initializeSubComponents();
         // RZ-09: no dist.php here, so the defaults ('serve' on under PHP's built-in server only).
         $this->assets = Assets::fromConfig([], $this->code)->bind(
@@ -105,6 +110,14 @@ class Standalone implements DistributorInterface
     public function getAssets(): Assets
     {
         return $this->assets;
+    }
+
+    /**
+     * RZ-13: the app's readiness checks (`$agent->addHealthCheck()`), run at /_razy/ready.
+     */
+    public function getHealthChecks(): HealthRegistry
+    {
+        return $this->healthChecks;
     }
 
     /**
@@ -246,6 +259,11 @@ class Standalone implements DistributorInterface
             return true;
         }
 
+        // RZ-13: readiness probe, before the session (a probe must not open one).
+        if (!$worker && $this->answeredReadiness()) {
+            return true;
+        }
+
         $this->setSession();
 
         $this->registry->processAwaits();
@@ -261,7 +279,7 @@ class Standalone implements DistributorInterface
 
         $this->registry->notifyReady();
 
-        if ($worker && $this->assets->serve($this->urlQuery)) {
+        if ($worker && ($this->assets->serve($this->urlQuery) || $this->answeredReadiness())) {
             $this->coreInitialized = true;
 
             return true;
@@ -314,7 +332,7 @@ class Standalone implements DistributorInterface
         $this->urlQuery = $urlQuery;
 
         Assets::setCurrent($this->assets);
-        if ($this->assets->serve($this->urlQuery)) {
+        if ($this->assets->serve($this->urlQuery) || $this->answeredReadiness()) {
             return true;
         }
 
@@ -467,6 +485,19 @@ class Standalone implements DistributorInterface
         }
 
         return $this->globalTemplate;
+    }
+
+    /**
+     * RZ-13: answer GET /_razy/ready from this app's checks; true when answered.
+     */
+    private function answeredReadiness(): bool
+    {
+        if (!Health::isReadyPath($this->urlQuery)) {
+            return false;
+        }
+        Health::respondReady($this->healthChecks);
+
+        return true;
     }
 
     /**

@@ -185,10 +185,11 @@ endpoint deliberately does not boot"). Consequences:
 
 * All three probes in `deployment.yaml` gate *"the worker answers HTTP"*, which is
   the correct, cheap thing for liveness — and a false comfort for readiness.
-* A pod whose MySQL/Redis is down still passes readiness and receives traffic. Fix
-  it outside this file set: an app-level readiness route (module/controller that
-  pings DB+Redis) for `readinessProbe`, or an initContainer that TCP-checks the
-  dependencies, or Envoy/Service-entry checks. Keep **liveness** on `/_razy/health`
+* A pod whose MySQL/Redis is down still passes readiness and receives traffic while
+  `readinessProbe` points at `/_razy/health`. Since RZ-13, modules register dependency
+  checks with `$agent->addHealthCheck()` and the dist answers `GET /_razy/ready` (503 when
+  a critical check fails); point `readinessProbe` there once the dist served at `/`
+  registers its checks. Keep **liveness** on `/_razy/health`
   (a dependency blip must not restart 20 pods).
 
 ### 4.4 DB connection pooling in front of MySQL

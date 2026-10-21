@@ -922,6 +922,12 @@ class HttpClient implements ClientInterface
             $allHeaders['accept'] = 'application/json';
         }
 
+        // RZ-14: forward this request's id so upstream logs correlate.
+        $requestId = RequestId::current();
+        if ($requestId !== null && !isset($allHeaders['x-request-id'])) {
+            $allHeaders['x-request-id'] = $requestId;
+        }
+
         foreach ($allHeaders as $name => $value) {
             // Capitalize header names for readability
             $headerName = \implode('-', \array_map('ucfirst', \explode('-', $name)));

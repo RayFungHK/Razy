@@ -2,6 +2,8 @@
 
 namespace Razy;
 
+use Razy\Health\HealthRegistry;
+
 /**
  * Framework liveness endpoint: GET /_razy/health (2026 audit security checklist).
  *
@@ -16,13 +18,21 @@ namespace Razy;
  *              (compare via ?token=..., constant-time)
  *
  * Liveness, not dependency-readiness: DB/cache round-trips need distributor/module
- * context this endpoint deliberately does not boot. Readiness for external
- * dependencies is the deployment's own probe chain (documented in manual/06).
+ * context this endpoint deliberately does not boot.
+ *
+ * RZ-13 readiness: GET /_razy/ready is answered by the dist (after its modules
+ * loaded, before the session and the route table) from the checks modules
+ * registered with `$agent->addHealthCheck()` ({@see HealthRegistry}). 503 when
+ * a critical check fails, 200 otherwise. Check errors are shown only to a
+ * caller holding RAZY_HEALTH_TOKEN; everyone else sees names and statuses.
  */
 class Health
 {
     /** Reserved probe path (exact match after URL tidy). */
     public const PATH = '/_razy/health';
+
+    /** RZ-13: reserved readiness path, relative to the dist's URL path. */
+    public const READY_PATH = '/_razy/ready';
 
     /** Worker-mode process boot anchor; FPM re-bootstraps per request (uptime ~0). */
     private static ?int $bootTime = null;
@@ -85,6 +95,75 @@ class Health
         }
 
         return $payload;
+    }
+
+    /**
+     * RZ-13: whether a dist-relative path (no query string) is the readiness probe.
+     */
+    public static function isReadyPath(string $urlQuery): bool
+    {
+        return \rtrim($urlQuery, '/') === self::READY_PATH;
+    }
+
+    /**
+     * RZ-13: whether a request path (any dist mount) targets a readiness probe;
+     * used to keep probes out of the request metrics.
+     */
+    public static function isReadyProbe(string $path): bool
+    {
+        return \str_ends_with(\rtrim((string) \strtok($path, '?'), '/'), self::READY_PATH);
+    }
+
+    /**
+     * RZ-13: run the readiness checks and build the response.
+     *
+     * @param HealthRegistry $registry The dist's checks
+     * @param array<string, mixed> $query Parsed query string (?token= unlocks check errors)
+     *
+     * @return array{0: int, 1: array<string, mixed>} HTTP status and JSON payload
+     */
+    public static function readiness(HealthRegistry $registry, array $query = []): array
+    {
+        $report = $registry->run();
+        if (!self::deepAuthorized($query)) {
+            foreach ($report['checks'] as &$check) {
+                unset($check['error']);
+            }
+            unset($check);
+        }
+
+        $payload = [
+            'status' => $report['status'],
+            'checks' => (object) $report['checks'],
+            'timestamp' => \time(),
+        ];
+
+        return [$report['status'] === HealthRegistry::STATUS_FAIL ? 503 : 200, $payload];
+    }
+
+    /**
+     * RZ-13: answer GET /_razy/ready with the readiness JSON.
+     *
+     * @param HealthRegistry $registry The dist's checks
+     * @param array<string, mixed>|null $query Parsed query string (default: $_GET)
+     *
+     * @return int The HTTP status sent
+     */
+    public static function respondReady(HealthRegistry $registry, ?array $query = null): int
+    {
+        [$status, $payload] = self::readiness($registry, $query ?? $_GET);
+
+        if (!\headers_sent()) {
+            // Replace-form status line: http_response_code() after an earlier
+            // header('HTTP/…') is ignored with a warning on PHP 8.5.
+            \header('HTTP/1.1 ' . $status, true, $status);
+            \header('Content-Type: application/json; charset=UTF-8');
+            \header('Cache-Control: no-store');
+            \header('X-Content-Type-Options: nosniff');
+        }
+        echo \json_encode($payload, \JSON_UNESCAPED_SLASHES);
+
+        return $status;
     }
 
     /** Reset the boot anchor (test seam / worker hot-reload). */

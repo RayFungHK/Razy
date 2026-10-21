@@ -56,6 +56,14 @@ final class RequestContext
         return $this->request->host();
     }
 
+    /**
+     * RZ-14: this request's id (the X-Request-ID echoed to the client), or null outside a web request.
+     */
+    public function requestId(): ?string
+    {
+        return RequestId::current();
+    }
+
     public function set(string $key, mixed $value): static
     {
         $this->attributes[$key] = $value;

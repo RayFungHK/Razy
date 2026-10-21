@@ -14,6 +14,7 @@
 
 namespace Razy\Log;
 
+use Razy\Contract\Log\LogFormatterInterface;
 use Razy\Contract\Log\LogHandlerInterface;
 use Razy\Contract\Log\LogLevel;
 
@@ -21,7 +22,10 @@ use Razy\Contract\Log\LogLevel;
  * Stderr log handler — writes log messages to STDERR.
  *
  * Useful for container/cloud environments where logs are captured from
- * standard error output.
+ * standard error output. RZ-14: pass a {@see JsonFormatter} for one JSON
+ * object per line; the default {@see LineFormatter} keeps the text format.
+ * Works under every SAPI (FPM and FrankenPHP have no STDERR constant, so the
+ * handler opens `php://stderr` itself).
  */
 class StderrHandler implements LogHandlerInterface
 {
@@ -36,12 +40,23 @@ class StderrHandler implements LogHandlerInterface
         LogLevel::EMERGENCY => 7,
     ];
 
+    private LogFormatterInterface $formatter;
+
+    /** @var resource|null */
+    private $stream;
+
     /**
      * @param string $minLevel Minimum log level to handle
+     * @param LogFormatterInterface|null $formatter Line format (default: {@see LineFormatter})
+     * @param resource|null $stream Where to write (default: stderr)
      */
     public function __construct(
         private string $minLevel = LogLevel::DEBUG,
+        ?LogFormatterInterface $formatter = null,
+        $stream = null,
     ) {
+        $this->formatter = $formatter ?? new LineFormatter();
+        $this->stream = \is_resource($stream) ? $stream : null;
     }
 
     /**
@@ -53,13 +68,18 @@ class StderrHandler implements LogHandlerInterface
             return;
         }
 
-        $levelUpper = \strtoupper($level);
-        $channelTag = $channel !== '' ? "[{$channel}] " : '';
-        // Sanitize message to prevent log injection via embedded newlines
-        $sanitizedMessage = \str_replace(["\r\n", "\r", "\n"], ' ', $message);
-        $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$sanitizedMessage}" . PHP_EOL;
+        $stream = $this->stream ??= (\defined('STDERR') ? STDERR : \fopen('php://stderr', 'w'));
+        if (\is_resource($stream)) {
+            \fwrite($stream, $this->formatter->format($level, $message, $context, $timestamp, $channel) . PHP_EOL);
+        }
+    }
 
-        \fwrite(STDERR, $line);
+    /**
+     * The formatter in use.
+     */
+    public function getFormatter(): LogFormatterInterface
+    {
+        return $this->formatter;
     }
 
     /**

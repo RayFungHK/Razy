@@ -219,6 +219,8 @@ class LogManager implements LoggerInterface
     public function log(mixed $level, string|Stringable $message, array $context = []): void
     {
         $level = $this->validateLevel((string) $level);
+        // RZ-14: request-scoped fields (request_id, …); the call's own keys win.
+        $context = LogContext::apply($context);
         $timestamp = (new DateTimeImmutable())->format('Y-m-d H:i:s.u');
         $interpolated = $this->interpolate((string) $message, $context);
 

@@ -82,7 +82,7 @@ class Module implements ModuleInterface
     /**
      * Module constructor.
      *
-     * @param Distributor $distributor The Distributor instance
+     * @param Distributor|Standalone $distributor The runtime (a dist, or the standalone app)
      * @param string $path The folder path of the Distributor
      * @param array $moduleConfig
      * @param string $version The specified version to load, leave blank to load default or dev
@@ -1142,6 +1142,16 @@ class Module implements ModuleInterface
     public function getRequestContext(): Http\RequestContext
     {
         return $this->distributor->getRequestContext();
+    }
+
+    /**
+     * RZ-13: add a readiness check to the dist's registry, named `<module code>:<name>`.
+     */
+    public function addHealthCheck(string $name, Closure $check, bool $critical = true): static
+    {
+        $this->distributor->getHealthChecks()->register($this->getModuleInfo()->getCode() . ':' . $name, $check, $critical);
+
+        return $this;
     }
 
     /**
