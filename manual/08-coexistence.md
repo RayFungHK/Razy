@@ -94,7 +94,7 @@ per-distributor** — an exclusion is a statement about sibling apps sharing the
 a distributor's own claim, and one declaration must cover every distributor mounted on
 it. The same decision is documented in the `Razy\Routing\ExcludePaths` class docblock.
 The read path: `Application::loadSiteConfig()` reads the key from `sites.inc.php` and
-defaults it to `[]` (`Application.php:379,:425-427`); `updateRewriteRules()`
+defaults it to `[]` (`Razy\Config\SiteConfig::validate()`, which rejects a non-array value); `updateRewriteRules()`
 (`Application.php:514`) and `updateCaddyfile()` (`Application.php:545`) forward it to the
 two compilers. `writeSiteConfig()` re-emits it, so `php Razy.phar set` does not erase it.
 

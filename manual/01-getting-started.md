@@ -140,10 +140,14 @@ return [
 ```
 
 **`sites.inc.php`** — domain map; the shipped template (`src/asset/setup/sites.inc.php.tpl`)
-documents: string value = distribution path; array value = advanced; `'path' => 'mysite@v2'`
+documents it: each domain maps to an **array** of URL path => dist code; `'path' => 'mysite@v2'`
 selects a **tag** from dist.php; a `/path` key serves the same dist from a subdirectory;
 `alias` maps alternate domains. Per-domain config-folder mapping lives in `config_mapping`
-inside `dist.php` — **not** here.
+inside `dist.php` — **not** here. The file must `return ['domains' => [...], 'alias' => [...]]`:
+since RZ-17 a missing `return`, a non-array section, a string domain value or a malformed
+dist code throws a `ConfigurationException` naming the file (web clients get the generic
+500; the log and the CLI get the detail). A host key that is not a valid domain, or a dist
+with no `dist.php`, is skipped with a logged warning.
 
 **`sites/<dist>/dist.php`** — the distributor manifest (sample verified on disk:
 `playground/sites/appdemo/dist.php`):

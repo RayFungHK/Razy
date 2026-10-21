@@ -76,7 +76,7 @@ final class DomainList
                 throw new ConfigurationException("Invalid domain '{$entry}' in domain list: expected host[:port] or host=dist.");
             }
             if (null !== $dist) {
-                if (1 !== \preg_match('/^[a-z0-9][\w-]*(?:@[\w.-]+)?$/i', $dist)) {
+                if (1 !== \preg_match(SiteConfig::DIST_IDENTIFIER, $dist)) {
                     throw new ConfigurationException("Invalid dist code in domain list entry '{$entry}'.");
                 }
                 $domains[$host] = ['/' => $dist];
