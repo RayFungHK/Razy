@@ -15,6 +15,7 @@
 namespace Razy\Csrf;
 
 use Closure;
+use Razy\Http\Headers;
 
 /**
  * The armed door's rejection answer surface (CSRF-RAIL.md Q5).
@@ -74,10 +75,10 @@ class CsrfRejection
         $wantsJson = \strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
             || \str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
 
-        \header('HTTP/1.1 419', true, 419);
+        Headers::send('HTTP/1.1 419', true, 419);
 
         if ($wantsJson) {
-            \header('Content-Type: application/json; charset=utf-8');
+            Headers::send('Content-Type: application/json; charset=utf-8');
             echo \json_encode([
                 'error' => 'csrf-token-mismatch',
                 'module' => $module,
@@ -85,7 +86,7 @@ class CsrfRejection
                 'fix' => $fix,
             ], JSON_UNESCAPED_SLASHES);
         } else {
-            \header('Content-Type: text/html; charset=utf-8');
+            Headers::send('Content-Type: text/html; charset=utf-8');
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>419 — unknown request origin</title></head>'
                 . '<body style="font-family:system-ui,sans-serif;max-width:38rem;margin:4rem auto;padding:0 1rem">'
                 . '<h1>419 — unknown request origin</h1>'

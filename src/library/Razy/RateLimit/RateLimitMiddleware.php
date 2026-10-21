@@ -16,6 +16,7 @@ namespace Razy\RateLimit;
 
 use Closure;
 use Razy\Contract\MiddlewareInterface;
+use Razy\Http\Headers;
 
 /**
  * Rate limiting middleware — throttles requests using named rate limiters.
@@ -201,7 +202,7 @@ class RateLimitMiddleware implements MiddlewareInterface
             return ($this->onLimitExceeded)($context, $limit, $retryAfter);
         }
 
-        \header('HTTP/1.1 429', true, 429);
+        Headers::send('HTTP/1.1 429', true, 429);
 
         return null;
     }
@@ -215,10 +216,10 @@ class RateLimitMiddleware implements MiddlewareInterface
      */
     private function sendRateLimitHeaders(int $maxAttempts, int $remaining, int $resetAt): void
     {
-        if (!\headers_sent()) {
-            \header('X-RateLimit-Limit: ' . $maxAttempts);
-            \header('X-RateLimit-Remaining: ' . $remaining);
-            \header('X-RateLimit-Reset: ' . $resetAt);
+        if (!Headers::sent()) {
+            Headers::send('X-RateLimit-Limit: ' . $maxAttempts);
+            Headers::send('X-RateLimit-Remaining: ' . $remaining);
+            Headers::send('X-RateLimit-Reset: ' . $resetAt);
         }
     }
 
@@ -229,8 +230,8 @@ class RateLimitMiddleware implements MiddlewareInterface
      */
     private function sendRetryAfterHeader(int $retryAfter): void
     {
-        if (!\headers_sent()) {
-            \header('Retry-After: ' . $retryAfter);
+        if (!Headers::sent()) {
+            Headers::send('Retry-After: ' . $retryAfter);
         }
     }
 }

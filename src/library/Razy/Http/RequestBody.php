@@ -9,15 +9,41 @@ namespace Razy\Http;
  */
 final class RequestBody
 {
+    /** RZ-15: body supplied by the in-process test client instead of php://input */
+    private static ?string $override = null;
+
+    /**
+     * RZ-15: the raw request body (`php://input`, or the test client's body).
+     */
+    public static function raw(): string
+    {
+        if (self::$override !== null) {
+            return self::$override;
+        }
+        $raw = \file_get_contents('php://input');
+
+        return \is_string($raw) ? $raw : '';
+    }
+
+    /**
+     * RZ-15: make raw() return $body (null = read php://input again). For the test client.
+     *
+     * @internal
+     */
+    public static function override(?string $body): void
+    {
+        self::$override = $body;
+    }
+
     /**
      * @return array<string, mixed>
      */
     public static function jsonArray(?string $raw = null): array
     {
         if ($raw === null) {
-            $raw = \file_get_contents('php://input');
+            $raw = self::raw();
         }
-        if (!\is_string($raw) || \trim($raw) === '') {
+        if (\trim($raw) === '') {
             return [];
         }
 

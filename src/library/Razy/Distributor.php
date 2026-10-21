@@ -473,7 +473,11 @@ class Distributor implements DistributorInterface
      */
     public function setSession(): static
     {
-        if (WEB_MODE) {
+        if (RuntimeMode::isSimulatedWeb()) {
+            // RZ-15: the test client keeps $_SESSION between its requests; the
+            // native session would warn (CLI output already sent headers).
+            $_SESSION ??= [];
+        } elseif (WEB_MODE) {
             \session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => \defined('RELATIVE_COOKIE_PATH') ? RELATIVE_COOKIE_PATH : '/',
@@ -1137,7 +1141,7 @@ class Distributor implements DistributorInterface
         SecurityHeaders::setCurrent($this->securityHeaders);
         Assets::setCurrent($this->assets);
         $this->getGlobalTemplateEntity()->assign('csp_nonce', $nonce);
-        if (WEB_MODE) {
+        if (RuntimeMode::isWeb()) {
             $this->securityHeaders->send();
         }
     }

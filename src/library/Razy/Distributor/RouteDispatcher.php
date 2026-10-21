@@ -19,9 +19,11 @@ use InvalidArgumentException;
 use Razy\Contract\MiddlewareInterface;
 use Razy\Exception\HttpException;
 use Razy\Exception\RedirectException;
+use Razy\Http\Headers;
 use Razy\Module;
 use Razy\Module\ModuleStatus;
 use Razy\Route;
+use Razy\RuntimeMode;
 use Razy\Util\PathUtil;
 use Razy\Util\StringUtil;
 use RuntimeException;
@@ -526,7 +528,7 @@ class RouteDispatcher
     public function matchRoute(string $urlQuery, string $siteURL, ModuleRegistry $registry): bool
     {
         // Sort routes only when new routes have been added (dirty flag)
-        if (CLI_MODE) {
+        if (RuntimeMode::isCli()) {
             if ($this->scriptsDirty) {
                 StringUtil::sortPathLevel($this->CLIScripts);
                 $this->scriptsDirty = false;
@@ -541,7 +543,7 @@ class RouteDispatcher
         }
 
         // Determine the current request method for HTTP method filtering
-        $requestMethod = !CLI_MODE ? ($_SERVER['REQUEST_METHOD'] ?? 'GET') : 'CLI';
+        $requestMethod = !RuntimeMode::isCli() ? ($_SERVER['REQUEST_METHOD'] ?? 'GET') : 'CLI';
 
         foreach ($list as $routeKey => $data) {
             if (ModuleStatus::Loaded === $data['module']->getStatus()) {
@@ -598,7 +600,7 @@ class RouteDispatcher
                 if ($isRedirect) {
                     $redirectPath = $data['redirect_target'];
                     $redirectUrl = PathUtil::append($data['redirect_absolute'] ? $siteURL : $data['module']->getModuleURL(), $redirectPath);
-                    \header('Location: ' . $redirectUrl);
+                    Headers::send('Location: ' . $redirectUrl);
                     throw new RedirectException($redirectUrl, 302);
                 }
 
@@ -836,8 +838,8 @@ class RouteDispatcher
             // (:512): the THROWER sends the response — main.php's HttpException
             // catch means "already sent, end gracefully", so throwing bare here
             // produced a silent 200-empty. Live web dogfood found this.
-            \header('HTTP/1.1 302', true, 302);
-            \header('Location: ' . $url, true);
+            Headers::send('HTTP/1.1 302', true, 302);
+            Headers::send('Location: ' . $url, true);
 
             throw new RedirectException($url, 302);
         }
@@ -846,11 +848,11 @@ class RouteDispatcher
         $wantsJson = \strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
             || \str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
 
-        \header('HTTP/1.1 503', true, 503);
-        \header('Retry-After: 60');
+        Headers::send('HTTP/1.1 503', true, 503);
+        Headers::send('Retry-After: 60');
 
         if ($wantsJson) {
-            \header('Content-Type: application/json; charset=utf-8');
+            Headers::send('Content-Type: application/json; charset=utf-8');
             echo \json_encode([
                 'error' => 'module-not-ready',
                 'module' => $gateCode,
@@ -858,7 +860,7 @@ class RouteDispatcher
                 'fix' => $fix,
             ], JSON_UNESCAPED_SLASHES);
         } else {
-            \header('Content-Type: text/html; charset=utf-8');
+            Headers::send('Content-Type: text/html; charset=utf-8');
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>503 — module not ready</title></head>'
                 . '<body style="font-family:system-ui,sans-serif;max-width:38rem;margin:4rem auto;padding:0 1rem">'
                 . '<h1>503 — module not ready</h1>'

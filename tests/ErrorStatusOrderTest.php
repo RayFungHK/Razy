@@ -63,7 +63,7 @@ class ErrorStatusOrderTest extends PHPUnit\Framework\TestCase
             . 'and the unguarded ob_clean() notice poisoned every later header()',
         );
 
-        $headerPos = \strpos($src, "\\header('HTTP/1.1 404 Not Found', true, 404)");
+        $headerPos = \strpos($src, "Headers::send('HTTP/1.1 404 Not Found', true, 404)");
         $echoPos = \strpos($src, "echo '<h1>404 Not Found</h1>'");
 
         self::assertGreaterThan(0, $headerPos, 'the 404 status header (replace form) must exist');
@@ -79,7 +79,7 @@ class ErrorStatusOrderTest extends PHPUnit\Framework\TestCase
     {
         $src = self::src();
 
-        $headerPos = \strpos($src, '\header(\'HTTP/1.1 \' . $status, true, $status)');
+        $headerPos = \strpos($src, 'Headers::send(\'HTTP/1.1 \' . $status, true, $status)');
         $echoPos = \strpos($src, 'echo $source->output();');
 
         self::assertGreaterThan(0, $headerPos, 'status header call must exist');

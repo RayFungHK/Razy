@@ -303,11 +303,11 @@ final class SecurityHeaders
             return;
         }
         if (null === $emit) {
-            if (\headers_sent()) {
+            if (Headers::sent()) {
                 return;
             }
             $emit = static function (string $line): void {
-                \header($line, true);
+                Headers::send($line, true);
             };
         }
         foreach ($this->build($ssl ?? \Razy\Util\NetworkUtil::isSsl()) as $name => $value) {

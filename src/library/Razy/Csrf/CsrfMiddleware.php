@@ -16,6 +16,7 @@ namespace Razy\Csrf;
 
 use Closure;
 use Razy\Contract\MiddlewareInterface;
+use Razy\Http\Headers;
 
 /**
  * CSRF protection middleware — enforces CSRF token validation on state-changing requests.
@@ -210,7 +211,7 @@ class CsrfMiddleware implements MiddlewareInterface
             return ($this->onMismatch)($context);
         }
 
-        \header('HTTP/1.1 419', true, 419);
+        Headers::send('HTTP/1.1 419', true, 419);
 
         return null;
     }

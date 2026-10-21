@@ -358,7 +358,11 @@ class Standalone implements DistributorInterface
      */
     public function setSession(): static
     {
-        if (WEB_MODE) {
+        if (RuntimeMode::isSimulatedWeb()) {
+            // RZ-15: the test client keeps $_SESSION between its requests; the
+            // native session would warn (CLI output already sent headers).
+            $_SESSION ??= [];
+        } elseif (WEB_MODE) {
             \session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => \defined('RELATIVE_COOKIE_PATH') ? RELATIVE_COOKIE_PATH : '/',

@@ -12,6 +12,7 @@
 namespace Razy\Http;
 
 use InvalidArgumentException;
+use Razy\RuntimeMode;
 
 /**
  * A complete answer to a request, sent by the framework (RZ-12).
@@ -106,10 +107,10 @@ final class Response
      */
     public function send(): void
     {
-        if (WEB_MODE && !\headers_sent()) {
-            \http_response_code($this->status);
+        if (RuntimeMode::isWeb() && !Headers::sent()) {
+            Headers::status($this->status);
             foreach ($this->headers as $name => $value) {
-                \header($name . ': ' . $value);
+                Headers::send($name . ': ' . $value);
             }
         }
         echo $this->body;

@@ -20,6 +20,7 @@ use Razy\Database\ModuleDatabaseConnector;
 use Razy\Distributor;
 use Razy\Exception\DatabaseException;
 use Razy\Exception\SetupException;
+use Razy\Http\Headers;
 use Razy\Module;
 use Razy\Security\Wizard\WizardTokenSigner;
 use Razy\Util\PathUtil;
@@ -165,8 +166,8 @@ final class WizardRunner
         $method = \strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
         if ($method !== 'GET' && $method !== 'POST') {
-            \header('HTTP/1.1 405', true, 405);
-            \header('Allow: GET, POST');
+            Headers::send('HTTP/1.1 405', true, 405);
+            Headers::send('Allow: GET, POST');
 
             return;
         }
@@ -296,8 +297,8 @@ final class WizardRunner
      */
     private function page(int $status, string $title, string $bodyHtml): void
     {
-        \header('HTTP/1.1 ' . $status, true, (int) $status);
-        \header('Content-Type: text/html; charset=utf-8');
+        Headers::send('HTTP/1.1 ' . $status, true, (int) $status);
+        Headers::send('Content-Type: text/html; charset=utf-8');
 
         echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>'
             . \htmlspecialchars($title, ENT_QUOTES, 'UTF-8')
