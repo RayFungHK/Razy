@@ -22,6 +22,7 @@ use Razy\Config\SiteConfig;
 use Razy\Error\ErrorReporter;
 use Razy\Exception\ConfigurationException;
 use Razy\Logger;
+use Razy\Util\PathUtil;
 use ReflectionProperty;
 
 #[CoversClass(SiteConfig::class)]
@@ -128,22 +129,22 @@ final class SiteConfigTest extends TestCase
     #[RunInSeparateProcess]
     public function testApplicationLoadSiteConfigFailsFastOnNoReturn(): void
     {
-        $file = $this->write("<?php\n// forgot the return\n['domains' => []];\n");
+        $this->write("<?php\n// forgot the return\n['domains' => []];\n");
         \define('RAZY_PATH', $this->dir);
 
         $this->expectException(ConfigurationException::class);
-        $this->expectExceptionMessage($file);
+        $this->expectExceptionMessage(PathUtil::append($this->dir, 'sites.inc.php')); // the path as Application builds it (Windows separators)
         (new Application())->loadSiteConfig();
     }
 
     #[RunInSeparateProcess]
     public function testApplicationWrapsParseErrors(): void
     {
-        $file = $this->write("<?php\nreturn ['domains' => [;\n");
+        $this->write("<?php\nreturn ['domains' => [;\n");
         \define('RAZY_PATH', $this->dir);
 
         $this->expectException(ConfigurationException::class);
-        $this->expectExceptionMessage('Failed to load site configuration: ' . $file);
+        $this->expectExceptionMessage('Failed to load site configuration: ' . PathUtil::append($this->dir, 'sites.inc.php'));
         (new Application())->loadSiteConfig();
     }
 
