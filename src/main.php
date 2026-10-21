@@ -81,6 +81,11 @@ if (WEB_MODE) {
     // Enable or disable verbose error output based on the site configuration
     Error::configure($razyConfig);
 
+    // RZ-14: JSON stderr logs when RAZY_LOG_FORMAT / 'log_format' says so, and
+    // the X-Request-ID accept policy applied at the start of every request.
+    Log\RuntimeLogging::configure($razyConfig);
+    $requestIdPolicy = Http\RequestId::policyFromConfig($razyConfig);
+
     // Apply the configured timezone and compute the UTC offset string (e.g. "+8:00")
     if (isset($razyConfig['timezone']) && $razyConfig['timezone']) {
         try {
@@ -144,7 +149,7 @@ if (WEB_MODE) {
         Application::Lock();
 
         // Build a request handler closure that will be invoked for every incoming HTTP request
-        $handler = function () use ($razyConfig, $isStandaloneMode, $relativeRoot, $app, &$firstRequestHandled) {
+        $handler = function () use ($razyConfig, $isStandaloneMode, $relativeRoot, $app, &$firstRequestHandled, $requestIdPolicy) {
             try {
                 // --- Per-request state reset (prevent cross-request leaks) ---
                 \header('HTTP/1.1 200', true, 200);
@@ -153,6 +158,8 @@ if (WEB_MODE) {
                 // that never reaches a dist (unmatched 404) gets the baseline.
                 Http\SecurityHeaders::setCurrent(null);
                 Asset\Assets::setCurrent(null); // RZ-09: likewise the asset set
+                // RZ-14: this request's id (header + log context; the previous one is gone).
+                Http\RequestId::begin(null, $requestIdPolicy);
                 // Note: Error::reset() is only called in the finally block below
                 // to avoid redundant double-reset per request. That reset also
                 // clears debug, so re-apply the config (and the per-request
@@ -249,6 +256,7 @@ if (WEB_MODE) {
                 // Reset error state and close any session that user code may
                 // have opened (prevents session file-lock deadlocks).
                 Error::reset();
+                Http\RequestId::reset();
                 if (\session_status() === PHP_SESSION_ACTIVE) {
                     \session_write_close();
                 }
@@ -275,6 +283,9 @@ if (WEB_MODE) {
     } else {
         // --- Standard (non-worker) request handling ---
         try {
+            // RZ-14: this request's id (X-Request-ID response header + log context).
+            Http\RequestId::begin(null, $requestIdPolicy);
+
             // Framework liveness probe — answered before any Application boot (§ checklist).
             $probeRaw = (string) ($_SERVER['REQUEST_URI'] ?? '');
             if (\defined('RELATIVE_ROOT') && RELATIVE_ROOT !== '') {

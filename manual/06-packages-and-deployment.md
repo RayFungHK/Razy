@@ -223,6 +223,20 @@ built-in server** — use `deploy/Dockerfile.worker` (FrankenPHP worker) for pro
       wire probes to health, Prometheus to metrics (`razy_http_requests_total` drives
       the HPA — see `deploy/k8s/hpa.yaml`); keep `RAZY_HEALTH_TOKEN` set so deep tiers
       stay private
+- [ ] **Readiness (RZ-13)**: point the readiness probe at `GET /_razy/ready` (relative to
+      the dist's URL path). Modules register checks with
+      `$agent->addHealthCheck('db', fn () => $db->query('SELECT 1') !== null)` (in `__onLoad`
+      under `compiled_boot`); a failing critical check answers 503 `{"status":"fail"}`, a
+      non-critical one 200 `degraded`. It is answered before the session and the route
+      table. Check errors are shown only with `?token=<RAZY_HEALTH_TOKEN>` (and logged);
+      keep checks cheap and give network calls their own timeout
+- [ ] **Request id + JSON logs (RZ-14)**: every response carries `X-Request-ID` (the
+      client's valid id, or a new 32-hex id; `RAZY_REQUEST_ID_ACCEPT` = `any` (default) /
+      `trusted_proxy` / `none`). Log records carry it as `request_id`, text lines end in
+      ` rid=<id>`, and `Razy\Http\HttpClient` forwards it upstream. Set
+      `RAZY_LOG_FORMAT=json` (and `RAZY_LOG_LEVEL`, default `info`) to send framework error
+      reports to stderr as one JSON object per line; add your own fields with
+      `Razy\Log\LogContext::set('tenant', $id)`
 - [ ] **Scheduled jobs**: one crontab line (`* * * * * cd /app && php Razy.phar schedule run`)
       drives `scheduler.inc.php` (cron expressions, `withoutOverlapping` locks); multi-node
       setups must use `RedisLock` — `FileLock` is host-local
@@ -232,6 +246,6 @@ built-in server** — use `deploy/Dockerfile.worker` (FrankenPHP worker) for pro
 - [ ] `php Razy.phar rewrite <dist>` output (`.htaccess`/Caddyfile) is **generated** —
       don't hand-edit (RZ-013)
 - [ ] Logs/monitoring: `serve -debug -p <file>` exists for dev CLI work; production log
-      wiring is app-level (no core APM) — tell stakeholders honestly
+      wiring beyond the JSON stderr reporter (RZ-14) is app-level (no core APM)
 
 Next: [07-security-guide.md](07-security-guide.md).

@@ -75,6 +75,7 @@ class FileHandler implements LogHandlerInterface
         // Sanitize message to prevent log injection via embedded newlines
         $sanitizedMessage = \str_replace(["\r\n", "\r", "\n"], ' ', $message);
         $line = "[{$timestamp}] {$channelTag}[{$levelUpper}] {$sanitizedMessage}";
+        $line .= LineFormatter::requestIdSuffix($context);
 
         // Append extra context
         $extra = $this->getExtraContext($context);

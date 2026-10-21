@@ -13,6 +13,7 @@ namespace Razy\Error;
 
 use Razy\Contract\Log\LoggerInterface;
 use Razy\Exception\QueryException;
+use Razy\Http\RequestId;
 use Stringable;
 use Throwable;
 
@@ -111,6 +112,11 @@ class ErrorReporter
         if (isset($context['sql'])) {
             $line .= ' | SQL: ' . self::stringify($context['sql']);
         }
+        // RZ-14: correlate the fallback line with the request too.
+        $requestId = RequestId::current();
+        if (null !== $requestId) {
+            $line .= ' rid=' . $requestId;
+        }
         \error_log('[Razy] ' . $line . "\n" . $exception->getTraceAsString());
         if (null !== $loggerFailure) {
             \error_log(\sprintf(
@@ -142,7 +148,8 @@ class ErrorReporter
                 // fall through to error_log()
             }
         }
-        \error_log('[Razy] ' . $message);
+        $requestId = RequestId::current();
+        \error_log('[Razy] ' . $message . (null !== $requestId ? ' rid=' . $requestId : ''));
     }
 
     /**

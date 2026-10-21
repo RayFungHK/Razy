@@ -32,6 +32,7 @@ use Razy\Distributor\ModuleScanner;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
+use Razy\Health\HealthRegistry;
 use Razy\Http\Request;
 use Razy\Http\RequestContext;
 use Razy\Http\RequestResolver;
@@ -163,6 +164,9 @@ class Distributor implements DistributorInterface
     /** RZ-12: this request's context, rebuilt by beginResponse() on every request */
     private ?RequestContext $requestContext = null;
 
+    /** RZ-13: readiness checks answered at /_razy/ready ($agent->addHealthCheck()) */
+    private HealthRegistry $healthChecks;
+
     /**
      * Distributor constructor.
      *
@@ -264,6 +268,8 @@ class Distributor implements DistributorInterface
 
         // RZ-12: the request-resolver stage, filled by $agent->resolveRequest().
         $this->requestResolver = new RequestResolver();
+        // RZ-13: readiness checks, filled by $agent->addHealthCheck().
+        $this->healthChecks = new HealthRegistry();
 
         // AUTHZ-RAIL: permanently mounted gate — no config key, no arming
         // ceremony, zero-BC: with no route ever calling Route::can() the
@@ -520,6 +526,11 @@ class Distributor implements DistributorInterface
             return true;
         }
 
+        // RZ-13: readiness probe, before the session (a probe must not open one).
+        if (!$worker && $this->answeredReadiness()) {
+            return true;
+        }
+
         $this->setSession();
 
         // Execute all await functions and notify ready
@@ -536,7 +547,7 @@ class Distributor implements DistributorInterface
 
         $this->registry->notifyReady();
 
-        if ($worker && $this->assets->serve($this->urlQuery)) {
+        if ($worker && ($this->assets->serve($this->urlQuery) || $this->answeredReadiness())) {
             $this->coreInitialized = true;
 
             return true;
@@ -607,7 +618,7 @@ class Distributor implements DistributorInterface
             return true;
         }
 
-        if ($this->assets->serve($this->urlQuery)) {
+        if ($this->assets->serve($this->urlQuery) || $this->answeredReadiness()) {
             return true;
         }
 
@@ -823,6 +834,14 @@ class Distributor implements DistributorInterface
     public function getRequestResolver(): RequestResolver
     {
         return $this->requestResolver;
+    }
+
+    /**
+     * RZ-13: the dist's readiness checks (`$agent->addHealthCheck()`), run at /_razy/ready.
+     */
+    public function getHealthChecks(): HealthRegistry
+    {
+        return $this->healthChecks;
     }
 
     /**
@@ -1140,6 +1159,19 @@ class Distributor implements DistributorInterface
         if (WEB_MODE) {
             $this->securityHeaders->send();
         }
+    }
+
+    /**
+     * RZ-13: answer GET /_razy/ready from this dist's checks; true when answered.
+     */
+    private function answeredReadiness(): bool
+    {
+        if (!Health::isReadyPath($this->urlQuery)) {
+            return false;
+        }
+        Health::respondReady($this->healthChecks);
+
+        return true;
     }
 
     /**

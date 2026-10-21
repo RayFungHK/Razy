@@ -203,6 +203,30 @@ class Agent
     }
 
     /**
+     * RZ-13: add a readiness check to this dist's `GET /_razy/ready` probe.
+     *
+     * The check returns true (or nothing) when the dependency is usable and
+     * returns false or throws when it is not. It is registered as
+     * `<module code>:<name>` and runs on every probe, so keep it cheap
+     * (`SELECT 1`) and give network calls a short timeout. A failing
+     * critical check makes the probe answer 503; a non-critical one only
+     * reports `degraded`. Register in __onLoad when the dist uses
+     * compiled_boot (a compiled boot does not re-run __onInit).
+     *
+     * @param string $name Check name (letters, digits, `._/:-`)
+     * @param callable $check fn(): bool|void
+     * @param bool $critical Whether a failure fails readiness (503)
+     *
+     * @return $this Fluent interface
+     */
+    public function addHealthCheck(string $name, callable $check, bool $critical = true): static
+    {
+        $this->module->addHealthCheck($name, $check(...), $critical);
+
+        return $this;
+    }
+
+    /**
      * RZ-12: add a request resolver to this dist's resolver stage.
      *
      * It runs on every request after the lifecycle is ready and the session
