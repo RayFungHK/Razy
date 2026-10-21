@@ -51,7 +51,7 @@ final class TestingClientTest extends TestCase
                     $agent->addLazyRoute([
                         'hello' => 'hello', 'feed' => 'feed', 'echo' => 'echo', 'go' => 'go',
                         'boom' => 'boom', 'count' => 'count', 'cookie' => 'cookie', 'expire' => 'expire',
-                        'method' => 'method', 'price' => 'price',
+                        'method' => 'method', 'price' => 'price', 'twocookies' => 'twocookies',
                     ]);
                     return true;
                 }
@@ -68,6 +68,7 @@ final class TestingClientTest extends TestCase
             'price' => 'echo \acme\shop\Price::format(1234);',
             'expire' => "\\Razy\\Http\\Headers::cookie('flavor', 'gone', ['path' => '/', 'expires' => \\time() - 3600]); echo \$_COOKIE['flavor'] ?? 'none';",
             'method' => "echo \$_SERVER['REQUEST_METHOD'] . ' ' . json_encode(\$_POST) . ' ' . (\$_SERVER['HTTP_X_TRACE'] ?? '-');",
+            'twocookies' => "\\Razy\\Http\\Headers::cookie('flavor', 'stale', ['path' => '/', 'expires' => \\time() - 3600]); \\Razy\\Http\\Headers::cookie('flavor', 'fresh', ['path' => '/']); echo \$_COOKIE['flavor'] ?? 'none';",
         ];
         \mkdir($this->distPath . '/acme/shop/default/library', 0o777, true);
         \file_put_contents($this->distPath . '/acme/shop/default/library/Price.php', "<?php\nnamespace acme\\shop;\nfinal class Price { public static function format(int \$cents): string { return number_format(\$cents / 100, 2); } }\n");
@@ -197,6 +198,20 @@ final class TestingClientTest extends TestCase
         $this->assertSame(['flavor'], $expired->expiredCookies(), 'a past Expires means delete');
         $this->assertSame('choc', $expired->body(), 'the request still carried the old value');
         $this->assertSame('none', $client->get('/shop/cookie/')->body(), 'the jar dropped it');
+    }
+
+    public function testALaterLiveCookieSurvivesAnEarlierExpiredOne(): void
+    {
+        $client = $this->client();
+        $response = $client->get('/shop/twocookies/');
+
+        $this->assertSame(['flavor'], $response->expiredCookies(), 'the first line is still reported as a delete');
+        $this->assertSame(
+            [['name' => 'flavor', 'value' => 'stale', 'delete' => true], ['name' => 'flavor', 'value' => 'fresh', 'delete' => false]],
+            $response->cookieChanges(),
+            'changes stay in send order',
+        );
+        $this->assertSame('fresh', $client->get('/shop/cookie/')->body(), 'a later live Set-Cookie wins, as in a browser');
     }
 
     public function testExpiredCookiesIgnoresLiveOnes(): void

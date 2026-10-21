@@ -201,16 +201,13 @@ final class Client
         }
 
         $response = new TestResponse($captured['status'], $captured['headers'], $output);
-        foreach ($response->cookies() as $name => $value) {
-            if ($value === '') {
+        // in send order: a later live cookie survives an earlier delete of the same name, as in a browser
+        foreach ($response->cookieChanges() as ['name' => $name, 'value' => $value, 'delete' => $delete]) {
+            if ($delete) {
                 unset($this->cookies[$name]);
             } else {
                 $this->cookies[$name] = $value;
             }
-        }
-        // a value plus a past Expires or Max-Age=0 deletes the cookie too, as a browser does
-        foreach ($response->expiredCookies() as $name) {
-            unset($this->cookies[$name]);
         }
 
         return $response;

@@ -34,6 +34,22 @@ final class TestResponse
     ) {
     }
 
+    /**
+     * A `Max-Age <= 0` or an `Expires` in the past deletes the cookie.
+     */
+    private static function expired(string $attributes): bool
+    {
+        $maxAge = \preg_match('/(?:^|;)\s*max-age\s*=\s*(-?\d+)/i', ';' . $attributes, $m) === 1 ? (int) $m[1] : null;
+        if ($maxAge !== null && $maxAge <= 0) {
+            return true;
+        }
+        $expires = \preg_match('/(?:^|;)\s*expires\s*=\s*([^;]+)/i', ';' . $attributes, $m) === 1
+            ? \strtotime(\trim($m[1]))
+            : false;
+
+        return $expires !== false && $expires <= \time();
+    }
+
     public function status(): int
     {
         return $this->status;
@@ -92,10 +108,8 @@ final class TestResponse
     public function cookies(): array
     {
         $cookies = [];
-        foreach ($this->headers()['set-cookie'] ?? [] as $line) {
-            [$pair] = \explode(';', $line, 2);
-            [$name, $value] = \array_pad(\explode('=', $pair, 2), 2, '');
-            $cookies[\rawurldecode(\trim($name))] = \rawurldecode(\trim($value));
+        foreach ($this->cookieChanges() as ['name' => $name, 'value' => $value]) {
+            $cookies[$name] = $value;
         }
 
         return $cookies;
@@ -109,18 +123,35 @@ final class TestResponse
     public function expiredCookies(): array
     {
         $expired = [];
-        foreach ($this->headers()['set-cookie'] ?? [] as $line) {
-            [$pair, $attributes] = \array_pad(\explode(';', $line, 2), 2, '');
-            [$name] = \array_pad(\explode('=', $pair, 2), 2, '');
-            $maxAge = \preg_match('/(?:^|;)\s*max-age\s*=\s*(-?\d+)/i', ';' . $attributes, $m) === 1 ? (int) $m[1] : null;
-            $expires = \preg_match('/(?:^|;)\s*expires\s*=\s*([^;]+)/i', ';' . $attributes, $m) === 1
-                ? \strtotime(\trim($m[1]))
-                : false;
-            if (($maxAge !== null && $maxAge <= 0) || ($expires !== false && $expires <= \time())) {
-                $expired[] = \rawurldecode(\trim($name));
+        foreach ($this->cookieChanges() as ['name' => $name, 'delete' => $delete]) {
+            if ($delete) {
+                $expired[] = $name;
             }
         }
 
         return $expired;
+    }
+
+    /**
+     * Every `Set-Cookie` line in send order, the way a cookie jar must apply it: a later
+     * line for a name replaces an earlier one, and a delete only clears what came before it.
+     *
+     * @return list<array{name: string, value: string, delete: bool}>
+     */
+    public function cookieChanges(): array
+    {
+        $changes = [];
+        foreach ($this->headers()['set-cookie'] ?? [] as $line) {
+            [$pair, $attributes] = \array_pad(\explode(';', $line, 2), 2, '');
+            [$name, $value] = \array_pad(\explode('=', $pair, 2), 2, '');
+            $value = \rawurldecode(\trim($value));
+            $changes[] = [
+                'name' => \rawurldecode(\trim($name)),
+                'value' => $value,
+                'delete' => $value === '' || self::expired($attributes),
+            ];
+        }
+
+        return $changes;
     }
 }
