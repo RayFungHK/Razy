@@ -12,7 +12,9 @@
 namespace Razy;
 
 use Exception;
+use Razy\Config\SiteConfig;
 use Razy\Contract\ContainerInterface;
+use Razy\Error\ErrorReporter;
 use Razy\Exception\ConfigurationException;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
@@ -297,6 +299,8 @@ class Application
                         $aliasMapping[$domain] ??= [];
                         $aliasMapping[$domain][] = $alias;
                         $this->alias[$alias] = $domain;
+                    } else {
+                        ErrorReporter::warn("sites.inc.php: alias '{$alias}' => '{$domain}' is not a valid domain pair; skipped.");
                     }
                 }
             }
@@ -313,13 +317,15 @@ class Application
                 // only gate here, or the documented default site is unreachable
                 // by construction (proven live 2026-09: a worker pod with a '*'
                 // entry booted to "No domain matched for ''").
-                if (('*' === $domain || NetworkUtil::isFqdn($domain, true)) && \is_array($distPaths)) {
+                if (!('*' === $domain || NetworkUtil::isFqdn($domain, true))) {
+                    ErrorReporter::warn("sites.inc.php: domain '{$domain}' is not a valid domain; skipped.");
+                } elseif (\is_array($distPaths)) {
                     foreach ($distPaths as $relativePath => $distCode) {
                         // Recursively validate distributor identifiers and register them
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
                             if (\is_string($distIdentifier)) {
                                 // Validate distributor identifier format: code[@tag]
-                                if (\preg_match('/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i', $distIdentifier)) {
+                                if (\preg_match(SiteConfig::DIST_IDENTIFIER, $distIdentifier)) {
                                     if (isset($this->distributors[$distIdentifier])) {
                                         // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
@@ -332,7 +338,10 @@ class Application
 
                                         // Verify the distributor's config file (dist.php) exists
                                         $distConfigPath = PathUtil::append(SITES_FOLDER, $code, 'dist.php');
-                                        if (\is_file($distConfigPath)) {
+                                        if (!\is_file($distConfigPath)) {
+                                            // RZ-17: say why the entry is ignored (a dist may be deployed later, so not fatal).
+                                            ErrorReporter::warn("sites.inc.php: dist '{$code}' for '{$domain}' has no dist.php ({$distConfigPath}); skipped.");
+                                        } else {
                                             $this->multisite[$domain] ??= [];
                                             $this->multisite[$domain][$urlPath] = $distIdentifier;
 
@@ -390,7 +399,10 @@ class Application
         // Import the config file setting
         try {
             if (\is_file($configFilePath)) {
-                $this->config = require $configFilePath;
+                // RZ-17: a missing `return`, a non-array section or a bad dist
+                // entry fails here, naming the file (it used to TypeError or
+                // drop the entry silently).
+                $this->config = SiteConfig::validate(require $configFilePath, $configFilePath);
                 if (!isset($this->protection['config_file'])) {
                     $this->protection['config_file'] = [
                         'checksums' => \md5_file($configFilePath),
@@ -408,25 +420,16 @@ class Application
                     }
                 }
             }
-        } catch (Exception $e) {
-            throw new ConfigurationException('Failed to load site configuration: ' . $configFilePath, $e);
-        }
-
-        if (!\is_array($this->config['domains'] ?? null)) {
-            $this->config['domains'] = [];
-        }
-
-        if (!\is_array($this->config['alias'] ?? null)) {
-            $this->config['alias'] = [];
+        } catch (ConfigurationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            // Exceptions and Errors alike (a ParseError in the file is an Error).
+            throw new ConfigurationException('Failed to load site configuration: ' . $configFilePath . ': ' . $e->getMessage(), $e);
         }
 
         // Host-level sibling exclusions (coexistence; Routing\ExcludePaths).
         // Entry validation happens at generation time (compiler) so a typo
         // surfaces as a clear `rewrite` error instead of taking down serving.
-        if (!\is_array($this->config['exclude_paths'] ?? null)) {
-            $this->config['exclude_paths'] = [];
-        }
-
         return $this->config;
     }
 

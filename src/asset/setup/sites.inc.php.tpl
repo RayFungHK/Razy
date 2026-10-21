@@ -14,11 +14,10 @@ return [
 		/*
 		 * The key is the domain ('*' = default site: serves any host nothing
 		 * else matched) and the value MUST BE AN ARRAY of URL-path prefix =>
-		 * distribution code. String values are parsed nowhere — Application's
-		 * updateSites() requires is_array() (verified 2026-09; an earlier
-		 * revision of this comment advertised a string shortcut that was
-		 * never implemented, and entries written that way were silently
-		 * dropped).
+		 * distribution code. A string value, a missing `return` or a
+		 * malformed dist code stops boot with an error naming this file
+		 * (RZ-17; such entries used to be dropped silently). An invalid host
+		 * key, or a dist with no dist.php, is skipped with a logged warning.
 		 *
 		 * The distribution folder must contain a dist.php
 		 *
