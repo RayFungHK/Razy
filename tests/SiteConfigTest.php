@@ -126,6 +126,33 @@ final class SiteConfigTest extends TestCase
         $this->assertStringContainsString("alias 'also bad' => 'ok.example.com' is not a valid domain pair", $messages);
     }
 
+    public function testDomainListFromEnvWithDottedTagsValidatesAndRegisters(): void
+    {
+        \putenv('RZ17_DOMAINS=app.example.com, docs.example.com=docs@v1.2.0, beta.example.com=main@1.2.0');
+        try {
+            $domains = DomainList::fromEnv(['/' => 'main@release-2'], 'RZ17_DOMAINS');
+        } finally {
+            \putenv('RZ17_DOMAINS');
+        }
+
+        $config = SiteConfig::validate(['domains' => $domains], 'sites.inc.php');
+        $this->assertSame('docs@v1.2.0', $config['domains']['docs.example.com']['/']);
+
+        // Every identifier DomainList accepts must also pass the shared grammar used by updateSites().
+        foreach (['docs@v1.2.0', 'main@1.2.0', 'main@release-2', 'main@beta', 'main'] as $id) {
+            $this->assertMatchesRegularExpression(SiteConfig::DIST_IDENTIFIER, $id);
+        }
+        foreach (['main@', 'main@.x', 'main@-x', 'my site', '../etc'] as $id) {
+            $this->assertDoesNotMatchRegularExpression(SiteConfig::DIST_IDENTIFIER, $id);
+        }
+    }
+
+    public function testDomainListRejectsWhatTheValidatorRejects(): void
+    {
+        $this->expectException(ConfigurationException::class);
+        DomainList::parse('docs.example.com=docs@.hidden', ['/' => 'main']);
+    }
+
     #[RunInSeparateProcess]
     public function testApplicationLoadSiteConfigFailsFastOnNoReturn(): void
     {

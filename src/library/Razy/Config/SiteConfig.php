@@ -35,8 +35,13 @@ final class SiteConfig
     /** Expected shape, quoted in every error. */
     public const SHAPE = "sites.inc.php must return ['domains' => [...], 'alias' => [...]]";
 
-    /** Dist identifier: `code` or `code@tag` (tag = word or dotted version). */
-    public const DIST_IDENTIFIER = '/^[a-z0-9][\w\-]*(@(?:[a-z0-9][\w\-]*|\d+(\.\d+)*))?$/i';
+    /**
+     * Dist identifier: `code` or `code@tag`. A tag starts with a letter or digit
+     * and may hold letters, digits, `_`, `-` and `.` (`beta`, `1.2.0`, `v1.2.0`).
+     * One grammar for this file, `Application::updateSites()` and
+     * `DomainList::parse()`.
+     */
+    public const DIST_IDENTIFIER = '/^[a-z0-9][\w\-]*(@[a-z0-9][\w.\-]*)?$/i';
 
     /**
      * Validate the value a sites.inc.php returned and fill in missing sections.
