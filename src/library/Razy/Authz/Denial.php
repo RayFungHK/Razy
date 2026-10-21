@@ -17,6 +17,7 @@ namespace Razy\Authz;
 use Closure;
 use LogicException;
 use Razy\Exception\ConfigurationException;
+use Razy\Http\Headers;
 
 /**
  * The gate's refusal answer surface — shape deliberately mirrored from
@@ -145,10 +146,10 @@ class Denial
      */
     protected function sendHeader(string $header, int $status = 0): void
     {
-        if (\headers_sent()) {
+        if (Headers::sent()) {
             return;
         }
-        $status > 0 ? \header($header, true, $status) : \header($header, true);
+        $status > 0 ? Headers::send($header, true, $status) : Headers::send($header, true);
     }
 
     private function render(Refusal $refusal): void

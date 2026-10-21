@@ -16,6 +16,7 @@ namespace Razy\Session;
 
 use Razy\Contract\SessionDriverInterface;
 use Razy\Contract\SessionInterface;
+use Razy\Http\Headers;
 
 /**
  * Core session implementation.
@@ -449,6 +450,12 @@ class Session implements SessionInterface
      */
     protected function emitCookie(): void
     {
+        // RZ-15: the in-process test client records the cookie (it runs under CLI).
+        if (Headers::isCapturing()) {
+            Headers::cookie($this->config->name, $this->id, $this->cookieOptions());
+
+            return;
+        }
         if (\PHP_SAPI === 'cli' || \headers_sent()) {
             return;
         }
@@ -461,6 +468,12 @@ class Session implements SessionInterface
      */
     protected function expireCookie(): void
     {
+        // RZ-15: the in-process test client records the cookie (it runs under CLI).
+        if (Headers::isCapturing()) {
+            Headers::cookie($this->config->name, '', $this->cookieOptions(true));
+
+            return;
+        }
         if (\PHP_SAPI === 'cli' || \headers_sent()) {
             return;
         }

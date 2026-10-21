@@ -14,7 +14,9 @@ namespace Razy\Error;
 use Razy\Error;
 use Razy\Exception\NotFoundException;
 use Razy\Exception\QueryException;
+use Razy\Http\Headers;
 use Razy\Http\SecurityHeaders;
+use Razy\RuntimeMode;
 use Razy\Template;
 use Razy\Template\Source;
 use Razy\Terminal;
@@ -56,9 +58,9 @@ class ErrorRenderer
         // status header below: a long-lived worker process has already
         // "chosen" 200 for this response, and PHP 8.5 warns on late bare
         // status assignments — the replace form is the 2026-09 house style.
-        \header('HTTP/1.1 404 Not Found', true, 404);
+        Headers::send('HTTP/1.1 404 Not Found', true, 404);
 
-        if (WEB_MODE) {
+        if (RuntimeMode::isWeb()) {
             // RZ-10: the dist's security headers (or the baseline) on error pages too.
             SecurityHeaders::sendCurrent();
             echo '<h1>404 Not Found</h1>';
@@ -99,7 +101,7 @@ class ErrorRenderer
      */
     public static function showException(Throwable $exception): void
     {
-        if (WEB_MODE) {
+        if (RuntimeMode::isWeb()) {
             $errorId = ErrorReporter::report($exception);
             $source = self::buildPage($exception, $errorId);
 
@@ -119,8 +121,8 @@ class ErrorRenderer
             // http_response_code() it never trips PHP 8.5's new late-status
             // warning when the (CLI/test) process already chose one (2026-09).
             $status = self::statusFor($exception);
-            \header('HTTP/1.1 ' . $status, true, $status);
-            \header('X-Error-Id: ' . $errorId);
+            Headers::send('HTTP/1.1 ' . $status, true, $status);
+            Headers::send('X-Error-Id: ' . $errorId);
             SecurityHeaders::sendCurrent();
 
             echo $source->output();

@@ -1,0 +1,339 @@
+<?php
+
+/**
+ * RZ-15: the in-process HTTP test client.
+ *
+ * Apps had no way to run a web request through a dist from PHPUnit: the CLI
+ * process matched the CLI script table, kept no headers, and php://input
+ * could not be fed. Razy\Testing\Client runs the real web path in-process.
+ *
+ * @license MIT
+ */
+
+namespace Razy\Tests;
+
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+use Razy\Error\ErrorReporter;
+use Razy\Http\Headers;
+use Razy\Logger;
+use Razy\RuntimeMode;
+use Razy\Testing\Client;
+use Razy\Testing\TestResponse;
+use Razy\Util\PathUtil;
+use RuntimeException;
+
+#[CoversClass(Client::class)]
+#[CoversClass(TestResponse::class)]
+#[CoversClass(Headers::class)]
+#[CoversClass(RuntimeMode::class)]
+final class TestingClientTest extends TestCase
+{
+    private const DIST = 'rz15_client_fixture';
+
+    private string $distPath;
+
+    protected function setUp(): void
+    {
+        // Error pages report to the log; keep that out of the test output.
+        ErrorReporter::setLogger(new Logger());
+        $this->distPath = PathUtil::append(SITES_FOLDER, self::DIST);
+        $controller = PathUtil::append($this->distPath, 'acme', 'shop', 'default', 'controller');
+        \mkdir($controller, 0o777, true);
+        \file_put_contents($this->distPath . '/dist.php', "<?php\nreturn ['dist' => '" . self::DIST . "'];\n");
+        \file_put_contents($this->distPath . '/acme/shop/module.php', "<?php\nreturn ['module_code' => 'acme/shop', 'author' => 't', 'description' => 't'];\n");
+        \file_put_contents($this->distPath . '/acme/shop/default/package.php', "<?php\nreturn ['alias' => 'shop'];\n");
+        \file_put_contents($controller . '/shop.php', <<<'PHP'
+            <?php
+            use Razy\Controller;
+            return new class(null) extends Controller {
+                public function __onInit($agent): bool
+                {
+                    $agent->addLazyRoute([
+                        'hello' => 'hello', 'feed' => 'feed', 'echo' => 'echo', 'go' => 'go',
+                        'boom' => 'boom', 'count' => 'count', 'cookie' => 'cookie', 'expire' => 'expire',
+                        'method' => 'method', 'price' => 'price', 'twocookies' => 'twocookies',
+                    ]);
+                    return true;
+                }
+
+                public function __onDispose(): void
+                {
+                    if ('1' === ($_GET['dispose_boom'] ?? '')) {
+                        throw new \RuntimeException('dispose kaboom');
+                    }
+                }
+            };
+            PHP);
+        $routes = [
+            'hello' => "echo 'hello ' . (\$_GET['name'] ?? 'nobody');",
+            'feed' => "return \$this->xhr()->data(['sku' => 'A1'])->send(true, 'ok');",
+            'echo' => "echo json_encode(['got' => \\Razy\\Http\\RequestBody::jsonArray(), 'type' => \$_SERVER['CONTENT_TYPE'] ?? '']);",
+            'go' => "\$this->goto('hello/');",
+            'boom' => "throw new \\RuntimeException('kaboom');",
+            'count' => "\$_SESSION['n'] = (\$_SESSION['n'] ?? 0) + 1; echo \$_SESSION['n'];",
+            'cookie' => "\\Razy\\Http\\Headers::cookie('flavor', \$_COOKIE['flavor'] ?? 'choc', ['path' => '/']); echo \$_COOKIE['flavor'] ?? 'none';",
+            'price' => 'echo \acme\shop\Price::format(1234);',
+            'expire' => "\\Razy\\Http\\Headers::cookie('flavor', 'gone', ['path' => '/', 'expires' => \\time() - 3600]); echo \$_COOKIE['flavor'] ?? 'none';",
+            'method' => "echo \$_SERVER['REQUEST_METHOD'] . ' ' . json_encode(\$_POST) . ' ' . (\$_SERVER['HTTP_X_TRACE'] ?? '-');",
+            'twocookies' => "\\Razy\\Http\\Headers::cookie('flavor', 'stale', ['path' => '/', 'expires' => \\time() - 3600]); \\Razy\\Http\\Headers::cookie('flavor', 'fresh', ['path' => '/']); echo \$_COOKIE['flavor'] ?? 'none';",
+        ];
+        \mkdir($this->distPath . '/acme/shop/default/library', 0o777, true);
+        \file_put_contents($this->distPath . '/acme/shop/default/library/Price.php', "<?php\nnamespace acme\\shop;\nfinal class Price { public static function format(int \$cents): string { return number_format(\$cents / 100, 2); } }\n");
+        foreach ($routes as $name => $body) {
+            \file_put_contents($controller . "/shop.{$name}.php", "<?php\nreturn function () {\n{$body}\n};\n");
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        // a test that fails mid-capture must not leave the next one recording
+        Headers::stopCapture();
+        ErrorReporter::setLogger(null);
+        $this->removeDir($this->distPath);
+    }
+
+    public function testGetRunsTheWebRouteTable(): void
+    {
+        $response = $this->client()->get('/shop/hello/', ['name' => 'ray']);
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame('hello ray', $response->body());
+        $this->assertNotNull($response->header('X-Content-Type-Options'), 'the dist security headers are captured');
+        $this->assertFalse(RuntimeMode::isWeb(), 'the simulated web mode ends with the request');
+        $this->assertFalse(Headers::isCapturing());
+    }
+
+    public function testJsonApiResponse(): void
+    {
+        $response = $this->client()->get('/shop/feed/');
+
+        $this->assertSame(200, $response->status());
+        $this->assertStringStartsWith('application/json', (string) $response->header('content-type'));
+        $this->assertSame(['sku' => 'A1'], $response->json()['response']);
+    }
+
+    public function testJsonBodyReachesTheController(): void
+    {
+        $response = $this->client()->postJson('/shop/echo/', ['qty' => 3]);
+
+        $this->assertSame(['got' => ['qty' => 3], 'type' => 'application/json'], $response->json());
+    }
+
+    public function testFormPostAndDefaultHeaders(): void
+    {
+        $client = $this->client()->withHeader('X-Trace', 't-1');
+        $this->assertSame('POST {"a":"1"} t-1', $client->post('/shop/method/', ['a' => '1'])->body());
+        $this->assertSame('DELETE [] t-1', $client->request('DELETE', '/shop/method/')->body());
+    }
+
+    public function testPerRequestHeadersWinOverDefaults(): void
+    {
+        $client = $this->client()->withHeader('x-trace', 'default')->withHeader('Content-Type', 'text/plain');
+
+        $this->assertSame('POST {"a":"1"} per-call', $client->post('/shop/method/', ['a' => '1'], ['X-Trace' => 'per-call'])->body());
+        $this->assertSame('application/json', $client->postJson('/shop/echo/', [])->json()['type'], 'postJson keeps its Content-Type');
+    }
+
+    public function testModuleLibraryClassesAutoload(): void
+    {
+        $this->assertSame('12.34', $this->client()->get('/shop/price/')->body());
+    }
+
+    public function testDroppedClientUnregistersItsAutoloader(): void
+    {
+        $before = \count(\spl_autoload_functions());
+        $client = $this->client();
+        $client->get('/shop/price/');
+        $this->assertCount($before + 1, \spl_autoload_functions());
+        unset($client);
+        $this->assertCount($before, \spl_autoload_functions(), 'a dropped client must not pin its Domain on the autoload stack');
+    }
+
+    public function testRedirect(): void
+    {
+        $response = $this->client()->get('/shop/go/');
+
+        $this->assertSame(301, $response->status());
+        $this->assertTrue($response->isRedirect());
+        // getModuleURL() joins with PathUtil, which uses '\' on Windows when the test has no URL root
+        $this->assertStringEndsWith('hello/', \str_replace('\\', '/', (string) $response->header('Location')));
+    }
+
+    public function testUnknownPathIs404(): void
+    {
+        $response = $this->client()->get('/shop/nope/');
+
+        $this->assertSame(404, $response->status());
+        $this->assertStringContainsString('404 Not Found', $response->body());
+    }
+
+    public function testExceptionGivesTheSafeErrorPage(): void
+    {
+        $response = $this->client()->get('/shop/boom/');
+
+        $this->assertSame(500, $response->status());
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', (string) $response->header('X-Error-Id'));
+        $this->assertStringNotContainsString('kaboom', $response->body(), 'debug is off: no message leaks');
+    }
+
+    public function testSessionPersistsAcrossRequests(): void
+    {
+        $client = $this->client();
+        $this->assertSame('1', $client->get('/shop/count/')->body());
+        $this->assertSame('2', $client->get('/shop/count/')->body());
+        $this->assertSame(2, $client->session()['n']);
+        $this->assertFalse(isset($_SESSION), 'the test process session is restored');
+
+        $client->session()['n'] = 10;
+        $this->assertSame('11', $client->get('/shop/count/')->body());
+    }
+
+    public function testCookiesRoundTrip(): void
+    {
+        $client = $this->client();
+        $first = $client->get('/shop/cookie/');
+        $this->assertSame('none', $first->body());
+        $this->assertSame(['flavor' => 'choc'], $first->cookies());
+        $this->assertSame('choc', $client->get('/shop/cookie/')->body(), 'the jar sends it back');
+    }
+
+    public function testCookieDeletionByExpiryEmptiesTheJar(): void
+    {
+        $client = $this->client();
+        $this->assertSame('choc', $client->get('/shop/cookie/')->cookies()['flavor'] ?? null);
+        $expired = $client->get('/shop/expire/');
+        $this->assertSame(['flavor'], $expired->expiredCookies(), 'a past Expires means delete');
+        $this->assertSame('choc', $expired->body(), 'the request still carried the old value');
+        $this->assertSame('none', $client->get('/shop/cookie/')->body(), 'the jar dropped it');
+    }
+
+    public function testALaterLiveCookieSurvivesAnEarlierExpiredOne(): void
+    {
+        $client = $this->client();
+        $response = $client->get('/shop/twocookies/');
+
+        $this->assertSame(['flavor'], $response->expiredCookies(), 'the first line is still reported as a delete');
+        $this->assertSame(
+            [['name' => 'flavor', 'value' => 'stale', 'delete' => true], ['name' => 'flavor', 'value' => 'fresh', 'delete' => false]],
+            $response->cookieChanges(),
+            'changes stay in send order',
+        );
+        $this->assertSame('fresh', $client->get('/shop/cookie/')->body(), 'a later live Set-Cookie wins, as in a browser');
+    }
+
+    public function testExpiredCookiesIgnoresLiveOnes(): void
+    {
+        $response = new TestResponse(200, [
+            ['Set-Cookie', 'keep=1; Path=/'],
+            ['Set-Cookie', 'gone=1; Max-Age=0'],
+            ['Set-Cookie', 'minus=1; max-age=-1'],
+            ['Set-Cookie', 'old=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT'],
+            ['Set-Cookie', 'later=1; Max-Age=60'],
+        ], '');
+
+        $this->assertSame(['gone', 'minus', 'old'], $response->expiredCookies());
+        $this->assertSame(['keep' => '1', 'gone' => '1', 'minus' => '1', 'old' => '1', 'later' => '1'], $response->cookies());
+    }
+
+    public function testCapturedHeaderRejectsNewlines(): void
+    {
+        Headers::startCapture();
+        $warning = null;
+        \set_error_handler(static function (int $no, string $message) use (&$warning): bool {
+            $warning = $message;
+
+            return true;
+        }, \E_USER_WARNING);
+        try {
+            Headers::send("X-Evil: 1\r\nX-Injected: 1");
+            Headers::send('X-Good: ok');
+        } finally {
+            \restore_error_handler();
+        }
+        $captured = Headers::stopCapture();
+
+        $this->assertIsString($warning);
+        $this->assertStringContainsString('single header', $warning);
+        $this->assertSame([['X-Good', 'ok']], $captured['headers'], 'the injected line never reaches the response');
+    }
+
+    public function testGlobalsAreRestored(): void
+    {
+        $server = $_SERVER;
+        $get = $_GET;
+        $this->client()->get('/shop/hello/', ['name' => 'x']);
+
+        $this->assertSame($server, $_SERVER);
+        $this->assertSame($get, $_GET);
+    }
+
+    public function testGlobalsAreRestoredEvenWhenDisposalThrows(): void
+    {
+        $server = $_SERVER;
+        $get = $_GET;
+        $client = $this->client();
+
+        try {
+            $client->get('/shop/hello/', ['dispose_boom' => '1']);
+            $this->fail('the disposal exception reaches the caller');
+        } catch (RuntimeException $e) {
+            $this->assertSame('dispose kaboom', $e->getMessage());
+        }
+
+        $this->assertSame($server, $_SERVER, 'superglobals are restored even when an __onDispose hook throws');
+        $this->assertSame($get, $_GET);
+        $this->assertSame('hello x', $client->get('/shop/hello/', ['name' => 'x'])->body(), 'the next request still works');
+    }
+
+    public function testPositiveMaxAgeBeatsAPastExpires(): void
+    {
+        $response = new TestResponse(200, [
+            ['Set-Cookie', 'both=1; Max-Age=60; Expires=Wed, 21 Oct 2015 07:28:00 GMT'],
+            ['Set-Cookie', 'age=1; Max-Age=0; Expires=Wed, 21 Oct 2099 07:28:00 GMT'],
+        ], '');
+
+        $this->assertSame(['age'], $response->expiredCookies(), 'Max-Age decides in both directions');
+    }
+
+    public function testHeadersCaptureSemantics(): void
+    {
+        Headers::startCapture();
+        Headers::send('X-A: 1');
+        Headers::send('X-A: 2');
+        Headers::send('X-B: 1');
+        Headers::send('X-B: 2', false);
+        Headers::send('Location: /x');
+        Headers::remove('X-A');
+        $captured = Headers::stopCapture();
+
+        $this->assertSame(302, $captured['status'], 'Location turns a 200 into a 302, as PHP does');
+        $this->assertSame([['X-B', '1'], ['X-B', '2'], ['Location', '/x']], $captured['headers']);
+
+        Headers::startCapture();
+        Headers::send('HTTP/1.1 418 I\'m a teapot');
+        $this->assertSame(418, Headers::status());
+        $this->assertFalse(Headers::sent());
+        $this->assertSame(418, Headers::stopCapture()['status']);
+    }
+
+    private function client(): Client
+    {
+        return new Client(['/' => self::DIST], 'shop.example.test');
+    }
+
+    private function removeDir(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        foreach ((array) \scandir($dir) as $f) {
+            if ($f === '.' || $f === '..') {
+                continue;
+            }
+            $p = $dir . '/' . $f;
+            \is_dir($p) ? $this->removeDir($p) : \unlink($p);
+        }
+        \rmdir($dir);
+    }
+}

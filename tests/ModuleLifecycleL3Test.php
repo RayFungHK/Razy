@@ -174,8 +174,8 @@ final class ModuleLifecycleL3Test extends TestCase
         $source = \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Distributor/RouteDispatcher.php');
         $wizardBlock = \substr($source, (int) \strpos($source, "getProvision() === 'wizard'"));
 
-        $codeAt = \strpos($wizardBlock, "header('HTTP/1.1 302', true, 302)");
-        $headerAt = \strpos($wizardBlock, "header('Location: ' . \$url, true)");
+        $codeAt = \strpos($wizardBlock, "Headers::send('HTTP/1.1 302', true, 302)");
+        $headerAt = \strpos($wizardBlock, "Headers::send('Location: ' . \$url, true)");
         $throwAt = \strpos($wizardBlock, 'throw new RedirectException');
 
         self::assertNotFalse($codeAt, 'wizard branch must set 302 status before throwing');

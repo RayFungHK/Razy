@@ -247,4 +247,37 @@ Module code gets a child DI container; resolving framework internals (`Applicati
 bug (RZ-005): use Controller helpers (`getDB`-style wiring, `getModuleConfig()`,
 `getDataPath()`) and **your own** bindings.
 
+## 9. Testing a module over HTTP — `Razy\Testing\Client` (RZ-15)
+
+Run real web requests through a dist inside PHPUnit, no web server needed. The dist boots
+afresh per request (FPM semantics). Modules, routes, middleware, CSRF/authz doors, `xhr()`
+and the error pages all run, and status, headers, cookies and body come back:
+
+```php
+use Razy\Testing\Client;
+
+$client = new Client(['/' => 'mysite'], 'shop.example.test');   // URL path => dist, host
+$res = $client->get('/products/', ['page' => 2]);
+$this->assertSame(200, $res->status());
+$this->assertSame('nosniff', $res->header('X-Content-Type-Options'));
+
+$res = $client->postJson('/api/cart/', ['sku' => 'A1']);         // body reaches RequestBody / FormRequest::fromJson()
+$this->assertTrue($res->json()['result']);
+
+$client->session()['user_id'] = 7;                               // seed the session ($_SESSION)
+$client->post('/account/name/', ['name' => 'Ray']);              // cookies set by responses are sent back
+```
+
+`TestResponse`: `status()`, `body()`, `header($name)`, `headers()`, `json()`, `isRedirect()`,
+`cookies()`. `Client`: `get`, `post` (form), `postJson` (any method), `request`, `withHeader`,
+`withCookie`, `cookies()`, `session()`.
+
+Needs the framework constants of a test bootstrap (`SYSTEM_ROOT`, `SITES_FOLDER`,
+`DATA_FOLDER`, …; see `tests/bootstrap.php`). Limits:
+- headers a module sends with PHP's `header()` are not seen, because the CLI SAPI keeps none.
+  Use `Razy\Http\Headers::send()` / `Headers::cookie()` or return a `Razy\Http\Response`;
+  the framework itself does.
+- The session is the `$_SESSION` array the client keeps between requests (no session files).
+- The setup wizard (`/__setup/…`) stays CLI-refused.
+
 Next: [03-routing-and-requests.md](03-routing-and-requests.md).

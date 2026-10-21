@@ -319,7 +319,7 @@ class Controller
     final public function goto(string $path, array $query = []): void
     {
         $url = PathUtil::append($this->getModuleURL(), $path);
-        \header('location: ' . $url, true, 301);
+        Http\Headers::send('location: ' . $url, true, 301);
         throw new RedirectException($url, 301);
     }
 

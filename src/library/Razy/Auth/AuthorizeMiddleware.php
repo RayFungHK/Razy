@@ -16,6 +16,7 @@ namespace Razy\Auth;
 
 use Closure;
 use Razy\Contract\MiddlewareInterface;
+use Razy\Http\Headers;
 
 /**
  * Authorization middleware — guards routes against unauthorized access.
@@ -79,7 +80,7 @@ class AuthorizeMiddleware implements MiddlewareInterface
                 return ($this->onForbidden)($context);
             }
 
-            \header('HTTP/1.1 403', true, 403);
+            Headers::send('HTTP/1.1 403', true, 403);
 
             return null;
         }

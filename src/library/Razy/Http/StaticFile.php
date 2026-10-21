@@ -180,13 +180,13 @@ final class StaticFile
         $response = $this->response((string) ($server['REQUEST_METHOD'] ?? 'GET'), $ifNoneMatch, $immutable, $immutableMaxAge, $maxAge);
 
         $emit ??= static function (string $line): void {
-            if (!\headers_sent()) {
-                \header($line, true);
+            if (!Headers::sent()) {
+                Headers::send($line, true);
             }
         };
         $status ??= static function (int $code): void {
-            if (!\headers_sent()) {
-                \http_response_code($code);
+            if (!Headers::sent()) {
+                Headers::status($code);
             }
         };
         $status($response['status']);

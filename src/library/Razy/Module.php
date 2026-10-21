@@ -884,7 +884,7 @@ class Module implements ModuleInterface
     public function announce(ModuleInfo $moduleInfo): void
     {
         if (ModuleStatus::Loaded === $this->status) {
-            if (CLI_MODE) {
+            if (RuntimeMode::isCli()) {
                 $this->controller->__onScriptReady($moduleInfo);
             } else {
                 $this->controller->__onRouted($moduleInfo);

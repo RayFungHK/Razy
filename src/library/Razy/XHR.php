@@ -357,13 +357,13 @@ class XHR
         // 8.5 CI matrix caught it live, 2026-09). In normal web dispatch headers
         // are not yet sent and behavior is byte-identical — the guard only skips
         // a call PHP would refuse anyway.
-        \header('HTTP/1.1 ' . $this->httpStatus, true, $this->httpStatus);
+        Http\Headers::send('HTTP/1.1 ' . $this->httpStatus, true, $this->httpStatus);
 
-        \header('Content-Type: application/json');
-        \header('Access-Control-Allow-Origin: ' . $this->allowOrigin);
-        \header('Cross-Origin-Resource-Policy: ' . $this->corp);
+        Http\Headers::send('Content-Type: application/json');
+        Http\Headers::send('Access-Control-Allow-Origin: ' . $this->allowOrigin);
+        Http\Headers::send('Cross-Origin-Resource-Policy: ' . $this->corp);
         if ($this->allowOrigin !== '*') {
-            \header('Vary: Origin');
+            Http\Headers::send('Vary: Origin');
         }
         if (\ob_get_level() > 0) {
             \ob_clean();

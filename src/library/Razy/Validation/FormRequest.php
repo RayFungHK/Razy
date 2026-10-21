@@ -117,7 +117,7 @@ abstract class FormRequest
      */
     public static function fromJson(): static
     {
-        $raw = \file_get_contents('php://input') ?: '';
+        $raw = \Razy\Http\RequestBody::raw();
         $data = \json_decode($raw, true) ?? [];
 
         return new static($data);
