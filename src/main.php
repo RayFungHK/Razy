@@ -242,10 +242,11 @@ if (WEB_MODE) {
                 // Reset error state and close any session that user code may
                 // have opened (prevents session file-lock deadlocks).
                 Error::reset();
-                Http\RequestUrl::setCurrent(null); // RZ-18: no URL state between requests
                 if (\session_status() === PHP_SESSION_ACTIVE) {
                     \session_write_close();
                 }
+                // RZ-18: no URL state between requests.
+                Http\RequestUrl::setCurrent(null);
             }
         };
 
