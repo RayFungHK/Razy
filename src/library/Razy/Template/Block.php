@@ -84,8 +84,21 @@ class Block
 
         // Accumulator for plain text content between block structure tags
         $concat = '';
+        // True while inside a plain `<!-- … -->` comment that spans several lines
+        $inComment = false;
 
         while (($line = $reader->fetch()) !== null) {
+            // RZ-22: the body of a multi-line comment is dropped up to (and including) the
+            // line that closes it. Before, only the opening line was dropped and the tail
+            // ("… -->") rendered as visible text.
+            if ($inComment) {
+                if (\str_contains($line, '-->')) {
+                    $inComment = false;
+                }
+
+                continue;
+            }
+
             // If the line is a block tag
             if (\str_contains($line, '<!-- ')) {
                 if (\preg_match('/^\s*<!-- (INCLUDE|TEMPLATE|START|END|WRAPPER|RECURSION|USE (\w[\w-]*)) BLOCK: (.+) -->\s*$/', $line, $matches)) {
@@ -153,6 +166,9 @@ class Block
                             throw new TemplateException('The block ' . $matches[3] . ' does not have the START tag. Current block [' . $blockName . ']');
                         }
                     }
+                } elseif (!\str_contains(\substr($line, \strrpos($line, '<!-- ')), '-->')) {
+                    // A plain comment line is dropped; one left open continues on the next lines
+                    $inComment = true;
                 }
 
                 continue;

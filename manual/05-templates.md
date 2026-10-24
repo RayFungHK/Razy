@@ -85,6 +85,11 @@ dist's shared layout folder (dist.php `'templates' => ['layout_path' => 'layout'
 must reference other layout files as `@layout/…`, never relatively. A path that does not resolve throws
 `TemplateException` (RZ-11); before RZ-11 it was skipped silently.
 
+Plain comments are template-only: a line containing `<!-- ` that is not a block tag is dropped from
+the output (the whole line, including any markup before the comment). A comment left open on that
+line keeps dropping lines up to and including the line with `-->` (RZ-22); before RZ-22 only the
+opening line was dropped and the tail of a multi-line comment rendered as page text.
+
 ## 3. What is NOT syntax (drift you will meet)
 
 1. **`|` is a fallback chain, not a modifier pipe.**
