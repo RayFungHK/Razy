@@ -32,8 +32,9 @@ Boot &mdash; Load PHAR &mdash; Bootstrap &mdash; Autoloaders  <span class="hl-cm
     <h2 id="auto-detection">Auto-Detection</h2>
     <p>Razy automatically detects worker mode &mdash; no manual configuration or code changes needed:</p>
     <pre><code><span class="hl-cmt">// Detection methods (checked automatically)</span>
-<span class="hl-fn">function_exists</span>(<span class="hl-str">'frankenphp_handle_request'</span>)  <span class="hl-cmt">// Native detection</span>
-<span class="hl-fn">getenv</span>(<span class="hl-str">'CADDY_WORKER_MODE'</span>) <span class="hl-op">===</span> <span class="hl-str">'true'</span>       <span class="hl-cmt">// Environment variable</span></code></pre>
+<span class="hl-var">$_SERVER</span>[<span class="hl-str">'FRANKENPHP_WORKER'</span>]                  <span class="hl-cmt">// Set by FrankenPHP for worker scripts (with frankenphp_handle_request())</span>
+<span class="hl-fn">getenv</span>(<span class="hl-str">'CADDY_WORKER_MODE'</span>) <span class="hl-op">===</span> <span class="hl-str">'true'</span>       <span class="hl-cmt">// Environment variable opt-in</span></code></pre>
+    <p>Classic FrankenPHP (<code>php_server</code> without a <code>worker</code> directive) is not a worker, even though <code>frankenphp_handle_request()</code> exists there. To force a mode, <code>define('WORKER_MODE', false);</code> (or <code>true</code>) in your entry script before the phar boots; Razy only defines the mode constants that are not already defined.</p>
     <p>If either condition is true, the framework switches to worker mode automatically. Your controllers, modules, and routing logic work identically in both modes.</p>
 
     <h2 id="architecture">Architecture</h2>

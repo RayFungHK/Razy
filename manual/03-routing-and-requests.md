@@ -191,6 +191,16 @@ default 500). Production pattern: FrankenPHP worker + Caddy
 }
 ```
 
+**How Razy decides it runs as a worker** (`src/system/bootstrap.inc.php`,
+`Razy\RuntimeMode::detectWorker()`): `WORKER_MODE` is `true` when FrankenPHP runs the script
+as a worker (FrankenPHP sets `FRANKENPHP_WORKER=1` for worker scripts) and
+`frankenphp_handle_request()` exists, or when the environment sets `CADDY_WORKER_MODE=true`.
+Classic FrankenPHP (`php_server` with no `worker` directive) also has
+`frankenphp_handle_request()` but no marker, so it takes the normal per-request path. To force
+a mode, define the constant in your entry script before the phar boots
+(`define('WORKER_MODE', false);`); bootstrap only defines `CLI_MODE`, `WEB_MODE` and
+`WORKER_MODE` when they are not already defined.
+
 What happens per request (verified in the benchmark post-mortem —
 `benchmark/results/COMPARISON-REPORT.md` "Worker Mode Fixes" + `Worker Mode Optimization`
 table): the full application graph boots **once**; per request Razy resets
