@@ -92,8 +92,11 @@ class Block
             // line that closes it. Before, only the opening line was dropped and the tail
             // ("… -->") rendered as visible text.
             if ($inComment) {
-                if (\str_contains($line, '-->')) {
-                    $inComment = false;
+                if (false !== ($close = \strpos($line, '-->'))) {
+                    // The closing line may open another comment after `-->` (`a --> <!-- b`)
+                    $rest = \substr($line, $close + 3);
+                    $open = \strrpos($rest, '<!-- ');
+                    $inComment = false !== $open && !\str_contains(\substr($rest, $open), '-->');
                 }
 
                 continue;

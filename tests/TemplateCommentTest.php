@@ -77,6 +77,13 @@ class TemplateCommentTest extends TestCase
         $this->assertSame("<p>shown</p>\n", $out);
     }
 
+    public function testCommentReopenedOnItsClosingLine(): void
+    {
+        $out = $this->render("<!-- one\nclose1 --> <!-- open2\nstill two -->\n<p>shown</p>\n");
+
+        $this->assertSame("<p>shown</p>\n", $out);
+    }
+
     public function testInlineBlockTagCommentStillParsed(): void
     {
         $source = $this->load("<ul>\n<!-- START BLOCK: item -->\n<li>{\$v}</li>\n<!-- END BLOCK: item -->\n</ul>\n");
