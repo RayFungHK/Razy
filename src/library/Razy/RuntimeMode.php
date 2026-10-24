@@ -50,6 +50,39 @@ final class RuntimeMode
     }
 
     /**
+     * RZ-23: whether this web process is a persistent FrankenPHP worker.
+     *
+     * True when `CADDY_WORKER_MODE` is `'true'` (operator opt-in), or when
+     * `frankenphp_handle_request()` exists and FrankenPHP marked the script as a
+     * worker: it sets `FRANKENPHP_WORKER=1` in the worker's environment, which
+     * PHP sees in `$_SERVER` (php/frankenphp worker.go, `newWorker()`:
+     * `o.env["FRANKENPHP_WORKER\x00"] = "1"`, v1.13.3). Classic FrankenPHP
+     * (`php_server` without a `worker` directive) also defines
+     * `frankenphp_handle_request()` but sets no marker, so it is not a worker.
+     *
+     * bootstrap.inc.php defines `WORKER_MODE` from this unless the app defined
+     * it first.
+     *
+     * @param array<string, mixed> $server $_SERVER of the boot
+     * @param bool $hasHandleRequest function_exists('frankenphp_handle_request')
+     * @param string|false $caddyWorkerMode getenv('CADDY_WORKER_MODE')
+     * @param string|false $frankenphpWorkerEnv getenv('FRANKENPHP_WORKER'), used when $_SERVER lacks it
+     */
+    public static function detectWorker(array $server, bool $hasHandleRequest, string|false $caddyWorkerMode = false, string|false $frankenphpWorkerEnv = false): bool
+    {
+        if ($caddyWorkerMode === 'true') {
+            return true;
+        }
+        if (!$hasHandleRequest) {
+            return false;
+        }
+        $marker = $server['FRANKENPHP_WORKER'] ?? $frankenphpWorkerEnv;
+
+        // FrankenPHP sets exactly "1"; any other value is not its marker.
+        return $marker === '1' || $marker === 1;
+    }
+
+    /**
      * Start or end a simulated web request. Only the test client should call this.
      *
      * @internal

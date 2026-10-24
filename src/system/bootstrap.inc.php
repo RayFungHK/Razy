@@ -97,17 +97,28 @@ try {
 // deprecated X-Forwarded-Proto fallback in NetworkUtil::isSsl()).
 TrustedProxies::configure(TrustedProxies::fromConfig($razyConfig));
 
-// Detect the runtime mode and define mode-specific constants
+// Detect the runtime mode and define mode-specific constants.
+// RZ-23: each mode constant is only defined when the app has not defined it
+// already, so an entry script may set it before the phar boots (the supported
+// override, e.g. `define('WORKER_MODE', false);` in index.php).
 if (\php_sapi_name() === 'cli' || \defined('STDIN')) {
     // CLI mode, define environmental variable
-    \define('CLI_MODE', true);
-    \define('WEB_MODE', false);
-    \define('WORKER_MODE', false);
+    \defined('CLI_MODE') || \define('CLI_MODE', true);
+    \defined('WEB_MODE') || \define('WEB_MODE', false);
+    \defined('WORKER_MODE') || \define('WORKER_MODE', false);
 } else {
-    \define('CLI_MODE', false);
-    \define('WEB_MODE', true);
-    // Detect Caddy/FrankenPHP worker mode
-    \define('WORKER_MODE', \function_exists('frankenphp_handle_request') || \getenv('CADDY_WORKER_MODE') === 'true');
+    \defined('CLI_MODE') || \define('CLI_MODE', false);
+    \defined('WEB_MODE') || \define('WEB_MODE', true);
+    // RZ-23: worker mode only when FrankenPHP runs this script as a worker
+    // (it sets FRANKENPHP_WORKER) or CADDY_WORKER_MODE=true opts in.
+    // frankenphp_handle_request() alone is not enough: classic FrankenPHP
+    // (php_server without a worker directive) has the function too.
+    \defined('WORKER_MODE') || \define('WORKER_MODE', RuntimeMode::detectWorker(
+        $_SERVER,
+        \function_exists('frankenphp_handle_request'),
+        \getenv('CADDY_WORKER_MODE'),
+        \getenv('FRANKENPHP_WORKER'),
+    ));
 
     // RZ-18: the request's URL facts live in Razy\Http\RequestUrl, which the
     // worker loop rebuilds per request (src/main.php). The constants below are
