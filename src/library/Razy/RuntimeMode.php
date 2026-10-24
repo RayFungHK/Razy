@@ -78,8 +78,8 @@ final class RuntimeMode
         }
         $marker = $server['FRANKENPHP_WORKER'] ?? $frankenphpWorkerEnv;
 
-        return (\is_string($marker) || \is_int($marker) || $marker === true)
-            && !\in_array((string) $marker, ['', '0', 'false'], true);
+        // FrankenPHP sets exactly "1"; any other value is not its marker.
+        return $marker === '1' || $marker === 1;
     }
 
     /**

@@ -36,6 +36,10 @@ class WorkerModeDetectTest extends TestCase
             'bool false' => [false],
             'null' => [null],
             'array' => [['1']],
+            'off' => ['off'],
+            'yes' => ['yes'],
+            'true string' => ['true'],
+            'bool true' => [true],
         ];
     }
 
