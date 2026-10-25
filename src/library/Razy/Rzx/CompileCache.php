@@ -64,15 +64,19 @@ final class CompileCache implements ComponentLoader
 
     private readonly Compiler $compiler;
 
+    private readonly string $directory;
+
     public function __construct(
         private readonly ComponentResolver $resolver,
-        private readonly string $directory,
+        string $directory,
         private readonly FunctionRegistry $functions = new FunctionRegistry(),
         private readonly string $mode = 'dev',
     ) {
         if (!\in_array($mode, self::MODES, true)) {
             throw new InvalidArgumentException('rzx mode must be dev or compiled, got ' . $mode);
         }
+        // One separator on every OS, so paths in index entries and messages are stable.
+        $this->directory = \rtrim(\str_replace('\\', '/', $directory), '/');
         $this->compiler = new Compiler($functions);
     }
 
@@ -96,7 +100,7 @@ final class CompileCache implements ComponentLoader
         if (!\preg_match(self::ARTIFACT, $base)) {
             throw new RenderError('The .rzx index names an unexpected file for ' . $name . '; run php Razy.phar compile --rzx');
         }
-        $file = $this->directory . \DIRECTORY_SEPARATOR . $base;
+        $file = $this->directory . '/' . $base;
         $compiled = (static fn (string $__file): mixed => include $__file)($file);
         if (!$compiled instanceof Compiled) {
             throw new RenderError('Compiled .rzx file is corrupt: ' . $file . '; run php Razy.phar compile --rzx');
@@ -229,7 +233,7 @@ final class CompileCache implements ComponentLoader
         ];
         $old = $this->updateIndex($name, $entry);
         if (\is_string($old) && $old !== $file && \preg_match(self::ARTIFACT, $old)) {
-            @\unlink($this->directory . \DIRECTORY_SEPARATOR . $old);
+            @\unlink($this->directory . '/' . $old);
         }
         unset($this->loaded[$name]);
 
@@ -245,7 +249,7 @@ final class CompileCache implements ComponentLoader
             return $this->index;
         }
         $index = [];
-        $file = $this->directory . \DIRECTORY_SEPARATOR . 'index.php';
+        $file = $this->directory . '/' . 'index.php';
         if (\is_file($file)) {
             try {
                 $data = (static fn (string $__file): mixed => include $__file)($file);
@@ -276,13 +280,13 @@ final class CompileCache implements ComponentLoader
     private function updateIndex(string $name, array $entry): ?string
     {
         $this->ensureDirectory();
-        $lock = @\fopen($this->directory . \DIRECTORY_SEPARATOR . 'index.lock', 'c');
+        $lock = @\fopen($this->directory . '/' . 'index.lock', 'c');
         if ($lock === false || !\flock($lock, \LOCK_EX)) {
             throw new RenderError('Cannot lock the .rzx cache index in ' . $this->directory);
         }
 
         try {
-            $file = $this->directory . \DIRECTORY_SEPARATOR . 'index.php';
+            $file = $this->directory . '/' . 'index.php';
             if (\function_exists('opcache_invalidate')) {
                 \opcache_invalidate($file, true); // another process may have written it
             }
@@ -317,7 +321,7 @@ final class CompileCache implements ComponentLoader
     private function write(string $file, string $php): void
     {
         $this->ensureDirectory();
-        $target = $this->directory . \DIRECTORY_SEPARATOR . $file;
+        $target = $this->directory . '/' . $file;
         $temp = $target . '.' . \bin2hex(\random_bytes(4)) . '.tmp';
         if (\file_put_contents($temp, $php, \LOCK_EX) === false || !@\rename($temp, $target)) {
             @\unlink($temp);
@@ -334,7 +338,7 @@ final class CompileCache implements ComponentLoader
      */
     private function artifactExists(array $entry): bool
     {
-        return \is_string($entry['file'] ?? null) && \is_file($this->directory . \DIRECTORY_SEPARATOR . $entry['file']);
+        return \is_string($entry['file'] ?? null) && \is_file($this->directory . '/' . $entry['file']);
     }
 
     /**

@@ -91,7 +91,7 @@ final class Runtime
             throw new RenderError('Components are nested too deeply (limit 64) at ' . $name, $site);
         }
         $compiled = $this->loader->load($name);
-        $this->compiled[$compiled->compiledFile] = $compiled;
+        $this->compiled[\basename($compiled->compiledFile)] = $compiled;
         foreach ($compiled->props as $prop => $schema) {
             if (($props[$prop] ?? null) === null && $schema->hasDefault()) {
                 $props[$prop] = $schema->defaultValue();
@@ -329,7 +329,9 @@ final class Runtime
     {
         $frames = [['file' => $e->getFile(), 'line' => $e->getLine()], ...$e->getTrace()];
         foreach ($frames as $frame) {
-            $compiled = $this->compiled[$frame['file'] ?? ''] ?? null;
+            // By file name: compiled names are unique (`Name.<hash>.php`) and a trace may
+            // spell the directory differently (separators, short names on Windows).
+            $compiled = $this->compiled[\basename(\str_replace('\\', '/', $frame['file'] ?? ''))] ?? null;
             if ($compiled !== null && isset($frame['line'])) {
                 $line = $compiled->rzxLine((int) $frame['line']);
                 if ($line !== null) {

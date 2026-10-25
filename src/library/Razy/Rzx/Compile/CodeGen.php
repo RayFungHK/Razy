@@ -350,6 +350,9 @@ final class CodeGen
                 continue;
             }
             if ($attr->isBoolean()) {
+                if (\in_array($lower, Escape::URL_ATTRIBUTES, true) || \in_array($lower, Escape::SRCSET_ATTRIBUTES, true) || $this->isResource($node, $lower)) {
+                    throw $this->error('RZX134', $name . ' needs a URL value; a bare ' . $name . ' is not checked like one', $attr->offset);
+                }
                 $this->out->html(' ' . $name);
             } elseif ($attr->literal !== null) {
                 $decoded = Escape::decode($attr->literal);

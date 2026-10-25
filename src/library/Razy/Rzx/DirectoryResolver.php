@@ -45,7 +45,7 @@ final class DirectoryResolver implements ComponentResolver
         if ($namespace !== '' && !Names::isComponent($namespace)) {
             throw new InvalidArgumentException('Invalid .rzx namespace: ' . $namespace);
         }
-        $this->namespaces[$namespace] = \rtrim($directory, '/\\');
+        $this->namespaces[$namespace] = \rtrim(\str_replace('\\', '/', $directory), '/');
 
         return $this;
     }
@@ -61,7 +61,7 @@ final class DirectoryResolver implements ComponentResolver
         if (!isset($this->namespaces[$namespace])) {
             return null;
         }
-        $path = $this->namespaces[$namespace] . \DIRECTORY_SEPARATOR . $local . '.rzx';
+        $path = $this->namespaces[$namespace] . '/' . $local . '.rzx';
 
         return \is_file($path) ? $path : null;
     }

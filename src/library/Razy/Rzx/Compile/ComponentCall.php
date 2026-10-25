@@ -281,6 +281,7 @@ final class ComponentCall
                     throw $this->gen->error('RZX125', 'A <for> cannot fill ' . $label . ' of <' . $component . '>, which has a max; the count must be known at compile time', $child->offset);
                 }
                 $this->countChildren($child->children, $accepts, $component, $label, $limited);
+                $this->countChildren($child->empty ?? [], $accepts, $component, $label, $limited);
                 continue;
             }
             if ($child instanceof SlotNode) {

@@ -31,12 +31,20 @@ class CompileCacheTest extends TestCase
         $this->assertSame('rzx-1', $index['schema']);
         $this->assertSame(Compiler::VERSION, $index['compiler']);
         $entry = $index['components']['T'];
-        $this->assertSame($path, $entry['source']);
+        $this->assertSame(\str_replace('\\', '/', $path), $entry['source'], 'one separator on every OS');
         $this->assertSame(\hash_file('sha256', $path), $entry['sha']);
         $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $entry['hash']);
         $this->assertSame('T.' . \substr($entry['hash'], 0, 16) . '.php', $entry['file']);
         $this->assertFileExists($this->root . '/cache/' . $entry['file']);
         $this->assertSame([], \glob($this->root . '/cache/*.tmp'));
+    }
+
+    public function testPathsUseForwardSlashesOnEveryOs(): void
+    {
+        $this->assertSame('C:/Users/x/app/T.rzx', (new \Razy\Rzx\Source('', 'C:\Users\x\app\T.rzx'))->file);
+        $this->component('Kit.Card', '<p>x</p>');
+        $resolved = (new \Razy\Rzx\DirectoryResolver(['Kit' => $this->root . '/kit/']))->resolve('Kit.Card');
+        $this->assertSame(\str_replace('\\', '/', $this->root) . '/kit/Card.rzx', $resolved);
     }
 
     public function testUnchangedSourceIsNotRecompiled(): void

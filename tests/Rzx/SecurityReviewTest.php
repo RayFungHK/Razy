@@ -304,6 +304,9 @@ class SecurityReviewTest extends TestCase
 
     public function testCacheFilesAreNotWorldWritable(): void
     {
+        if (\PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('POSIX file modes do not apply on Windows.');
+        }
         $umask = \umask(0);
 
         try {
@@ -466,5 +469,28 @@ class SecurityReviewTest extends TestCase
     public function testLiteralHttpsResourcesAndProtocolRelativeLinksAreAllowed(): void
     {
         $this->assertSame('<div><script src="https://cdn.test/a.js"></script><a href="//other.test/">x</a><link rel="canonical" href="//other.test/"></div>', $this->render('<div><script src="https://cdn.test/a.js"></script><a href="//other.test/">x</a><link rel="canonical" href="//other.test/" /></div>'));
+    }
+
+    public function testValuelessUrlAndResourceAttributesAreErrors(): void
+    {
+        foreach (['<div><script src></script></div>', '<div><iframe src></iframe></div>', '<a href>x</a>', '<object data></object>', '<img srcset />', '<head><link rel="stylesheet" href /></head>', '<form action><button formaction>b</button></form>'] as $markup) {
+            try {
+                $this->render($markup);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame('RZX134', $e->rzxCode, $markup);
+                $this->assertStringContainsString('needs a URL value', $e->getMessage());
+            }
+        }
+        $this->assertSame('<input hidden disabled data-src>', $this->render('<input hidden disabled data-src />'), 'other bare attributes stay boolean');
+    }
+
+    public function testSlotAcceptsAlsoChecksLoopEmptyBranches(): void
+    {
+        $this->component('Kit.Bar', '<div><Slot name="end" accepts="button" /></div>');
+        $this->component('T', "<props>\nreturn ['rows' => Prop::list()];\n</props>\n<Kit.Bar><Fill slot=\"end\"><for each={rows} as=\"r\"><button /><empty><a>none</a></empty></for></Fill></Kit.Bar>");
+        $this->expectException(CompileError::class);
+        $this->expectExceptionMessage('RZX121 slot "end" of <Kit.Bar> accepts button; found <a>');
+        $this->runtime()->render('T', ['rows' => []]);
     }
 }
