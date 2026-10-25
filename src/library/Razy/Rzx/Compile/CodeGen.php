@@ -290,14 +290,14 @@ final class CodeGen
             return;
         }
         $value = Escape::decode((string) $content?->literal);
-        if (!\preg_match('/^\s*\d+(?:\.\d*)?\s*(?:[;,]\s*(?:url\s*=\s*)?(.*?))?\s*$/is', $value, $m)) {
+        // <seconds>, then optionally `;` or `,`, `url=`, and one URL: quoted as a whole
+        // ('…' or "…") or bare without quotes. Unbalanced or trailing quotes are refused,
+        // as is anything after the URL (a browser would cut it off and navigate).
+        if (!\preg_match('/^\s*\d+(?:\.\d*)?\s*(?:[;,]\s*(?:url\s*=\s*)?(?:\'([^\']*)\'|"([^"]*)"|([^\'"\s]*)))?\s*$/is', $value, $m)) {
             throw $this->error('RZX134', 'A meta refresh must be "<seconds>" or "<seconds>; url=<url>"', ($content ?? $pragma)->offset);
         }
-        $url = \trim($m[1] ?? '');
-        if (\strlen($url) >= 2 && ($url[0] === "'" || $url[0] === '"') && \str_ends_with($url, $url[0])) {
-            $url = \substr($url, 1, -1);
-        }
-        if ($url !== '' && (\preg_match('/\s/', $url) || !Escape::isSafeUrl($url))) {
+        $url = ($m[1] ?? '') . ($m[2] ?? '') . ($m[3] ?? '');
+        if ($url !== '' && !Escape::isSafeUrl($url)) {
             throw $this->error('RZX134', 'Unsafe URL in a meta refresh', ($content ?? $pragma)->offset);
         }
     }

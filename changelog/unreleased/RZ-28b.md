@@ -38,11 +38,16 @@ and `compile --rzx`. Additive only; no existing API changes.
   - URL attributes allow only `http`, `https`, `mailto` and relative URLs; anything else
     becomes `#` with a warning. `srcset` / `imagesrcset` are parsed as HTML does and each
     candidate URL is checked;
-  - every check on a literal attribute value runs on the value as a browser decodes it
-    (numeric references with or without `;`, then named references);
+  - every check on a literal attribute value runs on the value as a browser decodes it: one pass,
+    numeric references with or without `;` (CR and other controls included; NUL, surrogates and
+    values past U+10FFFF become U+FFFD; 0x80-0x9F map to windows-1252), named references with `;`;
+  - URLs are read the way the URL parser does: leading/trailing C0 controls and space trimmed,
+    tab/LF/CR (and, stricter, every other control) removed, then the scheme up to the first `:`
+    is allowlisted (`http`, `https`, `mailto`, `tel`) or the URL is relative;
   - `<base>` and pragma `<meta http-equiv … content>` take literals only (a named
     `<meta name content={…}>` is unaffected). A refresh must be exactly
-    `<seconds>[;|, [url=]<url>]` with a safe URL; other pragmas are an allowlist (content-type,
+    `<seconds>[;|, [url=]<url>]` with a safe URL, quoted as a whole or bare (an unbalanced or
+    trailing quote is refused); other pragmas are an allowlist (content-type,
     content-language, default-style, x-ua-compatible);
   - SVG animation elements take literal `attributeName`, `to`, `from`, `values` and `by`, and
     may only target presentational attributes on an allowlist (opacity, transform, fill,

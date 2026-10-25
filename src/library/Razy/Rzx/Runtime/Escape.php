@@ -44,7 +44,15 @@ final class Escape
 
     private const JSON_FLAGS = \JSON_HEX_TAG | \JSON_HEX_AMP | \JSON_HEX_APOS | \JSON_HEX_QUOT | \JSON_THROW_ON_ERROR;
 
-    private const SAFE_SCHEMES = ['http', 'https', 'mailto'];
+    private const SAFE_SCHEMES = ['http', 'https', 'mailto', 'tel'];
+
+    /** HTML maps numeric references 0x80-0x9F to these windows-1252 code points. */
+    private const C1 = [
+        0x80 => 0x20AC, 0x82 => 0x201A, 0x83 => 0x0192, 0x84 => 0x201E, 0x85 => 0x2026, 0x86 => 0x2020, 0x87 => 0x2021,
+        0x88 => 0x02C6, 0x89 => 0x2030, 0x8A => 0x0160, 0x8B => 0x2039, 0x8C => 0x0152, 0x8E => 0x017D, 0x91 => 0x2018,
+        0x92 => 0x2019, 0x93 => 0x201C, 0x94 => 0x201D, 0x95 => 0x2022, 0x96 => 0x2013, 0x97 => 0x2014, 0x98 => 0x02DC,
+        0x99 => 0x2122, 0x9A => 0x0161, 0x9B => 0x203A, 0x9C => 0x0153, 0x9E => 0x017E, 0x9F => 0x0178,
+    ];
 
     public static function html(string $text): string
     {
@@ -162,13 +170,33 @@ final class Escape
      */
     public static function decode(string $value): string
     {
-        $value = \preg_replace('/&#(x[0-9a-f]++|[0-9]++)(?!;)/i', '&#$1;', $value) ?? $value;
+        // One pass, as the HTML tokenizer does: numeric references (`;` optional)
+        // become their code point, every one of them, CR and controls included;
+        // NUL, surrogates and values past U+10FFFF become U+FFFD; 0x80-0x9F map
+        // to windows-1252. Named references need their `;`. The result is never
+        // rescanned, so `&amp;#58;` stays the text `&#58;`.
+        return \preg_replace_callback(
+            '/&(?:#[xX]([0-9a-fA-F]++)|#([0-9]++)|([A-Za-z][A-Za-z0-9]*););?/',
+            static function (array $m): string {
+                if (($m[3] ?? '') !== '') {
+                    return \html_entity_decode('&' . $m[3] . ';', \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+                }
+                $digits = $m[1] !== '' ? \ltrim($m[1], '0') : \ltrim($m[2], '0');
+                $code = \strlen($digits) > 8 ? 0x110000 : ($m[1] !== '' ? (int) \hexdec($digits === '' ? '0' : $digits) : (int) ($digits === '' ? '0' : $digits));
 
-        return \html_entity_decode($value, \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+                return self::utf8(self::C1[$code] ?? $code);
+            },
+            $value,
+        ) ?? $value;
     }
 
     public static function isSafeSrcset(string $value): bool
     {
+        // A control or space inside a scheme splits the candidate; refuse it as if
+        // joined, so a literal never relies on where a browser cuts it.
+        if (!self::isSafeUrl((string) \preg_replace('/[\x00-\x20\x7F]+/', '', $value))) {
+            return false;
+        }
         $unsafe = false;
         self::srcset($value, static function () use (&$unsafe): void {
             $unsafe = true;
@@ -179,8 +207,10 @@ final class Escape
 
     public static function isSafeUrl(string $url): bool
     {
-        // Browsers ignore control characters and whitespace inside the scheme.
-        $normalized = \preg_replace('/[\x00-\x20\x7F]+/', '', $url) ?? '';
+        // The URL parser strips leading/trailing C0 controls and space and removes
+        // every tab, LF and CR; we also drop the other controls (stricter than a
+        // browser) before reading the scheme up to the first `:`.
+        $normalized = \preg_replace('/[\x00-\x20\x7F]+/', '', \trim($url, "\x00..\x20")) ?? '';
         if (!\preg_match('/^([A-Za-z][A-Za-z0-9+.\-]*):/', $normalized, $m)) {
             return true; // relative, or protocol-relative (http/https)
         }
@@ -195,5 +225,22 @@ final class Escape
         } catch (JsonException $e) {
             throw new RenderError('Cannot encode the value as JSON: ' . $e->getMessage(), '', $e);
         }
+    }
+
+    /**
+     * UTF-8 for a code point; NUL, surrogates and out-of-range become U+FFFD.
+     */
+    private static function utf8(int $code): string
+    {
+        if ($code === 0 || $code > 0x10FFFF || ($code >= 0xD800 && $code <= 0xDFFF)) {
+            $code = 0xFFFD;
+        }
+
+        return match (true) {
+            $code < 0x80 => \chr($code),
+            $code < 0x800 => \chr(0xC0 | $code >> 6) . \chr(0x80 | $code & 0x3F),
+            $code < 0x10000 => \chr(0xE0 | $code >> 12) . \chr(0x80 | $code >> 6 & 0x3F) . \chr(0x80 | $code & 0x3F),
+            default => \chr(0xF0 | $code >> 18) . \chr(0x80 | $code >> 12 & 0x3F) . \chr(0x80 | $code >> 6 & 0x3F) . \chr(0x80 | $code & 0x3F),
+        };
     }
 }
