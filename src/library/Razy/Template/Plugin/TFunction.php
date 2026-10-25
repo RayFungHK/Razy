@@ -88,7 +88,10 @@ class TFunction
             if (\preg_match('/^\s((?::\w+)*)((?:\s+\w+=(?:(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*|-?\d+(?:\.\d+)?|(?P>rq))|true|false))+)|((?:\s+(?P>value))+)$/', $syntax, $matches)) {
                 $parameters = $this->allowedParameters;
                 $arguments = \explode(':', \ltrim(\trim($matches[1]), ':'));
-                $syntax = \trim($matches[2]);
+                // Group 2 is the named `key=value` list. A positional call
+                // matches group 6 instead, and group 2 is empty, so `{@each $items}`
+                // never bound `source` (RZ-31).
+                $syntax = \trim(($matches[6] ?? '') !== '' ? $matches[6] : ($matches[2] ?? ''));
                 $clips = \preg_split('/(?:(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>|\.)(*SKIP)(*FAIL)|\s+/', $syntax);
 
                 if (isset($matches[6])) {
