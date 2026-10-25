@@ -17,6 +17,11 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
   - The new optional third argument `$layout` holds the layout's props. An `.rzx` layout
     (`'layout' => '@layout/site.rzx'`) gets the page as its default `<Slot />`.
   - A view that exists as both `.tpl` and `.rzx` is an error.
+  - The `$layout` props also reach a `.tpl` layout, for `.tpl` pages and `.rzx` screens alike.
+    `Template::renderPage()` gains an optional `$layoutParameters` argument (additive).
+- `Template::abortRender()` (internal, used by `renderPage()` and the `.rzx` path) leaves a failed
+  render. At the outermost level it discards the response's anchor state instead of finalizing it
+  on empty HTML.
   - `<push>` and `<Anchor>` use the same `Razy\View\Anchors` as `{@push}` / `{@anchor}` (RZ-27),
     with the same nonce, inline-script check and dedupe.
 - **`{@rzx name="Kit.Card" props=$card}`** renders a component inside a `.tpl` page. Its pushes go

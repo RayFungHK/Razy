@@ -189,7 +189,7 @@ final class Host
                     : $template->load($path)->assign($layoutProps)->output();
             }
         } catch (Throwable $e) {
-            $template->endRender('');
+            $template->abortRender();
 
             throw $e;
         }

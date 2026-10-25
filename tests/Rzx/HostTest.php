@@ -312,6 +312,33 @@ class HostTest extends TestCase
         }
     }
 
+    public function testLayoutPropsReachATplLayoutForATplPage(): void
+    {
+        \file_put_contents($this->dir . '/layout/site.tpl', "<title>{\$title}</title>{@anchor name=\"content\"}\n");
+        $this->put('view/admin/Plain.tpl', '<p>{$n}</p>');
+        $controller = $this->controller('@layout/site.tpl');
+
+        \ob_start();
+        $controller->render('admin/Plain', ['n' => 1], ['title' => 'Members <&>']);
+        $this->assertSame("<title>Members <&></title><p>1</p>\n", \ob_get_clean());
+    }
+
+    public function testAFailedRenderDiscardsTheAnchorState(): void
+    {
+        $screen = $this->screen('admin/Bad', "<props>\nreturn ['v' => Prop::any()];\n</props>\n<main><push to=\"body.scripts\"><script type=\"module\" src=\"/a.js\" /></push>{v}</main>");
+        $template = $this->template();
+        $host = Host::fromConfig(['rzx' => ['screen_profile' => null]], 'site', $this->dir . '/data', fn (): array => [$this->info()]);
+        try {
+            $host->renderPage($template, $this->info(), $screen, ['v' => [1]]);
+            $this->fail('rendered an array');
+        } catch (RenderError) {
+        }
+        $this->assertSame([], $template->anchors()->unresolved(), 'the failed page left no queued pushes');
+
+        $ok = $this->screen('admin/Ok', '<main>ok</main>');
+        $this->assertSame('<main>ok</main>', $host->renderPage($template, $this->info(), $ok), 'the next render starts clean');
+    }
+
     public function testControllerRenderPicksTheRzxView(): void
     {
         $this->screen('admin/Members', "<props>\nreturn ['n' => Prop::int()->required()];\n</props>\n<main><b>{n}</b></main>");
@@ -363,10 +390,10 @@ class HostTest extends TestCase
         return $path;
     }
 
-    private function controller(): Controller
+    private function controller(?string $layout = null): Controller
     {
         $info = $this->info();
-        $template = $this->template();
+        $template = $this->template()->setLayout($layout);
         $module = $this->createMock(Module::class);
         $module->method('getModuleInfo')->willReturn($info);
         $module->method('getGlobalTemplateEntity')->willReturn($template);

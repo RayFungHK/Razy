@@ -402,7 +402,7 @@ class Controller
         if ($parameters) {
             $page->assign($parameters);
         }
-        echo $this->getTemplate()->renderPage($page);
+        echo $this->getTemplate()->renderPage($page, $layout);
     }
 
     /**
