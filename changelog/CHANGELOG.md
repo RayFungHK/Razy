@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **RZ-28b** — **Added:** the `.rzx` compiler, runtime and build cache: compile-time props, slot and markup-safety checks, context escaping by default (`SafeHtml` is the only raw path), components calling components, checksum cache with dev recompile and a never-compile production mode, render errors mapped to `.rzx` lines. [unreleased/RZ-28b.md](unreleased/RZ-28b.md).
 - **RZ-31** — **Fixed:** `{@each}` renders every item. The enclosure flag was misspelled, so the body ran once as the last item. A value containing `{$…}` stays text. [unreleased/RZ-31.md](unreleased/RZ-31.md).
 - **RZ-28a** — **Added:** `Razy\Rzx\Parser`, the `.rzx` component lexer/parser (JSX-subset markup, control-flow tags, slots, pushes, fixed expression grammar) to an AST with `RZX0nn` line:col errors; parse only, nothing renders yet. [unreleased/RZ-28a.md](unreleased/RZ-28a.md).
 - **RZ-29** — **Added:** UI fixtures (`*.fixture.php`, `Razy\View\Fixture`) and `php Razy.phar ui list | ui render`, which render one piece of UI per state and theme to standalone HTML (no network) for pixel goldens. [unreleased/RZ-29.md](unreleased/RZ-29.md).

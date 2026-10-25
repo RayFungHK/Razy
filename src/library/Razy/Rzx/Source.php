@@ -26,13 +26,19 @@ final class Source
 {
     private const BOM = "\xEF\xBB\xBF";
 
+    public readonly string $file;
+
     /** @var list<int> byte offset of the first character of each line */
     private array $lineStarts = [0];
 
+    /**
+     * @param string $file shown in messages; `\` becomes `/`, so locations read the same on every OS
+     */
     public function __construct(
         public readonly string $text,
-        public readonly string $file = '<rzx>',
+        string $file = '<rzx>',
     ) {
+        $this->file = \str_replace('\\', '/', $file);
         $length = \strlen($text);
         for ($i = 0; $i < $length; ++$i) {
             if ($text[$i] === "\n") {
