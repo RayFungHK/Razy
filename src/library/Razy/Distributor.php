@@ -105,6 +105,9 @@ class Distributor implements DistributorInterface
     /** @var bool RZ-03: dist.php 'auto_escape' — HTML-escape `{$tag}` output by default */
     private bool $autoEscape = false;
 
+    /** RZ-27: the site layout include spec, or null */
+    private ?string $layout = null;
+
     /** RZ-11: INCLUDE resolution (dist.php 'templates': @layout/ folder, strict includes) */
     private ?IncludeResolver $includeResolver = null;
 
@@ -240,6 +243,10 @@ class Distributor implements DistributorInterface
         // unless 'templates' => ['strict_include' => false] (deprecated).
         $this->includeResolver = IncludeResolver::fromConfig($config, $distCode, $this->folderPath);
 
+        // RZ-27: one layout per site. 'layout' => 'site' means @layout/site.tpl;
+        // Controller::render() renders a page into it. Absent = no layout.
+        $this->layout = self::layoutFromConfig($config, $distCode);
+
         // RZ-10: security headers on every response. Absent = a baseline that
         // never breaks a page (nosniff, referrer policy, same-origin framing);
         // false opts out. Checked here so a typo dies at boot.
@@ -290,6 +297,27 @@ class Distributor implements DistributorInterface
             $container->instance(AuthzGate::class, $this->authzGate);
             $container->instance(AuthzIdentity::class, $this->authzIdentity);
         }
+    }
+
+    /**
+     * RZ-27: read dist.php 'layout'. A bare name (`site`) is `@layout/site.tpl`;
+     * an `@layout/…` spec is used as given.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @throws ConfigurationException
+     */
+    public static function layoutFromConfig(array $config, string $distCode): ?string
+    {
+        $value = $config['layout'] ?? null;
+        if (null === $value) {
+            return null;
+        }
+        if (!\is_string($value) || !\preg_match('/^(?:@layout\/[\w.\/-]+|[\w-]+)$/', $value)) {
+            throw new ConfigurationException("dist.php 'layout' must be a layout name like 'site' or an '@layout/…' path for dist '{$distCode}'.");
+        }
+
+        return \str_starts_with($value, '@layout/') ? $value : '@layout/' . $value . '.tpl';
     }
 
     /**
@@ -1080,7 +1108,7 @@ class Distributor implements DistributorInterface
     public function getGlobalTemplateEntity(): Template
     {
         if (!$this->globalTemplate) {
-            $this->globalTemplate = (new Template())->setAutoEscape($this->autoEscape)->setIncludeResolver($this->includeResolver ?? new IncludeResolver());
+            $this->globalTemplate = (new Template())->setAutoEscape($this->autoEscape)->setIncludeResolver($this->includeResolver ?? new IncludeResolver())->setLayout($this->layout);
         }
 
         return $this->globalTemplate;
@@ -1163,6 +1191,8 @@ class Distributor implements DistributorInterface
         SecurityHeaders::setCurrent($this->securityHeaders);
         Assets::setCurrent($this->assets);
         $this->getGlobalTemplateEntity()->assign('csp_nonce', $nonce);
+        // RZ-27: anchors start empty with a new marker token on every request (worker mode)
+        $this->getGlobalTemplateEntity()->anchors()->reset();
         if (RuntimeMode::isWeb()) {
             $this->securityHeaders->send();
         }

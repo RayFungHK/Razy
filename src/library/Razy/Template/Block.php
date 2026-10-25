@@ -61,6 +61,9 @@ class Block
     /** @var Block|null Reference to the parent block, null for root */
     private ?Block $parent;
 
+    /** RZ-27: true while a {#comment} tag continues onto the next line */
+    private bool $inTagComment = false;
+
     /**
      * Block constructor.
      *
@@ -86,6 +89,11 @@ class Block
         $concat = '';
         // True while inside a plain `<!-- … -->` comment that spans several lines
         $inComment = false;
+        // RZ-27 (RZ-26): enclosing function tags ({@if}, {@push}, …) still open in this
+        // block's text, as [name, path:line]. A structural comment while one is open
+        // is a parse error: blocks and includes are resolved while parsing, so the
+        // function tag could never wrap them (the {/if} was silently dropped).
+        $enclosing = [];
 
         while (($line = $reader->fetch()) !== null) {
             // RZ-22: the body of a multi-line comment is dropped up to (and including) the
@@ -108,7 +116,19 @@ class Block
                     // Skip non-INCLUDE tags with invalid block names (treat as plain text)
                     if ('INCLUDE' !== $matches[1] && !\preg_match('/^\w[\w\-]+(?=[^-])\w$/', $matches[3])) {
                         $concat .= $line;
+                        $this->trackEnclosing($line, $enclosing, $reader->where());
                     } else {
+                        if ($enclosing) {
+                            [$tag, $at] = \end($enclosing);
+                            throw new TemplateException(\sprintf(
+                                "'%s BLOCK: %s' at %s is inside {@%s} opened at %s. A function tag cannot wrap a block or an include: they are resolved while the file is parsed, before any condition runs. Move the condition into the included file or into a block, or push the markup with {@push}.",
+                                $matches[1],
+                                \trim($matches[3]),
+                                $reader->where(),
+                                $tag,
+                                $at,
+                            ));
+                        }
                         // Flush accumulated text before processing a structural tag
                         if ($concat) {
                             $this->structure[] = $concat;
@@ -178,6 +198,7 @@ class Block
             }
 
             $concat .= $line;
+            $this->trackEnclosing($line, $enclosing, $reader->where());
         }
 
         // Flush any remaining accumulated text content
@@ -294,6 +315,14 @@ class Block
     public function hasBlock(string $name): bool
     {
         return \array_key_exists($name, $this->blocks);
+    }
+
+    /**
+     * RZ-27: the Source this block was parsed from.
+     */
+    public function getSource(): Source
+    {
+        return $this->source;
     }
 
     /**
@@ -455,5 +484,54 @@ class Block
     public function newEntity(): Entity
     {
         return new Entity($this);
+    }
+
+    /**
+     * RZ-27 (RZ-26): update the stack of enclosing function tags opened in a line of text.
+     *
+     * Only tags whose plugin encloses content count ({@if}, {@push}, {@repeat}, …).
+     * Unknown tags print as text at render time, so they are ignored here too.
+     *
+     * @param array<int, array{0: string, 1: string}> $open
+     */
+    private function trackEnclosing(string $line, array &$open, string $where): void
+    {
+        // A {#comment} runs to the first '}', across lines, as in Entity::parseFunctionTag()
+        if ($this->inTagComment) {
+            $end = \strpos($line, '}');
+            if (false === $end) {
+                return;
+            }
+            $this->inTagComment = false;
+            $line = \substr($line, $end + 1);
+        }
+        if (!\str_contains($line, '{@') && !\str_contains($line, '{/') && !\str_contains($line, '{#')) {
+            return;
+        }
+        if (!\preg_match_all('/\.(*SKIP)(*FAIL)|{(?:@(\w+)|\/(\w+)}|#[^}]*(?:}|$))/', $line, $tags, PREG_SET_ORDER)) {
+            return;
+        }
+        foreach ($tags as $tag) {
+            if (\str_starts_with($tag[0], '{#')) {
+                if (!\str_ends_with($tag[0], '}')) {
+                    $this->inTagComment = true;
+                }
+                continue;
+            }
+            if (isset($tag[2]) && '' !== $tag[2]) {
+                // closing tag: pop the innermost matching open tag
+                for ($i = \count($open) - 1; $i >= 0; --$i) {
+                    if ($open[$i][0] === $tag[2]) {
+                        \array_splice($open, $i);
+                        break;
+                    }
+                }
+                continue;
+            }
+            $plugin = $this->source->loadPlugin('function', $tag[1]);
+            if ($plugin && $plugin->isEncloseContent()) {
+                $open[] = [$tag[1], $where];
+            }
+        }
     }
 }

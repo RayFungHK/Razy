@@ -20,12 +20,14 @@ use InvalidArgumentException;
 use Razy\Contract\TemplateInterface;
 use Razy\Exception\ConfigurationException;
 use Razy\Exception\TemplateException;
+use Razy\Http\SecurityHeaders;
 use Razy\Template\Block;
 use Razy\Template\IncludeResolver;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
 use Razy\Template\Plugin\TModifier;
 use Razy\Template\Source;
+use Razy\View\Anchors;
 use ReflectionClass;
 use ReflectionException;
 use Throwable;
@@ -64,6 +66,15 @@ class Template implements TemplateInterface
 
     /** @var IncludeResolver|null INCLUDE path resolution (RZ-11); null = strict, no layout folder */
     private ?IncludeResolver $includeResolver = null;
+
+    /** RZ-27: this manager's anchors (reset per request by the Distributor) */
+    private ?Anchors $anchors = null;
+
+    /** RZ-27: nesting depth of renders; markers are replaced when it returns to 0 */
+    private int $renderDepth = 0;
+
+    /** RZ-27: the site layout spec (e.g. `@layout/site.tpl`), or null for no layout */
+    private ?string $layout = null;
 
     /**
      * Template constructor.
@@ -482,6 +493,84 @@ class Template implements TemplateInterface
     }
 
     /**
+     * RZ-27: the anchors that templates print ({@anchor}) and push to ({@push}).
+     */
+    public function anchors(): Anchors
+    {
+        return $this->anchors ??= new Anchors(static fn (): string => SecurityHeaders::current()->nonce());
+    }
+
+    /**
+     * RZ-27: the site layout every {@see renderPage()} wraps the page in.
+     *
+     * @param string|null $spec An include spec such as `@layout/site.tpl`, or null for none
+     */
+    public function setLayout(?string $spec): static
+    {
+        $spec = null === $spec ? null : \trim($spec);
+        $this->layout = ('' === $spec) ? null : $spec;
+
+        return $this;
+    }
+
+    public function getLayout(): ?string
+    {
+        return $this->layout;
+    }
+
+    /**
+     * RZ-27: enter a render. Pair every call with {@see endRender()}.
+     *
+     * @internal
+     */
+    public function beginRender(): void
+    {
+        ++$this->renderDepth;
+    }
+
+    /**
+     * RZ-27: leave a render; the outermost one replaces the anchor markers.
+     *
+     * @internal
+     */
+    public function endRender(string $html): string
+    {
+        $this->renderDepth = \max(0, $this->renderDepth - 1);
+
+        return 0 === $this->renderDepth ? $this->anchors()->finalize($html) : $html;
+    }
+
+    /**
+     * RZ-27: render a page Source inside the site layout (when one is set).
+     *
+     * The page renders first, so its pushes are known; then the layout renders
+     * and prints the page at `{@anchor name="content"}`. Without a layout the
+     * page renders alone. Anchor markers are replaced at the end either way.
+     *
+     * @throws Throwable
+     */
+    public function renderPage(Source $page): string
+    {
+        $this->beginRender();
+        try {
+            $html = $page->output();
+            if (null !== $this->layout) {
+                $path = $this->getIncludeResolver()->resolve($this->layout, '');
+                if (null === $path) {
+                    throw new TemplateException("The site layout '{$this->layout}' was not found.");
+                }
+                $this->anchors()->setContent($html);
+                $html = $this->load($path)->output();
+            }
+        } catch (Throwable $e) {
+            $this->renderDepth = \max(0, $this->renderDepth - 1);
+            throw $e;
+        }
+
+        return $this->endRender($html);
+    }
+
+    /**
      * Return the entity content in queue list by given section name.
      *
      * @param array $sections An array contains section name
@@ -491,13 +580,21 @@ class Template implements TemplateInterface
     public function outputQueued(array $sections): string
     {
         $content = '';
-        foreach ($sections as $section) {
-            if (isset($this->queue[$section])) {
-                $content .= $this->queue[$section]->output();
+        $this->beginRender();
+        try {
+            foreach ($sections as $section) {
+                if (isset($this->queue[$section])) {
+                    $content .= $this->queue[$section]->output();
+                }
             }
+        } catch (Throwable $e) {
+            $this->renderDepth = \max(0, $this->renderDepth - 1);
+            throw $e;
+        } finally {
+            $this->queue = [];
         }
-        $this->queue = [];
 
-        return $content;
+        // RZ-27: anchors printed in one section receive pushes from every section
+        return $this->endRender($content);
     }
 }

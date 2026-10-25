@@ -240,7 +240,24 @@ class Source
      */
     public function output(): string
     {
-        return $this->rootEntity->process();
+        // RZ-27: the outermost render replaces anchor markers ({@anchor} / {@push})
+        $this->template->beginRender();
+        try {
+            $html = $this->rootEntity->process();
+        } catch (Throwable $e) {
+            $this->template->endRender('');
+            throw $e;
+        }
+
+        return $this->template->endRender($html);
+    }
+
+    /**
+     * RZ-27: the Template manager this source belongs to.
+     */
+    public function getManager(): Template
+    {
+        return $this->template;
     }
 
     /**

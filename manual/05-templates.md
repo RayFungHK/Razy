@@ -85,6 +85,12 @@ dist's shared layout folder (dist.php `'templates' => ['layout_path' => 'layout'
 must reference other layout files as `@layout/…`, never relatively. A path that does not resolve throws
 `TemplateException` (RZ-11); before RZ-11 it was skipped silently.
 
+A block or INCLUDE line cannot sit inside an open function tag such as `{@if}`: blocks and includes are
+resolved while the file is parsed, before any condition runs. Since RZ-27 that is a `TemplateException`
+naming both lines (before, the include always rendered and the `{/if}` was dropped, RZ-26). For page
+shells, scripts and styles that only some pages need, use the site layout and `{@anchor}` / `{@push}`:
+[13-layouts-and-anchors.md](13-layouts-and-anchors.md).
+
 Plain comments are template-only: a line containing `<!-- ` that is not a block tag is dropped from
 the output (the whole line, including any markup before the comment). A comment left open on that
 line keeps dropping lines up to and including the line with `-->` (RZ-22); before RZ-22 only the

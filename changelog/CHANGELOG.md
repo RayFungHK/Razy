@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **RZ-27** — **Added:** one layout per site (`dist.php 'layout'`, `Controller::render()`), named anchors (`{@anchor}`) and `{@push}` with dedupe, order and the CSP nonce; `{@importmap}` once per response. **Changed (breaking):** a block or `INCLUDE BLOCK` comment inside an open `{@if}` (or other enclosing tag) is a parse error instead of silently ignoring the condition (RZ-26). [unreleased/RZ-27.md](unreleased/RZ-27.md).
 - **RZ-30** — **Security:** `{@if}` no longer parses a substituted value as template. `{@if $x}{$x}{/if}` prints `{$secret}` when `$x` is that text. [unreleased/RZ-30.md](unreleased/RZ-30.md).
 - **RZ-24** — **Changed (breaking, security):** the document root is not a public file tree (`favicon.ico`, `robots.txt`, `sitemap.xml`, and other docroot files now hit the front controller on Apache, `php -S`, and generated Caddy). [unreleased/RZ-24.md](unreleased/RZ-24.md).
 

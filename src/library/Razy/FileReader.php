@@ -31,6 +31,9 @@ class FileReader
     /** @var array<SplFileObject> Queue of file objects for sequential reading */
     private array $generator = [];
 
+    /** @var array<int> RZ-27: lines read so far, parallel to */
+    private array $lines = [];
+
     /**
      * FileReader constructor.
      *
@@ -50,6 +53,7 @@ class FileReader
         }
 
         $this->generator[] = new SplFileObject($filepath);
+        $this->lines[] = 0;
     }
 
     /**
@@ -72,6 +76,7 @@ class FileReader
         }
 
         $this->generator[] = new SplFileObject($filepath);
+        $this->lines[] = 0;
 
         return $this;
     }
@@ -86,12 +91,15 @@ class FileReader
         // Skip exhausted file objects and advance to the next file in the queue
         while (!$this->generator[0]->valid()) {
             \array_shift($this->generator);
+            \array_shift($this->lines);
             if (empty($this->generator)) {
                 return null;
             }
         }
 
         // Read and return the next line from the current file
+        ++$this->lines[0];
+
         return $this->generator[0]->fgets();
     }
 
@@ -115,7 +123,20 @@ class FileReader
         }
 
         \array_unshift($this->generator, new SplFileObject($filepath));
+        \array_unshift($this->lines, 0);
 
         return $this;
+    }
+
+    /**
+     * RZ-27: `path:line` of the line fetch() returned last (for parse errors).
+     */
+    public function where(): string
+    {
+        if (empty($this->generator)) {
+            return '';
+        }
+
+        return $this->generator[0]->getPathname() . ':' . $this->lines[0];
     }
 }

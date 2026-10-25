@@ -24,6 +24,7 @@ use Razy\ModuleInfo;
 use Razy\Template;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
+use ReflectionProperty;
 use Throwable;
 
 /**
@@ -251,6 +252,20 @@ class Entity
         }
 
         return 0;
+    }
+
+    /**
+     * RZ-27: the Template manager rendering this entity (anchors, layout); null
+     * for an entity that is not attached to a parsed block.
+     */
+    public function getManager(): ?Template
+    {
+        // An entity made without its constructor (a bare test double) has no block
+        if (!(new ReflectionProperty(self::class, 'block'))->isInitialized($this)) {
+            return null;
+        }
+
+        return $this->block->getSource()->getManager();
     }
 
     /**
