@@ -56,13 +56,13 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     </If>
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
     RewriteRule ^{$route_path}data/(.+?\.(php|phtml|phar))(/|$) {$data_path} [NC,H=default-handler,T=application/octet-stream,END]
-    # RZ-25: html, htm, svg, xml, xhtml, js and mjs download and stay
+    # RZ-25: html, htm, svg, svgz, xml, xhtml, js and mjs download and stay
     # sandboxed. The next rule publishes the file, with the same [NC],
     # so the headers cannot land on a request this rule matched and the
     # publish rule missed. An internal redirect renames the env var, so
     # both names are set and both are checked.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteRule ^{$route_path}data/.+\.(html|htm|svg|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]
+    RewriteRule ^{$route_path}data/.+\.(html|htm|svg|svgz|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]
     # [END] (Apache 2.4+): same re-entry as the shared rule above.
     # [NC] matches the active-type rule above.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}

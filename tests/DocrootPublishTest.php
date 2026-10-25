@@ -52,6 +52,10 @@ PHP);
         \file_put_contents($docroot . '/data/page.htm', "<html><body>HTMBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/upper.HTML', "<html><body>UPPERBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/pic.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>SVGBYTES</text></svg>\n");
+        \file_put_contents(
+            $docroot . '/data/pic.svgz',
+            \gzencode("<svg xmlns=\"http://www.w3.org/2000/svg\"><text>SVGZBYTES</text></svg>\n"),
+        );
         \file_put_contents($docroot . '/data/doc.xml', "<?xml version=\"1.0\"?><root>XMLBYTES</root>\n");
         \file_put_contents($docroot . '/data/page.xhtml', "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body>XHTMLBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/app.js', "console.log('JSBYTES');\n");
@@ -192,6 +196,16 @@ PHP);
             $this->assertActiveDownload($path, $marker);
         }
 
+        // gzip does not keep the plaintext marker. Compare the stored bytes.
+        $svgz = (string) \file_get_contents(self::$docroot . '/data/pic.svgz');
+        [$status, $body, $headers] = $this->fetch('/data/pic.svgz');
+        $joined = \implode("\n", $headers);
+        $this->assertSame(200, $status, '/data/pic.svgz ' . $this->logTail());
+        $this->assertSame($svgz, $body, '/data/pic.svgz');
+        $this->assertMatchesRegularExpression('/^Content-Disposition:\s*attachment\s*$/mi', $joined);
+        $this->assertMatchesRegularExpression('/^Content-Security-Policy:\s*sandbox\s*$/mi', $joined);
+        $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff\s*$/mi', $joined);
+
         $this->assertInlineDataFile('/data/ok.txt', "DATABYTES\n");
         $png = (string) \file_get_contents(self::$docroot . '/data/pixel.png');
         $this->assertInlineDataFile('/data/pixel.png', $png);
@@ -296,7 +310,7 @@ PHP);
         }
         require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
 
-        foreach (['html', 'htm', 'svg', 'xml', 'xhtml', 'js', 'mjs'] as $ext) {
+        foreach (['html', 'htm', 'svg', 'svgz', 'xml', 'xhtml', 'js', 'mjs'] as $ext) {
             $this->assertTrue(\serveIsActiveContent('/data/file.' . $ext, 'application/octet-stream'), $ext);
             $this->assertTrue(\serveIsActiveContent('/data/file.' . \strtoupper($ext), 'application/octet-stream'), $ext);
         }
@@ -509,7 +523,7 @@ PHP);
         $this->assertStringNotContainsString('split_path', $handle);
         $this->assertDoesNotMatchRegularExpression('/^\t\tphp$/m', $handle);
         $this->assertStringContainsString('(?i)^(/.*?\.(?:php|phtml|phar))(?:/.*)$', $handle);
-        $this->assertStringContainsString('path_regexp `(?i)\.(?:html|htm|svg|xml|xhtml|js|mjs)$`', $handle);
+        $this->assertStringContainsString('path_regexp `(?i)\.(?:html|htm|svg|svgz|xml|xhtml|js|mjs)$`', $handle);
         $this->assertStringContainsString('Content-Disposition "attachment"', $handle);
         $this->assertStringContainsString('Content-Security-Policy "sandbox"', $handle);
         $this->assertStringContainsString('X-Content-Type-Options "nosniff"', $handle);
@@ -545,7 +559,7 @@ PHP);
         $this->assertLessThan($rulePos, $ifPos, 'SetHandler none covers the data prefix, not only a script URL');
         $this->assertStringNotContainsString('RAZY_DATA_SCRIPT', $apache);
 
-        $active = 'RewriteRule ^' . $routePath . 'data/.+\.(html|htm|svg|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
+        $active = 'RewriteRule ^' . $routePath . 'data/.+\.(html|htm|svg|svgz|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
         $this->assertStringContainsString($active, $apache);
         $activePos = (int) \strpos($apache, $active);
         $activeLine = \substr($apache, $activePos, (int) \strpos($apache, "\n", $activePos) - $activePos);

@@ -7,7 +7,7 @@
  *
  * Handles:
  *   - Data directory mapping (realpath-guarded; bytes only, never executed).
- *     html, htm, svg, xml, xhtml, js, mjs, and anything libmagic calls
+ *     html, htm, svg, svgz, xml, xhtml, js, mjs, and anything libmagic calls
  *     text/html or image/svg+xml, download with a sandbox CSP (RZ-25).
  *     /data/note.php/extra is that file's bytes, or 404. It is not PATH_INFO.
  *     /data/ and /data/sub/ are 404, including when index.html is there.
@@ -355,6 +355,7 @@ function serveIsActiveContent(string $path, string $contentType): bool
         'html' => true,
         'htm' => true,
         'svg' => true,
+        'svgz' => true,
         'xml' => true,
         'xhtml' => true,
         'js' => true,

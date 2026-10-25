@@ -206,7 +206,7 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
   `RemoveHandler` for a file path under the mapping, not the `/data/`
   directory URL and not only a URL that ends in the extension) so Apache
   does not run a script under `data/`, including `/data/note.php/extra`.
-  `html`, `htm`, `svg`, `xml`, `xhtml`, `js` and `mjs` are attachments
+  `html`, `htm`, `svg`, `svgz`, `xml`, `xhtml`, `js` and `mjs` are attachments
   with `Content-Security-Policy: sandbox` and `nosniff`. The marker and
   the publish rule use the same case match. The generated Caddy data handle and `php Razy.phar serve`
   send the same headers, and that PATH_INFO URL is the file's bytes or
