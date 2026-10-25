@@ -34,7 +34,7 @@ use Razy\Template\Plugin\TFunction;
 return function (...$arguments) {
     return new class(...$arguments) extends TFunction {
         /** @var bool This function requires enclosed content between opening and closing tags */
-        protected bool $enclosedContent = true;
+        protected bool $encloseContent = true;
 
         /** @var array Allowed parameters: 'source' is the array to iterate, 'as' is the loop variable name */
         protected array $allowedParameters = [
@@ -65,16 +65,23 @@ return function (...$arguments) {
                 $parameters['as'] = 'kvp';
             }
 
-            // Iterate over each element, assigning key/value pairs to the alias variable
+            // Render every item while this alias is assigned. Do not return that
+            // text: the caller still scans {$…} once, and a value that contains
+            // {$…} would run as template (RZ-31). Each iteration is stored and
+            // inserted by that one scan, which does not rescan the value.
             $result = '';
+            $token = \bin2hex(\random_bytes(8));
+            $index = 0;
             foreach ($parameters['source'] as $key => $value) {
                 $entity->assign($parameters['as'], [
                     'key' => $key,
                     'value' => $value,
                 ]);
 
-                // Parse and append the wrapped content for each iteration
-                $result .= $entity->parseText($wrappedText);
+                $slot = '__each' . $token . '_' . $index;
+                $entity->assign($slot, $entity->parseText($wrappedText));
+                $result .= '{$' . $slot . '->raw}';
+                ++$index;
             }
 
             return $result;
