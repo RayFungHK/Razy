@@ -78,6 +78,26 @@ final class Anchors
     }
 
     /**
+     * The attributes of an opening tag (the text after the tag name), by lowercase
+     * name. A `nonce=` or `type=` inside another attribute's value is not an attribute.
+     *
+     * @return array<string, string>
+     */
+    private static function attributes(string $attrs): array
+    {
+        \preg_match_all('/([^\s"\'=<>\/`]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'=<>`]+)))?/', $attrs, $found, PREG_SET_ORDER);
+        $out = [];
+        foreach ($found as $a) {
+            $name = \strtolower($a[1]);
+            if (!isset($out[$name])) {
+                $out[$name] = (string) (($a[2] ?? '') . ($a[3] ?? '') . ($a[4] ?? ''));
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * The first src / href attribute value in the markup, as a dedupe key.
      */
     private static function sourceOf(string $html): ?string
@@ -257,13 +277,13 @@ final class Anchors
             $closeStart = (int) $close[0][1];
             $body = \substr($html, $bodyStart, $closeStart - $bodyStart);
             if ('' !== \trim($body)) {
-                $type = \preg_match('/\btype\s*=\s*["\']?([^"\'\s>]+)/i', $open[1][0], $t) ? \strtolower($t[1]) : '';
+                $type = \strtolower(\trim(self::attributes($open[1][0])['type'] ?? ''));
                 if ('importmap' !== $type && 'application/json' !== $type) {
                     throw new TemplateException('An inline <script> cannot be pushed to an anchor; use a src, or type="importmap" / "application/json".');
                 }
             }
             $tag = $open[0][0];
-            if ('' !== $attr && !\preg_match('/\bnonce\s*=/i', $open[1][0])) {
+            if ('' !== $attr && !isset(self::attributes($open[1][0])['nonce'])) {
                 $tag = \substr($tag, 0, 7) . $attr . \substr($tag, 7);
             }
             $out .= $this->nonceModulePreloads(\substr($html, $offset, $tagStart - $offset), $attr) . $tag . $body . $close[0][0];
@@ -282,6 +302,14 @@ final class Anchors
             return $html;
         }
 
-        return (string) \preg_replace('/<link\b(?=[^>]*\brel\s*=\s*["\']?modulepreload)(?![^>]*\bnonce\s*=)/i', '<link' . $attr, $html);
+        return (string) \preg_replace_callback('/<link\b([^>]*)>/i', static function (array $m) use ($attr): string {
+            $attrs = self::attributes($m[1]);
+            $rel = \preg_split('/\s+/', \strtolower($attrs['rel'] ?? '')) ?: [];
+            if (!\in_array('modulepreload', $rel, true) || isset($attrs['nonce'])) {
+                return $m[0];
+            }
+
+            return \substr($m[0], 0, 5) . $attr . \substr($m[0], 5);
+        }, $html);
     }
 }

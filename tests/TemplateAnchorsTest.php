@@ -217,6 +217,21 @@ class TemplateAnchorsTest extends TestCase
         (new Anchors())->push('s', '<script type="application/json">{}</script><script>alert(1)</script>');
     }
 
+    public function testNonceOrTypeInsideAnotherAttributeDoesNotCount(): void
+    {
+        $anchors = new Anchors(static fn (): string => 'n0nce');
+        $anchors->push('s', '<script src="/a.js?nonce=1" data-nonce="x"></script>');
+        $anchors->push('s', '<link rel="modulepreload" href="/b.js?nonce=1">');
+
+        $this->assertSame(
+            '<script nonce="n0nce" src="/a.js?nonce=1" data-nonce="x"></script><link nonce="n0nce" rel="modulepreload" href="/b.js?nonce=1">',
+            $anchors->finalize($anchors->marker('s')),
+        );
+
+        $this->expectException(TemplateException::class);
+        $anchors->push('s', '<script src="/x?type=importmap">alert(1)</script>');
+    }
+
     public function testImportmapAndJsonScriptsCanBePushed(): void
     {
         $anchors = new Anchors();
@@ -320,6 +335,25 @@ class TemplateAnchorsTest extends TestCase
         $this->expectException(TemplateException::class);
         $this->expectExceptionMessage("'START BLOCK: row'");
         $this->template()->load($page);
+    }
+
+    public function testACommentMentioningAClosingTagDoesNotHideTheError(): void
+    {
+        $this->put('dist/mod/view/part.tpl', "<b>part</b>\n");
+        $page = $this->put('dist/mod/view/page.tpl', "{@if \$x}\n{# old: {/if} }\n<!-- INCLUDE BLOCK: part.tpl -->\n{/if}\n");
+
+        $this->expectException(TemplateException::class);
+        $this->expectExceptionMessage('is inside {@if}');
+        $this->template()->load($page);
+    }
+
+    public function testACommentedOutIfDoesNotMakeALaterIncludeAnError(): void
+    {
+        $this->put('dist/mod/view/part.tpl', "<b>part</b>\n");
+        $page = $this->put('dist/mod/view/page.tpl', "{# {@if \$x} was here\nand continued }\n<!-- INCLUDE BLOCK: part.tpl -->\n");
+
+        // the engine ends a {#comment} at the first '}' (here: the one of "{@if $x}"); no parse error
+        $this->assertStringContainsString('<b>part</b>', $this->template()->load($page)->output());
     }
 
     public function testAClosedIfBeforeAnIncludeIsFine(): void

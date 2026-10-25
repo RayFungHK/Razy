@@ -61,6 +61,9 @@ class Block
     /** @var Block|null Reference to the parent block, null for root */
     private ?Block $parent;
 
+    /** RZ-27: true while a {#comment} tag continues onto the next line */
+    private bool $inTagComment = false;
+
     /**
      * Block constructor.
      *
@@ -493,13 +496,28 @@ class Block
      */
     private function trackEnclosing(string $line, array &$open, string $where): void
     {
-        if (!\str_contains($line, '{@') && !\str_contains($line, '{/')) {
+        // A {#comment} runs to the first '}', across lines, as in Entity::parseFunctionTag()
+        if ($this->inTagComment) {
+            $end = \strpos($line, '}');
+            if (false === $end) {
+                return;
+            }
+            $this->inTagComment = false;
+            $line = \substr($line, $end + 1);
+        }
+        if (!\str_contains($line, '{@') && !\str_contains($line, '{/') && !\str_contains($line, '{#')) {
             return;
         }
-        if (!\preg_match_all('/\.(*SKIP)(*FAIL)|{(?:@(\w+)|\/(\w+)})/', $line, $tags, PREG_SET_ORDER)) {
+        if (!\preg_match_all('/\.(*SKIP)(*FAIL)|{(?:@(\w+)|\/(\w+)}|#[^}]*(?:}|$))/', $line, $tags, PREG_SET_ORDER)) {
             return;
         }
         foreach ($tags as $tag) {
+            if (\str_starts_with($tag[0], '{#')) {
+                if (!\str_ends_with($tag[0], '}')) {
+                    $this->inTagComment = true;
+                }
+                continue;
+            }
             if (isset($tag[2]) && '' !== $tag[2]) {
                 // closing tag: pop the innermost matching open tag
                 for ($i = \count($open) - 1; $i >= 0; --$i) {
