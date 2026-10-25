@@ -6,7 +6,13 @@
  * Reads configuration from .razy-serve-config.json in the same directory.
  *
  * Handles:
- *   - Data directory mapping (realpath-guarded; bytes only, never executed)
+ *   - Data directory mapping (realpath-guarded; bytes only, never executed).
+ *     Active extensions (Apache mime.types and Go's MIME table for HTML,
+ *     XHTML, SVG, XML, and JavaScript) download with a sandbox CSP (RZ-25).
+ *     libmagic does the same for a renamed upload: text/html, a /xml or
+ *     +xml type, or a JavaScript type, parameters stripped.
+ *     /data/note.php/extra is that file's bytes, or 404. It is not PATH_INFO.
+ *     /data/ and /data/sub/ are 404, including when index.html is there.
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
  *     under this server; RZ-09) with hashed-URL cache headers.
@@ -83,10 +89,30 @@ $docRoot  = $_SERVER['DOCUMENT_ROOT'];
 // URL pattern: /<route_prefix>data/<path>
 // (Webassets are not resolved here: the app knows each module's alias and
 // version folder, so /webassets/... falls through to index.php — RZ-09.)
-if (preg_match('#^(?:/[^/]+)?/data/(.+)$#', $uri, $m)) {
-    $dataFile = resolveStaticPath($docRoot . '/data', $m[1]);
+// /data and /data/ are the directory itself. A real subdirectory is too.
+// php -S would not append index.html, but falling through would be the
+// app, and an index document must not be the response (RZ-25).
+if (preg_match('#^(?:/[^/]+)?/data(?:/(.*))?$#', $uri, $m)) {
+    $relative = $m[1] ?? '';
+    if (serveDataRequestIsDirectory($docRoot . '/data', $relative)) {
+        http_response_code(404);
+        header('X-Content-Type-Options: nosniff');
+        return true;
+    }
+    // /data/note.php/extra must not fall through. A false return would let
+    // php -S execute note.php with PATH_INFO=/extra.
+    $script = serveScriptPath($relative);
+    if ($script !== null) {
+        $relative = $script;
+    }
+    $dataFile = resolveStaticPath($docRoot . '/data', $relative);
     if ($dataFile !== null) {
         serveStaticFile($dataFile);
+        return true;
+    }
+    if ($script !== null) {
+        http_response_code(404);
+        header('X-Content-Type-Options: nosniff');
         return true;
     }
 }
@@ -167,6 +193,47 @@ return true;
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper functions
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Whether this /data URL is the data directory or a directory under it.
+ *
+ * /data and /data/ are the root (true even when the folder is missing).
+ * A real subdirectory is true, so the router 404s instead of publishing
+ * index.html. The same segment rules as resolveStaticPath(): a dot
+ * segment, a null byte, or a path that leaves the root is not a directory
+ * we will answer.
+ */
+function serveDataRequestIsDirectory(string $root, string $relative): bool
+{
+    // One return. The router script itself must not hand php -S a false
+    // result, or the built-in server publishes the file (RZ-24).
+    $directory = false;
+    $decoded = rawurldecode($relative);
+    $safe = !str_contains($decoded, "\0") && !str_contains($decoded, '\\') && !str_contains($decoded, '%');
+    $segments = $safe
+        ? array_values(array_filter(explode('/', $decoded), static fn (string $s): bool => $s !== ''))
+        : null;
+    if ($segments === []) {
+        $directory = true;
+    } elseif (is_array($segments)) {
+        $dot = false;
+        foreach ($segments as $segment) {
+            if ($segment[0] === '.') {
+                $dot = true;
+            }
+        }
+        $realRoot = $dot ? false : realpath($root);
+        if (is_string($realRoot)) {
+            $real = realpath($realRoot . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments));
+            $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            $directory = is_string($real)
+                && is_dir($real)
+                && ($real === $realRoot || str_starts_with($real, $prefix));
+        }
+    }
+
+    return $directory;
+}
 
 /**
  * Map a URL path below $root to a real file inside it, or null.
@@ -261,18 +328,247 @@ function serveContentType(string $path, bool $fileinfo = true): string
 }
 
 /**
+ * Path of a .php / .phtml / .phar under /data, or null when the URL is not one.
+ *
+ * Stops at the first script extension, so note.php/extra and an encoded
+ * slash map to note.php. The caller serves that file's bytes, or 404.
+ * It must not fall through: php -S would execute the script (RZ-25).
+ */
+function serveScriptPath(string $relative): ?string
+{
+    $decoded = rawurldecode($relative);
+    if (preg_match('#^(.+?\.(?i:php|phtml|phar))(?:/.*)?$#', $decoded, $m) !== 1) {
+        return null;
+    }
+
+    return $m[1];
+}
+
+/**
+ * Whether a /data response must not render on the app origin (RZ-25).
+ *
+ * Browsers will execute these as a document or a script when they are
+ * served inline. The extension list is the Apache and Go MIME class for
+ * those types. libmagic covers a renamed upload: text/html, a /xml or
+ * +xml type, or a JavaScript type, parameters stripped.
+ */
+function serveIsActiveContent(string $path, string $contentType): bool
+{
+    static $extensions = [
+        '1km' => true,
+        'apxml' => true,
+        'atom' => true,
+        'atomcat' => true,
+        'atomdeleted' => true,
+        'atomsrv' => true,
+        'atomsvc' => true,
+        'bmml' => true,
+        'ccmp' => true,
+        'ccxml' => true,
+        'cdfx' => true,
+        'cdxml' => true,
+        'cellml' => true,
+        'cjs' => true,
+        'cl' => true,
+        'clue' => true,
+        'cml' => true,
+        'cpl' => true,
+        'csl' => true,
+        'dae' => true,
+        'davmount' => true,
+        'dbk' => true,
+        'dd2' => true,
+        'ddf' => true,
+        'dist' => true,
+        'distz' => true,
+        'dtb' => true,
+        'dwd' => true,
+        'ecma' => true,
+        'ehtml' => true,
+        'emma' => true,
+        'emotionml' => true,
+        'es' => true,
+        'es3' => true,
+        'et3' => true,
+        'fdt' => true,
+        'fo' => true,
+        'gml' => true,
+        'gpx' => true,
+        'grxml' => true,
+        'gsheet' => true,
+        'hal' => true,
+        'held' => true,
+        'htm' => true,
+        'html' => true,
+        'ink' => true,
+        'inkml' => true,
+        'irp' => true,
+        'its' => true,
+        'js' => true,
+        'kml' => true,
+        'lasxml' => true,
+        'lbe' => true,
+        'lgr' => true,
+        'link66' => true,
+        'lostsyncxml' => true,
+        'lostxml' => true,
+        'mads' => true,
+        'maei' => true,
+        'mathml' => true,
+        'meta4' => true,
+        'metalink' => true,
+        'mets' => true,
+        'mjs' => true,
+        'mml' => true,
+        'mods' => true,
+        'moml' => true,
+        'mpd' => true,
+        'mpkg' => true,
+        'mrcx' => true,
+        'mscml' => true,
+        'musd' => true,
+        'musicxml' => true,
+        'mxml' => true,
+        'ncx' => true,
+        'obgx' => true,
+        'odd' => true,
+        'omdoc' => true,
+        'opf' => true,
+        'osfpvg' => true,
+        'osm' => true,
+        'pkg' => true,
+        'pls' => true,
+        'provx' => true,
+        'pskcxml' => true,
+        'rapd' => true,
+        'rdf' => true,
+        'relo' => true,
+        'res' => true,
+        'rfcxml' => true,
+        'rif' => true,
+        'rl' => true,
+        'rld' => true,
+        'rs' => true,
+        'rsat' => true,
+        'rsd' => true,
+        'rsheet' => true,
+        'rss' => true,
+        'rusd' => true,
+        'sbml' => true,
+        'scl' => true,
+        'sdkd' => true,
+        'sdkm' => true,
+        'senmlx' => true,
+        'sensmlx' => true,
+        'shf' => true,
+        'shtml' => true,
+        'sls' => true,
+        'smi' => true,
+        'smil' => true,
+        'sml' => true,
+        'sru' => true,
+        'srx' => true,
+        'ssdl' => true,
+        'ssml' => true,
+        'stpx' => true,
+        'svg' => true,
+        'svgz' => true,
+        'swidtag' => true,
+        'td' => true,
+        'tei' => true,
+        'teicorpus' => true,
+        'tfi' => true,
+        'ttml' => true,
+        'uis' => true,
+        'uo' => true,
+        'uoml' => true,
+        'uvt' => true,
+        'uvvt' => true,
+        'vxml' => true,
+        'wadl' => true,
+        'wbs' => true,
+        'wif' => true,
+        'wsdl' => true,
+        'wspolicy' => true,
+        'x3d' => true,
+        'x3dz' => true,
+        'xaml' => true,
+        'xav' => true,
+        'xbl' => true,
+        'xca' => true,
+        'xcs' => true,
+        'xdf' => true,
+        'xdm' => true,
+        'xdp' => true,
+        'xdssc' => true,
+        'xel' => true,
+        'xenc' => true,
+        'xer' => true,
+        'xht' => true,
+        'xhtm' => true,
+        'xhtml' => true,
+        'xhvml' => true,
+        'xlf' => true,
+        'xml' => true,
+        'xmls' => true,
+        'xns' => true,
+        'xop' => true,
+        'xpl' => true,
+        'xsf' => true,
+        'xsl' => true,
+        'xslt' => true,
+        'xsm' => true,
+        'xspf' => true,
+        'xul' => true,
+        'xvm' => true,
+        'xvml' => true,
+        'yin' => true,
+        'zaz' => true,
+        'zmm' => true,
+    ];
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $media = strtolower(trim($contentType));
+    $semi = strpos($media, ';');
+    if ($semi !== false) {
+        $media = trim(substr($media, 0, $semi));
+    }
+    static $scriptTypes = [
+        'application/ecmascript' => true,
+        'application/javascript' => true,
+        'application/x-javascript' => true,
+        'text/ecmascript' => true,
+        'text/javascript' => true,
+        'text/x-javascript' => true,
+    ];
+
+    return isset($extensions[$ext])
+        || $media === 'text/html'
+        || str_ends_with($media, '+xml')
+        || str_ends_with($media, '/xml')
+        || isset($scriptTypes[$media]);
+}
+
+/**
  * Serve a static file using C-level stream I/O.
  *
  * fopen/fread/fwrite operate directly on C-level php_stream, and the
  * 64 KB buffer size aligns with the OS page cache so the kernel satisfies
  * reads from RAM when the file is hot.
+ *
+ * Active types (RZ-25) also send Content-Disposition: attachment and
+ * Content-Security-Policy: sandbox. nosniff stays on every data response.
  */
 function serveStaticFile(string $path): void
 {
     $fileSize = filesize($path);
+    $type = serveContentType($path);
 
-    header('Content-Type: ' . serveContentType($path));
+    header('Content-Type: ' . $type);
     header('X-Content-Type-Options: nosniff');
+    if (serveIsActiveContent($path, $type)) {
+        header('Content-Disposition: attachment');
+        header('Content-Security-Policy: sandbox');
+    }
     header('Content-Length: ' . $fileSize);
     header('Cache-Control: public, max-age=10');
 

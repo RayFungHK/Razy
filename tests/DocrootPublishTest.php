@@ -7,6 +7,7 @@ namespace Razy\Tests;
 use FilesystemIterator;
 use PHPUnit\Framework\TestCase;
 use Razy\Routing\CaddyfileCompiler;
+use Razy\Routing\RewriteRuleCompiler;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -30,7 +31,7 @@ final class DocrootPublishTest extends TestCase
     {
         $docroot = \sys_get_temp_dir() . '/razy_rz24_' . \bin2hex(\random_bytes(4));
         \mkdir($docroot . '/sites', 0o777, true);
-        \mkdir($docroot . '/data', 0o777, true);
+        \mkdir($docroot . '/data/sub', 0o777, true);
         \mkdir($docroot . '/webassets/mod/default', 0o777, true);
 
         \file_put_contents($docroot . '/index.php', <<<'PHP'
@@ -45,6 +46,34 @@ PHP);
         \file_put_contents($docroot . '/robots.txt', "ROBOTBYTES\n");
         \file_put_contents($docroot . '/data/ok.txt', "DATABYTES\n");
         \file_put_contents($docroot . '/data/note.php', "<?php echo 'DATAEXEC';\n");
+        \file_put_contents($docroot . '/data/page.html', "<!DOCTYPE html><html><body>HTMLBYTES</body></html>\n");
+        \file_put_contents($docroot . '/data/index.html', "<html><body>INDEXROOT</body></html>\n");
+        \file_put_contents($docroot . '/data/sub/index.html', "<html><body>INDEXSUB</body></html>\n");
+        \file_put_contents($docroot . '/data/page.htm', "<html><body>HTMBYTES</body></html>\n");
+        \file_put_contents($docroot . '/data/upper.HTML', "<html><body>UPPERBYTES</body></html>\n");
+        \file_put_contents($docroot . '/data/pic.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>SVGBYTES</text></svg>\n");
+        \file_put_contents(
+            $docroot . '/data/pic.svgz',
+            \gzencode("<svg xmlns=\"http://www.w3.org/2000/svg\"><text>SVGZBYTES</text></svg>\n"),
+        );
+        \file_put_contents($docroot . '/data/doc.xml', "<?xml version=\"1.0\"?><root>XMLBYTES</root>\n");
+        \file_put_contents($docroot . '/data/page.xhtml', "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body>XHTMLBYTES</body></html>\n");
+        \file_put_contents($docroot . '/data/app.js', "console.log('JSBYTES');\n");
+        \file_put_contents($docroot . '/data/mod.mjs', "export const x = 'MJSBYTES';\n");
+        \file_put_contents($docroot . '/data/note.phtml', "<?php echo 'PHTML';\n");
+        \file_put_contents($docroot . '/data/pack.phar', "PHARINDATA\n");
+        \file_put_contents(
+            $docroot . '/data/sneaky.bin',
+            "<!DOCTYPE html><html><body>SNEAKYHTML</body></html>\n",
+        );
+        \file_put_contents(
+            $docroot . '/data/svg-as.dat',
+            "<?xml version=\"1.0\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>\n",
+        );
+        \file_put_contents(
+            $docroot . '/data/pixel.png',
+            (string) \base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='),
+        );
         \file_put_contents($docroot . '/webassets/mod/default/app.js', "JSBYTES\n");
 
         $probe = @\stream_socket_server('tcp://127.0.0.1:0');
@@ -102,6 +131,190 @@ PHP);
         }
     }
 
+    /**
+     * Extensions Apache or Go serve as HTML, XHTML, SVG, XML, or JavaScript.
+     *
+     * Snapshot of Apache httpd mime.types, the mime.types file Go loads on
+     * Unix, and Go's builtin table. cjs is the CommonJS name beside js and mjs.
+     *
+     * @return list<string>
+     */
+    private static function activeExtensions(): array
+    {
+        return [
+            '1km',
+            'apxml',
+            'atom',
+            'atomcat',
+            'atomdeleted',
+            'atomsrv',
+            'atomsvc',
+            'bmml',
+            'ccmp',
+            'ccxml',
+            'cdfx',
+            'cdxml',
+            'cellml',
+            'cjs',
+            'cl',
+            'clue',
+            'cml',
+            'cpl',
+            'csl',
+            'dae',
+            'davmount',
+            'dbk',
+            'dd2',
+            'ddf',
+            'dist',
+            'distz',
+            'dtb',
+            'dwd',
+            'ecma',
+            'ehtml',
+            'emma',
+            'emotionml',
+            'es',
+            'es3',
+            'et3',
+            'fdt',
+            'fo',
+            'gml',
+            'gpx',
+            'grxml',
+            'gsheet',
+            'hal',
+            'held',
+            'htm',
+            'html',
+            'ink',
+            'inkml',
+            'irp',
+            'its',
+            'js',
+            'kml',
+            'lasxml',
+            'lbe',
+            'lgr',
+            'link66',
+            'lostsyncxml',
+            'lostxml',
+            'mads',
+            'maei',
+            'mathml',
+            'meta4',
+            'metalink',
+            'mets',
+            'mjs',
+            'mml',
+            'mods',
+            'moml',
+            'mpd',
+            'mpkg',
+            'mrcx',
+            'mscml',
+            'musd',
+            'musicxml',
+            'mxml',
+            'ncx',
+            'obgx',
+            'odd',
+            'omdoc',
+            'opf',
+            'osfpvg',
+            'osm',
+            'pkg',
+            'pls',
+            'provx',
+            'pskcxml',
+            'rapd',
+            'rdf',
+            'relo',
+            'res',
+            'rfcxml',
+            'rif',
+            'rl',
+            'rld',
+            'rs',
+            'rsat',
+            'rsd',
+            'rsheet',
+            'rss',
+            'rusd',
+            'sbml',
+            'scl',
+            'sdkd',
+            'sdkm',
+            'senmlx',
+            'sensmlx',
+            'shf',
+            'shtml',
+            'sls',
+            'smi',
+            'smil',
+            'sml',
+            'sru',
+            'srx',
+            'ssdl',
+            'ssml',
+            'stpx',
+            'svg',
+            'svgz',
+            'swidtag',
+            'td',
+            'tei',
+            'teicorpus',
+            'tfi',
+            'ttml',
+            'uis',
+            'uo',
+            'uoml',
+            'uvt',
+            'uvvt',
+            'vxml',
+            'wadl',
+            'wbs',
+            'wif',
+            'wsdl',
+            'wspolicy',
+            'x3d',
+            'x3dz',
+            'xaml',
+            'xav',
+            'xbl',
+            'xca',
+            'xcs',
+            'xdf',
+            'xdm',
+            'xdp',
+            'xdssc',
+            'xel',
+            'xenc',
+            'xer',
+            'xht',
+            'xhtm',
+            'xhtml',
+            'xhvml',
+            'xlf',
+            'xml',
+            'xmls',
+            'xns',
+            'xop',
+            'xpl',
+            'xsf',
+            'xsl',
+            'xslt',
+            'xsm',
+            'xspf',
+            'xul',
+            'xvm',
+            'xvml',
+            'yin',
+            'zaz',
+            'zmm',
+        ];
+    }
+
     public function testBuiltInServerDoesNotPublishOrExecuteTheTree(): void
     {
         if (self::$base === null) {
@@ -123,12 +336,15 @@ PHP);
             $this->assertStringNotContainsString($secret, $body, $path);
         }
 
-        // php -S may normalize ".." before the router. Either way the phar bytes
-        // must not come back, and the answer is the front controller.
+        // php -S may normalize ".." before the router (front controller). If the
+        // router still sees it, the .phar name is a data script URL that fails
+        // the realpath guard: 404, not the archive and not PATH_INFO.
         [$status, $body] = $this->fetch('/data/../Razy.phar');
-        $this->assertSame(200, $status, $this->logTail());
-        $this->assertStringStartsWith('APP ', $body);
+        $this->assertContains($status, [200, 404], $this->logTail());
         $this->assertStringNotContainsString('PHARBYTES', $body);
+        if ($status === 200) {
+            $this->assertStringStartsWith('APP ', $body);
+        }
 
         [$status, $body] = $this->fetch('/login?next=/foo.php');
         $this->assertSame(200, $status, $this->logTail());
@@ -143,6 +359,232 @@ PHP);
         [$status, $body] = $this->fetch('/data/note.php');
         $this->assertSame(200, $status, $this->logTail());
         $this->assertSame("<?php echo 'DATAEXEC';\n", $body, 'a .php under /data is bytes, not executed');
+    }
+
+    public function testDataActiveTypesDownloadAndStaySandboxed(): void
+    {
+        if (self::$base === null) {
+            $this->markTestSkipped('php -S did not start' . (self::$log !== '' && \is_file(self::$log) ? ': ' . \file_get_contents(self::$log) : ''));
+        }
+
+        foreach ([
+            '/data/page.html' => 'HTMLBYTES',
+            '/data/page.htm' => 'HTMBYTES',
+            '/data/upper.HTML' => 'UPPERBYTES',
+            '/data/pic.svg' => 'SVGBYTES',
+            '/data/doc.xml' => 'XMLBYTES',
+            '/data/page.xhtml' => 'XHTMLBYTES',
+            '/data/app.js' => 'JSBYTES',
+            '/data/mod.mjs' => 'MJSBYTES',
+        ] as $path => $marker) {
+            $this->assertActiveDownload($path, $marker);
+        }
+
+        // gzip does not keep the plaintext marker. Compare the stored bytes.
+        $svgz = (string) \file_get_contents(self::$docroot . '/data/pic.svgz');
+        [$status, $body, $headers] = $this->fetch('/data/pic.svgz');
+        $joined = \implode("\n", $headers);
+        $this->assertSame(200, $status, '/data/pic.svgz ' . $this->logTail());
+        $this->assertSame($svgz, $body, '/data/pic.svgz');
+        $this->assertMatchesRegularExpression('/^Content-Disposition:\s*attachment\s*$/mi', $joined);
+        $this->assertMatchesRegularExpression('/^Content-Security-Policy:\s*sandbox\s*$/mi', $joined);
+        $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff\s*$/mi', $joined);
+
+        $this->assertInlineDataFile('/data/ok.txt', "DATABYTES\n");
+        $png = (string) \file_get_contents(self::$docroot . '/data/pixel.png');
+        $this->assertInlineDataFile('/data/pixel.png', $png);
+        $this->assertInlineDataFile('/data/note.php', "<?php echo 'DATAEXEC';\n");
+        $this->assertInlineDataFile('/data/note.phtml', "<?php echo 'PHTML';\n");
+        $this->assertInlineDataFile('/data/pack.phar', "PHARINDATA\n");
+
+        $this->assertLibmagicActive('/data/sneaky.bin', 'text/html', 'SNEAKYHTML');
+        $this->assertLibmagicActive('/data/svg-as.dat', 'image/svg+xml', '<svg ');
+    }
+
+    public function testDataScriptPathInfoIsBytesOrNotFound(): void
+    {
+        if (self::$base === null) {
+            $this->markTestSkipped('php -S did not start' . (self::$log !== '' && \is_file(self::$log) ? ': ' . \file_get_contents(self::$log) : ''));
+        }
+
+        $this->assertInlineDataFile('/data/note.php/extra', "<?php echo 'DATAEXEC';\n");
+        $this->assertInlineDataFile('/data/note.php/', "<?php echo 'DATAEXEC';\n");
+        $this->assertInlineDataFile('/data/note.phtml/a/b', "<?php echo 'PHTML';\n");
+        $this->assertInlineDataFile('/data/pack.phar/x', "PHARINDATA\n");
+
+        // Same basename, different case: a case-insensitive volume serves the
+        // file; a case-sensitive one 404s. Either way it is not executed.
+        [$status, $body] = $this->fetch('/data/note.PHP/extra');
+        $this->assertContains($status, [200, 404], $this->logTail());
+        $this->assertStringNotContainsString('APP uri=', $body);
+        if ($status === 200) {
+            $this->assertSame("<?php echo 'DATAEXEC';\n", $body);
+        } else {
+            $this->assertStringNotContainsString('DATAEXEC', $body);
+        }
+
+        foreach (['/data/missing.php', '/data/missing.php/extra'] as $path) {
+            [$status, $body] = $this->fetch($path);
+            $this->assertSame(404, $status, $path . ' ' . $this->logTail());
+            $this->assertStringNotContainsString('APP uri=', $body, $path);
+            $this->assertStringNotContainsString('DATAEXEC', $body, $path);
+        }
+
+        [$status, $body] = $this->fetch('/data/missing.txt');
+        $this->assertSame(200, $status, $this->logTail());
+        $this->assertStringStartsWith('APP uri=/data/missing.txt', $body);
+    }
+
+    public function testDataDirectoryDoesNotServeIndexHtml(): void
+    {
+        if (self::$base === null) {
+            $this->markTestSkipped('php -S did not start' . (self::$log !== '' && \is_file(self::$log) ? ': ' . \file_get_contents(self::$log) : ''));
+        }
+
+        foreach ([
+            '/data' => 'INDEXROOT',
+            '/data/' => 'INDEXROOT',
+            '/data/sub' => 'INDEXSUB',
+            '/data/sub/' => 'INDEXSUB',
+            '/shop/data/' => 'INDEXROOT',
+            '/shop/data/sub/' => 'INDEXSUB',
+        ] as $path => $marker) {
+            [$status, $body, $headers] = $this->fetch($path);
+            $joined = \implode("\n", $headers);
+            $this->assertSame(404, $status, $path . ' ' . $this->logTail());
+            $this->assertStringNotContainsString($marker, $body, $path);
+            $this->assertStringNotContainsString('INDEXROOT', $body, $path);
+            $this->assertStringNotContainsString('INDEXSUB', $body, $path);
+            $this->assertStringNotContainsString('APP uri=', $body, $path);
+            $this->assertStringNotContainsString('<html', \strtolower($body), $path);
+            $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff$/mi', $joined, $path);
+        }
+
+        // The named file is still a download. Only the directory URL is a 404.
+        $this->assertActiveDownload('/data/index.html', 'INDEXROOT');
+        $this->assertActiveDownload('/data/sub/index.html', 'INDEXSUB');
+    }
+
+    public function testScriptPathStopsAtTheExtension(): void
+    {
+        if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+            \define('RAZY_SERVE_FUNCTIONS_ONLY', true);
+        }
+        require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
+
+        $this->assertSame('note.php', \serveScriptPath('note.php'));
+        $this->assertSame('note.php', \serveScriptPath('note.php/extra'));
+        $this->assertSame('note.PHP', \serveScriptPath('note.PHP/extra'));
+        $this->assertSame('note.php', \serveScriptPath('note.php/'));
+        $this->assertSame('dir/note.phtml', \serveScriptPath('dir/note.phtml/a/b'));
+        $this->assertSame('pack.phar', \serveScriptPath('pack.phar/x'));
+        $this->assertSame('foo.php', \serveScriptPath('foo.php/bar.php/extra'));
+        $this->assertSame('note.php', \serveScriptPath('note.php%2Fextra'));
+        $this->assertSame('note.php', \serveScriptPath('note.php%2fextra'));
+        $this->assertNull(\serveScriptPath('note.php.bak'));
+        $this->assertNull(\serveScriptPath('ok.txt'));
+        $this->assertNull(\serveScriptPath('ok.txt/extra'));
+        $this->assertNull(\serveScriptPath('page.html'));
+    }
+
+    public function testActiveContentFollowsExtensionAndMediaType(): void
+    {
+        if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+            \define('RAZY_SERVE_FUNCTIONS_ONLY', true);
+        }
+        require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
+
+        foreach (self::activeExtensions() as $ext) {
+            $this->assertTrue(\serveIsActiveContent('/data/file.' . $ext, 'application/octet-stream'), $ext);
+            $this->assertTrue(\serveIsActiveContent('/data/file.' . \strtoupper($ext), 'application/octet-stream'), $ext);
+        }
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'text/html'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'Text/HTML; charset=UTF-8'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.dat', 'image/svg+xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.dat', 'image/svg+xml; charset=utf-8'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/xhtml+xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'text/xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/rss+xml; charset=utf-8'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'text/javascript'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/javascript'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/ecmascript'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/x-javascript'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.txt', 'text/plain'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.png', 'image/png'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.php', 'text/x-php'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.bin', 'application/json'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.bin', 'application/xml-dtd'));
+    }
+
+    public function testActiveTypeListMatchesEveryServer(): void
+    {
+        if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+            \define('RAZY_SERVE_FUNCTIONS_ONLY', true);
+        }
+        require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
+
+        $expected = self::activeExtensions();
+        $router = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/serve.php');
+        $this->assertSame(1, \preg_match('/static \$extensions = \[(.*?)\];/s', $router, $map));
+        \preg_match_all("/'([0-9a-z]+)' => true/", $map[1], $fromPhp);
+        $this->assertSame($expected, $fromPhp[1], 'php -S');
+
+        $this->assertNotNull(self::$base, 'php -S did not start ' . $this->logTail());
+        foreach ($expected as $ext) {
+            $name = 'cls-' . $ext . '.' . $ext;
+            \file_put_contents(self::$docroot . '/data/' . $name, 'CLASS-' . $ext . "\n");
+            $this->assertActiveDownload('/data/' . $name, 'CLASS-' . $ext);
+            $this->assertTrue(\serveIsActiveContent('/data/file.' . $ext, 'application/octet-stream'), $ext);
+        }
+
+        if (!\defined('PHAR_PATH')) {
+            \define('PHAR_PATH', SYSTEM_ROOT . '/src');
+        }
+        $code = 'rz25data';
+        $distDir = SITES_FOLDER . '/' . $code;
+        $sitesExisted = \is_dir(SITES_FOLDER);
+        \mkdir($distDir, 0o777, true);
+        \file_put_contents($distDir . '/dist.php', "<?php\nreturn ['dist' => '" . $code . "'];\n");
+        $dir = \sys_get_temp_dir() . '/razy_rz25_' . \bin2hex(\random_bytes(4));
+        \mkdir($dir, 0o777, true);
+        try {
+            $caddy = $dir . '/Caddyfile';
+            $htaccess = $dir . '/htaccess';
+            (new CaddyfileCompiler())->compile(
+                ['example.com' => ['/' => $code, '/shop' => $code]],
+                [],
+                $caddy,
+                false,
+                '/app/public',
+            );
+            (new RewriteRuleCompiler())->compile(
+                ['example.com' => ['/' => $code, '/shop' => $code]],
+                [],
+                $htaccess,
+            );
+            $caddyLists = $this->extensionAlternations(
+                (string) \file_get_contents($caddy),
+                '/path_regexp `\(\?i\)\\\\\.\(\?:([0-9a-z|]+)\)\$`/',
+            );
+            $apacheLists = $this->extensionAlternations(
+                (string) \file_get_contents($htaccess),
+                '/RewriteRule \^(?:[a-z]+\/)?data\/\.\+\\\\\.\(([0-9a-z|]+)\)\$ - \[NC/',
+            );
+            $this->assertCount(2, $caddyLists, 'caddy');
+            $this->assertCount(2, $apacheLists, 'apache');
+            foreach (['caddy' => $caddyLists, 'apache' => $apacheLists] as $server => $lists) {
+                foreach ($lists as $found) {
+                    $this->assertSame($expected, $found, $server);
+                }
+            }
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($distDir);
+            if (!$sitesExisted && \is_dir(SITES_FOLDER)) {
+                @\rmdir(SITES_FOLDER);
+            }
+        }
     }
 
     public function testGeneratedClaimRewritesToTheFrontController(): void
@@ -219,9 +661,58 @@ PHP);
                 continue;
             }
             ++$mappings;
-            $this->assertSame('END', $flags, $full);
+            $flagList = \array_map('trim', \explode(',', $flags));
+            $this->assertContains('END', $flagList, $full);
         }
-        $this->assertSame(3, $mappings, 'shared, webassets, and data');
+        $this->assertSame(4, $mappings, 'shared, webassets, data scripts, and data files');
+    }
+
+    public function testCompiledDataHandlesQuarantineActiveTypes(): void
+    {
+        if (!\defined('PHAR_PATH')) {
+            \define('PHAR_PATH', SYSTEM_ROOT . '/src');
+        }
+        $code = 'rz25data';
+        $distDir = SITES_FOLDER . '/' . $code;
+        $sitesExisted = \is_dir(SITES_FOLDER);
+        \mkdir($distDir, 0o777, true);
+        \file_put_contents($distDir . '/dist.php', "<?php\nreturn ['dist' => '" . $code . "'];\n");
+
+        $dir = \sys_get_temp_dir() . '/razy_rz25_' . \bin2hex(\random_bytes(4));
+        \mkdir($dir, 0o777, true);
+        try {
+            $caddy = $dir . '/Caddyfile';
+            $htaccess = $dir . '/htaccess';
+            (new CaddyfileCompiler())->compile(
+                ['example.com' => ['/' => $code, '/shop' => $code]],
+                [],
+                $caddy,
+                false,
+                '/app/public',
+            );
+            (new RewriteRuleCompiler())->compile(
+                ['example.com' => ['/' => $code, '/shop' => $code]],
+                [],
+                $htaccess,
+            );
+            $caddyText = (string) \file_get_contents($caddy);
+            $apacheText = (string) \file_get_contents($htaccess);
+
+            $this->assertCompiledCaddyDataHandle($caddyText, '/data');
+            $this->assertCompiledCaddyDataHandle($caddyText, '/shop/data');
+            $this->assertSame(2, \substr_count($caddyText, 'index ""'));
+            $this->assertSame(2, \substr_count($caddyText, 'hide index.html index.txt'));
+            $this->assertCompiledApacheDataMapping($apacheText, '');
+            $this->assertCompiledApacheDataMapping($apacheText, 'shop/');
+            $this->assertSame(2, \substr_count($apacheText, 'DirectoryIndex disabled'));
+            $this->assertSame(2, \substr_count($apacheText, 'Options -Indexes'));
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($distDir);
+            if (!$sitesExisted && \is_dir(SITES_FOLDER)) {
+                @\rmdir(SITES_FOLDER);
+            }
+        }
     }
 
     public function testStaticTypeFallsBackWhenFileinfoIsOff(): void
@@ -237,6 +728,165 @@ PHP);
         $router = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/serve.php');
         $this->assertStringContainsString("header('X-Content-Type-Options: nosniff');", $router);
         $this->assertStringContainsString("function_exists('mime_content_type')", $router);
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    private function extensionAlternations(string $text, string $pattern): array
+    {
+        $this->assertGreaterThanOrEqual(1, \preg_match_all($pattern, $text, $matches), $pattern);
+        $lists = [];
+        foreach ($matches[1] as $alternation) {
+            $lists[] = \explode('|', $alternation);
+        }
+
+        return $lists;
+    }
+
+    private function assertActiveDownload(string $path, string $marker): void
+    {
+        [$status, $body, $headers] = $this->fetch($path);
+        $joined = \implode("\n", $headers);
+        $this->assertSame(200, $status, $path . ' ' . $this->logTail());
+        $this->assertStringContainsString($marker, $body, $path);
+        $this->assertMatchesRegularExpression('/^Content-Disposition:\s*attachment\s*$/mi', $joined, $path);
+        $this->assertMatchesRegularExpression('/^Content-Security-Policy:\s*sandbox\s*$/mi', $joined, $path);
+        $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff\s*$/mi', $joined, $path);
+    }
+
+    private function assertInlineDataFile(string $path, string $bodyExact): void
+    {
+        [$status, $body, $headers] = $this->fetch($path);
+        $joined = \implode("\n", $headers);
+        $this->assertSame(200, $status, $path . ' ' . $this->logTail());
+        $this->assertSame($bodyExact, $body, $path);
+        $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff$/mi', $joined, $path);
+        $this->assertDoesNotMatchRegularExpression('/^Content-Disposition:/mi', $joined, $path);
+        $this->assertDoesNotMatchRegularExpression('/^Content-Security-Policy:/mi', $joined, $path);
+    }
+
+    private function assertLibmagicActive(string $path, string $media, string $marker): void
+    {
+        if (!\function_exists('mime_content_type')) {
+            return;
+        }
+        $file = self::$docroot . $path;
+        $detected = \mime_content_type($file);
+        $this->assertIsString($detected);
+        $detectedMedia = \strtolower(\trim(\explode(';', $detected, 2)[0]));
+        if ($detectedMedia !== $media) {
+            return;
+        }
+        $this->assertActiveDownload($path, $marker);
+    }
+
+    private function assertCompiledCaddyDataHandle(string $caddy, string $prefix): void
+    {
+        $pattern = '/handle @data_\w+ \{\n(?:.*\n)*?\t\}/';
+        $this->assertGreaterThanOrEqual(1, \preg_match_all($pattern, $caddy, $handles), $prefix);
+        $handle = '';
+        foreach ($handles[0] as $candidate) {
+            if (\str_contains($candidate, 'path ' . $prefix . '/*') || \str_contains($candidate, 'strip_prefix ' . $prefix . "\n")) {
+                $handle = $candidate;
+                break;
+            }
+        }
+        $this->assertNotSame('', $handle, 'data handle for ' . $prefix . "\n" . $caddy);
+        $this->assertStringContainsString('path ' . $prefix . '/*', $caddy);
+        $this->assertStringContainsString("file_server {\n\t\t\tindex \"\"\n\t\t\thide index.html index.txt\n\t\t}", $handle);
+        $this->assertStringNotContainsString('browse', $handle);
+        $this->assertStringNotContainsString('php_server', $handle);
+        $this->assertStringNotContainsString('split_path', $handle);
+        $this->assertDoesNotMatchRegularExpression('/^\t\tphp$/m', $handle);
+        $this->assertStringContainsString('(?i)^(/.*?\.(?:php|phtml|phar))(?:/.*)$', $handle);
+        $this->assertStringContainsString('path_regexp `(?i)\.(?:' . \implode('|', self::activeExtensions()) . ')$`', $handle);
+        $this->assertStringContainsString('Content-Disposition "attachment"', $handle);
+        $this->assertStringContainsString('Content-Security-Policy "sandbox"', $handle);
+        $this->assertStringContainsString('X-Content-Type-Options "nosniff"', $handle);
+    }
+
+    private function assertCompiledApacheDataMapping(string $apache, string $routePath): void
+    {
+        $scope = 'RewriteRule ^' . $routePath . 'data/.+ - [NC,H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]';
+        $this->assertStringContainsString($scope, $apache);
+        $scopePos = \strpos($apache, $scope);
+        $this->assertNotFalse($scopePos);
+        $this->assertDoesNotMatchRegularExpression(
+            '/RewriteRule \^' . \preg_quote($routePath, '/') . 'data\/ - \[/',
+            $apache,
+            'the /data/ directory URL must not disable PHP on the front controller',
+        );
+        $script = 'RewriteRule ^' . $routePath . 'data/(.+?\.(php|phtml|phar))(/|$) %{ENV:BASE}data/';
+        $this->assertStringContainsString($script, $apache);
+        $rulePos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+?\.(php|phtml|phar))(/|$)');
+        $this->assertNotFalse($rulePos);
+        $this->assertLessThan($rulePos, $scopePos, 'the whole data prefix forces the static handler');
+        $line = \strtok(\substr($apache, $rulePos), "\n") ?: '';
+        $this->assertStringContainsString('NC', $line);
+        $this->assertStringContainsString('H=default-handler', $line);
+        $this->assertStringContainsString('T=application/octet-stream', $line);
+        $this->assertMatchesRegularExpression('/\[(?:[^\]]*,)?END(?:,[^\]]*)?\]/', $line);
+        $generalPos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+)$');
+        $this->assertNotFalse($generalPos);
+        $this->assertLessThan($generalPos, $rulePos, 'script rule must win before the general data rule');
+        $generalLine = \substr($apache, $generalPos, (int) \strpos($apache, "\n", $generalPos) - $generalPos);
+        $ifPos = \strpos($apache, '<If "env(\'RAZY_DATA_DIR\') == \'1\' || env(\'REDIRECT_RAZY_DATA_DIR\') == \'1\'">', $scopePos);
+        $this->assertNotFalse($ifPos);
+        $this->assertLessThan($rulePos, $ifPos, 'SetHandler none covers the data prefix, not only a script URL');
+        $this->assertStringNotContainsString('RAZY_DATA_SCRIPT', $apache);
+
+        $active = 'RewriteRule ^' . $routePath . 'data/.+\.(' . \implode('|', self::activeExtensions()) . ')$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
+        $this->assertStringContainsString($active, $apache);
+        $activePos = (int) \strpos($apache, $active);
+        $activeLine = \substr($apache, $activePos, (int) \strpos($apache, "\n", $activePos) - $activePos);
+        $this->assertContains('NC', $this->rewriteFlags($activeLine), $activeLine);
+        $this->assertContains('NC', $this->rewriteFlags($generalLine), $generalLine);
+        $this->assertContains('END', $this->rewriteFlags($generalLine), $generalLine);
+        foreach (['Content-Disposition "attachment"', 'Content-Security-Policy "sandbox"', 'X-Content-Type-Options "nosniff"'] as $header) {
+            $this->assertStringContainsString('Header set ' . $header . ' env=RAZY_DATA_ACTIVE', $apache);
+            $this->assertStringContainsString('Header set ' . $header . ' env=REDIRECT_RAZY_DATA_ACTIVE', $apache);
+        }
+        $this->assertStringContainsString('SetHandler none', $apache);
+        $this->assertStringContainsString('RemoveHandler .php .phtml .phar', $apache);
+
+        $indexIf = '<If "%{REQUEST_URI} =~ m#(?i)^/' . $routePath . 'data(/|$)# || %{REQUEST_URI} -strcmatch \'%{CONTEXT_PREFIX}/' . $routePath . 'data\' || %{REQUEST_URI} -strcmatch \'%{CONTEXT_PREFIX}/' . $routePath . 'data/*\'">';
+        $indexAt = \strpos($apache, $indexIf);
+        $this->assertNotFalse($indexAt, $indexIf);
+        $indexBlock = \substr($apache, $indexAt, (int) \strpos($apache, '</If>', $indexAt) - $indexAt);
+        $this->assertStringContainsString('DirectoryIndex disabled', $indexBlock);
+        $this->assertStringContainsString('Options -Indexes', $indexBlock);
+        $this->assertStringNotContainsString('SetHandler', $indexBlock);
+        $this->assertDoesNotMatchRegularExpression(
+            '/DirectoryIndex(?! disabled)/',
+            $indexBlock,
+            'the data mount must not name an index document',
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rewriteFlags(string $line): array
+    {
+        $this->assertSame(1, \preg_match('/\[([^\]]+)\]/', $line, $m), $line);
+
+        return \array_map('trim', \explode(',', $m[1]));
+    }
+
+    private function removeTree(string $root): void
+    {
+        if (!\is_dir($root)) {
+            return;
+        }
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($it as $file) {
+            $file->isDir() ? @\rmdir($file->getPathname()) : @\unlink($file->getPathname());
+        }
+        @\rmdir($root);
     }
 
     /**

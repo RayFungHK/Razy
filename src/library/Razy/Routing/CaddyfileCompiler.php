@@ -343,7 +343,10 @@ class CaddyfileCompiler
      * Compile data mapping handlers for a distributor.
      *
      * Maps the data/ URL prefix to the distributor's data directory,
-     * serving uploaded/generated files.
+     * serving uploaded/generated files as bytes. A script URL with
+     * PATH_INFO stays in this handle (RZ-25). Active extensions
+     * (HTML, XHTML, SVG, XML, and JavaScript, from the Apache and Go MIME
+     * tables) are attachments with a sandbox CSP. file_server does not run PHP.
      *
      * @param mixed $siteBlock Template site block
      * @param Distributor $distributor The distributor instance

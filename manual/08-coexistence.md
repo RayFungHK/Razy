@@ -200,6 +200,24 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
   rewrite re-enters this `.htaccess`, and the fallback would then send the
   rewritten file to `index.php`. Exclusion rules still use `[L]` on a `-` target,
   which does not rewrite the URL.
+- **Data files are bytes, and active types do not render (RZ-25).** The data
+  mapping's `.php` / `.phtml` / `.phar` rule matches an extension followed
+  by `/` or the end, and uses `[H=default-handler]` (`SetHandler none` and
+  `RemoveHandler` for a file path under the mapping, not the `/data/`
+  directory URL and not only a URL that ends in the extension) so Apache
+  does not run a script under `data/`, including `/data/note.php/extra`.
+  Active extensions are one shared list: every name Apache's mime.types or
+  Go's MIME table maps to HTML, XHTML, SVG, any XML type, or JavaScript,
+  plus `cjs`. They are attachments with `Content-Security-Policy: sandbox`
+  and `nosniff`. The marker and
+  the publish rule use the same case match. The generated Caddy data handle and `php Razy.phar serve`
+  send the same headers, and that PATH_INFO URL is the file's bytes or
+  404. A directory URL under the mapping does not serve `index.html`:
+  Caddy sets `index ""` and hides the default index names, Apache sets
+  `DirectoryIndex disabled` and `Options -Indexes` for that mount only,
+  and `php -S` returns 404. `php -S` also quarantines a renamed file when libmagic reports
+  `text/html`, a `/xml` or `+xml` type, or a JavaScript type. There is no switch to serve those types
+  inline from `/data`; trusted HTML belongs on an application route.
 - Probes: under Caddy, scoped hosts get a dedicated `/_razy/health` handle (Phase 2 —
   see §4), so the liveness probe survives sub-path mounts; Apache hosts and
   `/_razy/metrics` still require a root mount or edge forwarding (FM-5 in the dossier).
