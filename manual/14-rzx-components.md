@@ -59,6 +59,15 @@ The parts:
 | `<script type="application/json">{data}</script>` | JSON with `JSON_HEX_*`, so `</script>` cannot close it |
 | `{html(x)}` | raw HTML, only when `x` is a `Razy\Rzx\SafeHtml` built by trusted code |
 
+Resource attributes (`<script src>`, `<iframe src>`, `<object data>`, `<embed src>`, `<base href>`,
+a stylesheet or preload `<link href>`) take only a same-origin path, or a URL from trusted code
+such as `asset()`. Anything else, `//host` and `\\host` included, renders as `#`. `<script src>`
+is a literal or `asset(…)`.
+
+An ordinary `<a href={url}>` may point to any `http`/`https` site, `//host` included. That is the
+caller's choice of destination, not script. If the URL comes from request input, check it against
+your own allowlist first, or it is an open redirect.
+
 There is no `raw` and no other escape hatch. The compiler rejects:
 - `<style>` and `style=""` (use `hooks={{ '--name': value }}`);
 - `on*` handlers and `srcdoc`;

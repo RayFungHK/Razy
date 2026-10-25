@@ -22,7 +22,8 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
 - **`{@rzx name="Kit.Card" props=$card}`** renders a component inside a `.tpl` page. Its pushes go
   to the page's anchors. Slot fills are not available from a `.tpl`.
 - **Razy's expression functions:**
-  - `asset('js/x.js')` (or `asset('alias:css/a.css')`): `Assets::url()`;
+  - `asset('js/x.js')` (or `asset('alias:css/a.css')`): `Assets::url()`, returned as a trusted
+    `SafeUrl`, so it is accepted on `<script src>` even when assets live on a CDN (`url()` too);
   - `importmap()`: `{html(importmap())}`, once per response, with the nonce;
   - `nonce()`;
   - `url('path')`;
