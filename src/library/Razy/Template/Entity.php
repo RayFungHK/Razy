@@ -41,6 +41,12 @@ class Entity
 {
     use ParameterBagTrait;
 
+    /**
+     * Function tags `{@name}`, closers `{/name}`, and comments `{#...}`.
+     * A leading `.` is skipped, matching the historical tag scanner.
+     */
+    private const FUNCTION_TAG_PATTERN = '/\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\.|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+)|#[^}]*?)}/s';
+
     /** @var array<string, array<string, mixed>> Cached parsed parameter values keyed by name and path */
     private array $caches = [];
 
@@ -478,6 +484,76 @@ class Entity
     }
 
     /**
+     * Run function tags once and leave `{$param}` tags in place.
+     *
+     * `{@if}` uses this on the chosen branch only. The caller then substitutes
+     * parameter tags a single time, so a value that itself contains `{$…}` or
+     * `{@…}` is text, not a second template (RZ-30).
+     *
+     * @param string $content Branch text, not yet substituted
+     *
+     * @return string The same text with function tags expanded
+     *
+     * @throws Throwable
+     */
+    public function expandFunctionTags(string $content): string
+    {
+        return $this->parseFunctionTag($content);
+    }
+
+    /**
+     * Split on the `{@else}` that belongs to this body, not one nested in another enclosure.
+     *
+     * The split reads the template source. A value substituted later cannot
+     * insert an `{@else}` and move the branch (RZ-30).
+     *
+     * @param string $content The enclosed `{@if}` body, before substitution
+     *
+     * @return array{0: string, 1: string} True branch and false branch (`''` when there is no `{@else}`)
+     *
+     * @throws Throwable
+     */
+    public function splitTopElse(string $content): array
+    {
+        $rest = $content;
+        $true = '';
+        $stack = [];
+        while (\preg_match(self::FUNCTION_TAG_PATTERN, $rest, $matches, PREG_OFFSET_CAPTURE)) {
+            $tag = $matches[0][0];
+            $pos = (int) $matches[0][1];
+            $isClosing = isset($matches[4][0]);
+            $isComment = \str_starts_with($tag, '{#');
+            $name = $matches[4][0] ?? $matches[1][0] ?? '';
+
+            $true .= \substr($rest, 0, $pos);
+            $rest = \substr($rest, $pos + \strlen($tag));
+
+            if ($isComment) {
+                $true .= $tag;
+
+                continue;
+            }
+
+            // `{@else}` is not a plugin. At depth 0 it is this body's divider.
+            if (!$isClosing && 'else' === $name && [] === $stack) {
+                return [$true, $rest];
+            }
+
+            $true .= $tag;
+            if (!$isClosing) {
+                $plugin = $this->block->loadPlugin('function', $name);
+                if ($plugin && $plugin->isEncloseContent()) {
+                    $stack[] = $name;
+                }
+            } elseif ([] !== $stack && $name === \end($stack)) {
+                \array_pop($stack);
+            }
+        }
+
+        return [$content, ''];
+    }
+
+    /**
      * Invalidate cached value when a parameter is reassigned.
      *
      * @param string $parameter The parameter name that was assigned
@@ -585,7 +661,7 @@ class Entity
         $stacking = [];
         $result = '';
         // Match function tags {@name...}, closing tags {/name}, and comment tags {#...}
-        while (\preg_match('/\.(*SKIP)(*FAIL)|{(?:@(\w+)((?:(?:\.|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)(*SKIP)|[^{}])*)|\/(\w+)|#[^}]*?)}/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+        while (\preg_match(self::FUNCTION_TAG_PATTERN, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $offset = (int) $matches[0][1];
 
             $isClosingTag = isset($matches[4][0]);

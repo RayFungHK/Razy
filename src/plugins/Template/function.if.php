@@ -132,13 +132,14 @@ return function (...$arguments) {
                 return $value;
             };
 
-            // Split the wrapped content into true and false branches at the {@else} marker
-            $split = \preg_split('/\.(*SKIP)(*FAIL)|{@else}/', $entity->parseText($wrappedText), 2);
-            $trueText = $split[0];
-            $falseText = $split[1] ?? '';
+            // The condition is already resolved above, once, from the tag source.
+            // Split the source on this body's {@else} before any substitution, then
+            // expand function tags on the chosen branch only. Do not parseText here:
+            // the caller substitutes {$…} once, and a second pass would execute
+            // template syntax that arrived inside a value (RZ-30).
+            [$trueText, $falseText] = $entity->splitTopElse($wrappedText);
 
-            // Evaluate the condition and return the appropriate branch
-            return $entity->parseText(($recursive($clips)) ? $trueText : $falseText);
+            return $entity->expandFunctionTags(($recursive($clips)) ? $trueText : $falseText);
         }
     };
 };
