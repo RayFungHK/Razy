@@ -231,6 +231,9 @@ class RewriteRuleCompiler
     /**
      * Compile data mapping rewrite rules for a single distributor.
      *
+     * Script extensions are bytes via [H=default-handler] (RZ-25), not the
+     * PHP handler. Active extensions get attachment and sandbox headers.
+     *
      * @param mixed $rewriteBlock The template rewrite block
      * @param Distributor $distributor The distributor instance
      * @param string $domain The domain name

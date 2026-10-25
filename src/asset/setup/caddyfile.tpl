@@ -21,10 +21,19 @@
 <!-- END BLOCK: webassets -->
 <!-- START BLOCK: data_mapping -->
 	# Data mapping: {$dist_code}
+	# RZ-25: file_server sends bytes and does not run PHP. html, htm, svg,
+	# xml, xhtml, js and mjs download and stay sandboxed. The matcher sees
+	# the extension on the original path and after strip_prefix.
 	@data_{$data_id} path /{$route_path}data/*
 	handle @data_{$data_id} {
 		uri strip_prefix /{$route_path}data
 		root * {$data_path}
+		@data_active_{$data_id} path_regexp `(?i)\.(?:html|htm|svg|xml|xhtml|js|mjs)$`
+		header @data_active_{$data_id} {
+			Content-Disposition "attachment"
+			Content-Security-Policy "sandbox"
+			X-Content-Type-Options "nosniff"
+		}
 		file_server
 	}
 <!-- END BLOCK: data_mapping -->

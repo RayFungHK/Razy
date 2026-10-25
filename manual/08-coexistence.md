@@ -200,6 +200,16 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
   rewrite re-enters this `.htaccess`, and the fallback would then send the
   rewritten file to `index.php`. Exclusion rules still use `[L]` on a `-` target,
   which does not rewrite the URL.
+- **Data files are bytes, and active types do not render (RZ-25).** The data
+  mapping's `.php` / `.phtml` / `.phar` rule uses `[H=default-handler]`
+  (`SetHandler none` for that rule; `RemoveHandler` when the rewrite env is
+  visible) so Apache does not run a script under `data/`. `html`, `htm`,
+  `svg`, `xml`, `xhtml`, `js` and `mjs` are attachments with
+  `Content-Security-Policy: sandbox` and `nosniff`. The generated Caddy data
+  handle and `php Razy.phar serve` send the same headers. `php -S` also
+  quarantines a renamed file when libmagic reports `text/html` or
+  `image/svg+xml`. There is no switch to serve those types inline from
+  `/data`; trusted HTML belongs on an application route.
 - Probes: under Caddy, scoped hosts get a dedicated `/_razy/health` handle (Phase 2 —
   see §4), so the liveness probe survives sub-path mounts; Apache hosts and
   `/_razy/metrics` still require a root mount or edge forwarding (FM-5 in the dossier).

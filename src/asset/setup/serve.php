@@ -6,7 +6,9 @@
  * Reads configuration from .razy-serve-config.json in the same directory.
  *
  * Handles:
- *   - Data directory mapping (realpath-guarded; bytes only, never executed)
+ *   - Data directory mapping (realpath-guarded; bytes only, never executed).
+ *     html, htm, svg, xml, xhtml, js, mjs, and anything libmagic calls
+ *     text/html or image/svg+xml, download with a sandbox CSP (RZ-25).
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
  *     under this server; RZ-09) with hashed-URL cache headers.
@@ -261,18 +263,58 @@ function serveContentType(string $path, bool $fileinfo = true): string
 }
 
 /**
+ * Whether a /data response must not render on the app origin (RZ-25).
+ *
+ * Browsers will execute these as a document or a script when they are
+ * served inline. The extension list covers the usual names. libmagic
+ * covers a renamed upload: text/html or image/svg+xml, parameters stripped.
+ */
+function serveIsActiveContent(string $path, string $contentType): bool
+{
+    static $extensions = [
+        'html' => true,
+        'htm' => true,
+        'svg' => true,
+        'xml' => true,
+        'xhtml' => true,
+        'js' => true,
+        'mjs' => true,
+    ];
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    if (isset($extensions[$ext])) {
+        return true;
+    }
+
+    $media = strtolower(trim($contentType));
+    $semi = strpos($media, ';');
+    if ($semi !== false) {
+        $media = trim(substr($media, 0, $semi));
+    }
+
+    return $media === 'text/html' || $media === 'image/svg+xml';
+}
+
+/**
  * Serve a static file using C-level stream I/O.
  *
  * fopen/fread/fwrite operate directly on C-level php_stream, and the
  * 64 KB buffer size aligns with the OS page cache so the kernel satisfies
  * reads from RAM when the file is hot.
+ *
+ * Active types (RZ-25) also send Content-Disposition: attachment and
+ * Content-Security-Policy: sandbox. nosniff stays on every data response.
  */
 function serveStaticFile(string $path): void
 {
     $fileSize = filesize($path);
+    $type = serveContentType($path);
 
-    header('Content-Type: ' . serveContentType($path));
+    header('Content-Type: ' . $type);
     header('X-Content-Type-Options: nosniff');
+    if (serveIsActiveContent($path, $type)) {
+        header('Content-Disposition: attachment');
+        header('Content-Security-Policy: sandbox');
+    }
     header('Content-Length: ' . $fileSize);
     header('Cache-Control: public, max-age=10');
 

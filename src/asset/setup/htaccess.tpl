@@ -36,9 +36,31 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteRule ^{$route_path}webassets/{$mapping}/(.+?)/(.+)$ {$dist_path} [END]
     <!-- END BLOCK: webassets -->
     <!-- START BLOCK: data_mapping -->
+    # RZ-25: a real .php/.phtml/.phar under data must not reach the PHP
+    # handler. [H=default-handler] forces the static handler for this rule
+    # (a <FilesMatch> in this file would also hit index.php). The <If>
+    # repeats SetHandler none / RemoveHandler when the env var is visible.
+    # [T] sends the bytes. [END] stops the rewrite re-entry.
+    RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
+    RewriteRule ^{$route_path}data/(.+\.(php|phtml|phar))$ {$data_path} [NC,E=RAZY_DATA_SCRIPT:1,E=REDIRECT_RAZY_DATA_SCRIPT:1,H=default-handler,T=application/octet-stream,END]
+    <If "env('RAZY_DATA_SCRIPT') == '1' || env('REDIRECT_RAZY_DATA_SCRIPT') == '1'">
+        SetHandler none
+        RemoveHandler .php .phtml .phar
+    </If>
+    # RZ-25: html, htm, svg, xml, xhtml, js and mjs download and stay
+    # sandboxed. The next rule publishes the file. An internal redirect
+    # renames the env var, so both names are set and both are checked.
+    RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
+    RewriteRule ^{$route_path}data/.+\.(html|htm|svg|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]
     # [END] (Apache 2.4+): same re-entry as the shared rule above.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
     RewriteRule ^{$route_path}data/(.+)$ {$data_path} [END]
+    Header set Content-Disposition "attachment" env=RAZY_DATA_ACTIVE
+    Header set Content-Disposition "attachment" env=REDIRECT_RAZY_DATA_ACTIVE
+    Header set Content-Security-Policy "sandbox" env=RAZY_DATA_ACTIVE
+    Header set Content-Security-Policy "sandbox" env=REDIRECT_RAZY_DATA_ACTIVE
+    Header set X-Content-Type-Options "nosniff" env=RAZY_DATA_ACTIVE
+    Header set X-Content-Type-Options "nosniff" env=REDIRECT_RAZY_DATA_ACTIVE
     <!-- END BLOCK: data_mapping -->
     <!-- START BLOCK: fallback -->
     # RZ-24: an existing file is not a reason to skip the front controller.
