@@ -177,6 +177,46 @@ class TemplateAnchorsTest extends TestCase
         (new Anchors())->push('s', '<script>alert(1)</script>');
     }
 
+    public function testUppercaseInlineScriptIsRefused(): void
+    {
+        $this->expectException(TemplateException::class);
+        $this->expectExceptionMessage('An inline <script> cannot be pushed');
+        (new Anchors())->push('s', '<SCRIPT>alert(1)</SCRIPT>');
+    }
+
+    public function testUnclosedScriptIsRefused(): void
+    {
+        $this->expectException(TemplateException::class);
+        $this->expectExceptionMessage('no closing </script>');
+        (new Anchors(static fn (): string => 'n0nce'))->push('s', '<p>x</p><script>alert(1)');
+    }
+
+    public function testUppercaseScriptTagGetsTheNonce(): void
+    {
+        $anchors = new Anchors(static fn (): string => 'n0nce');
+        $anchors->push('s', '<SCRIPT SRC="/a.js"></SCRIPT>');
+
+        $this->assertSame('<SCRIPT nonce="n0nce" SRC="/a.js"></SCRIPT>', $anchors->finalize($anchors->marker('s')));
+    }
+
+    public function testScriptTextInsideAJsonPayloadIsNotRewritten(): void
+    {
+        $anchors = new Anchors(static fn (): string => 'n0nce');
+        $json = '<script type="application/json" id="d">{"html":"<script src=x>"}</script>';
+        $anchors->push('s', $json);
+
+        $this->assertSame(
+            '<script nonce="n0nce" type="application/json" id="d">{"html":"<script src=x>"}</script>',
+            $anchors->finalize($anchors->marker('s')),
+        );
+    }
+
+    public function testAJsonPayloadCannotSmuggleAnInlineScriptAfterItsCloser(): void
+    {
+        $this->expectException(TemplateException::class);
+        (new Anchors())->push('s', '<script type="application/json">{}</script><script>alert(1)</script>');
+    }
+
     public function testImportmapAndJsonScriptsCanBePushed(): void
     {
         $anchors = new Anchors();

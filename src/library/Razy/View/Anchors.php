@@ -238,26 +238,49 @@ final class Anchors
      */
     private function secureScripts(string $html): string
     {
-        if (!\str_contains($html, '<script') && !\str_contains($html, 'modulepreload')) {
+        if (false === \stripos($html, '<script') && false === \stripos($html, 'modulepreload')) {
             return $html;
         }
-        if (\preg_match_all('/<script\b([^>]*)>(.*?)<\/script\s*>/is', $html, $scripts, PREG_SET_ORDER)) {
-            foreach ($scripts as $script) {
-                if ('' === \trim($script[2])) {
-                    continue;
-                }
-                $type = \preg_match('/\btype\s*=\s*["\']?([^"\'\s>]+)/i', $script[1], $t) ? \strtolower($t[1]) : '';
+        $nonce = $this->nonce ? (string) ($this->nonce)() : '';
+        $attr = '' === $nonce ? '' : ' nonce="' . \htmlspecialchars($nonce, ENT_QUOTES, 'UTF-8') . '"';
+
+        // Walk the markup tag by tag (case-insensitive). Script bodies are copied
+        // verbatim and never rewritten; only real opening tags get the nonce.
+        $out = '';
+        $offset = 0;
+        while (\preg_match('/<script\b([^>]*)>/i', $html, $open, PREG_OFFSET_CAPTURE, $offset)) {
+            $tagStart = (int) $open[0][1];
+            $bodyStart = $tagStart + \strlen($open[0][0]);
+            if (!\preg_match('/<\/script\s*>/i', $html, $close, PREG_OFFSET_CAPTURE, $bodyStart)) {
+                throw new TemplateException('A pushed <script> has no closing </script>.');
+            }
+            $closeStart = (int) $close[0][1];
+            $body = \substr($html, $bodyStart, $closeStart - $bodyStart);
+            if ('' !== \trim($body)) {
+                $type = \preg_match('/\btype\s*=\s*["\']?([^"\'\s>]+)/i', $open[1][0], $t) ? \strtolower($t[1]) : '';
                 if ('importmap' !== $type && 'application/json' !== $type) {
                     throw new TemplateException('An inline <script> cannot be pushed to an anchor; use a src, or type="importmap" / "application/json".');
                 }
             }
+            $tag = $open[0][0];
+            if ('' !== $attr && !\preg_match('/\bnonce\s*=/i', $open[1][0])) {
+                $tag = \substr($tag, 0, 7) . $attr . \substr($tag, 7);
+            }
+            $out .= $this->nonceModulePreloads(\substr($html, $offset, $tagStart - $offset), $attr) . $tag . $body . $close[0][0];
+            $offset = $closeStart + \strlen($close[0][0]);
         }
-        $nonce = $this->nonce ? (string) ($this->nonce)() : '';
-        if ('' === $nonce) {
+
+        return $out . $this->nonceModulePreloads(\substr($html, $offset), $attr);
+    }
+
+    /**
+     * Add the nonce to `<link rel="modulepreload">` tags in markup outside any script.
+     */
+    private function nonceModulePreloads(string $html, string $attr): string
+    {
+        if ('' === $attr || false === \stripos($html, 'modulepreload')) {
             return $html;
         }
-        $attr = ' nonce="' . \htmlspecialchars($nonce, ENT_QUOTES, 'UTF-8') . '"';
-        $html = (string) \preg_replace('/<script\b(?![^>]*\bnonce\s*=)/i', '<script' . $attr, $html);
 
         return (string) \preg_replace('/<link\b(?=[^>]*\brel\s*=\s*["\']?modulepreload)(?![^>]*\bnonce\s*=)/i', '<link' . $attr, $html);
     }
