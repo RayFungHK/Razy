@@ -175,19 +175,27 @@ File uploads: validate type/size, store under `getDataPath()` only (RZ-006).
 ## 5. Worker mode (persistent process)
 
 `php Razy.phar serve --dist <dist> --worker [--max-requests N]` (`serve.inc.php` usage,
-default 500). Production pattern: FrankenPHP worker + Caddy
-(`benchmark/docker/Caddyfile.razy`):
+default 500). Production pattern: FrankenPHP worker + Caddy. The claim rewrites to
+the front controller. Bare `php_server` is `try_files {path}` and would publish the
+document root (RZ-24). `benchmark/docker/Caddyfile.razy` and `deploy/Caddyfile` are
+still the old `php_server` shape; regenerate from `caddyfile.tpl` (`php Razy.phar
+rewrite --caddy`) rather than copying them.
 
 ```
 {
-	frankenphp {
-		worker /app/site/index.php
-	}
+	frankenphp
 	order php_server before file_server
 }
 :8080 {
 	root * /app/site
-	php_server
+	handle {
+		route {
+			rewrite * /index.php
+			php {
+				worker /app/site/index.php
+			}
+		}
+	}
 }
 ```
 

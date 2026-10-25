@@ -39,8 +39,9 @@
 <!-- END BLOCK: shared -->
 <!-- START BLOCK: exclusion -->
 	# Declared sibling paths (sites.inc.php 'exclude_paths') — never claimed by Razy.
-	# php_server is gated on @not_excluded, so these paths are served statically if
-	# present or 404; proxying them belongs to the edge config (this file stays do-not-claim).
+	# The front-controller handle is gated on @not_excluded, so these paths are
+	# served statically if present or 404; proxying them belongs to the edge
+	# config (this file stays do-not-claim).
 	@not_excluded not path {$path_patterns}
 <!-- END BLOCK: exclusion -->
 <!-- START BLOCK: php_claim -->
@@ -52,22 +53,40 @@
 <!-- START BLOCK: health -->
 	# Health probe (FM-5): on sub-path mounts the scoped claim would strand
 	# /_razy/health, so it gets its own handle FIRST (pattern follows
-	# deploy/Caddyfile — answer to Q5). Standard php_server on purpose: probes
-	# are answered pre-dispatch and never need the app worker.
+	# deploy/Caddyfile — answer to Q5). Same front controller as the claim,
+	# no worker: probes are answered pre-dispatch. REQUEST_URI stays the
+	# original path (FrankenPHP 1.13 WithOriginalRequest).
 	handle /_razy/health {
 		header * {
 			Cache-Control "no-store, max-age=0"
 		}
-		php_server
+		route {
+			rewrite * /index.php
+			php
+		}
 	}
 <!-- END BLOCK: health -->
 <!-- START BLOCK: worker -->
-	php_server{$php_matcher} {
-		worker {$document_root}/index.php
+	# RZ-24: only index.php runs. php_server's try_files {path} would publish
+	# this tree and execute every other .php. FrankenPHP 1.13 keeps REQUEST_URI
+	# from the original request, so the rewrite does not change routing.
+	handle{$php_matcher} {
+		route {
+			rewrite * /index.php
+			php {
+				worker {$document_root}/index.php
+			}
+		}
 	}
 <!-- END BLOCK: worker -->
 <!-- START BLOCK: standard -->
-	php_server{$php_matcher}
+	# RZ-24: classic mode, same front-controller claim, no worker.
+	handle{$php_matcher} {
+		route {
+			rewrite * /index.php
+			php
+		}
+	}
 <!-- END BLOCK: standard -->
 }
 

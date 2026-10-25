@@ -39,11 +39,12 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteRule ^{$route_path}data/(.+)$ {$data_path} [L]
     <!-- END BLOCK: data_mapping -->
     <!-- START BLOCK: fallback -->
+    # RZ-24: an existing file is not a reason to skip the front controller.
+    # The old exists-checks and filename exemptions made Apache serve or
+    # execute the checkout. index.php stays out (rewrite loop). robots.txt
+    # stays out (public file; a missing one is Apache's own 404).
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-l
-    RewriteCond $1 !^(index\.php|robots\.txt|sites|system|shared|plugins|asset|repository\.inc\.php|config\.inc\.php|sites\.inc\.php)
+    RewriteCond $1 !^(index\.php|robots\.txt)$
     RewriteRule ^{$route_path}(.*)$ %{ENV:BASE}index.php [L]
     <!-- END BLOCK: fallback -->
 <!-- END BLOCK: rewrite -->

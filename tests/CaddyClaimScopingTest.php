@@ -16,10 +16,10 @@ use Razy\Routing\CaddyfileCompiler;
  *   1. sub-path-only mounts      → scoped @php_claimed matcher (+ exclusions
  *      INSIDE the matcher) + dedicated /_razy/health handle;
  *   2. root mount + exclusions   → Phase 1 @not_excluded gate (unchanged);
- *   3. root mount, no exclusions → bare php_server, BYTE-IDENTICAL legacy
- *      (re-pinned against the same shipped goldens here, from the Phase 2
- *      side — the health handle deliberately does NOT appear: FM-5 only bites
- *      scoped hosts, and root mounts already reach the probe).
+ *   3. root mount, no exclusions → front-controller handle (rewrite to
+ *      index.php + php), golden-pinned. RZ-24 replaced bare php_server.
+ *      The health handle deliberately does NOT appear: FM-5 only bites
+ *      scoped hosts, and root mounts already reach the probe.
  */
 #[CoversClass(CaddyfileCompiler::class)]
 class CaddyClaimScopingTest extends TestCase
@@ -65,7 +65,7 @@ class CaddyClaimScopingTest extends TestCase
 
         $this->assertStringContainsString('@php_claimed {', $content);
         $this->assertStringContainsString('path /app /app/*', $content);
-        $this->assertStringContainsString('php_server @php_claimed {', $content, 'worker mode must gate the claim');
+        $this->assertStringContainsString('handle @php_claimed {', $content, 'worker mode must gate the claim');
         $this->assertStringNotContainsString('@not_excluded', $content, 'no exclusions configured');
     }
 
@@ -74,8 +74,8 @@ class CaddyClaimScopingTest extends TestCase
         $content = $this->compile(self::TWO_SUBPATHS);
 
         $this->assertStringContainsString('path /app /app/* /shop /shop/*', $content);
-        // One matcher DEFINITION per site (the second textual hit is the
-        // `php_server @php_claimed` gate referencing it — count definitions only).
+        // One matcher DEFINITION per site (the handle references @php_claimed
+        // without repeating this definition — count definitions only).
         $this->assertSame(1, \substr_count($content, "\n\t@php_claimed {"));
     }
 
@@ -91,7 +91,8 @@ class CaddyClaimScopingTest extends TestCase
     {
         $content = $this->compile(self::SUBPATH, false);
 
-        $this->assertStringContainsString('php_server @php_claimed', $content);
+        $this->assertStringContainsString('handle @php_claimed', $content);
+        $this->assertStringContainsString('rewrite * /index.php', $content);
         $this->assertStringNotContainsString('worker /app/public/index.php', $content);
     }
 
@@ -102,7 +103,7 @@ class CaddyClaimScopingTest extends TestCase
         $content = $this->compile(self::SUBPATH, true, ['/api-py']);
 
         $this->assertStringContainsString('not path /api-py /api-py/*', $content);
-        $this->assertStringContainsString('php_server @php_claimed', $content);
+        $this->assertStringContainsString('handle @php_claimed', $content);
         $this->assertStringNotContainsString('@not_excluded', $content, 'the Phase 1 gate must NOT double-emit in scoped mode');
     }
 
@@ -114,7 +115,8 @@ class CaddyClaimScopingTest extends TestCase
 
         $this->assertStringNotContainsString('@php_claimed', $content, 'a root mount claims the whole host — scoping would be a lie');
         $this->assertStringNotContainsString('handle /_razy/health', $content, 'root mounts already reach the probe');
-        $this->assertStringContainsString('php_server {', $content);
+        $this->assertStringContainsString('rewrite * /index.php', $content);
+        $this->assertStringNotContainsString('php_server {', $content);
     }
 
     public function testRootMountWithExclusionsKeepsPhaseOneGate(): void
@@ -122,7 +124,7 @@ class CaddyClaimScopingTest extends TestCase
         $content = $this->compile(self::MIXED_ROOT_AND_SUB, true, ['/api-py']);
 
         $this->assertStringContainsString('@not_excluded not path /api-py /api-py/*', $content);
-        $this->assertStringContainsString('php_server @not_excluded {', $content);
+        $this->assertStringContainsString('handle @not_excluded {', $content);
         $this->assertStringNotContainsString('@php_claimed', $content);
     }
 
@@ -137,8 +139,8 @@ class CaddyClaimScopingTest extends TestCase
         $outputPathS = $this->tmpDir . '/gs';
         (new CaddyfileCompiler())->compile($rootOnly, [], $outputPathS, false, '/app/public');
 
-        $this->assertSame((string) \file_get_contents($goldenDir . 'caddy-worker-no-exclusions.golden'), (string) \file_get_contents($outputPathW), 'worker: Phase 2 must not touch root-only output');
-        $this->assertSame((string) \file_get_contents($goldenDir . 'caddy-standard-no-exclusions.golden'), (string) \file_get_contents($outputPathS), 'standard: Phase 2 must not touch root-only output');
+        $this->assertSame((string) \file_get_contents($goldenDir . 'caddy-worker-no-exclusions.golden'), (string) \file_get_contents($outputPathW), 'worker: root-only output is the front-controller claim');
+        $this->assertSame((string) \file_get_contents($goldenDir . 'caddy-standard-no-exclusions.golden'), (string) \file_get_contents($outputPathS), 'standard: root-only output is the front-controller claim');
     }
 
     // ── Path hygiene ─────────────────────────────────────────────────

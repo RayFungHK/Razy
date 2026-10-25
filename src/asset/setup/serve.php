@@ -6,11 +6,12 @@
  * Reads configuration from .razy-serve-config.json in the same directory.
  *
  * Handles:
- *   - Static file passthrough (CSS, JS, images, fonts) at C level
- *   - Data directory mapping (realpath-guarded)
+ *   - Data directory mapping (realpath-guarded; bytes only, never executed)
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
  *     under this server; RZ-09) with hashed-URL cache headers
+ *   - No passthrough of other real files. Returning false here makes php -S
+ *     download the document root and execute every other .php (RZ-24).
  *   - FQDN simulation (overrides SERVER_NAME for --dist mode)
  *   - Dashboard placeholder (/.razy/dashboard)
  *   - Fall-through to index.php for application routing
@@ -70,14 +71,8 @@ if (!empty($__serveConfig['worker'])) {
 // ── Routing ─────────────────────────────────────────────────────────────
 $uri      = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $docRoot  = $_SERVER['DOCUMENT_ROOT'];
-$filePath = $docRoot . $uri;
 
-// ── 1. Physical file exists? Let the built-in server handle it ──────────
-if ($uri !== '/' && is_file($filePath)) {
-    return false;
-}
-
-// ── 2. Data directory mapping ───────────────────────────────────────────
+// ── 1. Data directory mapping ───────────────────────────────────────────
 // URL pattern: /<route_prefix>data/<path>
 // (Webassets are not resolved here: the app knows each module's alias and
 // version folder, so /webassets/... falls through to index.php — RZ-09.)
@@ -89,7 +84,7 @@ if (preg_match('#^(?:/[^/]+)?/data/(.+)$#', $uri, $m)) {
     }
 }
 
-// ── 3. Dashboard placeholder ────────────────────────────────────────────
+// ── 2. Dashboard placeholder ────────────────────────────────────────────
 // Future: Razy.phar dashboard UI. For now, returns a JSON status endpoint.
 if (str_starts_with($uri, '/.razy/')) {
     if ($uri === '/.razy/dashboard' || $uri === '/.razy/dashboard/') {
@@ -126,7 +121,7 @@ if (str_starts_with($uri, '/.razy/')) {
     }
 }
 
-// ── 4. FQDN simulation (--dist mode) ───────────────────────────────────
+// ── 3. FQDN simulation (--dist mode) ───────────────────────────────────
 // Override SERVER_NAME and HTTP_HOST so the Razy bootstrap resolves the
 // correct domain from sites.inc.php. Also prepend the FQDN path to
 // REQUEST_URI so the Domain URL-path matcher can route to the right dist.
@@ -148,7 +143,10 @@ if (!empty($__serveConfig['fqdn_domain'])) {
     $_ENV['RAZY_MULTIPLE_SITE'] = 'true';
 }
 
-// ── 5. Fall through to Razy application ─────────────────────────────────
+// ── 4. Fall through to Razy application ─────────────────────────────────
+// Anything else, including a real file (Razy.phar, a template, another
+// .php), is the front controller. Falling through (a false return) would
+// make php -S serve the file or execute that .php.
 // The built-in server sets SCRIPT_NAME to the request path when it has an
 // extension (/webassets/app/default/js/a.js), which the bootstrap would read
 // as a subdirectory install. The app is the front controller: say so.
