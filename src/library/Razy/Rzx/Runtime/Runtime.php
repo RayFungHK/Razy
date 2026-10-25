@@ -250,9 +250,9 @@ final class Runtime
         return Escape::safe($value);
     }
 
-    public function attr(string $name, mixed $value): string
+    public function attr(string $name, mixed $value, bool $resource = false): string
     {
-        return Escape::attribute($name, $value, $this->warn);
+        return Escape::attribute($name, $value, $this->warn, $resource);
     }
 
     public function jsonScript(mixed $value): string

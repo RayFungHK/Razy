@@ -49,6 +49,12 @@ and `compile --rzx`. Additive only; no existing API changes.
     `<seconds>[;|, [url=]<url>]` with a safe URL, quoted as a whole or bare (an unbalanced or
     trailing quote is refused); other pragmas are an allowlist (content-type,
     content-language, default-style, x-ua-compatible);
+  - resource attributes (`script`/`iframe`/`frame` `src`, `object data`, `embed src`, `base href`,
+    and `link href` whose `rel` loads something) take only a same-origin path (`/x`, `x`, `?q`,
+    `#f`) or a `Razy\Rzx\SafeUrl` from trusted code such as `asset()`; anything else, including
+    `//host`, `\\host`, `/\host` and absolute URLs, renders as `#` with a warning. A literal there
+    may be `https://…` but not protocol-relative (RZX134). `<script src>` is a literal or
+    `asset(…)` (RZX141). Ordinary links (`<a href>`) may still point anywhere;
   - SVG animation elements take literal `attributeName`, `to`, `from`, `values` and `by`, and
     may only target presentational attributes on an allowlist (opacity, transform, fill,
     stroke-*, x, y, width, height, r, cx, cy, d, points, offset, stop-color, …);
@@ -121,6 +127,7 @@ and `compile --rzx`. Additive only; no existing API changes.
 | RZX138 | SVG animation (`<animate>`, `<set>`, …) with a dynamic target or value, or a target outside the presentational allowlist |
 | RZX139 | `<base>` attribute, `<meta http-equiv>`, or a pragma `<meta>`'s `content` given an expression; a pragma outside the allowlist |
 | RZX140 | nested `<push>` |
+| RZX141 | `<script src>` that is neither a literal nor `asset(…)` |
 
 ## Notes
 - Not in this part:

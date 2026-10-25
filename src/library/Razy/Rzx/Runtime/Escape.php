@@ -18,6 +18,7 @@ namespace Razy\Rzx\Runtime;
 use JsonException;
 use JsonSerializable;
 use Razy\Rzx\SafeHtml;
+use Razy\Rzx\SafeUrl;
 use stdClass;
 use Stringable;
 
@@ -92,7 +93,11 @@ final class Escape
     /**
      * ` name="value"`, ` name`, or '' for an expression attribute.
      */
-    public static function attribute(string $name, mixed $value, ?callable $warn = null): string
+    /**
+     * @param bool $resource the attribute loads a resource (`<script src>`, `<iframe src>`, …):
+     *                       only a SafeUrl or a same-origin path is allowed there
+     */
+    public static function attribute(string $name, mixed $value, ?callable $warn = null, bool $resource = false): string
     {
         if ($value === null || $value === false) {
             return '';
@@ -103,9 +108,15 @@ final class Escape
         if (\is_array($value) || $value instanceof JsonSerializable || $value instanceof stdClass) {
             $text = self::json($value);
         } else {
+            $trusted = $value instanceof SafeUrl;
             $text = self::stringify($value);
             $lower = \strtolower($name);
-            if (\in_array($lower, self::URL_ATTRIBUTES, true)) {
+            if ($resource && !$trusted && !self::isSameOrigin($text)) {
+                if ($warn !== null) {
+                    $warn('Off-site URL on a resource attribute replaced with "#": ' . \substr($text, 0, 80));
+                }
+                $text = '#';
+            } elseif (\in_array($lower, self::URL_ATTRIBUTES, true)) {
                 $text = self::url($text, $warn);
             } elseif (\in_array($lower, self::SRCSET_ATTRIBUTES, true)) {
                 $text = self::srcset($text, $warn);
@@ -203,6 +214,28 @@ final class Escape
         });
 
         return !$unsafe;
+    }
+
+    /**
+     * `//host/…`, `\\host`, `/\host` or `\/host`: browsers resolve these to
+     * another origin (they read `\` as `/` in http and https URLs).
+     */
+    public static function isProtocolRelative(string $url): bool
+    {
+        $normalized = \str_replace('\\', '/', (string) \preg_replace('/[\t\n\r]+/', '', \trim($url, "\x00..\x20")));
+
+        return \str_starts_with($normalized, '//');
+    }
+
+    /**
+     * A path on this origin: no scheme and not protocol-relative
+     * (`/js/a.js`, `js/a.js`, `?q`, `#x`).
+     */
+    public static function isSameOrigin(string $url): bool
+    {
+        $normalized = (string) \preg_replace('/[\x00-\x20\x7F]+/', '', \trim($url, "\x00..\x20"));
+
+        return !self::isProtocolRelative($url) && !\preg_match('/^[A-Za-z][A-Za-z0-9+.\-]*:/', $normalized);
     }
 
     public static function isSafeUrl(string $url): bool

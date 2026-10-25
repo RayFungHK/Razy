@@ -67,7 +67,8 @@ trait RzxHarness
     {
         return (new FunctionRegistry())
             ->register('upper', static fn ($s): string => \strtoupper((string) $s))
-            ->register('join', static fn (array $l, string $sep = ','): string => \implode($sep, $l));
+            ->register('join', static fn (array $l, string $sep = ','): string => \implode($sep, $l))
+            ->register('asset', static fn (string $path): string => '/assets/' . $path);
     }
 
     private function runtime(?CompileCache $cache = null, bool $check = true): Runtime

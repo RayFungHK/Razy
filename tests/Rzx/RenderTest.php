@@ -264,11 +264,11 @@ class RenderTest extends TestCase
             <if test={on}>
               <push to="head.styles" key="theme" order={-1}><link rel="stylesheet" href="/t.css" /></push>
             </if>
-            <push to="body.scripts"><script type="module" src={'/' ~ title ~ '.js'} /></push>
+            <push to="body.scripts"><script type="module" src={asset(title ~ '.js')} /></push>
             RZX);
         $html = $this->runtime()->render('T', ['title' => 'a<b'], ['' => new SafeHtml('<main>page</main>')]);
         $this->assertSame('<!DOCTYPE html><html lang="en"><head><title>a&lt;b</title><!--anchor:head.styles--></head><body><main>page</main><!--anchor:body.scripts--></body></html>', $html);
-        $this->assertSame([['body.scripts', '<script type="module" src="/a&lt;b.js"></script>', null, 0]], $this->sink->pushes, 'false <if> pushes nothing');
+        $this->assertSame([['body.scripts', '<script type="module" src="/assets/a&lt;b.js"></script>', null, 0]], $this->sink->pushes, 'false <if> pushes nothing');
 
         $this->sink->pushes = [];
         $this->runtime()->render('T', ['title' => 'x', 'on' => true]);

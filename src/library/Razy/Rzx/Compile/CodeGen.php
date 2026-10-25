@@ -62,6 +62,9 @@ final class CodeGen
         'pathLength', 'startOffset', 'viewBox', 'stdDeviation',
     ];
 
+    /** Element => the attribute that loads a resource into the page. */
+    private const RESOURCE = ['script' => 'src', 'iframe' => 'src', 'frame' => 'src', 'object' => 'data', 'embed' => 'src', 'base' => 'href', 'link' => 'href'];
+
     /** `<meta http-equiv>` values other than refresh that may appear. */
     private const PRAGMAS = ['content-type', 'content-language', 'default-style', 'x-ua-compatible'];
 
@@ -297,9 +300,35 @@ final class CodeGen
             throw $this->error('RZX134', 'A meta refresh must be "<seconds>" or "<seconds>; url=<url>"', ($content ?? $pragma)->offset);
         }
         $url = ($m[1] ?? '') . ($m[2] ?? '') . ($m[3] ?? '');
-        if ($url !== '' && !Escape::isSafeUrl($url)) {
+        if ($url !== '' && (!Escape::isSafeUrl($url) || Escape::isProtocolRelative($url))) {
             throw $this->error('RZX134', 'Unsafe URL in a meta refresh', ($content ?? $pragma)->offset);
         }
+    }
+
+    /**
+     * The attribute loads a resource into the page: script, frame, object,
+     * embed, base, or a link whose rel loads something (or is not a literal).
+     */
+    private function isResource(ElementNode $node, string $attribute): bool
+    {
+        if ((self::RESOURCE[$node->tag] ?? null) !== $attribute) {
+            return false;
+        }
+        if ($node->tag !== 'link') {
+            return true;
+        }
+        foreach ($node->attributes as $attr) {
+            if (\strtolower($attr->name) === 'rel') {
+                if ($attr->literal === null) {
+                    return true;
+                }
+                $rels = \preg_split('/\s+/', \strtolower(\trim(Escape::decode($attr->literal)))) ?: [];
+
+                return \array_intersect($rels, ['stylesheet', 'modulepreload', 'preload', 'prefetch', 'prerender', 'import', 'manifest', 'serviceworker']) !== [];
+            }
+        }
+
+        return true;
     }
 
     private function attributes(ElementNode $node): void
@@ -326,12 +355,19 @@ final class CodeGen
                 $decoded = Escape::decode($attr->literal);
                 $unsafe = \in_array($lower, Escape::URL_ATTRIBUTES, true) ? !Escape::isSafeUrl($decoded)
                     : (\in_array($lower, Escape::SRCSET_ATTRIBUTES, true) && !Escape::isSafeSrcset($decoded));
+                if (!$unsafe && $this->isResource($node, $lower) && Escape::isProtocolRelative($decoded)) {
+                    throw $this->error('RZX134', 'A protocol-relative URL on ' . $name . ' loads from another origin; write the https:// URL or a /path', $attr->offset);
+                }
                 if ($unsafe) {
                     throw $this->error('RZX134', 'Unsafe URL in ' . $name . '; only http, https, mailto and relative URLs are allowed', $attr->offset);
                 }
                 $this->out->html(' ' . $name . '="' . \str_replace(['"', '<', '>'], ['&quot;', '&lt;', '&gt;'], $attr->literal) . '"');
             } elseif ($attr->expr !== null) {
-                $this->out->statement('echo $__rt->attr(' . \var_export($name, true) . ', ' . $this->expr->compile($attr->expr) . ');', $attr->offset);
+                $resource = $this->isResource($node, $lower);
+                if ($resource && $node->tag === 'script' && !($attr->expr instanceof Call && $attr->expr->name === 'asset')) {
+                    throw $this->error('RZX141', '<script src> must be a literal or asset(…)', $attr->offset);
+                }
+                $this->out->statement('echo $__rt->attr(' . \var_export($name, true) . ', ' . $this->expr->compile($attr->expr) . ($resource ? ', true' : '') . ');', $attr->offset);
             }
         }
     }

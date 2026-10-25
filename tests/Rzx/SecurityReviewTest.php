@@ -132,6 +132,38 @@ class SecurityReviewTest extends TestCase
         yield 'quote inside a bare url' => ["0;url=/a'b"];
     }
 
+    /**
+     * Pass 4: protocol-relative and backslash forms load from another origin.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function offOrigin(): iterable
+    {
+        yield '//host' => ['//evil.test/x'];
+        yield '\\\host' => ['\\\evil.test/x'];
+        yield '/\host' => ['/\evil.test/x'];
+        yield '\/host' => ['\/evil.test/x'];
+        yield 'leading space' => [' //evil.test/x'];
+        yield 'tab inside' => ["/\t/evil.test/x"];
+        yield 'absolute https' => ['https://evil.test/x.js'];
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function literalOffOrigin(): iterable
+    {
+        yield 'script //' => ['<div><script src="//evil.test/x.js"></script></div>'];
+        yield 'script \\\\' => ['<div><script src="\\\evil.test/x.js"></script></div>'];
+        yield 'iframe /\\' => ['<div><iframe src="/\evil.test/"></iframe></div>'];
+        yield 'object \/' => ['<object data="\/evil.test/"></object>'];
+        yield 'link stylesheet //' => ['<head><link rel="stylesheet" href="//evil.test/a.css" /></head>'];
+        yield 'base //' => ['<head><base href="//evil.test/" /></head>'];
+        yield 'entity slash' => ['<div><iframe src="&#47;&#47;evil.test/"></iframe></div>'];
+        yield 'refresh //' => ['<head><meta http-equiv="refresh" content="0;url=//evil.test/" /></head>'];
+        yield 'refresh \\\\' => ['<head><meta http-equiv="refresh" content="0;url=\\\evil.test/" /></head>'];
+    }
+
     #[DataProvider('svgAnimation')]
     public function testSvgAnimationCannotWriteALink(string $markup, string $message): void
     {
@@ -375,5 +407,64 @@ class SecurityReviewTest extends TestCase
         $this->assertStringContainsString('href="javascript&#x3aalert(1)"', $this->render('<a href="javascript&#x3aalert(1)">x</a>'));
         $this->assertStringContainsString('href="javascript&amp;#58;alert(1)"', $this->render('<a href="javascript&amp;#58;alert(1)">x</a>'));
         $this->assertStringContainsString('href="javascript&colon&#160;alert(1)"', $this->render('<a href="javascript&colon&#160;alert(1)">x</a>'));
+    }
+
+    #[DataProvider('offOrigin')]
+    public function testDynamicResourceSinksTakeSameOriginPathsOnly(string $url): void
+    {
+        foreach (['<iframe src={v}></iframe>', '<object data={v}></object>', '<embed src={v} />', '<link rel="stylesheet" href={v} />', '<link rel="modulepreload" href={v} />', '<link rel={w} href={v} />', '<frame src={v} />'] as $markup) {
+            $html = $this->render("<props>\nreturn ['v' => Prop::any(), 'w' => Prop::any()];\n</props>\n<div>" . $markup . '</div>', ['v' => $url, 'w' => 'stylesheet']);
+            $this->assertMatchesRegularExpression('/(?:src|data|href)="#"/', $html, $markup . ' with ' . \json_encode($url));
+        }
+        $this->assertStringContainsString('Off-site URL', $this->warnings[0]);
+    }
+
+    public function testSameOriginResourcesAndOrdinaryLinksStillRender(): void
+    {
+        $src = "<props>\nreturn ['v' => Prop::any()];\n</props>\n<div><iframe src={v}></iframe><link rel=\"canonical\" href={v} /><a href={v}>a</a></div>";
+        $this->assertSame('<div><iframe src="/embed/1"></iframe><link rel="canonical" href="/embed/1"><a href="/embed/1">a</a></div>', $this->render($src, ['v' => '/embed/1']));
+        $this->assertSame('<div><iframe src="embed/1?x#y"></iframe><link rel="canonical" href="embed/1?x#y"><a href="embed/1?x#y">a</a></div>', $this->runtime()->render('T', ['v' => 'embed/1?x#y']));
+        // An ordinary link or a canonical link may point anywhere (an open-redirect shape, not script).
+        $this->assertSame('<div><iframe src="#"></iframe><link rel="canonical" href="//other.test/"><a href="//other.test/">a</a></div>', $this->runtime()->render('T', ['v' => '//other.test/']));
+    }
+
+    public function testScriptSrcIsLiteralOrAsset(): void
+    {
+        foreach (['<script src={v} />', "<script src={'/js/' ~ v} />", '<script src={upper(v)} />'] as $markup) {
+            try {
+                $this->render(self::P . '<div>' . $markup . '</div>', ['v' => 'a.js']);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame('RZX141', $e->rzxCode, $e->getMessage());
+            }
+        }
+        $this->assertSame('<div><script src="/assets/a.js"></script></div>', $this->render(self::P . "<div><script src={asset('a.js')} /></div>"));
+    }
+
+    public function testAssetMayReturnATrustedCdnUrl(): void
+    {
+        $functions = $this->functions()
+            ->register('cdn', static fn (string $p): \Razy\Rzx\SafeUrl => new \Razy\Rzx\SafeUrl('https://cdn.test/' . $p))
+            ->register('asset', static fn (string $p): \Razy\Rzx\SafeUrl => new \Razy\Rzx\SafeUrl('https://cdn.test/' . $p));
+        $this->component('T', "<div><script src={asset('a.js')} /><iframe src={cdn('f.html')}></iframe><script src={asset('javascript:x')} /></div>");
+        $cache = new CompileCache(new \Razy\Rzx\DirectoryResolver(['' => $this->root . '/app']), $this->root . '/cache', $functions);
+        $html = (new Runtime($cache, $functions))->render('T');
+        $this->assertSame('<div><script src="https://cdn.test/a.js"></script><iframe src="https://cdn.test/f.html"></iframe><script src="https://cdn.test/javascript:x"></script></div>', $html);
+    }
+
+    #[DataProvider('literalOffOrigin')]
+    public function testLiteralProtocolRelativeResourcesAreRejected(string $markup): void
+    {
+        try {
+            $this->render($markup);
+            $this->fail('compiled: ' . $markup);
+        } catch (CompileError $e) {
+            $this->assertSame('RZX134', $e->rzxCode, $e->getMessage());
+        }
+    }
+
+    public function testLiteralHttpsResourcesAndProtocolRelativeLinksAreAllowed(): void
+    {
+        $this->assertSame('<div><script src="https://cdn.test/a.js"></script><a href="//other.test/">x</a><link rel="canonical" href="//other.test/"></div>', $this->render('<div><script src="https://cdn.test/a.js"></script><a href="//other.test/">x</a><link rel="canonical" href="//other.test/" /></div>'));
     }
 }
