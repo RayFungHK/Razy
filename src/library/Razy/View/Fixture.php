@@ -30,6 +30,16 @@ use InvalidArgumentException;
  *         ->state('empty', ['rows' => []])
  *         ->state('zh', ['title' => '成員'], lang: 'zh-HK');
  *
+ * RZ-28: a `.rzx` component works the same way; its props are the values:
+ *
+ *     return Fixture::component('Kit.ManagementList')     // Kit = this folder
+ *         ->namespaces(['App' => '../app/rzx'])            // other components it uses
+ *         ->vocabulary('vocabulary.json')
+ *         ->rzxFunction('t', fn (string $k): string => $k)
+ *         ->base(['label' => 'Members', 'columns' => […]])
+ *         ->state('empty', ['rows' => []])
+ *         ->fill('toolbar-end', '<x-button label="Add"></x-button>');
+ *
  * Paths are relative to the fixture file. Widths are only read by the screenshot
  * harness; the HTML is the same at every width. Generic: no element library or
  * application names here.
@@ -62,8 +72,32 @@ final class Fixture
 
     private ?string $layouts = null;
 
-    private function __construct(private readonly string $template)
+    /** @var array<string, string> .rzx namespace => directory (relative) */
+    private array $namespaces = [];
+
+    private ?string $vocabulary = null;
+
+    /** @var array<string, string> slot => trusted fixture HTML */
+    private array $fills = [];
+
+    /** @var array<string, callable> */
+    private array $functions = [];
+
+    private function __construct(private readonly ?string $template, private readonly ?string $component = null)
     {
+    }
+
+    /**
+     * RZ-28: a fixture for a registered `.rzx` component. Its namespace maps to
+     * the fixture's folder unless namespaces() says otherwise.
+     */
+    public static function component(string $name): self
+    {
+        if (!\Razy\Rzx\Names::isComponent($name)) {
+            throw new InvalidArgumentException("Invalid component name '{$name}' (PascalCase, dotted: Kit.Card).");
+        }
+
+        return new self(null, $name);
     }
 
     /**
@@ -92,6 +126,49 @@ final class Fixture
         }
 
         return \array_values(\array_unique($names));
+    }
+
+    /**
+     * Directories of the `.rzx` namespaces the component uses (relative to the fixture).
+     *
+     * @param array<string, string> $map namespace ('' for bare names) => directory
+     */
+    public function namespaces(array $map): self
+    {
+        foreach ($map as $namespace => $dir) {
+            if ('' !== $namespace && !\Razy\Rzx\Names::isComponent((string) $namespace)) {
+                throw new InvalidArgumentException("Invalid .rzx namespace '{$namespace}'.");
+            }
+            $this->namespaces[(string) $namespace] = $dir;
+        }
+
+        return $this;
+    }
+
+    /** A vocabulary JSON file the component is compiled against. */
+    public function vocabulary(string $path): self
+    {
+        $this->vocabulary = $path;
+
+        return $this;
+    }
+
+    /**
+     * Fill a slot with fixed markup. The markup is fixture code, printed as written.
+     */
+    public function fill(string $slot, string $html): self
+    {
+        $this->fills[$slot] = $html;
+
+        return $this;
+    }
+
+    /** An expression function the component calls (an app's `t`, for example). */
+    public function rzxFunction(string $name, callable $function): self
+    {
+        $this->functions[$name] = $function;
+
+        return $this;
     }
 
     /**
@@ -212,7 +289,52 @@ final class Fixture
 
     public function getTemplatePath(): string
     {
+        if (null === $this->template) {
+            throw new InvalidArgumentException("Fixture '{$this->getName()}' is for the component {$this->component}, not a template.");
+        }
+
         return $this->path($this->template);
+    }
+
+    /** The `.rzx` component name, or null for a template fixture. */
+    public function getComponent(): ?string
+    {
+        return $this->component;
+    }
+
+    /**
+     * Absolute directory per `.rzx` namespace; the component's own namespace
+     * defaults to the fixture's folder.
+     *
+     * @return array<string, string>
+     */
+    public function getNamespaces(): array
+    {
+        $map = \array_map($this->path(...), $this->namespaces);
+        if (null !== $this->component) {
+            $dot = \strrpos($this->component, '.');
+            $own = false === $dot ? '' : \substr($this->component, 0, $dot);
+            $map[$own] ??= \rtrim(\dirname($this->file), '/\\');
+        }
+
+        return $map;
+    }
+
+    public function getVocabularyPath(): ?string
+    {
+        return null === $this->vocabulary ? null : $this->path($this->vocabulary);
+    }
+
+    /** @return array<string, string> */
+    public function getFills(): array
+    {
+        return $this->fills;
+    }
+
+    /** @return array<string, callable> */
+    public function getFunctions(): array
+    {
+        return $this->functions;
     }
 
     public function getLayoutsPath(): ?string

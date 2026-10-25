@@ -143,6 +143,7 @@ class UiFixtureTest extends TestCase
         $this->assertSame([
             'name' => 'card',
             'file' => \realpath($this->dir . '/cards/card.fixture.php'),
+            'component' => null,
             'states' => ['default', 'empty', 'zh'],
             'themes' => ['light', 'dark'],
             'widths' => [1280, 360],
@@ -241,6 +242,73 @@ class UiFixtureTest extends TestCase
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
+
+    // ── RZ-28: .rzx component fixtures ───────────────────────────────────
+
+    public function testAComponentFixtureRendersItsStatesWithFillsPushesAndFunctions(): void
+    {
+        \mkdir($this->dir . '/kit');
+        \mkdir($this->dir . '/app');
+        $this->put('kit/List.rzx', <<<'RZX'
+            <props>
+            return ['label' => Prop::string()->required(), 'rows' => Prop::list(Prop::shape(['name' => Prop::string()]))->default([])];
+            </props>
+            <section aria-label={label}>
+              <div class="bar"><Slot name="end" accepts="x-button" max="2" /></div>
+              <ul><for each={rows} as="r"><li><App.Name value={r.name} /></li><empty><li>{t('empty')}</li></empty></for></ul>
+            </section>
+            <push to="body.scripts" key="list"><script type="module" src="list.js" /></push>
+            RZX);
+        $this->put('app/Name.rzx', "<props>\nreturn ['value' => Prop::string()->required()];\n</props>\n<b>{upper(value)}</b>");
+        $this->put('kit/vocabulary.json', \json_encode(['slotMarker' => 'data-x-slot', 'prefixes' => ['x-'], 'elements' => ['x-button' => ['attributes' => []]]]));
+        $this->put('kit/List.fixture.php', <<<'PHP'
+            <?php
+            use Razy\View\Fixture;
+
+            return Fixture::component('Kit.List')
+                ->namespaces(['App' => '../app'])
+                ->vocabulary('vocabulary.json')
+                ->rzxFunction('t', static fn (string $key): string => '[' . $key . ']')
+                ->themes('light', 'dark')
+                ->base(['label' => 'Members <&>'])
+                ->state('default', ['rows' => [['name' => 'ann'], ['name' => '<i>']]])
+                ->state('empty', ['rows' => []])
+                ->fill('end', '<x-button label="Add"></x-button>');
+            PHP);
+        $fixture = FixtureRenderer::load($this->dir . '/kit/List.fixture.php');
+
+        $this->assertSame('Kit.List', FixtureRenderer::describe($fixture)['component']);
+        $this->assertSame(['default', 'empty'], $fixture->getStates());
+
+        $html = (new FixtureRenderer())->render($fixture, 'default', 'dark');
+        $this->assertStringContainsString('<html lang="en" data-theme="dark">', $html);
+        $this->assertStringContainsString('<section aria-label="Members &lt;&amp;&gt;"><div class="bar"><x-button label="Add"></x-button></div><ul><li><b>ANN</b></li><li><b>&lt;I&gt;</b></li></ul></section>', $html);
+        $this->assertMatchesRegularExpression('#<script nonce="[^"]+" type="module" src="list\.js"></script>\n</body>#', $html, 'the push reached the frame, with the nonce');
+
+        $empty = (new FixtureRenderer())->render($fixture, 'empty', 'light');
+        $this->assertStringContainsString('<ul><li>[empty]</li></ul>', $empty);
+
+        $written = (new FixtureRenderer())->write($fixture, $this->dir . '/out');
+        $this->assertCount(4, $written);
+    }
+
+    public function testAComponentFixtureFailsLikeTheCompilerDoes(): void
+    {
+        \mkdir($this->dir . '/kit');
+        $this->put('kit/Bad.rzx', "<props>\nreturn ['n' => Prop::int()->required()];\n</props>\n<p>{n}</p>");
+        $this->put('kit/Bad.fixture.php', "<?php\nreturn Razy\\View\\Fixture::component('Kit.Bad')->state('wrong', ['n' => 'x']);\n");
+        $fixture = FixtureRenderer::load($this->dir . '/kit/Bad.fixture.php');
+
+        $this->expectException(\Razy\Rzx\Runtime\RenderError::class);
+        $this->expectExceptionMessage('Invalid prop: Kit.Bad.n must be a int, got string');
+        (new FixtureRenderer())->render($fixture, 'wrong', 'light');
+    }
+
+    public function testComponentFixtureValidation(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        Fixture::component('kit.card');
+    }
 
     private function card(): Fixture
     {

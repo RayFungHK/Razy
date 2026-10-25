@@ -14,6 +14,14 @@
 namespace Razy\View;
 
 use Razy\Exception\TemplateException;
+use Razy\Rzx\CompileCache;
+use Razy\Rzx\DirectoryResolver;
+use Razy\Rzx\FunctionRegistry;
+use Razy\Rzx\RazyFunctions;
+use Razy\Rzx\Runtime\Runtime;
+use Razy\Rzx\SafeHtml;
+use Razy\Rzx\TemplateAnchors;
+use Razy\Rzx\Vocabulary;
 use Razy\Template;
 use Razy\Template\IncludeResolver;
 use RecursiveCallbackFilterIterator;
@@ -113,13 +121,14 @@ final class FixtureRenderer
     /**
      * Describe a fixture for `ui list --json` (what the screenshot harness reads).
      *
-     * @return array{name: string, file: string, states: list<string>, themes: list<string>, widths: list<int>}
+     * @return array{name: string, file: string, component: ?string, states: list<string>, themes: list<string>, widths: list<int>}
      */
     public static function describe(Fixture $fixture): array
     {
         return [
             'name' => $fixture->getName(),
             'file' => $fixture->getFile(),
+            'component' => $fixture->getComponent(),
             'states' => $fixture->getStates(),
             'themes' => $fixture->getThemes(),
             'widths' => $fixture->getWidths(),
@@ -168,9 +177,13 @@ final class FixtureRenderer
 
         $template->beginRender();
         try {
-            $page = $template->load($fixture->getTemplatePath());
-            $page->assign($values);
-            $anchors->setContent($page->output());
+            if (null === $fixture->getComponent()) {
+                $page = $template->load($fixture->getTemplatePath());
+                $page->assign($values);
+                $anchors->setContent($page->output());
+            } else {
+                $anchors->setContent($this->component($fixture, $template, $values));
+            }
             $html = $template->load(self::FRAME)->output();
         } catch (Throwable $e) {
             $template->endRender('');
@@ -223,5 +236,32 @@ final class FixtureRenderer
         }
 
         return $written;
+    }
+
+    /**
+     * RZ-28: render a `.rzx` component fixture through the same compiler,
+     * functions and anchors a site uses; its pushes reach the frame's anchors.
+     * Compiled files go to a temp cache keyed by the fixture file.
+     *
+     * @param array<string, mixed> $values
+     */
+    private function component(Fixture $fixture, Template $template, array $values): string
+    {
+        $functions = new FunctionRegistry();
+        $razy = new RazyFunctions(static fn (): string => '');
+        $razy->register($functions);
+        foreach ($fixture->getFunctions() as $name => $function) {
+            $functions->register($name, $function);
+        }
+        $resolver = new DirectoryResolver();
+        foreach ($fixture->getNamespaces() as $namespace => $dir) {
+            $resolver->add($namespace, $dir, 'composition');
+        }
+        $vocabulary = null === $fixture->getVocabularyPath() ? Vocabulary::none() : Vocabulary::fromFile($fixture->getVocabularyPath());
+        $cache = new CompileCache($resolver, \sys_get_temp_dir() . '/razy-ui-rzx/' . \substr(\sha1($fixture->getFile()), 0, 16), $functions, 'dev', $vocabulary);
+        $runtime = new Runtime($cache, $functions, new TemplateAnchors($template->anchors()), true);
+        $fills = \array_map(static fn (string $html): SafeHtml => new SafeHtml($html), $fixture->getFills());
+
+        return $razy->within($template, null, fn (): string => $runtime->render((string) $fixture->getComponent(), $values, $fills));
     }
 }
