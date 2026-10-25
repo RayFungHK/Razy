@@ -60,6 +60,15 @@ class Entity
     /** @var Entity|null Linked wrapper entity for delegating block creation */
     private ?Entity $linkedEntity = null;
 
+    /** @var array<string, string> RZ-28: plugin output held out of the {$…} pass, by marker */
+    private array $held = [];
+
+    /** Random per outermost parseText(); null when no parse is running */
+    private ?string $holdToken = null;
+
+    /** parseText() nesting (a plugin may parse its own body) */
+    private int $textDepth = 0;
+
     /**
      * Entity constructor.
      *
@@ -426,14 +435,25 @@ class Entity
      */
     public function parseText(string $content): string
     {
-        $content = $this->parseFunctionTag($content);
+        // RZ-28: a function plugin's output is final. It is held out of the {$…}
+        // pass below behind a per-render marker and spliced back afterwards, so a
+        // value a plugin printed (a component's text, a URL, a script body) is never
+        // read as a parameter tag. Only the template source is substituted.
+        if (0 === $this->textDepth++) {
+            $this->held = [];
+            $this->holdToken = \bin2hex(\random_bytes(8));
+        }
 
-        // Replace parameter tags {$var} with resolved values, supporting dot-path access and modifier chains
-        return \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
-            $clips = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+        try {
+            $content = $this->parseFunctionTag($content);
 
-            return $this->renderTag($clips);
-        }, $content);
+            return $this->splice($this->substitute($content));
+        } finally {
+            if (0 === --$this->textDepth) {
+                $this->held = [];
+                $this->holdToken = null;
+            }
+        }
     }
 
     /**
@@ -576,6 +596,60 @@ class Entity
     protected function onParameterAssigned(string $parameter): void
     {
         unset($this->caches[$parameter]);
+    }
+
+    /**
+     * Replace parameter tags with their values (one pass over template text).
+     *
+     * @throws Throwable
+     */
+    private function substitute(string $content): string
+    {
+        // Replace parameter tags {$var} with resolved values, supporting dot-path access and modifier chains
+        return (string) \preg_replace_callback('/{((\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*)(?:\|(?:(?2)|(?P>rq)))*)}/', function ($matches) {
+            $clips = \preg_split('/(?<quote>[\'"])(\.(*SKIP)|(?:(?!\k<quote>).)+)\k<quote>(*SKIP)(*FAIL)|\|/', $matches[1]);
+
+            return $this->renderTag($clips);
+        }, $content);
+    }
+
+    /**
+     * Template source a `$templateOutput` plugin returned (`{@repeat}`'s body,
+     * `{@if}`'s branch): its own function tags are expanded now, under the same
+     * hold, and the caller's single pass substitutes its `{$…}`, exactly as if it
+     * had been written in place.
+     *
+     * @throws Throwable
+     */
+    private function templateSource(string $source): string
+    {
+        return \str_contains($source, '{') ? $this->parseFunctionTag($source) : $source;
+    }
+
+    /**
+     * Hold a plugin's final output out of the parameter pass.
+     */
+    private function hold(string $output): string
+    {
+        if (null === $this->holdToken || '' === $output) {
+            return $output;
+        }
+        $marker = "\x1Brz-held:" . $this->holdToken . ':' . \count($this->held) . "\x1B";
+        $this->held[$marker] = $output;
+
+        return $marker;
+    }
+
+    /**
+     * Put held plugin output back (one pass; markers inside held output are its own).
+     */
+    private function splice(string $content): string
+    {
+        if ([] === $this->held || null === $this->holdToken || !\str_contains($content, "\x1Brz-held:" . $this->holdToken)) {
+            return $content;
+        }
+
+        return \strtr($content, $this->held);
     }
 
     /**
@@ -724,9 +798,10 @@ class Entity
                             $wrapped = $plugin->parse($this, $matches[2][0] ?? '', $wrapped);
                         }
 
-                        $result .= $wrapped;
+                        $result .= $plugin->returnsTemplate() ? $this->templateSource((string) $wrapped) : $this->hold((string) $wrapped);
                     } else {
-                        $result .= $plugin->parse($this, $matches[2][0] ?? '');
+                        $output = (string) $plugin->parse($this, $matches[2][0] ?? '');
+                        $result .= $plugin->returnsTemplate() ? $this->templateSource($output) : $this->hold($output);
                     }
                 } else {
                     $result .= $matches[0][0];

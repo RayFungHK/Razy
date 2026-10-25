@@ -24,4 +24,9 @@ interface ComponentResolver
      * @return string|null absolute path of the `.rzx` file, or null when unknown
      */
     public function resolve(string $name): ?string;
+
+    /**
+     * The Profile name the component's namespace was registered with, or null.
+     */
+    public function profile(string $name): ?string;
 }

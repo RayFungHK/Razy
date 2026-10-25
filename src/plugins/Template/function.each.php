@@ -36,6 +36,10 @@ return function (...$arguments) {
         /** @var bool This function requires enclosed content between opening and closing tags */
         protected bool $encloseContent = true;
 
+        // RZ-28: returns {$__each…->raw} placeholders (template source it builds, never a
+        // value) for the caller's single substitution, which inserts each rendered item.
+        protected bool $templateOutput = true;
+
         /** @var array Allowed parameters: 'source' is the array to iterate, 'as' is the loop variable name */
         protected array $allowedParameters = [
             'source' => '',

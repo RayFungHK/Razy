@@ -16,7 +16,6 @@ declare(strict_types=1);
 namespace Razy\Rzx;
 
 use InvalidArgumentException;
-use Stringable;
 
 /**
  * One prop in a component's `<props>` schema.
@@ -218,7 +217,7 @@ final class Prop
             return $this->required ? $path . ' is required' : null;
         }
         $ok = match ($this->type) {
-            'string' => \is_string($value) || $value instanceof Stringable,
+            'string' => \is_string($value),
             'int' => \is_int($value),
             'float' => \is_int($value) || \is_float($value),
             'bool' => \is_bool($value),

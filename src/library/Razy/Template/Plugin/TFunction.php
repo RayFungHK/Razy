@@ -37,6 +37,18 @@ class TFunction
     /** @var bool Whether this function encloses content between open/close tags */
     protected bool $encloseContent = false;
 
+    /**
+     * RZ-28: the plugin returns template text for the caller to substitute
+     * (`{@if}` returns its chosen branch). Every other plugin's output is final
+     * and is never scanned for `{$…}`.
+     *
+     * Opt in only when the return value is template *source* (text taken from
+     * the template, such as the enclosed body). Never return a user value or
+     * anything built from one: it would be expanded and substituted like
+     * template code (a value `{$secret}` would print the secret).
+     */
+    protected bool $templateOutput = false;
+
     /** @var bool Whether arbitrary parameter names are accepted beyond allowedParameters */
     protected bool $extendedParameter = false;
 
@@ -130,6 +142,11 @@ class TFunction
      *
      * @return bool True if this is an enclosure-type function
      */
+    final public function returnsTemplate(): bool
+    {
+        return $this->templateOutput;
+    }
+
     final public function isEncloseContent(): bool
     {
         return $this->encloseContent;

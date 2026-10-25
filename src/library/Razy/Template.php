@@ -545,15 +545,32 @@ class Template implements TemplateInterface
     }
 
     /**
+     * RZ-28: leave a render that failed. The outermost one discards this
+     * response's anchor state (pushes, markers) instead of finalizing it, so
+     * nothing half-rendered reaches a later render or an error page.
+     *
+     * @internal
+     */
+    public function abortRender(): void
+    {
+        $this->renderDepth = \max(0, $this->renderDepth - 1);
+        if (0 === $this->renderDepth) {
+            $this->anchors()->reset();
+        }
+    }
+
+    /**
      * RZ-27: render a page Source inside the site layout (when one is set).
      *
      * The page renders first, so its pushes are known; then the layout renders
      * and prints the page at `{@anchor name="content"}`. Without a layout the
      * page renders alone. Anchor markers are replaced at the end either way.
      *
+     * @param array<string, mixed> $layoutParameters RZ-28: values assigned to the layout
+     *
      * @throws Throwable
      */
-    public function renderPage(Source $page): string
+    public function renderPage(Source $page, array $layoutParameters = []): string
     {
         $this->beginRender();
         try {
@@ -564,10 +581,20 @@ class Template implements TemplateInterface
                     throw new TemplateException("The site layout '{$this->layout}' was not found.");
                 }
                 $this->anchors()->setContent($html);
-                $html = $this->load($path)->output();
+                if (\str_ends_with($path, '.rzx')) {
+                    // RZ-28: an .rzx layout renders through the dist's .rzx host, with the page as its default slot.
+                    $host = Rzx\Host::current() ?? throw new TemplateException("The site layout '{$this->layout}' is a .rzx file; rendering it needs a dist with .rzx support.");
+                    $html = $host->renderLayout($this, $path, $layoutParameters);
+                } else {
+                    $layout = $this->load($path);
+                    if ($layoutParameters) {
+                        $layout->assign($layoutParameters);
+                    }
+                    $html = $layout->output();
+                }
             }
         } catch (Throwable $e) {
-            $this->renderDepth = \max(0, $this->renderDepth - 1);
+            $this->abortRender();
             throw $e;
         }
 

@@ -65,20 +65,18 @@ final class Runtime
      */
     public function render(string $name, array $props = [], array $fills = []): string
     {
-        $level = \ob_get_level();
-        \ob_start();
+        return $this->capture(fn () => $this->component($name, $props, new SlotBag($fills), ''));
+    }
 
-        try {
-            $this->component($name, $props, new SlotBag($fills), '');
-
-            return (string) \ob_get_clean();
-        } catch (Throwable $e) {
-            while (\ob_get_level() > $level) {
-                \ob_end_clean();
-            }
-
-            throw $e;
-        }
+    /**
+     * Render a `.rzx` file (a screen or a layout) to a string.
+     *
+     * @param array<string, mixed> $props
+     * @param array<string, Closure(): void|SafeHtml> $fills
+     */
+    public function renderFile(string $path, array $props = [], array $fills = [], ?string $profile = null): string
+    {
+        return $this->capture(fn () => $this->invoke($this->loader->loadFile($path, $profile), $props, new SlotBag($fills), ''));
     }
 
     /**
@@ -90,32 +88,7 @@ final class Runtime
         if ($this->depth >= 64) {
             throw new RenderError('Components are nested too deeply (limit 64) at ' . $name, $site);
         }
-        $compiled = $this->loader->load($name);
-        $this->compiled[\basename($compiled->compiledFile)] = $compiled;
-        foreach ($compiled->props as $prop => $schema) {
-            if (($props[$prop] ?? null) === null && $schema->hasDefault()) {
-                $props[$prop] = $schema->defaultValue();
-            }
-            if ($this->checkProps && ($error = $schema->check($props[$prop] ?? null, $name . '.' . $prop)) !== null) {
-                throw new RenderError('Invalid prop: ' . $error, $site);
-            }
-        }
-
-        ++$this->depth;
-
-        try {
-            ($compiled->render)($props, $slots, $this);
-        } catch (RenderError $e) {
-            if ($e->rzxLocation !== '') {
-                throw $e;
-            }
-
-            throw new RenderError($e->getMessage(), $this->locate($compiled, $e), $e);
-        } catch (Throwable $e) {
-            throw new RenderError($e->getMessage(), $this->locate($compiled, $e), $e);
-        } finally {
-            --$this->depth;
-        }
+        $this->invoke($this->loader->load($name), $props, $slots, $site);
     }
 
     public function get(mixed $base, string|int $key): mixed
@@ -317,6 +290,37 @@ final class Runtime
         }
 
         return $this->anchors->marker($name);
+    }
+
+    /**
+     * @param array<string, mixed> $props
+     */
+    private function invoke(Compiled $compiled, array $props, SlotBag $slots, string $site): void
+    {
+        $this->compiled[\basename($compiled->compiledFile)] = $compiled;
+        foreach ($compiled->props as $prop => $schema) {
+            if (($props[$prop] ?? null) === null && $schema->hasDefault()) {
+                $props[$prop] = $schema->defaultValue();
+            }
+            if ($this->checkProps && ($error = $schema->check($props[$prop] ?? null, $compiled->name . '.' . $prop)) !== null) {
+                throw new RenderError('Invalid prop: ' . $error, $site);
+            }
+        }
+        ++$this->depth;
+
+        try {
+            ($compiled->render)($props, $slots, $this);
+        } catch (RenderError $e) {
+            if ($e->rzxLocation !== '') {
+                throw $e;
+            }
+
+            throw new RenderError($e->getMessage(), $this->locate($compiled, $e), $e);
+        } catch (Throwable $e) {
+            throw new RenderError($e->getMessage(), $this->locate($compiled, $e), $e);
+        } finally {
+            --$this->depth;
+        }
     }
 
     /**

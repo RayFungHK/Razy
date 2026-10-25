@@ -162,7 +162,7 @@ final class ComponentCall
                 }
                 $key = '$__rt->str(' . $this->gen->expr->compile($name) . ')';
             }
-            $this->closure($bag . '[' . $key . ']', $node->children, $node->offset);
+            $this->closure($bag . '[' . $key . ']', $node->children, $node->offset, $key);
 
             return;
         }
@@ -237,10 +237,10 @@ final class ComponentCall
     /**
      * @param list<Node> $children
      */
-    private function closure(string $target, array $children, int $offset): void
+    private function closure(string $target, array $children, int $offset, ?string $mark = null): void
     {
         $this->gen->out->open($target . ' = ' . CodeGen::CLOSURE, $offset);
-        $this->gen->nodes($children);
+        $this->gen->nodes($children, $mark);
         $this->gen->out->close('};');
     }
 

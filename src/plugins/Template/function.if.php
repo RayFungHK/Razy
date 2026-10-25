@@ -41,6 +41,9 @@ return function (...$arguments) {
         /** @var bool This function requires enclosed content between opening and closing tags */
         protected bool $encloseContent = true;
 
+        // The chosen branch is template text: the caller substitutes its {$…} once (RZ-30).
+        protected bool $templateOutput = true;
+
         /**
          * Process the if function by evaluating a conditional expression.
          *

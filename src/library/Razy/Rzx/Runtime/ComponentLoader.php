@@ -21,4 +21,7 @@ namespace Razy\Rzx\Runtime;
 interface ComponentLoader
 {
     public function load(string $name): Compiled;
+
+    /** A screen or layout, loaded by path; $profile names its Profile. */
+    public function loadFile(string $path, ?string $profile = null): Compiled;
 }

@@ -35,6 +35,9 @@ return function (...$arguments) {
         /** @var bool This function requires enclosed content between opening and closing tags */
         protected bool $encloseContent = true;
 
+        // Repeats its body as template text, substituted by the caller.
+        protected bool $templateOutput = true;
+
         /** @var array Allowed parameters: 'length' controls the number of repetitions */
         protected array $allowedParameters = [
             'length' => 1,
