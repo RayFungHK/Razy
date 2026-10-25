@@ -162,6 +162,17 @@ class ParseErrorTest extends TestCase
         }
     }
 
+    public function testAByteOrderMarkIsNotAColumn(): void
+    {
+        try {
+            (new Parser())->parse(new Source("\xEF\xBB\xBF<p>{\$x}</p>", 'Bom.rzx'));
+            $this->fail('accepted');
+        } catch (CompileError $e) {
+            $this->assertSame([1, 5], [$e->sourceLine, $e->sourceColumn]);
+            $this->assertStringContainsString("> 1 | <p>{\$x}</p>\n    |     ^", $e->getMessage(), 'the frame shows no BOM and the caret lines up');
+        }
+    }
+
     public function testUnreadableFile(): void
     {
         $this->expectException(CompileError::class);

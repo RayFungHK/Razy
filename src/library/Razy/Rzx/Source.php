@@ -24,6 +24,8 @@ namespace Razy\Rzx;
  */
 final class Source
 {
+    private const BOM = "\xEF\xBB\xBF";
+
     /** @var list<int> byte offset of the first character of each line */
     private array $lineStarts = [0];
 
@@ -65,7 +67,11 @@ final class Source
                 $high = $mid - 1;
             }
         }
-        $prefix = \substr($this->text, $this->lineStarts[$low], $offset - $this->lineStarts[$low]);
+        $lineStart = $this->lineStarts[$low];
+        if ($low === 0 && \str_starts_with($this->text, self::BOM)) {
+            $lineStart = \min(3, $offset); // a UTF-8 BOM is not a column
+        }
+        $prefix = \substr($this->text, $lineStart, $offset - $lineStart);
         $column = \preg_match_all('/./su', $prefix);
         if ($column === false) {
             $column = \strlen($prefix); // not valid UTF-8: fall back to bytes
@@ -82,7 +88,9 @@ final class Source
         $start = $this->lineStarts[$line - 1];
         $end = $this->lineStarts[$line] ?? \strlen($this->text) + 1;
 
-        return \rtrim(\substr($this->text, $start, $end - $start - 1), "\r");
+        $text = \rtrim(\substr($this->text, $start, $end - $start - 1), "\r");
+
+        return $line === 1 && \str_starts_with($text, self::BOM) ? \substr($text, 3) : $text;
     }
 
     /**
