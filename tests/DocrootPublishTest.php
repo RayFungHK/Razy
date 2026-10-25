@@ -135,9 +135,10 @@ PHP);
         $this->assertStringContainsString('uri=/login?next=/foo.php', $body);
         $this->assertStringContainsString('script=/index.php', $body);
 
-        [$status, $body] = $this->fetch('/data/ok.txt');
+        [$status, $body, $headers] = $this->fetch('/data/ok.txt');
         $this->assertSame(200, $status, $this->logTail());
         $this->assertSame("DATABYTES\n", $body);
+        $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff$/mi', \implode("\n", $headers));
 
         [$status, $body] = $this->fetch('/data/note.php');
         $this->assertSame(200, $status, $this->logTail());
@@ -206,24 +207,41 @@ PHP);
         }
     }
 
+    public function testStaticTypeFallsBackWhenFileinfoIsOff(): void
+    {
+        if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+            \define('RAZY_SERVE_FUNCTIONS_ONLY', true);
+        }
+        require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
+
+        $this->assertSame('text/plain', \serveContentType('notes.txt', false));
+        $this->assertSame('text/css', \serveContentType('app.css', false));
+        $this->assertSame('application/octet-stream', \serveContentType('blob.no-such-ext', false));
+        $router = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/serve.php');
+        $this->assertStringContainsString("header('X-Content-Type-Options: nosniff');", $router);
+        $this->assertStringContainsString("function_exists('mime_content_type')", $router);
+    }
+
     /**
-     * @return array{0: int, 1: string}
+     * @return array{0: int, 1: string, 2: list<string>}
      */
     private function fetch(string $path): array
     {
         $ctx = \stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 3]]);
-        $body = \file_get_contents(self::$base . $path, false, $ctx);
+        $fp = \fopen(self::$base . $path, 'rb', false, $ctx);
+        if ($fp === false) {
+            return [0, '', []];
+        }
+        $meta = \stream_get_meta_data($fp);
+        $body = \stream_get_contents($fp);
+        \fclose($fp);
+        $headers = \is_array($meta['wrapper_data'] ?? null) ? $meta['wrapper_data'] : [];
         $status = 0;
-        // $http_response_header is deprecated in PHP 8.5. The function exists
-        // since 8.4 (see PackageRunner); 8.2 and 8.3 keep the variable.
-        $headers = \function_exists('http_get_last_response_headers')
-            ? (\http_get_last_response_headers() ?? [])
-            : ($http_response_header ?: []);
         if (isset($headers[0]) && \preg_match('/\s(\d{3})\s/', (string) $headers[0], $m)) {
             $status = (int) $m[1];
         }
 
-        return [$status, (string) $body];
+        return [$status, (string) $body, $headers];
     }
 
     private function logTail(): string

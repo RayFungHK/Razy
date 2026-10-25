@@ -20,6 +20,12 @@
  * This file is safe to delete — it will be re-copied on the next serve.
  */
 
+// Tests load the helpers at the bottom without starting the router.
+// Function declarations in this file are registered before this return runs.
+if (defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+    return;
+}
+
 // ── Load config ─────────────────────────────────────────────────────────
 $__serveConfig = @json_decode(
     file_get_contents(__DIR__ . '/.razy-serve-config.json'),
@@ -198,21 +204,19 @@ function resolveStaticPath(string $root, string $relative): ?string
 }
 
 /**
- * Serve a static file using C-level stream I/O.
+ * Content-Type for a file served as bytes.
  *
- * MIME detection: mime_content_type() delegates to libmagic (C library),
- * but it often misidentifies web assets (.css/.js as text/plain).
- * A small override map corrects the critical types; everything else
- * falls through to the OS-level detection.
+ * Known web types win, because libmagic often calls .css/.js text/plain.
+ * mime_content_type() runs only when the caller allows it and the function
+ * exists (Windows CI has no fileinfo; calling it is a fatal). Otherwise an
+ * extension map applies, then application/octet-stream. The response also
+ * sends nosniff, so a generic type is not sniffed into something executable.
  *
- * File streaming: fopen/fread/fwrite operate directly on C-level
- * php_stream, and the 64 KB buffer size aligns with the OS page cache
- * so the kernel satisfies reads from RAM when the file is hot.
+ * Pass $fileinfo false to force the map. The router leaves it at the default.
  */
-function serveStaticFile(string $path): void
+function serveContentType(string $path, bool $fileinfo = true): string
 {
-    // Override map for types that mime_content_type() / libmagic gets wrong
-    static $webMimeOverrides = [
+    static $overrides = [
         'css'   => 'text/css',
         'js'    => 'text/javascript',
         'mjs'   => 'text/javascript',
@@ -228,15 +232,47 @@ function serveStaticFile(string $path): void
         'avif'  => 'image/avif',
         'webp'  => 'image/webp',
     ];
+    static $byExtension = [
+        'txt'  => 'text/plain',
+        'html' => 'text/html',
+        'htm'  => 'text/html',
+        'csv'  => 'text/csv',
+        'xml'  => 'application/xml',
+        'png'  => 'image/png',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif'  => 'image/gif',
+        'ico'  => 'image/x-icon',
+        'pdf'  => 'application/pdf',
+    ];
 
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $contentType = $webMimeOverrides[$ext]
-        ?? mime_content_type($path)
-        ?: 'application/octet-stream';
+    if (isset($overrides[$ext])) {
+        return $overrides[$ext];
+    }
+    if ($fileinfo && function_exists('mime_content_type')) {
+        $detected = mime_content_type($path);
+        if (is_string($detected) && $detected !== '') {
+            return $detected;
+        }
+    }
 
+    return $byExtension[$ext] ?? 'application/octet-stream';
+}
+
+/**
+ * Serve a static file using C-level stream I/O.
+ *
+ * fopen/fread/fwrite operate directly on C-level php_stream, and the
+ * 64 KB buffer size aligns with the OS page cache so the kernel satisfies
+ * reads from RAM when the file is hot.
+ */
+function serveStaticFile(string $path): void
+{
     $fileSize = filesize($path);
 
-    header('Content-Type: ' . $contentType);
+    header('Content-Type: ' . serveContentType($path));
+    header('X-Content-Type-Options: nosniff');
     header('Content-Length: ' . $fileSize);
     header('Cache-Control: public, max-age=10');
 
