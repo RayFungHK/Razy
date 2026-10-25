@@ -255,17 +255,22 @@ final class Prop
      */
     public function toArray(): array
     {
-        return \array_filter([
+        $out = \array_filter([
             'type' => $this->type,
             'item' => $this->item?->toArray(),
             'fields' => \array_map(static fn (self $f): array => $f->toArray(), $this->fields),
             'values' => $this->values,
             'required' => $this->required,
-            'hasDefault' => $this->hasDefault,
-            'default' => $this->default,
             'min' => $this->min,
             'max' => $this->max,
         ], static fn ($v): bool => $v !== null && $v !== [] && $v !== false);
+        if ($this->hasDefault) {
+            // Kept as given: a default of false, 0, '' or [] must survive the round trip.
+            $out['hasDefault'] = true;
+            $out['default'] = $this->default;
+        }
+
+        return $out;
     }
 
     private function checkBounds(mixed $value, string $path): ?string

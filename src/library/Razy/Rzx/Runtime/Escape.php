@@ -39,6 +39,9 @@ final class Escape
 {
     public const URL_ATTRIBUTES = ['href', 'src', 'action', 'formaction', 'poster', 'cite', 'background', 'ping', 'data', 'xlink:href', 'manifest', 'longdesc', 'codebase', 'icon'];
 
+    /** Attributes holding a comma-separated list of `URL descriptor` candidates. */
+    public const SRCSET_ATTRIBUTES = ['srcset', 'imagesrcset'];
+
     private const JSON_FLAGS = \JSON_HEX_TAG | \JSON_HEX_AMP | \JSON_HEX_APOS | \JSON_HEX_QUOT | \JSON_THROW_ON_ERROR;
 
     private const SAFE_SCHEMES = ['http', 'https', 'mailto'];
@@ -93,8 +96,11 @@ final class Escape
             $text = self::json($value);
         } else {
             $text = self::stringify($value);
-            if (\in_array(\strtolower($name), self::URL_ATTRIBUTES, true)) {
+            $lower = \strtolower($name);
+            if (\in_array($lower, self::URL_ATTRIBUTES, true)) {
                 $text = self::url($text, $warn);
+            } elseif (\in_array($lower, self::SRCSET_ATTRIBUTES, true)) {
+                $text = self::srcset($text, $warn);
             }
         }
 
@@ -114,6 +120,48 @@ final class Escape
         }
 
         return '#';
+    }
+
+    /**
+     * A srcset with each candidate's URL checked: `a.png 1x, javascript:x 2x`
+     * becomes `a.png 1x, # 2x`.
+     */
+    public static function srcset(string $value, ?callable $warn = null): string
+    {
+        // HTML's srcset parsing: a URL is a run of non-whitespace (trailing
+        // commas end the candidate); descriptors run to the next comma.
+        $candidates = [];
+        $length = \strlen($value);
+        $pos = 0;
+        while ($pos < $length) {
+            $pos += \strspn($value, " \t\n\r\f,", $pos);
+            if ($pos >= $length) {
+                break;
+            }
+            $url = \substr($value, $pos, \strcspn($value, " \t\n\r\f", $pos));
+            $pos += \strlen($url);
+            $descriptor = '';
+            if (\str_ends_with($url, ',')) {
+                $url = \rtrim($url, ',');
+            } else {
+                $end = \strpos($value, ',', $pos);
+                $descriptor = \trim(\substr($value, $pos, $end === false ? null : $end - $pos));
+                $pos = $end === false ? $length : $end + 1;
+            }
+            $candidates[] = self::url($url, $warn) . ($descriptor === '' ? '' : ' ' . $descriptor);
+        }
+
+        return \implode(', ', $candidates);
+    }
+
+    public static function isSafeSrcset(string $value): bool
+    {
+        $unsafe = false;
+        self::srcset($value, static function () use (&$unsafe): void {
+            $unsafe = true;
+        });
+
+        return !$unsafe;
     }
 
     public static function isSafeUrl(string $url): bool

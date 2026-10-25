@@ -51,6 +51,9 @@ final class CodeGen
     /** Closure header shared by fills and push bodies. */
     public const CLOSURE = 'static function () use ($__s, $__rt, $__slots): void {';
 
+    /** SVG elements that animate attributes of another element (names as the HTML parser lowercases them). */
+    private const SVG_ANIMATION = ['animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'discard'];
+
     public readonly Writer $out;
 
     public readonly ExprGen $expr;
@@ -159,6 +162,7 @@ final class CodeGen
 
             return;
         }
+        $this->animation($node);
         $this->out->html('<' . $tag);
         $this->attributes($node);
         $this->out->html('>');
@@ -208,6 +212,28 @@ final class CodeGen
         $this->out->html('</script>');
     }
 
+    /**
+     * SVG animation elements can write any attribute of their target, `href`
+     * included (`<set attributeName="href" to="javascript:…">`), which no
+     * per-attribute escaping sees. So their target and values must be
+     * literals, and animating a link is rejected outright.
+     */
+    private function animation(ElementNode $node): void
+    {
+        if (!\in_array($node->tag, self::SVG_ANIMATION, true)) {
+            return;
+        }
+        foreach ($node->attributes as $attr) {
+            $name = \strtolower($attr->name);
+            if (\in_array($name, ['attributename', 'to', 'from', 'values', 'by', 'href', 'xlink:href'], true) && $attr->expr !== null) {
+                throw $this->error('RZX138', '<' . $node->tag . '> ' . $attr->name . ' must be a literal; an animation can rewrite any attribute of its target', $attr->offset);
+            }
+            if ($name === 'attributename' && \in_array(\strtolower(\trim((string) $attr->literal)), ['href', 'xlink:href', 'src', 'action', 'formaction'], true)) {
+                throw $this->error('RZX138', '<' . $node->tag . '> cannot animate ' . $attr->literal . ' (it would bypass URL checks)', $attr->offset);
+            }
+        }
+    }
+
     private function attributes(ElementNode $node): void
     {
         foreach ($node->attributes as $attr) {
@@ -229,7 +255,10 @@ final class CodeGen
             if ($attr->isBoolean()) {
                 $this->out->html(' ' . $name);
             } elseif ($attr->literal !== null) {
-                if (\in_array($lower, Escape::URL_ATTRIBUTES, true) && !Escape::isSafeUrl(\html_entity_decode($attr->literal, \ENT_QUOTES | \ENT_HTML5, 'UTF-8'))) {
+                $decoded = \html_entity_decode($attr->literal, \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+                $unsafe = \in_array($lower, Escape::URL_ATTRIBUTES, true) ? !Escape::isSafeUrl($decoded)
+                    : (\in_array($lower, Escape::SRCSET_ATTRIBUTES, true) && !Escape::isSafeSrcset($decoded));
+                if ($unsafe) {
                     throw $this->error('RZX134', 'Unsafe URL in ' . $name . '; only http, https, mailto and relative URLs are allowed', $attr->offset);
                 }
                 $this->out->html(' ' . $name . '="' . \str_replace(['"', '<', '>'], ['&quot;', '&lt;', '&gt;'], $attr->literal) . '"');

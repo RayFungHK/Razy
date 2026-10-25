@@ -26,6 +26,7 @@ use Razy\Rzx\Node\IfNode;
 use Razy\Rzx\Node\Node;
 use Razy\Rzx\Node\SlotNode;
 use Razy\Rzx\Node\TextNode;
+use Razy\Rzx\Prop;
 
 /**
  * Generates one component use, `<Kit.Card title={x}>…</Kit.Card>`, and
@@ -181,14 +182,39 @@ final class ComponentCall
             return;
         }
         if ($node instanceof ForNode) {
-            // A loop of fills (one per item, typically with computed slot names).
+            // A loop of fills (one per item, typically with computed slot names),
+            // with the same bindings and checks as a markup <for>.
+            foreach (\array_filter([$node->as, $node->index]) as $name) {
+                if ($this->gen->expr->declared($name)) {
+                    throw $this->gen->error('RZX104', '<for> variable `' . $name . '` shadows a prop or an outer loop variable', $node->offset);
+                }
+            }
             $id = $this->gen->id();
+            $type = $this->gen->expr->typeOf($node->each);
+            $out->statement('$__c' . $id . ' = 0;', $node->offset);
+            if ($node->key !== null) {
+                $out->statement('$__k' . $id . ' = [];', $node->offset);
+            }
             $out->open('foreach ($__rt->iter(' . $this->gen->expr->compile($node->each) . ') as $__v' . $id . ') {', $node->offset);
             $out->statement('$__s[' . \var_export($node->as, true) . '] = $__v' . $id . ';', $node->offset);
-            $this->gen->expr->push([$node->as => null]);
+            $names = [$node->as => $type?->type === 'list' ? $type->item : null];
+            if ($node->index !== null) {
+                $out->statement('$__s[' . \var_export($node->index, true) . '] = $__c' . $id . ';', $node->offset);
+                $names[$node->index] = Prop::int();
+            }
+            if ($node->key !== null) {
+                $out->statement('$__rt->loopKey($__k' . $id . ', $__v' . $id . ', ' . \var_export($node->key, true) . ', ' . \var_export($this->gen->site($node->offset), true) . ');', $node->offset);
+            }
+            $this->gen->expr->push($names);
             $this->fillList($node->children, $meta, $bag, $static);
             $this->gen->expr->pop();
+            $out->statement('++$__c' . $id . ';', $node->offset);
             $out->close();
+            if ($node->empty !== null) {
+                $out->open('if ($__c' . $id . ' === 0) {', $node->offset);
+                $this->fillList($node->empty, $meta, $bag, $static);
+                $out->close();
+            }
         }
     }
 
@@ -280,7 +306,7 @@ final class ComponentCall
         }
         $lists = match (true) {
             $node instanceof IfNode => [...\array_column($node->branches, 1), $node->else ?? []],
-            $node instanceof ForNode => [$node->children],
+            $node instanceof ForNode => [$node->children, $node->empty ?? []],
             default => null,
         };
         if ($lists === null) {

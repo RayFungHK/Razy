@@ -36,7 +36,10 @@ and `compile --rzx`. Additive only; no existing API changes.
   - text and attributes use `htmlspecialchars` with quotes;
   - a list or map in an attribute is JSON with `JSON_HEX_*`;
   - URL attributes allow only `http`, `https`, `mailto` and relative URLs; anything else
-    becomes `#` with a warning;
+    becomes `#` with a warning. `srcset` / `imagesrcset` are parsed as HTML does and each
+    candidate URL is checked;
+  - SVG animation elements cannot rewrite a link: their `attributeName`, `to`, `from`, `values`
+    and `by` must be literals, and animating `href`, `xlink:href`, `src` or `action` is rejected;
   - JSON scripts use `JSON_HEX_TAG|AMP|APOS|QUOT`;
   - raw HTML only through `{html(x)}`, with `x` a `Razy\Rzx\SafeHtml`.
   - There is no other way to print unescaped.
@@ -60,7 +63,12 @@ and `compile --rzx`. Additive only; no existing API changes.
   - The hash is sha256 of the compiler version, the source sha256, the function-registry
     signature and the dependency hashes, so editing a component recompiles its users.
   - Writes are atomic: a temp file, then rename and `opcache_invalidate`.
-  - `dev` mode checks mtime + size, then sha256, and recompiles.
+  - Freshness is decided by content (sha256 of each source), never by mtime: a deploy that
+    restores an old mtime on new content is still seen. `dev` mode recompiles; `compiled` mode
+    also verifies every dependency.
+  - The index is updated under an exclusive lock (re-read, merge, write), so concurrent builds
+    keep each other's entries. The directory is 0755 and files are 0644, whatever the umask.
+    Only `<Name>.<hash>.php` files inside the cache directory are ever included.
   - `compiled` mode never compiles. A missing or stale component is an error that
     names `php Razy.phar compile --rzx`.
   - `build()` compiles a list of components for deploy and throws on any compile error.
@@ -98,6 +106,7 @@ and `compile --rzx`. Additive only; no existing API changes.
 | RZX135 | `srcdoc` |
 | RZX136 | bad `hooks` |
 | RZX137 | `html()` of a non-SafeHtml |
+| RZX138 | SVG animation (`<animate>`, `<set>`, …) with a dynamic target or value, or animating `href`/`src`/`action` |
 | RZX140 | nested `<push>` |
 
 ## Notes

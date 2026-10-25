@@ -47,6 +47,9 @@ final class CompileCache implements ComponentLoader
 
     public const MODES = ['dev', 'compiled'];
 
+    /** The only file names load() includes: `<Name>.<hash16>.php` inside the cache directory. */
+    private const ARTIFACT = '/^[A-Za-z0-9_]+\.[0-9a-f]{16}\.php$/';
+
     /** @var array<string, array<string, mixed>>|null */
     private ?array $index = null;
 
@@ -89,7 +92,11 @@ final class CompileCache implements ComponentLoader
             return $this->loaded[$name];
         }
         $entry = $this->ensure($name);
-        $file = $this->directory . \DIRECTORY_SEPARATOR . self::field($entry, 'file');
+        $base = self::field($entry, 'file');
+        if (!\preg_match(self::ARTIFACT, $base)) {
+            throw new RenderError('The .rzx index names an unexpected file for ' . $name . '; run php Razy.phar compile --rzx');
+        }
+        $file = $this->directory . \DIRECTORY_SEPARATOR . $base;
         $compiled = (static fn (string $__file): mixed => include $__file)($file);
         if (!$compiled instanceof Compiled) {
             throw new RenderError('Compiled .rzx file is corrupt: ' . $file . '; run php Razy.phar compile --rzx');
@@ -142,7 +149,7 @@ final class CompileCache implements ComponentLoader
         }
         $entry = $this->index()[$name] ?? null;
         if ($this->mode === 'compiled') {
-            if ($entry === null || !$this->artifactExists($entry) || !$this->sameStat($entry, $path)) {
+            if ($entry === null || !$this->artifactExists($entry) || !$this->sameContent($entry, $path) || !$this->depsMatch($entry)) {
                 throw new RenderError('.rzx component ' . $name . ' is ' . ($entry === null ? 'not compiled' : 'stale') . '; run php Razy.phar compile --rzx at deploy');
             }
 
@@ -164,20 +171,15 @@ final class CompileCache implements ComponentLoader
             || ($entry['functions'] ?? null) !== $this->functions->signature() || !$this->artifactExists($entry)) {
             return false;
         }
-        if (!$this->sameStat($entry, $path) && \hash_file('sha256', $path) !== ($entry['sha'] ?? null)) {
+        if (!$this->sameContent($entry, $path)) {
             return false;
         }
-        foreach ((array) ($entry['deps'] ?? []) as $dep => $hash) {
-            try {
-                if (self::field($this->ensure((string) $dep), 'hash') !== $hash) {
-                    return false;
-                }
-            } catch (RenderError) {
-                return false; // the dependency is gone: recompile to report it at the use site
-            }
-        }
 
-        return true;
+        try {
+            return $this->depsMatch($entry);
+        } catch (RenderError) {
+            return false; // a dependency is gone: recompile to report it at the use site
+        }
     }
 
     /**
@@ -219,16 +221,14 @@ final class CompileCache implements ComponentLoader
         $file = \str_replace('.', '_', $name) . '.' . \substr($hash, 0, 16) . '.php';
         $this->write($file, $php);
 
-        $old = $this->index()[$name]['file'] ?? null;
         $stat = @\stat($path) ?: ['mtime' => 0, 'size' => 0];
         $entry = [
             'source' => $path, 'mtime' => $stat['mtime'], 'size' => $stat['size'], 'sha' => $sha, 'hash' => $hash,
             'file' => $file, 'deps' => $deps, 'compiler' => Compiler::VERSION, 'functions' => $this->functions->signature(),
             'meta' => $meta->toArray(),
         ];
-        $this->index[$name] = $entry;
-        $this->writeIndex();
-        if (\is_string($old) && $old !== $file) {
+        $old = $this->updateIndex($name, $entry);
+        if (\is_string($old) && $old !== $file && \preg_match(self::ARTIFACT, $old)) {
             @\unlink($this->directory . \DIRECTORY_SEPARATOR . $old);
         }
         unset($this->loaded[$name]);
@@ -265,10 +265,50 @@ final class CompileCache implements ComponentLoader
         return $this->index = $index;
     }
 
-    private function writeIndex(): void
+    /**
+     * Read-modify-write of index.php under an exclusive lock, so two builds
+     * at once each keep the other's entries.
+     *
+     * @param array<string, mixed> $entry
+     *
+     * @return string|null the file the entry named before
+     */
+    private function updateIndex(string $name, array $entry): ?string
     {
-        $data = ['schema' => self::SCHEMA, 'compiler' => Compiler::VERSION, 'razy' => \defined('RAZY_VERSION') ? \constant('RAZY_VERSION') : null, 'components' => $this->index];
-        $this->write('index.php', "<?php\n\n// Razy RZX compile index. Generated; do not edit.\n\nreturn " . \var_export($data, true) . ";\n");
+        $this->ensureDirectory();
+        $lock = @\fopen($this->directory . \DIRECTORY_SEPARATOR . 'index.lock', 'c');
+        if ($lock === false || !\flock($lock, \LOCK_EX)) {
+            throw new RenderError('Cannot lock the .rzx cache index in ' . $this->directory);
+        }
+
+        try {
+            $file = $this->directory . \DIRECTORY_SEPARATOR . 'index.php';
+            if (\function_exists('opcache_invalidate')) {
+                \opcache_invalidate($file, true); // another process may have written it
+            }
+            $this->index = null;
+            $index = $this->index();
+            $old = $index[$name]['file'] ?? null;
+            $index[$name] = $entry;
+            $this->index = $index;
+            $data = ['schema' => self::SCHEMA, 'compiler' => Compiler::VERSION, 'razy' => \defined('RAZY_VERSION') ? \constant('RAZY_VERSION') : null, 'components' => $index];
+            $this->write('index.php', "<?php\n\n// Razy RZX compile index. Generated; do not edit.\n\nreturn " . \var_export($data, true) . ";\n");
+
+            return \is_string($old) ? $old : null;
+        } finally {
+            \flock($lock, \LOCK_UN);
+            \fclose($lock);
+        }
+    }
+
+    private function ensureDirectory(): void
+    {
+        if (!\is_dir($this->directory)) {
+            if (!@\mkdir($this->directory, 0o755, true) && !\is_dir($this->directory)) {
+                throw new RenderError('Cannot create the .rzx cache directory ' . $this->directory);
+            }
+            @\chmod($this->directory, 0o755);
+        }
     }
 
     /**
@@ -276,15 +316,14 @@ final class CompileCache implements ComponentLoader
      */
     private function write(string $file, string $php): void
     {
-        if (!\is_dir($this->directory) && !@\mkdir($this->directory, 0o775, true) && !\is_dir($this->directory)) {
-            throw new RenderError('Cannot create the .rzx cache directory ' . $this->directory);
-        }
+        $this->ensureDirectory();
         $target = $this->directory . \DIRECTORY_SEPARATOR . $file;
         $temp = $target . '.' . \bin2hex(\random_bytes(4)) . '.tmp';
         if (\file_put_contents($temp, $php, \LOCK_EX) === false || !@\rename($temp, $target)) {
             @\unlink($temp);
             throw new RenderError('Cannot write the .rzx cache file ' . $target);
         }
+        @\chmod($target, 0o644);
         if (\function_exists('opcache_invalidate')) {
             \opcache_invalidate($target, true);
         }
@@ -299,13 +338,32 @@ final class CompileCache implements ComponentLoader
     }
 
     /**
+     * The source still has the content the entry was compiled from. Content,
+     * not mtime + size: a deploy can restore an old mtime on new content.
+     *
      * @param array<string, mixed> $entry
      */
-    private function sameStat(array $entry, string $path): bool
+    private function sameContent(array $entry, string $path): bool
     {
-        \clearstatcache(true, $path);
-        $stat = @\stat($path);
+        $sha = @\hash_file('sha256', $path);
 
-        return $stat !== false && $stat['mtime'] === ($entry['mtime'] ?? null) && $stat['size'] === ($entry['size'] ?? null);
+        return $sha !== false && $sha === ($entry['sha'] ?? null);
+    }
+
+    /**
+     * Every dependency is itself fresh (or, in compiled mode, verified) and
+     * still has the hash this entry was compiled against.
+     *
+     * @param array<string, mixed> $entry
+     */
+    private function depsMatch(array $entry): bool
+    {
+        foreach ((array) ($entry['deps'] ?? []) as $dep => $hash) {
+            if (self::field($this->ensure((string) $dep), 'hash') !== $hash) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

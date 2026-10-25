@@ -38,6 +38,9 @@ final class Runtime
 
     private int $depth = 0;
 
+    /** @var array<string, Compiled> compiled file => component, to locate errors in any of them */
+    private array $compiled = [];
+
     /**
      * @param bool $checkProps check props at each component boundary and loop keys (development)
      * @param (callable(string): void)|null $warn receives warnings (unsafe URL dropped, …); default error_log
@@ -84,10 +87,11 @@ final class Runtime
      */
     public function component(string $name, array $props, SlotBag $slots, string $site): void
     {
-        if (++$this->depth > 64) {
+        if ($this->depth >= 64) {
             throw new RenderError('Components are nested too deeply (limit 64) at ' . $name, $site);
         }
         $compiled = $this->loader->load($name);
+        $this->compiled[$compiled->compiledFile] = $compiled;
         foreach ($compiled->props as $prop => $schema) {
             if (($props[$prop] ?? null) === null && $schema->hasDefault()) {
                 $props[$prop] = $schema->defaultValue();
@@ -96,6 +100,8 @@ final class Runtime
                 throw new RenderError('Invalid prop: ' . $error, $site);
             }
         }
+
+        ++$this->depth;
 
         try {
             ($compiled->render)($props, $slots, $this);
@@ -314,13 +320,17 @@ final class Runtime
     }
 
     /**
-     * Map an exception thrown inside compiled code back to its `.rzx` line.
+     * Map an exception thrown inside compiled code back to its `.rzx` line:
+     * the innermost frame in any compiled file. A fill runs inside its slot
+     * owner's render but was compiled from the caller's file, so the error
+     * points at the fill, not at the `<Slot>`.
      */
-    private function locate(Compiled $compiled, Throwable $e): string
+    private function locate(Compiled $owner, Throwable $e): string
     {
         $frames = [['file' => $e->getFile(), 'line' => $e->getLine()], ...$e->getTrace()];
         foreach ($frames as $frame) {
-            if (($frame['file'] ?? null) === $compiled->compiledFile && isset($frame['line'])) {
+            $compiled = $this->compiled[$frame['file'] ?? ''] ?? null;
+            if ($compiled !== null && isset($frame['line'])) {
                 $line = $compiled->rzxLine((int) $frame['line']);
                 if ($line !== null) {
                     return $compiled->source . ':' . $line;
@@ -328,6 +338,6 @@ final class Runtime
             }
         }
 
-        return $compiled->source;
+        return $owner->source;
     }
 }
