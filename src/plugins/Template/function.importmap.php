@@ -52,6 +52,12 @@ return function (...$arguments) {
          */
         protected function processor(Entity $entity, array $parameters = [], array $arguments = [], string $wrappedText = ''): ?string
         {
+            // RZ-27: one importmap per response; a second {@importmap} prints nothing
+            $manager = $entity->getManager();
+            if ($manager && !$manager->anchors()->claimImportMap()) {
+                return '';
+            }
+
             return Assets::current()->importMapTag(SecurityHeaders::current()->nonce());
         }
     };

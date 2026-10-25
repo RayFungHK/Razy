@@ -254,6 +254,15 @@ class Entity
     }
 
     /**
+     * RZ-27: the Template manager rendering this entity (anchors, layout); null
+     * for an entity that is not attached to a parsed block.
+     */
+    public function getManager(): ?Template
+    {
+        return isset($this->block) ? $this->block->getSource()->getManager() : null;
+    }
+
+    /**
      * Get the current entity block name.
      *
      * @return string The block name

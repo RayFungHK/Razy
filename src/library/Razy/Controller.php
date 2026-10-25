@@ -369,6 +369,29 @@ class Controller
     }
 
     /**
+     * RZ-27: render a page into the site layout and print it.
+     *
+     * Loads the view (as {@see loadTemplate()}), assigns $parameters to it, renders
+     * it, and, when dist.php sets a 'layout', renders the layout around it (the
+     * page goes where the layout prints `{@anchor name="content"}`). Anchors that
+     * the page or layout printed receive every {@push} from either. Without a
+     * layout the page is printed alone, with its anchors resolved.
+     *
+     * @param string $view A view path under this module's view/ folder, or `@layout/…`
+     * @param array<string, mixed> $parameters Values for the page template
+     *
+     * @throws Throwable
+     */
+    final public function render(string $view, array $parameters = []): void
+    {
+        $page = $this->loadTemplate($view);
+        if ($parameters) {
+            $page->assign($parameters);
+        }
+        echo $this->getTemplate()->renderPage($page);
+    }
+
+    /**
      * Get the XHR entity.
      *
      * @param bool $returnAsArray Whether to return the XHR data as an array
