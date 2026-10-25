@@ -235,7 +235,7 @@ final class Host
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS));
         foreach ($iterator as $file) {
             if ($file instanceof SplFileInfo && \str_ends_with($file->getPathname(), '.rzx')) {
-                $files[] = $file->getPathname();
+                $files[] = \str_replace('\\', '/', $file->getPathname());
             }
         }
         \sort($files);

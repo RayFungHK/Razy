@@ -190,7 +190,7 @@ class HostTest extends TestCase
 
         $built = Host::fromConfig(['rzx' => ['mode' => 'compiled']], 'site', $data, static fn (): array => [$info])->build();
         $this->assertArrayHasKey('Kit.Card', $built);
-        $this->assertArrayHasKey($this->module . '/view/admin/Home.rzx', $built);
+        $this->assertArrayHasKey(\str_replace('\\', '/', $this->module) . '/view/admin/Home.rzx', $built);
         $this->assertFileExists($data . '/compiled/rzx/site/index.php');
 
         $compiled = Host::fromConfig(['rzx' => ['mode' => 'compiled']], 'site', $data, static fn (): array => [$info]);
