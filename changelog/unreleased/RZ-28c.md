@@ -73,7 +73,11 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
 
 ## Migration
 - A custom plugin that relied on the caller substituting `{$…}` inside its *output* must set
-  `protected bool $templateOutput = true;`. Plugins that return finished markup need no change.
+  `protected bool $templateOutput = true;`. Its returned text is then expanded (nested function
+  tags) and substituted once, like template code. Plugins that return finished markup need no change.
+- **Only opt in for template source.** A `$templateOutput` plugin must return text taken from the
+  template (its enclosed body, a branch), never a user value or anything built from one: that would
+  be treated as template code, and a value `{$secret}` would print the secret.
 
 ## Hardening (review of #36)
 - `asset()` refuses a path with `..`, `.` or control characters, and its result is trusted

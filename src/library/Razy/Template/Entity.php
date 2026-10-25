@@ -614,6 +614,19 @@ class Entity
     }
 
     /**
+     * Template source a `$templateOutput` plugin returned (`{@repeat}`'s body,
+     * `{@if}`'s branch): its own function tags are expanded now, under the same
+     * hold, and the caller's single pass substitutes its `{$…}`, exactly as if it
+     * had been written in place.
+     *
+     * @throws Throwable
+     */
+    private function templateSource(string $source): string
+    {
+        return \str_contains($source, '{') ? $this->parseFunctionTag($source) : $source;
+    }
+
+    /**
      * Hold a plugin's final output out of the parameter pass.
      */
     private function hold(string $output): string
@@ -785,10 +798,10 @@ class Entity
                             $wrapped = $plugin->parse($this, $matches[2][0] ?? '', $wrapped);
                         }
 
-                        $result .= $plugin->returnsTemplate() ? (string) $wrapped : $this->hold((string) $wrapped);
+                        $result .= $plugin->returnsTemplate() ? $this->templateSource((string) $wrapped) : $this->hold((string) $wrapped);
                     } else {
                         $output = (string) $plugin->parse($this, $matches[2][0] ?? '');
-                        $result .= $plugin->returnsTemplate() ? $output : $this->hold($output);
+                        $result .= $plugin->returnsTemplate() ? $this->templateSource($output) : $this->hold($output);
                     }
                 } else {
                     $result .= $matches[0][0];

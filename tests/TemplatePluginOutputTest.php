@@ -83,6 +83,29 @@ class TemplatePluginOutputTest extends TestCase
     }
 
     /**
+     * Grok verification of 96e659d: function tags inside a $templateOutput
+     * plugin's returned source are expanded once.
+     */
+    public function testNestedTagsInsideTemplateOutputAreExpanded(): void
+    {
+        $values = ['on' => true, 'pub' => 'OK', 'secret' => 'LEAK'];
+        $this->assertSame("OK\n", $this->render("{@repeat length=1}{@if \$on}{\$pub}{@else}{\$secret}{/if}{/repeat}\n", $values));
+        $this->assertSame("OK\n", $this->render("{@if \$on}{@repeat length=1}{@if \$on}{\$pub}{@else}{\$secret}{/if}{/repeat}{/if}\n", $values));
+        $this->assertSame("OKOK\n", $this->render("{@repeat length=2}{@if \$on}{\$pub}{@else}{\$secret}{/if}{/repeat}\n", $values));
+
+        $template = new Template();
+        $page = $template->load($this->put('push-repeat.tpl', "{@anchor name=\"s\"}{@push to=\"s\"}<i>{@repeat length=1}{@if \$on}{\$pub}{@else}{\$secret}{/if}{/repeat}</i>{/push}\n"));
+        $page->assign($values);
+        $this->assertSame("<i>OK</i>\n", $template->renderPage($page));
+    }
+
+    public function testValuesInsideRepeatedSourceAreStillNotRescanned(): void
+    {
+        $html = $this->render("{@repeat length=1}{@if \$on}{\$v}|{@echoval value=\$v}{/if}{/repeat}\n", ['on' => true, 'v' => '{$secret}', 'secret' => 'LEAK']);
+        $this->assertSame("{\$secret}|[{\$secret}]\n", $html);
+    }
+
+    /**
      * @param array<string, mixed> $values
      */
     private function render(string $source, array $values): string
