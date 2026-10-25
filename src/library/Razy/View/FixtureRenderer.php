@@ -13,6 +13,7 @@
 
 namespace Razy\View;
 
+use Razy\Asset\Assets;
 use Razy\Exception\TemplateException;
 use Razy\Rzx\CompileCache;
 use Razy\Rzx\DirectoryResolver;
@@ -262,6 +263,20 @@ final class FixtureRenderer
         $runtime = new Runtime($cache, $functions, new TemplateAnchors($template->anchors()), true);
         $fills = \array_map(static fn (string $html): SafeHtml => new SafeHtml($html), $fixture->getFills());
 
-        return $razy->within($template, null, fn (): string => $runtime->render((string) $fixture->getComponent(), $values, $fills));
+        $render = fn (): string => $razy->within($template, null, fn (): string => $runtime->render((string) $fixture->getComponent(), $values, $fills), $fixture->getModuleAlias());
+        $alias = $fixture->getModuleAlias();
+        if (null === $alias) {
+            return $render();
+        }
+        // The component's asset() calls resolve to the declared module's web assets, for this render only.
+        $previous = Assets::current();
+        $root = (string) $fixture->getWebassetsPath();
+        Assets::setCurrent(Assets::fromConfig([], 'ui')->bind(static fn (): array => [$alias => ['version' => 'default', 'root' => $root]], static fn (): string => ''));
+
+        try {
+            return $render();
+        } finally {
+            Assets::setCurrent($previous);
+        }
     }
 }

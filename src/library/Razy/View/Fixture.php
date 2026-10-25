@@ -83,6 +83,10 @@ final class Fixture
     /** @var array<string, callable> */
     private array $functions = [];
 
+    private ?string $assetAlias = null;
+
+    private ?string $webassets = null;
+
     private function __construct(private readonly ?string $template, private readonly ?string $component = null)
     {
     }
@@ -161,6 +165,32 @@ final class Fixture
         $this->fills[$slot] = $html;
 
         return $this;
+    }
+
+    /**
+     * The module whose web assets the component's `asset('js/x.js')` resolves
+     * to: its alias and its `webassets/` folder (relative to the fixture;
+     * default `../webassets`, next to a module's `rzx/` folder).
+     */
+    public function module(string $alias, ?string $webassets = null): self
+    {
+        if (!\preg_match('/^[A-Za-z0-9_.-]+$/', $alias)) {
+            throw new InvalidArgumentException("Invalid module alias '{$alias}'.");
+        }
+        $this->assetAlias = $alias;
+        $this->webassets = $webassets;
+
+        return $this;
+    }
+
+    public function getModuleAlias(): ?string
+    {
+        return $this->assetAlias;
+    }
+
+    public function getWebassetsPath(): ?string
+    {
+        return null === $this->assetAlias ? null : $this->path($this->webassets ?? '../webassets');
     }
 
     /** An expression function the component calls (an app's `t`, for example). */

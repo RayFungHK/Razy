@@ -304,6 +304,24 @@ class UiFixtureTest extends TestCase
         (new FixtureRenderer())->render($fixture, 'wrong', 'light');
     }
 
+    public function testAComponentFixtureResolvesAssetThroughTheDeclaredModule(): void
+    {
+        \mkdir($this->dir . '/kit');
+        \mkdir($this->dir . '/webassets/js', 0o777, true);
+        \file_put_contents($this->dir . '/webassets/js/card.js', "export {};\n");
+        $this->put('kit/Card.rzx', "<section>card</section>\n<push to=\"body.scripts\"><script type=\"module\" src={asset('js/card.js')} /></push>");
+        $this->put('kit/Card.fixture.php', "<?php\nreturn Razy\\View\\Fixture::component('Kit.Card')->module('kit');\n");
+        $this->put('kit/NoModule.fixture.php', "<?php\nreturn Razy\\View\\Fixture::component('Kit.Card')->name('nomodule');\n");
+
+        $html = (new FixtureRenderer())->render(FixtureRenderer::load($this->dir . '/kit/Card.fixture.php'), 'default', 'light');
+        $this->assertMatchesRegularExpression('#<script nonce="[^"]+" type="module" src="/webassets/kit/default/js/card\.js\?v=[0-9a-f]+"></script>#', $html);
+        $this->assertNotSame('', \Razy\Asset\Assets::current()->importMapTag(null), 'the previous Assets are restored');
+
+        $this->expectException(\Razy\Rzx\Runtime\RenderError::class);
+        $this->expectExceptionMessage("needs a module: write asset('alias:js/card.js')");
+        (new FixtureRenderer())->render(FixtureRenderer::load($this->dir . '/kit/NoModule.fixture.php'), 'default', 'light');
+    }
+
     public function testComponentFixtureValidation(): void
     {
         $this->expectException(InvalidArgumentException::class);

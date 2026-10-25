@@ -46,7 +46,7 @@ final class RazyFunctions
 {
     public const MODIFIERS = ['addslashes', 'alphabet', 'capitalize', 'date', 'gettype', 'join', 'lower', 'number', 'strip_tags', 'trim', 'truncate', 'upper'];
 
-    /** @var list<array{Template, ?ModuleInfo}> */
+    /** @var list<array{Template, ?ModuleInfo, ?string}> template, module, asset alias override */
     private array $context = [];
 
     /**
@@ -71,6 +71,8 @@ final class RazyFunctions
 
     /**
      * Run $render with the template and module that functions refer to.
+     * $alias names the module whose web assets `asset()` uses when there is
+     * no module (a UI fixture).
      *
      * @template T
      *
@@ -78,9 +80,10 @@ final class RazyFunctions
      *
      * @return T
      */
-    public function within(Template $template, ?ModuleInfo $module, Closure $render): mixed
+    public function within(Template $template, ?ModuleInfo $module, Closure $render, ?string $alias = null): mixed
     {
-        $this->context[] = [$template, $module ?? \end($this->context)[1] ?? null];
+        $outer = \end($this->context) ?: [null, null, null];
+        $this->context[] = [$template, $module ?? $outer[1], $alias ?? ($module === null ? $outer[2] : null)];
 
         try {
             return $render();
@@ -100,7 +103,8 @@ final class RazyFunctions
         if (\preg_match('/^([A-Za-z0-9_.-]+):(?!\/\/)(.+)$/', $path, $m)) {
             [, $alias, $path] = $m;
         }
-        $alias ??= \end($this->context)[1]?->getAlias();
+        $top = \end($this->context) ?: [null, null, null];
+        $alias ??= $top[2] ?? $top[1]?->getAlias();
         if ($alias === null || $alias === '') {
             throw new RenderError("asset('" . $path . "') needs a module: write asset('alias:" . $path . "')");
         }
