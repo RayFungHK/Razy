@@ -52,10 +52,12 @@ final class FixtureRenderer
             if (!\is_dir($root)) {
                 throw new UnexpectedValueException("Fixture root '{$root}' is not a directory.");
             }
+            $base = \rtrim($root, '/\\');
             $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS));
             foreach ($iterator as $file) {
                 $path = $file->getPathname();
-                if (\preg_match('#[\\\/](?:vendor|node_modules|\.[^\\\/]+)[\\\/]#', $path)) {
+                // Only folders below the root count: the root itself may sit under a dot folder.
+                if (\preg_match('#[\\\/](?:vendor|node_modules|\.[^\\\/]+)[\\\/]#', \substr($path, \strlen($base)))) {
                     continue;
                 }
                 if (\str_ends_with($path, '.fixture.php')) {

@@ -102,6 +102,17 @@ class UiFixtureTest extends TestCase
         $this->assertSame([\realpath($this->dir . '/cards/card.fixture.php')], FixtureRenderer::discover([$this->dir]));
     }
 
+    public function testARootUnderADotFolderIsStillScanned(): void
+    {
+        \mkdir($this->dir . '/.hidden/views', 0o777, true);
+        \copy($this->dir . '/cards/card.fixture.php', $this->dir . '/.hidden/views/card.fixture.php');
+
+        $this->assertSame(
+            [\realpath($this->dir . '/.hidden/views/card.fixture.php')],
+            FixtureRenderer::discover([$this->dir . '/.hidden/views']),
+        );
+    }
+
     public function testFindByName(): void
     {
         $this->assertSame('card', FixtureRenderer::find('card', [$this->dir])->getName());
