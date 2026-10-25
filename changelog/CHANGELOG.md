@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [Unreleased]
+
+- **RZ-24** — **Changed (breaking, security):** the document root is not a public file tree (`favicon.ico`, `robots.txt`, `sitemap.xml`, and other docroot files now hit the front controller on Apache, `php -S`, and generated Caddy). [unreleased/RZ-24.md](unreleased/RZ-24.md).
+
 ## [v1.2.1](changelog/v1.2.1.md) — 2026-09-19
 
 **The Release That Armed a Real Site, and the Two Machine Doors** — the armed session's token-blindness fixed at the root (lazy start; the 419 loop found live on a production-shaped dist and closed with receipts), the MCP server (`php Razy.phar mcp <dist>` — the bridge surface served to AI clients, no new door), and the fail-closed route-ability rail (`Route::can` + `Agent::addAuthzAbility`, inert until declared). Includes two documented retractions: Model casts already shipped complete; `Razy\Auth`'s Gate has no boot wiring (now documented and bridged). Suite 5,565 → **5,605**. Full narrative: [v1.2.1](changelog/v1.2.1.md).

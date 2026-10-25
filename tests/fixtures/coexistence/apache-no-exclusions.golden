@@ -4,8 +4,9 @@ RewriteEngine on
 RewriteCond $0#%{REQUEST_URI} ^([^#]*)#(.*)\1$
 RewriteRule ^.*$ - [E=BASE:%2]
 
-# Rewrite the shared module location
-RewriteRule ^\w+/shared/(.*)$ shared/$1 [L]
+# Shared module files. [END] (Apache 2.4+): [L] re-enters this file, and the
+# fallback would then send the rewritten path to index.php.
+RewriteRule ^\w+/shared/(.*)$ shared/$1 [END]
 
 # ── Domain Detection ──
 RewriteCond %{HTTP_HOST} ^example\.com(:\d+)?$ [NC]

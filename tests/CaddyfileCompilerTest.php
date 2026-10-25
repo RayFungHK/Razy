@@ -265,8 +265,9 @@ class CaddyfileCompilerTest extends TestCase
 
             $content = \file_get_contents($outputPath);
             $this->assertStringNotContains('worker /app/public/index.php', $content);
-            // Standard mode just has php_server without worker
-            $this->assertStringContainsString('php_server', $content);
+            // Classic mode rewrites to the front controller and does not use php_server.
+            $this->assertStringContainsString('rewrite * /index.php', $content);
+            $this->assertStringNotContainsString("\tphp_server", $content);
         } finally {
             @\unlink($outputPath);
         }

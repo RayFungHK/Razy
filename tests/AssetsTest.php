@@ -257,6 +257,8 @@ class AssetsTest extends TestCase
         // php -S sets SCRIPT_NAME to an extension-bearing request path, which the
         // bootstrap read as a subdirectory install (URL_QUERY became '/a.js').
         $this->assertStringContainsString("\$_SERVER['SCRIPT_NAME']     = '/index.php';", $router);
+        // RZ-24: returning false lets php -S serve or execute the real file.
+        $this->assertStringNotContainsString('return false', $router);
     }
 
     public function testNewDistSkeletonDocumentsTheKey(): void

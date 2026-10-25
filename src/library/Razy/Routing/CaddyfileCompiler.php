@@ -27,13 +27,14 @@ use Throwable;
  * - Module webasset file_server handlers
  * - Per-distributor data mapping handlers
  * - Shared module path handler
- * - Declared sibling-path exclusions (host-level `exclude_paths`) gating php_server
+ * - Declared sibling-path exclusions (host-level `exclude_paths`) gating the claim
  * - Claim scoping (Phase 2): hosts whose distributors all mount on sub-paths
  *   emit `@php_claimed { path <mount> <mount>/* [not path <excluded>…] }` so
  *   the PHP claim matches Apache's per-mount discipline (option (a),
  *   architecture/ROUTE-COEXISTENCE.md §4); the health probe gets its own
  *   handle on such hosts (FM-5, Q5 answered: emit-by-need).
- * - FrankenPHP worker mode or standard php_server directive
+ * - FrankenPHP worker mode or classic mode: both rewrite to index.php and run
+ *   `php` (RZ-24). Not bare `php_server` / try_files of the document root.
  *
  * Coexistence decision (Q3, architecture/ROUTE-COEXISTENCE.md §5): excluded
  * paths are ONLY de-claimed here — the generator never emits `reverse_proxy`
@@ -140,8 +141,7 @@ class CaddyfileCompiler
         // entries fail loudly here (before any file write).
         $excludedPrefixes = ExcludePaths::normalize($excludePaths);
         $pathPatterns = ExcludePaths::caddyPaths($excludedPrefixes);
-        // Leading space when present so 'php_server' renders byte-identical
-        // to the legacy output with no exclusions.
+        // Leading space when present so 'handle @not_excluded' stays one token.
         $phpMatcher = [] !== $excludedPrefixes ? ' @not_excluded' : '';
 
         foreach ($multisite as $domain => $paths) {
@@ -191,8 +191,8 @@ class CaddyfileCompiler
             //     (root mounts claim the host by definition, so scoping stops being
             //     meaningful the moment one exists — documented trade-off);
             // (2) any root mount + exclusions → Phase 1 @not_excluded gate;
-            // (3) any root mount, no exclusions → bare php_server, byte-identical
-            //     legacy output (golden-pinned).
+            // (3) any root mount, no exclusions → front-controller handle only
+            //     (rewrite to index.php + php). RZ-24: not bare php_server.
             $hasRootMount = \in_array('/', $mountPaths, true);
             $subPrefixes = [];
 

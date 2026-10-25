@@ -128,7 +128,7 @@ class ExcludePathsGenerationTest extends TestCase
         $exclusionPos = \strpos($content, 'RewriteCond %{REQUEST_URI} ^/api-py(/|$)');
         $this->assertIsInt($exclusionPos, 'exclusion rule must exist');
         $this->assertLessThan(
-            (int) \strpos($content, '# Rewrite the shared module location'),
+            (int) \strpos($content, 'RewriteRule ^\w+/shared/'),
             $exclusionPos,
             'exclusion must precede the global shared rule',
         );
@@ -160,7 +160,7 @@ class ExcludePathsGenerationTest extends TestCase
             $content,
             'named matcher must list bare prefix and prefix/* (Caddy path matchers are exact)',
         );
-        $this->assertStringContainsString("php_server @not_excluded {\n\t\tworker /app/public/index.php\n\t}", $content);
+        $this->assertStringContainsString("handle @not_excluded {\n\t\troute {\n\t\t\trewrite * /index.php\n\t\t\tphp {\n\t\t\t\tworker /app/public/index.php\n\t\t\t}\n\t\t}\n\t}", $content);
     }
 
     public function testCaddyStandardModeGatesPhpServerMatcher(): void
@@ -168,7 +168,8 @@ class ExcludePathsGenerationTest extends TestCase
         $content = self::lf($this->compileCaddy(['/api-py'], false));
 
         $this->assertStringContainsString('@not_excluded not path /api-py /api-py/*', $content);
-        $this->assertStringContainsString("\tphp_server @not_excluded\n", $content);
+        $this->assertStringContainsString("\thandle @not_excluded {\n", $content);
+        $this->assertStringContainsString('rewrite * /index.php', $content);
         $this->assertStringNotContainsString('worker ', $content, 'no worker directive in standard mode');
         $this->assertStringNotContainsString('reverse_proxy', $content, 'decision Q3: never emit reverse_proxy for excluded paths');
     }
@@ -188,7 +189,7 @@ class ExcludePathsGenerationTest extends TestCase
 
         $content = (string) \file_get_contents($outputPath);
         $this->assertSame(2, \substr_count($content, '@not_excluded not path /api-py /api-py/*'));
-        $this->assertSame(2, \substr_count($content, 'php_server @not_excluded {'));
+        $this->assertSame(2, \substr_count($content, 'handle @not_excluded {'));
     }
 
     // ═══════════════════════════════════════════════════════

@@ -16,8 +16,16 @@ example.com {
 		uri replace /shared/ /shared/ 1
 		file_server
 	}
-	php_server {
-		worker /app/public/index.php
+	# RZ-24: only index.php runs. php_server's try_files {path} would publish
+	# this tree and execute every other .php. FrankenPHP 1.13 keeps REQUEST_URI
+	# from the original request, so the rewrite does not change routing.
+	handle {
+		route {
+			rewrite * /index.php
+			php {
+				worker /app/public/index.php
+			}
+		}
 	}
 }
 

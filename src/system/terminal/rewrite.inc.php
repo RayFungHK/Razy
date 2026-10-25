@@ -120,7 +120,7 @@ return function (string $distCode = '') use (&$parameters) {
 
             if ($isCaddy) {
                 $this->writeLineLogging('    Caddy mode: ' . (isset($mounts['/'])
-                    ? 'host-claim php_server' . ([] !== $excluded ? ' gated by @not_excluded' : '')
+                    ? 'host-claim front controller' . ([] !== $excluded ? ' gated by @not_excluded' : '')
                     : 'scoped @php_claimed + /_razy/health handle (Phase 2)'), true);
             }
 

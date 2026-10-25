@@ -6,17 +6,25 @@
  * Reads configuration from .razy-serve-config.json in the same directory.
  *
  * Handles:
- *   - Static file passthrough (CSS, JS, images, fonts) at C level
- *   - Data directory mapping (realpath-guarded)
+ *   - Data directory mapping (realpath-guarded; bytes only, never executed)
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
- *     under this server; RZ-09) with hashed-URL cache headers
+ *     under this server; RZ-09) with hashed-URL cache headers.
+ *     Under php -S that request runs through PHP, not a C-level static send.
+ *   - No passthrough of other real files. Returning false here makes php -S
+ *     download the document root and execute every other .php (RZ-24).
  *   - FQDN simulation (overrides SERVER_NAME for --dist mode)
  *   - Dashboard placeholder (/.razy/dashboard)
  *   - Fall-through to index.php for application routing
  *
  * This file is safe to delete — it will be re-copied on the next serve.
  */
+
+// Tests load the helpers at the bottom without starting the router.
+// Function declarations in this file are registered before this return runs.
+if (defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+    return;
+}
 
 // ── Load config ─────────────────────────────────────────────────────────
 $__serveConfig = @json_decode(
@@ -70,14 +78,8 @@ if (!empty($__serveConfig['worker'])) {
 // ── Routing ─────────────────────────────────────────────────────────────
 $uri      = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $docRoot  = $_SERVER['DOCUMENT_ROOT'];
-$filePath = $docRoot . $uri;
 
-// ── 1. Physical file exists? Let the built-in server handle it ──────────
-if ($uri !== '/' && is_file($filePath)) {
-    return false;
-}
-
-// ── 2. Data directory mapping ───────────────────────────────────────────
+// ── 1. Data directory mapping ───────────────────────────────────────────
 // URL pattern: /<route_prefix>data/<path>
 // (Webassets are not resolved here: the app knows each module's alias and
 // version folder, so /webassets/... falls through to index.php — RZ-09.)
@@ -89,7 +91,7 @@ if (preg_match('#^(?:/[^/]+)?/data/(.+)$#', $uri, $m)) {
     }
 }
 
-// ── 3. Dashboard placeholder ────────────────────────────────────────────
+// ── 2. Dashboard placeholder ────────────────────────────────────────────
 // Future: Razy.phar dashboard UI. For now, returns a JSON status endpoint.
 if (str_starts_with($uri, '/.razy/')) {
     if ($uri === '/.razy/dashboard' || $uri === '/.razy/dashboard/') {
@@ -126,7 +128,7 @@ if (str_starts_with($uri, '/.razy/')) {
     }
 }
 
-// ── 4. FQDN simulation (--dist mode) ───────────────────────────────────
+// ── 3. FQDN simulation (--dist mode) ───────────────────────────────────
 // Override SERVER_NAME and HTTP_HOST so the Razy bootstrap resolves the
 // correct domain from sites.inc.php. Also prepend the FQDN path to
 // REQUEST_URI so the Domain URL-path matcher can route to the right dist.
@@ -148,7 +150,10 @@ if (!empty($__serveConfig['fqdn_domain'])) {
     $_ENV['RAZY_MULTIPLE_SITE'] = 'true';
 }
 
-// ── 5. Fall through to Razy application ─────────────────────────────────
+// ── 4. Fall through to Razy application ─────────────────────────────────
+// Anything else, including a real file (Razy.phar, a template, another
+// .php), is the front controller. Falling through (a false return) would
+// make php -S serve the file or execute that .php.
 // The built-in server sets SCRIPT_NAME to the request path when it has an
 // extension (/webassets/app/default/js/a.js), which the bootstrap would read
 // as a subdirectory install. The app is the front controller: say so.
@@ -199,21 +204,19 @@ function resolveStaticPath(string $root, string $relative): ?string
 }
 
 /**
- * Serve a static file using C-level stream I/O.
+ * Content-Type for a file served as bytes.
  *
- * MIME detection: mime_content_type() delegates to libmagic (C library),
- * but it often misidentifies web assets (.css/.js as text/plain).
- * A small override map corrects the critical types; everything else
- * falls through to the OS-level detection.
+ * Known web types win, because libmagic often calls .css/.js text/plain.
+ * mime_content_type() runs only when the caller allows it and the function
+ * exists (Windows CI has no fileinfo; calling it is a fatal). Otherwise an
+ * extension map applies, then application/octet-stream. The response also
+ * sends nosniff, so a generic type is not sniffed into something executable.
  *
- * File streaming: fopen/fread/fwrite operate directly on C-level
- * php_stream, and the 64 KB buffer size aligns with the OS page cache
- * so the kernel satisfies reads from RAM when the file is hot.
+ * Pass $fileinfo false to force the map. The router leaves it at the default.
  */
-function serveStaticFile(string $path): void
+function serveContentType(string $path, bool $fileinfo = true): string
 {
-    // Override map for types that mime_content_type() / libmagic gets wrong
-    static $webMimeOverrides = [
+    static $overrides = [
         'css'   => 'text/css',
         'js'    => 'text/javascript',
         'mjs'   => 'text/javascript',
@@ -229,15 +232,47 @@ function serveStaticFile(string $path): void
         'avif'  => 'image/avif',
         'webp'  => 'image/webp',
     ];
+    static $byExtension = [
+        'txt'  => 'text/plain',
+        'html' => 'text/html',
+        'htm'  => 'text/html',
+        'csv'  => 'text/csv',
+        'xml'  => 'application/xml',
+        'png'  => 'image/png',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif'  => 'image/gif',
+        'ico'  => 'image/x-icon',
+        'pdf'  => 'application/pdf',
+    ];
 
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $contentType = $webMimeOverrides[$ext]
-        ?? mime_content_type($path)
-        ?: 'application/octet-stream';
+    if (isset($overrides[$ext])) {
+        return $overrides[$ext];
+    }
+    if ($fileinfo && function_exists('mime_content_type')) {
+        $detected = mime_content_type($path);
+        if (is_string($detected) && $detected !== '') {
+            return $detected;
+        }
+    }
 
+    return $byExtension[$ext] ?? 'application/octet-stream';
+}
+
+/**
+ * Serve a static file using C-level stream I/O.
+ *
+ * fopen/fread/fwrite operate directly on C-level php_stream, and the
+ * 64 KB buffer size aligns with the OS page cache so the kernel satisfies
+ * reads from RAM when the file is hot.
+ */
+function serveStaticFile(string $path): void
+{
     $fileSize = filesize($path);
 
-    header('Content-Type: ' . $contentType);
+    header('Content-Type: ' . serveContentType($path));
+    header('X-Content-Type-Options: nosniff');
     header('Content-Length: ' . $fileSize);
     header('Cache-Control: public, max-age=10');
 
