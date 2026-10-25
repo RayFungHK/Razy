@@ -48,7 +48,7 @@ PHP);
         \file_put_contents($docroot . '/data/note.php', "<?php echo 'DATAEXEC';\n");
         \file_put_contents($docroot . '/data/page.html', "<!DOCTYPE html><html><body>HTMLBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/page.htm', "<html><body>HTMBYTES</body></html>\n");
-        \file_put_contents($docroot . '/data/PAGE.HTML', "<html><body>UPPERBYTES</body></html>\n");
+        \file_put_contents($docroot . '/data/upper.HTML', "<html><body>UPPERBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/pic.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>SVGBYTES</text></svg>\n");
         \file_put_contents($docroot . '/data/doc.xml', "<?xml version=\"1.0\"?><root>XMLBYTES</root>\n");
         \file_put_contents($docroot . '/data/page.xhtml', "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body>XHTMLBYTES</body></html>\n");
@@ -177,7 +177,7 @@ PHP);
         foreach ([
             '/data/page.html' => 'HTMLBYTES',
             '/data/page.htm' => 'HTMBYTES',
-            '/data/PAGE.HTML' => 'UPPERBYTES',
+            '/data/upper.HTML' => 'UPPERBYTES',
             '/data/pic.svg' => 'SVGBYTES',
             '/data/doc.xml' => 'XMLBYTES',
             '/data/page.xhtml' => 'XHTMLBYTES',
