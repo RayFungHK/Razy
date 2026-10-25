@@ -128,7 +128,7 @@ class ExcludePathsGenerationTest extends TestCase
         $exclusionPos = \strpos($content, 'RewriteCond %{REQUEST_URI} ^/api-py(/|$)');
         $this->assertIsInt($exclusionPos, 'exclusion rule must exist');
         $this->assertLessThan(
-            (int) \strpos($content, '# Rewrite the shared module location'),
+            (int) \strpos($content, 'RewriteRule ^\w+/shared/'),
             $exclusionPos,
             'exclusion must precede the global shared rule',
         );

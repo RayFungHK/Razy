@@ -196,6 +196,10 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
   goes to the front controller on Apache, php -S, and generated Caddy. The old
   `^asset` exemption (`/asset-foo` skipping the rewrite) is gone. Do not build
   coexistence on leftover names; declare prefixes.
+- **Shared, webasset, and data mappings use `[END]`** (Apache 2.4+). An `[L]`
+  rewrite re-enters this `.htaccess`, and the fallback would then send the
+  rewritten file to `index.php`. Exclusion rules still use `[L]` on a `-` target,
+  which does not rewrite the URL.
 - Probes: under Caddy, scoped hosts get a dedicated `/_razy/health` handle (Phase 2 —
   see §4), so the liveness probe survives sub-path mounts; Apache hosts and
   `/_razy/metrics` still require a root mount or edge forwarding (FM-5 in the dossier).

@@ -207,6 +207,23 @@ PHP);
         }
     }
 
+    public function testMappingRulesUseEndSoApacheDoesNotReenter(): void
+    {
+        $tpl = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/htaccess.tpl');
+        \preg_match_all('/RewriteRule\s+\S+\s+(\S+)\s+\[([^\]]+)\]/', $tpl, $rules, PREG_SET_ORDER);
+        $mappings = 0;
+        foreach ($rules as $rule) {
+            [$full, $target, $flags] = $rule;
+            // "-" does not rewrite the URL. index.php is the fallback loop guard.
+            if ($target === '-' || \str_contains($target, 'index.php')) {
+                continue;
+            }
+            ++$mappings;
+            $this->assertSame('END', $flags, $full);
+        }
+        $this->assertSame(3, $mappings, 'shared, webassets, and data');
+    }
+
     public function testStaticTypeFallsBackWhenFileinfoIsOff(): void
     {
         if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {

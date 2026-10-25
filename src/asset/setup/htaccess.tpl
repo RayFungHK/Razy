@@ -10,8 +10,9 @@ RewriteRule ^.*$ - [E=BASE:%2]
 RewriteCond %{REQUEST_URI} ^{$prefix_pattern}(/|$)
 RewriteRule ^ - [L]
 <!-- END BLOCK: exclusion -->
-# Rewrite the shared module location
-RewriteRule ^\w+/shared/(.*)$ shared/$1 [L]
+# Shared module files. [END] (Apache 2.4+): [L] re-enters this file, and the
+# fallback would then send the rewritten path to index.php.
+RewriteRule ^\w+/shared/(.*)$ shared/$1 [END]
 
 # ── Domain Detection ──
 <!-- START BLOCK: domain -->
@@ -35,8 +36,9 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteRule ^{$route_path}webassets/{$mapping}/(.+?)/(.+)$ {$dist_path} [END]
     <!-- END BLOCK: webassets -->
     <!-- START BLOCK: data_mapping -->
+    # [END] (Apache 2.4+): same re-entry as the shared rule above.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteRule ^{$route_path}data/(.+)$ {$data_path} [L]
+    RewriteRule ^{$route_path}data/(.+)$ {$data_path} [END]
     <!-- END BLOCK: data_mapping -->
     <!-- START BLOCK: fallback -->
     # RZ-24: an existing file is not a reason to skip the front controller.
