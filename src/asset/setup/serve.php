@@ -203,31 +203,34 @@ return true;
  */
 function serveDataRequestIsDirectory(string $root, string $relative): bool
 {
+    // One return. The router script itself must not hand php -S a false
+    // result, or the built-in server publishes the file (RZ-24).
+    $directory = false;
     $decoded = rawurldecode($relative);
-    if (str_contains($decoded, "\0") || str_contains($decoded, '\\') || str_contains($decoded, '%')) {
-        return false;
-    }
-    $segments = array_values(array_filter(explode('/', $decoded), static fn (string $s): bool => $s !== ''));
-    if (!$segments) {
-        return true;
-    }
-    foreach ($segments as $segment) {
-        if ($segment[0] === '.') {
-            return false;
+    $safe = !str_contains($decoded, "\0") && !str_contains($decoded, '\\') && !str_contains($decoded, '%');
+    $segments = $safe
+        ? array_values(array_filter(explode('/', $decoded), static fn (string $s): bool => $s !== ''))
+        : null;
+    if ($segments === []) {
+        $directory = true;
+    } elseif (is_array($segments)) {
+        $dot = false;
+        foreach ($segments as $segment) {
+            if ($segment[0] === '.') {
+                $dot = true;
+            }
+        }
+        $realRoot = $dot ? false : realpath($root);
+        if (is_string($realRoot)) {
+            $real = realpath($realRoot . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments));
+            $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            $directory = is_string($real)
+                && is_dir($real)
+                && ($real === $realRoot || str_starts_with($real, $prefix));
         }
     }
 
-    $realRoot = realpath($root);
-    if ($realRoot === false) {
-        return false;
-    }
-    $real = realpath($realRoot . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments));
-    if ($real === false || !is_dir($real)) {
-        return false;
-    }
-    $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-
-    return $real === $realRoot || str_starts_with($real, $prefix);
+    return $directory;
 }
 
 /**
