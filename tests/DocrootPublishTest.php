@@ -31,7 +31,7 @@ final class DocrootPublishTest extends TestCase
     {
         $docroot = \sys_get_temp_dir() . '/razy_rz24_' . \bin2hex(\random_bytes(4));
         \mkdir($docroot . '/sites', 0o777, true);
-        \mkdir($docroot . '/data', 0o777, true);
+        \mkdir($docroot . '/data/sub', 0o777, true);
         \mkdir($docroot . '/webassets/mod/default', 0o777, true);
 
         \file_put_contents($docroot . '/index.php', <<<'PHP'
@@ -47,6 +47,8 @@ PHP);
         \file_put_contents($docroot . '/data/ok.txt', "DATABYTES\n");
         \file_put_contents($docroot . '/data/note.php', "<?php echo 'DATAEXEC';\n");
         \file_put_contents($docroot . '/data/page.html', "<!DOCTYPE html><html><body>HTMLBYTES</body></html>\n");
+        \file_put_contents($docroot . '/data/index.html', "<html><body>INDEXROOT</body></html>\n");
+        \file_put_contents($docroot . '/data/sub/index.html', "<html><body>INDEXSUB</body></html>\n");
         \file_put_contents($docroot . '/data/page.htm', "<html><body>HTMBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/upper.HTML', "<html><body>UPPERBYTES</body></html>\n");
         \file_put_contents($docroot . '/data/pic.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>SVGBYTES</text></svg>\n");
@@ -235,6 +237,36 @@ PHP);
         $this->assertStringStartsWith('APP uri=/data/missing.txt', $body);
     }
 
+    public function testDataDirectoryDoesNotServeIndexHtml(): void
+    {
+        if (self::$base === null) {
+            $this->markTestSkipped('php -S did not start' . (self::$log !== '' && \is_file(self::$log) ? ': ' . \file_get_contents(self::$log) : ''));
+        }
+
+        foreach ([
+            '/data' => 'INDEXROOT',
+            '/data/' => 'INDEXROOT',
+            '/data/sub' => 'INDEXSUB',
+            '/data/sub/' => 'INDEXSUB',
+            '/shop/data/' => 'INDEXROOT',
+            '/shop/data/sub/' => 'INDEXSUB',
+        ] as $path => $marker) {
+            [$status, $body, $headers] = $this->fetch($path);
+            $joined = \implode("\n", $headers);
+            $this->assertSame(404, $status, $path . ' ' . $this->logTail());
+            $this->assertStringNotContainsString($marker, $body, $path);
+            $this->assertStringNotContainsString('INDEXROOT', $body, $path);
+            $this->assertStringNotContainsString('INDEXSUB', $body, $path);
+            $this->assertStringNotContainsString('APP uri=', $body, $path);
+            $this->assertStringNotContainsString('<html', \strtolower($body), $path);
+            $this->assertMatchesRegularExpression('/^X-Content-Type-Options:\s*nosniff$/mi', $joined, $path);
+        }
+
+        // The named file is still a download. Only the directory URL is a 404.
+        $this->assertActiveDownload('/data/index.html', 'INDEXROOT');
+        $this->assertActiveDownload('/data/sub/index.html', 'INDEXSUB');
+    }
+
     public function testScriptPathStopsAtTheExtension(): void
     {
         if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
@@ -391,8 +423,12 @@ PHP);
 
             $this->assertCompiledCaddyDataHandle($caddyText, '/data');
             $this->assertCompiledCaddyDataHandle($caddyText, '/shop/data');
+            $this->assertSame(2, \substr_count($caddyText, 'index ""'));
+            $this->assertSame(2, \substr_count($caddyText, 'hide index.html index.txt'));
             $this->assertCompiledApacheDataMapping($apacheText, '');
             $this->assertCompiledApacheDataMapping($apacheText, 'shop/');
+            $this->assertSame(2, \substr_count($apacheText, 'DirectoryIndex disabled'));
+            $this->assertSame(2, \substr_count($apacheText, 'Options -Indexes'));
         } finally {
             $this->removeTree($dir);
             $this->removeTree($distDir);
@@ -467,7 +503,8 @@ PHP);
         }
         $this->assertNotSame('', $handle, 'data handle for ' . $prefix . "\n" . $caddy);
         $this->assertStringContainsString('path ' . $prefix . '/*', $caddy);
-        $this->assertStringContainsString('file_server', $handle);
+        $this->assertStringContainsString("file_server {\n\t\t\tindex \"\"\n\t\t\thide index.html index.txt\n\t\t}", $handle);
+        $this->assertStringNotContainsString('browse', $handle);
         $this->assertStringNotContainsString('php_server', $handle);
         $this->assertStringNotContainsString('split_path', $handle);
         $this->assertDoesNotMatchRegularExpression('/^\t\tphp$/m', $handle);
@@ -521,6 +558,19 @@ PHP);
         }
         $this->assertStringContainsString('SetHandler none', $apache);
         $this->assertStringContainsString('RemoveHandler .php .phtml .phar', $apache);
+
+        $indexIf = '<If "%{REQUEST_URI} =~ m#(?i)^/' . $routePath . 'data(/|$)# || %{REQUEST_URI} -strcmatch \'%{CONTEXT_PREFIX}/' . $routePath . 'data\' || %{REQUEST_URI} -strcmatch \'%{CONTEXT_PREFIX}/' . $routePath . 'data/*\'">';
+        $indexAt = \strpos($apache, $indexIf);
+        $this->assertNotFalse($indexAt, $indexIf);
+        $indexBlock = \substr($apache, $indexAt, (int) \strpos($apache, '</If>', $indexAt) - $indexAt);
+        $this->assertStringContainsString('DirectoryIndex disabled', $indexBlock);
+        $this->assertStringContainsString('Options -Indexes', $indexBlock);
+        $this->assertStringNotContainsString('SetHandler', $indexBlock);
+        $this->assertDoesNotMatchRegularExpression(
+            '/DirectoryIndex(?! disabled)/',
+            $indexBlock,
+            'the data mount must not name an index document',
+        );
     }
 
     /**

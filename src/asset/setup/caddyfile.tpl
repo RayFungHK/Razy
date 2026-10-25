@@ -26,7 +26,10 @@
 	# reaches the php handle. The rewrite drops a PATH_INFO tail after a
 	# script extension; a missing file is 404. html, htm, svg, xml, xhtml,
 	# js and mjs download and stay sandboxed. The active matcher sees the
-	# extension on the original path and after strip_prefix.
+	# extension on the original path and after strip_prefix. The file_server
+	# block selects no index file, so /data/ and /data/uploads/ do not
+	# publish index.html (that URL would not match the active extension).
+	# The default index names are hidden. Directory listings stay off.
 	@data_{$data_id} path /{$route_path}data/*
 	handle @data_{$data_id} {
 		uri strip_prefix /{$route_path}data
@@ -38,7 +41,10 @@
 			Content-Security-Policy "sandbox"
 			X-Content-Type-Options "nosniff"
 		}
-		file_server
+		file_server {
+			index ""
+			hide index.html index.txt
+		}
 	}
 <!-- END BLOCK: data_mapping -->
 <!-- START BLOCK: shared -->

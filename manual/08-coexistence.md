@@ -210,7 +210,10 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
   with `Content-Security-Policy: sandbox` and `nosniff`. The marker and
   the publish rule use the same case match. The generated Caddy data handle and `php Razy.phar serve`
   send the same headers, and that PATH_INFO URL is the file's bytes or
-  404. `php -S` also quarantines a renamed file when libmagic reports
+  404. A directory URL under the mapping does not serve `index.html`:
+  Caddy sets `index ""` and hides the default index names, Apache sets
+  `DirectoryIndex disabled` and `Options -Indexes` for that mount only,
+  and `php -S` returns 404. `php -S` also quarantines a renamed file when libmagic reports
   `text/html` or `image/svg+xml`. There is no switch to serve those types
   inline from `/data`; trusted HTML belongs on an application route.
 - Probes: under Caddy, scoped hosts get a dedicated `/_razy/health` handle (Phase 2 —

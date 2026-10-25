@@ -67,6 +67,19 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     # [NC] matches the active-type rule above.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
     RewriteRule ^{$route_path}data/(.+)$ {$data_path} [NC,END]
+    # RZ-25: DirectoryIndex would send an uploaded index.html for
+    # /data/ or /data/uploads/ as text/html. That URL does not end in
+    # the extension, so the headers above never attach. The <If> is
+    # this mount only: ^/data or ^/shop/data, and the same path under
+    # CONTEXT_PREFIX when the install is in a subdirectory.
+    # /database and /report/data/export.php stay outside it. These two
+    # directives do not disable PHP; /data/ still reaches index.php.
+    # DirectoryIndex needs AllowOverride Indexes. Options needs
+    # AllowOverride Options.
+    <If "%{REQUEST_URI} =~ m#(?i)^/{$route_path}data(/|$)# || %{REQUEST_URI} -strcmatch '%{CONTEXT_PREFIX}/{$route_path}data' || %{REQUEST_URI} -strcmatch '%{CONTEXT_PREFIX}/{$route_path}data/*'">
+        DirectoryIndex disabled
+        Options -Indexes
+    </If>
     Header set Content-Disposition "attachment" env=RAZY_DATA_ACTIVE
     Header set Content-Disposition "attachment" env=REDIRECT_RAZY_DATA_ACTIVE
     Header set Content-Security-Policy "sandbox" env=RAZY_DATA_ACTIVE

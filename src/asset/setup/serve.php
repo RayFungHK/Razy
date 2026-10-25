@@ -10,6 +10,7 @@
  *     html, htm, svg, xml, xhtml, js, mjs, and anything libmagic calls
  *     text/html or image/svg+xml, download with a sandbox CSP (RZ-25).
  *     /data/note.php/extra is that file's bytes, or 404. It is not PATH_INFO.
+ *     /data/ and /data/sub/ are 404, including when index.html is there.
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
  *     under this server; RZ-09) with hashed-URL cache headers.
@@ -86,8 +87,16 @@ $docRoot  = $_SERVER['DOCUMENT_ROOT'];
 // URL pattern: /<route_prefix>data/<path>
 // (Webassets are not resolved here: the app knows each module's alias and
 // version folder, so /webassets/... falls through to index.php — RZ-09.)
-if (preg_match('#^(?:/[^/]+)?/data/(.+)$#', $uri, $m)) {
-    $relative = $m[1];
+// /data and /data/ are the directory itself. A real subdirectory is too.
+// php -S would not append index.html, but falling through would be the
+// app, and an index document must not be the response (RZ-25).
+if (preg_match('#^(?:/[^/]+)?/data(?:/(.*))?$#', $uri, $m)) {
+    $relative = $m[1] ?? '';
+    if (serveDataRequestIsDirectory($docRoot . '/data', $relative)) {
+        http_response_code(404);
+        header('X-Content-Type-Options: nosniff');
+        return true;
+    }
     // /data/note.php/extra must not fall through. A false return would let
     // php -S execute note.php with PATH_INFO=/extra.
     $script = serveScriptPath($relative);
@@ -182,6 +191,44 @@ return true;
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper functions
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Whether this /data URL is the data directory or a directory under it.
+ *
+ * /data and /data/ are the root (true even when the folder is missing).
+ * A real subdirectory is true, so the router 404s instead of publishing
+ * index.html. The same segment rules as resolveStaticPath(): a dot
+ * segment, a null byte, or a path that leaves the root is not a directory
+ * we will answer.
+ */
+function serveDataRequestIsDirectory(string $root, string $relative): bool
+{
+    $decoded = rawurldecode($relative);
+    if (str_contains($decoded, "\0") || str_contains($decoded, '\\') || str_contains($decoded, '%')) {
+        return false;
+    }
+    $segments = array_values(array_filter(explode('/', $decoded), static fn (string $s): bool => $s !== ''));
+    if (!$segments) {
+        return true;
+    }
+    foreach ($segments as $segment) {
+        if ($segment[0] === '.') {
+            return false;
+        }
+    }
+
+    $realRoot = realpath($root);
+    if ($realRoot === false) {
+        return false;
+    }
+    $real = realpath($realRoot . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments));
+    if ($real === false || !is_dir($real)) {
+        return false;
+    }
+    $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+    return $real === $realRoot || str_starts_with($real, $prefix);
+}
 
 /**
  * Map a URL path below $root to a real file inside it, or null.
