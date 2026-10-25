@@ -1,0 +1,27 @@
+<?php
+
+/**
+ * This file is part of Razy.
+ *
+ * (c) Ray Fung <hello@rayfung.hk>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ *
+ * @license MIT
+ */
+
+declare(strict_types=1);
+
+namespace Razy\Rzx\Expr;
+
+/**
+ * `!operand` or `-operand`.
+ */
+final class Unary extends Expr
+{
+    public function __construct(int $offset, public readonly string $operator, public readonly Expr $operand)
+    {
+        parent::__construct($offset);
+    }
+}

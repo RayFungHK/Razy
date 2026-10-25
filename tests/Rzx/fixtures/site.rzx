@@ -1,0 +1,20 @@
+{/* sites/<dist>/layout/site.rzx: the design sample layout */}
+<props>
+return ['lang' => Prop::string()->default('en'), 'theme' => Prop::enum('light', 'dark')->default('light'),
+        'title' => Prop::string()->required()];
+</props>
+<html lang={lang} data-theme={theme}>
+  <head>
+    <meta charset="utf-8" />
+    <title>{title}</title>
+    <Anchor name="head.meta" />          {/* csrf meta, description, … */}
+    <Anchor name="head.styles" />        {/* <link rel=stylesheet>; deduped by href */}
+    <Anchor name="head.importmap" />     {/* Assets::importMapTag($nonce); exactly one */}
+    <Anchor name="head.modulepreload" />
+  </head>
+  <body>
+    <Slot />                             {/* the page */}
+    <Anchor name="body.overlays" />      {/* dialogs a page or component needs, only on that page */}
+    <Anchor name="body.scripts" />       {/* <script type=module>; deduped by src */}
+  </body>
+</html>

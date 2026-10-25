@@ -1,0 +1,57 @@
+<props>
+return [
+    'members'  => Prop::list(Prop::map())->required(),   // from /api/workspace/users, mapped server-side
+    'counts'   => Prop::shape(['all' => Prop::int(), 'admins' => Prop::int(), 'inactive' => Prop::int()]),
+    'canEdit'  => Prop::bool()->default(false),
+    'state'    => Prop::enum('ready', 'loading', 'error')->default('ready'),
+];
+</props>
+<App.SettingsPage title={t('members.title')} description={t('members.description')}>
+  <Kit.ManagementList
+    label={t('members.title')}
+    searchKeys={['name', 'login', 'email']}
+    segments={[
+      { value: 'all',      label: t('members.filter.all'),      count: counts.all },
+      { value: 'admins',   label: t('members.filter.admins'),   count: counts.admins,
+        filter: { role: [t('role.owner'), t('role.admin')] } },
+      { value: 'inactive', label: t('members.filter.inactive'), count: counts.inactive,
+        filter: { status: t('status.inactive') } },
+    ]}
+    columns={[
+      { key: 'select', type: 'select' },
+      { key: 'name',   label: t('members.col.member'), sortable: true, cell: 'person', subKey: 'login' },
+      { key: 'role',   label: t('members.col.role'),   sortable: true, cell: 'pill',
+        tones: { [t('role.owner')]: 'info' } },
+      { key: 'groups', label: t('members.col.groups'), cell: 'chip', max: 2, emptyText: t('members.noGroup') },
+      { key: 'signin', label: t('members.col.signin'), sortable: true, cell: 'chip',
+        icons: { 'Microsoft Entra': 'grid', LDAP: 'database', Local: 'lock', SCIM: 'refresh-cw' } },
+      { key: 'lastActive', label: t('members.col.lastActive'), sortable: true, cell: 'relative-time' },
+      { key: 'status', label: t('members.col.status'), sortable: true, cell: 'pill', dot: true,
+        tones: { [t('status.active')]: 'success', [t('status.invited')]: 'info',
+                 [t('status.inactive')]: 'neutral' } },
+      { key: 'actions', type: 'menu', label: t('members.col.actions'),
+        menuItems: [t('members.edit'), t('members.remove')] },
+    ]}
+    rows={members}
+    state={state}
+    labels={t('list.labels')}>
+    <if test={canEdit}>
+      <Fill slot="toolbar-end">
+        <ui-button id="app-members-enable" ui-style="outline" label={t('members.enable')} />
+        <ui-button id="app-members-add" ui-icon="user-plus" label={t('members.add')} />
+      </Fill>
+    </if>
+  </Kit.ManagementList>
+</App.SettingsPage>
+
+<if test={canEdit}>
+  <push to="body.overlays" key="app-members-add">
+    <Kit.FormDialog id="app-ws-invite-dialog" icon="user-plus" title={t('members.add')}
+                    description={t('members.add.note')} submit={t('members.add')} cancel={t('common.cancel')}>
+      <Kit.FieldGroup label={t('members.add.login')}>
+        <ui-input name="login" placeholder={t('members.add.placeholder')} />
+      </Kit.FieldGroup>
+    </Kit.FormDialog>
+  </push>
+</if>
+<push to="body.scripts" key="app-members"><script type="module" src={asset('js/settings-page.js')} /></push>

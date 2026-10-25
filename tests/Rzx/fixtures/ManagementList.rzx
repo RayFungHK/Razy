@@ -1,0 +1,38 @@
+<props>
+return [
+    'label'      => Prop::string()->required(),                 // accessible name of the list
+    'columns'    => Prop::list(Prop::map())->required(),        // column specs (cell kinds)
+    'rows'       => Prop::list(Prop::map())->default([]),       // first page, server-rendered
+    'segments'   => Prop::list(Prop::shape(['value' => Prop::string(), 'label' => Prop::string(),
+                       'filter' => Prop::map()->optional(), 'count' => Prop::int()->optional()]))->default([]),
+    'segment'    => Prop::string()->optional(),
+    'searchKeys' => Prop::list(Prop::string())->default([]),
+    'pageSize'   => Prop::int()->default(10),
+    'pageSizes'  => Prop::list(Prop::int())->default([10, 20, 50, 100]),
+    'selectable' => Prop::bool()->default(true),
+    'state'      => Prop::enum('ready', 'loading', 'error')->default('ready'),
+    'error'      => Prop::string()->optional(),
+    'labels'     => Prop::map()->required(),                    // labels keys: search, show, perPage, …
+];
+</props>
+<ui-data-table
+  aria-label={label}
+  ui-frame="card"
+  ui-features={selectable ? 'selection,sort,pagination,filter' : 'sort,pagination,filter'}
+  ui-filter-key={join(searchKeys, ',')}
+  ui-pager="numbered"
+  ui-page-size={pageSize}
+  ui-page-sizes={join(pageSizes, ',')}
+  ui-sticky-columns={selectable ? 'select,first' : 'first'}
+  ui-search-phone="none"
+  ui-segments={segments}
+  ui-segment={segment}
+  ui-columns={columns}
+  ui-rows={rows}
+  ui-loading={state == 'loading'}
+  ui-error={state == 'error' ? error : null}
+  ui-labels={labels}
+  motion="rise">
+  <Slot name="toolbar-start" accepts="ui-segmented,ui-input" max="1" />
+  <Slot name="toolbar-end" accepts="ui-button" max="3" />
+</ui-data-table>
