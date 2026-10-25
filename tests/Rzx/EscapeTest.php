@@ -59,4 +59,15 @@ class EscapeTest extends TestCase
         $this->assertSame(' d', Escape::attribute('d', true));
         $this->assertSame("\xEF\xBF\xBD", Escape::text("\xC3"), 'invalid UTF-8 is substituted, not passed through');
     }
+
+    public function testDecodeReadsReferencesLikeABrowser(): void
+    {
+        $this->assertSame('href', Escape::decode('&#104;ref'));
+        $this->assertSame('href', Escape::decode('&#104ref'), 'numeric reference without ;');
+        $this->assertSame('href', Escape::decode('&#x68;ref'));
+        $this->assertSame('href', Escape::decode('&#X68ref'));
+        $this->assertSame('java:x', Escape::decode('java&colon;x'));
+        $this->assertSame('a&b <', Escape::decode('a&amp;b &lt;'));
+        $this->assertSame('&unknown;', Escape::decode('&unknown;'));
+    }
 }

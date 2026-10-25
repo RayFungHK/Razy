@@ -154,6 +154,19 @@ final class Escape
         return \implode(', ', $candidates);
     }
 
+    /**
+     * Decode character references the way a browser does in an attribute
+     * value: numeric references with or without the closing `;` (`&#104ref`
+     * reads `href`), then named references. Checks on literal attribute
+     * values run on this, never on the raw text.
+     */
+    public static function decode(string $value): string
+    {
+        $value = \preg_replace('/&#(x[0-9a-f]++|[0-9]++)(?!;)/i', '&#$1;', $value) ?? $value;
+
+        return \html_entity_decode($value, \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+    }
+
     public static function isSafeSrcset(string $value): bool
     {
         $unsafe = false;

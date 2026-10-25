@@ -54,6 +54,17 @@ final class CodeGen
     /** SVG elements that animate attributes of another element (names as the HTML parser lowercases them). */
     private const SVG_ANIMATION = ['animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'discard'];
 
+    /** What an SVG animation may target: presentational attributes only. */
+    private const ANIMATABLE = [
+        'opacity', 'fill-opacity', 'stroke-opacity', 'transform', 'fill', 'stroke', 'color', 'visibility', 'display',
+        'x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'width', 'height', 'r', 'rx', 'ry', 'cx', 'cy',
+        'd', 'points', 'offset', 'stop-color', 'stop-opacity', 'font-size', 'letter-spacing', 'rotate',
+        'pathLength', 'startOffset', 'viewBox', 'stdDeviation',
+    ];
+
+    /** `<meta http-equiv>` values other than refresh that may appear. */
+    private const PRAGMAS = ['content-type', 'content-language', 'default-style', 'x-ua-compatible'];
+
     public readonly Writer $out;
 
     public readonly ExprGen $expr;
@@ -213,10 +224,11 @@ final class CodeGen
     }
 
     /**
-     * SVG animation elements can write any attribute of their target, `href`
+     * SVG animation elements can write any attribute of their target, links
      * included (`<set attributeName="href" to="javascript:…">`), which no
-     * per-attribute escaping sees. So their target and values must be
-     * literals, and animating a link is rejected outright.
+     * per-attribute escaping sees. So their target and values are literals,
+     * and the target (entity-decoded) must be a presentational attribute on
+     * an allowlist; anything else, `href`, `on*` or an odd spelling, is RZX138.
      */
     private function animation(ElementNode $node): void
     {
@@ -229,39 +241,64 @@ final class CodeGen
             if (\in_array($name, ['attributename', 'to', 'from', 'values', 'by', 'href', 'xlink:href'], true) && $attr->expr !== null) {
                 throw $this->error('RZX138', '<' . $node->tag . '> ' . $attr->name . ' must be a literal; an animation can rewrite any attribute of its target', $attr->offset);
             }
-            if ($name === 'attributename' && \in_array(\strtolower(\trim((string) $attr->literal)), ['href', 'xlink:href', 'src', 'action', 'formaction'], true)) {
-                throw $this->error('RZX138', '<' . $node->tag . '> cannot animate ' . $attr->literal . ' (it would bypass URL checks)', $attr->offset);
+            if ($name === 'attributename') {
+                $target = \trim(Escape::decode((string) $attr->literal));
+                if (!\in_array($target, self::ANIMATABLE, true) && !\preg_match('/^stroke-[a-z]+(?:-[a-z]+)?$/', $target)) {
+                    throw $this->error('RZX138', '<' . $node->tag . '> cannot animate "' . $target . '"; only presentational attributes (opacity, transform, fill, stroke-*, x, y, …) can be animated', $attr->offset);
+                }
             }
         }
     }
 
     /**
      * Elements whose value redirects the page or re-bases every relative URL
-     * take literals only: `<meta http-equiv="refresh" content="0;url=…">` and
-     * `<base href>`. A per-attribute URL check cannot make a dynamic value safe
-     * there (an https base still hijacks every relative link).
+     * take literals only: `<base>` and a pragma `<meta http-equiv>`. A refresh
+     * must be exactly `<seconds>[;|, [url=]<url>]` with a safe URL; other
+     * pragmas come from an allowlist.
      */
     private function navigation(ElementNode $node): void
     {
         if ($node->tag !== 'base' && $node->tag !== 'meta') {
             return;
         }
-        $pragma = \in_array('http-equiv', \array_map(static fn ($a): string => \strtolower($a->name), $node->attributes), true);
+        $pragma = null;
+        $content = null;
+        foreach ($node->attributes as $attr) {
+            $name = \strtolower($attr->name);
+            if ($name === 'http-equiv') {
+                $pragma = $attr;
+            } elseif ($name === 'content') {
+                $content = $attr;
+            }
+        }
         foreach ($node->attributes as $attr) {
             $name = \strtolower($attr->name);
             // <meta name="csrf-token" content={token}> stays allowed: only a pragma's content can redirect.
-            if ($attr->expr !== null && ($node->tag === 'base' || $name === 'http-equiv' || ($name === 'content' && $pragma))) {
+            if ($attr->expr !== null && ($node->tag === 'base' || $name === 'http-equiv' || ($name === 'content' && $pragma !== null))) {
                 throw $this->error('RZX139', '<' . $node->tag . '> ' . $attr->name . ' must be a literal (it can redirect the page or re-base its links)', $attr->offset);
             }
-            if ($node->tag === 'meta' && $name === 'http-equiv' && \strtolower(\trim((string) $attr->literal)) === 'refresh') {
-                foreach ($node->attributes as $content) {
-                    if (\strtolower($content->name) === 'content' && $content->literal !== null
-                        && \preg_match('/url\s*=\s*[\'"]?\s*([^\'";]*)/i', \html_entity_decode($content->literal, \ENT_QUOTES | \ENT_HTML5, 'UTF-8'), $m)
-                        && !Escape::isSafeUrl($m[1])) {
-                        throw $this->error('RZX134', 'Unsafe URL in a meta refresh', $content->offset);
-                    }
-                }
+        }
+        if ($pragma === null) {
+            return;
+        }
+        $kind = \strtolower(\trim(Escape::decode((string) $pragma->literal)));
+        if ($kind !== 'refresh') {
+            if (!\in_array($kind, self::PRAGMAS, true)) {
+                throw $this->error('RZX139', '<meta http-equiv="' . $kind . '"> is not allowed (allowed: refresh, ' . \implode(', ', self::PRAGMAS) . ')', $pragma->offset);
             }
+
+            return;
+        }
+        $value = Escape::decode((string) $content?->literal);
+        if (!\preg_match('/^\s*\d+(?:\.\d*)?\s*(?:[;,]\s*(?:url\s*=\s*)?(.*?))?\s*$/is', $value, $m)) {
+            throw $this->error('RZX134', 'A meta refresh must be "<seconds>" or "<seconds>; url=<url>"', ($content ?? $pragma)->offset);
+        }
+        $url = \trim($m[1] ?? '');
+        if (\strlen($url) >= 2 && ($url[0] === "'" || $url[0] === '"') && \str_ends_with($url, $url[0])) {
+            $url = \substr($url, 1, -1);
+        }
+        if ($url !== '' && (\preg_match('/\s/', $url) || !Escape::isSafeUrl($url))) {
+            throw $this->error('RZX134', 'Unsafe URL in a meta refresh', ($content ?? $pragma)->offset);
         }
     }
 
@@ -286,7 +323,7 @@ final class CodeGen
             if ($attr->isBoolean()) {
                 $this->out->html(' ' . $name);
             } elseif ($attr->literal !== null) {
-                $decoded = \html_entity_decode($attr->literal, \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+                $decoded = Escape::decode($attr->literal);
                 $unsafe = \in_array($lower, Escape::URL_ATTRIBUTES, true) ? !Escape::isSafeUrl($decoded)
                     : (\in_array($lower, Escape::SRCSET_ATTRIBUTES, true) && !Escape::isSafeSrcset($decoded));
                 if ($unsafe) {

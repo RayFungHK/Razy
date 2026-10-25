@@ -36,14 +36,31 @@ class SecurityReviewTest extends TestCase
      */
     public static function svgAnimation(): iterable
     {
-        yield 'set href' => ['<svg><a><set attributeName="href" to="javascript:alert(1)" /></a></svg>', 'cannot animate href'];
-        yield 'animate xlink:href' => ['<svg><a><animate attributeName="xlink:href" values="javascript:x" /></a></svg>', 'cannot animate xlink:href'];
-        yield 'case and spaces' => ['<svg><a><set attributeName=" HREF " to="#" /></a></svg>', 'cannot animate'];
+        yield 'set href' => ['<svg><a><set attributeName="href" to="javascript:alert(1)" /></a></svg>', 'cannot animate "href"'];
+        yield 'animate xlink:href' => ['<svg><a><animate attributeName="xlink:href" values="javascript:x" /></a></svg>', 'cannot animate "xlink:href"'];
+        yield 'case and spaces' => ['<svg><a><set attributeName=" HREF " to="#" /></a></svg>', 'cannot animate "HREF"'];
         yield 'dynamic target' => ['<svg><animate attributeName={v} to="1" /></svg>', 'attributeName must be a literal'];
         yield 'dynamic to' => ['<svg><animate attributeName="opacity" to={v} /></svg>', 'to must be a literal'];
         yield 'dynamic values' => ['<svg><animatemotion values={v} /></svg>', 'values must be a literal'];
         yield 'dynamic from' => ['<svg><set attributeName="fill" from={v} /></svg>', 'from must be a literal'];
         yield 'dynamic by' => ['<svg><animatetransform attributeName="transform" by={v} /></svg>', 'by must be a literal'];
+        // Grok bypass hunt on f9ff9cb: entity-encoded and odd targets
+        yield 'hunt: decimal entity href' => ['<svg><a><set attributeName="&#104;ref" to="javascript:\'SVGCLICK\'" begin="0s" fill="freeze"></set><rect width="400" height="200"/></a></svg>', 'cannot animate "href"'];
+        yield 'hunt: hex entity href' => ['<svg><a><set attributeName="&#x68;ref" to="javascript:\'PWN-HEX\'" /></a></svg>', 'cannot animate "href"'];
+        yield 'hunt: entity href via values' => ['<svg><a><animate attributeName="&#104;ref" values="#;javascript:\'PWN-VALUES\'" dur="0.05s" fill="freeze" /></a></svg>', 'cannot animate "href"'];
+        yield 'entity without semicolon' => ['<svg><a><set attributeName="&#104ref" to="javascript:x" /></a></svg>', 'cannot animate "href"'];
+        yield 'hunt: entity colon xlink' => ['<svg><a><set attributeName="xlink&#58;href" to="javascript:x" /></a></svg>', 'cannot animate "xlink:href"'];
+        yield 'hunt: xlink:href:x' => ['<svg><a><set attributeName="xlink:href:x" to="javascript:x" /></a></svg>', 'cannot animate'];
+        yield 'hunt: href:x' => ['<svg><a><set attributeName="href:x" to="javascript:x" /></a></svg>', 'cannot animate'];
+        yield 'hunt: clark notation' => ['<svg><a><set attributeName="{http://www.w3.org/1999/xlink}href" to="javascript:x" /></a></svg>', 'cannot animate'];
+        yield 'hunt: onclick' => ['<svg><set attributeName="onclick" to="alert(1)" /></svg>', 'cannot animate "onclick"'];
+        yield 'hunt: onload' => ['<svg><set attributeName="onload" to="alert(1)" /></svg>', 'cannot animate "onload"'];
+        yield 'hunt: entity action' => ['<svg><set attributeName="&#97;ction" to="javascript:x" /></svg>', 'cannot animate "action"'];
+        yield 'hunt: entity formaction' => ['<svg><set attributeName="&#102;ormaction" to="javascript:x" /></svg>', 'cannot animate "formaction"'];
+        yield 'hunt: poster' => ['<svg><set attributeName="poster" to="javascript:x" /></svg>', 'cannot animate "poster"'];
+        yield 'hunt: background' => ['<svg><set attributeName="background" to="javascript:x" /></svg>', 'cannot animate "background"'];
+        yield 'src' => ['<svg><set attributeName="src" to="javascript:x" /></svg>', 'cannot animate "src"'];
+        yield 'style' => ['<svg><set attributeName="style" to="x" /></svg>', 'cannot animate "style"'];
     }
 
     /**
@@ -57,6 +74,17 @@ class SecurityReviewTest extends TestCase
         yield 'dynamic http-equiv' => ['<html><head><meta http-equiv={v} content="0" /></head></html>', 'RZX139'];
         yield 'literal javascript refresh' => ['<html><head><meta http-equiv="Refresh" content="0; URL=\'javascript:alert(1)\'" /></head></html>', 'RZX134'];
         yield 'entity refresh' => ['<html><head><meta http-equiv="refresh" content="0;url=javascript&#58;x" /></head></html>', 'RZX134'];
+        // Grok bypass hunt on f9ff9cb: refresh without url=, other separators, encoded pragma
+        yield 'hunt: no url= javascript' => ['<head><meta http-equiv="refresh" content="0;javascript:alert(1)" /></head>', 'RZX134'];
+        yield 'hunt: no url= data' => ['<head><meta http-equiv="refresh" content="0;data:text/html,<script>alert(1)</script>" /></head>', 'RZX134'];
+        yield 'hunt: comma data' => ['<head><meta http-equiv="refresh" content="0,data:text/html,x" /></head>', 'RZX134'];
+        yield 'hunt: space data' => ['<head><meta http-equiv="refresh" content="0 data:text/html,x" /></head>', 'RZX134'];
+        yield 'hunt: entity pragma javascript' => ['<head><meta http-equiv="&#114;efresh" content="0;url=javascript:x" /></head>', 'RZX134'];
+        yield 'hunt: entity pragma data' => ['<head><meta http-equiv="re&#102;resh" content="0;url=data:text/html,x" /></head>', 'RZX134'];
+        yield 'extra token' => ['<head><meta http-equiv="refresh" content="0;url=/a b" /></head>', 'RZX134'];
+        yield 'no seconds' => ['<head><meta http-equiv="refresh" content="url=/a" /></head>', 'RZX134'];
+        yield 'unknown pragma' => ['<head><meta http-equiv="set-cookie" content="a=b" /></head>', 'RZX139'];
+        yield 'encoded unknown pragma' => ['<head><meta http-equiv="&#115;et-cookie" content="a=b" /></head>', 'RZX139'];
     }
 
     #[DataProvider('svgAnimation')]
@@ -73,6 +101,9 @@ class SecurityReviewTest extends TestCase
 
     public function testLiteralSvgAnimationStillWorks(): void
     {
+        foreach (['opacity', 'transform', 'stroke-width', 'stroke-dashoffset', 'cx', 'd', 'stop-color', 'viewBox'] as $target) {
+            $this->assertStringContainsString('attributeName="' . $target . '"', $this->render('<svg><set attributeName="' . $target . '" to="1" /></svg>'));
+        }
         $html = $this->render('<svg><circle r="4"><animate attributeName="opacity" values="0;1" dur="1s" /></circle></svg>');
         $this->assertSame('<svg><circle r="4"><animate attributeName="opacity" values="0;1" dur="1s"></animate></circle></svg>', $html);
     }
@@ -238,6 +269,10 @@ class SecurityReviewTest extends TestCase
     public function testLiteralNavigationAndOtherUrlSinks(): void
     {
         $this->assertSame('<head><meta name="csrf-token" content="t&lt;"></head>', $this->render(self::P . '<head><meta name="csrf-token" content={v} /></head>', ['v' => 't<']), 'a named meta may take a value');
+        foreach (['5', '5, /x', "0; URL='https://a.test/'", '0;url=/next', ' 1.5 ; url = page.html '] as $refresh) {
+            $this->assertStringContainsString('content="', $this->render('<head><meta http-equiv="refresh" content="' . $refresh . '" /></head>'));
+        }
+        $this->assertStringContainsString('charset=utf-8', $this->render('<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head>'));
         $this->assertStringContainsString('<base href="/app/"><meta http-equiv="refresh" content="30;url=/next"><meta name="x" content="y">', $this->render('<html><head><base href="/app/" /><meta http-equiv="refresh" content="30;url=/next" /><meta name="x" content="y" /></head></html>'));
         $html = $this->render(self::P . '<div><svg><use href={v} /><image xlink:href={v} /><feimage href={v} /></svg><math><mi href={v}>x</mi></math><object data={v} classid={v}></object><embed src={v} /><iframe src={v}></iframe><a ping={v}>p</a><video poster={v}></video><img lowsrc={v} /></div>', ['v' => 'javascript:alert(1)']);
         $this->assertStringNotContainsString('javascript', $html);
