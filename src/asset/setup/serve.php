@@ -9,7 +9,8 @@
  *   - Data directory mapping (realpath-guarded; bytes only, never executed)
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
- *     under this server; RZ-09) with hashed-URL cache headers
+ *     under this server; RZ-09) with hashed-URL cache headers.
+ *     Under php -S that request runs through PHP, not a C-level static send.
  *   - No passthrough of other real files. Returning false here makes php -S
  *     download the document root and execute every other .php (RZ-24).
  *   - FQDN simulation (overrides SERVER_NAME for --dist mode)

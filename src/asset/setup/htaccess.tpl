@@ -41,10 +41,10 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     <!-- START BLOCK: fallback -->
     # RZ-24: an existing file is not a reason to skip the front controller.
     # The old exists-checks and filename exemptions made Apache serve or
-    # execute the checkout. index.php stays out (rewrite loop). robots.txt
-    # stays out (public file; a missing one is Apache's own 404).
+    # execute the checkout. index.php stays out (rewrite loop). A docroot
+    # crawler file is the front controller, same as php -S and Caddy.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteCond $1 !^(index\.php|robots\.txt)$
+    RewriteCond $1 !^(index\.php)$
     RewriteRule ^{$route_path}(.*)$ %{ENV:BASE}index.php [L]
     <!-- END BLOCK: fallback -->
 <!-- END BLOCK: rewrite -->

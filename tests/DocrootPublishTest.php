@@ -42,6 +42,7 @@ PHP);
         \file_put_contents($docroot . '/sites/dist.php', "<?php echo 'DISTEXECUTED';\n");
         \file_put_contents($docroot . '/Razy.phar', "PHARBYTES\n");
         \file_put_contents($docroot . '/view.tpl', "TPLBYTES\n");
+        \file_put_contents($docroot . '/robots.txt', "ROBOTBYTES\n");
         \file_put_contents($docroot . '/data/ok.txt', "DATABYTES\n");
         \file_put_contents($docroot . '/data/note.php', "<?php echo 'DATAEXEC';\n");
         \file_put_contents($docroot . '/webassets/mod/default/app.js', "JSBYTES\n");
@@ -112,6 +113,7 @@ PHP);
             '/sites/dist.php' => 'DISTEXECUTED',
             '/Razy.phar' => 'PHARBYTES',
             '/view.tpl' => 'TPLBYTES',
+            '/robots.txt' => 'ROBOTBYTES',
             '/webassets/mod/default/app.js' => 'JSBYTES',
         ] as $path => $secret) {
             [$status, $body] = $this->fetch($path);
@@ -173,6 +175,7 @@ PHP);
                 $this->assertStringNotContainsString("\tphp_server\n", $content);
                 $this->assertStringNotContainsString('php_server @', $content);
                 $this->assertStringNotContainsString('php_server {', $content);
+                $this->assertStringNotContainsString('robots.txt', $content);
             }
             $scoped = (string) \file_get_contents($worker);
             $this->assertStringContainsString('handle @php_claimed {', $scoped);
@@ -196,7 +199,8 @@ PHP);
         $this->assertStringNotContainsString('!-f', $fallback);
         $this->assertStringNotContainsString('!-d', $fallback);
         $this->assertStringNotContainsString('!-l', $fallback);
-        $this->assertStringContainsString('RewriteCond $1 !^(index\.php|robots\.txt)$', $fallback);
+        $this->assertStringContainsString('RewriteCond $1 !^(index\.php)$', $fallback);
+        $this->assertStringNotContainsString('robots.txt', $fallback);
         foreach (['sites', 'system', 'shared', 'plugins', 'asset', 'config.inc.php', 'repository.inc.php', 'sites.inc.php'] as $name) {
             $this->assertStringNotContainsString($name, $fallback, $name . ' must not be left for Apache to serve');
         }
@@ -210,7 +214,12 @@ PHP);
         $ctx = \stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 3]]);
         $body = \file_get_contents(self::$base . $path, false, $ctx);
         $status = 0;
-        if (isset($http_response_header[0]) && \preg_match('/\s(\d{3})\s/', (string) $http_response_header[0], $m)) {
+        // $http_response_header is deprecated in PHP 8.5. The function exists
+        // since 8.4 (see PackageRunner); 8.2 and 8.3 keep the variable.
+        $headers = \function_exists('http_get_last_response_headers')
+            ? (\http_get_last_response_headers() ?? [])
+            : ($http_response_header ?: []);
+        if (isset($headers[0]) && \preg_match('/\s(\d{3})\s/', (string) $headers[0], $m)) {
             $status = (int) $m[1];
         }
 

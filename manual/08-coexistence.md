@@ -30,8 +30,9 @@ Two independent claims happen on every request, and both must be considered:
 sends the request to `index.php` even when the path is a real file. RZ-24 removed the
 `!-f`/`!-d`/`!-l` skips and the denylist entries for `sites`, `system`, the config
 includes and the rest: those skips were how Apache served or executed the checkout.
-Left out of the rewrite: `index.php` (a loop) and `robots.txt` (a public file; if it
-is missing, Apache 404s). A sibling reached via `ProxyPass`/alias still is not a file
+Left out of the rewrite: `index.php` only (a loop). `robots.txt` is not special:
+Apache, `php -S`, and the generated Caddy claim all send it to the front controller.
+A sibling reached via `ProxyPass`/alias still is not a file
 under the docroot, so it lands on `index.php` unless `exclude_paths` stops the rule.
 The Caddy/FrankenPHP claim is a `handle` that rewrites to `/index.php` and runs `php`
 (a `worker` block only in worker mode). It does not use `php_server`: that directive's
@@ -54,8 +55,8 @@ The two claims decompose into the dossier's failure modes; the two you must know
 - **FM-1 (the theft).** Root-mounted distributor + `fallback => true`
   (`Distributor.php:70,:123`) ⇒ the request becomes a Razy request. Since RZ-24 that
   includes a path that names a real file under the docroot (the old `!-f` skip was
-  the publish hole). Webasset and data mappings, and Apache `robots.txt`, are the
-  exceptions handled before the fallback. Details of the original theft:
+  the publish hole). Webasset and data mappings are the exceptions handled before
+  the fallback. `robots.txt` is not one of them. Details of the original theft:
   `architecture/ROUTE-COEXISTENCE.md` §2 FM-1.
 - **FM-2 (the amplification).** Once stolen, the foreign path can be answered `200` by
   the *wrong app* — a module-root lazy route (`/shop/`) swallows `/shop/reports/x`
@@ -191,7 +192,8 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
   `/anything/shared/...`).
 - **It does not touch PHP routing.** FM-2 inside PHP is untouched — the point is that
   excluded requests no longer reach PHP at all on correctly generated files.
-- **The fallback denylist is `index.php` and `robots.txt` only** (RZ-24). The old
+- **The fallback leaves out `index.php` only** (RZ-24, a rewrite loop). `robots.txt`
+  goes to the front controller on Apache, php -S, and generated Caddy. The old
   `^asset` exemption (`/asset-foo` skipping the rewrite) is gone. Do not build
   coexistence on leftover names; declare prefixes.
 - Probes: under Caddy, scoped hosts get a dedicated `/_razy/health` handle (Phase 2 —

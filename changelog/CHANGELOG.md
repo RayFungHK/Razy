@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
-- **RZ-24** — the document root is not a public file tree (`serve.php`, generated Caddy, the Apache `!-f` fallback). [changelog/unreleased/RZ-24.md](changelog/unreleased/RZ-24.md).
+- **RZ-24** — **Changed (breaking, security):** the document root is not a public file tree (`favicon.ico`, `robots.txt`, `sitemap.xml`, and other docroot files now hit the front controller on Apache, `php -S`, and generated Caddy). [changelog/unreleased/RZ-24.md](changelog/unreleased/RZ-24.md).
 
 ## [v1.2.1](changelog/v1.2.1.md) — 2026-09-19
 
