@@ -203,11 +203,12 @@ dots are backslash-escaped for the Apache condition (`ExcludePaths::apachePatter
 - **Data files are bytes, and active types do not render (RZ-25).** The data
   mapping's `.php` / `.phtml` / `.phar` rule matches an extension followed
   by `/` or the end, and uses `[H=default-handler]` (`SetHandler none` and
-  `RemoveHandler` for the whole mapping, not only a URL that ends in the
-  extension) so Apache does not run a script under `data/`, including
-  `/data/note.php/extra`. `html`, `htm`, `svg`, `xml`, `xhtml`, `js` and
-  `mjs` are attachments with `Content-Security-Policy: sandbox` and
-  `nosniff`. The generated Caddy data handle and `php Razy.phar serve`
+  `RemoveHandler` for a file path under the mapping, not the `/data/`
+  directory URL and not only a URL that ends in the extension) so Apache
+  does not run a script under `data/`, including `/data/note.php/extra`.
+  `html`, `htm`, `svg`, `xml`, `xhtml`, `js` and `mjs` are attachments
+  with `Content-Security-Policy: sandbox` and `nosniff`. The marker and
+  the publish rule use the same case match. The generated Caddy data handle and `php Razy.phar serve`
   send the same headers, and that PATH_INFO URL is the file's bytes or
   404. `php -S` also quarantines a renamed file when libmagic reports
   `text/html` or `image/svg+xml`. There is no switch to serve those types

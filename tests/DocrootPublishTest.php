@@ -480,10 +480,15 @@ PHP);
 
     private function assertCompiledApacheDataMapping(string $apache, string $routePath): void
     {
-        $scope = 'RewriteRule ^' . $routePath . 'data/ - [H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]';
+        $scope = 'RewriteRule ^' . $routePath . 'data/.+ - [NC,H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]';
         $this->assertStringContainsString($scope, $apache);
         $scopePos = \strpos($apache, $scope);
         $this->assertNotFalse($scopePos);
+        $this->assertDoesNotMatchRegularExpression(
+            '/RewriteRule \^' . \preg_quote($routePath, '/') . 'data\/ - \[/',
+            $apache,
+            'the /data/ directory URL must not disable PHP on the front controller',
+        );
         $script = 'RewriteRule ^' . $routePath . 'data/(.+?\.(php|phtml|phar))(/|$) %{ENV:BASE}data/';
         $this->assertStringContainsString($script, $apache);
         $rulePos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+?\.(php|phtml|phar))(/|$)');
@@ -497,6 +502,7 @@ PHP);
         $generalPos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+)$');
         $this->assertNotFalse($generalPos);
         $this->assertLessThan($generalPos, $rulePos, 'script rule must win before the general data rule');
+        $generalLine = \substr($apache, $generalPos, (int) \strpos($apache, "\n", $generalPos) - $generalPos);
         $ifPos = \strpos($apache, '<If "env(\'RAZY_DATA_DIR\') == \'1\' || env(\'REDIRECT_RAZY_DATA_DIR\') == \'1\'">', $scopePos);
         $this->assertNotFalse($ifPos);
         $this->assertLessThan($rulePos, $ifPos, 'SetHandler none covers the data prefix, not only a script URL');
@@ -504,12 +510,27 @@ PHP);
 
         $active = 'RewriteRule ^' . $routePath . 'data/.+\.(html|htm|svg|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
         $this->assertStringContainsString($active, $apache);
+        $activePos = (int) \strpos($apache, $active);
+        $activeLine = \substr($apache, $activePos, (int) \strpos($apache, "\n", $activePos) - $activePos);
+        $this->assertContains('NC', $this->rewriteFlags($activeLine), $activeLine);
+        $this->assertContains('NC', $this->rewriteFlags($generalLine), $generalLine);
+        $this->assertContains('END', $this->rewriteFlags($generalLine), $generalLine);
         foreach (['Content-Disposition "attachment"', 'Content-Security-Policy "sandbox"', 'X-Content-Type-Options "nosniff"'] as $header) {
             $this->assertStringContainsString('Header set ' . $header . ' env=RAZY_DATA_ACTIVE', $apache);
             $this->assertStringContainsString('Header set ' . $header . ' env=REDIRECT_RAZY_DATA_ACTIVE', $apache);
         }
         $this->assertStringContainsString('SetHandler none', $apache);
         $this->assertStringContainsString('RemoveHandler .php .phtml .phar', $apache);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rewriteFlags(string $line): array
+    {
+        $this->assertSame(1, \preg_match('/\[([^\]]+)\]/', $line, $m), $line);
+
+        return \array_map('trim', \explode(',', $m[1]));
     }
 
     private function removeTree(string $root): void

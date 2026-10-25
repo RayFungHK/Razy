@@ -36,17 +36,20 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteRule ^{$route_path}webassets/{$mapping}/(.+?)/(.+)$ {$dist_path} [END]
     <!-- END BLOCK: webassets -->
     <!-- START BLOCK: data_mapping -->
-    # RZ-25: nothing under this data mapping is PHP, including a URL that
-    # continues past the script (/data/note.php/extra). The prefix is the
-    # whole mapping, anchored at the mount, so /report/data/export.php is
-    # not included. [H=default-handler] forces the static handler (a
-    # <FilesMatch> in this file would also hit index.php). The <If>
-    # repeats SetHandler none / RemoveHandler when the env var is visible;
-    # [H] does not depend on that. The script rule stops at the extension
-    # (the first one), so the target is the file, not file.php/PATH_INFO.
-    # [T] sends the bytes. [END] stops the rewrite re-entry.
+    # RZ-25: a file under this data mapping is not PHP, including a URL
+    # that continues past the script (/data/note.php/extra). The pattern
+    # requires a path after data/, so the directory URL /data/ does not
+    # set the env and fall through to index.php with PHP disabled.
+    # Anchored at the mount, so /report/data/export.php is not included.
+    # [H=default-handler] forces the static handler (a <FilesMatch> in
+    # this file would also hit index.php). The <If> repeats SetHandler
+    # none / RemoveHandler when the env var is visible; [H] does not
+    # depend on that. The script rule stops at the extension (the first
+    # one), so the target is the file, not file.php/PATH_INFO. [T] sends
+    # the bytes. [END] stops the rewrite re-entry. [NC] matches the
+    # publish rule below: a case variant of the prefix is still this file.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteRule ^{$route_path}data/ - [H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]
+    RewriteRule ^{$route_path}data/.+ - [NC,H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]
     <If "env('RAZY_DATA_DIR') == '1' || env('REDIRECT_RAZY_DATA_DIR') == '1'">
         SetHandler none
         RemoveHandler .php .phtml .phar
@@ -54,13 +57,16 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
     RewriteRule ^{$route_path}data/(.+?\.(php|phtml|phar))(/|$) {$data_path} [NC,H=default-handler,T=application/octet-stream,END]
     # RZ-25: html, htm, svg, xml, xhtml, js and mjs download and stay
-    # sandboxed. The next rule publishes the file. An internal redirect
-    # renames the env var, so both names are set and both are checked.
+    # sandboxed. The next rule publishes the file, with the same [NC],
+    # so the headers cannot land on a request this rule matched and the
+    # publish rule missed. An internal redirect renames the env var, so
+    # both names are set and both are checked.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
     RewriteRule ^{$route_path}data/.+\.(html|htm|svg|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]
     # [END] (Apache 2.4+): same re-entry as the shared rule above.
+    # [NC] matches the active-type rule above.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteRule ^{$route_path}data/(.+)$ {$data_path} [END]
+    RewriteRule ^{$route_path}data/(.+)$ {$data_path} [NC,END]
     Header set Content-Disposition "attachment" env=RAZY_DATA_ACTIVE
     Header set Content-Disposition "attachment" env=REDIRECT_RAZY_DATA_ACTIVE
     Header set Content-Security-Policy "sandbox" env=RAZY_DATA_ACTIVE
