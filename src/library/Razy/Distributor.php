@@ -108,6 +108,9 @@ class Distributor implements DistributorInterface
     /** RZ-27: the site layout include spec, or null */
     private ?string $layout = null;
 
+    /** RZ-28: .rzx components (dist.php 'rzx'), built at boot */
+    private ?Rzx\Host $rzx = null;
+
     /** RZ-11: INCLUDE resolution (dist.php 'templates': @layout/ folder, strict includes) */
     private ?IncludeResolver $includeResolver = null;
 
@@ -246,6 +249,19 @@ class Distributor implements DistributorInterface
         // RZ-27: one layout per site. 'layout' => 'site' means @layout/site.tpl;
         // Controller::render() renders a page into it. Absent = no layout.
         $this->layout = self::layoutFromConfig($config, $distCode);
+
+        // RZ-28: .rzx components. Absent = dev mode; components compile on first use
+        // into DATA_FOLDER/compiled/rzx/<dist>. 'mode' => 'compiled' never compiles.
+        $this->rzx = Rzx\Host::fromConfig(
+            $config,
+            $distCode,
+            \defined('DATA_FOLDER') ? DATA_FOLDER : \sys_get_temp_dir(),
+            fn (): array => \array_values(\array_map(
+                static fn (Module $m): ModuleInfo => $m->getModuleInfo(),
+                \array_filter($this->registry->getModules(), static fn (Module $m): bool => \in_array($m->getStatus(), [ModuleStatus::InQueue, ModuleStatus::Loaded], true)),
+            )),
+            fn (): string => $this->getSiteURL(),
+        );
 
         // RZ-10: security headers on every response. Absent = a baseline that
         // never breaks a page (nosniff, referrer policy, same-origin framing);
@@ -1106,6 +1122,14 @@ class Distributor implements DistributorInterface
      *
      * @return Template
      */
+    /**
+     * RZ-28: this dist's `.rzx` setup (component namespaces, functions, cache).
+     */
+    public function rzx(): Rzx\Host
+    {
+        return $this->rzx ??= Rzx\Host::fromConfig([], $this->getCode(), \defined('DATA_FOLDER') ? DATA_FOLDER : \sys_get_temp_dir(), fn (): array => []);
+    }
+
     public function getGlobalTemplateEntity(): Template
     {
         if (!$this->globalTemplate) {
@@ -1194,6 +1218,9 @@ class Distributor implements DistributorInterface
         $this->getGlobalTemplateEntity()->assign('csp_nonce', $nonce);
         // RZ-27: anchors start empty with a new marker token on every request (worker mode)
         $this->getGlobalTemplateEntity()->anchors()->reset();
+        // RZ-28: this dist's .rzx host; dev freshness is checked again per request
+        Rzx\Host::setCurrent($this->rzx);
+        $this->rzx?->reset();
         if (RuntimeMode::isWeb()) {
             $this->securityHeaders->send();
         }

@@ -1037,6 +1037,14 @@ class Module implements ModuleInterface
     }
 
     /**
+     * RZ-28: the `.rzx` host of this module's dist (null for a standalone app).
+     */
+    public function getRzxHost(): ?Rzx\Host
+    {
+        return $this->distributor instanceof Distributor ? $this->distributor->rzx() : null;
+    }
+
+    /**
      * Get the module-level DI container. Falls back to the Distributor chain
      * (Application container) if no module container was created.
      *

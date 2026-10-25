@@ -50,6 +50,9 @@ final class CompileCache implements ComponentLoader
     /** The only file names load() includes: `<Name>.<hash16>.php` inside the cache directory. */
     private const ARTIFACT = '/^[A-Za-z0-9_]+\.[0-9a-f]{16}\.php$/';
 
+    /** Index key prefix for files loaded by path. */
+    private const FILE = 'file:';
+
     /** @var array<string, array<string, mixed>>|null */
     private ?array $index = null;
 
@@ -66,18 +69,27 @@ final class CompileCache implements ComponentLoader
 
     private readonly string $directory;
 
+    /** Fingerprint of everything outside a source that changes its compiled form. */
+    private readonly string $environment;
+
+    /** @var array<string, string|null> file path => profile, for files loaded by path */
+    private array $fileProfiles = [];
+
     public function __construct(
         private readonly ComponentResolver $resolver,
         string $directory,
-        private readonly FunctionRegistry $functions = new FunctionRegistry(),
+        FunctionRegistry $functions = new FunctionRegistry(),
         private readonly string $mode = 'dev',
+        ?Vocabulary $vocabulary = null,
     ) {
         if (!\in_array($mode, self::MODES, true)) {
             throw new InvalidArgumentException('rzx mode must be dev or compiled, got ' . $mode);
         }
         // One separator on every OS, so paths in index entries and messages are stable.
         $this->directory = \rtrim(\str_replace('\\', '/', $directory), '/');
-        $this->compiler = new Compiler($functions);
+        $vocabulary ??= Vocabulary::none();
+        $this->compiler = new Compiler($functions, $vocabulary);
+        $this->environment = \hash('sha256', $functions->signature() . "\0" . $vocabulary->signature());
     }
 
     /**
@@ -88,6 +100,18 @@ final class CompileCache implements ComponentLoader
         $value = $entry[$key] ?? '';
 
         return \is_string($value) ? $value : '';
+    }
+
+    /**
+     * Load a `.rzx` file by path: a screen or a layout, which is rendered
+     * directly rather than used by name. It may use any registered component.
+     */
+    public function loadFile(string $path, ?string $profile = null): Compiled
+    {
+        $path = \str_replace('\\', '/', $path);
+        $this->fileProfiles[$path] = $profile;
+
+        return $this->load(self::FILE . $path);
     }
 
     public function load(string $name): Compiled
@@ -136,6 +160,11 @@ final class CompileCache implements ComponentLoader
         return ComponentMeta::fromArray((array) ($this->ensure($name)['meta'] ?? []));
     }
 
+    private function profileOf(string $name, string $path): ?string
+    {
+        return \str_starts_with($name, self::FILE) ? ($this->fileProfiles[$path] ?? null) : $this->resolver->profile($name);
+    }
+
     /**
      * @return array<string, mixed> the fresh index entry
      */
@@ -144,10 +173,11 @@ final class CompileCache implements ComponentLoader
         if (isset($this->checked[$name])) {
             return $this->checked[$name];
         }
-        if (!Names::isComponent($name)) {
+        $isFile = \str_starts_with($name, self::FILE);
+        if (!$isFile && !Names::isComponent($name)) {
             throw new RenderError('Invalid .rzx component name: ' . $name);
         }
-        $path = $this->resolver->resolve($name);
+        $path = $isFile ? (\is_file(\substr($name, \strlen(self::FILE))) ? \substr($name, \strlen(self::FILE)) : null) : $this->resolver->resolve($name);
         if ($path === null) {
             throw new RenderError('Unknown .rzx component ' . $name);
         }
@@ -159,7 +189,7 @@ final class CompileCache implements ComponentLoader
 
             return $this->checked[$name] = $entry;
         }
-        if ($entry === null || !$this->isFresh($entry, $path)) {
+        if ($entry === null || !$this->isFresh($entry, $path) || ($entry['profile'] ?? null) !== $this->profileOf($name, $path)) {
             $entry = $this->compile($name, $path);
         }
 
@@ -172,7 +202,7 @@ final class CompileCache implements ComponentLoader
     private function isFresh(array $entry, string $path): bool
     {
         if (($entry['source'] ?? null) !== $path || ($entry['compiler'] ?? null) !== Compiler::VERSION
-            || ($entry['functions'] ?? null) !== $this->functions->signature() || !$this->artifactExists($entry)) {
+            || ($entry['environment'] ?? null) !== $this->environment || !$this->artifactExists($entry)) {
             return false;
         }
         if (!$this->sameContent($entry, $path)) {
@@ -198,7 +228,8 @@ final class CompileCache implements ComponentLoader
 
         try {
             $source = Source::fromFile($path);
-            [$doc, $meta] = $this->compiler->analyze($source, $name);
+            $isFile = \str_starts_with($name, self::FILE);
+            [$doc, $meta] = $this->compiler->analyze($source, $isFile ? \basename($path, '.rzx') : $name);
             $deps = [];
             $metaFor = function (string $child, int $offset) use ($name, $meta, $source, &$deps): ComponentMeta {
                 if ($child === $name) {
@@ -215,20 +246,22 @@ final class CompileCache implements ComponentLoader
 
                 return ComponentMeta::fromArray((array) ($entry['meta'] ?? []));
             };
-            $php = $this->compiler->generate($doc, $meta, $metaFor);
+            $profile = $this->profileOf($name, $path);
+            $php = $this->compiler->generate($doc, $meta, $metaFor, $profile);
         } finally {
             \array_pop($this->stack);
         }
         \ksort($deps);
         $sha = \hash('sha256', $source->text);
-        $hash = \hash('sha256', \implode("\0", [Compiler::VERSION, $sha, $this->functions->signature(), \json_encode($deps)]));
-        $file = \str_replace('.', '_', $name) . '.' . \substr($hash, 0, 16) . '.php';
+        $hash = \hash('sha256', \implode("\0", [Compiler::VERSION, $sha, $this->environment, $profile ?? '', \json_encode($deps)]));
+        $stem = $isFile ? 'file_' . \substr(\sha1($path), 0, 12) . '_' . (\preg_replace('/[^A-Za-z0-9_]/', '_', \basename($path, '.rzx')) ?? 'x') : \str_replace('.', '_', $name);
+        $file = $stem . '.' . \substr($hash, 0, 16) . '.php';
         $this->write($file, $php);
 
         $stat = @\stat($path) ?: ['mtime' => 0, 'size' => 0];
         $entry = [
             'source' => $path, 'mtime' => $stat['mtime'], 'size' => $stat['size'], 'sha' => $sha, 'hash' => $hash,
-            'file' => $file, 'deps' => $deps, 'compiler' => Compiler::VERSION, 'functions' => $this->functions->signature(),
+            'file' => $file, 'deps' => $deps, 'compiler' => Compiler::VERSION, 'environment' => $this->environment, 'profile' => $profile,
             'meta' => $meta->toArray(),
         ];
         $old = $this->updateIndex($name, $entry);

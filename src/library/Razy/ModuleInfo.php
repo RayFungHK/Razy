@@ -55,7 +55,7 @@ class ModuleInfo
     public const PACKAGE_KEYS = [
         'name', 'version', 'author', 'description', 'module_code',
         'alias', 'assets', 'prerequisite', 'api_name', 'shadow_asset',
-        'migration', 'require', 'services', 'metadata', 'provision',
+        'migration', 'require', 'services', 'metadata', 'provision', 'rzx',
     ];
 
     /** @var string Module display alias (defaults to class name) */
@@ -90,6 +90,9 @@ class ModuleInfo
 
     /** @var array<string, string> Required modules: module code => version constraint */
     private array $require = [];
+
+    /** @var array{namespace?: string, path?: string, vocabulary?: string, profile?: string} RZ-28: package.php 'rzx' */
+    private array $rzx = [];
 
     /** @var list<string> Raw top-level package.php keys (unknown-key audit, MODULE-LIFECYCLE.md L0) */
     private array $declaredPackageKeys = [];
@@ -278,6 +281,9 @@ class ModuleInfo
                 }
             }
 
+            // RZ-28: .rzx components this package provides (namespace, folder, vocabulary file, profile)
+            $this->rzx = self::rzxFromSettings($settings['rzx'] ?? null, $this->code);
+
             // Collect prerequisite package constraints (e.g., external dependencies)
             if (!\is_array($settings['prerequisite'] ??= [])) {
                 $settings['prerequisite'] = [];
@@ -368,6 +374,41 @@ class ModuleInfo
         } else {
             throw new ModuleConfigException("The module folder does not exist: '{$this->containerPath}'.");
         }
+    }
+
+    /**
+     * @return array{namespace?: string, path?: string, vocabulary?: string, profile?: string}
+     *
+     * @throws ModuleConfigException
+     */
+    private static function rzxFromSettings(mixed $value, string $code): array
+    {
+        if ($value === null) {
+            return [];
+        }
+        if (!\is_array($value)) {
+            throw new ModuleConfigException("package.php 'rzx' must be an array in module '{$code}'.");
+        }
+        $out = [];
+        foreach (['namespace', 'path', 'vocabulary', 'profile'] as $key) {
+            if (!isset($value[$key])) {
+                continue;
+            }
+            if (!\is_string($value[$key]) || '' === \trim($value[$key])) {
+                throw new ModuleConfigException("package.php 'rzx.{$key}' must be a non-empty string in module '{$code}'.");
+            }
+            $out[$key] = \trim($value[$key]);
+        }
+        foreach (['path', 'vocabulary'] as $key) {
+            if (isset($out[$key]) && (\str_contains($out[$key], '..') || \str_starts_with($out[$key], '/'))) {
+                throw new ModuleConfigException("package.php 'rzx.{$key}' must be a path inside the module in '{$code}'.");
+            }
+        }
+        if (isset($out['namespace']) && !Rzx\Names::isComponent($out['namespace'])) {
+            throw new ModuleConfigException("package.php 'rzx.namespace' must be PascalCase (e.g. 'Kit' or 'Acme.Ui') in module '{$code}'.");
+        }
+
+        return $out;
     }
 
     /**
@@ -593,6 +634,19 @@ class ModuleInfo
     public function getAssets(): array
     {
         return $this->assets;
+    }
+
+    /**
+     * RZ-28: the package.php 'rzx' declaration: `namespace` (components are
+     * `<Namespace.Name>`), `path` (folder of `.rzx` files, default `rzx`),
+     * `vocabulary` (a vocabulary JSON file) and `profile` (the Profile its
+     * components use). Empty when the package declares none.
+     *
+     * @return array{namespace?: string, path?: string, vocabulary?: string, profile?: string}
+     */
+    public function getRzx(): array
+    {
+        return $this->rzx;
     }
 
     /**

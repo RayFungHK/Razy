@@ -24,6 +24,10 @@
  *   php Razy.phar compile <dist> [tag]     Compile (or refresh) the artifact
  *   php Razy.phar compile <dist> --status  Artifact state vs current files
  *   php Razy.phar compile <dist> --clear   Remove artifact(s) (instant revert)
+ *   php Razy.phar compile <dist> --rzx     Compile only the .rzx components and screens (RZ-28)
+ *
+ * A normal compile also compiles the dist's .rzx components when it has any,
+ * and fails on any .rzx compile error.
  *
  * @license MIT
  */
@@ -60,6 +64,7 @@ return function () {
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> [tag]{@reset}   Compile (or refresh) the artifact', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> --status{@reset} Artifact state (read-only)', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> --clear{@reset}  Remove artifact(s) — instant revert', true);
+        $this->writeLineLogging('  {@c:cyan}php Razy.phar compile <dist> --rzx{@reset}    Compile only the .rzx components and screens', true);
         $this->writeLineLogging('  {@c:cyan}php Razy.phar compile --standalone=<path>[--clear]{@reset}  Same, for a standalone app folder', true);
         $this->writeLineLogging('', true);
         $this->writeLineLogging('  Opt-in per dist: dist.php \'compiled_boot\' => true (standalone: the artifact\'s presence is the opt-in).', true);
@@ -149,6 +154,33 @@ return function () {
         exit(0);
     }
 
+    // RZ-28: compile every .rzx component and screen ahead of time.
+    $rzxStep = function (Distributor $distributor): bool {
+        try {
+            $built = $distributor->rzx()->build();
+        } catch (Throwable $e) {
+            $this->writeLineLogging('{@c:red}[REFUSED]{@reset} .rzx: ' . $e->getMessage(), true);
+
+            return false;
+        }
+        if ($built !== []) {
+            $this->writeLineLogging('{@c:green}[compiled]{@reset} .rzx: ' . \count($built) . ' components and screens', true);
+        }
+
+        return true;
+    };
+
+    if (isset($options['rzx'])) {
+        try {
+            $distributor = new Distributor($distCode, $tag);
+            $distributor->initialize();
+        } catch (Throwable $e) {
+            $this->writeLineLogging("{@c:red}[REFUSED]{@reset} {$e->getMessage()}", true);
+            exit(1);
+        }
+        exit($rzxStep($distributor) ? 0 : 1);
+    }
+
     if (isset($options['status'])) {
         $artifact = BootCompiler::artifactPath($distCode, (string) $tag);
         if (!\is_file($artifact)) {
@@ -225,5 +257,8 @@ return function () {
     $this->writeLineLogging('  modules: ' . \count($dumpA['modules']) . '   routes: ' . \count($dumpA['routes']) . '   named: ' . \count($dumpA['named']), true);
     $this->writeLineLogging("  artifact: {$artifact} (" . \round(\filesize($artifact) / 1024, 1) . ' KiB)', true);
     $this->writeLineLogging("  opt-in door: dist.php 'compiled_boot' => true (fpm and worker both replay from here)", true);
+    if (!$rzxStep($distributor)) {
+        exit(1);
+    }
     exit(0);
 };

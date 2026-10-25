@@ -22,7 +22,9 @@ use Razy\Rzx\Expr\Call;
 use Razy\Rzx\Expr\Expr;
 use Razy\Rzx\Expr\Literal;
 use Razy\Rzx\Expr\MapLiteral;
+use Razy\Rzx\Names;
 use Razy\Rzx\Node\AnchorNode;
+use Razy\Rzx\Node\AttributeNode;
 use Razy\Rzx\Node\ComponentNode;
 use Razy\Rzx\Node\DocumentNode;
 use Razy\Rzx\Node\ElementNode;
@@ -37,6 +39,7 @@ use Razy\Rzx\Node\TextNode;
 use Razy\Rzx\Prop;
 use Razy\Rzx\Runtime\Escape;
 use Razy\Rzx\Source;
+use Razy\Rzx\Vocabulary;
 
 /**
  * Markup AST to the body of a PHP render closure.
@@ -72,6 +75,8 @@ final class CodeGen
 
     public readonly ExprGen $expr;
 
+    public readonly VocabularyCheck $vocabulary;
+
     private int $counter = 0;
 
     private int $pushDepth = 0;
@@ -81,10 +86,11 @@ final class CodeGen
     /**
      * @param Closure(string, int): ComponentMeta $metaFor resolves a used component's contract
      */
-    public function __construct(public readonly Source $source, Closure $metaFor)
+    public function __construct(public readonly Source $source, Closure $metaFor, ?VocabularyCheck $vocabulary = null)
     {
         $this->out = new Writer($source);
         $this->expr = new ExprGen($source);
+        $this->vocabulary = $vocabulary ?? new VocabularyCheck($source, Vocabulary::none(), null);
         $this->components = new ComponentCall($this, $metaFor);
     }
 
@@ -103,11 +109,13 @@ final class CodeGen
 
     /**
      * @param list<Node> $nodes
+     * @param string|null $mark PHP expression of a slot name: each direct child
+     *                          element gets the vocabulary's slot-marker attribute
      */
-    public function nodes(array $nodes): void
+    public function nodes(array $nodes, ?string $mark = null): void
     {
         foreach ($nodes as $node) {
-            $this->node($node);
+            $this->node($node, $mark);
         }
     }
 
@@ -129,15 +137,15 @@ final class CodeGen
         return new CompileError($code, $reason, $this->source, $offset);
     }
 
-    private function node(Node $node): void
+    private function node(Node $node, ?string $mark = null): void
     {
         match (true) {
             $node instanceof TextNode => $this->out->html($node->text),
             $node instanceof OutputNode => $this->output($node),
-            $node instanceof ElementNode => $this->element($node),
+            $node instanceof ElementNode => $this->element($node, $mark),
             $node instanceof ComponentNode => $this->components->generate($node),
-            $node instanceof IfNode => $this->ifNode($node),
-            $node instanceof ForNode => $this->forNode($node),
+            $node instanceof IfNode => $this->ifNode($node, $mark),
+            $node instanceof ForNode => $this->forNode($node, $mark),
             $node instanceof SlotNode => $this->slot($node),
             $node instanceof PushNode => $this->push($node),
             $node instanceof AnchorNode => $this->out->statement('echo $__rt->marker(' . \var_export($node->name, true) . ');', $node->offset),
@@ -165,7 +173,7 @@ final class CodeGen
         $this->out->statement('echo $__rt->text(' . $this->expr->compile($expr) . ');', $node->offset);
     }
 
-    private function element(ElementNode $node): void
+    private function element(ElementNode $node, ?string $mark = null): void
     {
         $tag = $node->tag;
         // Every tag-keyed check below compares lowercase names; the parser only
@@ -182,8 +190,13 @@ final class CodeGen
             return;
         }
         $this->animation($node);
+        $attributes = $this->vocabulary->attributes($node);
         $this->out->html('<' . $tag);
-        $this->attributes($node);
+        $this->attributes($node, $attributes);
+        $marker = $this->vocabulary->slotMarker();
+        if ($mark !== null && $marker !== null && !\in_array($marker, \array_column($attributes, 'name'), true)) {
+            $this->out->statement('echo $__rt->attr(' . \var_export($marker, true) . ', ' . $mark . ');', $node->offset);
+        }
         $this->out->html('>');
         if ($node->void) {
             return; // <br>, <br/>: no end tag
@@ -223,7 +236,7 @@ final class CodeGen
             $output = $body[0];
         }
         $this->out->html('<script');
-        $this->attributes($node);
+        $this->attributes($node, $this->vocabulary->attributes($node));
         $this->out->html('>');
         if ($output !== null) {
             $value = $output->expr;
@@ -340,9 +353,12 @@ final class CodeGen
         return true;
     }
 
-    private function attributes(ElementNode $node): void
+    /**
+     * @param list<AttributeNode> $attributes the element's attributes after vocabulary mapping
+     */
+    private function attributes(ElementNode $node, array $attributes): void
     {
-        foreach ($node->attributes as $attr) {
+        foreach ($attributes as $attr) {
             $name = $attr->name;
             $lower = \strtolower($name);
             if ($lower === 'style') {
@@ -391,15 +407,16 @@ final class CodeGen
         }
         $items = [];
         foreach ($map->entries as [$key, $value]) {
-            if (!$key instanceof Literal || !\is_string($key->value) || !\preg_match('/^--[a-z0-9]+(?:-[a-z0-9]+)*$/', $key->value)) {
+            if (!$key instanceof Literal || !\is_string($key->value) || !\str_starts_with($key->value, '--') || !Names::isElement(\substr($key->value, 2))) {
                 throw $this->error('RZX136', 'A hook name is a literal custom property, e.g. \'--card-gap\'', $key->offset);
             }
             $items[] = \var_export($key->value, true) . ' => ' . $this->expr->compile($value);
         }
+        $this->vocabulary->hooks($map->entries);
         $this->out->statement('echo $__rt->hooks([' . \implode(', ', $items) . ']);', $offset);
     }
 
-    private function ifNode(IfNode $node): void
+    private function ifNode(IfNode $node, ?string $mark = null): void
     {
         foreach ($node->branches as $i => [$test, $children]) {
             $condition = '$__rt->truthy(' . $this->expr->compile($test) . ')';
@@ -408,16 +425,16 @@ final class CodeGen
             } else {
                 $this->out->close('} elseif (' . $condition . ') {');
             }
-            $this->nodes($children);
+            $this->nodes($children, $mark);
         }
         if ($node->else !== null) {
             $this->out->close('} else {');
-            $this->nodes($node->else);
+            $this->nodes($node->else, $mark);
         }
         $this->out->close();
     }
 
-    private function forNode(ForNode $node): void
+    private function forNode(ForNode $node, ?string $mark = null): void
     {
         foreach (\array_filter([$node->as, $node->index]) as $name) {
             if ($this->expr->declared($name)) {
@@ -444,13 +461,13 @@ final class CodeGen
             $names[$node->index] = Prop::int();
         }
         $this->expr->push($names);
-        $this->nodes($node->children);
+        $this->nodes($node->children, $mark);
         $this->expr->pop();
         $this->out->statement('++$__c' . $id . ';', $node->offset);
         $this->out->close();
         if ($node->empty !== null) {
             $this->out->open('if ($__c' . $id . ' === 0) {', $node->offset);
-            $this->nodes($node->empty);
+            $this->nodes($node->empty, $mark);
             $this->out->close();
         }
     }

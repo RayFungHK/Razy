@@ -17,6 +17,7 @@ namespace Razy\Rzx;
 
 use Closure;
 use Razy\Rzx\Compile\CodeGen;
+use Razy\Rzx\Compile\VocabularyCheck;
 use Razy\Rzx\Node\ComponentNode;
 use Razy\Rzx\Node\DocumentNode;
 use Razy\Rzx\Node\ElementNode;
@@ -38,8 +39,11 @@ final class Compiler
 {
     public const VERSION = 'rzx-1';
 
-    public function __construct(private readonly FunctionRegistry $functions = new FunctionRegistry())
+    private readonly Vocabulary $vocabulary;
+
+    public function __construct(private readonly FunctionRegistry $functions = new FunctionRegistry(), ?Vocabulary $vocabulary = null)
     {
+        $this->vocabulary = $vocabulary ?? Vocabulary::none();
     }
 
     /**
@@ -113,10 +117,10 @@ final class Compiler
     /**
      * @param Closure(string, int): ComponentMeta $metaFor contract of a used component (throws CompileError)
      */
-    public function generate(DocumentNode $doc, ComponentMeta $meta, Closure $metaFor): string
+    public function generate(DocumentNode $doc, ComponentMeta $meta, Closure $metaFor, ?string $profile = null): string
     {
         $source = $doc->source;
-        $gen = new CodeGen($source, $metaFor);
+        $gen = new CodeGen($source, $metaFor, new VocabularyCheck($source, $this->vocabulary, $this->vocabulary->profile($profile)));
         $out = $gen->out;
         $out->raw('<?php');
         $out->raw('');

@@ -377,18 +377,43 @@ class Controller
      * the page or layout printed receive every {@push} from either. Without a
      * layout the page is printed alone, with its anchors resolved.
      *
+     * RZ-28: a `.rzx` screen renders the same way. `admin/Members` picks
+     * `view/admin/Members.rzx` when that file exists (`.rzx` may also be written
+     * out); $parameters are its props, checked against its `<props>` schema, and
+     * $layout holds the props of an `.rzx` site layout (a `.tpl` layout gets them
+     * assigned). A view must not exist as both `.tpl` and `.rzx`.
+     *
      * @param string $view A view path under this module's view/ folder, or `@layout/…`
-     * @param array<string, mixed> $parameters Values for the page template
+     * @param array<string, mixed> $parameters Values for the page template (props of a `.rzx` screen)
+     * @param array<string, mixed> $layout Props for the site layout
      *
      * @throws Throwable
      */
-    final public function render(string $view, array $parameters = []): void
+    final public function render(string $view, array $parameters = [], array $layout = []): void
     {
+        $screen = $this->rzxViewPath($view);
+        if (null !== $screen) {
+            $host = $this->module->getRzxHost() ?? throw new InvalidArgumentException('.rzx views need a dist (not available in a standalone app).');
+            echo $host->renderPage($this->getTemplate(), $this->getModuleInfo(), $screen, $parameters, $layout);
+
+            return;
+        }
         $page = $this->loadTemplate($view);
         if ($parameters) {
             $page->assign($parameters);
         }
         echo $this->getTemplate()->renderPage($page);
+    }
+
+    /**
+     * RZ-28: register an expression function for `.rzx` components (e.g. `t`
+     * for translations). Register while booting (`__onInit`), before anything
+     * renders: the function set is part of every component's cache hash.
+     */
+    final public function addRzxFunction(string $name, callable $function): void
+    {
+        $host = $this->module->getRzxHost() ?? throw new InvalidArgumentException('.rzx functions need a dist (not available in a standalone app).');
+        $host->functions()->register($name, $function);
     }
 
     /**
@@ -961,5 +986,29 @@ class Controller
             $result = \call_user_func_array($closure, $args);
         }
         return $result;
+    }
+
+    /**
+     * The `.rzx` file for a view, or null when the view is a `.tpl`.
+     *
+     * @throws InvalidArgumentException When the view exists as both
+     */
+    private function rzxViewPath(string $view): ?string
+    {
+        if (\str_starts_with($view, '@layout/')) {
+            return null;
+        }
+        $base = PathUtil::append($this->module->getModuleInfo()->getPath(), 'view', $view);
+        if (\str_ends_with($view, '.rzx')) {
+            return $base;
+        }
+        if (\preg_match('/[^.]+\..+/', \basename($view)) || !\is_file($base . '.rzx')) {
+            return null;
+        }
+        if (\is_file($base . '.tpl')) {
+            throw new InvalidArgumentException("The view '{$view}' exists as both .tpl and .rzx; keep one.");
+        }
+
+        return $base . '.rzx';
     }
 }
