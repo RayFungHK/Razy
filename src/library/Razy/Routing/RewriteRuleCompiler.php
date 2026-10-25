@@ -233,8 +233,8 @@ class RewriteRuleCompiler
      *
      * Script extensions are bytes via [H=default-handler] (RZ-25), not the
      * PHP handler, including a PATH_INFO tail. Active extensions
-     * (html, htm, svg, svgz, xml, xhtml, js, mjs) get attachment and
-     * sandbox headers.
+     * (HTML, XHTML, SVG, XML, and JavaScript, from the Apache and Go MIME
+     * tables) get attachment and sandbox headers.
      *
      * @param mixed $rewriteBlock The template rewrite block
      * @param Distributor $distributor The distributor instance

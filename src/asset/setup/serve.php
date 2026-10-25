@@ -7,8 +7,10 @@
  *
  * Handles:
  *   - Data directory mapping (realpath-guarded; bytes only, never executed).
- *     html, htm, svg, svgz, xml, xhtml, js, mjs, and anything libmagic calls
- *     text/html or image/svg+xml, download with a sandbox CSP (RZ-25).
+ *     Active extensions (Apache mime.types and Go's MIME table for HTML,
+ *     XHTML, SVG, XML, and JavaScript) download with a sandbox CSP (RZ-25).
+ *     libmagic does the same for a renamed upload: text/html, a /xml or
+ *     +xml type, or a JavaScript type, parameters stripped.
  *     /data/note.php/extra is that file's bytes, or 404. It is not PATH_INFO.
  *     /data/ and /data/sub/ are 404, including when index.html is there.
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
@@ -346,33 +348,204 @@ function serveScriptPath(string $relative): ?string
  * Whether a /data response must not render on the app origin (RZ-25).
  *
  * Browsers will execute these as a document or a script when they are
- * served inline. The extension list covers the usual names. libmagic
- * covers a renamed upload: text/html or image/svg+xml, parameters stripped.
+ * served inline. The extension list is the Apache and Go MIME class for
+ * those types. libmagic covers a renamed upload: text/html, a /xml or
+ * +xml type, or a JavaScript type, parameters stripped.
  */
 function serveIsActiveContent(string $path, string $contentType): bool
 {
     static $extensions = [
-        'html' => true,
+        '1km' => true,
+        'apxml' => true,
+        'atom' => true,
+        'atomcat' => true,
+        'atomdeleted' => true,
+        'atomsrv' => true,
+        'atomsvc' => true,
+        'bmml' => true,
+        'ccmp' => true,
+        'ccxml' => true,
+        'cdfx' => true,
+        'cdxml' => true,
+        'cellml' => true,
+        'cjs' => true,
+        'cl' => true,
+        'clue' => true,
+        'cml' => true,
+        'cpl' => true,
+        'csl' => true,
+        'dae' => true,
+        'davmount' => true,
+        'dbk' => true,
+        'dd2' => true,
+        'ddf' => true,
+        'dist' => true,
+        'distz' => true,
+        'dtb' => true,
+        'dwd' => true,
+        'ecma' => true,
+        'ehtml' => true,
+        'emma' => true,
+        'emotionml' => true,
+        'es' => true,
+        'es3' => true,
+        'et3' => true,
+        'fdt' => true,
+        'fo' => true,
+        'gml' => true,
+        'gpx' => true,
+        'grxml' => true,
+        'gsheet' => true,
+        'hal' => true,
+        'held' => true,
         'htm' => true,
+        'html' => true,
+        'ink' => true,
+        'inkml' => true,
+        'irp' => true,
+        'its' => true,
+        'js' => true,
+        'kml' => true,
+        'lasxml' => true,
+        'lbe' => true,
+        'lgr' => true,
+        'link66' => true,
+        'lostsyncxml' => true,
+        'lostxml' => true,
+        'mads' => true,
+        'maei' => true,
+        'mathml' => true,
+        'meta4' => true,
+        'metalink' => true,
+        'mets' => true,
+        'mjs' => true,
+        'mml' => true,
+        'mods' => true,
+        'moml' => true,
+        'mpd' => true,
+        'mpkg' => true,
+        'mrcx' => true,
+        'mscml' => true,
+        'musd' => true,
+        'musicxml' => true,
+        'mxml' => true,
+        'ncx' => true,
+        'obgx' => true,
+        'odd' => true,
+        'omdoc' => true,
+        'opf' => true,
+        'osfpvg' => true,
+        'osm' => true,
+        'pkg' => true,
+        'pls' => true,
+        'provx' => true,
+        'pskcxml' => true,
+        'rapd' => true,
+        'rdf' => true,
+        'relo' => true,
+        'res' => true,
+        'rfcxml' => true,
+        'rif' => true,
+        'rl' => true,
+        'rld' => true,
+        'rs' => true,
+        'rsat' => true,
+        'rsd' => true,
+        'rsheet' => true,
+        'rss' => true,
+        'rusd' => true,
+        'sbml' => true,
+        'scl' => true,
+        'sdkd' => true,
+        'sdkm' => true,
+        'senmlx' => true,
+        'sensmlx' => true,
+        'shf' => true,
+        'shtml' => true,
+        'sls' => true,
+        'smi' => true,
+        'smil' => true,
+        'sml' => true,
+        'sru' => true,
+        'srx' => true,
+        'ssdl' => true,
+        'ssml' => true,
+        'stpx' => true,
         'svg' => true,
         'svgz' => true,
-        'xml' => true,
+        'swidtag' => true,
+        'td' => true,
+        'tei' => true,
+        'teicorpus' => true,
+        'tfi' => true,
+        'ttml' => true,
+        'uis' => true,
+        'uo' => true,
+        'uoml' => true,
+        'uvt' => true,
+        'uvvt' => true,
+        'vxml' => true,
+        'wadl' => true,
+        'wbs' => true,
+        'wif' => true,
+        'wsdl' => true,
+        'wspolicy' => true,
+        'x3d' => true,
+        'x3dz' => true,
+        'xaml' => true,
+        'xav' => true,
+        'xbl' => true,
+        'xca' => true,
+        'xcs' => true,
+        'xdf' => true,
+        'xdm' => true,
+        'xdp' => true,
+        'xdssc' => true,
+        'xel' => true,
+        'xenc' => true,
+        'xer' => true,
+        'xht' => true,
+        'xhtm' => true,
         'xhtml' => true,
-        'js' => true,
-        'mjs' => true,
+        'xhvml' => true,
+        'xlf' => true,
+        'xml' => true,
+        'xmls' => true,
+        'xns' => true,
+        'xop' => true,
+        'xpl' => true,
+        'xsf' => true,
+        'xsl' => true,
+        'xslt' => true,
+        'xsm' => true,
+        'xspf' => true,
+        'xul' => true,
+        'xvm' => true,
+        'xvml' => true,
+        'yin' => true,
+        'zaz' => true,
+        'zmm' => true,
     ];
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    if (isset($extensions[$ext])) {
-        return true;
-    }
-
     $media = strtolower(trim($contentType));
     $semi = strpos($media, ';');
     if ($semi !== false) {
         $media = trim(substr($media, 0, $semi));
     }
+    static $scriptTypes = [
+        'application/ecmascript' => true,
+        'application/javascript' => true,
+        'application/x-javascript' => true,
+        'text/ecmascript' => true,
+        'text/javascript' => true,
+        'text/x-javascript' => true,
+    ];
 
-    return $media === 'text/html' || $media === 'image/svg+xml';
+    return isset($extensions[$ext])
+        || $media === 'text/html'
+        || str_ends_with($media, '+xml')
+        || str_ends_with($media, '/xml')
+        || isset($scriptTypes[$media]);
 }
 
 /**

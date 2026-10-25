@@ -56,13 +56,14 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     </If>
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
     RewriteRule ^{$route_path}data/(.+?\.(php|phtml|phar))(/|$) {$data_path} [NC,H=default-handler,T=application/octet-stream,END]
-    # RZ-25: html, htm, svg, svgz, xml, xhtml, js and mjs download and stay
-    # sandboxed. The next rule publishes the file, with the same [NC],
+    # RZ-25: active extensions (HTML, XHTML, SVG, XML, and JavaScript, from
+    # Apache mime.types and Go's MIME table) download and stay sandboxed.
+    # The next rule publishes the file, with the same [NC],
     # so the headers cannot land on a request this rule matched and the
     # publish rule missed. An internal redirect renames the env var, so
     # both names are set and both are checked.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteRule ^{$route_path}data/.+\.(html|htm|svg|svgz|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]
+    RewriteRule ^{$route_path}data/.+\.(1km|apxml|atom|atomcat|atomdeleted|atomsrv|atomsvc|bmml|ccmp|ccxml|cdfx|cdxml|cellml|cjs|cl|clue|cml|cpl|csl|dae|davmount|dbk|dd2|ddf|dist|distz|dtb|dwd|ecma|ehtml|emma|emotionml|es|es3|et3|fdt|fo|gml|gpx|grxml|gsheet|hal|held|htm|html|ink|inkml|irp|its|js|kml|lasxml|lbe|lgr|link66|lostsyncxml|lostxml|mads|maei|mathml|meta4|metalink|mets|mjs|mml|mods|moml|mpd|mpkg|mrcx|mscml|musd|musicxml|mxml|ncx|obgx|odd|omdoc|opf|osfpvg|osm|pkg|pls|provx|pskcxml|rapd|rdf|relo|res|rfcxml|rif|rl|rld|rs|rsat|rsd|rsheet|rss|rusd|sbml|scl|sdkd|sdkm|senmlx|sensmlx|shf|shtml|sls|smi|smil|sml|sru|srx|ssdl|ssml|stpx|svg|svgz|swidtag|td|tei|teicorpus|tfi|ttml|uis|uo|uoml|uvt|uvvt|vxml|wadl|wbs|wif|wsdl|wspolicy|x3d|x3dz|xaml|xav|xbl|xca|xcs|xdf|xdm|xdp|xdssc|xel|xenc|xer|xht|xhtm|xhtml|xhvml|xlf|xml|xmls|xns|xop|xpl|xsf|xsl|xslt|xsm|xspf|xul|xvm|xvml|yin|zaz|zmm)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]
     # [END] (Apache 2.4+): same re-entry as the shared rule above.
     # [NC] matches the active-type rule above.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}

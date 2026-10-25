@@ -131,6 +131,190 @@ PHP);
         }
     }
 
+    /**
+     * Extensions Apache or Go serve as HTML, XHTML, SVG, XML, or JavaScript.
+     *
+     * Snapshot of Apache httpd mime.types, the mime.types file Go loads on
+     * Unix, and Go's builtin table. cjs is the CommonJS name beside js and mjs.
+     *
+     * @return list<string>
+     */
+    private static function activeExtensions(): array
+    {
+        return [
+            '1km',
+            'apxml',
+            'atom',
+            'atomcat',
+            'atomdeleted',
+            'atomsrv',
+            'atomsvc',
+            'bmml',
+            'ccmp',
+            'ccxml',
+            'cdfx',
+            'cdxml',
+            'cellml',
+            'cjs',
+            'cl',
+            'clue',
+            'cml',
+            'cpl',
+            'csl',
+            'dae',
+            'davmount',
+            'dbk',
+            'dd2',
+            'ddf',
+            'dist',
+            'distz',
+            'dtb',
+            'dwd',
+            'ecma',
+            'ehtml',
+            'emma',
+            'emotionml',
+            'es',
+            'es3',
+            'et3',
+            'fdt',
+            'fo',
+            'gml',
+            'gpx',
+            'grxml',
+            'gsheet',
+            'hal',
+            'held',
+            'htm',
+            'html',
+            'ink',
+            'inkml',
+            'irp',
+            'its',
+            'js',
+            'kml',
+            'lasxml',
+            'lbe',
+            'lgr',
+            'link66',
+            'lostsyncxml',
+            'lostxml',
+            'mads',
+            'maei',
+            'mathml',
+            'meta4',
+            'metalink',
+            'mets',
+            'mjs',
+            'mml',
+            'mods',
+            'moml',
+            'mpd',
+            'mpkg',
+            'mrcx',
+            'mscml',
+            'musd',
+            'musicxml',
+            'mxml',
+            'ncx',
+            'obgx',
+            'odd',
+            'omdoc',
+            'opf',
+            'osfpvg',
+            'osm',
+            'pkg',
+            'pls',
+            'provx',
+            'pskcxml',
+            'rapd',
+            'rdf',
+            'relo',
+            'res',
+            'rfcxml',
+            'rif',
+            'rl',
+            'rld',
+            'rs',
+            'rsat',
+            'rsd',
+            'rsheet',
+            'rss',
+            'rusd',
+            'sbml',
+            'scl',
+            'sdkd',
+            'sdkm',
+            'senmlx',
+            'sensmlx',
+            'shf',
+            'shtml',
+            'sls',
+            'smi',
+            'smil',
+            'sml',
+            'sru',
+            'srx',
+            'ssdl',
+            'ssml',
+            'stpx',
+            'svg',
+            'svgz',
+            'swidtag',
+            'td',
+            'tei',
+            'teicorpus',
+            'tfi',
+            'ttml',
+            'uis',
+            'uo',
+            'uoml',
+            'uvt',
+            'uvvt',
+            'vxml',
+            'wadl',
+            'wbs',
+            'wif',
+            'wsdl',
+            'wspolicy',
+            'x3d',
+            'x3dz',
+            'xaml',
+            'xav',
+            'xbl',
+            'xca',
+            'xcs',
+            'xdf',
+            'xdm',
+            'xdp',
+            'xdssc',
+            'xel',
+            'xenc',
+            'xer',
+            'xht',
+            'xhtm',
+            'xhtml',
+            'xhvml',
+            'xlf',
+            'xml',
+            'xmls',
+            'xns',
+            'xop',
+            'xpl',
+            'xsf',
+            'xsl',
+            'xslt',
+            'xsm',
+            'xspf',
+            'xul',
+            'xvm',
+            'xvml',
+            'yin',
+            'zaz',
+            'zmm',
+        ];
+    }
+
     public function testBuiltInServerDoesNotPublishOrExecuteTheTree(): void
     {
         if (self::$base === null) {
@@ -310,7 +494,7 @@ PHP);
         }
         require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
 
-        foreach (['html', 'htm', 'svg', 'svgz', 'xml', 'xhtml', 'js', 'mjs'] as $ext) {
+        foreach (self::activeExtensions() as $ext) {
             $this->assertTrue(\serveIsActiveContent('/data/file.' . $ext, 'application/octet-stream'), $ext);
             $this->assertTrue(\serveIsActiveContent('/data/file.' . \strtoupper($ext), 'application/octet-stream'), $ext);
         }
@@ -318,10 +502,89 @@ PHP);
         $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'Text/HTML; charset=UTF-8'));
         $this->assertTrue(\serveIsActiveContent('/data/x.dat', 'image/svg+xml'));
         $this->assertTrue(\serveIsActiveContent('/data/x.dat', 'image/svg+xml; charset=utf-8'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/xhtml+xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'text/xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/xml'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/rss+xml; charset=utf-8'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'text/javascript'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/javascript'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/ecmascript'));
+        $this->assertTrue(\serveIsActiveContent('/data/x.bin', 'application/x-javascript'));
         $this->assertFalse(\serveIsActiveContent('/data/x.txt', 'text/plain'));
         $this->assertFalse(\serveIsActiveContent('/data/x.png', 'image/png'));
         $this->assertFalse(\serveIsActiveContent('/data/x.php', 'text/x-php'));
-        $this->assertFalse(\serveIsActiveContent('/data/x.bin', 'application/xhtml+xml'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.bin', 'application/json'));
+        $this->assertFalse(\serveIsActiveContent('/data/x.bin', 'application/xml-dtd'));
+    }
+
+    public function testActiveTypeListMatchesEveryServer(): void
+    {
+        if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+            \define('RAZY_SERVE_FUNCTIONS_ONLY', true);
+        }
+        require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
+
+        $expected = self::activeExtensions();
+        $router = (string) \file_get_contents(SYSTEM_ROOT . '/src/asset/setup/serve.php');
+        $this->assertSame(1, \preg_match('/static \$extensions = \[(.*?)\];/s', $router, $map));
+        \preg_match_all("/'([0-9a-z]+)' => true/", $map[1], $fromPhp);
+        $this->assertSame($expected, $fromPhp[1], 'php -S');
+
+        $this->assertNotNull(self::$base, 'php -S did not start ' . $this->logTail());
+        foreach ($expected as $ext) {
+            $name = 'cls-' . $ext . '.' . $ext;
+            \file_put_contents(self::$docroot . '/data/' . $name, 'CLASS-' . $ext . "\n");
+            $this->assertActiveDownload('/data/' . $name, 'CLASS-' . $ext);
+            $this->assertTrue(\serveIsActiveContent('/data/file.' . $ext, 'application/octet-stream'), $ext);
+        }
+
+        if (!\defined('PHAR_PATH')) {
+            \define('PHAR_PATH', SYSTEM_ROOT . '/src');
+        }
+        $code = 'rz25data';
+        $distDir = SITES_FOLDER . '/' . $code;
+        $sitesExisted = \is_dir(SITES_FOLDER);
+        \mkdir($distDir, 0o777, true);
+        \file_put_contents($distDir . '/dist.php', "<?php\nreturn ['dist' => '" . $code . "'];\n");
+        $dir = \sys_get_temp_dir() . '/razy_rz25_' . \bin2hex(\random_bytes(4));
+        \mkdir($dir, 0o777, true);
+        try {
+            $caddy = $dir . '/Caddyfile';
+            $htaccess = $dir . '/htaccess';
+            (new CaddyfileCompiler())->compile(
+                ['example.com' => ['/' => $code, '/shop' => $code]],
+                [],
+                $caddy,
+                false,
+                '/app/public',
+            );
+            (new RewriteRuleCompiler())->compile(
+                ['example.com' => ['/' => $code, '/shop' => $code]],
+                [],
+                $htaccess,
+            );
+            $caddyLists = $this->extensionAlternations(
+                (string) \file_get_contents($caddy),
+                '/path_regexp `\(\?i\)\\\\\.\(\?:([0-9a-z|]+)\)\$`/',
+            );
+            $apacheLists = $this->extensionAlternations(
+                (string) \file_get_contents($htaccess),
+                '/RewriteRule \^(?:[a-z]+\/)?data\/\.\+\\\\\.\(([0-9a-z|]+)\)\$ - \[NC/',
+            );
+            $this->assertCount(2, $caddyLists, 'caddy');
+            $this->assertCount(2, $apacheLists, 'apache');
+            foreach (['caddy' => $caddyLists, 'apache' => $apacheLists] as $server => $lists) {
+                foreach ($lists as $found) {
+                    $this->assertSame($expected, $found, $server);
+                }
+            }
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($distDir);
+            if (!$sitesExisted && \is_dir(SITES_FOLDER)) {
+                @\rmdir(SITES_FOLDER);
+            }
+        }
     }
 
     public function testGeneratedClaimRewritesToTheFrontController(): void
@@ -467,6 +730,20 @@ PHP);
         $this->assertStringContainsString("function_exists('mime_content_type')", $router);
     }
 
+    /**
+     * @return list<list<string>>
+     */
+    private function extensionAlternations(string $text, string $pattern): array
+    {
+        $this->assertGreaterThanOrEqual(1, \preg_match_all($pattern, $text, $matches), $pattern);
+        $lists = [];
+        foreach ($matches[1] as $alternation) {
+            $lists[] = \explode('|', $alternation);
+        }
+
+        return $lists;
+    }
+
     private function assertActiveDownload(string $path, string $marker): void
     {
         [$status, $body, $headers] = $this->fetch($path);
@@ -523,7 +800,7 @@ PHP);
         $this->assertStringNotContainsString('split_path', $handle);
         $this->assertDoesNotMatchRegularExpression('/^\t\tphp$/m', $handle);
         $this->assertStringContainsString('(?i)^(/.*?\.(?:php|phtml|phar))(?:/.*)$', $handle);
-        $this->assertStringContainsString('path_regexp `(?i)\.(?:html|htm|svg|svgz|xml|xhtml|js|mjs)$`', $handle);
+        $this->assertStringContainsString('path_regexp `(?i)\.(?:' . \implode('|', self::activeExtensions()) . ')$`', $handle);
         $this->assertStringContainsString('Content-Disposition "attachment"', $handle);
         $this->assertStringContainsString('Content-Security-Policy "sandbox"', $handle);
         $this->assertStringContainsString('X-Content-Type-Options "nosniff"', $handle);
@@ -559,7 +836,7 @@ PHP);
         $this->assertLessThan($rulePos, $ifPos, 'SetHandler none covers the data prefix, not only a script URL');
         $this->assertStringNotContainsString('RAZY_DATA_SCRIPT', $apache);
 
-        $active = 'RewriteRule ^' . $routePath . 'data/.+\.(html|htm|svg|svgz|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
+        $active = 'RewriteRule ^' . $routePath . 'data/.+\.(' . \implode('|', self::activeExtensions()) . ')$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
         $this->assertStringContainsString($active, $apache);
         $activePos = (int) \strpos($apache, $active);
         $activeLine = \substr($apache, $activePos, (int) \strpos($apache, "\n", $activePos) - $activePos);

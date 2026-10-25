@@ -24,9 +24,10 @@
 	# RZ-25: file_server sends bytes and does not run PHP. The prefix
 	# matcher keeps /data/note.php/extra inside this handle, so it never
 	# reaches the php handle. The rewrite drops a PATH_INFO tail after a
-	# script extension; a missing file is 404. html, htm, svg, xml, xhtml,
-	# js, mjs and svgz download and stay sandboxed. The active matcher sees the
-	# extension on the original path and after strip_prefix. The file_server
+	# script extension; a missing file is 404. Active extensions (HTML,
+	# XHTML, SVG, any XML type, and JavaScript, from Apache mime.types and
+	# Go's MIME table) download and stay sandboxed. The active matcher sees
+	# the extension on the original path and after strip_prefix. The file_server
 	# block selects no index file, so /data/ and /data/uploads/ do not
 	# publish index.html (that URL would not match the active extension).
 	# The default index names are hidden. Directory listings stay off.
@@ -35,7 +36,7 @@
 		uri strip_prefix /{$route_path}data
 		uri path_regexp `(?i)^(/.*?\.(?:php|phtml|phar))(?:/.*)$` `$1`
 		root * {$data_path}
-		@data_active_{$data_id} path_regexp `(?i)\.(?:html|htm|svg|svgz|xml|xhtml|js|mjs)$`
+		@data_active_{$data_id} path_regexp `(?i)\.(?:1km|apxml|atom|atomcat|atomdeleted|atomsrv|atomsvc|bmml|ccmp|ccxml|cdfx|cdxml|cellml|cjs|cl|clue|cml|cpl|csl|dae|davmount|dbk|dd2|ddf|dist|distz|dtb|dwd|ecma|ehtml|emma|emotionml|es|es3|et3|fdt|fo|gml|gpx|grxml|gsheet|hal|held|htm|html|ink|inkml|irp|its|js|kml|lasxml|lbe|lgr|link66|lostsyncxml|lostxml|mads|maei|mathml|meta4|metalink|mets|mjs|mml|mods|moml|mpd|mpkg|mrcx|mscml|musd|musicxml|mxml|ncx|obgx|odd|omdoc|opf|osfpvg|osm|pkg|pls|provx|pskcxml|rapd|rdf|relo|res|rfcxml|rif|rl|rld|rs|rsat|rsd|rsheet|rss|rusd|sbml|scl|sdkd|sdkm|senmlx|sensmlx|shf|shtml|sls|smi|smil|sml|sru|srx|ssdl|ssml|stpx|svg|svgz|swidtag|td|tei|teicorpus|tfi|ttml|uis|uo|uoml|uvt|uvvt|vxml|wadl|wbs|wif|wsdl|wspolicy|x3d|x3dz|xaml|xav|xbl|xca|xcs|xdf|xdm|xdp|xdssc|xel|xenc|xer|xht|xhtm|xhtml|xhvml|xlf|xml|xmls|xns|xop|xpl|xsf|xsl|xslt|xsm|xspf|xul|xvm|xvml|yin|zaz|zmm)$`
 		header @data_active_{$data_id} {
 			Content-Disposition "attachment"
 			Content-Security-Policy "sandbox"
