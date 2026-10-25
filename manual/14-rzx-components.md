@@ -180,3 +180,33 @@ Compiled files and `index.php` live in `DATA_FOLDER/compiled/rzx/<dist>`.
 - Render errors (`Razy\Rzx\Runtime\RenderError`) name the `.rzx` file and line.
 
 The code tables are in `changelog/unreleased/RZ-28a.md`, `RZ-28b.md` and `RZ-28c.md`.
+
+## 8. Fixtures
+
+A component is tested on its own with a `*.fixture.php` next to it. `php Razy.phar ui render` turns
+it into standalone HTML for pixel goldens (manual 13 §7). Its states are props:
+
+```php
+<?php // rzx/List.fixture.php, next to rzx/List.rzx
+
+use Razy\View\Fixture;
+
+$rows = [['name' => 'Ann'], ['name' => 'Bo']];   // sample data, no real users
+
+return Fixture::component('Kit.List')            // Kit = this folder
+    ->module('kit')                               // asset('js/x.js') → this module's ../webassets
+    ->namespaces(['App' => '../app'])             // other namespaces it uses
+    ->vocabulary('vocabulary.json')
+    ->rzxFunction('t', fn (string $key): string => $key)
+    ->themes('light', 'dark')
+    ->base(['label' => 'Members'])
+    ->state('default', ['rows' => $rows])
+    ->state('empty', ['rows' => []])
+    ->fill('end', '<x-button label="Add"></x-button>');
+```
+
+The component renders through the same compiler, functions and anchors as a site page. A prop
+that fails its schema fails the render. A component that calls `asset()` needs `->module('alias')`
+(optionally `->module('alias', 'path/to/webassets')`); without it `asset()` fails with a message
+naming the fix.
+
