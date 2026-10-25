@@ -246,9 +246,11 @@ final class CodeGen
         if ($node->tag !== 'base' && $node->tag !== 'meta') {
             return;
         }
+        $pragma = \in_array('http-equiv', \array_map(static fn ($a): string => \strtolower($a->name), $node->attributes), true);
         foreach ($node->attributes as $attr) {
             $name = \strtolower($attr->name);
-            if ($attr->expr !== null && ($node->tag === 'base' || \in_array($name, ['content', 'http-equiv'], true))) {
+            // <meta name="csrf-token" content={token}> stays allowed: only a pragma's content can redirect.
+            if ($attr->expr !== null && ($node->tag === 'base' || $name === 'http-equiv' || ($name === 'content' && $pragma))) {
                 throw $this->error('RZX139', '<' . $node->tag . '> ' . $attr->name . ' must be a literal (it can redirect the page or re-base its links)', $attr->offset);
             }
             if ($node->tag === 'meta' && $name === 'http-equiv' && \strtolower(\trim((string) $attr->literal)) === 'refresh') {

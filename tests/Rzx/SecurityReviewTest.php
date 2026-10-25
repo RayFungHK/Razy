@@ -237,6 +237,7 @@ class SecurityReviewTest extends TestCase
 
     public function testLiteralNavigationAndOtherUrlSinks(): void
     {
+        $this->assertSame('<head><meta name="csrf-token" content="t&lt;"></head>', $this->render(self::P . '<head><meta name="csrf-token" content={v} /></head>', ['v' => 't<']), 'a named meta may take a value');
         $this->assertStringContainsString('<base href="/app/"><meta http-equiv="refresh" content="30;url=/next"><meta name="x" content="y">', $this->render('<html><head><base href="/app/" /><meta http-equiv="refresh" content="30;url=/next" /><meta name="x" content="y" /></head></html>'));
         $html = $this->render(self::P . '<div><svg><use href={v} /><image xlink:href={v} /><feimage href={v} /></svg><math><mi href={v}>x</mi></math><object data={v} classid={v}></object><embed src={v} /><iframe src={v}></iframe><a ping={v}>p</a><video poster={v}></video><img lowsrc={v} /></div>', ['v' => 'javascript:alert(1)']);
         $this->assertStringNotContainsString('javascript', $html);
