@@ -21,12 +21,16 @@
 <!-- END BLOCK: webassets -->
 <!-- START BLOCK: data_mapping -->
 	# Data mapping: {$dist_code}
-	# RZ-25: file_server sends bytes and does not run PHP. html, htm, svg,
-	# xml, xhtml, js and mjs download and stay sandboxed. The matcher sees
-	# the extension on the original path and after strip_prefix.
+	# RZ-25: file_server sends bytes and does not run PHP. The prefix
+	# matcher keeps /data/note.php/extra inside this handle, so it never
+	# reaches the php handle. The rewrite drops a PATH_INFO tail after a
+	# script extension; a missing file is 404. html, htm, svg, xml, xhtml,
+	# js and mjs download and stay sandboxed. The active matcher sees the
+	# extension on the original path and after strip_prefix.
 	@data_{$data_id} path /{$route_path}data/*
 	handle @data_{$data_id} {
 		uri strip_prefix /{$route_path}data
+		uri path_regexp `(?i)^(/.*?\.(?:php|phtml|phar))(?:/.*)$` `$1`
 		root * {$data_path}
 		@data_active_{$data_id} path_regexp `(?i)\.(?:html|htm|svg|xml|xhtml|js|mjs)$`
 		header @data_active_{$data_id} {

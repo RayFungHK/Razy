@@ -9,6 +9,7 @@
  *   - Data directory mapping (realpath-guarded; bytes only, never executed).
  *     html, htm, svg, xml, xhtml, js, mjs, and anything libmagic calls
  *     text/html or image/svg+xml, download with a sandbox CSP (RZ-25).
+ *     /data/note.php/extra is that file's bytes, or 404. It is not PATH_INFO.
  *   - Webassets: /webassets/{alias}/{version}/{file} falls through to the
  *     app, which serves it (dist.php 'assets' => ['serve'], on by default
  *     under this server; RZ-09) with hashed-URL cache headers.
@@ -86,9 +87,21 @@ $docRoot  = $_SERVER['DOCUMENT_ROOT'];
 // (Webassets are not resolved here: the app knows each module's alias and
 // version folder, so /webassets/... falls through to index.php — RZ-09.)
 if (preg_match('#^(?:/[^/]+)?/data/(.+)$#', $uri, $m)) {
-    $dataFile = resolveStaticPath($docRoot . '/data', $m[1]);
+    $relative = $m[1];
+    // /data/note.php/extra must not fall through. A false return would let
+    // php -S execute note.php with PATH_INFO=/extra.
+    $script = serveScriptPath($relative);
+    if ($script !== null) {
+        $relative = $script;
+    }
+    $dataFile = resolveStaticPath($docRoot . '/data', $relative);
     if ($dataFile !== null) {
         serveStaticFile($dataFile);
+        return true;
+    }
+    if ($script !== null) {
+        http_response_code(404);
+        header('X-Content-Type-Options: nosniff');
         return true;
     }
 }
@@ -260,6 +273,23 @@ function serveContentType(string $path, bool $fileinfo = true): string
     }
 
     return $byExtension[$ext] ?? 'application/octet-stream';
+}
+
+/**
+ * Path of a .php / .phtml / .phar under /data, or null when the URL is not one.
+ *
+ * Stops at the first script extension, so note.php/extra and an encoded
+ * slash map to note.php. The caller serves that file's bytes, or 404.
+ * It must not fall through: php -S would execute the script (RZ-25).
+ */
+function serveScriptPath(string $relative): ?string
+{
+    $decoded = rawurldecode($relative);
+    if (preg_match('#^(.+?\.(?i:php|phtml|phar))(?:/.*)?$#', $decoded, $m) !== 1) {
+        return null;
+    }
+
+    return $m[1];
 }
 
 /**

@@ -36,17 +36,23 @@ RewriteRule ^ - [E=RAZY_DOMAIN:*]
     RewriteRule ^{$route_path}webassets/{$mapping}/(.+?)/(.+)$ {$dist_path} [END]
     <!-- END BLOCK: webassets -->
     <!-- START BLOCK: data_mapping -->
-    # RZ-25: a real .php/.phtml/.phar under data must not reach the PHP
-    # handler. [H=default-handler] forces the static handler for this rule
-    # (a <FilesMatch> in this file would also hit index.php). The <If>
-    # repeats SetHandler none / RemoveHandler when the env var is visible.
+    # RZ-25: nothing under this data mapping is PHP, including a URL that
+    # continues past the script (/data/note.php/extra). The prefix is the
+    # whole mapping, anchored at the mount, so /report/data/export.php is
+    # not included. [H=default-handler] forces the static handler (a
+    # <FilesMatch> in this file would also hit index.php). The <If>
+    # repeats SetHandler none / RemoveHandler when the env var is visible;
+    # [H] does not depend on that. The script rule stops at the extension
+    # (the first one), so the target is the file, not file.php/PATH_INFO.
     # [T] sends the bytes. [END] stops the rewrite re-entry.
     RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
-    RewriteRule ^{$route_path}data/(.+\.(php|phtml|phar))$ {$data_path} [NC,E=RAZY_DATA_SCRIPT:1,E=REDIRECT_RAZY_DATA_SCRIPT:1,H=default-handler,T=application/octet-stream,END]
-    <If "env('RAZY_DATA_SCRIPT') == '1' || env('REDIRECT_RAZY_DATA_SCRIPT') == '1'">
+    RewriteRule ^{$route_path}data/ - [H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]
+    <If "env('RAZY_DATA_DIR') == '1' || env('REDIRECT_RAZY_DATA_DIR') == '1'">
         SetHandler none
         RemoveHandler .php .phtml .phar
     </If>
+    RewriteCond %{ENV:RAZY_DOMAIN} ={$domain}
+    RewriteRule ^{$route_path}data/(.+?\.(php|phtml|phar))(/|$) {$data_path} [NC,H=default-handler,T=application/octet-stream,END]
     # RZ-25: html, htm, svg, xml, xhtml, js and mjs download and stay
     # sandboxed. The next rule publishes the file. An internal redirect
     # renames the env var, so both names are set and both are checked.

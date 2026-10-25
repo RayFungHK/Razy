@@ -146,12 +146,15 @@ PHP);
             $this->assertStringNotContainsString($secret, $body, $path);
         }
 
-        // php -S may normalize ".." before the router. Either way the phar bytes
-        // must not come back, and the answer is the front controller.
+        // php -S may normalize ".." before the router (front controller). If the
+        // router still sees it, the .phar name is a data script URL that fails
+        // the realpath guard: 404, not the archive and not PATH_INFO.
         [$status, $body] = $this->fetch('/data/../Razy.phar');
-        $this->assertSame(200, $status, $this->logTail());
-        $this->assertStringStartsWith('APP ', $body);
+        $this->assertContains($status, [200, 404], $this->logTail());
         $this->assertStringNotContainsString('PHARBYTES', $body);
+        if ($status === 200) {
+            $this->assertStringStartsWith('APP ', $body);
+        }
 
         [$status, $body] = $this->fetch('/login?next=/foo.php');
         $this->assertSame(200, $status, $this->logTail());
@@ -196,6 +199,62 @@ PHP);
 
         $this->assertLibmagicActive('/data/sneaky.bin', 'text/html', 'SNEAKYHTML');
         $this->assertLibmagicActive('/data/svg-as.dat', 'image/svg+xml', '<svg ');
+    }
+
+    public function testDataScriptPathInfoIsBytesOrNotFound(): void
+    {
+        if (self::$base === null) {
+            $this->markTestSkipped('php -S did not start' . (self::$log !== '' && \is_file(self::$log) ? ': ' . \file_get_contents(self::$log) : ''));
+        }
+
+        $this->assertInlineDataFile('/data/note.php/extra', "<?php echo 'DATAEXEC';\n");
+        $this->assertInlineDataFile('/data/note.php/', "<?php echo 'DATAEXEC';\n");
+        $this->assertInlineDataFile('/data/note.phtml/a/b', "<?php echo 'PHTML';\n");
+        $this->assertInlineDataFile('/data/pack.phar/x', "PHARINDATA\n");
+
+        // Same basename, different case: a case-insensitive volume serves the
+        // file; a case-sensitive one 404s. Either way it is not executed.
+        [$status, $body] = $this->fetch('/data/note.PHP/extra');
+        $this->assertContains($status, [200, 404], $this->logTail());
+        $this->assertStringNotContainsString('APP uri=', $body);
+        if ($status === 200) {
+            $this->assertSame("<?php echo 'DATAEXEC';\n", $body);
+        } else {
+            $this->assertStringNotContainsString('DATAEXEC', $body);
+        }
+
+        foreach (['/data/missing.php', '/data/missing.php/extra'] as $path) {
+            [$status, $body] = $this->fetch($path);
+            $this->assertSame(404, $status, $path . ' ' . $this->logTail());
+            $this->assertStringNotContainsString('APP uri=', $body, $path);
+            $this->assertStringNotContainsString('DATAEXEC', $body, $path);
+        }
+
+        [$status, $body] = $this->fetch('/data/missing.txt');
+        $this->assertSame(200, $status, $this->logTail());
+        $this->assertStringStartsWith('APP uri=/data/missing.txt', $body);
+    }
+
+    public function testScriptPathStopsAtTheExtension(): void
+    {
+        if (!\defined('RAZY_SERVE_FUNCTIONS_ONLY')) {
+            \define('RAZY_SERVE_FUNCTIONS_ONLY', true);
+        }
+        require_once SYSTEM_ROOT . '/src/asset/setup/serve.php';
+
+        $this->assertSame('note.php', \serveScriptPath('note.php'));
+        $this->assertSame('note.php', \serveScriptPath('note.php/extra'));
+        $this->assertSame('note.PHP', \serveScriptPath('note.PHP/extra'));
+        $this->assertSame('note.php', \serveScriptPath('note.php/'));
+        $this->assertSame('dir/note.phtml', \serveScriptPath('dir/note.phtml/a/b'));
+        $this->assertSame('pack.phar', \serveScriptPath('pack.phar/x'));
+        $this->assertSame('foo.php', \serveScriptPath('foo.php/bar.php/extra'));
+        $this->assertSame('note.php', \serveScriptPath('note.php%2Fextra'));
+        $this->assertSame('note.php', \serveScriptPath('note.php%2fextra'));
+        $this->assertNull(\serveScriptPath('note.php.bak'));
+        $this->assertNull(\serveScriptPath('ok.txt'));
+        $this->assertNull(\serveScriptPath('ok.txt/extra'));
+        $this->assertNull(\serveScriptPath('page.html'));
     }
 
     public function testActiveContentFollowsExtensionAndMediaType(): void
@@ -407,9 +466,12 @@ PHP);
             }
         }
         $this->assertNotSame('', $handle, 'data handle for ' . $prefix . "\n" . $caddy);
+        $this->assertStringContainsString('path ' . $prefix . '/*', $caddy);
         $this->assertStringContainsString('file_server', $handle);
         $this->assertStringNotContainsString('php_server', $handle);
+        $this->assertStringNotContainsString('split_path', $handle);
         $this->assertDoesNotMatchRegularExpression('/^\t\tphp$/m', $handle);
+        $this->assertStringContainsString('(?i)^(/.*?\.(?:php|phtml|phar))(?:/.*)$', $handle);
         $this->assertStringContainsString('path_regexp `(?i)\.(?:html|htm|svg|xml|xhtml|js|mjs)$`', $handle);
         $this->assertStringContainsString('Content-Disposition "attachment"', $handle);
         $this->assertStringContainsString('Content-Security-Policy "sandbox"', $handle);
@@ -418,17 +480,27 @@ PHP);
 
     private function assertCompiledApacheDataMapping(string $apache, string $routePath): void
     {
-        $script = 'RewriteRule ^' . $routePath . 'data/(.+\.(php|phtml|phar))$ %{ENV:BASE}data/';
+        $scope = 'RewriteRule ^' . $routePath . 'data/ - [H=default-handler,E=RAZY_DATA_DIR:1,E=REDIRECT_RAZY_DATA_DIR:1]';
+        $this->assertStringContainsString($scope, $apache);
+        $scopePos = \strpos($apache, $scope);
+        $this->assertNotFalse($scopePos);
+        $script = 'RewriteRule ^' . $routePath . 'data/(.+?\.(php|phtml|phar))(/|$) %{ENV:BASE}data/';
         $this->assertStringContainsString($script, $apache);
-        $rulePos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+\.(php|phtml|phar))$');
+        $rulePos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+?\.(php|phtml|phar))(/|$)');
         $this->assertNotFalse($rulePos);
+        $this->assertLessThan($rulePos, $scopePos, 'the whole data prefix forces the static handler');
         $line = \strtok(\substr($apache, $rulePos), "\n") ?: '';
+        $this->assertStringContainsString('NC', $line);
         $this->assertStringContainsString('H=default-handler', $line);
         $this->assertStringContainsString('T=application/octet-stream', $line);
         $this->assertMatchesRegularExpression('/\[(?:[^\]]*,)?END(?:,[^\]]*)?\]/', $line);
         $generalPos = \strpos($apache, 'RewriteRule ^' . $routePath . 'data/(.+)$');
         $this->assertNotFalse($generalPos);
         $this->assertLessThan($generalPos, $rulePos, 'script rule must win before the general data rule');
+        $ifPos = \strpos($apache, '<If "env(\'RAZY_DATA_DIR\') == \'1\' || env(\'REDIRECT_RAZY_DATA_DIR\') == \'1\'">', $scopePos);
+        $this->assertNotFalse($ifPos);
+        $this->assertLessThan($rulePos, $ifPos, 'SetHandler none covers the data prefix, not only a script URL');
+        $this->assertStringNotContainsString('RAZY_DATA_SCRIPT', $apache);
 
         $active = 'RewriteRule ^' . $routePath . 'data/.+\.(html|htm|svg|xml|xhtml|js|mjs)$ - [NC,E=RAZY_DATA_ACTIVE:1,E=REDIRECT_RAZY_DATA_ACTIVE:1]';
         $this->assertStringContainsString($active, $apache);
