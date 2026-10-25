@@ -186,7 +186,7 @@ final class FixtureRenderer
             }
             $html = $template->load(self::FRAME)->output();
         } catch (Throwable $e) {
-            $template->endRender('');
+            $template->abortRender();
             throw $e;
         }
         $html = $template->endRender($html);
