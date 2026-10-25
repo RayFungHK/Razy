@@ -74,7 +74,7 @@ const RULES = [
                  '#\b(?:->getDB\(\))->prepare\s*\(\s*[\'"]#i']],
     ['id' => 'RZ-003', 'level' => 'warn', 'scope' => 'php', 'desc' => 'Input superglobal read — cast/validate immediately; route args preferred via getRoutedInfo(); never interpolate into SQL',
      'regex' => ['#\$_(?:GET|POST|REQUEST|COOKIE)\b#']],
-    ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Template variable output without modifier — escaped only where the dist sets \'auto_escape\' => true (review data provenance)',
+    ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Template variable output without modifier — escaped unless the dist sets \'auto_escape\' => false (review data provenance)',
      'regex' => ['#{\$[A-Za-z_][\w.]*\}#']],
     ['id' => 'RZ-004', 'level' => 'warn', 'scope' => 'tpl', 'desc' => 'Legacy modifier pipe — the engine treats | as a FALLBACK chain, so the piped modifier is a silent no-op (rewrite as ->modifier)',
      'regex' => ['#{\$[A-Za-z_][\w.]*\|(?!\$|\x27|")[a-z][\w.]*\}#']],

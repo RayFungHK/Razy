@@ -87,9 +87,13 @@ class Template implements TemplateInterface
     }
 
     /**
-     * Read the dist.php `auto_escape` flag (RZ-03). Absent means false, so
-     * existing dists keep raw `{$tag}` output until they opt in; new dists get
-     * `'auto_escape' => true` from the dist.php skeleton.
+     * Read the dist.php `auto_escape` flag (RZ-03, RZ-32).
+     *
+     * Absent means true: a dist that omits the key HTML-escapes `{$tag}`
+     * output. Sites that relied on the implicit off set
+     * `'auto_escape' => false` explicitly. A value that is not a boolean
+     * is a boot error. A Template constructed with no dist config stays
+     * raw until `setAutoEscape(true)`.
      *
      * @param array<string, mixed> $config The dist.php config array
      * @param string $distCode The dist code, for the error message
@@ -101,7 +105,7 @@ class Template implements TemplateInterface
     public static function autoEscapeFromConfig(array $config, string $distCode): bool
     {
         if (!\array_key_exists('auto_escape', $config)) {
-            return false;
+            return true;
         }
         $flag = $config['auto_escape'];
         if (!\is_bool($flag)) {

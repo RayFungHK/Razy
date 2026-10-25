@@ -5,10 +5,10 @@
  *
  * Before RZ-03 `{$var}` always printed raw HTML: every template had to
  * remember `->escape`, and a consumer app's /login reflected `next` unescaped (C21).
- * Now a dist opts in with `'auto_escape' => true` in dist.php (new dists get
- * it from the dist.php skeleton); existing dists keep raw output until they
- * opt in. `->raw` is the per-tag opt-out and the lint flags it unless it
- * carries a written justification.
+ * RZ-03 added dist.php `'auto_escape'`. RZ-32 makes a missing key mean on.
+ * Explicit `'auto_escape' => false` still prints raw. A Template built with
+ * no dist config stays raw until `setAutoEscape(true)`. `->raw` is the
+ * per-tag opt-out and the lint flags it unless it carries a written justification.
  *
  * This file is part of Razy.
  *
@@ -19,9 +19,12 @@ namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Razy\Distributor;
+use Razy\Domain;
 use Razy\Exception\ConfigurationException;
 use Razy\Template;
 use Razy\Template\Entity;
+use Razy\Util\PathUtil;
 
 #[CoversClass(Template::class)]
 #[CoversClass(Entity::class)]
@@ -30,6 +33,9 @@ class TemplateAutoEscapeTest extends TestCase
     private const XSS = '"><script>alert(1)</script>';
 
     private string $dir;
+
+    /** @var list<string> */
+    private array $distDirs = [];
 
     protected function setUp(): void
     {
@@ -47,6 +53,9 @@ class TemplateAutoEscapeTest extends TestCase
             }
         }
         @\rmdir($this->dir);
+        foreach ($this->distDirs as $distDir) {
+            $this->removeDir($distDir);
+        }
     }
 
     public function testDefaultTemplateKeepsRawOutput(): void
@@ -161,9 +170,40 @@ class TemplateAutoEscapeTest extends TestCase
 
     public function testDistFlagParsing(): void
     {
-        $this->assertFalse(Template::autoEscapeFromConfig([], 'site'), 'existing dists keep raw output');
+        $this->assertTrue(Template::autoEscapeFromConfig([], 'site'), 'an omitted key escapes');
         $this->assertTrue(Template::autoEscapeFromConfig(['auto_escape' => true], 'site'));
         $this->assertFalse(Template::autoEscapeFromConfig(['auto_escape' => false], 'site'));
+    }
+
+    public function testOmittedDistConfigEscapesOutput(): void
+    {
+        $tpl = (new Template())->setAutoEscape(Template::autoEscapeFromConfig([], 'site'));
+        $this->assertTrue($tpl->isAutoEscape());
+        $this->assertSame(
+            '&lt;script&gt;alert(1)&lt;/script&gt;',
+            $this->render($tpl, '{$v}', ['v' => '<script>alert(1)</script>']),
+        );
+    }
+
+    public function testExplicitFalseKeepsRawOutput(): void
+    {
+        $tpl = (new Template())->setAutoEscape(Template::autoEscapeFromConfig(['auto_escape' => false], 'site'));
+        $this->assertFalse($tpl->isAutoEscape());
+        $this->assertSame(
+            '<script>alert(1)</script>',
+            $this->render($tpl, '{$v}', ['v' => '<script>alert(1)</script>']),
+        );
+    }
+
+    public function testDistributorAppliesOmittedAndExplicitFlags(): void
+    {
+        $omitted = $this->bootDist('rz32omit', []);
+        $this->assertTrue($omitted->isAutoEscape());
+        $this->assertTrue($omitted->getGlobalTemplateEntity()->isAutoEscape());
+
+        $off = $this->bootDist('rz32off', ['auto_escape' => false]);
+        $this->assertFalse($off->isAutoEscape());
+        $this->assertFalse($off->getGlobalTemplateEntity()->isAutoEscape());
     }
 
     public function testDistFlagRejectsExplicitNull(): void
@@ -189,6 +229,9 @@ class TemplateAutoEscapeTest extends TestCase
         $src = (string) \file_get_contents(SYSTEM_ROOT . '/src/library/Razy/Distributor.php');
         $this->assertStringContainsString('Template::autoEscapeFromConfig($config', $src);
         $this->assertStringContainsString('->setAutoEscape($this->autoEscape)', $src);
+
+        $validate = (string) \file_get_contents(SYSTEM_ROOT . '/src/system/terminal/validate.inc.php');
+        $this->assertStringContainsString('Template::autoEscapeFromConfig(', $validate);
     }
 
     // -- lint ----------------------------------------------------------------
@@ -228,6 +271,37 @@ class TemplateAutoEscapeTest extends TestCase
             fn (array $v) => \str_starts_with($v['message'] ?? '', '->json in'),
         ));
         $this->assertSame([['json-attr.tpl', 1]], \array_map(fn (array $v) => [\basename($v['file']), $v['line']], $jsonHits), '->json may not sit in a double-quoted attribute');
+    }
+
+    /**
+     * @param array<string, mixed> $extra
+     */
+    private function bootDist(string $code, array $extra): Distributor
+    {
+        $path = PathUtil::append(SITES_FOLDER, $code);
+        \mkdir($path, 0o777, true);
+        $this->distDirs[] = $path;
+        $config = ['dist' => $code] + $extra;
+        \file_put_contents($path . '/dist.php', "<?php\nreturn " . \var_export($config, true) . ";\n");
+        $domain = $this->createStub(Domain::class);
+        $domain->method('getDomainName')->willReturn('rz32.example.com');
+
+        return new Distributor($code, '*', $domain, '/', '/');
+    }
+
+    private function removeDir(string $dir): void
+    {
+        if (!\is_dir($dir)) {
+            return;
+        }
+        foreach ((array) \scandir($dir) as $name) {
+            if ('.' === $name || '..' === $name) {
+                continue;
+            }
+            $child = $dir . '/' . $name;
+            \is_dir($child) ? $this->removeDir($child) : \unlink($child);
+        }
+        \rmdir($dir);
     }
 
     /**

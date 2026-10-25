@@ -360,7 +360,7 @@ rule files. If assets 404 after moving installs, re-run `php Razy.phar rewrite <
    bridge commands cross a module.
 7. **Static state in worker mode** — your module classes stay loaded across requests; see
    [03 §worker mode](03-routing-and-requests.md).
-8. **Raw user data in templates** — no auto-escape (RZ-004); [05](05-templates.md).
+8. **Raw user data in templates** — a dist escapes `{$var}` unless it sets `'auto_escape' => false` (RZ-32). `->raw` still needs a lint reason (RZ-004); [05](05-templates.md).
 9. **`php Razy.phar bridge …` on a shared host** — unauthenticated local IPC; treat shell
    access as full API access ([07](07-security-guide.md) §bridge).
 10. **Trusting `documentation/` HTML** — legacy generator output; trust `manual/` + code.
