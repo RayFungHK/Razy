@@ -54,6 +54,9 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
     - named profiles (allowed plain elements, forbidden attributes, hooks on/off, mappings on/off).
   - The compiler checks what is registered (RZX150–RZX157). With nothing registered, no
     vocabulary check runs.
+  - A vocabulary only adds restrictions; it can never relax a built-in check (`on*`, `style`,
+    `srcdoc`, inline script, URL rules). The names it makes the compiler emit (a mapping's target,
+    the slot marker) must be `data-*` attributes.
   - A vocabulary change recompiles every component.
 - **Runtime and cache API.** `Razy\Rzx\Host` is the per-dist setup: `Distributor::rzx()`,
   `Module::getRzxHost()`, `Host::current()`. `Runtime::renderFile()` and

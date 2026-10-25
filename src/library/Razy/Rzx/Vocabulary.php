@@ -113,6 +113,7 @@ final class Vocabulary
             if (!\is_string($name) || !\is_array($mapping) || !\is_string($mapping['attribute'] ?? null)) {
                 throw new InvalidArgumentException($label . ': mapping ' . \var_export($name, true) . ' needs an "attribute"');
             }
+            self::dataAttribute($mapping['attribute'], $label . ': mapping ' . $name);
             $mappings[$name] = ['attribute' => $mapping['attribute'], 'values' => $strings($mapping['values'] ?? [], 'mappings.' . $name . '.values')];
         }
         $profiles = [];
@@ -123,6 +124,9 @@ final class Vocabulary
             $profiles[$name] = Profile::fromArray($name, $profile);
         }
         $marker = $data['slotMarker'] ?? null;
+        if ($marker !== null) {
+            self::dataAttribute($marker, $label . ': slotMarker');
+        }
 
         return new self(
             $strings($data['prefixes'] ?? null, 'prefixes'),
@@ -158,6 +162,18 @@ final class Vocabulary
         }
 
         return $out;
+    }
+
+    /**
+     * Names a vocabulary makes the compiler emit (a mapping's target, the slot
+     * marker) must be `data-*` attributes: a package can never turn a value
+     * into an event handler, a style, a URL or broken markup.
+     */
+    private static function dataAttribute(mixed $name, string $what): void
+    {
+        if (!\is_string($name) || !\str_starts_with($name, 'data-') || !Names::isElement(\substr($name, 5))) {
+            throw new InvalidArgumentException($what . ' must be a data-* attribute (lowercase, digits, dashes), got ' . \var_export($name, true));
+        }
     }
 
     public function isEmpty(): bool

@@ -125,6 +125,30 @@ class VocabularyTest extends TestCase
         }
     }
 
+    public function testAVocabularyCannotWeakenBuiltInChecks(): void
+    {
+        $lenient = Vocabulary::fromArray([
+            'prefixes' => ['x-'],
+            'attributePrefixes' => ['on', 'style', 'src'],
+            'elements' => ['x-box' => ['attributes' => ['onclick' => 'string', 'style' => 'string', 'srcdoc' => 'string', 'href' => 'string']]],
+            'profiles' => ['composition' => ['hooks' => true, 'mappings' => true]],
+        ]);
+        foreach ([
+            '<x-box onclick="alert(1)"></x-box>' => 'RZX132',
+            '<x-box style="color:red"></x-box>' => 'RZX131',
+            '<x-box srcdoc="x"></x-box>' => 'RZX135',
+            '<x-box href="javascript:alert(1)"></x-box>' => 'RZX134',
+            '<div><script>x</script></div>' => 'RZX133',
+        ] as $markup => $code) {
+            try {
+                $this->renderWith($lenient, 'composition', $markup);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame($code, $e->rzxCode, $markup);
+            }
+        }
+    }
+
     public function testMergeJoinsListsAndLaterDefinitionsWin(): void
     {
         $a = Vocabulary::fromArray(['prefixes' => ['a-'], 'hooks' => ['--a'], 'slotMarker' => 'data-a', 'elements' => ['a-x' => ['attributes' => ['k' => 'string']]]]);
@@ -141,7 +165,19 @@ class VocabularyTest extends TestCase
 
     public function testInvalidVocabularies(): void
     {
-        foreach ([['prefixes' => 'x-'], ['elements' => ['Bad' => []]], ['mappings' => ['m' => ['values' => []]]], ['hooks' => [1]]] as $bad) {
+        foreach ([
+            ['prefixes' => 'x-'], ['elements' => ['Bad' => []]], ['mappings' => ['m' => ['values' => []]]], ['hooks' => [1]],
+            // a vocabulary can never make the compiler emit a handler, a style, a URL or broken markup
+            ['mappings' => ['motion' => ['attribute' => 'onclick']]],
+            ['mappings' => ['motion' => ['attribute' => 'href']]],
+            ['mappings' => ['motion' => ['attribute' => 'style']]],
+            ['mappings' => ['motion' => ['attribute' => 'data-x" onload="alert(1)']]],
+            ['slotMarker' => 'onclick'],
+            ['slotMarker' => 'src'],
+            ['slotMarker' => 'data-'],
+            ['slotMarker' => 'data-X-slot'],
+            ['slotMarker' => ['data-x']],
+        ] as $bad) {
             try {
                 Vocabulary::fromArray($bad, 'kit.json');
                 $this->fail('accepted ' . \json_encode($bad));
