@@ -16,8 +16,10 @@ namespace Razy\View;
 use Razy\Exception\TemplateException;
 use Razy\Template;
 use Razy\Template\IncludeResolver;
+use RecursiveCallbackFilterIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use SplFileInfo;
 use Throwable;
 use UnexpectedValueException;
 
@@ -52,14 +54,15 @@ final class FixtureRenderer
             if (!\is_dir($root)) {
                 throw new UnexpectedValueException("Fixture root '{$root}' is not a directory.");
             }
-            $base = \rtrim($root, '/\\');
-            $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS));
-            foreach ($iterator as $file) {
+            // Prune vendor/, node_modules/ and dot folders before descending into them (only
+            // below the root: the root itself may sit under a dot folder, e.g. ~/.t3/…).
+            $tree = new RecursiveCallbackFilterIterator(
+                new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+                static fn (SplFileInfo $file): bool => !$file->isDir()
+                    || !\preg_match('/^(?:vendor|node_modules|\..+)$/', $file->getFilename()),
+            );
+            foreach (new RecursiveIteratorIterator($tree) as $file) {
                 $path = $file->getPathname();
-                // Only folders below the root count: the root itself may sit under a dot folder.
-                if (\preg_match('#[\\\/](?:vendor|node_modules|\.[^\\\/]+)[\\\/]#', \substr($path, \strlen($base)))) {
-                    continue;
-                }
                 if (\str_ends_with($path, '.fixture.php')) {
                     $found[] = (string) \realpath($path);
                 }

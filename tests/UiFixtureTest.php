@@ -113,6 +113,17 @@ class UiFixtureTest extends TestCase
         );
     }
 
+    public function testSkippedFoldersAreNotEntered(): void
+    {
+        // An unreadable folder inside node_modules/ must not break discovery: it is never entered.
+        \mkdir($this->dir . '/node_modules/locked', 0o000);
+        try {
+            $this->assertSame([\realpath($this->dir . '/cards/card.fixture.php')], FixtureRenderer::discover([$this->dir]));
+        } finally {
+            \chmod($this->dir . '/node_modules/locked', 0o755);
+        }
+    }
+
     public function testFindByName(): void
     {
         $this->assertSame('card', FixtureRenderer::find('card', [$this->dir])->getName());
