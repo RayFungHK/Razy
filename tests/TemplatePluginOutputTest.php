@@ -77,9 +77,9 @@ class TemplatePluginOutputTest extends TestCase
 
     public function testNestedPluginsAndEachStillWork(): void
     {
-        $html = $this->render("{@each source=\$rows as=\"r\"}<li>{\$r.value.name} {@echoval value=\$r.value.raw}</li>{/each}\n", ['rows' => [['name' => 'a', 'raw' => '{$x}']], 'x' => 'LEAK']);
+        $html = $this->render("{@each source=\$rows as=\"r\"}<li>{\$r.value.name} {@echoval value=\$r.value.raw}</li>{/each}\n", ['rows' => [['name' => 'a', 'raw' => '{$x}'], ['name' => 'b', 'raw' => '{$x}']], 'x' => 'LEAK']);
         $this->assertStringNotContainsString('LEAK', $html);
-        $this->assertStringContainsString('<li>a [{$x}]</li>', $html);
+        $this->assertSame("<li>a [{\$x}]</li><li>b [{\$x}]</li>\n", $html, 'every item (RZ-31), plugin output inside held');
     }
 
     /**

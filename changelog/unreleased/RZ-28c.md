@@ -68,7 +68,7 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
   plugin printed is never read as a parameter tag. Example: a component's text, a URL, a JSON
   `<script>` body, or `{@template}` output containing `{$csrf}` stays that text. This is the RZ-30
   class of bug, closed for all plugins, including `{@rzx}`.
-- `{@if}` and `{@repeat}` keep returning template text for the caller's single substitution. They
+- `{@if}`, `{@repeat}` and `{@each}` (its RZ-31 placeholders) keep returning template text for the caller's single substitution. They
   declare it with the new `TFunction::$templateOutput = true` (also on `TFunctionCustom`).
 
 ## Migration
