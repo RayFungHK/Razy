@@ -247,6 +247,8 @@ class WorkerLifecycleManager
     public function requestFinished(): void
     {
         $this->inflightCount = \max(0, $this->inflightCount - 1);
+        // RZ-28: no .rzx host outlives its request; the next beginResponse() sets it again.
+        \Razy\Rzx\Host::setCurrent(null);
 
         if ($this->state === WorkerState::Draining && $this->inflightCount <= 0) {
             $this->log('All in-flight requests completed, transitioning to Terminated');

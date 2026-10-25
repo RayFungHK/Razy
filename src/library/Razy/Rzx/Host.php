@@ -59,8 +59,12 @@ final class Host
 
     private readonly RazyFunctions $razy;
 
+    /** @var array<string, string> profile name => who declared it (must exist once a vocabulary loads) */
+    private array $explicitProfiles = [];
+
     /**
      * @param Closure(): iterable<ModuleInfo> $modules the dist's loaded modules (read when the first component compiles)
+     * @param array<string, string> $explicitProfiles profile name => where it was declared (dist.php); must exist once a vocabulary loads
      */
     public function __construct(
         private readonly string $cacheDirectory,
@@ -70,7 +74,9 @@ final class Host
         private readonly ?string $screenProfile = 'screen',
         private readonly ?string $layoutProfile = 'layout',
         ?Closure $siteUrl = null,
+        array $explicitProfiles = [],
     ) {
+        $this->explicitProfiles = $explicitProfiles;
         $this->functions = new FunctionRegistry();
         $this->razy = new RazyFunctions($siteUrl ?? static fn (): string => '');
         $this->razy->register($this->functions);
@@ -113,6 +119,10 @@ final class Host
             $profile('screen_profile', 'screen'),
             $profile('layout_profile', 'layout'),
             $siteUrl,
+            \array_fill_keys(\array_values(\array_filter([
+                \is_string($rzx['screen_profile'] ?? null) ? $rzx['screen_profile'] : null,
+                \is_string($rzx['layout_profile'] ?? null) ? $rzx['layout_profile'] : null,
+            ])), "dist.php 'rzx'"),
         );
     }
 
@@ -275,12 +285,23 @@ final class Host
             }
             if (isset($rzx['namespace'])) {
                 $resolver->add($rzx['namespace'], PathUtil::append($info->getPath(), $rzx['path'] ?? 'rzx'), $rzx['profile'] ?? 'composition');
+                if (isset($rzx['profile'])) {
+                    $this->explicitProfiles[$rzx['profile']] = "package.php 'rzx.profile' of " . $info->getCode();
+                }
             }
             if (isset($rzx['vocabulary'])) {
                 $vocabularies[] = Vocabulary::fromFile(PathUtil::append($info->getPath(), $rzx['vocabulary']));
             }
         }
+        $vocabulary = Vocabulary::merge(...$vocabularies);
+        // A profile someone named explicitly must exist: a typo would silently mean "no rules".
+        foreach ($this->explicitProfiles as $name => $declaredBy) {
+            if ($vocabulary->profile($name) === null) {
+                $known = \array_keys($vocabulary->profiles);
+                throw new ConfigurationException("Unknown .rzx profile '{$name}' in {$declaredBy}; registered profiles: " . ($known === [] ? 'none (no vocabulary defines any)' : \implode(', ', $known)) . '.');
+            }
+        }
         $this->resolver = $resolver;
-        $this->vocabulary = Vocabulary::merge(...$vocabularies);
+        $this->vocabulary = $vocabulary;
     }
 }

@@ -62,7 +62,7 @@ final class RazyFunctions
             ->register('asset', $this->asset(...))
             ->register('importmap', $this->importmap(...))
             ->register('nonce', static fn (): string => SecurityHeaders::current()->nonce())
-            ->register('url', fn (string $path = ''): SafeUrl => new SafeUrl(\rtrim(($this->siteUrl)(), '/') . '/' . \ltrim($path, '/')))
+            ->register('url', $this->url(...))
             ->register('nl2br', static fn (mixed $text): SafeHtml => new SafeHtml(\nl2br(Escape::text($text))));
         foreach (self::MODIFIERS as $name) {
             $functions->register($name, fn (mixed ...$args): mixed => $this->modifier($name, \array_values($args)));
@@ -90,8 +90,9 @@ final class RazyFunctions
     }
 
     /**
-     * A trusted URL (it may be absolute when assets live on a CDN), so it is
-     * accepted on resource attributes such as `<script src>`.
+     * A module asset's URL. It is trusted (a SafeUrl, so `<script src>` takes it
+     * even from a CDN) only when it stays inside that module's web assets; a
+     * path with `..`, `.` or a control character is an error.
      */
     private function asset(string $path): SafeUrl
     {
@@ -103,8 +104,34 @@ final class RazyFunctions
         if ($alias === null || $alias === '') {
             throw new RenderError("asset('" . $path . "') needs a module: write asset('alias:" . $path . "')");
         }
+        $segments = \array_filter(\explode('/', \str_replace('\\', '/', $path)), static fn (string $s): bool => $s !== '');
+        if ($segments === [] || \preg_match('/[\x00-\x1F\x7F]/', $path) || \array_intersect($segments, ['.', '..']) !== []) {
+            throw new RenderError("asset('" . \addcslashes($path, "\0..\37") . "') is not a path inside the module's web assets");
+        }
+        $url = Assets::current()->url($alias, \implode('/', $segments));
+        if (!\str_contains((string) \parse_url($url, \PHP_URL_PATH), '/webassets/' . \rawurlencode($alias) . '/')) {
+            throw new RenderError("asset('" . $path . "') did not resolve inside /webassets/" . $alias . '/');
+        }
 
-        return new SafeUrl(Assets::current()->url($alias, $path));
+        return new SafeUrl($url);
+    }
+
+    /**
+     * The site URL joined with a path on this site. Trusted (SafeUrl) only when
+     * the result stays on this origin; an absolute or protocol-relative path is
+     * an error.
+     */
+    private function url(string $path = ''): SafeUrl|string
+    {
+        $path = \str_replace('\\', '/', $path);
+        if (Escape::isProtocolRelative($path) || !Escape::isSameOrigin($path)) {
+            throw new RenderError("url('" . $path . "') takes a path on this site, not an absolute URL");
+        }
+        $site = \rtrim(\str_replace('\\', '/', ($this->siteUrl)()), '/');
+        $joined = $site . '/' . \ltrim($path, '/');
+        $sameOrigin = $site === '' ? Escape::isSameOrigin($joined) : (bool) \preg_match('#^https?://[^/?\#@]+(?:/|$)#i', $site . '/');
+
+        return $sameOrigin ? new SafeUrl($joined) : $joined;
     }
 
     private function importmap(): SafeHtml

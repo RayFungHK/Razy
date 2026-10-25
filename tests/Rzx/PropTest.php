@@ -28,6 +28,8 @@ class PropTest extends TestCase
     {
         yield 'string ok' => [Prop::string(), 'a', null];
         yield 'string from int' => [Prop::string(), 1, 'p must be a string, got int'];
+        yield 'string refuses SafeHtml' => [Prop::string(), new SafeHtml('<b>'), 'p must be a string, got Razy\Rzx\SafeHtml'];
+        yield 'string refuses SafeUrl' => [Prop::string(), new \Razy\Rzx\SafeUrl('/x'), 'p must be a string, got Razy\Rzx\SafeUrl'];
         yield 'optional null' => [Prop::int(), null, null];
         yield 'required null' => [Prop::int()->required(), null, 'p is required'];
         yield 'float accepts int' => [Prop::float(), 3, null];

@@ -128,7 +128,8 @@ App functions are registered in `__onInit`:
 $this->addRzxFunction('t', fn (string $key, array $vars = []): string => $this->translate($key, $vars));
 ```
 
-Function results are escaped like any value.
+Function results are escaped like any value. In worker mode a function registered at boot lives for the whole worker, so it must
+not capture per-request state; read the request inside the call.
 
 ## 6. Vocabularies and profiles
 

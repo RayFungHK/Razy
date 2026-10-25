@@ -143,6 +143,87 @@ class HostTest extends TestCase
         $this->assertStringStartsWith('<div><x-card><h1>From tpl</h1></x-card></div><script nonce=', $html);
     }
 
+    public function testBridgeOutputIsNeverRescannedForParameters(): void
+    {
+        // Grok review of #36: the component printed the prop's text, then the
+        // .tpl parameter pass substituted it a second time.
+        $host = $this->host();
+        Host::setCurrent($host);
+        foreach ([false, true] as $autoEscape) {
+            $template = $this->template()->setAutoEscape($autoEscape);
+            $page = $template->load($this->put('view/bridge.tpl', "<div>{@rzx name=\"Kit.Card\" props=\$card}</div>\n"), $this->info());
+            $page->assign('bio', '"><img src=x onerror=alert(1)>');
+            $page->assign('csrf', 'SECRET-TOKEN');
+            $page->assign('card', ['title' => $autoEscape ? '{$bio->raw} {$csrf}' : '{$bio} {$csrf}']);
+
+            $html = $template->renderPage($page);
+
+            $this->assertStringNotContainsString('onerror', $html);
+            $this->assertStringNotContainsString('SECRET-TOKEN', $html);
+            $this->assertStringContainsString($autoEscape ? '<h1>{$bio-&gt;raw} {$csrf}</h1>' : '<h1>{$bio} {$csrf}</h1>', $html, 'the prop is text');
+        }
+    }
+
+    public function testAssetStaysInsideTheModulesWebAssets(): void
+    {
+        foreach (["{asset('../../../../uploads/pwn.js')}", "{asset('js/./app.js')}", "{asset('js/../../x.js')}", "{asset('')}"] as $call) {
+            $screen = $this->screen('admin/A', '<p>' . $call . '</p>');
+            try {
+                $this->host()->renderPage($this->template(), $this->info(), $screen);
+                $this->fail('rendered ' . $call);
+            } catch (RenderError $e) {
+                $this->assertStringContainsString("is not a path inside the module's web assets", $e->getMessage());
+            }
+        }
+        $screen = $this->screen('admin/A', "<div><script type=\"module\" src={asset('js/app.js')} /></div>");
+        $open = Host::fromConfig(['rzx' => ['screen_profile' => null]], 'site', $this->dir . '/data', fn (): array => [$this->info()]);
+        $this->assertMatchesRegularExpression('#src="/webassets/kit/default/js/app\.js\?v=#', $open->renderPage($this->template(), $this->info(), $screen));
+    }
+
+    public function testUrlIsSameOriginOnly(): void
+    {
+        foreach (["url('\\\\\\\\evil.example/a.js')", "url('//evil.example/')", "url('https://evil.example/')", "url('javascript:x')"] as $call) {
+            $screen = $this->screen('admin/U', '<p>{' . $call . '}</p>');
+            try {
+                $this->host()->renderPage($this->template(), $this->info(), $screen);
+                $this->fail('rendered ' . $call);
+            } catch (RenderError $e) {
+                $this->assertStringContainsString('takes a path on this site', $e->getMessage());
+            }
+        }
+        $screen = $this->screen('admin/U', "<div><iframe src={url('/embed')}></iframe><i>{url('\\\\evil.example/a.js')}</i></div>");
+        $broken = Host::fromConfig(['rzx' => ['screen_profile' => null]], 'site', $this->dir . '/data', fn (): array => [$this->info()], static fn (): string => 'javascript:x');
+        $this->assertSame('<div><iframe src="#"></iframe><i>javascript:x/evil.example/a.js</i></div>', $broken->renderPage($this->template(), $this->info(), $screen), 'not trusted with a broken site URL');
+        $empty = Host::fromConfig(['rzx' => ['screen_profile' => null]], 'site', $this->dir . '/data', fn (): array => [$this->info()], static fn (): string => '');
+        $this->assertSame('<div><iframe src="/embed"></iframe><i>/evil.example/a.js</i></div>', $empty->renderPage($this->template(), $this->info(), $screen));
+        $site = Host::fromConfig(['rzx' => ['screen_profile' => null]], 'site', $this->dir . '/data', fn (): array => [$this->info()], static fn (): string => 'https://site.test');
+        $this->assertSame('<div><iframe src="https://site.test/embed"></iframe><i>https://site.test/evil.example/a.js</i></div>', $site->renderPage($this->template(), $this->info(), $screen), 'one backslash is a same-origin path');
+    }
+
+    public function testUnknownExplicitProfilesAreErrors(): void
+    {
+        $screen = $this->screen('admin/P', '<p>x</p>');
+        $typo = Host::fromConfig(['rzx' => ['screen_profile' => 'scren']], 'site', $this->dir . '/data', fn (): array => [$this->info()]);
+        try {
+            $typo->renderPage($this->template(), $this->info(), $screen);
+            $this->fail('accepted an unknown profile');
+        } catch (ConfigurationException $e) {
+            $this->assertStringContainsString("Unknown .rzx profile 'scren' in dist.php 'rzx'; registered profiles: screen", $e->getMessage());
+        }
+
+        \file_put_contents($this->module . '/package.php', "<?php\nreturn ['alias' => 'kit', 'rzx' => ['namespace' => 'Kit', 'vocabulary' => 'vocabulary.json', 'profile' => 'composit']];\n");
+        $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage("Unknown .rzx profile 'composit' in package.php 'rzx.profile' of test/kit");
+        $this->host()->renderPage($this->template(), $this->info(), $screen);
+    }
+
+    public function testWorkerTeardownClearsTheCurrentHost(): void
+    {
+        Host::setCurrent($this->host());
+        (new \Razy\Worker\WorkerLifecycleManager())->requestFinished();
+        $this->assertNull(Host::current());
+    }
+
     public function testRazyFunctions(): void
     {
         $screen = $this->screen('admin/F', "<p>{upper('ab')}|{truncate('abcdefgh', 5)}|{date(0, 'Y')}|{join(['a', 'b'], '+')}|{capitalize('word')}|{url('/a/b')}|{asset('kit:js/app.js')}|{nonce() == '' ? 'none' : 'nonce'}|{html(nl2br('<b>\\n'))}</p>");
@@ -210,6 +291,25 @@ class HostTest extends TestCase
         $this->screen('admin/W', '<p>two!</p>');
         $host->reset();
         $this->assertSame('<p>two!</p>', $host->renderPage($this->template(), $this->info(), $screen));
+    }
+
+    public function testControllerRenderConfinesAndChecksExplicitSuffixes(): void
+    {
+        $this->screen('admin/Both', '<p>rzx</p>');
+        $this->put('view/admin/Both.tpl', '<p>tpl</p>');
+        \file_put_contents($this->dir . '/kit/outside.rzx', '<p>outside</p>');
+        $controller = $this->controller();
+        foreach (['admin/Both.rzx' => 'exists as both', 'admin/Both.tpl' => 'exists as both', '../../outside.rzx' => 'inside this module', 'admin/Missing.rzx' => 'inside this module'] as $view => $message) {
+            try {
+                \ob_start();
+                $controller->render($view);
+                $this->fail('rendered ' . $view);
+            } catch (InvalidArgumentException $e) {
+                $this->assertStringContainsString($message, $e->getMessage(), $view);
+            } finally {
+                \ob_end_clean();
+            }
+        }
     }
 
     public function testControllerRenderPicksTheRzxView(): void

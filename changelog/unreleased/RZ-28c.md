@@ -62,6 +62,34 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
   `Module::getRzxHost()`, `Host::current()`. `Runtime::renderFile()` and
   `CompileCache::loadFile()` render screens and layouts by path.
 
+## Security (template engine, every plugin)
+- A function plugin's output is final: `Entity::parseText()` substitutes `{$…}` only in the template
+  source. Each plugin's return value is held out of that pass and put back afterwards, so a value a
+  plugin printed is never read as a parameter tag. Example: a component's text, a URL, a JSON
+  `<script>` body, or `{@template}` output containing `{$csrf}` stays that text. This is the RZ-30
+  class of bug, closed for all plugins, including `{@rzx}`.
+- `{@if}` and `{@repeat}` keep returning template text for the caller's single substitution. They
+  declare it with the new `TFunction::$templateOutput = true` (also on `TFunctionCustom`).
+
+## Migration
+- A custom plugin that relied on the caller substituting `{$…}` inside its *output* must set
+  `protected bool $templateOutput = true;`. Plugins that return finished markup need no change.
+
+## Hardening (review of #36)
+- `asset()` refuses a path with `..`, `.` or control characters, and its result is trusted
+  (`SafeUrl`) only when it resolves under `/webassets/<alias>/`.
+- `url()` takes a path on this site only (absolute and protocol-relative are errors; `\` reads as
+  `/`). Its result is trusted only when the site URL is a plain http(s) origin, or there is none and
+  the result is a same-origin path.
+- `Controller::render()` resolves `.rzx` views inside the module's `view/` folder (realpath). The
+  `.tpl`/`.rzx` clash check also applies to explicit `.rzx` and `.tpl` suffixes.
+- `Prop::string()` accepts strings only (not SafeHtml or SafeUrl objects).
+- A profile named explicitly (dist.php `screen_profile` / `layout_profile`, package.php
+  `rzx.profile`) must exist once a vocabulary loads; a typo is a ConfigurationException.
+- Worker mode: `WorkerLifecycleManager::requestFinished()` clears `Host::current()`. Functions
+  registered at boot with `addRzxFunction()` live for the whole worker, so they must not capture
+  per-request state.
+
 ## Compile error codes added
 | Code | Meaning |
 |---|---|

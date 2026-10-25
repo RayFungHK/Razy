@@ -408,7 +408,9 @@ class Controller
     /**
      * RZ-28: register an expression function for `.rzx` components (e.g. `t`
      * for translations). Register while booting (`__onInit`), before anything
-     * renders: the function set is part of every component's cache hash.
+     * renders: the function set is part of every component's cache hash. In
+     * worker mode the closure lives for the whole worker, so it must not
+     * capture per-request state; read the request inside the call.
      */
     final public function addRzxFunction(string $name, callable $function): void
     {
@@ -998,17 +1000,31 @@ class Controller
         if (\str_starts_with($view, '@layout/')) {
             return null;
         }
-        $base = PathUtil::append($this->module->getModuleInfo()->getPath(), 'view', $view);
-        if (\str_ends_with($view, '.rzx')) {
-            return $base;
+        $root = PathUtil::append($this->module->getModuleInfo()->getPath(), 'view');
+        $base = PathUtil::append($root, $view);
+        if (\str_ends_with($view, '.rzx') || \str_ends_with($view, '.tpl')) {
+            $stem = \substr($base, 0, -4);
+        } elseif (\preg_match('/[^.]+\..+/', \basename($view))) {
+            return null; // another extension: a .tpl-family view, as before
+        } else {
+            $stem = $base;
         }
-        if (\preg_match('/[^.]+\..+/', \basename($view)) || !\is_file($base . '.rzx')) {
-            return null;
-        }
-        if (\is_file($base . '.tpl')) {
+        $hasRzx = \is_file($stem . '.rzx');
+        if ($hasRzx && \is_file($stem . '.tpl')) {
             throw new InvalidArgumentException("The view '{$view}' exists as both .tpl and .rzx; keep one.");
         }
+        if (\str_ends_with($view, '.tpl') || (!$hasRzx && !\str_ends_with($view, '.rzx'))) {
+            return null;
+        }
+        // A view stays inside this module's view/ folder.
+        $real = \realpath($stem . '.rzx');
+        $realRoot = \realpath($root);
+        $inside = $real !== false && $realRoot !== false
+            && \str_starts_with(\str_replace('\\', '/', $real), \rtrim(\str_replace('\\', '/', $realRoot), '/') . '/');
+        if (!$inside) {
+            throw new InvalidArgumentException("The view '{$view}' is not a .rzx file inside this module's view/ folder.");
+        }
 
-        return $base . '.rzx';
+        return $real;
     }
 }
