@@ -250,7 +250,8 @@ return new class(null) extends Controller {
     public function testM1ClassmapIsBakedAndConsulted(): void
     {
         $build = (string) \file_get_contents(SYSTEM_ROOT . '/build.php');
-        self::assertStringContainsString("\$phar->addFromString('system/classmap.php'", $build, 'the map is baked at build time');
+        self::assertStringContainsString("\$files['system/classmap.php']", $build, 'the map is baked at build time');
+        self::assertStringContainsString('ksort($classmap)', $build, 'classmap order does not depend on directory order');
 
         $boot = (string) \file_get_contents(SYSTEM_ROOT . '/src/system/bootstrap.inc.php');
         self::assertStringContainsString('system/classmap.php', $boot, 'the autoloader consults the baked map');
