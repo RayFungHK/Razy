@@ -75,7 +75,15 @@ final class Lexer
                 throw $this->error('RZX003', "Unexpected `}` in text; write {'}'} for a literal brace", $this->pos);
             } else {
                 $end = \strcspn($this->text, '{}<', $this->pos) + $this->pos;
-                $this->tokens[] = new Token(Token::TEXT, \substr($this->text, $this->pos, $end - $this->pos), $this->pos);
+                $text = \substr($this->text, $this->pos, $end - $this->pos);
+                $last = \end($this->tokens);
+                if ($last !== false && $last->type === Token::TEXT) {
+                    // Text on both sides of a dropped {/* comment */} is one run of text.
+                    \array_pop($this->tokens);
+                    $this->tokens[] = new Token(Token::TEXT, $last->value . $text, $last->offset);
+                } else {
+                    $this->tokens[] = new Token(Token::TEXT, $text, $this->pos);
+                }
                 $this->pos = $end;
             }
         }

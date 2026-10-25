@@ -52,4 +52,14 @@ class LexerTest extends TestCase
         $this->assertSame('x "y"', $tokens[1]->literal);
         $this->assertSame("{z} &amp;\n w", $tokens[2]->literal);
     }
+
+    public function testTextAroundADroppedCommentIsOneRun(): void
+    {
+        $tokens = Lexer::tokenize(new Source('<p>a {/* c */} b</p>'));
+        $this->assertSame('a  b', $tokens[2]->value);
+        $this->assertSame(Token::CLOSE, $tokens[3]->type);
+
+        $tokens = Lexer::tokenize(new Source("<p><x-a />   {/* note */}\n  <x-b /></p>"));
+        $this->assertSame("   \n  ", $tokens[4]->value, 'one whitespace run, dropped by the JSX rule');
+    }
 }
