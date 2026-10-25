@@ -323,6 +323,25 @@ class HostTest extends TestCase
         $this->assertSame("<title>Members <&></title><p>1</p>\n", \ob_get_clean());
     }
 
+    public function testATplPageRendersIntoAnRzxLayout(): void
+    {
+        \file_put_contents($this->dir . '/layout/site.rzx', "<props>\nreturn ['title' => Prop::string()->required()];\n</props>\n<html><head><title>{title}</title></head><body><Slot /><Anchor name=\"body.scripts\" /></body></html>");
+        $this->put('view/admin/Page.tpl', '<main>{$n}</main>{@push to="body.scripts"}<script src="/p.js"></script>{/push}');
+        Host::setCurrent($this->host());
+
+        \ob_start();
+        $this->controller('@layout/site.rzx')->render('admin/Page', ['n' => '<b>'], ['title' => 'T&']);
+        $html = (string) \ob_get_clean();
+        $this->assertMatchesRegularExpression('#^<!DOCTYPE html><html><head><title>T&amp;</title></head><body><main><b></main><script nonce="[^"]+" src="/p\.js"></script></body></html>$#', $html, 'the .tpl page is the layout\'s default slot; its push reaches the layout');
+
+        Host::setCurrent(null);
+        $template = $this->template()->setLayout('@layout/site.rzx');
+        $page = $template->load($this->module . '/view/admin/Page.tpl', $this->info());
+        $this->expectException(\Razy\Exception\TemplateException::class);
+        $this->expectExceptionMessage("The site layout '@layout/site.rzx' is a .rzx file; rendering it needs a dist with .rzx support.");
+        $template->renderPage($page, ['title' => 'x']);
+    }
+
     public function testAFailedRenderDiscardsTheAnchorState(): void
     {
         $screen = $this->screen('admin/Bad', "<props>\nreturn ['v' => Prop::any()];\n</props>\n<main><push to=\"body.scripts\"><script type=\"module\" src=\"/a.js\" /></push>{v}</main>");

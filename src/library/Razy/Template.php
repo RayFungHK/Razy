@@ -581,11 +581,17 @@ class Template implements TemplateInterface
                     throw new TemplateException("The site layout '{$this->layout}' was not found.");
                 }
                 $this->anchors()->setContent($html);
-                $layout = $this->load($path);
-                if ($layoutParameters) {
-                    $layout->assign($layoutParameters);
+                if (\str_ends_with($path, '.rzx')) {
+                    // RZ-28: an .rzx layout renders through the dist's .rzx host, with the page as its default slot.
+                    $host = Rzx\Host::current() ?? throw new TemplateException("The site layout '{$this->layout}' is a .rzx file; rendering it needs a dist with .rzx support.");
+                    $html = $host->renderLayout($this, $path, $layoutParameters);
+                } else {
+                    $layout = $this->load($path);
+                    if ($layoutParameters) {
+                        $layout->assign($layoutParameters);
+                    }
+                    $html = $layout->output();
                 }
-                $html = $layout->output();
             }
         } catch (Throwable $e) {
             $this->abortRender();

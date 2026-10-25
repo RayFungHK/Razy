@@ -18,6 +18,9 @@ ship `.rzx` components and screens. Everything is additive: `.tpl` pages render 
     (`'layout' => '@layout/site.rzx'`) gets the page as its default `<Slot />`.
   - A view that exists as both `.tpl` and `.rzx` is an error.
   - The `$layout` props also reach a `.tpl` layout, for `.tpl` pages and `.rzx` screens alike.
+  - A `.tpl` page can use an `.rzx` site layout: `Template::renderPage()` sends a `.rzx` layout through
+    `Host::renderLayout()`, with the page as its default `<Slot />`. Without a dist's `.rzx` host, that
+    is a clear TemplateException; the `.rzx` source is never parsed as template text.
     `Template::renderPage()` gains an optional `$layoutParameters` argument (additive).
 - `Template::abortRender()` (internal, used by `renderPage()` and the `.rzx` path) leaves a failed
   render. At the outermost level it discards the response's anchor state instead of finalizing it

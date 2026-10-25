@@ -185,7 +185,7 @@ final class Host
                 }
                 $template->anchors()->setContent($html);
                 $html = \str_ends_with($path, '.rzx')
-                    ? $this->razy->within($template, null, fn (): string => $runtime->renderFile($path, $layoutProps, ['' => new SafeHtml($template->anchors()->marker(Anchors::CONTENT))], $this->layoutProfile))
+                    ? $this->renderLayout($template, $path, $layoutProps)
                     : $template->load($path)->assign($layoutProps)->output();
             }
         } catch (Throwable $e) {
@@ -195,6 +195,21 @@ final class Host
         }
 
         return $template->endRender($html);
+    }
+
+    /**
+     * Render an `.rzx` site layout; the page (already set as the `content`
+     * anchor) is its default `<Slot />`. Used for `.rzx` screens and, through
+     * Template::renderPage(), for `.tpl` pages.
+     *
+     * @param array<string, mixed> $props
+     */
+    public function renderLayout(Template $template, string $path, array $props = []): string
+    {
+        $runtime = $this->runtime($template);
+        $page = ['' => new SafeHtml($template->anchors()->marker(Anchors::CONTENT))];
+
+        return $this->razy->within($template, null, fn (): string => $runtime->renderFile($path, $props, $page, $this->layoutProfile));
     }
 
     /**
