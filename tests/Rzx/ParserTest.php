@@ -281,6 +281,58 @@ class ParserTest extends TestCase
         $this->assertSame([2, 3], $source->position($doc->root->children[0]->offset), 'text starts at its first visible character');
     }
 
+    public function testSelfClosedVoidElementsAreVoid(): void
+    {
+        $root = $this->parse('<p><br/><img src="x" /><meta charset="utf-8" /><span /></p>')->root;
+        $this->assertInstanceOf(ElementNode::class, $root);
+        $void = \array_map(static fn (Node $n): bool => $n instanceof ElementNode && $n->void, $root->children);
+        $this->assertSame([true, true, true, false], $void);
+    }
+
+    public function testBranchesGroupAcrossSpacesAndComments(): void
+    {
+        $root = $this->parse('<p><if test={a}>T</if> {/* c */} <elseif test={b}>E</elseif>  <else>F</else></p>')->root;
+        $this->assertInstanceOf(ElementNode::class, $root);
+        $this->assertCount(1, $root->children);
+        $if = $root->children[0];
+        $this->assertInstanceOf(IfNode::class, $if);
+        $this->assertCount(2, $if->branches);
+        $this->assertNotNull($if->else);
+    }
+
+    public function testTopLevelSpacesAreDropped(): void
+    {
+        $this->assertNotNull($this->parse('<props>return [];</props> <p></p>')->props);
+        $this->assertCount(1, $this->parse('<p></p> <push to="body.scripts" /> ')->pushes);
+
+        $doc = $this->parse('<p></p><if test={a}> <push to="x"></push> </if><else> {/* none */} <push to="y" /></else>');
+        $this->assertCount(1, $doc->pushes);
+        $if = $doc->pushes[0];
+        $this->assertInstanceOf(IfNode::class, $if);
+        $this->assertCount(1, $if->branches[0][1], 'whitespace around the push is not a child');
+        $this->assertCount(1, $if->else ?? []);
+    }
+
+    public function testTextOffsetsSkipWhitespaceAndComments(): void
+    {
+        $root = $this->parse('<p>  {/* note */}  x</p>')->root;
+        $this->assertInstanceOf(ElementNode::class, $root);
+        $this->assertSame(\strpos('<p>  {/* note */}  x</p>', 'x'), $root->children[0]->offset, 'the first visible character');
+        $this->assertSame('    x', $this->text($root->children[0]));
+
+        $root = $this->parse('<p>a {/* c */} b</p>')->root;
+        $this->assertInstanceOf(ElementNode::class, $root);
+        $this->assertSame('a  b', $this->text($root->children[0]), 'one run across the comment');
+
+        $root = $this->parse('<p> <b></b></p>')->root;
+        $this->assertInstanceOf(ElementNode::class, $root);
+        $this->assertSame(3, $root->children[0]->offset, 'a blank node keeps its own offset');
+
+        $root = $this->parse("<p><x-a />   {/* note */}\n  <x-b /></p>")->root;
+        $this->assertInstanceOf(ElementNode::class, $root);
+        $this->assertCount(2, $root->children, 'indent around a comment is dropped');
+    }
+
     private function doc(string $fixture): DocumentNode
     {
         return (new Parser())->parseFile(__DIR__ . '/fixtures/' . $fixture);

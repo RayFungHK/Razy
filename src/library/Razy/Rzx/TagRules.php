@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace Razy\Rzx;
 
 use Razy\Rzx\Expr\Expr;
+use Razy\Rzx\Expr\ExprLexer;
 use Razy\Rzx\Expr\Literal;
 use Razy\Rzx\Node\AnchorNode;
 use Razy\Rzx\Node\AttributeNode;
@@ -144,8 +145,9 @@ final class TagRules
         $order = null;
         if (isset($attrs['order'])) {
             $attr = $attrs['order'];
-            if ($attr->literal !== null && \preg_match('/^-?[0-9]+$/', $attr->literal)) {
-                $order = new Literal($attr->offset, (int) $attr->literal);
+            $int = $attr->literal !== null && \preg_match('/^-?[0-9]+$/', $attr->literal) ? ExprLexer::number(\ltrim($attr->literal, '-')) : null;
+            if (\is_int($int)) {
+                $order = new Literal($attr->offset, \str_starts_with((string) $attr->literal, '-') ? -$int : $int);
             } elseif ($attr->expr !== null) {
                 $order = $attr->expr;
             } else {
@@ -167,14 +169,14 @@ final class TagRules
         if ($list !== null) {
             foreach (\explode(',', $list) as $item) {
                 $item = \trim($item);
-                if (!\preg_match('/^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)$/', $item)) {
+                if (!Names::isElement($item) && !Names::isComponent($item)) {
                     throw $this->error('RZX050', '<Slot> accepts must be a comma-separated list of tag or component names', $attrs['accepts']->offset);
                 }
                 $accepts[] = $item;
             }
         }
         $max = $this->literal($open, $attrs, 'max', false);
-        if ($max !== null && !\preg_match('/^[1-9][0-9]*$/', $max)) {
+        if ($max !== null && (!\preg_match('/^[1-9][0-9]*$/', $max) || !\is_int(ExprLexer::number($max)))) {
             throw $this->error('RZX050', '<Slot> max must be a positive integer', $attrs['max']->offset);
         }
 

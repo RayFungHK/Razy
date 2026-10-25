@@ -39,7 +39,7 @@ API changes.
 | RZX005 | unterminated `{/* */}` comment |
 | RZX006 | HTML comment or `<!…>` declaration |
 | RZX007 | malformed closing tag |
-| RZX008 | `<props>` never closed |
+| RZX008 | `<props>` never closed (a `</props>` inside a PHP string or comment does not count), or a heredoc in it |
 | RZX009 | `/` without `>` |
 | RZX010 | bad attribute syntax |
 | RZX011 | spread or nameless `{…}` attribute |
@@ -61,6 +61,7 @@ API changes.
 | RZX033 | unsupported operator: `=`, `===`, `!==`, `&`, `\|`, `*`, `/`, `%` |
 | RZX034 | unterminated string |
 | RZX035 | unknown string escape |
+| RZX036 | number out of range (beyond `PHP_INT_MAX`, or not finite) |
 | RZX040 | empty expression |
 | RZX041 | unexpected token |
 | RZX042 | chained comparison |
@@ -75,5 +76,9 @@ API changes.
 | RZX053 | misplaced or second `<empty>` |
 
 ## Notes
+- Whitespace-only text is dropped at the top level and between `</if>` and `<elseif>`/`<else>`,
+  including around `{/* comments */}`; a text node's offset is its first visible character.
+- Tag and component names are scanned without a repeated-group regex, so very long names are
+  judged correctly rather than hitting the PCRE JIT limit.
 - Quoted attribute values and text keep entities as written (`&amp;` stays `&amp;`). How
   they are escaped on output is decided by the compiler (28b).

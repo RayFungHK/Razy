@@ -40,6 +40,7 @@ class ParseErrorTest extends TestCase
         yield 'close tag without name' => ['<p></ >', 'RZX007', 1, 6, 'Expected a tag name after `</`'];
         yield 'close tag junk' => ['<p></p x>', 'RZX007', 1, 8, 'Expected `>`'];
         yield 'unterminated props' => ["<props>\nreturn [];\n", 'RZX008', 1, 1, 'expected </props>'];
+        yield 'props with spaced close' => ["<props>\nreturn [];\n</props >", 'RZX024', 3, 10, 'needs exactly one root'];
         yield 'slash without gt' => ['<br / >', 'RZX009', 1, 5, 'Expected `/>`'];
         yield 'attr junk' => ['<p #id></p>', 'RZX010', 1, 4, 'Unexpected `#` in <p>'];
         yield 'attr missing value' => ['<p title=></p>', 'RZX010', 1, 10, 'Expected a quoted value'];
@@ -72,6 +73,20 @@ class ParseErrorTest extends TestCase
         yield 'non-push after root' => ["<p></p>\n<if test={a}><p></p></if>", 'RZX023', 2, 1, 'Only <push> blocks'];
         yield 'no root' => ["{/* nothing */}\n", 'RZX024', 2, 1, 'needs exactly one root'];
         yield 'push only' => ['<push to="body.scripts"></push>', 'RZX022', 1, 1, 'not <push>'];
+
+        // review fixes
+        yield 'void close at top level' => ['<br></br>', 'RZX015', 1, 5, 'void element'];
+        yield 'top-level text column' => ['<props>return [];</props> x<p></p>', 'RZX021', 1, 27, 'Text outside the root'];
+        yield 'empty if after root' => ['<p></p><if test={a}></if>', 'RZX023', 1, 8, 'Only <push> blocks'];
+        yield 'int overflow' => ['<p>{9223372036854775808}</p>', 'RZX036', 1, 5, 'Number out of range'];
+        yield 'huge int' => ['<p>{1' . \str_repeat('0', 400) . '}</p>', 'RZX036', 1, 5, 'Number out of range: 100000000000000000000000…'];
+        yield 'infinite float' => ['<p>{1' . \str_repeat('0', 400) . '.0}</p>', 'RZX036', 1, 5, 'Number out of range'];
+        yield 'leading zeros are fine, overflow is not' => ['<p>{0009223372036854775808}</p>', 'RZX036', 1, 5, 'out of range'];
+        yield 'slot max overflow' => ['<p><Slot max="1' . \str_repeat('0', 400) . '" /></p>', 'RZX050', 1, 10, 'max must be a positive integer'];
+        yield 'push order overflow' => ['<p><push to="a" order="-1' . \str_repeat('0', 400) . '"></push></p>', 'RZX050', 1, 17, 'order must be an integer'];
+        yield 'long invalid component name' => ['<A' . \str_repeat('.b', 20000) . ' />', 'RZX017', 1, 1, 'Invalid component name'];
+        yield 'props cut by a comment' => ["<props>\nreturn ['ok' => true]; // </props><p></p>", 'RZX008', 1, 1, 'outside strings and comments'];
+        yield 'props heredoc' => ["<props>\nreturn [<<<X\nX];\n</props><p></p>", 'RZX008', 2, 9, 'Heredoc'];
 
         // control tags
         yield 'if without test' => ['<p><if><b></b></if></p>', 'RZX050', 1, 4, '<if> needs test={…}'];

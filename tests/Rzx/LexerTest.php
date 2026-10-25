@@ -53,13 +53,20 @@ class LexerTest extends TestCase
         $this->assertSame("{z} &amp;\n w", $tokens[2]->literal);
     }
 
-    public function testTextAroundADroppedCommentIsOneRun(): void
+    public function testPropsEndsOnlyAtACloseTagInCode(): void
     {
-        $tokens = Lexer::tokenize(new Source('<p>a {/* c */} b</p>'));
-        $this->assertSame('a  b', $tokens[2]->value);
-        $this->assertSame(Token::CLOSE, $tokens[3]->type);
+        $body = "\nreturn ['a' => '</props>', \"b\" => \"x\\\"</props>\"]; // </props> in a comment\n/* </props> */ # </props>\n";
+        $tokens = Lexer::tokenize(new Source('<props >' . $body . '</props  ><p></p>'));
 
-        $tokens = Lexer::tokenize(new Source("<p><x-a />   {/* note */}\n  <x-b /></p>"));
-        $this->assertSame("   \n  ", $tokens[4]->value, 'one whitespace run, dropped by the JSX rule');
+        $this->assertSame(Token::PROPS, $tokens[0]->type);
+        $this->assertSame($body, $tokens[0]->value);
+        $this->assertSame('open:p', $tokens[1]->type . ':' . $tokens[1]->value);
+    }
+
+    public function testAVeryLongTagNameIsScannedNotMatchedByRegex(): void
+    {
+        $name = 'A' . \str_repeat('.B', 20000);
+        $tokens = Lexer::tokenize(new Source('<' . $name . ' />'));
+        $this->assertSame($name, $tokens[0]->value);
     }
 }

@@ -30,8 +30,6 @@ use Razy\Rzx\Expr\ExprLexer;
  */
 final class Lexer
 {
-    private const TAG_NAME = '/\G[A-Za-z][A-Za-z0-9]*(?:[.\-:][A-Za-z0-9]+)*/';
-
     private const ATTR_NAME = '/\G[A-Za-z_@:][A-Za-z0-9_.:\-]*/';
 
     private string $text;
@@ -75,15 +73,7 @@ final class Lexer
                 throw $this->error('RZX003', "Unexpected `}` in text; write {'}'} for a literal brace", $this->pos);
             } else {
                 $end = \strcspn($this->text, '{}<', $this->pos) + $this->pos;
-                $text = \substr($this->text, $this->pos, $end - $this->pos);
-                $last = \end($this->tokens);
-                if ($last !== false && $last->type === Token::TEXT) {
-                    // Text on both sides of a dropped {/* comment */} is one run of text.
-                    \array_pop($this->tokens);
-                    $this->tokens[] = new Token(Token::TEXT, $last->value . $text, $last->offset);
-                } else {
-                    $this->tokens[] = new Token(Token::TEXT, $text, $this->pos);
-                }
+                $this->tokens[] = new Token(Token::TEXT, \substr($this->text, $this->pos, $end - $this->pos), $this->pos);
                 $this->pos = $end;
             }
         }
@@ -122,16 +112,18 @@ final class Lexer
                 : '`<!…>` declarations are not allowed; the layout emits the doctype';
             throw $this->error('RZX006', $hint, $start);
         }
-        if (!\preg_match(self::TAG_NAME, $this->text, $m, 0, $start + 1)) {
+        $length = Names::scanTag($this->text, $start + 1);
+        if ($length === 0) {
             throw $this->error('RZX002', 'Unexpected `<` in text; write &lt; for a literal less-than sign', $start);
         }
-        $name = $m[0];
-        $this->pos = $start + 1 + \strlen($name);
+        $name = \substr($this->text, $start + 1, $length);
+        $this->pos = $start + 1 + $length;
         if (!\str_contains(" \t\r\n/>", $this->text[$this->pos] ?? ' ')) {
             $bad = \substr($this->text, $start + 1, \strcspn($this->text, " \t\r\n/>", $start + 1));
             throw $this->error('RZX017', 'Invalid tag name <' . $bad . '>; names use letters, digits, `-` and `.`', $start);
         }
-        if ($name === 'props' && ($this->text[$this->pos] ?? '') === '>') {
+        if ($name === 'props' && ($this->text[$this->pos + \strspn($this->text, " \t\r\n", $this->pos)] ?? '') === '>') {
+            $this->pos += \strspn($this->text, " \t\r\n", $this->pos);
             $this->props($start);
 
             return;
@@ -142,27 +134,55 @@ final class Lexer
 
     private function closeTag(int $start): void
     {
-        if (!\preg_match(self::TAG_NAME, $this->text, $m, 0, $start + 2)) {
+        $length = Names::scanTag($this->text, $start + 2);
+        if ($length === 0) {
             throw $this->error('RZX007', 'Expected a tag name after `</`', $start + 2);
         }
-        $this->pos = $start + 2 + \strlen($m[0]);
+        $name = \substr($this->text, $start + 2, $length);
+        $this->pos = $start + 2 + $length;
         $this->skipSpace();
         if (($this->text[$this->pos] ?? '') !== '>') {
-            throw $this->error('RZX007', 'Expected `>` to end the closing tag </' . $m[0] . '>', $this->pos);
+            throw $this->error('RZX007', 'Expected `>` to end the closing tag </' . $name . '>', $this->pos);
         }
         ++$this->pos;
-        $this->tokens[] = new Token(Token::CLOSE, $m[0], $start);
+        $this->tokens[] = new Token(Token::CLOSE, $name, $start);
     }
 
+    /**
+     * The raw `<props>` body, up to a `</props>` that sits in PHP code: one in
+     * a string or a comment does not end the block.
+     */
     private function props(int $start): void
     {
         $bodyOffset = $this->pos + 1;
-        $close = \strpos($this->text, '</props>', $bodyOffset);
-        if ($close === false) {
-            throw $this->error('RZX008', '<props> is never closed; expected </props>', $start);
+        $text = $this->text;
+        $i = $bodyOffset;
+        while ($i < $this->length) {
+            $char = $text[$i];
+            if ($char === "'" || $char === '"') {
+                for (++$i; $i < $this->length && $text[$i] !== $char; ++$i) {
+                    $i += $text[$i] === '\\' ? 1 : 0;
+                }
+                ++$i;
+            } elseif ($char === '#' || ($char === '/' && ($text[$i + 1] ?? '') === '/')) {
+                $newline = \strpos($text, "\n", $i);
+                $i = $newline === false ? $this->length : $newline;
+            } elseif ($char === '/' && ($text[$i + 1] ?? '') === '*') {
+                $close = \strpos($text, '*/', $i + 2);
+                $i = $close === false ? $this->length : $close + 2;
+            } elseif ($char === '<' && \substr_compare($text, '<<<', $i, 3) === 0) {
+                throw $this->error('RZX008', 'Heredoc and nowdoc are not allowed in <props>', $i);
+            } elseif ($char === '<' && \preg_match('/\G<\/props\s*>/', $text, $m, 0, $i)) {
+                $this->tokens[] = new Token(Token::PROPS, \substr($text, $bodyOffset, $i - $bodyOffset), $start, null, null, $bodyOffset);
+                $this->pos = $i + \strlen($m[0]);
+
+                return;
+            } else {
+                ++$i;
+            }
         }
-        $this->tokens[] = new Token(Token::PROPS, \substr($this->text, $bodyOffset, $close - $bodyOffset), $start, null, null, $bodyOffset);
-        $this->pos = $close + \strlen('</props>');
+
+        throw $this->error('RZX008', '<props> is never closed; expected </props> outside strings and comments', $start);
     }
 
     private function attributes(int $tagStart, string $name): void

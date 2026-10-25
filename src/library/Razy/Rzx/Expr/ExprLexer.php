@@ -90,7 +90,10 @@ final class ExprLexer
                 continue;
             }
             if (\preg_match('/\G[0-9]+(?:\.[0-9]+)?/', $text, $m, 0, $i)) {
-                $number = \str_contains($m[0], '.') ? (float) $m[0] : (int) $m[0];
+                $number = self::number($m[0]);
+                if ($number === null) {
+                    throw new CompileError('RZX036', 'Number out of range: ' . (\strlen($m[0]) > 24 ? \substr($m[0], 0, 24) . '…' : $m[0]), $source, $i);
+                }
                 if (\preg_match('/\G[A-Za-z_]/', $text, $unused, 0, $i + \strlen($m[0]))) {
                     throw new CompileError('RZX031', 'A name cannot start with a digit', $source, $i);
                 }
@@ -128,6 +131,24 @@ final class ExprLexer
         $tokens[] = new ExprToken(ExprToken::END, '', $i);
 
         return [$tokens, $i];
+    }
+
+    /**
+     * The value of a number literal, or null when it does not fit: an integer
+     * beyond PHP_INT_MAX or a float that is not finite. Never a silent cast.
+     */
+    public static function number(string $digits): int|float|null
+    {
+        if (\str_contains($digits, '.')) {
+            $float = (float) $digits;
+
+            return \is_finite($float) ? $float : null;
+        }
+        $trimmed = \ltrim($digits, '0');
+        $trimmed = $trimmed === '' ? '0' : $trimmed;
+        $int = (int) $trimmed;
+
+        return (string) $int === $trimmed ? $int : null;
     }
 
     private static function punct(string $text, int $i): ?string

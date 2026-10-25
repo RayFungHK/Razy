@@ -169,13 +169,13 @@ final class Parser
                     return $nodes;
                 case Token::CLOSE:
                     $this->next();
+                    if (($open === null || $token->value !== $open->value) && \in_array($token->value, self::VOID_ELEMENTS, true)) {
+                        throw $this->error('RZX015', '<' . $token->value . '> is a void element and has no closing tag', $token->offset);
+                    }
                     if ($open === null) {
                         throw $this->error('RZX016', 'Unexpected </' . $token->value . '>: no element is open', $token->offset);
                     }
                     if ($token->value !== $open->value) {
-                        if (\in_array($token->value, self::VOID_ELEMENTS, true)) {
-                            throw $this->error('RZX015', '<' . $token->value . '> is a void element and has no closing tag', $token->offset);
-                        }
                         [$line, $column] = $this->source->position($open->offset);
                         $reason = \sprintf('Expected </%s> to close <%s> opened at %d:%d, found </%s>', $open->value, $open->value, $line, $column, $token->value);
                         throw $this->error('RZX012', $reason, $token->offset);
@@ -183,12 +183,13 @@ final class Parser
 
                     return $nodes;
                 case Token::TEXT:
-                    $this->next();
-                    $text = self::normalizeText($token->value);
-                    if ($text === '' || ($lastIf !== null && \trim($text) === '' && $this->nextIsBranch())) {
+                    [$raw, $at] = $this->textRun();
+                    $text = self::normalizeText($raw);
+                    $blank = \trim($text, " \t\r\n") === '';
+                    // Whitespace is dropped at the top level, and between </if> and <elseif>/<else>.
+                    if ($text === '' || ($blank && ($open === null || ($lastIf !== null && $this->nextIsBranch())))) {
                         break;
                     }
-                    $at = $token->offset + \strspn($token->value, " \t\r\n");
                     if ($open === null) {
                         throw $this->error('RZX021', 'Text outside the root element', $at);
                     }
@@ -239,7 +240,7 @@ final class Parser
             throw $this->error('RZX020', '<props> takes no attributes and must be the first thing in the file', $token->offset);
         }
         [$attributes, $selfClosed] = $this->openTag($token);
-        $void = !$selfClosed && \in_array($name, self::VOID_ELEMENTS, true);
+        $void = \in_array($name, self::VOID_ELEMENTS, true);
         $children = $selfClosed || $void ? [] : $this->nested($token);
 
         if (TagRules::isSpecial($name)) {
@@ -249,13 +250,13 @@ final class Parser
             return $this->rules->build($token, $attributes, $children, $empty);
         }
         if (\ctype_upper($name[0])) {
-            if (!\preg_match('/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*$/', $name)) {
+            if (!Names::isComponent($name)) {
                 throw $this->error('RZX017', 'Invalid component name <' . $name . '>; use PascalCase, namespaced with dots (Pkg.Name)', $token->offset);
             }
 
             return new ComponentNode($token->offset, $name, $attributes, $children);
         }
-        if (!\preg_match('/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/', $name)) {
+        if (!Names::isElement($name)) {
             throw $this->error('RZX017', 'Invalid element name <' . $name . '>; use lowercase (custom elements with dashes)', $token->offset);
         }
 
@@ -319,6 +320,10 @@ final class Parser
         return [$attributes, $this->next()->type === Token::SELF_CLOSE];
     }
 
+    /**
+     * A `<push>`, or an `<if>` whose branches hold only pushes (at least one).
+     * Whitespace text around the pushes is removed from the branches.
+     */
     private function isPushBlock(Node $node): bool
     {
         if ($node instanceof PushNode) {
@@ -327,15 +332,47 @@ final class Parser
         if (!$node instanceof IfNode) {
             return false;
         }
+        $pushes = 0;
+        $strip = static fn (array $body): array => \array_values(\array_filter($body, static fn (Node $n): bool => !($n instanceof TextNode && \trim($n->text) === '')));
+        foreach ($node->branches as $i => [$test, $body]) {
+            $node->branches[$i] = [$test, $strip($body)];
+        }
+        if ($node->else !== null) {
+            $node->else = $strip($node->else);
+        }
         foreach ([...\array_column($node->branches, 1), $node->else ?? []] as $body) {
             foreach ($body as $child) {
                 if (!$this->isPushBlock($child)) {
                     return false;
                 }
+                ++$pushes;
             }
         }
 
-        return true;
+        return $pushes > 0;
+    }
+
+    /**
+     * Consume consecutive TEXT tokens (split only by dropped comments) as one run.
+     *
+     * @return array{string, int} the raw text and the offset of its first
+     *                            visible character (or of the run, when blank)
+     */
+    private function textRun(): array
+    {
+        $raw = '';
+        $at = null;
+        $first = $this->peek()->offset;
+        while ($this->peek()->type === Token::TEXT) {
+            $token = $this->next();
+            $raw .= $token->value;
+            $skip = \strspn($token->value, " \t\r\n");
+            if ($at === null && $skip < \strlen($token->value)) {
+                $at = $token->offset + $skip;
+            }
+        }
+
+        return [$raw, $at ?? $first];
     }
 
     private function nextIsBranch(): bool

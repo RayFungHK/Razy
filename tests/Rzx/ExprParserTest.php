@@ -99,6 +99,7 @@ class ExprParserTest extends TestCase
         yield 'call a call' => ['f()()', 'RZX044', 4, 'Only a registered function'];
         yield 'bad map key' => ['{ 1: 2 }', 'RZX046', 3, 'Expected a map key'];
         yield 'map shorthand' => ['{ a }', 'RZX041', 5, 'Expected `:` after a map key'];
+        yield 'int overflow' => ['9223372036854775808', 'RZX036', 1, 'Number out of range'];
         yield 'too deep' => [\str_repeat('(', 70) . 'a' . \str_repeat(')', 70), 'RZX047', 65, 'nested too deeply'];
     }
 
@@ -136,6 +137,14 @@ class ExprParserTest extends TestCase
         $this->assertTrue($this->literal($parser->parseString('true')));
         $this->assertNull($this->literal($parser->parseString('null')));
         $this->assertSame("a\nb\t\\", $this->literal($parser->parseString('"a\nb\t\\\"')));
+    }
+
+    public function testLargestIntegerIsKept(): void
+    {
+        $expr = (new ExprParser())->parseString('9223372036854775807 + 007');
+        $this->assertInstanceOf(Binary::class, $expr);
+        $this->assertSame(\PHP_INT_MAX, $this->literal($expr->left));
+        $this->assertSame(7, $this->literal($expr->right));
     }
 
     public function testOffsetsAreAbsolute(): void
