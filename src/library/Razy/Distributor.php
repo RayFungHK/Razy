@@ -102,8 +102,8 @@ class Distributor implements DistributorInterface
     /** @var string|null RZ-04: dist.php 'origin' — canonical scheme://host[:port] for absolute URLs */
     private ?string $canonicalOrigin = null;
 
-    /** @var bool RZ-03: dist.php 'auto_escape' — HTML-escape `{$tag}` output by default */
-    private bool $autoEscape = false;
+    /** @var bool RZ-32: dist.php 'auto_escape' — HTML-escape `{$tag}` unless the dist sets false */
+    private bool $autoEscape = true;
 
     /** RZ-27: the site layout include spec, or null */
     private ?string $layout = null;
@@ -234,8 +234,8 @@ class Distributor implements DistributorInterface
             $this->canonicalOrigin = $origin;
         }
 
-        // RZ-03: template auto-escape. Absent = false so existing dists render
-        // exactly as before; the dist.php skeleton opts new dists in.
+        // RZ-32: template auto-escape. Absent = true. Explicit false keeps
+        // raw `{$tag}` output for a dist that still needs it.
         $this->autoEscape = Template::autoEscapeFromConfig($config, $distCode);
 
         // RZ-11: INCLUDE paths. `@layout/…` reads the dist's shared layout folder
@@ -1077,7 +1077,8 @@ class Distributor implements DistributorInterface
     }
 
     /**
-     * Whether this dist HTML-escapes `{$tag}` output by default (dist.php 'auto_escape', RZ-03).
+     * Whether this dist HTML-escapes `{$tag}` output (dist.php 'auto_escape', RZ-32).
+     * Omitted key is on. Explicit false is the opt-out.
      *
      * @return bool
      */

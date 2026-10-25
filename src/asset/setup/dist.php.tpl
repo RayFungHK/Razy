@@ -35,8 +35,8 @@ return [
 
 	// Template auto-escape: every variable tag is HTML-escaped unless it has ->raw
 	// (trusted HTML; the lint wants a `<!-- lint-allow: RZ-004 <reason> -->` comment
-	// next to it), ->escape, or ends in ->json (<script>-safe JSON). Dists created
-	// before this flag existed default to false.
+	// next to it), ->escape, or ends in ->json (<script>-safe JSON). Omitting this
+	// key is the same as true (RZ-32). Set false only to keep raw {$tag} output.
 	'auto_escape'    => true,
 
 	// One session for the dist (CSRF tokens included). The cookie is an opaque

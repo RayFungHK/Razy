@@ -354,7 +354,7 @@ grammar/env scrub (`:59-67`/`:667` verified) and the fail-closed route-ability d
 - [ ] Set `RAZY_BRIDGE_SECRET` (OS secret store) to activate HMAC enforcement on
       `executeBridgeCommand` — unsigned/self-declared-source calls are then denied
       (`Razy\BridgeSignature`; sender uses `signedPayload()`)
-- [ ] Templates: every user value escaped (`->escape` built-in v1.0.3-beta+/DOM/`htmlspecialchars`) — RZ-004
+- [ ] Templates: dist `auto_escape` omitted or true (RZ-32). Explicit `false` means every user value is escaped by hand (`->escape`, DOM, or `htmlspecialchars`) — RZ-004
       ([05 §4](05-templates.md))
 - [ ] SQL: values only via `assign()`/ORM params; no `getSearchTextSyntax($userText)`;
       identifier whitelists — RZ-003 ([04 §7](04-database.md))

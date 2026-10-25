@@ -2,7 +2,8 @@
 
 The shipped syntax, verified against `src/library/Razy/Template/Entity.php` and the working
 views under `demo_modules/core/template_demo/default/view/`. Read §4 before putting any
-user-supplied value in a template — the engine does **not** escape (RZ-004).
+user-supplied value in a template. A dist escapes `{$tag}` unless dist.php sets
+`'auto_escape' => false` (RZ-32). See §4.
 
 ---
 
@@ -33,7 +34,7 @@ fallback loop `:391-396`, empty default `:398`, literal parsing `:417-421`, modi
 
 | Feature | Syntax | Verified behaviour |
 |---|---|---|
-| Variable | `{$name}` | **raw output** — the parsed value is returned untouched (`Entity.php:392-394`) |
+| Variable | `{$name}` | HTML-escaped when the dist omits `auto_escape` or sets it true (RZ-32). Explicit `false`, or a Template with no dist config, prints the value untouched |
 | Dot path | `{$user.profile.city}` | nested array keys / property paths (regex `:388`; value-by-path resolution in `Entity.php` `parseValue`) |
 | Object access | `{$obj->prop}` / `{$obj->method:arg}` | property/method access per tag grammar (regex `:388` `->\w+(?::…)`) |
 | **Fallback chain** | `{$missing\|"N/A"}` | `\|` splits alternatives (outside quotes, `:389`); the **first renderable clip wins** — scalar or `__toString` object (`:391-395`); all-empty renders `''` (`:398`) |
@@ -105,18 +106,24 @@ opening line was dropped and the tail of a multi-line comment rendered as page t
    (`demo_variables_modifiers.tpl:1`, `demo_variables_chain.tpl:1`) are **legacy examples**
    that no-op under the current engine (drift list in [README](README.md)).
    Correct: `{$text->upper}`, `{$raw_input->trim->capitalize}`.
-2. **No auto-escaping anywhere** (§4).
-3. **No auto-escaping is added for you.** `{$value}` stays raw; `{$value->escape}` is
-   built-in since v1.0.3-beta — on older installs adopt the §4c file.
+2. **Auto-escape follows the dist.** Omitting `auto_escape` escapes (RZ-32). Explicit
+   `false` keeps raw output (§4).
+3. **`{$value->escape}`** is built-in since v1.0.3-beta — on older installs adopt the §4c file.
+   Under auto-escape it is not doubled.
 4. No `{`-tag `{@foreach}` / `{if}` C-style tags — the tags are `{@if}`-style function tags
    with `{/if}` closers, per the verified demo files.
 
-## 4. XSS discipline (RZ-004) — the engine is raw by design
+## 4. XSS discipline (RZ-004)
 
-`parseText()` returns values unmodified (`Entity.php:392-394`); there is no global escape
-hook. Every value with *any* chance of user content must be neutralised **before** the
-template, or the app inherits an XSS hole (rules RZ-004 "Why"; the same finding is in
-`RAZY-ANALYSIS-REPORT.md`). Three sanctioned routes:
+A dist HTML-escapes `{$tag}` unless dist.php sets `'auto_escape' => false` (RZ-32).
+Before RZ-32, omitting the key meant raw output. Sites that relied on the implicit off
+must set `auto_escape => false` explicitly. `->raw` opts one tag out and the lint wants
+a written reason. `->escape` is not applied twice. A Template with no dist config stays
+raw until `setAutoEscape(true)`.
+
+When a dist opts out, `parseText()` returns values unmodified (`Entity.php` clip loop).
+Every value with any chance of user content must be neutralised before the template.
+Three sanctioned routes:
 
 ### a) Escape in the controller (baseline)
 

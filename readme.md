@@ -158,7 +158,7 @@ machine-checked by [`tools/lint-module-discipline.php`](tools/lint-module-discip
 | RZ-001 | Never `require`/`include` another module's files | `$agent->addAPICommand(...)` + `$this->api('vendor/mod')->cmd(...)` |
 | RZ-002 | Never reach across distributor boundaries casually | Bridge commands + a **mandatory** `__onBridgeCall()` gate (the framework default allows all — you must close it, see [Security](#security-posture-honest-edition)) |
 | RZ-003 | Never hand-write SQL from user input; never `new PDO` | `$db->prepare()->select(...)->where('x=:x')->assign([...])` or ORM (`Model`) named params |
-| RZ-004 | **Templates do not auto-escape** — never output user data raw | `htmlspecialchars(..., ENT_QUOTES)` in code, the DOM builder in views, or the built-in `->escape` template modifier (`src/plugins/Template/modifier.escape.php`) |
+| RZ-004 | Never output user data raw. A dist escapes `{$var}` unless it sets `'auto_escape' => false` (RZ-32) | leave the key omitted or `true`; `htmlspecialchars(..., ENT_QUOTES)`, the DOM builder, or `->escape` (`src/plugins/Template/modifier.escape.php`) |
 | RZ-005 | Never resolve framework internals through DI (`SecurityException` is a fence — do not climb it) | Module DI child only; services via documented Controller helpers |
 | RZ-006 | Never write outside your module's `getDataPath()` / `getAssetPath()` | `getDataPath()`, `getAssetPath()` |
 | RZ-007 | Never hand-edit `autoload/` or `lock.json`; declare deps in `package.php` | `require` (module deps), `prerequisite` (Composer deps) + `php Razy.phar compose <dist>` |
@@ -500,7 +500,7 @@ supply-chain runtime surface.
 
 | Gap | Status | What you MUST do today |
 |---|---|---|
-| Templates do not auto-escape | ✅ fixed v1.0.3-beta | Built-in `->escape` modifier ships; engine still does **not** auto-escape, so keep applying it (RZ-004) |
+| Templates do not auto-escape | ✅ dist default on (RZ-32; `->escape` since v1.0.3-beta) | Omitting `auto_escape` escapes `{$tag}`. Set `'auto_escape' => false` only when raw output is required. `->raw` still needs a lint reason (RZ-004) |
 | Package extraction lacked entry-path validation (zip-slip); RepoInstaller permitted plain HTTP | ✅ fixed (unreleased) | `Razy\ArchiveSafety` now rejects `..`/absolute/symlink entries and non-HTTPS URLs before extract; HTTPS stays the default (opt out only via `RAZY_ALLOW_INSECURE_TRANSPORT=1` on trusted LAN mirrors) |
 | Bridge commands open by default (`__onBridgeCall` default allows all); CLI `bridge` is unauthenticated local IPC | ⚠️ mitigated | Implement `__onBridgeCall` allow-lists for every bridge module. **New:** set `RAZY_BRIDGE_SECRET` to require an HMAC envelope (`Razy\BridgeSignature`) on every `executeBridgeCommand`; CLI `bridge` remains local IPC — treat shell access to the project dir as code-exec trust (RZ-002) |
 | `spawnPHPCode()` uses `eval(base64_decode())` in the child | ⚠️ open | Never pass input-derived code; prefer `spawnPHPFile()` (0600, atomic) or plain callables (RZ-011) |

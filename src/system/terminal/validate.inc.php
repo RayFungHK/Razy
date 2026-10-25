@@ -29,6 +29,7 @@
 
 namespace Razy;
 
+use Razy\Exception\ConfigurationException;
 use Razy\Routing\ExcludePaths;
 use Razy\Routing\RouteAudit;
 use Razy\Util\PathUtil;
@@ -313,22 +314,28 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
 
         $this->writeLineLogging('', true);
 
-        // ── Template auto-escape (RZ-03) ──────────────────────────────
-        // Off is the upgrade-neutral default for dists that predate the
-        // flag; say so loudly, like the CSRF posture above.
+        // ── Template auto-escape (RZ-03, RZ-32) ─────────────────────
+        // The omitted key is on. Explicit false is the opt-out and stays
+        // a warning. The boolean comes from the same reader the dist boots
+        // with, so validate cannot drift from Template::autoEscapeFromConfig.
         $this->writeLineLogging('{@s:b}Template Auto-Escape{@reset}', true);
         $escapeConfig = (\is_file($csrfDistConfigPath) && \is_array($csrfParsed ?? null)) ? $csrfParsed : [];
-        $escapeSet = \array_key_exists('auto_escape', $escapeConfig);
-        $escapeRaw = $escapeConfig['auto_escape'] ?? null;
-        if (true === $escapeRaw) {
-            $this->writeLineLogging("  {@c:green}✓ on (dist.php 'auto_escape' => true){@reset}", true);
-        } elseif (!$escapeSet || false === $escapeRaw) {
-            $this->writeLineLogging('  {@c:yellow}⚠ OFF — {$tag} output is raw unless the template adds ->escape{@reset}', true);
-            $this->writeLineLogging("      to enable: dist.php 'auto_escape' => true   (trusted HTML: ->raw)", true);
-            ++$totalWarnings;
-        } else {
+        $escapeOn = null;
+        try {
+            $escapeOn = Template::autoEscapeFromConfig($escapeConfig, $distCode);
+        } catch (ConfigurationException) {
             $this->writeLineLogging("  {@c:red}✗ 'auto_escape' must be true or false (boot would refuse){@reset}", true);
             ++$totalErrors;
+        }
+        if (true === $escapeOn) {
+            $how = \array_key_exists('auto_escape', $escapeConfig)
+                ? "dist.php 'auto_escape' => true"
+                : "default; dist.php omits 'auto_escape'";
+            $this->writeLineLogging("  {@c:green}✓ on ({$how}){@reset}", true);
+        } elseif (false === $escapeOn) {
+            $this->writeLineLogging('  {@c:yellow}⚠ OFF — {$tag} output is raw (dist.php \'auto_escape\' => false){@reset}', true);
+            $this->writeLineLogging('      remove the key, or set it true, to escape; trusted HTML: ->raw', true);
+            ++$totalWarnings;
         }
 
         $this->writeLineLogging('', true);
