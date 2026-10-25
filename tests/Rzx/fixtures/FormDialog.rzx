@@ -1,0 +1,24 @@
+<props>
+return [
+    'id'          => Prop::string()->required(),
+    'title'       => Prop::string()->required(),
+    'description' => Prop::string()->optional(),
+    'icon'        => Prop::string()->optional(),                 // any registered icon slug
+    'size'        => Prop::enum('sm', 'md', 'lg')->default('md'),
+    'open'        => Prop::bool()->default(false),
+    'expandable'  => Prop::bool()->default(false),
+    'tone'        => Prop::enum('default', 'danger')->default('default'),
+    'submit'      => Prop::string()->required(),                 // primary label
+    'cancel'      => Prop::string()->required(),
+    'busy'        => Prop::bool()->default(false),
+];
+</props>
+<ui-dialog id={id} ui-variant="form" ui-size={size} ui-icon={icon}
+            ui-title={title} ui-description={description}
+            ui-ruled-header ui-expandable={expandable} ui-open={open} motion="pop">
+  <Slot accepts="Kit.FieldGroup,Kit.Inset,Kit.Attached,p" />
+  <Slot name="footer-start" accepts="ui-button" max="1" />
+  <ui-button data-ui-slot="footer-end" ui-style="soft" label={cancel} data-ui-dialog-close />
+  <ui-button data-ui-slot="footer-end" ui-style={tone == 'danger' ? 'danger' : 'default'}
+              label={submit} loading={busy} type="submit" />
+</ui-dialog>

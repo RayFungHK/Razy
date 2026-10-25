@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **RZ-28a** — **Added:** `Razy\Rzx\Parser`, the `.rzx` component lexer/parser (JSX-subset markup, control-flow tags, slots, pushes, fixed expression grammar) to an AST with `RZX0nn` line:col errors; parse only, nothing renders yet. [unreleased/RZ-28a.md](unreleased/RZ-28a.md).
 - **RZ-29** — **Added:** UI fixtures (`*.fixture.php`, `Razy\View\Fixture`) and `php Razy.phar ui list | ui render`, which render one piece of UI per state and theme to standalone HTML (no network) for pixel goldens. [unreleased/RZ-29.md](unreleased/RZ-29.md).
 - **RZ-27** — **Added:** one layout per site (`dist.php 'layout'`, `Controller::render()`), named anchors (`{@anchor}`) and `{@push}` with dedupe, order and the CSP nonce; `{@importmap}` once per response. **Changed (breaking):** a block or `INCLUDE BLOCK` comment inside an open `{@if}` (or other enclosing tag) is a parse error instead of silently ignoring the condition (RZ-26). [unreleased/RZ-27.md](unreleased/RZ-27.md).
 - **RZ-30** — **Security:** `{@if}` no longer parses a substituted value as template. `{@if $x}{$x}{/if}` prints `{$secret}` when `$x` is that text. [unreleased/RZ-30.md](unreleased/RZ-30.md).

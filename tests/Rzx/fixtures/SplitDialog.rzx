@@ -1,0 +1,31 @@
+<props>
+return [
+    'id'          => Prop::string()->required(),
+    'title'       => Prop::string()->required(),
+    'description' => Prop::string()->optional(),
+    'icon'        => Prop::string()->optional(),
+    'navLabel'    => Prop::string()->required(),
+    'sections'    => Prop::list(Prop::shape([
+                        'id' => Prop::string(), 'label' => Prop::string(), 'icon' => Prop::string()->optional(),
+                        'description' => Prop::string()->optional(), 'group' => Prop::string()->optional(),
+                     ]))->required(),
+    'section'     => Prop::string()->required(),                 // the open section (deep link / Back, L1)
+    'save'        => Prop::string()->optional(),                 // primary label; no footer when absent
+    'open'        => Prop::bool()->default(false),
+];
+</props>
+<ui-dialog id={id} ui-variant="split" ui-size="xl" ui-icon={icon} ui-title={title}
+            ui-description={description} ui-nav-label={navLabel} ui-section={section}
+            ui-open={open} motion="pop">
+  <div data-ui-slot="nav">
+    <for each={sections} as="s" key="id">
+      <if test={s.group}><div data-ui-nav-group>{s.group}</div></if>
+      <button data-ui-section={s.id} data-ui-description={s.description}>{s.label}</button>
+    </for>
+  </div>
+  <for each={sections} as="s" key="id">
+    <div data-ui-section={s.id}><Slot name={'section:' ~ s.id} /></div>
+  </for>
+  <Slot name="aside-footer" accepts="ui-button,a" max="2" />
+  <if test={save}><ui-button data-ui-slot="footer" label={save} /></if>
+</ui-dialog>
