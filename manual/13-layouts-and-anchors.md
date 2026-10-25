@@ -132,3 +132,46 @@ Only tags whose plugin encloses content count (`{@if}`, `{@push}`, `{@repeat}`, 
 
 Anchor names are lowercase letters, digits, `.`, `_` and `-`, starting with a letter. `content` is
 reserved for the page body.
+
+## 7. Rendering a fixture (`ui render`, RZ-29)
+
+A **fixture** renders one piece of UI on its own, with injected values, in named states, as a
+standalone HTML file. A screenshot harness turns those files into pixel goldens.
+
+Put a `*.fixture.php` next to the template:
+
+```php
+<?php // view/card.fixture.php
+use Razy\View\Fixture;
+
+return Fixture::template('card.tpl')          // relative to this file
+    ->themes('light', 'dark')                 // sets <html data-theme>
+    ->widths(1280, 360)                       // read by the screenshot harness only
+    ->assets(css: ['../webassets/card.css'])  // local files; copied next to the HTML
+    ->layouts('../../layout')                 // where @layout/… includes resolve (optional)
+    ->base(['title' => 'Members', 'rows' => $rows])
+    ->state('default')
+    ->state('empty', ['rows' => []])
+    ->state('zh', ['title' => '成員'], lang: 'zh-HK');
+```
+
+```
+php Razy.phar ui list [<root>…] [--json]
+php Razy.phar ui render <name|file.fixture.php> [<state>] [--theme=<t>] [--root=<dir>]… [--out=<dir>]
+```
+
+- **`ui list`** finds fixtures under the roots (default: the current folder; `vendor/`,
+  `node_modules/` and dot folders are skipped). `--json` prints each fixture's name, file, states,
+  themes and widths for the harness.
+- **`ui render`** without `--out` prints one state in one theme to stdout. With `--out` it writes
+  `<out>/<name>/<state>-<theme>.html` for every state and theme (or only the given ones) and copies
+  the assets to `<out>/<name>/assets/`.
+- **The frame.** Each state renders into a built-in frame: a doctype, `<html lang data-theme>`, the
+  anchors `head.styles`, `head.scripts`, `body.overlays`, `body.scripts`, and the template at
+  `content` inside `<main id="ui-fixture">`. Values are always escaped (auto-escape on), and pushes,
+  the CSP nonce and dedupe behave as on a real page.
+- **Self-contained.** A render fails if the HTML loads anything over the network (`src`, `href`,
+  `action`, `poster`, `data` pointing at `http(s)://` or `//`), or if the template pushes to an
+  anchor the frame does not have. The command exits 1 on any error.
+- **No width option.** The HTML is the same at every width; the harness sets the viewport from
+  `widths()`.
