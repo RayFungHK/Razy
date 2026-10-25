@@ -493,4 +493,38 @@ class SecurityReviewTest extends TestCase
         $this->expectExceptionMessage('RZX121 slot "end" of <Kit.Bar> accepts button; found <a>');
         $this->runtime()->render('T', ['rows' => []]);
     }
+
+    public function testSvgScriptHrefIsRejected(): void
+    {
+        foreach (['<svg><script href="https://evil.test/x.js"></script></svg>', '<svg><script xlink:href="/x.js"></script></svg>', '<svg><script type="application/json" href="/x.js">{1}</script></svg>', '<svg><script src="/a.js" href="/x.js"></script></svg>'] as $markup) {
+            try {
+                $this->render($markup);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame('RZX133', $e->rzxCode, $markup);
+            }
+        }
+    }
+
+    public function testDuplicateFillIsCaughtInEitherOrder(): void
+    {
+        $this->component('Kit.Box', '<div><Slot name="a" /></div>');
+        $cases = [
+            'static then conditional' => '<Kit.Box><Fill slot="a">1</Fill><if test={on}><Fill slot="a">2</Fill></if></Kit.Box>',
+            'conditional then static' => '<Kit.Box><if test={on}><Fill slot="a">2</Fill></if><Fill slot="a">1</Fill></Kit.Box>',
+            'static twice' => '<Kit.Box><Fill slot="a">1</Fill><Fill slot="a">2</Fill></Kit.Box>',
+        ];
+        foreach ($cases as $label => $markup) {
+            $this->component('T', "<props>\nreturn ['on' => Prop::bool()];\n</props>\n" . $markup);
+            try {
+                $this->runtime()->render('T', ['on' => true]);
+                $this->fail($label);
+            } catch (CompileError $e) {
+                $this->assertSame('RZX123', $e->rzxCode, $label);
+            }
+        }
+        // Different branches of control flow may fill the same slot.
+        $this->component('T', "<props>\nreturn ['on' => Prop::bool()];\n</props>\n<Kit.Box><if test={on}><Fill slot=\"a\">yes</Fill></if><else><Fill slot=\"a\">no</Fill></else></Kit.Box>");
+        $this->assertSame('<div>no</div>', $this->runtime()->render('T', ['on' => false]));
+    }
 }

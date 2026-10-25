@@ -199,6 +199,10 @@ final class CodeGen
         foreach ($node->attributes as $attr) {
             $type = $attr->name === 'type' ? $attr->literal : $type;
             $src = $src || $attr->name === 'src';
+            // SVG <script href> / xlink:href loads and runs a script; only src (checked) may.
+            if (\in_array(\strtolower($attr->name), ['href', 'xlink:href'], true)) {
+                throw $this->error('RZX133', '<script ' . $attr->name . '> is not allowed; load scripts with src (a literal or asset(…))', $attr->offset);
+            }
         }
         $body = $node->children;
         $output = null;

@@ -133,7 +133,7 @@ final class ComponentCall
     /**
      * Emit a fill (or the control flow around fills).
      *
-     * @param array<string, true> $static literal fill names already given outside control flow
+     * @param array<string, bool> $static literal fill names seen: true outside control flow, false only inside it
      */
     private function fills(Node $node, ComponentMeta $meta, string $bag, array &$static, bool $nested = false): void
     {
@@ -145,10 +145,13 @@ final class ComponentCall
                     $known = \array_filter(\array_keys($meta->slots), static fn ($n) => $n !== '');
                     throw $this->gen->error('RZX120', '<' . $meta->name . '> has no slot "' . $name . '" (slots: ' . (\implode(', ', $known) ?: 'none') . ')', $node->offset);
                 }
-                if (!$nested && isset($static[$name])) {
+                // $static: name => true for a fill outside control flow, false inside <if>/<for>.
+                // An unconditional fill conflicts with any other fill of that slot, in either
+                // order; fills in different branches of control flow may share a slot.
+                if (isset($static[$name]) && (!$nested || $static[$name])) {
                     throw $this->gen->error('RZX123', 'Slot "' . $name . '" is already filled', $node->offset);
                 }
-                $static[$name] = true;
+                $static[$name] = !$nested || ($static[$name] ?? false);
                 if (isset($meta->slots[$name])) {
                     $this->checkAccepts($meta->name, $name, $meta->slots[$name], $node->children);
                 }
@@ -220,7 +223,7 @@ final class ComponentCall
 
     /**
      * @param list<Node> $nodes
-     * @param array<string, true> $static
+     * @param array<string, bool> $static
      */
     private function fillList(array $nodes, ComponentMeta $meta, string $bag, array &$static): void
     {

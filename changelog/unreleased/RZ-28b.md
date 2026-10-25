@@ -119,7 +119,7 @@ and `compile --rzx`. Additive only; no existing API changes.
 | RZX130 | `<style>` |
 | RZX131 | `style` attribute |
 | RZX132 | inline event handler |
-| RZX133 | inline or misused `<script>` |
+| RZX133 | inline or misused `<script>` (also `href` / `xlink:href` on any script) |
 | RZX134 | unsafe literal URL |
 | RZX135 | `srcdoc` |
 | RZX136 | bad `hooks` |
