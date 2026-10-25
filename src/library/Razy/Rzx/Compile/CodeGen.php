@@ -168,6 +168,11 @@ final class CodeGen
     private function element(ElementNode $node): void
     {
         $tag = $node->tag;
+        // Every tag-keyed check below compares lowercase names; the parser only
+        // makes lowercase elements, and this keeps that true if it ever changes.
+        if ($tag !== \strtolower($tag)) {
+            throw $this->error('RZX017', 'Element names are lowercase: <' . \strtolower($tag) . '>', $node->offset);
+        }
         if ($tag === 'style') {
             throw $this->error('RZX130', '<style> is not allowed; style comes from tokens and hooks={{…}}', $node->offset);
         }

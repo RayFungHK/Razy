@@ -527,4 +527,41 @@ class SecurityReviewTest extends TestCase
         $this->component('T', "<props>\nreturn ['on' => Prop::bool()];\n</props>\n<Kit.Box><if test={on}><Fill slot=\"a\">yes</Fill></if><else><Fill slot=\"a\">no</Fill></else></Kit.Box>");
         $this->assertSame('<div>no</div>', $this->runtime()->render('T', ['on' => false]));
     }
+
+    /**
+     * CodeRabbit: tag-keyed checks compare the tag as written. An HTML element
+     * name must be all lowercase (RZX017), and a capitalised name is a
+     * component, never an element, so no case variant reaches those checks.
+     */
+    public function testMixedCaseTagsNeverBecomeElements(): void
+    {
+        foreach (['<div><sCript src="/a.js"></sCript></div>', '<head><bAse href="//evil.test/" /></head>', '<head><mEta http-equiv="refresh" content="0;url=javascript:x" /></head>', '<svg><sEt attributeName="href" to="javascript:x" /></svg>', '<p><stYle></stYle></p>', '<svg><aNimate attributeName="href" /></svg>'] as $markup) {
+            try {
+                $this->render($markup);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame('RZX017', $e->rzxCode, $markup);
+            }
+        }
+        foreach (['<div><SCRIPT>x</SCRIPT></div>', '<svg><ANIMATE attributeName="href" /></svg>', '<div><Script src="/a.js"></Script></div>', '<head><BASE href="//evil.test/" /></head>'] as $markup) {
+            try {
+                $this->render($markup);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame('RZX110', $e->rzxCode, $markup . ' is a component name, unknown here');
+            }
+        }
+    }
+
+    public function testAttributeChecksIgnoreCase(): void
+    {
+        foreach (['<a hRef="javascript:x">x</a>' => 'RZX134', '<p onClick="x"></p>' => 'RZX132', '<p STYLE="x"></p>' => 'RZX131', '<iframe SRCDOC="x"></iframe>' => 'RZX135', '<img SRCSET="javascript:x 1x" />' => 'RZX134', '<div><script HREF="/x.js"></script></div>' => 'RZX133'] as $markup => $code) {
+            try {
+                $this->render($markup);
+                $this->fail('compiled: ' . $markup);
+            } catch (CompileError $e) {
+                $this->assertSame($code, $e->rzxCode, $markup);
+            }
+        }
+    }
 }
