@@ -218,40 +218,6 @@ class Block
     }
 
     /**
-     * RZ-27 (RZ-26): update the stack of enclosing function tags opened in a line of text.
-     *
-     * Only tags whose plugin encloses content count ({@if}, {@push}, {@repeat}, …).
-     * Unknown tags print as text at render time, so they are ignored here too.
-     *
-     * @param array<int, array{0: string, 1: string}> $open
-     */
-    private function trackEnclosing(string $line, array &$open, string $where): void
-    {
-        if (!\str_contains($line, '{@') && !\str_contains($line, '{/')) {
-            return;
-        }
-        if (!\preg_match_all('/\\.(*SKIP)(*FAIL)|{(?:@(\w+)|\/(\w+)})/', $line, $tags, PREG_SET_ORDER)) {
-            return;
-        }
-        foreach ($tags as $tag) {
-            if (isset($tag[2]) && '' !== $tag[2]) {
-                // closing tag: pop the innermost matching open tag
-                for ($i = \count($open) - 1; $i >= 0; --$i) {
-                    if ($open[$i][0] === $tag[2]) {
-                        \array_splice($open, $i);
-                        break;
-                    }
-                }
-                continue;
-            }
-            $plugin = $this->source->loadPlugin('function', $tag[1]);
-            if ($plugin && $plugin->isEncloseContent()) {
-                $open[] = [$tag[1], $where];
-            }
-        }
-    }
-
-    /**
      * Get the pre-compiled template for a specific structure segment.
      *
      * @param int|string $index The structure index
@@ -515,5 +481,39 @@ class Block
     public function newEntity(): Entity
     {
         return new Entity($this);
+    }
+
+    /**
+     * RZ-27 (RZ-26): update the stack of enclosing function tags opened in a line of text.
+     *
+     * Only tags whose plugin encloses content count ({@if}, {@push}, {@repeat}, …).
+     * Unknown tags print as text at render time, so they are ignored here too.
+     *
+     * @param array<int, array{0: string, 1: string}> $open
+     */
+    private function trackEnclosing(string $line, array &$open, string $where): void
+    {
+        if (!\str_contains($line, '{@') && !\str_contains($line, '{/')) {
+            return;
+        }
+        if (!\preg_match_all('/\.(*SKIP)(*FAIL)|{(?:@(\w+)|\/(\w+)})/', $line, $tags, PREG_SET_ORDER)) {
+            return;
+        }
+        foreach ($tags as $tag) {
+            if (isset($tag[2]) && '' !== $tag[2]) {
+                // closing tag: pop the innermost matching open tag
+                for ($i = \count($open) - 1; $i >= 0; --$i) {
+                    if ($open[$i][0] === $tag[2]) {
+                        \array_splice($open, $i);
+                        break;
+                    }
+                }
+                continue;
+            }
+            $plugin = $this->source->loadPlugin('function', $tag[1]);
+            if ($plugin && $plugin->isEncloseContent()) {
+                $open[] = [$tag[1], $where];
+            }
+        }
     }
 }

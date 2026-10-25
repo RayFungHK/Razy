@@ -300,6 +300,27 @@ class Distributor implements DistributorInterface
     }
 
     /**
+     * RZ-27: read dist.php 'layout'. A bare name (`site`) is `@layout/site.tpl`;
+     * an `@layout/…` spec is used as given.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @throws ConfigurationException
+     */
+    public static function layoutFromConfig(array $config, string $distCode): ?string
+    {
+        $value = $config['layout'] ?? null;
+        if (null === $value) {
+            return null;
+        }
+        if (!\is_string($value) || !\preg_match('/^(?:@layout\/[\w.\/-]+|[\w-]+)$/', $value)) {
+            throw new ConfigurationException("dist.php 'layout' must be a layout name like 'site' or an '@layout/…' path for dist '{$distCode}'.");
+        }
+
+        return \str_starts_with($value, '@layout/') ? $value : '@layout/' . $value . '.tpl';
+    }
+
+    /**
      * COMPILE-ON-DEPLOY (M2): force the compiled-boot door on without
      * editing dist.php — used by the compile command's replay self-proof
      * and by the framework's own tests. Production sites flip the dist.php
@@ -1175,27 +1196,6 @@ class Distributor implements DistributorInterface
         if (RuntimeMode::isWeb()) {
             $this->securityHeaders->send();
         }
-    }
-
-    /**
-     * RZ-27: read dist.php 'layout'. A bare name (`site`) is `@layout/site.tpl`;
-     * an `@layout/…` spec is used as given.
-     *
-     * @param array<string, mixed> $config
-     *
-     * @throws ConfigurationException
-     */
-    public static function layoutFromConfig(array $config, string $distCode): ?string
-    {
-        $value = $config['layout'] ?? null;
-        if (null === $value) {
-            return null;
-        }
-        if (!\is_string($value) || !\preg_match('/^(?:@layout\/[\w.\/-]+|[\w-]+)$/', $value)) {
-            throw new ConfigurationException("dist.php 'layout' must be a layout name like 'site' or an '@layout/…' path for dist '{$distCode}'.");
-        }
-
-        return \str_starts_with($value, '@layout/') ? $value : '@layout/' . $value . '.tpl';
     }
 
     /**

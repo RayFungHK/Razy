@@ -24,6 +24,7 @@ use Razy\ModuleInfo;
 use Razy\Template;
 use Razy\Template\Plugin\TFunction;
 use Razy\Template\Plugin\TFunctionCustom;
+use ReflectionProperty;
 use Throwable;
 
 /**
@@ -259,7 +260,12 @@ class Entity
      */
     public function getManager(): ?Template
     {
-        return isset($this->block) ? $this->block->getSource()->getManager() : null;
+        // An entity made without its constructor (a bare test double) has no block
+        if (!(new ReflectionProperty(self::class, 'block'))->isInitialized($this)) {
+            return null;
+        }
+
+        return $this->block->getSource()->getManager();
     }
 
     /**

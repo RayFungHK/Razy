@@ -61,9 +61,6 @@ final class Anchors
     /** @var array<string, true> Anchors already drained by finalize() */
     private array $drained = [];
 
-    /** @var array<string, int> Pushes that reached an anchor no template printed */
-    private array $unresolved = [];
-
     private int $seq = 0;
 
     private bool $importMapClaimed = false;
@@ -81,6 +78,26 @@ final class Anchors
     }
 
     /**
+     * The first src / href attribute value in the markup, as a dedupe key.
+     */
+    private static function sourceOf(string $html): ?string
+    {
+        return \preg_match('/\b(?:src|href)\s*=\s*(["\'])(.*?)\1/i', $html, $m) ? 'url:' . $m[2] : null;
+    }
+
+    /**
+     * @throws TemplateException
+     */
+    private static function checkName(string $name): string
+    {
+        if (!\preg_match(self::NAME, $name)) {
+            throw new TemplateException("Invalid anchor name '{$name}': use lowercase letters, digits, '.', '_' or '-'.");
+        }
+
+        return $name;
+    }
+
+    /**
      * Start a new response: new token, nothing pushed, nothing defined.
      */
     public function reset(): void
@@ -90,7 +107,6 @@ final class Anchors
         $this->items = [];
         $this->keys = [];
         $this->drained = [];
-        $this->unresolved = [];
         $this->seq = 0;
         $this->importMapClaimed = false;
     }
@@ -163,8 +179,9 @@ final class Anchors
      *
      * The `content` anchor is filled first, so markers inside the page body are
      * resolved too. An anchor printed twice gets its content at the first marker.
-     * Content pushed to an anchor no template printed is dropped and reported by
-     * {@see unresolved()}.
+     * Content pushed to an anchor that has not been printed yet stays queued, so a
+     * later render in the same response can still print it; {@see unresolved()}
+     * reports what is still waiting.
      */
     public function finalize(string $html): string
     {
@@ -175,26 +192,27 @@ final class Anchors
         if (\str_contains($html, $content)) {
             $html = \str_replace($content, $this->drain(self::CONTENT), $html);
         }
-        $html = (string) \preg_replace_callback($pattern, $replace, $html);
-
-        foreach ($this->items as $anchor => $list) {
-            if ($list && !isset($this->defined[$anchor])) {
-                $this->unresolved[$anchor] = ($this->unresolved[$anchor] ?? 0) + \count($list);
-                $this->items[$anchor] = [];
-            }
-        }
-
-        return $html;
+        return (string) \preg_replace_callback($pattern, $replace, $html);
     }
 
     /**
-     * Anchors that received pushes but were never printed, with the push count.
+     * Anchors that hold pushed content no marker has printed, with the count.
+     * Called after the response is rendered, a non-empty result means content was
+     * pushed to an anchor the layout does not have, or pushed after its anchor
+     * was already printed.
      *
      * @return array<string, int>
      */
     public function unresolved(): array
     {
-        return $this->unresolved;
+        $out = [];
+        foreach ($this->items as $anchor => $list) {
+            if ($list) {
+                $out[$anchor] = \count($list);
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -242,25 +260,5 @@ final class Anchors
         $html = (string) \preg_replace('/<script\b(?![^>]*\bnonce\s*=)/i', '<script' . $attr, $html);
 
         return (string) \preg_replace('/<link\b(?=[^>]*\brel\s*=\s*["\']?modulepreload)(?![^>]*\bnonce\s*=)/i', '<link' . $attr, $html);
-    }
-
-    /**
-     * The first src / href attribute value in the markup, as a dedupe key.
-     */
-    private static function sourceOf(string $html): ?string
-    {
-        return \preg_match('/\b(?:src|href)\s*=\s*(["\'])(.*?)\1/i', $html, $m) ? 'url:' . $m[2] : null;
-    }
-
-    /**
-     * @throws TemplateException
-     */
-    private static function checkName(string $name): string
-    {
-        if (!\preg_match(self::NAME, $name)) {
-            throw new TemplateException("Invalid anchor name '{$name}': use lowercase letters, digits, '.', '_' or '-'.");
-        }
-
-        return $name;
     }
 }

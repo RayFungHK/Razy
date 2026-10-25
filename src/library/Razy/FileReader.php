@@ -31,7 +31,7 @@ class FileReader
     /** @var array<SplFileObject> Queue of file objects for sequential reading */
     private array $generator = [];
 
-    /** @var array<int> RZ-27: lines read so far, parallel to $generator */
+    /** @var array<int> RZ-27: lines read so far, parallel to */
     private array $lines = [];
 
     /**

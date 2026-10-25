@@ -28,6 +28,7 @@ rather than a copied pattern are marked *illustrative*.
 | 10 | [10-mcp-server.md](10-mcp-server.md) | `php Razy.phar mcp <dist>`: serving the bridge surface as an MCP (Model Context Protocol) stdio server — trust model, tool reflection, protocol posture |
 | 11 | [11-permissions.md](11-permissions.md) | `razymod/permissions`: fail-closed doctrine, config keys, decision grammar, API surface, `{@can}` templates, `permission.denied` audit event, razit migration, the `Route::can` seam (§10) |
 | 12 | [12-module-lifecycle.md](12-module-lifecycle.md) | Derived readiness (`moduleReady`), `provision` (deploy/wizard/none), route `ready` gates with framework 503/302, `module status/enable/disable/wizard-token`, the token-gated wizard door, honest `module.installed` |
+| 13 | [13-layouts-and-anchors.md](13-layouts-and-anchors.md) | One layout per site (`dist.php 'layout'`, `Controller::render()`), `{@anchor}` / `{@push}` (dedupe, order, CSP nonce), the importmap once, and why a function tag cannot wrap a block or include (RZ-26) |
 
 *(09 is reserved by the OAuth dossier (`architecture/OAUTH-SOCIALITE-HTTP.md` S5 →
 `manual/09-social-login.md`). The held slot 10 was assigned 2026-09 to the MCP server —
