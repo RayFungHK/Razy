@@ -38,6 +38,8 @@ and `compile --rzx`. Additive only; no existing API changes.
   - URL attributes allow only `http`, `https`, `mailto` and relative URLs; anything else
     becomes `#` with a warning. `srcset` / `imagesrcset` are parsed as HTML does and each
     candidate URL is checked;
+  - `<base>` and `<meta http-equiv>` / `content` take literals only, and a literal refresh URL
+    is checked like any URL;
   - SVG animation elements cannot rewrite a link: their `attributeName`, `to`, `from`, `values`
     and `by` must be literals, and animating `href`, `xlink:href`, `src` or `action` is rejected;
   - JSON scripts use `JSON_HEX_TAG|AMP|APOS|QUOT`;
@@ -107,6 +109,7 @@ and `compile --rzx`. Additive only; no existing API changes.
 | RZX136 | bad `hooks` |
 | RZX137 | `html()` of a non-SafeHtml |
 | RZX138 | SVG animation (`<animate>`, `<set>`, …) with a dynamic target or value, or animating `href`/`src`/`action` |
+| RZX139 | `<base>` attribute or `<meta>` `content` / `http-equiv` given an expression |
 | RZX140 | nested `<push>` |
 
 ## Notes

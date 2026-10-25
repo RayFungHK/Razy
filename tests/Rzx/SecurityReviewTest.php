@@ -46,6 +46,19 @@ class SecurityReviewTest extends TestCase
         yield 'dynamic by' => ['<svg><animatetransform attributeName="transform" by={v} /></svg>', 'by must be a literal'];
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function navigation(): iterable
+    {
+        yield 'dynamic base' => ['<html><head><base href={v} /></head></html>', 'RZX139'];
+        yield 'dynamic base target' => ['<html><head><base target={v} /></head></html>', 'RZX139'];
+        yield 'dynamic refresh content' => ['<html><head><meta http-equiv="refresh" content={v} /></head></html>', 'RZX139'];
+        yield 'dynamic http-equiv' => ['<html><head><meta http-equiv={v} content="0" /></head></html>', 'RZX139'];
+        yield 'literal javascript refresh' => ['<html><head><meta http-equiv="Refresh" content="0; URL=\'javascript:alert(1)\'" /></head></html>', 'RZX134'];
+        yield 'entity refresh' => ['<html><head><meta http-equiv="refresh" content="0;url=javascript&#58;x" /></head></html>', 'RZX134'];
+    }
+
     #[DataProvider('svgAnimation')]
     public function testSvgAnimationCannotWriteALink(string $markup, string $message): void
     {
@@ -209,5 +222,24 @@ class SecurityReviewTest extends TestCase
         $this->expectException(RenderError::class);
         $this->expectExceptionMessage('unexpected file');
         $this->runtime($this->cache(null, 'compiled'))->render('T');
+    }
+
+    #[DataProvider('navigation')]
+    public function testNavigationSinksTakeLiteralsOnly(string $markup, string $code): void
+    {
+        try {
+            $this->render(self::P . $markup, ['v' => 'https://evil.test/']);
+            $this->fail('compiled: ' . $markup);
+        } catch (CompileError $e) {
+            $this->assertSame($code, $e->rzxCode, $e->getMessage());
+        }
+    }
+
+    public function testLiteralNavigationAndOtherUrlSinks(): void
+    {
+        $this->assertStringContainsString('<base href="/app/"><meta http-equiv="refresh" content="30;url=/next"><meta name="x" content="y">', $this->render('<html><head><base href="/app/" /><meta http-equiv="refresh" content="30;url=/next" /><meta name="x" content="y" /></head></html>'));
+        $html = $this->render(self::P . '<div><svg><use href={v} /><image xlink:href={v} /><feimage href={v} /></svg><math><mi href={v}>x</mi></math><object data={v} classid={v}></object><embed src={v} /><iframe src={v}></iframe><a ping={v}>p</a><video poster={v}></video><img lowsrc={v} /></div>', ['v' => 'javascript:alert(1)']);
+        $this->assertStringNotContainsString('javascript', $html);
+        $this->assertSame(11, \substr_count($html, '="#"'), 'every one of the 11 URL attributes');
     }
 }

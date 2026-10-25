@@ -37,7 +37,7 @@ use Stringable;
  */
 final class Escape
 {
-    public const URL_ATTRIBUTES = ['href', 'src', 'action', 'formaction', 'poster', 'cite', 'background', 'ping', 'data', 'xlink:href', 'manifest', 'longdesc', 'codebase', 'icon'];
+    public const URL_ATTRIBUTES = ['href', 'src', 'action', 'formaction', 'poster', 'cite', 'background', 'ping', 'data', 'xlink:href', 'manifest', 'longdesc', 'codebase', 'icon', 'classid', 'archive', 'lowsrc', 'dynsrc', 'profile', 'xml:base'];
 
     /** Attributes holding a comma-separated list of `URL descriptor` candidates. */
     public const SRCSET_ATTRIBUTES = ['srcset', 'imagesrcset'];

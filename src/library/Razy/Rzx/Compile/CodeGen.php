@@ -220,6 +220,7 @@ final class CodeGen
      */
     private function animation(ElementNode $node): void
     {
+        $this->navigation($node);
         if (!\in_array($node->tag, self::SVG_ANIMATION, true)) {
             return;
         }
@@ -230,6 +231,34 @@ final class CodeGen
             }
             if ($name === 'attributename' && \in_array(\strtolower(\trim((string) $attr->literal)), ['href', 'xlink:href', 'src', 'action', 'formaction'], true)) {
                 throw $this->error('RZX138', '<' . $node->tag . '> cannot animate ' . $attr->literal . ' (it would bypass URL checks)', $attr->offset);
+            }
+        }
+    }
+
+    /**
+     * Elements whose value redirects the page or re-bases every relative URL
+     * take literals only: `<meta http-equiv="refresh" content="0;url=…">` and
+     * `<base href>`. A per-attribute URL check cannot make a dynamic value safe
+     * there (an https base still hijacks every relative link).
+     */
+    private function navigation(ElementNode $node): void
+    {
+        if ($node->tag !== 'base' && $node->tag !== 'meta') {
+            return;
+        }
+        foreach ($node->attributes as $attr) {
+            $name = \strtolower($attr->name);
+            if ($attr->expr !== null && ($node->tag === 'base' || \in_array($name, ['content', 'http-equiv'], true))) {
+                throw $this->error('RZX139', '<' . $node->tag . '> ' . $attr->name . ' must be a literal (it can redirect the page or re-base its links)', $attr->offset);
+            }
+            if ($node->tag === 'meta' && $name === 'http-equiv' && \strtolower(\trim((string) $attr->literal)) === 'refresh') {
+                foreach ($node->attributes as $content) {
+                    if (\strtolower($content->name) === 'content' && $content->literal !== null
+                        && \preg_match('/url\s*=\s*[\'"]?\s*([^\'";]*)/i', \html_entity_decode($content->literal, \ENT_QUOTES | \ENT_HTML5, 'UTF-8'), $m)
+                        && !Escape::isSafeUrl($m[1])) {
+                        throw $this->error('RZX134', 'Unsafe URL in a meta refresh', $content->offset);
+                    }
+                }
             }
         }
     }
