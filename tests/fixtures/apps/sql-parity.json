@@ -1,0 +1,700 @@
+{
+  "$about": "SQL parity vectors for razymod/apps expressions (manual/15-razy-apps.md §5.1). Each case is a SQL-able expression, its field values (a missing key is blank) and the expected result (null = blank). The PHP evaluator passes every case (tests/AppsSqlParityTest.php); the SQL translation in the record runtime (RZA-C) must give the same answers. 'sql' notes the rule a case pins.",
+  "context": {
+    "user": "u1",
+    "groups": [
+      "g1",
+      "g2"
+    ],
+    "departments": [
+      "d1"
+    ],
+    "now": "2026-10-27T03:04:05Z",
+    "timezone": "UTC"
+  },
+  "fields": {
+    "n": "number",
+    "m": "number",
+    "t": "text",
+    "u": "text",
+    "b": "boolean",
+    "d": "date",
+    "dt": "datetime",
+    "owner": "user",
+    "team": "group",
+    "dept": "department",
+    "tags": "list:text",
+    "stage": {
+      "type": "status",
+      "options": [
+        "open",
+        "won",
+        "lost"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "expr": "=n = 0",
+      "values": {},
+      "expected": false,
+      "sql": "= is IS NOT DISTINCT FROM: blank = value is FALSE"
+    },
+    {
+      "expr": "=n <> 0",
+      "values": {},
+      "expected": true,
+      "sql": "<> is IS DISTINCT FROM"
+    },
+    {
+      "expr": "=n = BLANK()",
+      "values": {},
+      "expected": true
+    },
+    {
+      "expr": "=n <> BLANK()",
+      "values": {
+        "n": 1
+      },
+      "expected": true
+    },
+    {
+      "expr": "=t = ''",
+      "values": {},
+      "expected": true,
+      "sql": "empty text is blank: compare NULLIF(t, '')"
+    },
+    {
+      "expr": "=t = ''",
+      "values": {
+        "t": ""
+      },
+      "expected": true
+    },
+    {
+      "expr": "=t = BLANK()",
+      "values": {
+        "t": ""
+      },
+      "expected": true,
+      "sql": "NULLIF(t, '') IS NULL"
+    },
+    {
+      "expr": "=t <> 'x'",
+      "values": {
+        "t": ""
+      },
+      "expected": true
+    },
+    {
+      "expr": "=n > 0",
+      "values": {},
+      "expected": false,
+      "sql": "COALESCE(n > 0, FALSE)"
+    },
+    {
+      "expr": "=n < 0",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=n >= n",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=n <= m",
+      "values": {
+        "n": 1,
+        "m": 1
+      },
+      "expected": true
+    },
+    {
+      "expr": "=NOT(n > 0)",
+      "values": {},
+      "expected": true,
+      "sql": "NOT applies after COALESCE(…, FALSE), so NOT(blank > 0) is TRUE"
+    },
+    {
+      "expr": "=t < u",
+      "values": {
+        "t": "B",
+        "u": "a"
+      },
+      "expected": true,
+      "sql": "text order is byte order (COLLATE \"C\")"
+    },
+    {
+      "expr": "=t < u",
+      "values": {
+        "t": "",
+        "u": "a"
+      },
+      "expected": false
+    },
+    {
+      "expr": "=NOT(b)",
+      "values": {},
+      "expected": true,
+      "sql": "a blank condition is FALSE"
+    },
+    {
+      "expr": "=AND(b, TRUE)",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=OR(b, TRUE)",
+      "values": {},
+      "expected": true
+    },
+    {
+      "expr": "=OR(b, FALSE)",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=IF(b, 1, 2)",
+      "values": {},
+      "expected": 2,
+      "sql": "CASE WHEN COALESCE(b, FALSE) THEN … ELSE … END"
+    },
+    {
+      "expr": "=IF(n > 0, 'pos', 'not')",
+      "values": {},
+      "expected": "not"
+    },
+    {
+      "expr": "=n IN (1, 2)",
+      "values": {},
+      "expected": false,
+      "sql": "COALESCE(n IN (…), FALSE)"
+    },
+    {
+      "expr": "=NOT(n IN (1, 2))",
+      "values": {},
+      "expected": true,
+      "sql": "NOT(COALESCE(n IN (…), FALSE))"
+    },
+    {
+      "expr": "=n IN (1, BLANK())",
+      "values": {},
+      "expected": false,
+      "sql": "a blank never matches, even a blank item"
+    },
+    {
+      "expr": "=n IN (1, BLANK())",
+      "values": {
+        "n": 1
+      },
+      "expected": true
+    },
+    {
+      "expr": "='vip' IN tags",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "='vip' IN tags",
+      "values": {
+        "tags": [
+          "vip",
+          "new"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "expr": "=dept IN MY_DEPARTMENTS()",
+      "values": {
+        "dept": "d1"
+      },
+      "expected": true,
+      "sql": "principal lists are bound parameters"
+    },
+    {
+      "expr": "=dept IN MY_DEPARTMENTS()",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=team IN MY_GROUPS()",
+      "values": {
+        "team": "g2"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=COALESCE(t, 'x')",
+      "values": {},
+      "expected": "x"
+    },
+    {
+      "expr": "=COALESCE(t, 'x')",
+      "values": {
+        "t": ""
+      },
+      "expected": "x",
+      "sql": "COALESCE(NULLIF(t, ''), 'x'): empty text is skipped"
+    },
+    {
+      "expr": "=COALESCE(t, u, 'z')",
+      "values": {
+        "u": "y"
+      },
+      "expected": "y"
+    },
+    {
+      "expr": "=COALESCE(n, 0)",
+      "values": {},
+      "expected": 0
+    },
+    {
+      "expr": "=COALESCE(n, m)",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=ISBLANK(t)",
+      "values": {
+        "t": ""
+      },
+      "expected": true,
+      "sql": "t IS NULL OR t = ''"
+    },
+    {
+      "expr": "=ISBLANK(n)",
+      "values": {
+        "n": 0
+      },
+      "expected": false,
+      "sql": "zero is not blank"
+    },
+    {
+      "expr": "=ISBLANK(tags)",
+      "values": {
+        "tags": []
+      },
+      "expected": true,
+      "sql": "an empty multi-select is blank"
+    },
+    {
+      "expr": "=BLANK()",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=n + 1",
+      "values": {},
+      "expected": null,
+      "sql": "arithmetic with a blank is blank (SQL NULL propagation)"
+    },
+    {
+      "expr": "=n * m",
+      "values": {
+        "n": 2
+      },
+      "expected": null
+    },
+    {
+      "expr": "=-n",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=n / m",
+      "values": {
+        "n": 1,
+        "m": 4
+      },
+      "expected": 0.25
+    },
+    {
+      "expr": "=7 / 2",
+      "values": {},
+      "expected": 3.5,
+      "sql": "never integer division: cast to numeric"
+    },
+    {
+      "expr": "=n - m",
+      "values": {
+        "n": 5,
+        "m": 7
+      },
+      "expected": -2
+    },
+    {
+      "expr": "=t & 'x'",
+      "values": {},
+      "expected": "x",
+      "sql": "COALESCE(t, '') || 'x'"
+    },
+    {
+      "expr": "=CONCAT(t, u, 1)",
+      "values": {
+        "u": "a"
+      },
+      "expected": "a1"
+    },
+    {
+      "expr": "=LEN(t)",
+      "values": {},
+      "expected": 0,
+      "sql": "LENGTH(COALESCE(t, ''))"
+    },
+    {
+      "expr": "=LEN('香港')",
+      "values": {},
+      "expected": 2,
+      "sql": "characters, not bytes"
+    },
+    {
+      "expr": "=UPPER(t)",
+      "values": {},
+      "expected": "",
+      "sql": "text functions read a blank as ''"
+    },
+    {
+      "expr": "=LOWER('ÀB')",
+      "values": {},
+      "expected": "àb"
+    },
+    {
+      "expr": "=TRIM('  a   b ')",
+      "values": {},
+      "expected": "a b",
+      "sql": "also collapses inner runs of spaces"
+    },
+    {
+      "expr": "=LEFT(t, 2)",
+      "values": {
+        "t": "abc"
+      },
+      "expected": "ab"
+    },
+    {
+      "expr": "=RIGHT(t, 2)",
+      "values": {
+        "t": "abc"
+      },
+      "expected": "bc"
+    },
+    {
+      "expr": "=LEFT(t)",
+      "values": {},
+      "expected": ""
+    },
+    {
+      "expr": "=t = 'Abc'",
+      "values": {
+        "t": "abc"
+      },
+      "expected": false,
+      "sql": "= on text is case-sensitive"
+    },
+    {
+      "expr": "=CONTAINS(t, 'B')",
+      "values": {
+        "t": "abc"
+      },
+      "expected": true,
+      "sql": "CONTAINS / STARTSWITH / ENDSWITH are case-insensitive"
+    },
+    {
+      "expr": "=CONTAINS(t, '%')",
+      "values": {
+        "t": "abc"
+      },
+      "expected": false,
+      "sql": "LIKE wildcards in the needle are literal: escape % _ \\"
+    },
+    {
+      "expr": "=CONTAINS(t, '_')",
+      "values": {
+        "t": "a_c"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=STARTSWITH(t, 'AB')",
+      "values": {
+        "t": "abc"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=ENDSWITH(t, 'C')",
+      "values": {
+        "t": "abc"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=CONTAINS(t, 'a')",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=TEXT(n)",
+      "values": {},
+      "expected": ""
+    },
+    {
+      "expr": "=TEXT(1.50)",
+      "values": {},
+      "expected": "1.5",
+      "sql": "shortest form, no trailing zeros"
+    },
+    {
+      "expr": "=TEXT(2.0)",
+      "values": {},
+      "expected": "2"
+    },
+    {
+      "expr": "=TEXT(b)",
+      "values": {
+        "b": true
+      },
+      "expected": "TRUE"
+    },
+    {
+      "expr": "=ABS(n)",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=ROUND(2.5)",
+      "values": {},
+      "expected": 3,
+      "sql": "half away from zero"
+    },
+    {
+      "expr": "=ROUND(-2.5)",
+      "values": {},
+      "expected": -3
+    },
+    {
+      "expr": "=ROUND(1.005, 2)",
+      "values": {},
+      "expected": 1.01
+    },
+    {
+      "expr": "=ROUND(1234.5, -2)",
+      "values": {},
+      "expected": 1200
+    },
+    {
+      "expr": "=FLOOR(-2.5)",
+      "values": {},
+      "expected": -3
+    },
+    {
+      "expr": "=CEILING(-2.5)",
+      "values": {},
+      "expected": -2
+    },
+    {
+      "expr": "=MOD(-7, 3)",
+      "values": {},
+      "expected": 2,
+      "sql": "the result takes the divisor's sign (not SQL %)"
+    },
+    {
+      "expr": "=MOD(7, -3)",
+      "values": {},
+      "expected": -2
+    },
+    {
+      "expr": "=POWER(2, 10)",
+      "values": {},
+      "expected": 1024
+    },
+    {
+      "expr": "=SUM(n, m)",
+      "values": {},
+      "expected": 0,
+      "sql": "blanks are skipped; SUM of none is 0"
+    },
+    {
+      "expr": "=SUM(n, m)",
+      "values": {
+        "n": 2
+      },
+      "expected": 2
+    },
+    {
+      "expr": "=AVERAGE(n, m)",
+      "values": {},
+      "expected": null,
+      "sql": "AVERAGE of none is blank"
+    },
+    {
+      "expr": "=AVERAGE(n, m)",
+      "values": {
+        "n": 3
+      },
+      "expected": 3
+    },
+    {
+      "expr": "=MIN(n, m)",
+      "values": {
+        "m": 4
+      },
+      "expected": 4,
+      "sql": "LEAST / GREATEST skip blanks (as Postgres does)"
+    },
+    {
+      "expr": "=MAX(n, m)",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=MIN(t, u)",
+      "values": {
+        "t": "",
+        "u": "b"
+      },
+      "expected": "b",
+      "sql": "empty text is skipped too"
+    },
+    {
+      "expr": "=d + 1",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=d + 1",
+      "values": {
+        "d": "2026-12-31"
+      },
+      "expected": "2027-01-01"
+    },
+    {
+      "expr": "=d - 1.5",
+      "values": {
+        "d": "2026-10-27"
+      },
+      "expected": "2026-10-25",
+      "sql": "date ± days uses the floor of the day count"
+    },
+    {
+      "expr": "=d < TODAY()",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=d < TODAY()",
+      "values": {
+        "d": "2026-10-26"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=TODAY()",
+      "values": {},
+      "expected": "2026-10-27",
+      "sql": "in the data space time zone"
+    },
+    {
+      "expr": "=NOW()",
+      "values": {},
+      "expected": "2026-10-27T03:04:05Z"
+    },
+    {
+      "expr": "=d - DATE(2026, 10, 1)",
+      "values": {
+        "d": "2026-10-27"
+      },
+      "expected": 26,
+      "sql": "date - date is whole days"
+    },
+    {
+      "expr": "=DATE(2026, 13, 1)",
+      "values": {},
+      "expected": "2027-01-01",
+      "sql": "months and days roll over"
+    },
+    {
+      "expr": "=DATE(2026, 3, 0)",
+      "values": {},
+      "expected": "2026-02-28"
+    },
+    {
+      "expr": "=YEAR(d)",
+      "values": {},
+      "expected": null
+    },
+    {
+      "expr": "=MONTH(dt)",
+      "values": {
+        "dt": "2026-10-31T23:30:00Z"
+      },
+      "expected": 10,
+      "sql": "datetime parts use the data space time zone"
+    },
+    {
+      "expr": "=DAY(d)",
+      "values": {
+        "d": "2026-10-27"
+      },
+      "expected": 27
+    },
+    {
+      "expr": "=WEEKDAY(d)",
+      "values": {
+        "d": "2026-10-25"
+      },
+      "expected": 7,
+      "sql": "ISO: Monday 1 … Sunday 7 (EXTRACT(ISODOW …))"
+    },
+    {
+      "expr": "=DAYS(d, DATE(2026, 10, 1))",
+      "values": {
+        "d": "2026-10-27"
+      },
+      "expected": 26
+    },
+    {
+      "expr": "=d = dt",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-27T00:00:00Z"
+      },
+      "expected": true,
+      "sql": "a date compares as midnight UTC of that day"
+    },
+    {
+      "expr": "=d < dt",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-27T09:00:00Z"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=owner = CURRENT_USER()",
+      "values": {},
+      "expected": false
+    },
+    {
+      "expr": "=owner = CURRENT_USER()",
+      "values": {
+        "owner": "u1"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=stage = 'won'",
+      "values": {
+        "stage": "won"
+      },
+      "expected": true
+    },
+    {
+      "expr": "=stage IN ('won', 'lost')",
+      "values": {},
+      "expected": false
+    }
+  ]
+}

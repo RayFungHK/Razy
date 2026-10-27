@@ -248,10 +248,15 @@ plan stores the source and the AST.
   `x IN list_field`; comparisons do not chain), `&` (join text), `+ -`, `* /`, unary `-`.
 - Types: number, text, boolean, date, datetime, user, group, department, status, relation
   refs, lists, blank. `date ± number` is a date; `date - date` is days.
-- **Blanks** use two-valued logic: arithmetic with a blank is blank; `&` reads a blank as
-  `""`; comparisons with a blank are FALSE except `=` / `<>` (blank = blank); AND / OR / IF /
-  NOT read a blank as FALSE. Text `=` is case-sensitive; `CONTAINS` / `STARTSWITH` /
-  `ENDSWITH` are not.
+- **Blanks** are null and the empty text `''`, which are the same thing here. Logic is two-valued:
+  - arithmetic and date functions with a blank give a blank;
+  - text functions and `&` read a blank as `""`;
+  - comparisons with a blank are FALSE, except `=` / `<>` (blank = blank);
+  - `x IN (…)` with a blank `x` is FALSE;
+  - AND / OR / IF / NOT read a blank as FALSE;
+  - SUM / AVERAGE / MIN / MAX skip blanks (SUM of none is 0).
+- Text `=` is case-sensitive and orders by byte; `CONTAINS` / `STARTSWITH` / `ENDSWITH` are
+  not case-sensitive.
 
 **Functions** (closed list, `Functions::LIST`; † = no SQL form, not allowed in saved filters
 or row rules):
@@ -280,7 +285,32 @@ $value = (new Evaluator())->evaluate($ast, new ArrayValues(['amount' => 21]), ne
 and holidays; that is everything an expression can know. Filters and row rules are compiled
 to bound SQL by the record runtime (RZA-C), with the same semantics.
 
-### 5.1 Errors
+### 5.1 SQL parity (for RZA-C)
+
+Saved filters and row rules run as SQL in the record runtime (RZA-C), while computed values
+run in the PHP evaluator. The two must agree on every row. The contract is the vector file
+`tests/fixtures/apps/sql-parity.json`: 104 cases, each with an expression, field values (a
+missing key is blank) and the expected result, plus a note on the SQL rule it pins.
+`tests/AppsSqlParityTest.php` runs the PHP evaluator over it and also requires a vector for
+every SQL-able function and operator. RZA-C must run the same file against Postgres. The rules
+it pins:
+
+- empty text is blank: read text columns as `NULLIF(col, '')`;
+- `=` / `<>` are `IS NOT DISTINCT FROM` / `IS DISTINCT FROM`;
+- wrap every comparison, `IN` and condition in `COALESCE(…, FALSE)`, so `NOT(n > 0)` is TRUE
+  for a blank `n`;
+- **`COALESCE(a, b)` is `COALESCE(NULLIF(a, ''), NULLIF(b, ''))`**: SQL's own COALESCE
+  does not skip `''`;
+- `ISBLANK(t)` is `t IS NULL OR t = ''`, and `ISBLANK` of a multi-select is "no values";
+- `&` and the text functions use `COALESCE(x, '')`, and `LEN` counts characters;
+- `CONTAINS` / `STARTSWITH` / `ENDSWITH` are case-insensitive, with `%`, `_` and `\`
+  escaped in the needle;
+- `/` is never integer division, `MOD` takes the divisor's sign, and `ROUND` rounds half
+  away from zero;
+- text compares as `COLLATE "C"`, and a date compares as midnight UTC;
+- `TODAY()` and the date parts use the data space time zone.
+
+### 5.2 Errors
 
 Every failure is `razymod\apps\Expression\ExpressionError` with a stable code
 (`getErrorCode()`) and a source offset (`getOffset()`, -1 at run time): `expr.encoding`,
@@ -290,7 +320,7 @@ Every failure is `razymod\apps\Expression\ExpressionError` with a stable code
 `expr.not_sql`, `expr.budget`, `expr.size`, `expr.div_zero`, `expr.value`. In a definition
 the same codes appear as issue codes at the expression's path.
 
-### 5.2 Security
+### 5.3 Security
 
 Expressions come from users and from AI, so:
 

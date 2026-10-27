@@ -60,6 +60,16 @@ final class Evaluator
     }
 
     /**
+     * Blank: null, or empty text. A database may hold '' or NULL for an
+     * empty text column; both read the same here (and must in SQL:
+     * NULLIF(col, '')).
+     */
+    private static function blank(mixed $v): bool
+    {
+        return $v === null || $v === '';
+    }
+
+    /**
      * @param array<string, mixed> $ast a typed AST (TypeChecker output)
      *
      * @throws ExpressionError
@@ -228,7 +238,7 @@ final class Evaluator
             $out = [];
             foreach ($v as $x) {
                 $x = $this->normalize($x, $item, $where);
-                if ($x !== null) {
+                if (!self::blank($x)) {
                     $out[] = $x;
                 }
             }
@@ -322,13 +332,13 @@ final class Evaluator
         if ($op === 'in') {
             $x = $this->visit($args[0]);
             $list = $this->visit($args[1]);
-            if ($x === null || !\is_array($list)) {
+            if (self::blank($x) || !\is_array($list)) {
                 return false;
             }
             $this->step(\count($list));
             $lt = (string) $args[0]['t'];
             foreach ($list as $item) {
-                if ($item !== null && $this->equals($x, $item, $lt, $this->listItemType($args[1]))) {
+                if (!self::blank($item) && $this->equals($x, $item, $lt, $this->listItemType($args[1]))) {
                     return true;
                 }
             }
@@ -346,16 +356,16 @@ final class Evaluator
                 return $this->joinText([$this->toText($l, $lt), $this->toText($r, $rt)]);
 
             case '=':
-                return ($l === null || $r === null) ? $l === $r : $this->equals($l, $r, $lt, $rt);
+                return (self::blank($l) || self::blank($r)) ? self::blank($l) === self::blank($r) : $this->equals($l, $r, $lt, $rt);
 
             case '<>':
-                return ($l === null || $r === null) ? $l !== $r : !$this->equals($l, $r, $lt, $rt);
+                return (self::blank($l) || self::blank($r)) ? self::blank($l) !== self::blank($r) : !$this->equals($l, $r, $lt, $rt);
 
             case '<':
             case '<=':
             case '>':
             case '>=':
-                if ($l === null || $r === null) {
+                if (self::blank($l) || self::blank($r)) {
                     return false;
                 }
                 $c = $this->compare($l, $r, $lt, $rt);
@@ -503,9 +513,9 @@ final class Evaluator
             'LEFT' => $this->left((string) $v[0], $v[1] ?? 1),
             'RIGHT' => $this->right((string) $v[0], $v[1] ?? 1),
             'MID' => $this->mid((string) $v[0], $v[1], $v[2]),
-            'UPPER' => $v[0] === null ? null : $this->text(\mb_strtoupper($v[0])),
-            'LOWER' => $v[0] === null ? null : $this->text(\mb_strtolower($v[0])),
-            'TRIM' => $v[0] === null ? null : (string) \preg_replace('/ {2,}/', ' ', \trim($v[0], ' ')),
+            'UPPER' => $this->text(\mb_strtoupper((string) $v[0])),
+            'LOWER' => $this->text(\mb_strtolower((string) $v[0])),
+            'TRIM' => (string) \preg_replace('/ {2,}/', ' ', \trim((string) $v[0], ' ')),
             'CONCAT' => $this->joinText(\array_map(fn ($x, $i) => $this->toText($x, $t($i)), $v, \array_keys($v))),
             'CONTAINS' => \str_contains(\mb_strtolower((string) $v[0]), \mb_strtolower((string) $v[1])),
             'STARTSWITH' => \str_starts_with(\mb_strtolower((string) $v[0]), \mb_strtolower((string) $v[1])),
@@ -590,7 +600,7 @@ final class Evaluator
     {
         $best = null;
         foreach ($v as $x) {
-            if ($x === null) {
+            if (self::blank($x)) {
                 continue;
             }
             if ($best === null) {
@@ -655,11 +665,9 @@ final class Evaluator
         return (int) $n;
     }
 
-    private function substitute(mixed $s, string $old, string $new): ?string
+    private function substitute(mixed $s, string $old, string $new): string
     {
-        if ($s === null) {
-            return null;
-        }
+        $s = (string) $s;
         if ($old === '') {
             return $s;
         }

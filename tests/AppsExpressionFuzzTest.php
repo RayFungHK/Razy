@@ -27,7 +27,7 @@ require_once __DIR__ . '/fixtures/apps/autoload.php';
 
 /**
  * Fuzz for the expression pipeline and the definition validator
- * (manual/15-razy-apps.md §5.2, formula / expression injection).
+ * (manual/15-razy-apps.md §5.3, formula / expression injection).
  *
  * Expressions come from users and from AI, so for ANY input the contract is:
  * the parser, type checker and evaluator either succeed or throw

@@ -12,10 +12,18 @@
  *   blank                                         BLANK(); fits every other type
  *   opaque                                        files / images; only ISBLANK() may read them
  *
- * Logic is two-valued: a blank never makes a boolean blank. Comparisons
- * involving a blank are FALSE except `=` / `<>` (blank = blank is TRUE), and
- * AND / OR / IF / NOT read a blank condition as FALSE. A SQL translation
- * must keep this (IS [NOT] DISTINCT FROM, COALESCE(…, FALSE)).
+ * Blanks: null, and the empty text '' (one and the same). Logic is
+ * two-valued: a blank never makes a boolean blank. Comparisons involving a
+ * blank are FALSE except `=` / `<>` (blank = blank is TRUE); AND / OR / IF /
+ * NOT read a blank condition as FALSE; `x IN (…)` with a blank x is FALSE;
+ * arithmetic and date functions give a blank; text functions and `&` read
+ * a blank as ''; SUM / AVERAGE / MIN / MAX skip blanks (SUM of none is 0).
+ *
+ * The SQL translation (RZA-C) must give the same answers on every vector in
+ * tests/fixtures/apps/sql-parity.json: NULLIF(text, '') on text columns,
+ * IS [NOT] DISTINCT FROM for = / <>, COALESCE(<predicate>, FALSE) around
+ * every comparison and IN, COALESCE(NULLIF(a, ''), NULLIF(b, ''), …) for
+ * COALESCE().
  */
 
 declare(strict_types=1);
