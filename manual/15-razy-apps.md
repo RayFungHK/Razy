@@ -126,15 +126,19 @@ Every field has `id`, `code`, `type` and may have `label`, `help`, `required`, `
 | `select` / `multi_select` | `options`: keys (`HKD`, `net_30`) or `{key, tone, label}`; multi: `max_selected` |
 | `status` | `workflow`: a workflow of this entity with states |
 | `relation` | `to` (`deal` or `crm-core.company`), `cardinality` (`many_to_one`, `one_to_many`, `many_to_many`), `on_delete` (`restrict`, `set_null`, `cascade_soft`; many-to-one only), `via` (one-to-many: the many-to-one field on the target that points back) |
-| `file` / `files` / `image` | `accept` (MIME list), `max_size_mb`, `max_files` (files) |
+| `file` / `files` | `accept` (MIME list), `max_size_mb`, `max_files` (files only) |
+| `image` | `max_size_mb` |
 | `computed` | `expr` (required), `stored` |
 | `rollup` | `relation` (a to-many relation of this entity), `op` (`count`, `sum`, `min`, `max`), `field` |
 | `sequence` | `pattern`, `reset` |
 | `created_at`, `updated_at`, `created_by` | — (system values; add no weight) |
 
-A `default` is a literal of the field's type or an `=expression` of that type. Defaults run
-before the record exists, so they cannot read fields (`=CURRENT_USER()`, `=TODAY() + 30`).
-Derived types, `status`, relations and files take no default.
+A `default` is a literal of the field's type or an `=expression` of that type (dates as
+`2026-10-27`, datetimes as `2026-10-27T09:00:00+08:00`). Defaults run before the record
+exists, so they cannot read fields (`=CURRENT_USER()`, `=TODAY() + 30`). User, group and
+department values are always expressions, because ids belong to one data space while a
+package is shared. Derived types, `status`, relations and files take no default;
+`update_record` may set a many-to-one relation by expression (`=contact.company`).
 
 **Numbering** (`numbering` on an entity fills the system `number` column; a `sequence` field
 has its own): literal text with `{YYYY}`, `{YY}`, `{MM}`, exactly one `{seq:N}` (N 1-12) and

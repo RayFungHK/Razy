@@ -539,7 +539,7 @@ final class Validator
             if ($back === null && $this->catalog->hasPackage($pkg)) {
                 $this->error("{$p}/via", 'ref.unknown_field', "one_to_many needs via: the many_to_one field on '{$to}' that points back");
             } elseif ($back !== null) {
-                [$bp, $be] = $this->catalog->split(Catalog::str($back['to'] ?? null));
+                [$bp, $be] = $this->catalog->split(Catalog::str($back['to'] ?? null), $pkg);
                 if (($back['type'] ?? null) !== 'relation' || ($back['cardinality'] ?? null) !== 'many_to_one'
                     || $bp !== $this->package || $be !== $entity) {
                     $this->error("{$p}/via", 'ref.via', "'{$to}.{$via}' is not a many_to_one relation to '{$entity}'");
@@ -576,6 +576,11 @@ final class Validator
         }
         [$tp, $te] = $this->catalog->split(Catalog::str($rel['to'] ?? null));
         if (!$this->catalog->hasPackage($tp)) {
+            // sum is a number whatever the target; min / max take the target's type
+            if ($op !== 'sum') {
+                $this->error("{$p}/field", 'ref.unchecked', "{$op} over '{$tp}' needs that dependency to be supplied");
+            }
+
             return;
         }
         $target = \is_string($f['field'] ?? null) ? $this->catalog->field($tp, $te, $f['field']) : null;
@@ -590,13 +595,22 @@ final class Validator
      * A value for a field (its default, or an update_record assignment):
      * a literal of the field's type, or an '=expression' giving that type.
      *
+     * User, group and department values are ids that belong to one data
+     * space, while a package is shared by many, so they are expressions only
+     * (=CURRENT_USER(), =owner). A many-to-one relation can be assigned by
+     * expression in update_record but has no default; derived fields, status
+     * (it moves through set_status) and files take no value here.
+     *
      * @param array<string, mixed> $f the field, with the value under 'default'
+     * @param bool $assignment true for update_record, false for a default
      */
-    private function fieldValue(array $f, string $dp, string $type, Scope $scope): void
+    private function fieldValue(array $f, string $dp, string $type, Scope $scope, bool $assignment = false): void
     {
         $v = $f['default'];
-        if (\in_array($type, Schema::DERIVED_TYPES, true) || \in_array($type, ['status', 'relation', 'file', 'files', 'image'], true)) {
-            $this->error($dp, 'field.not_settable', "A {$type} field takes no default");
+        $m2o = $type === 'relation' && ($f['cardinality'] ?? null) === 'many_to_one';
+        if (\in_array($type, Schema::DERIVED_TYPES, true) || \in_array($type, ['status', 'file', 'files', 'image'], true)
+            || ($type === 'relation' && !($assignment && $m2o))) {
+            $this->error($dp, 'field.not_settable', $assignment ? "A {$type} field cannot be set here" : "A {$type} field takes no default");
 
             return;
         }
@@ -605,9 +619,15 @@ final class Validator
                 'integer', 'decimal', 'money', 'percent', 'duration' => 'number',
                 'select', 'text', 'long_text', 'rich_text', 'email', 'phone', 'url' => 'text',
                 'multi_select' => 'list:text',
+                'relation' => 'ref:' . $this->qualified(Catalog::str($f['to'] ?? null)),
                 default => $type,
             };
             $this->expression($v, $dp, 'value', $scope, $expect, false);
+
+            return;
+        }
+        if (\in_array($type, ['user', 'group', 'department', 'relation'], true)) {
+            $this->error($dp, 'field.default', "A {$type} value is an expression (=CURRENT_USER(), =owner): ids belong to one data space");
 
             return;
         }
@@ -615,16 +635,29 @@ final class Validator
             'text', 'long_text', 'rich_text', 'email', 'phone', 'url' => \is_string($v)
                 && \mb_strlen($v) <= (\is_int($f['max'] ?? null) ? $f['max'] : $this->caps->get('text_max')),
             'integer' => \is_int($v),
-            'decimal', 'money', 'percent', 'duration' => \is_int($v) || \is_float($v),
+            'decimal', 'money', 'percent', 'duration' => \is_int($v) || (\is_float($v) && \is_finite($v)),
             'boolean' => \is_bool($v),
-            'date' => \is_string($v) && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1,
+            'date' => \is_string($v) && \preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $d) === 1 && \checkdate((int) $d[2], (int) $d[3], (int) $d[1]),
+            'datetime' => \is_string($v) && \preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:\d{2})$/', $v) === 1,
             'select' => \is_string($v) && \in_array($v, $this->catalog->options($f), true),
-            'multi_select' => \is_array($v) && \array_is_list($v) && \array_diff($v, $this->catalog->options($f)) === [],
+            'multi_select' => \is_array($v) && \array_is_list($v)
+                && \count(\array_filter($v, static fn (mixed $x): bool => \is_string($x))) === \count($v)
+                && \array_diff($v, $this->catalog->options($f)) === [],
             default => false,
         };
         if (!$ok) {
-            $this->error($dp, 'field.default', "Default does not fit a {$type} field (literal of that type, or '=expression')");
+            $this->error($dp, 'field.default', "Value does not fit a {$type} field (a literal of that type, or '=expression')");
         }
+    }
+
+    /**
+     * "<entity>" or "<package>.<entity>" as "<package>.<entity>".
+     */
+    private function qualified(string $ref): string
+    {
+        [$pkg, $entity] = $this->catalog->split($ref);
+
+        return $pkg . '.' . $entity;
     }
 
     /**
@@ -913,7 +946,7 @@ final class Validator
             return;
         }
         $back = $this->catalog->field($pkg, $other, $via);
-        [$bp, $be] = $back !== null ? $this->catalog->split(Catalog::str($back['to'] ?? null)) : ['', ''];
+        [$bp, $be] = $back !== null ? $this->catalog->split(Catalog::str($back['to'] ?? null), $pkg) : ['', ''];
         if ($back === null || ($back['type'] ?? null) !== 'relation' || ($back['cardinality'] ?? null) !== 'many_to_one'
             || $bp !== $this->package || $be !== $entity) {
             $this->error($p, 'ref.via', "'{$ref}' is not a many_to_one relation to '{$entity}'");
@@ -1303,7 +1336,7 @@ final class Validator
                         $this->error($sp, 'ref.unknown_field', "'{$fc}' is not a writable field (status moves through set_status)");
                         continue;
                     }
-                    $this->fieldValue(\array_merge($f, ['default' => $value]), $sp, Catalog::str($f['type'] ?? null), $scope);
+                    $this->fieldValue(\array_merge($f, ['default' => $value]), $sp, Catalog::str($f['type'] ?? null), $scope, true);
                 }
                 break;
 

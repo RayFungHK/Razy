@@ -30,9 +30,11 @@ namespace razymod\apps;
 use LogicException;
 use razymod\apps\Definition\Canonical;
 use razymod\apps\Definition\Catalog;
+use razymod\apps\Definition\Issue;
 use razymod\apps\Definition\Schema;
 use razymod\apps\Definition\ValidationResult;
 use razymod\apps\Definition\Validator;
+use razymod\apps\Expression\ExpressionError;
 
 final class Compiler
 {
@@ -82,7 +84,17 @@ final class Compiler
             return ['ok' => false, 'plan' => null, 'issues' => $result->issuesArray()];
         }
 
-        return ['ok' => true, 'plan' => $this->plan($def, $result, $options), 'issues' => $result->issuesArray()];
+        try {
+            $plan = $this->plan($def, $result, $options);
+        } catch (ExpressionError $e) {
+            // validation should have caught this; never let it escape the API
+            $issues = $result->issuesArray();
+            $issues[] = Issue::error('/', 'compile.' . $e->getErrorCode(), $e->getMessage())->toArray();
+
+            return ['ok' => false, 'plan' => null, 'issues' => $issues];
+        }
+
+        return ['ok' => true, 'plan' => $plan, 'issues' => $result->issuesArray()];
     }
 
     /**
@@ -175,16 +187,19 @@ final class Compiler
         foreach ($entity['fields'] as $i => $f) {
             $fp = "{$p}/fields/{$i}";
             $type = $f['type'];
-            $info = null;
-            if (!($type === 'relation' && $f['cardinality'] !== 'many_to_one')) {
-                $info = $catalog->resolve($package, $code, [$f['code']], 0);
+            if ($type === 'relation') {
+                // computed directly: the target may be in a dependency that was not supplied
+                $target = $this->qualify($package, (string) $f['to']);
+                $valueType = ($f['cardinality'] === 'many_to_one' ? 'ref:' : 'list:ref:') . $target;
+            } else {
+                $valueType = $catalog->resolve($package, $code, [$f['code']], 0)['type'];
             }
             $out = [
                 'id' => $f['id'],
                 'code' => $f['code'],
                 'type' => $type,
                 'label' => $f['label'] ?? "{$code}.{$f['code']}.label",
-                'value_type' => $info['type'] ?? 'list:ref:' . $this->qualify($package, (string) $f['to']),
+                'value_type' => $valueType,
                 'required' => ($f['required'] ?? false) === true,
                 'unique' => ($f['unique'] ?? false) === true,
                 'search' => ($f['search'] ?? false) === true,

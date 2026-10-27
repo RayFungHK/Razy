@@ -170,6 +170,38 @@ class AppsDefinitionTest extends TestCase
         $this->assertHasIssue($r, 'ref.unknown_field', '/entities/0/fields/12/relation');
     }
 
+    public function testFieldValuesByType(): void
+    {
+        // review r1: datetime literals are values; principal ids and relations
+        // are expressions only; update_record may set a many-to-one by expression
+        $id = fn (int $n): string => ElementIds::generate($n, \str_repeat('g', 10));
+        $cases = [
+            [['type' => 'datetime', 'default' => '2026-10-27T09:00:00+08:00'], true],
+            [['type' => 'datetime', 'default' => 'tomorrow'], false],
+            [['type' => 'date', 'default' => '2026-02-30'], false],
+            [['type' => 'user', 'default' => 'u42'], false],
+            [['type' => 'user', 'default' => '=CURRENT_USER()'], true],
+            [['type' => 'multi_select', 'options' => ['a'], 'default' => [['a']]], false],
+            [['type' => 'relation', 'to' => 'deal', 'cardinality' => 'many_to_one', 'default' => '=BLANK()'], false],
+        ];
+        foreach ($cases as $i => [$field, $ok]) {
+            $def = $this->minimal();
+            $def['entities'][0]['fields'][] = ['id' => $id($i + 1), 'code' => 'f'] + $field;
+            $def['i18n']['en'] += ['deal.f.label' => 'F', 'deal.f.option.a' => 'A'];
+            $result = (new Validator())->validate($def);
+            $this->assertSame($ok, $result->ok(), \json_encode($field) . ' ' . \json_encode($result->issuesArray()));
+        }
+
+        $deals = $this->deals();
+        $deals['workflows'][0]['nodes'][2] = ['id' => $deals['workflows'][0]['nodes'][2]['id'], 'code' => 'approve', 'type' => 'update_record',
+            'set' => ['company' => '=company', 'owner' => '=CURRENT_USER()', 'close_date' => '=TODAY() + 7']];
+        $this->assertClean((new Validator())->validate($deals, ['dependencies' => ['crm-core' => $this->core()]]));
+        $deals['workflows'][0]['nodes'][2]['set'] = ['company' => '=contact', 'owner' => 'u1'];
+        $r = (new Validator())->validate($deals, ['dependencies' => ['crm-core' => $this->core()]]);
+        $this->assertHasIssue($r, 'expr.type', '/workflows/0/nodes/2/set/company');
+        $this->assertHasIssue($r, 'field.default', '/workflows/0/nodes/2/set/owner');
+    }
+
     public function testNumberingPatterns(): void
     {
         foreach (['D-{seq:5}' => true, '{YYYY}/{MM}-{seq:3}' => true, '{field:kind}-{seq:4}' => true, 'D-{YYYY}' => false,

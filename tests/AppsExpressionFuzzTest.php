@@ -199,7 +199,10 @@ class AppsExpressionFuzzTest extends TestCase
         $deals = $loader->load(__DIR__ . '/fixtures/apps/packages/crm-deals')['definition'];
         $validator = new Validator();
         $compiler = new Compiler();
-        foreach ([[$base, null], [$core, null], [$deals, $core]] as [$tree, $dep]) {
+        // crm-deals with no dependency supplied (relations stay unchecked, lookups removed)
+        $alone = $deals;
+        $alone['entities'][0]['fields'] = \array_values(\array_filter($alone['entities'][0]['fields'], static fn (array $f): bool => $f['code'] !== 'company_name'));
+        foreach ([[$base, null], [$core, null], [$deals, $core], [$alone, null]] as [$tree, $dep]) {
             for ($i = 0; $i < $this->rounds; ++$i) {
                 $def = $this->mutateTree($tree, $junk, \mt_rand(1, 4));
                 $options = $dep === null ? [] : ['dependencies' => ['crm-core' => \mt_rand(0, 4) === 0 ? $this->mutateTree($dep, $junk, 2) : $dep],

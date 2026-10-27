@@ -69,15 +69,18 @@ final class Catalog
     }
 
     /**
-     * Split "<entity>" or "<package>.<entity>" into [package, entity].
+     * Split "<entity>" or "<package>.<entity>" into [package, entity]. An
+     * unqualified ref belongs to the package that declares it ($context,
+     * default: the package being checked), so a relation inside a
+     * dependency resolves inside that dependency.
      *
      * @return array{0: string, 1: string}
      */
-    public function split(string $ref): array
+    public function split(string $ref, ?string $context = null): array
     {
         $dot = \strrpos($ref, '.');
         if ($dot === false) {
-            return [$this->package, $ref];
+            return [$context ?? $this->package, $ref];
         }
 
         return [\substr($ref, 0, $dot), \substr($ref, $dot + 1)];
@@ -176,16 +179,17 @@ final class Catalog
                     $at,
                 );
             }
-            [$tp, $te] = $this->split(self::str($field['to'] ?? null));
+            [$tp, $te] = $this->split(self::str($field['to'] ?? null), $package);
+            if ($rest === []) {
+                // the relation value itself needs no target definition
+                return ['type' => 'ref:' . $this->qualified($tp, $te), 'options' => null, 'sql' => true];
+            }
             if ($this->entity($tp, $te) === null) {
                 throw new ExpressionError(
                     ExpressionError::UNKNOWN_FIELD,
                     "'{$head}' points to '{$tp}.{$te}', which is not available to check",
                     $at,
                 );
-            }
-            if ($rest === []) {
-                return ['type' => 'ref:' . $this->qualified($tp, $te), 'options' => null, 'sql' => true];
             }
             if ($hops + 1 > $this->caps->get('lookup_depth')) {
                 throw new ExpressionError(
@@ -344,7 +348,7 @@ final class Catalog
         if ($rel === null) {
             throw new ExpressionError(ExpressionError::UNKNOWN_FIELD, 'Rollup relation is missing', $at);
         }
-        [$tp, $te] = $this->split(self::str($rel['to'] ?? null));
+        [$tp, $te] = $this->split(self::str($rel['to'] ?? null), $package);
         $target = $this->resolve($tp, $te, [self::str($field['field'] ?? null)], $at, $this->caps->get('lookup_depth'));
 
         return $this->info($target['type']);

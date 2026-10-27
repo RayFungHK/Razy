@@ -126,6 +126,40 @@ class AppsCompilerTest extends TestCase
         $this->assertSame('code.reserved', $out['issues'][0]['code']);
     }
 
+    public function testCompilesWithAnUnsuppliedDependency(): void
+    {
+        // review r1: validate() accepts a relation into an unsupplied dependency
+        // (warning ref.unchecked); compile() must then give a plan, not throw
+        $deals = $this->withoutLookups($this->deals());
+        $out = (new Compiler())->compile($deals);
+        $this->assertTrue($out['ok'], \json_encode($out['issues']) ?: '');
+        $this->assertContains('ref.unchecked', \array_column($out['issues'], 'code'));
+        $f = $out['plan']['entities']['deal']['fields'];
+        $this->assertSame('ref:crm-core.company', $f['company']['value_type']);
+
+        // min / max over an unsupplied dependency cannot be typed, so it is refused
+        $deals['entities'][0]['fields'][] = ['id' => '01JBQZZZZZZZZZZZZZZZZZZZZZ', 'code' => 'first', 'type' => 'rollup',
+            'relation' => 'company', 'op' => 'min', 'field' => 'name'];
+        $out = (new Compiler())->compile($deals);
+        $this->assertFalse($out['ok']);
+    }
+
+    public function testLookupsResolveInsideTheDependency(): void
+    {
+        // review r1: crm-core.contact.company is unqualified, so it names
+        // crm-core.company even though crm-deals is the package being checked
+        $deals = $this->deals();
+        $deals['entities'][0]['fields'][] = ['id' => '01JBQZZZZZZZZZZZZZZZZZZZZY', 'code' => 'contact_company', 'type' => 'computed',
+            'expr' => '=contact.company.name'];
+        // a same-code entity in crm-deals must not be picked instead
+        $deals['entities'][] = ['id' => '01JBQZZZZZZZZZZZZZZZZZZZZX', 'code' => 'company',
+            'fields' => [['id' => '01JBQZZZZZZZZZZZZZZZZZZZZW', 'code' => 'name', 'type' => 'integer']]];
+        $deals['i18n']['en'] += ['deal.contact_company.label' => 'x', 'company.label' => 'x', 'company.name.label' => 'x'];
+        $out = (new Compiler())->compile($deals, ['dependencies' => ['crm-core' => $this->core()]]);
+        $this->assertTrue($out['ok'], \json_encode($out['issues']) ?: '');
+        $this->assertSame('text', $out['plan']['entities']['deal']['fields']['contact_company']['value_type']);
+    }
+
     public function testNoSqlTextInThePlan(): void
     {
         $json = (string) \json_encode($this->compileDeals()['plan']);
@@ -186,6 +220,23 @@ class AppsCompilerTest extends TestCase
     private function compileDeals(): array
     {
         return (new Compiler())->compile($this->deals(), ['system' => true, 'dependencies' => ['crm-core' => $this->core()]]);
+    }
+
+    /**
+     * crm-deals without the computed fields that read through crm-core.
+     *
+     * @param array<string, mixed> $deals
+     *
+     * @return array<string, mixed>
+     */
+    private function withoutLookups(array $deals): array
+    {
+        $deals['entities'][0]['fields'] = \array_values(\array_filter(
+            $deals['entities'][0]['fields'],
+            static fn (array $f): bool => $f['code'] !== 'company_name',
+        ));
+
+        return $deals;
     }
 
     /**
