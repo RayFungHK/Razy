@@ -1487,7 +1487,7 @@ class Distributor implements DistributorInterface
     private function claimVersion(Module $module): void
     {
         $info = $module->getModuleInfo();
-        ModuleVersionGuard::claim($info->getCode(), $info->getVersion(), $this->getIdentifier(), $info->getPath());
+        ModuleVersionGuard::claim($info->getCode(), $info->getVersion(), $info->getVersionFolder(), $this->getIdentifier(), $info->getPath());
     }
 
     /**

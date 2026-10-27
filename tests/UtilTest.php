@@ -1004,6 +1004,16 @@ class UtilTest extends TestCase
         $this->assertFalse(VersionUtil::vc('~1', '2.0.0'));
     }
 
+    public function testVcWildcardCoversEveryLaterSegment(): void
+    {
+        // RZ-35: 2.* is 2.x.y.z; before RZ-35 it padded to 2.*.0.0 and missed 2.1.1.
+        $this->assertTrue(VersionUtil::vc('2.*', '2.1.1'));
+        $this->assertTrue(VersionUtil::vc('2.*', '2.0.0'));
+        $this->assertFalse(VersionUtil::vc('2.*', '3.0.0'));
+        $this->assertTrue(VersionUtil::vc('1.2.*', '1.2.5.1'));
+        $this->assertFalse(VersionUtil::vc('1.2.*', '1.3.0'));
+    }
+
     public function testVcBareWildcardMatchesAnyVersion(): void
     {
         $this->assertTrue(VersionUtil::vc('*', '1.0.0'));

@@ -257,11 +257,32 @@ final class ModuleVersionsTest extends TestCase
             self::fail('a second version of a module in one process must be refused');
         } catch (ModuleVersionException $e) {
             self::assertStringContainsString("cannot load module 'rz35/engine' version '2.1.0'", $e->getMessage());
-            self::assertStringContainsString("already loaded version '1.4.0' for distributor 'rz35procA" . $this->suffix . "@*'", $e->getMessage());
+            self::assertStringContainsString("already loaded version '1.4.0' (folder '1.4.0') for distributor 'rz35procA" . $this->suffix . "@*'", $e->getMessage());
             self::assertStringContainsString('separate processes', $e->getMessage());
         }
         self::assertSame(['1.4.0', '1.4.0'], $GLOBALS['rz35_init'], 'the refused version ran no code');
         self::assertSame('1.4.0', ModuleVersionGuard::claimed('rz35/engine'));
+    }
+
+    public function testGuardSeesTheFolderNotOnlyTheNumber(): void
+    {
+        // default/ declaring 1.4.0 and the 1.4.0/ folder are different code.
+        $stable = $this->makeDist('fldA', ['*' => ['rz35/engine' => '1.0.0']]);
+        $this->makeModule('rz35/engine', '1.0.0', ['alias' => 'engine']);
+        $next = $this->makeDist('fldB', ['*' => ['rz35/engine' => 'default']]);
+
+        (new Distributor($stable))->initialize();
+
+        $this->expectException(ModuleVersionException::class);
+        $this->expectExceptionMessage("version '1.0.0' (folder 'default'");
+        (new Distributor($next))->initialize();
+    }
+
+    public function testGuardComparesVersionNumbersNotStrings(): void
+    {
+        ModuleVersionGuard::claim('rz35/x', '1.4', '1.4.0', 'a@*', '/a');
+        ModuleVersionGuard::claim('rz35/x', '1.4.0', '1.4.0', 'b@*', '/b');
+        self::assertSame('1.4', ModuleVersionGuard::claimed('rz35/x'));
     }
 
     // ── backward compatibility ─────────────────────────────────────────────

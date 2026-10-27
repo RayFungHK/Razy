@@ -144,8 +144,15 @@ class VersionUtil
                     } elseif (\preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
                         $compare = self::standardize($clip, true);
                         if (\str_contains($compare, '*')) {
-                            $compare = \str_replace(['*', '.'], ['\d+', '\.'], $compare);
-                            $result = \preg_match('/^' . $compare . '$/', $version);
+                            // Every segment from the first '*' on matches any number, padding
+                            // included: 2.* = 2.x.y.z (before RZ-35 it padded to 2.*.0.0)
+                            $pattern = [];
+                            $any = false;
+                            foreach (\explode('.', $compare) as $segment) {
+                                $any = $any || '*' === $segment;
+                                $pattern[] = $any ? '\d+' : $segment;
+                            }
+                            $result = 1 === \preg_match('/^' . \implode('\.', $pattern) . '$/', $version);
                         } else {
                             $result = $compare == $version;
                         }

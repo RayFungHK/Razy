@@ -130,7 +130,8 @@ conflict. `''` and `'*'` always hold. A dependency with no semver version (an un
 **One version of a module per PHP process.** Class names carry no version, and worker
 mode keeps classes across requests, so a process that loaded `vendor/engine` 1.4.0 for one
 dist refuses 2.0.0 for another (`ModuleVersionGuard`, clear error naming both dists).
-Run dists on different versions in separate processes (separate worker pools, or a
+A version is its folder plus its number, so `default/` declaring 1.4.0 and `1.4.0/` are not
+loaded together either. Run dists on different versions in separate processes (separate worker pools, or a
 non-worker SAPI). A metadata scan (`php Razy.phar rewrite`) loads no module code and is
 not limited. Changing a pin under a running worker needs a worker restart.
 
