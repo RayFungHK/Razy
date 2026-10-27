@@ -1,0 +1,57 @@
+{
+  "rules": [
+    {
+      "role": "sales_rep",
+      "entity": "deal",
+      "ops": [
+        "create",
+        "read",
+        "update"
+      ],
+      "row": "=owner = CURRENT_USER()",
+      "fields": {
+        "amount": "write",
+        "lost_reason": "read"
+      },
+      "workflow": [
+        "start",
+        "complete"
+      ]
+    },
+    {
+      "role": "sales_manager",
+      "entity": "deal",
+      "ops": [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "export"
+      ],
+      "workflow": [
+        "start",
+        "complete",
+        "verify",
+        "recall",
+        "reassign"
+      ]
+    },
+    {
+      "role": "sales_rep",
+      "entity": "lost_reason",
+      "ops": [
+        "read"
+      ]
+    },
+    {
+      "role": "sales_manager",
+      "entity": "lost_reason",
+      "ops": [
+        "create",
+        "read",
+        "update",
+        "delete"
+      ]
+    }
+  ]
+}

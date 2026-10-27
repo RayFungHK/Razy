@@ -1,0 +1,77 @@
+{
+  "id": "01M5VJ1JG100000000000007QF",
+  "code": "company",
+  "label": "company.label",
+  "numbering": {
+    "pattern": "C-{seq:5}",
+    "reset": "never"
+  },
+  "fields": [
+    {
+      "id": "01M5VJ1JG20000000000000FEY",
+      "code": "name",
+      "type": "text",
+      "max": 200,
+      "required": true,
+      "search": true
+    },
+    {
+      "id": "01M5VJ1JG30000000000000Q6D",
+      "code": "industry",
+      "type": "select",
+      "options": [
+        "tech",
+        "retail",
+        "manufacturing",
+        "services",
+        "other"
+      ]
+    },
+    {
+      "id": "01M5VJ1JG40000000000000YXW",
+      "code": "website",
+      "type": "url"
+    },
+    {
+      "id": "01M5VJ1JG500000000000016NB",
+      "code": "phone",
+      "type": "phone",
+      "search": true
+    },
+    {
+      "id": "01M5VJ1JG60000000000001ECT",
+      "code": "owner",
+      "type": "user",
+      "default": "=CURRENT_USER()"
+    },
+    {
+      "id": "01M5VJ1JG70000000000001P49",
+      "code": "notes",
+      "type": "long_text",
+      "max": 20000
+    },
+    {
+      "id": "01M5VJ1JG80000000000001XVR",
+      "code": "contacts",
+      "type": "relation",
+      "to": "contact",
+      "cardinality": "one_to_many",
+      "via": "company"
+    },
+    {
+      "id": "01M5VJ1JG900000000000025K7",
+      "code": "contact_count",
+      "type": "rollup",
+      "relation": "contacts",
+      "op": "count"
+    }
+  ],
+  "indexes": [
+    [
+      "name"
+    ],
+    [
+      "owner"
+    ]
+  ]
+}

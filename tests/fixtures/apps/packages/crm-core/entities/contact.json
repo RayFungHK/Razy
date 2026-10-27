@@ -1,0 +1,63 @@
+{
+  "id": "01M5VJ1JGA0000000000002DAP",
+  "code": "contact",
+  "label": "contact.label",
+  "fields": [
+    {
+      "id": "01M5VJ1JGB0000000000002N25",
+      "code": "first_name",
+      "type": "text",
+      "max": 100,
+      "required": true,
+      "search": true
+    },
+    {
+      "id": "01M5VJ1JGC0000000000002WSM",
+      "code": "last_name",
+      "type": "text",
+      "max": 100,
+      "search": true
+    },
+    {
+      "id": "01M5VJ1JGD00000000000034H3",
+      "code": "email",
+      "type": "email",
+      "search": true,
+      "unique": true,
+      "pii": true
+    },
+    {
+      "id": "01M5VJ1JGE0000000000003C8J",
+      "code": "phone",
+      "type": "phone",
+      "search": true,
+      "pii": true
+    },
+    {
+      "id": "01M5VJ1JGF0000000000003M01",
+      "code": "company",
+      "type": "relation",
+      "to": "company",
+      "cardinality": "many_to_one",
+      "on_delete": "set_null"
+    },
+    {
+      "id": "01M5VJ1JGG0000000000003VQG",
+      "code": "job_title",
+      "type": "text",
+      "max": 100
+    },
+    {
+      "id": "01M5VJ1JGH00000000000043EZ",
+      "code": "owner",
+      "type": "user",
+      "default": "=CURRENT_USER()"
+    },
+    {
+      "id": "01M5VJ1JGJ0000000000004B6E",
+      "code": "full_name",
+      "type": "computed",
+      "expr": "=TRIM(first_name & \" \" & last_name)"
+    }
+  ]
+}

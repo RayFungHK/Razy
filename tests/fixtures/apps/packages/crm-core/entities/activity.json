@@ -1,0 +1,88 @@
+{
+  "id": "01M5VJ1JGK0000000000004JXX",
+  "code": "activity",
+  "label": "activity.label",
+  "fields": [
+    {
+      "id": "01M5VJ1JGM0000000000004TNC",
+      "code": "kind",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "key": "call",
+          "tone": "info"
+        },
+        {
+          "key": "meeting",
+          "tone": "success"
+        },
+        {
+          "key": "email"
+        },
+        {
+          "key": "task",
+          "tone": "warning"
+        }
+      ]
+    },
+    {
+      "id": "01M5VJ1JGN00000000000052CV",
+      "code": "subject",
+      "type": "text",
+      "max": 200,
+      "required": true,
+      "search": true
+    },
+    {
+      "id": "01M5VJ1JGP0000000000005A4A",
+      "code": "due",
+      "type": "datetime"
+    },
+    {
+      "id": "01M5VJ1JGQ0000000000005HVS",
+      "code": "done",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "id": "01M5VJ1JGR0000000000005SK8",
+      "code": "company",
+      "type": "relation",
+      "to": "company",
+      "cardinality": "many_to_one",
+      "on_delete": "restrict"
+    },
+    {
+      "id": "01M5VJ1JGS00000000000061AQ",
+      "code": "contact",
+      "type": "relation",
+      "to": "contact",
+      "cardinality": "many_to_one",
+      "on_delete": "set_null"
+    },
+    {
+      "id": "01M5VJ1JGT0000000000006926",
+      "code": "owner",
+      "type": "user",
+      "default": "=CURRENT_USER()"
+    },
+    {
+      "id": "01M5VJ1JGV0000000000006GSN",
+      "code": "overdue",
+      "type": "computed",
+      "expr": "=AND(NOT(done), NOT(ISBLANK(due)), due < NOW())"
+    },
+    {
+      "id": "01M5VJ1JGW0000000000006RH4",
+      "code": "created",
+      "type": "created_at"
+    }
+  ],
+  "indexes": [
+    [
+      "owner",
+      "due"
+    ]
+  ]
+}

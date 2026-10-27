@@ -1,0 +1,31 @@
+{
+  "apps_schema": 1,
+  "code": "crm-deals",
+  "version": "1.2.0",
+  "label": "app.label",
+  "requires_engine": ">=1.0 <2",
+  "depends_on": {
+    "crm-core": ">=1.0 <2"
+  },
+  "lineage": {
+    "base": null
+  },
+  "roles": [
+    "sales_rep",
+    "sales_manager"
+  ],
+  "menu": [
+    {
+      "entity": "deal",
+      "view": "board"
+    },
+    {
+      "entity": "deal",
+      "view": "list"
+    },
+    {
+      "entity": "lost_reason",
+      "view": "list"
+    }
+  ]
+}

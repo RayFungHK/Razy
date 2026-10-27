@@ -1,0 +1,56 @@
+{
+  "id": "01M5VJ1JHJ000000000000C2NE",
+  "code": "deal_pipeline",
+  "entity": "deal",
+  "states": [
+    {
+      "id": "01M5VJ1JHK000000000000CACX",
+      "code": "lead",
+      "category": "open",
+      "initial": true,
+      "props": {
+        "probability": 0.1
+      }
+    },
+    {
+      "id": "01M5VJ1JHM000000000000CJ4C",
+      "code": "qualified",
+      "category": "active",
+      "props": {
+        "probability": 0.3
+      }
+    },
+    {
+      "id": "01M5VJ1JHN000000000000CSVV",
+      "code": "proposal",
+      "category": "active",
+      "props": {
+        "probability": 0.5
+      }
+    },
+    {
+      "id": "01M5VJ1JHP000000000000D1KA",
+      "code": "negotiation",
+      "category": "active",
+      "props": {
+        "probability": 0.7
+      }
+    },
+    {
+      "id": "01M5VJ1JHQ000000000000D9AS",
+      "code": "won",
+      "category": "done",
+      "props": {
+        "probability": 1
+      }
+    },
+    {
+      "id": "01M5VJ1JHR000000000000DH28",
+      "code": "lost",
+      "category": "cancelled",
+      "props": {
+        "probability": 0
+      }
+    }
+  ]
+}

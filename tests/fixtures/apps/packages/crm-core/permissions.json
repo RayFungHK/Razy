@@ -1,0 +1,66 @@
+{
+  "rules": [
+    {
+      "role": "sales_rep",
+      "entity": "company",
+      "ops": [
+        "create",
+        "read",
+        "update"
+      ]
+    },
+    {
+      "role": "sales_rep",
+      "entity": "contact",
+      "ops": [
+        "create",
+        "read",
+        "update"
+      ]
+    },
+    {
+      "role": "sales_rep",
+      "entity": "activity",
+      "ops": [
+        "create",
+        "read",
+        "update",
+        "delete"
+      ],
+      "row": "=owner = CURRENT_USER()"
+    },
+    {
+      "role": "sales_manager",
+      "entity": "company",
+      "ops": [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "export"
+      ]
+    },
+    {
+      "role": "sales_manager",
+      "entity": "contact",
+      "ops": [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "export"
+      ]
+    },
+    {
+      "role": "sales_manager",
+      "entity": "activity",
+      "ops": [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "export"
+      ]
+    }
+  ]
+}

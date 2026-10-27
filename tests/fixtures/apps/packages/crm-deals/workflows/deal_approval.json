@@ -1,0 +1,78 @@
+{
+  "id": "01M5VJ1JHS000000000000DRSQ",
+  "code": "deal_approval",
+  "entity": "deal",
+  "nodes": [
+    {
+      "id": "01M5VJ1JHT000000000000E0H6",
+      "code": "start",
+      "type": "trigger",
+      "on": "status_entered",
+      "field": "stage",
+      "state": "negotiation"
+    },
+    {
+      "id": "01M5VJ1JHV000000000000E88N",
+      "code": "big_deal",
+      "type": "condition",
+      "expr": "=amount >= 100000"
+    },
+    {
+      "id": "01M5VJ1JHW000000000000EG04",
+      "code": "approve",
+      "type": "human",
+      "assign": {
+        "role": "sales_manager"
+      },
+      "verify": true,
+      "due_days": 2,
+      "form": [
+        "amount",
+        "close_date"
+      ]
+    },
+    {
+      "id": "01M5VJ1JHX000000000000EQQK",
+      "code": "tell_owner",
+      "type": "notify",
+      "to": {
+        "field": "owner"
+      },
+      "message": "deal.approval.approved"
+    },
+    {
+      "id": "01M5VJ1JHY000000000000EZF2",
+      "code": "done",
+      "type": "end"
+    },
+    {
+      "id": "01M5VJ1JHZ000000000000F76H",
+      "code": "skip",
+      "type": "end"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "big_deal"
+    },
+    {
+      "from": "big_deal",
+      "to": "approve",
+      "branch": true
+    },
+    {
+      "from": "big_deal",
+      "to": "skip",
+      "branch": false
+    },
+    {
+      "from": "approve",
+      "to": "tell_owner"
+    },
+    {
+      "from": "tell_owner",
+      "to": "done"
+    }
+  ]
+}
