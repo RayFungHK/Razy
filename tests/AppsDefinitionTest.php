@@ -207,6 +207,26 @@ class AppsDefinitionTest extends TestCase
         $this->assertHasIssue($r, 'field.default', '/workflows/0/nodes/2/set/owner');
     }
 
+    public function testDecimalScaleDefaultsOnlyForMoney(): void
+    {
+        // review r5: an undeclared scale on decimal / percent is an exact read
+        $def = $this->minimal();
+        $id = fn (int $n): string => ElementIds::generate($n, \str_repeat('k', 10));
+        $def['entities'][0]['fields'][] = ['id' => $id(1), 'code' => 'rate', 'type' => 'decimal'];
+        $def['entities'][0]['fields'][] = ['id' => $id(2), 'code' => 'share', 'type' => 'percent'];
+        $def['entities'][0]['fields'][] = ['id' => $id(3), 'code' => 'fee', 'type' => 'decimal', 'scale' => 3];
+        $def['entities'][0]['fields'][] = ['id' => $id(4), 'code' => 'twice', 'type' => 'computed', 'expr' => '=rate * 2'];
+        $catalog = new \razymod\apps\Definition\Catalog('mini', $def, [], new Caps());
+        $this->assertArrayNotHasKey('scale', $catalog->resolve('mini', 'deal', ['rate'], 0));
+        $this->assertArrayNotHasKey('scale', $catalog->resolve('mini', 'deal', ['share'], 0));
+        $this->assertSame(3, $catalog->resolve('mini', 'deal', ['fee'], 0)['scale']);
+        $this->assertSame(2, $catalog->resolve('mini', 'deal', ['amount'], 0)['scale'], 'money defaults to 2');
+
+        $ast = (new \razymod\apps\Expression\TypeChecker())->check((new \razymod\apps\Expression\Parser())->parse('=rate'), $catalog->scope('mini', 'deal'));
+        $out = (new \razymod\apps\Expression\Evaluator())->evaluate($ast, new \razymod\apps\Expression\ArrayValues(['rate' => '7.8125']), new \razymod\apps\Expression\Context());
+        $this->assertSame('7.8125', (string) $out, 'not rounded to 7.81');
+    }
+
     public function testNumberingPatterns(): void
     {
         foreach (['D-{seq:5}' => true, '{YYYY}/{MM}-{seq:3}' => true, '{field:kind}-{seq:4}' => true, 'D-{YYYY}' => false,

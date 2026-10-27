@@ -210,7 +210,10 @@ final class Catalog
             'select' => $this->info('text', $this->options($field)),
             'multi_select' => $this->info('list:text', $this->options($field)),
             'integer', 'duration' => $this->info('decimal', null, true, 0),
-            'decimal', 'money', 'percent' => $this->info('decimal', null, true, \is_int($field['scale'] ?? null) ? $field['scale'] : 2),
+            // money defaults to 2 places; decimal / percent are read at the declared
+            // scale only (none declared: exact, at the stored precision)
+            'money' => $this->info('decimal', null, true, \is_int($field['scale'] ?? null) ? $field['scale'] : 2),
+            'decimal', 'percent' => $this->info('decimal', null, true, \is_int($field['scale'] ?? null) ? $field['scale'] : null),
             'boolean' => $this->info('boolean'),
             'date' => $this->info('date'),
             'datetime', 'created_at', 'updated_at' => $this->info('datetime'),

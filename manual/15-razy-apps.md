@@ -18,7 +18,9 @@ distributor's module autoloader, `ModuleScanner::autoload`). Tests:
 
 ## 1. API (`api('razymod/apps')`)
 
-Every command is a pure function of its arguments and the module config. `__onAPICall`
+Every command is a function of its arguments and the module config, with no IO and no state
+between calls. All are deterministic except `assign-ids`, which allocates new ULIDs (time and
+random bytes) for elements that have no id. `__onAPICall`
 admits a command on `AppsController::API_ALLOW` only from a module named in config
 `callers`, and the default is **none**. Every command first checks the size of what it was
 handed: the definition, `previous` and each of `dependencies` against `definition_bytes`
@@ -31,7 +33,7 @@ messages, never file paths.
 | `validate` | `array $definition, array $options = []` | `['ok' => bool, 'issues' => [...]]` |
 | `compile` | `array $definition, array $options = []` | `['ok' => bool, 'plan' => ?array, 'issues' => [...]]` |
 | `hash` | `array $definition` | `['ok' => bool, 'hash' => 'sha256:…', 'bytes' => int]` |
-| `assign-ids` | `array $definition, ?array $previous = null` | `['ok' => true, 'definition' => …]`, missing or moved ids filled |
+| `assign-ids` | `array $definition, ?array $previous = null` | `['ok' => true, 'definition' => …, 'issues' => []]` with missing or moved ids filled; input over a cap gives `['ok' => false, 'issues' => [...]]` and no `definition` |
 | `weight` | `array $definition, array $options = []` | validates first; `['ok', 'issues', 'weight', 'wf_nodes', 'counts', 'coefficients', 'coefficients_source']` |
 
 `$options`: `dependencies` (package code → definition, for packages named in `depends_on`),
@@ -237,7 +239,8 @@ It never keeps an id that moved: a swapped, re-kinded or moved id is dropped and
 re-assigned, so the swap comes back as it was.
 
 `hash` is `sha256:` + SHA-256 of the **canonical JSON** (`Canonical::json`): object keys
-sorted, list order kept, null / empty members dropped, integral floats written as integers
+sorted, list order kept; null / empty **object members** dropped (list items are always kept, so
+`[null]` and `[[]]` are not `[]`), integral floats written as integers
 and other floats in their shortest round-trip form (`serialize_precision` is pinned to -1 for
 the encode, so php.ini cannot change the hash). UTF-8 is unescaped, including U+2028 / U+2029,
 with no whitespace. NaN, infinity, invalid UTF-8, objects and nesting over 64 levels are
@@ -267,8 +270,9 @@ plan stores the source and the AST.
   is whole days; with a datetime it is fractional days.
 - **Numbers are exact.** integer / decimal / money / percent / duration fields, literals and
   the exact functions are `decimal` (`razymod\apps\Expression\Decimal`, own fixed-point, no
-  IEEE float), so `0.1 + 0.2 = 0.3`. A field is read at its declared scale (money: 2,
-  HALF_UP). `+ - *` are exact. `/` is never integer division: `5 / 2 = 2.5`, at scale
+  IEEE float), so `0.1 + 0.2 = 0.3`. A field with a declared `scale` is read at it, HALF_UP;
+  `money` without one defaults to 2; `decimal` / `percent` without one are read exactly as
+  stored. `+ - *` are exact. `/` is never integer division: `5 / 2 = 2.5`, at scale
   max(operand scales, 6), HALF_UP. `ROUND` is HALF_UP, a half away from zero. `number` is an
   IEEE float and comes only from `POWER()`; a float operand makes the result a float. RZA-C
   casts to `numeric` with the same scales.
