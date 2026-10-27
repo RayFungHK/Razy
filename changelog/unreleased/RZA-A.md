@@ -27,10 +27,26 @@
 - API commands `validate`, `compile`, `hash`, `assign-ids`, `weight` behind an implemented
   `__onAPICall` allow-list.
 - Fixture packages `tests/fixtures/apps/packages/crm-core` and `crm-deals`.
-- SQL parity vectors `tests/fixtures/apps/sql-parity.json` (106 cases: expression, blank inputs,
-  expected) with `tests/AppsSqlParityTest.php`; the SQL translation of filters and row rules
-  (RZA-C) reuses the file. Blank means null or empty text everywhere (comparisons, `IN`,
-  `COALESCE`, `ISBLANK`, `MIN` / `MAX`, text functions).
+- SQL parity vectors `tests/fixtures/apps/sql-parity.json` (177 cases: expression, blank inputs,
+  expected, type, blank policy, time zone) with `tests/AppsSqlParityTest.php`; the SQL
+  translation of filters and row rules (RZA-C) reuses the file. Blank means null or empty text
+  everywhere.
+- Exact numbers: `Expression\Decimal` (own fixed-point, no dependency) for integer / decimal /
+  money / percent / duration fields and literals; fields read at their scale; division at
+  scale max(operand scales, 6), HALF_UP; `number` (float) only from `POWER()`.
+- One blank policy per function in `Functions::LIST` (`propagate`, `skip`, `empty_text`,
+  `false`, `condition_false`, `test`, `none`), applied in one place by the evaluator.
+- A date meeting a datetime is its local midnight in the data space time zone.
+- Element ids: with `previous`, `id.changed`, `id.moved` (another parent, or a swap) and
+  `id.kind_changed` are errors; `assign()` never keeps a moved id. At most one created_at /
+  updated_at / created_by per entity.
+- API doors: `__onAPICall` admits only modules in config `callers` (default none); every
+  command caps its input (`InputGuard`, definition / previous / dependencies,
+  `dependencies_per_app`) before work; `weight` validates first; `assign-ids` returns
+  `{ok, definition}`.
+- Canonical JSON pins `serialize_precision` to -1 for the encode and keeps U+2028 / U+2029 raw.
+- The evaluator turns any PHP warning into `expr.syntax` (no message or path) and re-checks
+  literal types and sizes.
 
 ## Changed
 - `phpstan.modules.neon` analyses `modules/apps`; CI's static-analysis job now also runs the

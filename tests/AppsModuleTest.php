@@ -60,12 +60,17 @@ class AppsModuleTest extends TestCase
      */
     public static function gateMatrix(): iterable
     {
+        $listed = ['callers' => ['acme/registry']];
         foreach (\array_keys(AppsController::API_ALLOW) as $cmd) {
-            yield "allow {$cmd}" => [$cmd, true];
+            yield "listed caller: {$cmd}" => [$cmd, 'acme/registry', $listed, true];
+            yield "unlisted caller: {$cmd}" => [$cmd, 'acme/other', $listed, false];
+            yield "no callers configured: {$cmd}" => [$cmd, 'acme/registry', [], false];
         }
-        yield 'deny unknown' => ['drop-everything', false];
-        yield 'deny empty' => ['', false];
-        yield 'deny case variant' => ['Validate', false];
+        yield 'listed caller, unknown command' => ['drop-everything', 'acme/registry', $listed, false];
+        yield 'listed caller, empty command' => ['', 'acme/registry', $listed, false];
+        yield 'listed caller, case variant' => ['Validate', 'acme/registry', $listed, false];
+        yield 'callers not a list' => ['validate', 'acme/registry', ['callers' => 'acme/registry'], false];
+        yield 'empty caller code' => ['validate', '', ['callers' => ['']], false];
     }
 
     public function testMetadataVersionsAgreeAndTheModuleIsGeneric(): void
@@ -83,6 +88,7 @@ class AppsModuleTest extends TestCase
         foreach ($it as $file) {
             $text = (string) \file_get_contents((string) $file);
             $this->assertDoesNotMatchRegularExpression('/tenant/i', $text, (string) $file);
+            $this->assertDoesNotMatchRegularExpression('/\bAI\b/', $text, (string) $file . ': neutral wording (automated draft, external author)');
         }
     }
 
@@ -102,12 +108,43 @@ class AppsModuleTest extends TestCase
         }
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
     #[DataProvider('gateMatrix')]
-    public function testApiGate(string $method, bool $allowed): void
+    public function testApiGate(string $method, string $callerCode, array $config, bool $allowed): void
     {
+        // review r3: callers come from config 'callers', default none
         $caller = $this->createMock(ModuleInfo::class);
-        $caller->method('getCode')->willReturn('acme/registry');
-        $this->assertSame($allowed, $this->controller()->__onAPICall($caller, $method));
+        $caller->method('getCode')->willReturn($callerCode);
+        $this->assertSame($allowed, $this->controller($config)->__onAPICall($caller, $method));
+    }
+
+    public function testEveryCommandRefusesOversizedInputBeforeWork(): void
+    {
+        $config = ['caps' => ['definition_bytes' => 2000]];
+        $big = $this->deals();
+        foreach (['validate', 'compile', 'weight'] as $cmd) {
+            $out = $this->command($cmd, $config)($big);
+            $this->assertFalse($out['ok'], $cmd);
+            $this->assertSame('cap.definition_bytes', $out['issues'][0]['code'], $cmd);
+            $this->assertStringNotContainsString('/', \str_replace(['/depends_on'], '', $out['issues'][0]['message']), 'no paths in messages');
+        }
+        $this->assertFalse($this->command('assign-ids', $config)($big)['ok']);
+        $this->assertFalse($this->command('assign-ids', $config)(['entities' => []], $big)['ok'], 'previous is capped too');
+        $this->assertFalse($this->command('hash', $config)($big)['ok']);
+
+        $deps = \array_fill_keys(\array_map(static fn (int $i): string => "dep-{$i}", \range(1, 21)), ['code' => 'x']);
+        $out = $this->command('validate')($this->deals(), ['dependencies' => $deps]);
+        $this->assertSame('cap.dependencies_per_app', $out['issues'][0]['code']);
+        $out = $this->command('validate', $config)(['apps_schema' => 1], ['dependencies' => ['crm-core' => $big]]);
+        $this->assertSame('cap.definition_bytes', $out['issues'][0]['code']);
+
+        $deep = [];
+        for ($i = 0; $i < 80; ++$i) {
+            $deep = ['x' => $deep ?: 1];
+        }
+        $this->assertFalse($this->command('validate')($deep)['ok'], 'nesting deeper than 64 is refused');
     }
 
     public function testValidateCommand(): void
@@ -116,9 +153,11 @@ class AppsModuleTest extends TestCase
         $this->assertSame(['ok' => true, 'issues' => []], $out);
         $bad = $this->deals();
         $bad['entities'][0]['code'] = 'Deal; DROP';
-        $out = $this->command('validate')($bad, ['dependencies' => 'not-an-array']);
+        $out = $this->command('validate')($bad);
         $this->assertFalse($out['ok']);
         $this->assertSame('code.pattern', $out['issues'][0]['code']);
+        $out = $this->command('validate')($this->deals(), ['dependencies' => 'not-an-array']);
+        $this->assertSame('cap.dependencies_per_app', $out['issues'][0]['code'], 'malformed options are refused at the door');
     }
 
     public function testCompileCommand(): void
@@ -149,26 +188,41 @@ class AppsModuleTest extends TestCase
         $draft = $previous;
         unset($draft['entities'][0]['fields'][2]['id']);
         $out = $this->command('assign-ids')($draft, $previous);
-        $this->assertSame($previous['entities'][0]['fields'][2]['id'], $out['entities'][0]['fields'][2]['id']);
-        $fresh = $this->command('assign-ids')(['entities' => [['code' => 'x', 'fields' => [['code' => 'y']]]]]);
+        $this->assertTrue($out['ok']);
+        $this->assertSame($previous['entities'][0]['fields'][2]['id'], $out['definition']['entities'][0]['fields'][2]['id']);
+        $fresh = $this->command('assign-ids')(['entities' => [['code' => 'x', 'fields' => [['code' => 'y']]]]])['definition'];
         $this->assertTrue(ElementIds::isValid($fresh['entities'][0]['id']));
         $this->assertTrue(ElementIds::isValid($fresh['entities'][0]['fields'][0]['id']));
     }
 
     public function testWeightCommandUsesTheRateCardFromConfig(): void
     {
-        $out = $this->command('weight')($this->deals());
+        $deps = ['dependencies' => ['crm-core' => $this->core()]];
+        $out = $this->command('weight')($this->deals(), $deps);
+        $this->assertTrue($out['ok']);
         $this->assertSame('reference', $out['coefficients_source']);
         $this->assertSame(Weight::of($this->deals(), Weight::REFERENCE)['weight'], $out['weight']);
         $this->assertSame(3, $out['wf_nodes']);
 
         $card = ['entity' => 1, 'field' => 0, 'relation' => 0, 'view' => 0, 'saved_view' => 0, 'row_rule_role' => 0];
-        $out = $this->command('weight', ['weight' => $card])($this->deals());
+        $out = $this->command('weight', ['weight' => $card])($this->deals(), $deps);
         $this->assertSame('config', $out['coefficients_source']);
         $this->assertSame(2, $out['weight']);
 
+        // review r3: weight validates first; the 3 × created_at evasion is refused, not weighed
+        $evasive = $this->deals();
+        foreach ([1, 2, 3] as $n) {
+            $evasive['entities'][1]['fields'][] = ['id' => ElementIds::generate($n, \str_repeat('w', 10)), 'code' => "made{$n}", 'type' => 'created_at'];
+            $evasive['i18n']['en']["lost_reason.made{$n}.label"] = 'Made';
+        }
+        $out = $this->command('weight')($evasive, $deps);
+        $this->assertFalse($out['ok']);
+        $this->assertArrayNotHasKey('weight', $out);
+        $this->assertContains('field.system_duplicate', \array_column($out['issues'], 'code'));
+        $this->assertFalse($this->command('weight')($this->deals())['ok'], 'without its dependency crm-deals does not validate');
+
         $this->expectException(InvalidArgumentException::class);
-        $this->command('weight', ['weight' => ['entity' => -1]])($this->deals());
+        $this->command('weight', ['weight' => ['entity' => -1]])($this->deals(), $deps);
     }
 
     public function testConfigCapsOnlyNarrow(): void

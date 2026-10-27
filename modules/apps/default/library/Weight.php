@@ -93,12 +93,7 @@ final class Weight
         $counts['row_rule_roles'] = \count($rowRoles);
 
         foreach (self::items($def['workflows'] ?? null) as $wf) {
-            foreach (self::items($wf['nodes'] ?? null) as $node) {
-                $type = $node['type'] ?? null;
-                if ($type !== 'trigger' && $type !== 'end') {
-                    ++$counts['wf_nodes'];
-                }
-            }
+            $counts['wf_nodes'] += self::nodes($wf['nodes'] ?? null, 0);
         }
 
         return $counts;
@@ -156,6 +151,25 @@ final class Weight
                 throw new InvalidArgumentException("Unknown weight coefficient '{$key}'");
             }
         }
+    }
+
+    /**
+     * Workflow nodes except trigger and end, walking any nested `nodes`
+     * (schema v1 has none, and the validator refuses unknown keys; the walk
+     * keeps a shape it never saw from weighing nothing).
+     */
+    private static function nodes(mixed $list, int $depth): int
+    {
+        $n = 0;
+        foreach ($depth < 16 ? self::items($list) : [] as $node) {
+            $type = $node['type'] ?? null;
+            if ($type !== 'trigger' && $type !== 'end') {
+                ++$n;
+            }
+            $n += self::nodes($node['nodes'] ?? null, $depth + 1);
+        }
+
+        return $n;
     }
 
     /**

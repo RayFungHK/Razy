@@ -4,20 +4,30 @@
  * razymod/apps — runs a typed AST in PHP with a step budget.
  *
  * Used for computed values, defaults and visibility rules (filters and row
- * rules compile to SQL instead, RZA-C). It is an interpreter over the closed
- * node and function list: dispatch is a `match` on fixed names, never a PHP
- * callable built from input, so an AST cannot call anything outside the list
- * even if it was tampered with after type checking.
+ * rules compile to SQL instead, RZA-C, with the same answers on every vector
+ * of tests/fixtures/apps/sql-parity.json). It is an interpreter over the
+ * closed node and function list: dispatch is a `match` on fixed names, never
+ * a PHP callable built from input.
+ *
+ * Fails closed: every node is re-checked before it runs (kind, operator,
+ * function, arity, literal type and size), values are read through strict
+ * helpers, and any PHP warning, TypeError or ArithmeticError during an
+ * evaluation becomes ExpressionError (no message or path leaks).
  *
  * Bounds: every node visited and every loop round inside a function costs a
- * step (eval_steps); recursion follows the AST, which is capped at
- * expression_depth, and is guarded again here; every string built is checked
- * against eval_string_bytes before it is built, lists against
- * eval_list_items. Errors are ExpressionError with a stable code.
+ * step (eval_steps); recursion follows the AST, capped at expression_depth
+ * and guarded again here; strings are checked against eval_string_bytes
+ * before they are built, lists against eval_list_items, decimals against
+ * Decimal::MAX_DIGITS.
  *
- * Values: number = int|float, text = string, boolean = bool, date = 'Y-m-d',
- * datetime = 'Y-m-d\TH:i:s\Z' (UTC), principals and refs = string ids,
- * lists = PHP lists, blank = null. Semantics of blanks: see Types.
+ * Values: decimal = Decimal (exact), number = float (POWER only), text =
+ * string, boolean = bool, date = 'Y-m-d', datetime = 'Y-m-d\TH:i:s\Z' (UTC),
+ * principals and refs = string ids, lists = PHP lists, blank = null.
+ *
+ * Blanks (null or '') follow Types and each function's `blank` policy in
+ * Functions::LIST, applied in one place (call()). A date meeting a datetime
+ * is that date's local midnight in the data space time zone (Context), the
+ * zone TODAY() and the date parts use too.
  */
 
 declare(strict_types=1);
@@ -59,11 +69,6 @@ final class Evaluator
         $this->utc = new DateTimeZone('UTC');
     }
 
-    /**
-     * Blank: null, or empty text. A database may hold '' or NULL for an
-     * empty text column; both read the same here (and must in SQL:
-     * NULLIF(col, '')).
-     */
     private static function blank(mixed $v): bool
     {
         return $v === null || $v === '';
@@ -71,6 +76,8 @@ final class Evaluator
 
     /**
      * @param array<string, mixed> $ast a typed AST (TypeChecker output)
+     *
+     * @return mixed Decimal|float|string|bool|list<mixed>|null
      *
      * @throws ExpressionError
      */
@@ -81,12 +88,17 @@ final class Evaluator
         $this->steps = 0;
         $this->depth = 0;
 
+        // a warning means a value the checks above did not foresee: fail closed,
+        // without the PHP message (it can carry paths)
+        \set_error_handler(static function (): bool {
+            throw new ExpressionError(ExpressionError::SYNTAX, 'Expression could not be evaluated');
+        });
         try {
             return $this->visit($ast);
         } catch (TypeError|ValueError|ArithmeticError) {
-            // last line of defence for an AST that passed checkNode() but still
-            // carries a value its type does not allow (a tampered plan cache)
             throw new ExpressionError(ExpressionError::SYNTAX, 'Malformed expression node');
+        } finally {
+            \restore_error_handler();
         }
     }
 
@@ -98,9 +110,6 @@ final class Evaluator
         return $this->steps;
     }
 
-    /**
-     * @param array<string, mixed> $n
-     */
     private function visit(mixed $n): mixed
     {
         $this->step();
@@ -109,17 +118,18 @@ final class Evaluator
         }
         try {
             $this->checkNode($n);
-            $out = match ($n['k'] ?? null) {
-                'num', 'str', 'bool' => $n['v'],
+            $out = match ($n['k']) {
+                'num' => Decimal::of($n['v']),
+                'str', 'bool' => $n['v'],
                 'field' => $this->field($n),
-                'call' => $this->call((string) $n['fn'], $n['args'], (string) $n['t']),
-                'op' => $this->op((string) $n['op'], $n['args'], (string) $n['t']),
+                'call' => $this->call($n['fn'], $n['args'], $n['t']),
+                'op' => $this->op($n['op'], $n['args'], $n['t']),
                 'list' => $this->evalList($n['items']),
-                default => throw new ExpressionError(ExpressionError::SYNTAX, 'Malformed expression node'),
+                default => throw $this->malformed(),
             };
             // a date flowing into a datetime-typed result (IF / MIN / COALESCE over both)
-            if (($n['t'] ?? null) === 'datetime' && \is_string($out) && \strlen($out) === 10) {
-                $out .= 'T00:00:00Z';
+            if ($n['t'] === 'datetime' && \is_string($out) && \strlen($out) === 10) {
+                $out = $this->promote($out);
             }
 
             return $out;
@@ -130,9 +140,9 @@ final class Evaluator
 
     /**
      * The evaluator runs typed ASTs from the compiler, usually through a
-     * cache. It re-checks each node's shape (kinds, operators, the closed
-     * function list, arity, literal types) so a tampered AST fails closed
-     * with a typed error instead of reaching PHP with unexpected values.
+     * cache. Each node's shape is re-checked (kinds, operators, the closed
+     * function list, arity, literal types and sizes) so a tampered AST fails
+     * closed with a typed error instead of reaching PHP with unexpected values.
      */
     private function checkNode(mixed $n): void
     {
@@ -140,11 +150,12 @@ final class Evaluator
         if ($ok) {
             switch ($n['k'] ?? null) {
                 case 'num':
-                    $ok = (\is_int($n['v'] ?? null) || \is_float($n['v'] ?? null)) && \is_finite((float) $n['v']);
+                    $ok = \is_string($n['v'] ?? null) && \strlen($n['v']) <= 61 && Decimal::isValid($n['v']);
                     break;
 
                 case 'str':
-                    $ok = \is_string($n['v'] ?? null);
+                    $ok = \is_string($n['v'] ?? null) && \strlen($n['v']) <= $this->caps->get('literal_length')
+                        && \preg_match('//u', $n['v']) === 1;
                     break;
 
                 case 'bool':
@@ -152,8 +163,12 @@ final class Evaluator
                     break;
 
                 case 'field':
-                    $ok = \is_array($n['path'] ?? null) && $n['path'] !== [] && \array_is_list($n['path'])
-                        && \count(\array_filter($n['path'], static fn (mixed $s): bool => \is_string($s))) === \count($n['path']);
+                    $path = $n['path'] ?? null;
+                    $ok = \is_array($path) && $path !== [] && \count($path) <= 8 && \array_is_list($path)
+                        && (!isset($n['scale']) || (\is_int($n['scale']) && $n['scale'] >= 0 && $n['scale'] <= Decimal::MAX_SCALE));
+                    foreach ($ok ? $path : [] as $seg) {
+                        $ok = $ok && \is_string($seg) && \preg_match('/^[a-z][a-z0-9_]{0,39}$/', $seg) === 1;
+                    }
                     break;
 
                 case 'call':
@@ -181,17 +196,17 @@ final class Evaluator
             }
         }
         if (!$ok) {
-            throw new ExpressionError(ExpressionError::SYNTAX, 'Malformed expression node');
+            throw $this->malformed();
         }
     }
 
     private function children(mixed $list): bool
     {
-        if (!\is_array($list) || !\array_is_list($list) || \count($list) > $this->caps->get('eval_list_items')) {
+        if (!\is_array($list) || !\array_is_list($list) || \count($list) > $this->caps->get('expression_args')) {
             return false;
         }
         foreach ($list as $child) {
-            if (!\is_array($child)) {
+            if (!\is_array($child) || !\is_string($child['t'] ?? null)) {
                 return false;
             }
         }
@@ -215,13 +230,15 @@ final class Evaluator
      */
     private function field(array $n): mixed
     {
-        return $this->normalize($this->values->get($n['path']), (string) $n['t'], \implode('.', $n['path']));
+        $scale = \is_int($n['scale'] ?? null) ? $n['scale'] : null;
+
+        return $this->normalize($this->values->get($n['path']), $n['t'], \implode('.', $n['path']), $scale);
     }
 
     /**
      * Coerce a raw value (as a database driver returns it) to the AST type.
      */
-    private function normalize(mixed $v, string $type, string $where): mixed
+    private function normalize(mixed $v, string $type, string $where, ?int $scale = null): mixed
     {
         if ($v === null) {
             return null;
@@ -250,12 +267,28 @@ final class Evaluator
         }
 
         switch ($type) {
+            case 'decimal':
+                if (\is_int($v) || \is_float($v) || $v instanceof Decimal || \is_string($v)) {
+                    try {
+                        $d = Decimal::from(\is_string($v) ? \trim($v) : $v);
+                    } catch (ExpressionError) {
+                        throw $this->bad($where, $type);
+                    }
+
+                    // read at the field's declared scale (a money column holds cents)
+                    return $scale !== null ? $d->round($scale) : $d;
+                }
+
+                throw $this->bad($where, $type);
             case 'number':
                 if (\is_int($v) || \is_float($v)) {
-                    return $this->finite($v);
+                    return $this->finite((float) $v);
                 }
-                if (\is_string($v) && \preg_match('/^-?\d{1,30}(\.\d{1,30})?$/', $v) === 1) {
-                    return \str_contains($v, '.') ? (float) $v : $this->toNumber($v);
+                if ($v instanceof Decimal) {
+                    return $v->toFloat();
+                }
+                if (\is_string($v) && Decimal::isValid(\trim($v))) {
+                    return (float) \trim($v);
                 }
 
                 throw $this->bad($where, $type);
@@ -264,7 +297,7 @@ final class Evaluator
                 if (\is_string($v)) {
                     return $this->text($v);
                 }
-                if (\is_int($v) || \is_float($v)) {
+                if (\is_int($v) || $v instanceof Decimal) {
                     return (string) $v;
                 }
 
@@ -326,8 +359,12 @@ final class Evaluator
     {
         if ($op === 'neg') {
             $x = $this->visit($args[0]);
+            if (self::blank($x)) {
+                return null;
+            }
+            $x = $this->num($x);
 
-            return $x === null ? null : $this->finite(-$this->num($x));
+            return $x instanceof Decimal ? $x->negate() : $this->finite(-$x);
         }
         if ($op === 'in') {
             $x = $this->visit($args[0]);
@@ -336,9 +373,8 @@ final class Evaluator
                 return false;
             }
             $this->step(\count($list));
-            $lt = (string) $args[0]['t'];
             foreach ($list as $item) {
-                if (!self::blank($item) && $this->equals($x, $item, $lt, $this->listItemType($args[1]))) {
+                if (!self::blank($item) && $this->equals($x, $item)) {
                     return true;
                 }
             }
@@ -348,18 +384,18 @@ final class Evaluator
 
         $l = $this->visit($args[0]);
         $r = $this->visit($args[1]);
-        $lt = (string) $args[0]['t'];
-        $rt = (string) $args[1]['t'];
+        $lt = $args[0]['t'];
+        $rt = $args[1]['t'];
 
         switch ($op) {
             case '&':
                 return $this->joinText([$this->toText($l, $lt), $this->toText($r, $rt)]);
 
             case '=':
-                return (self::blank($l) || self::blank($r)) ? self::blank($l) === self::blank($r) : $this->equals($l, $r, $lt, $rt);
+                return (self::blank($l) || self::blank($r)) ? self::blank($l) === self::blank($r) : $this->equals($l, $r);
 
             case '<>':
-                return (self::blank($l) || self::blank($r)) ? self::blank($l) !== self::blank($r) : !$this->equals($l, $r, $lt, $rt);
+                return (self::blank($l) || self::blank($r)) ? self::blank($l) !== self::blank($r) : !$this->equals($l, $r);
 
             case '<':
             case '<=':
@@ -368,7 +404,7 @@ final class Evaluator
                 if (self::blank($l) || self::blank($r)) {
                     return false;
                 }
-                $c = $this->compare($l, $r, $lt, $rt);
+                $c = $this->compare($l, $r);
 
                 return match ($op) {
                     '<' => $c < 0,
@@ -378,25 +414,39 @@ final class Evaluator
                 };
         }
 
-        if ($l === null || $r === null) {
+        if (self::blank($l) || self::blank($r)) {
             return null;
         }
 
         if ($type === 'date' || $type === 'datetime') {
             // date ± days, days + date
-            [$d, $days, $dt] = ($lt === 'number') ? [$r, $l, $rt] : [$l, $r, $lt];
+            [$d, $days, $dt] = Types::isNumeric($lt) ? [$r, $l, $rt] : [$l, $r, $lt];
+            $days = $this->num($days);
             if ($op === '-') {
-                $days = -$days;
+                $days = $days instanceof Decimal ? $days->negate() : -$days;
             }
 
-            return $this->addDays((string) $d, $dt, $days);
+            return $this->addDays($this->asString($d), $dt, $days);
         }
         if (($lt === 'date' || $lt === 'datetime') && $op === '-') {
-            return $this->dayDiff((string) $l, $lt, (string) $r, $rt);
+            return $this->dayDiff($this->asString($l), $lt, $this->asString($r), $rt);
         }
 
         $l = $this->num($l);
         $r = $this->num($r);
+        if ($l instanceof Decimal && $r instanceof Decimal) {
+            $this->step(1 + \intdiv(\strlen((string) $l) + \strlen((string) $r), 20));
+
+            return match ($op) {
+                '+' => $l->add($r),
+                '-' => $l->sub($r),
+                '*' => $l->mul($r),
+                '/' => $l->div($r),
+                default => throw $this->malformed(),
+            };
+        }
+        $l = $l instanceof Decimal ? $l->toFloat() : $l;
+        $r = $r instanceof Decimal ? $r->toFloat() : $r;
 
         return match ($op) {
             '+' => $this->finite($l + $r),
@@ -405,46 +455,62 @@ final class Evaluator
             '/' => $r == 0
                 ? throw new ExpressionError(ExpressionError::DIV_ZERO, 'Division by zero')
                 : $this->finite($l / $r),
-            default => throw new ExpressionError(ExpressionError::SYNTAX, 'Malformed expression node'),
+            default => throw $this->malformed(),
         };
     }
 
-    /**
-     * @param array<string, mixed> $listNode
-     */
-    private function listItemType(array $listNode): string
+    private function equals(mixed $a, mixed $b): bool
     {
-        $t = (string) $listNode['t'];
-
-        return Types::isList($t) ? Types::itemType($t) : $t;
-    }
-
-    private function equals(mixed $a, mixed $b, string $at, string $bt): bool
-    {
-        if (\is_int($a) || \is_float($a)) {
-            return (\is_int($b) || \is_float($b)) && $a == $b;
+        if ($this->isNum($a) || $this->isNum($b)) {
+            return $this->isNum($a) && $this->isNum($b) && $this->numCmp($a, $b) === 0;
         }
-        if ($at === 'date' && $bt === 'datetime') {
-            $a = $a . 'T00:00:00Z';
-        } elseif ($at === 'datetime' && $bt === 'date') {
-            $b = $b . 'T00:00:00Z';
-        }
+        [$a, $b] = $this->alignDates($a, $b);
 
         return $a === $b;
     }
 
-    private function compare(mixed $a, mixed $b, string $at, string $bt): int
+    private function compare(mixed $a, mixed $b): int
     {
-        if ((\is_int($a) || \is_float($a)) && (\is_int($b) || \is_float($b))) {
-            return $a <=> $b;
+        if ($this->isNum($a) && $this->isNum($b)) {
+            return $this->numCmp($a, $b);
         }
-        if ($at === 'date' && $bt === 'datetime') {
-            $a = $a . 'T00:00:00Z';
-        } elseif ($at === 'datetime' && $bt === 'date') {
-            $b = $b . 'T00:00:00Z';
+        [$a, $b] = $this->alignDates($a, $b);
+
+        return \strcmp($this->asString($a), $this->asString($b)) <=> 0;
+    }
+
+    private function isNum(mixed $v): bool
+    {
+        return $v instanceof Decimal || \is_float($v) || \is_int($v);
+    }
+
+    private function numCmp(mixed $a, mixed $b): int
+    {
+        $a = $this->num($a);
+        $b = $this->num($b);
+        if ($a instanceof Decimal && $b instanceof Decimal) {
+            return $a->cmp($b);
         }
 
-        return \strcmp((string) $a, (string) $b) <=> 0;
+        return ($a instanceof Decimal ? $a->toFloat() : $a) <=> ($b instanceof Decimal ? $b->toFloat() : $b);
+    }
+
+    /**
+     * A date next to a datetime becomes its local midnight.
+     *
+     * @return array{0: mixed, 1: mixed}
+     */
+    private function alignDates(mixed $a, mixed $b): array
+    {
+        if (\is_string($a) && \is_string($b)) {
+            if (\strlen($a) === 10 && \strlen($b) === 20 && $this->isDate($a)) {
+                $a = $this->promote($a);
+            } elseif (\strlen($a) === 20 && \strlen($b) === 10 && $this->isDate($b)) {
+                $b = $this->promote($b);
+            }
+        }
+
+        return [$a, $b];
     }
 
     // ── functions ──────────────────────────────────────────────────
@@ -480,7 +546,7 @@ final class Evaluator
             case 'COALESCE':
                 foreach ($args as $a) {
                     $v = $this->visit($a);
-                    if ($v !== null && $v !== '') {
+                    if (!self::blank($v)) {
                         return $v;
                     }
                 }
@@ -489,53 +555,84 @@ final class Evaluator
         }
 
         $v = [];
+        $types = [];
         foreach ($args as $a) {
             $v[] = $this->visit($a);
+            $types[] = $a['t'];
         }
-        $t = static fn (int $i): string => (string) $args[$i]['t'];
+
+        // the blank policy of Functions::LIST, in one place
+        switch (Functions::get($fn)['blank']) {
+            case 'propagate':
+                foreach ($v as $x) {
+                    if (self::blank($x)) {
+                        return null;
+                    }
+                }
+                break;
+
+            case 'skip':
+                $keep = \array_keys(\array_filter($v, static fn (mixed $x): bool => !self::blank($x)));
+                $v = \array_values(\array_intersect_key($v, \array_flip($keep)));
+                $types = \array_values(\array_intersect_key($types, \array_flip($keep)));
+                break;
+
+            case 'empty_text':
+                foreach ($v as $i => $x) {
+                    if (!self::blank($x)) {
+                        continue;
+                    }
+                    if (Functions::paramType($fn, $i) === 'number') {
+                        return '';
+                    }
+                    $v[$i] = '';
+                }
+                break;
+        }
+        $t = static fn (int $i): string => $types[$i] ?? 'blank';
 
         return match ($fn) {
             'NOT' => $v[0] !== true,
-            'ISBLANK' => $v[0] === null || $v[0] === '' || $v[0] === [],
+            'ISBLANK' => self::blank($v[0]) || $v[0] === [],
             'BLANK' => null,
 
-            'ABS' => $v[0] === null ? null : \abs($v[0]),
-            'ROUND' => $this->round($v[0], $v[1] ?? 0),
-            'FLOOR' => $v[0] === null ? null : $this->toNumber(\floor($v[0])),
-            'CEILING' => $v[0] === null ? null : $this->toNumber(\ceil($v[0])),
+            'ABS' => ($x = $this->num($v[0])) instanceof Decimal ? $x->abs() : \abs($x),
+            'ROUND' => $this->round($v[0], $v[1] ?? null),
+            'FLOOR' => ($x = $this->num($v[0])) instanceof Decimal ? $x->floor() : \floor($x),
+            'CEILING' => ($x = $this->num($v[0])) instanceof Decimal ? $x->floor(0, true) : \ceil($x),
             'MOD' => $this->mod($v[0], $v[1]),
             'POWER' => $this->power($v[0], $v[1]),
-            'MIN', 'MAX' => $this->minMax($fn, $v, $type),
-            'SUM' => $this->finite(\array_sum(\array_filter($v, static fn ($x) => $x !== null))),
-            'AVERAGE' => $this->average($v),
+            'MIN', 'MAX' => $this->minMax($fn, $v),
+            'SUM' => $this->sum($v, $type),
+            'AVERAGE' => $v === [] ? null : $this->divide($this->sum($v, $type), \count($v)),
 
-            'LEN' => \mb_strlen((string) $v[0]),
-            'LEFT' => $this->left((string) $v[0], $v[1] ?? 1),
-            'RIGHT' => $this->right((string) $v[0], $v[1] ?? 1),
-            'MID' => $this->mid((string) $v[0], $v[1], $v[2]),
-            'UPPER' => $this->text(\mb_strtoupper((string) $v[0])),
-            'LOWER' => $this->text(\mb_strtolower((string) $v[0])),
-            'TRIM' => (string) \preg_replace('/ {2,}/', ' ', \trim((string) $v[0], ' ')),
-            'CONCAT' => $this->joinText(\array_map(fn ($x, $i) => $this->toText($x, $t($i)), $v, \array_keys($v))),
-            'CONTAINS' => \str_contains(\mb_strtolower((string) $v[0]), \mb_strtolower((string) $v[1])),
-            'STARTSWITH' => \str_starts_with(\mb_strtolower((string) $v[0]), \mb_strtolower((string) $v[1])),
-            'ENDSWITH' => \str_ends_with(\mb_strtolower((string) $v[0]), \mb_strtolower((string) $v[1])),
-            'SUBSTITUTE' => $this->substitute($v[0], (string) $v[1], (string) $v[2]),
-            'VALUE' => $this->value($v[0]),
+            'LEN' => Decimal::fromInt(\mb_strlen($this->asString($v[0]))),
+            'LEFT' => \mb_substr($this->asString($v[0]), 0, $this->count($v[1] ?? 1, 'LEFT')),
+            'RIGHT' => $this->right($this->asString($v[0]), $this->count($v[1] ?? 1, 'RIGHT')),
+            'MID' => $this->mid($this->asString($v[0]), $v[1], $v[2]),
+            'UPPER' => $this->text(\mb_strtoupper($this->asString($v[0]))),
+            'LOWER' => $this->text(\mb_strtolower($this->asString($v[0]))),
+            'TRIM' => (string) \preg_replace('/ {2,}/', ' ', \trim($this->asString($v[0]), ' ')),
+            'CONCAT' => $this->joinText(\array_map(fn (mixed $x, int $i): string => $this->toText($x, $t($i)), $v, \array_keys($v))),
+            'CONTAINS' => \str_contains(\mb_strtolower($this->asString($v[0])), \mb_strtolower($this->asString($v[1]))),
+            'STARTSWITH' => \str_starts_with(\mb_strtolower($this->asString($v[0])), \mb_strtolower($this->asString($v[1]))),
+            'ENDSWITH' => \str_ends_with(\mb_strtolower($this->asString($v[0])), \mb_strtolower($this->asString($v[1]))),
+            'SUBSTITUTE' => $this->substitute($this->asString($v[0]), $this->asString($v[1]), $this->asString($v[2])),
+            'VALUE' => $this->value($this->asString($v[0])),
             'TEXT' => $this->toText($v[0], $t(0)),
 
             'TODAY' => $this->ctx->now->setTimezone($this->ctx->timezone)->format(self::DATE),
             'NOW' => $this->ctx->now->setTimezone($this->utc)->format(self::DATETIME),
-            'DATE' => $this->date($v[0], $v[1], $v[2]),
+            'DATE' => $this->date($this->intArg($v[0]), $this->intArg($v[1]), $this->intArg($v[2])),
             'YEAR' => $this->datePart($v[0], $t(0), 'Y'),
             'MONTH' => $this->datePart($v[0], $t(0), 'n'),
             'DAY' => $this->datePart($v[0], $t(0), 'j'),
             'WEEKDAY' => $this->datePart($v[0], $t(0), 'N'),
-            'DAYS' => ($v[0] === null || $v[1] === null) ? null : $this->dayDiff($v[0], 'date', $v[1], 'date'),
-            'EDATE' => $this->addMonths($v[0], $v[1], false),
-            'EOMONTH' => $this->addMonths($v[0], $v[1], true),
-            'WORKDAY' => $this->workday($v[0], $v[1]),
-            'NETWORKDAYS' => $this->networkdays($v[0], $v[1]),
+            'DAYS' => $this->dayDiff($this->asString($v[0]), 'date', $this->asString($v[1]), 'date'),
+            'EDATE' => $this->addMonths($this->asString($v[0]), $this->intArg($v[1]), false),
+            'EOMONTH' => $this->addMonths($this->asString($v[0]), $this->intArg($v[1]), true),
+            'WORKDAY' => $this->workday($this->asString($v[0]), $this->intArg($v[1])),
+            'NETWORKDAYS' => $this->networkdays($this->asString($v[0]), $this->asString($v[1])),
 
             'CURRENT_USER' => $this->ctx->user,
             'MY_GROUPS' => $this->principalList($this->ctx->groups),
@@ -545,48 +642,43 @@ final class Evaluator
         };
     }
 
-    private function round(mixed $x, mixed $digits): int|float|null
+    private function round(mixed $x, mixed $digits): Decimal|float
     {
-        if ($x === null) {
-            return null;
-        }
-        $d = (int) ($digits ?? 0);
+        $d = $digits === null ? 0 : $this->intArg($digits);
         if ($d < -15 || $d > 15) {
             throw new ExpressionError(ExpressionError::VALUE, 'ROUND() digits must be between -15 and 15');
         }
-        $r = \round((float) $x, $d);
+        $x = $this->num($x);
 
-        return $d <= 0 ? $this->toNumber($r) : $r;
+        return $x instanceof Decimal ? $x->round($d) : $this->finite(\round($x, $d));
     }
 
-    private function mod(mixed $a, mixed $b): int|float|null
+    private function mod(mixed $a, mixed $b): Decimal|float
     {
-        if ($a === null || $b === null) {
-            return null;
+        $a = $this->num($a);
+        $b = $this->num($b);
+        if ($a instanceof Decimal && $b instanceof Decimal) {
+            return $a->mod($b);
         }
+        $a = $a instanceof Decimal ? $a->toFloat() : $a;
+        $b = $b instanceof Decimal ? $b->toFloat() : $b;
         if ($b == 0) {
             throw new ExpressionError(ExpressionError::DIV_ZERO, 'MOD() by zero');
         }
+
         // Excel: the result takes the divisor's sign
-        if (\is_int($a) && \is_int($b)) {
-            $m = $a % $b;
-
-            return ($m !== 0 && (($m < 0) !== ($b < 0))) ? $m + $b : $m;
-        }
-
         return $this->finite($a - $b * \floor($a / $b));
     }
 
-    private function power(mixed $a, mixed $b): int|float|null
+    private function power(mixed $a, mixed $b): float
     {
-        if ($a === null || $b === null) {
-            return null;
-        }
+        $a = $this->toFloatNum($a);
+        $b = $this->toFloatNum($b);
         if ($a == 0 && $b < 0) {
             throw new ExpressionError(ExpressionError::DIV_ZERO, 'POWER() of zero to a negative power');
         }
-        $r = $a ** $b;
-        if (\is_float($r) && \is_nan($r)) {
+        $r = (float) ($a ** $b);
+        if (\is_nan($r)) {
             throw new ExpressionError(ExpressionError::VALUE, 'POWER() result is not a number');
         }
 
@@ -594,20 +686,17 @@ final class Evaluator
     }
 
     /**
-     * @param list<mixed> $v
+     * @param list<mixed> $v blanks already left out
      */
-    private function minMax(string $fn, array $v, string $type): mixed
+    private function minMax(string $fn, array $v): mixed
     {
         $best = null;
         foreach ($v as $x) {
-            if (self::blank($x)) {
-                continue;
-            }
             if ($best === null) {
                 $best = $x;
                 continue;
             }
-            $c = $this->compare($x, $best, $type, $type);
+            $c = $this->compare($x, $best);
             if (($fn === 'MIN' && $c < 0) || ($fn === 'MAX' && $c > 0)) {
                 $best = $x;
             }
@@ -617,29 +706,34 @@ final class Evaluator
     }
 
     /**
-     * @param list<mixed> $v
+     * @param list<mixed> $v blanks already left out
      */
-    private function average(array $v): int|float|null
+    private function sum(array $v, string $type): Decimal|float
     {
-        $nums = \array_values(\array_filter($v, static fn ($x) => $x !== null));
-        if ($nums === []) {
-            return null;
+        if ($type === 'number') {
+            $total = 0.0;
+            foreach ($v as $x) {
+                $total += $this->toFloatNum($x);
+            }
+
+            return $this->finite($total);
+        }
+        $total = Decimal::fromInt(0);
+        foreach ($v as $x) {
+            $this->step();
+            $total = $total->add(Decimal::from($this->num($x)));
         }
 
-        return $this->finite(\array_sum($nums) / \count($nums));
+        return $total;
     }
 
-    private function left(string $s, mixed $n): string
+    private function divide(Decimal|float $total, int $count): Decimal|float
     {
-        $n = $this->count($n, 'LEFT');
-
-        return \mb_substr($s, 0, $n);
+        return $total instanceof Decimal ? $total->div(Decimal::fromInt($count)) : $this->finite($total / $count);
     }
 
-    private function right(string $s, mixed $n): string
+    private function right(string $s, int $n): string
     {
-        $n = $this->count($n, 'RIGHT');
-
         return $n === 0 ? '' : \mb_substr($s, -$n);
     }
 
@@ -655,19 +749,16 @@ final class Evaluator
 
     private function count(mixed $n, string $fn): int
     {
-        if ($n === null) {
-            return 0;
-        }
+        $n = $this->intArg($n);
         if ($n < 0 || $n > $this->caps->get('eval_string_bytes')) {
             throw new ExpressionError(ExpressionError::VALUE, "{$fn}() count is out of range");
         }
 
-        return (int) $n;
+        return $n;
     }
 
-    private function substitute(mixed $s, string $old, string $new): string
+    private function substitute(string $s, string $old, string $new): string
     {
-        $s = (string) $s;
         if ($old === '') {
             return $s;
         }
@@ -681,17 +772,17 @@ final class Evaluator
         return \str_replace($old, $new, $s);
     }
 
-    private function value(mixed $s): int|float|null
+    private function value(string $s): ?Decimal
     {
-        if ($s === null || $s === '') {
+        $s = \trim($s);
+        if ($s === '') {
             return null;
         }
-        $s = \trim((string) $s);
-        if (\preg_match('/^-?\d{1,30}(\.\d{1,30})?$/', $s) !== 1) {
+        if (\strlen($s) > 61 || !Decimal::isValid($s)) {
             throw new ExpressionError(ExpressionError::VALUE, 'VALUE() needs a plain number');
         }
 
-        return \str_contains($s, '.') ? (float) $s : $this->toNumber($s);
+        return Decimal::of($s);
     }
 
     /**
@@ -708,7 +799,63 @@ final class Evaluator
         return \array_map(static fn ($id): string => (string) $id, $ids);
     }
 
-    // ── text ───────────────────────────────────────────────────────
+    // ── strict value helpers ───────────────────────────────────────
+
+    /**
+     * Text from a scalar value; anything else is a malformed AST.
+     */
+    private function asString(mixed $v): string
+    {
+        if (\is_string($v)) {
+            return $v;
+        }
+        if ($v === null) {
+            return '';
+        }
+        if (\is_int($v) || $v instanceof Decimal) {
+            return (string) $v;
+        }
+
+        throw $this->malformed();
+    }
+
+    /**
+     * A decimal or a float from a numeric value.
+     */
+    private function num(mixed $x): Decimal|float
+    {
+        if ($x instanceof Decimal || \is_float($x)) {
+            return $x;
+        }
+        if (\is_int($x)) {
+            return Decimal::fromInt($x);
+        }
+
+        throw $this->malformed();
+    }
+
+    private function toFloatNum(mixed $x): float
+    {
+        $x = $this->num($x);
+
+        return $x instanceof Decimal ? $x->toFloat() : $x;
+    }
+
+    /**
+     * Toward zero, as a PHP int (counts, positions, day and month offsets).
+     */
+    private function intArg(mixed $x): int
+    {
+        $x = $this->num($x);
+        if ($x instanceof Decimal) {
+            return $x->toInt();
+        }
+        if (\abs($x) > 1e15) {
+            throw new ExpressionError(ExpressionError::VALUE, 'Number is out of range');
+        }
+
+        return (int) $x;
+    }
 
     private function toText(mixed $v, string $type): string
     {
@@ -719,17 +866,13 @@ final class Evaluator
             return $v ? 'TRUE' : 'FALSE';
         }
         if (\is_float($v)) {
-            if (\floor($v) === $v && \abs($v) < 1e15) {
-                return (string) (int) $v;
-            }
-
-            return (string) \json_encode($v);
+            return (string) Decimal::fromFloat($v);
         }
         if (\is_array($v)) {
             throw new ExpressionError(ExpressionError::TYPE, "Cannot turn {$type} into text");
         }
 
-        return (string) $v;
+        return $this->asString($v);
     }
 
     /**
@@ -765,52 +908,40 @@ final class Evaluator
         );
     }
 
-    // ── numbers ────────────────────────────────────────────────────
-
-    private function num(mixed $x): int|float
+    private function finite(float $x): float
     {
-        if (\is_int($x) || \is_float($x)) {
-            return $x;
-        }
-
-        throw new ExpressionError(ExpressionError::SYNTAX, 'Malformed expression node');
-    }
-
-    private function finite(int|float $x): int|float
-    {
-        if (\is_float($x) && !\is_finite($x)) {
+        if (!\is_finite($x)) {
             throw new ExpressionError(ExpressionError::VALUE, 'Number is too large');
         }
 
         return $x;
     }
 
-    private function toNumber(string|float $x): int|float
+    // ── dates ──────────────────────────────────────────────────────
+
+    private function isDate(string $v): bool
     {
-        if (\is_string($x)) {
-            $f = (float) $x;
-            if (\abs($f) < 9.2e18) {
-                return (int) $x;
-            }
-
-            return $f;
-        }
-        if (\abs($x) < 9.2e18) {
-            return (int) $x;
-        }
-
-        return $this->finite($x);
+        return \preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) === 1 && \checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
     }
 
-    // ── dates ──────────────────────────────────────────────────────
+    /**
+     * A date as the datetime of its local midnight in the data space zone.
+     */
+    private function promote(string $date): string
+    {
+        if (!$this->isDate($date)) {
+            throw $this->malformed();
+        }
+
+        return (new DateTimeImmutable($date . ' 00:00:00', $this->ctx->timezone))->setTimezone($this->utc)->format(self::DATETIME);
+    }
 
     private function toDate(mixed $v, string $where): string
     {
         if ($v instanceof DateTimeInterface) {
             return $v->format(self::DATE);
         }
-        if (\is_string($v) && \preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) === 1
-            && \checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+        if (\is_string($v) && $this->isDate($v)) {
             return $v;
         }
 
@@ -837,50 +968,52 @@ final class Evaluator
     private function parse(string $v, string $type): DateTimeImmutable
     {
         $d = $type === 'date'
-            ? DateTimeImmutable::createFromFormat('!' . self::DATE, $v, $this->utc)
+            ? ($this->isDate($v) ? DateTimeImmutable::createFromFormat('!' . self::DATE, $v, $this->utc) : false)
             : DateTimeImmutable::createFromFormat(self::DATETIME, $v, $this->utc);
         if ($d === false) {
-            throw new ExpressionError(ExpressionError::VALUE, "Bad {$type} '{$v}'");
+            throw new ExpressionError(ExpressionError::VALUE, "Bad {$type} value");
         }
 
         return $d;
     }
 
-    private function addDays(string $d, string $type, int|float $days): string
+    private function addDays(string $d, string $type, Decimal|float $days): string
     {
-        if (\abs($days) > 3_660_000) {
-            throw new ExpressionError(ExpressionError::VALUE, 'Day offset is out of range');
-        }
         $base = $this->parse($d, $type);
         if ($type === 'date') {
-            $out = $base->modify(((int) \floor($days)) . ' days');
+            $n = $days instanceof Decimal ? $days->floor()->toInt() : (int) \floor($this->finite($days));
+            if (\abs($n) > 3_660_000) {
+                throw new ExpressionError(ExpressionError::VALUE, 'Day offset is out of range');
+            }
+            $out = $base->modify("{$n} days");
         } else {
-            $out = $base->modify(((int) \round($days * 86400)) . ' seconds');
+            $seconds = $days instanceof Decimal ? $days->mul(Decimal::fromInt(86400))->round(0)->toInt() : (int) \round($this->finite($days) * 86400);
+            if (\abs($seconds) > 316_224_000_000) {
+                throw new ExpressionError(ExpressionError::VALUE, 'Day offset is out of range');
+            }
+            $out = $base->modify("{$seconds} seconds");
         }
 
         return $this->checkYear($out)->format($type === 'date' ? self::DATE : self::DATETIME);
     }
 
-    private function dayDiff(string $a, string $at, string $b, string $bt): int|float
+    /**
+     * a - b in days: whole days between dates, a decimal (scale 6) when a
+     * datetime takes part; a date next to a datetime is its local midnight.
+     */
+    private function dayDiff(string $a, string $at, string $b, string $bt): Decimal
     {
-        $x = $this->parse($a, $at);
-        $y = $this->parse($b, $bt);
-        $seconds = $x->getTimestamp() - $y->getTimestamp();
         if ($at === 'date' && $bt === 'date') {
-            return \intdiv($seconds, 86400);
+            return Decimal::fromInt(\intdiv($this->parse($a, 'date')->getTimestamp() - $this->parse($b, 'date')->getTimestamp(), 86400));
         }
+        $x = $this->parse($at === 'date' ? $this->promote($a) : $a, 'datetime');
+        $y = $this->parse($bt === 'date' ? $this->promote($b) : $b, 'datetime');
 
-        return $seconds / 86400;
+        return Decimal::fromInt($x->getTimestamp() - $y->getTimestamp())->div(Decimal::fromInt(86400));
     }
 
-    private function date(mixed $y, mixed $m, mixed $d): ?string
+    private function date(int $y, int $m, int $d): string
     {
-        if ($y === null || $m === null || $d === null) {
-            return null;
-        }
-        $y = (int) $y;
-        $m = (int) $m;
-        $d = (int) $d;
         if ($y < 1 || $y > 9999 || \abs($m) > 120_000 || \abs($d) > 3_660_000) {
             throw new ExpressionError(ExpressionError::VALUE, 'DATE() argument is out of range');
         }
@@ -891,29 +1024,22 @@ final class Evaluator
         return $this->checkYear($out)->format(self::DATE);
     }
 
-    private function datePart(mixed $v, string $type, string $format): ?int
+    private function datePart(mixed $v, string $type, string $format): Decimal
     {
-        if ($v === null) {
-            return null;
-        }
-        $d = $this->parse((string) $v, $type);
+        $d = $this->parse($this->asString($v), $type === 'datetime' ? 'datetime' : 'date');
         if ($type === 'datetime') {
             $d = $d->setTimezone($this->ctx->timezone);
         }
 
-        return (int) $d->format($format);
+        return Decimal::fromInt((int) $d->format($format));
     }
 
-    private function addMonths(mixed $v, mixed $months, bool $endOfMonth): ?string
+    private function addMonths(string $v, int $months, bool $endOfMonth): string
     {
-        if ($v === null || $months === null) {
-            return null;
-        }
-        $months = (int) $months;
         if (\abs($months) > 120_000) {
             throw new ExpressionError(ExpressionError::VALUE, 'Month offset is out of range');
         }
-        $d = $this->parse((string) $v, 'date');
+        $d = $this->parse($v, 'date');
         $y = (int) $d->format('Y');
         $m = (int) $d->format('n') - 1 + $months;
         $y += \intdiv($m, 12) - ($m < 0 && $m % 12 !== 0 ? 1 : 0);
@@ -927,34 +1053,28 @@ final class Evaluator
         return \sprintf('%04d-%02d-%02d', $y, $m, $day);
     }
 
-    private function workday(mixed $v, mixed $days): ?string
+    private function workday(string $v, int $days): string
     {
-        if ($v === null || $days === null) {
-            return null;
-        }
-        $days = (int) $days;
-        $d = $this->parse((string) $v, 'date');
+        $d = $this->parse($v, 'date');
         $dir = $days < 0 ? -1 : 1;
         $left = \abs($days);
         $oneDay = new DateInterval('P1D');
         while ($left > 0) {
             $this->step();
             $d = $dir > 0 ? $d->add($oneDay) : $d->sub($oneDay);
+            $this->checkYear($d);
             if ($this->isWorkingDay($d)) {
                 --$left;
             }
         }
 
-        return $this->checkYear($d)->format(self::DATE);
+        return $d->format(self::DATE);
     }
 
-    private function networkdays(mixed $a, mixed $b): ?int
+    private function networkdays(string $a, string $b): Decimal
     {
-        if ($a === null || $b === null) {
-            return null;
-        }
-        $start = $this->parse((string) $a, 'date');
-        $end = $this->parse((string) $b, 'date');
+        $start = $this->parse($a, 'date');
+        $end = $this->parse($b, 'date');
         $sign = 1;
         if ($start > $end) {
             [$start, $end] = [$end, $start];
@@ -976,13 +1096,13 @@ final class Evaluator
         $to = $end->format(self::DATE);
         foreach ($this->ctx->holidays as $day => $_) {
             $this->step();
-            if ($day >= $from && $day <= $to
+            if ($day >= $from && $day <= $to && $this->isDate($day)
                 && (int) $this->parse($day, 'date')->format('N') <= 5) {
                 --$count;
             }
         }
 
-        return $sign * $count;
+        return Decimal::fromInt($sign * $count);
     }
 
     private function isWorkingDay(DateTimeImmutable $d): bool
@@ -1003,5 +1123,10 @@ final class Evaluator
     private function bad(string $where, string $type): ExpressionError
     {
         return new ExpressionError(ExpressionError::VALUE, "Value of '{$where}' is not a valid {$type}");
+    }
+
+    private function malformed(): ExpressionError
+    {
+        return new ExpressionError(ExpressionError::SYNTAX, 'Malformed expression node');
     }
 }

@@ -20,10 +20,11 @@ interface Scope
      * @param list<string> $path
      * @param int $at source offset, for errors
      *
-     * @return array{type: string, options: ?list<string>, sql: bool}
-     *                                                                type: a Types name; options: allowed text values (select options,
-     *                                                                status states) or null; sql: whether the path can be read in a SQL
-     *                                                                predicate (false for computed fields that are not stored)
+     * @return array{type: string, options: ?list<string>, sql: bool, scale?: int}
+     *                                                                             type: a Types name; options: allowed text values (select options,
+     *                                                                             status states) or null; sql: whether the path can be read in a SQL
+     *                                                                             predicate (false for computed fields that are not stored);
+     *                                                                             scale: the declared decimal places of a decimal field
      *
      * @throws ExpressionError UNKNOWN_FIELD, TYPE or CYCLE
      */

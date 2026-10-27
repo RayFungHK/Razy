@@ -30,6 +30,7 @@ use razymod\apps\Expression\MapScope;
 use razymod\apps\Expression\Parser;
 use razymod\apps\Expression\Scope;
 use razymod\apps\Expression\TypeChecker;
+use razymod\apps\InputGuard;
 
 final class Validator
 {
@@ -67,6 +68,11 @@ final class Validator
         $this->expressions = [];
         $this->roles = [];
 
+        if (!InputGuard::within($def, $this->caps->get('definition_bytes'))) {
+            $this->error('', 'cap.definition_bytes', 'Definition is over the definition_bytes cap (' . $this->caps->get('definition_bytes') . ' bytes) or nested too deep');
+
+            return $this->result();
+        }
         try {
             $bytes = \strlen(Canonical::json($def));
             if ($bytes > $this->caps->get('definition_bytes')) {
@@ -102,11 +108,27 @@ final class Validator
         $this->lineage($def['lineage'] ?? null);
         $this->rolesList($def['roles'] ?? null);
 
+        // caller-supplied context is capped like the definition itself
         $dependencies = [];
-        foreach (\is_array($options['dependencies'] ?? null) ? $options['dependencies'] : [] as $code => $depDef) {
-            if (isset($deps[$code]) && \is_array($depDef)) {
-                $dependencies[$code] = $depDef;
+        $supplied = \is_array($options['dependencies'] ?? null) ? $options['dependencies'] : [];
+        if (\count($supplied) > $this->caps->get('dependencies_per_app')) {
+            $this->error('/depends_on', 'cap.dependencies_per_app', \count($supplied) . ' dependency definitions supplied; the cap is ' . $this->caps->get('dependencies_per_app'));
+            $supplied = [];
+        }
+        foreach ($supplied as $code => $depDef) {
+            if (!isset($deps[$code]) || !\is_array($depDef)) {
+                continue;
             }
+            if (!InputGuard::within($depDef, $this->caps->get('definition_bytes'))) {
+                $this->error('/depends_on/' . $this->escape((string) $code), 'cap.definition_bytes', "The supplied definition of '{$code}' is over the definition_bytes cap");
+                continue;
+            }
+            $dependencies[$code] = $depDef;
+        }
+        $previous = $options['previous'] ?? null;
+        if (\is_array($previous) && !InputGuard::within($previous, $this->caps->get('definition_bytes'))) {
+            $this->error('/', 'cap.definition_bytes', 'The previous version is over the definition_bytes cap');
+            $previous = null;
         }
         $this->catalog = new Catalog($this->package, $def, $dependencies, $this->caps);
 
@@ -115,7 +137,7 @@ final class Validator
         $workflows = $this->listOf($def, '', 'workflows', 'workflows_per_app');
         $this->uniqueCodes($workflows, '/workflows', 'workflow', false);
 
-        $this->ids($def, $options['previous'] ?? null);
+        $this->ids($def, $previous);
 
         foreach ($entities as $i => $entity) {
             $this->entity($entity, "/entities/{$i}", $deps);
@@ -279,9 +301,18 @@ final class Validator
         $fields = $this->listOf($entity, $p, 'fields', 'fields_per_entity', true);
         $this->uniqueCodes($fields, "{$p}/fields", 'field', true);
         $relations = 0;
+        $system = [];
         foreach ($fields as $i => $field) {
             if (($field['type'] ?? null) === 'relation') {
                 ++$relations;
+            }
+            // system types add no weight, so one of each per entity (no free fields)
+            $type = $field['type'] ?? null;
+            if (\is_string($type) && \in_array($type, Schema::SYSTEM_TYPES, true)) {
+                if (isset($system[$type])) {
+                    $this->error("{$p}/fields/{$i}/type", 'field.system_duplicate', "An entity has at most one {$type} field");
+                }
+                $system[$type] = true;
             }
             $this->field($field, "{$p}/fields/{$i}", $code, $entity, $deps);
         }
@@ -616,7 +647,7 @@ final class Validator
         }
         if (\is_string($v) && \str_starts_with($v, '=')) {
             $expect = match ($type) {
-                'integer', 'decimal', 'money', 'percent', 'duration' => 'number',
+                'integer', 'decimal', 'money', 'percent', 'duration' => 'decimal',
                 'select', 'text', 'long_text', 'rich_text', 'email', 'phone', 'url' => 'text',
                 'multi_select' => 'list:text',
                 'relation' => 'ref:' . $this->qualified(Catalog::str($f['to'] ?? null)),
@@ -819,7 +850,7 @@ final class Validator
             $this->sort($v['default_sort'], "{$p}/default_sort", $entity);
         }
         if (isset($v['bulk'])) {
-            if (!\is_array($v['bulk']) || !\array_is_list($v['bulk']) || \array_diff($v['bulk'], Schema::BULK_ACTIONS) !== []) {
+            if (!$this->subsetOf($v['bulk'], Schema::BULK_ACTIONS, true)) {
                 $this->error("{$p}/bulk", 'schema.enum', 'bulk actions are: ' . \implode(', ', Schema::BULK_ACTIONS));
             }
         }
@@ -1497,14 +1528,13 @@ final class Validator
                 $this->error("{$p}/entity", 'ref.unknown_entity', 'entity names an entity of this package');
                 continue;
             }
-            $pair = $role . '|' . $entity;
+            $pair = Catalog::str($role) . '|' . $entity;
             if (isset($pairs[$pair])) {
                 $this->error($p, 'permissions.duplicate', 'One rule per role and entity');
             }
             $pairs[$pair] = true;
             $ops = $r['ops'] ?? null;
-            if (!\is_array($ops) || !\array_is_list($ops) || $ops === [] || \array_diff($ops, Schema::OPS) !== []
-                || \count(\array_unique($ops)) !== \count($ops)) {
+            if (!\is_array($ops) || $ops === [] || !$this->subsetOf($ops, Schema::OPS, true)) {
                 $this->error("{$p}/ops", 'schema.enum', 'ops is a list of: ' . \implode(', ', Schema::OPS));
             }
             $row = $r['row'] ?? 'all';
@@ -1533,7 +1563,7 @@ final class Validator
             }
             if (isset($r['workflow'])) {
                 $wfa = $r['workflow'];
-                if (!\is_array($wfa) || !\array_is_list($wfa) || \array_diff($wfa, Schema::WORKFLOW_ABILITIES) !== []) {
+                if (!$this->subsetOf($wfa, Schema::WORKFLOW_ABILITIES, true)) {
                     $this->error("{$p}/workflow", 'schema.enum', 'workflow is a list of: ' . \implode(', ', Schema::WORKFLOW_ABILITIES));
                 }
             }
@@ -1816,6 +1846,27 @@ final class Validator
         if ($count > $this->caps->get($cap)) {
             $this->error($p, "cap.{$cap}", "{$count} items; the cap is " . $this->caps->get($cap));
         }
+    }
+
+    /**
+     * A list of strings, each one of $allowed (and each once when $unique).
+     *
+     * @param list<string> $allowed
+     */
+    private function subsetOf(mixed $list, array $allowed, bool $unique = false): bool
+    {
+        if (!\is_array($list) || !\array_is_list($list)) {
+            return false;
+        }
+        $seen = [];
+        foreach ($list as $item) {
+            if (!\is_string($item) || !\in_array($item, $allowed, true) || ($unique && isset($seen[$item]))) {
+                return false;
+            }
+            $seen[$item] = true;
+        }
+
+        return true;
     }
 
     private function isConstraint(mixed $v): bool

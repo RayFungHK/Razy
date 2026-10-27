@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Razy\Tests;
 
 use DateTimeImmutable;
+use ErrorException;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
 use razymod\apps\Caps;
@@ -29,7 +30,7 @@ require_once __DIR__ . '/fixtures/apps/autoload.php';
  * Fuzz for the expression pipeline and the definition validator
  * (manual/15-razy-apps.md §5.3, formula / expression injection).
  *
- * Expressions come from users and from AI, so for ANY input the contract is:
+ * Expressions come from people and from automated drafts, so for ANY input the contract is:
  * the parser, type checker and evaluator either succeed or throw
  * ExpressionError with a known code, never another Throwable, never a PHP
  * warning, and never more than the step budget. The validator never throws.
@@ -64,19 +65,32 @@ class AppsExpressionFuzzTest extends TestCase
 
     protected function setUp(): void
     {
+        // a PHP warning anywhere is a failure: the parser, checker, validator
+        // and compiler must never emit one, and the evaluator turns its own
+        // into ExpressionError (it installs its handler on top of this one)
+        \set_error_handler(static function (int $no, string $message, string $file, int $line): bool {
+            throw new ErrorException($message, 0, $no, $file, $line);
+        });
         \mt_srand(20261027);
         $this->rounds = \max(1, (int) (\getenv('RAZY_APPS_FUZZ_ROUNDS') ?: 1500));
         $this->caps = new Caps(['eval_steps' => 2000]);
         $this->scope = new MapScope([
-            'amount' => 'number',
+            'amount' => ['type' => 'decimal', 'scale' => 2],
+            'ratio' => 'number',
             'title' => 'text',
             'done' => 'boolean',
             'due' => 'date',
             'owner' => 'user',
             'tags' => ['type' => 'list:text', 'options' => ['vip', 'new']],
             'stage' => ['type' => 'status', 'options' => ['lead', 'won']],
-            'stage.probability' => 'number',
+            'stage.probability' => 'decimal',
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        \restore_error_handler();
+        parent::tearDown();
     }
 
     public function testRandomTokenSoupOnlyEverRaisesTypedErrors(): void
@@ -121,6 +135,7 @@ class AppsExpressionFuzzTest extends TestCase
             '=ROUND(SUM(amount, 1, 2) / 3, 2)',
         ];
         $junk = [null, true, false, 0, -1, 1.5, \NAN, '', 'x', '1; DROP', [], [1], ['k' => 'num'], 'system', 'shell_exec',
+            '2.5', '1e5', \str_repeat('9', 80), 'decimal', 'number', ['k' => 'num', 'v' => '1', 't' => 'decimal'], 99,
             'list:text', 'number', 'datetime', \str_repeat('z', 300)];
         $keys = ['k', 'v', 't', 'fn', 'op', 'args', 'items', 'path', 'at'];
         $checker = new TypeChecker($this->caps);

@@ -11,7 +11,7 @@
  * language with a closed function list, run by an interpreter with a step
  * budget (no eval, no PHP callbacks).
  *
- * Generic by design: no customer, AI or product concepts. Data spaces,
+ * Generic by design: no customer, product or author-specific concepts. Data spaces,
  * physical tables and the record runtime come in later modules / versions
  * (RZA-B apps-schema, RZA-C record runtime). Shape follows
  * razymod/permissions (modules/permissions).

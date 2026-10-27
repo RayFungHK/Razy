@@ -28,7 +28,7 @@ final class Catalog
     /** @var array<string, array<string, array<string, mixed>>> package => workflow code => workflow */
     private array $workflows = [];
 
-    /** @var array<string, array{type: string, options: ?list<string>, sql: bool}> */
+    /** @var array<string, array{type: string, options: ?list<string>, sql: bool, scale?: int}> */
     private array $computed = [];
 
     /** @var array<string, true> */
@@ -50,7 +50,7 @@ final class Catalog
 
     /**
      * A definition value as a string, '' when it is anything else. Definitions
-     * come from authors and AI: an array where a code belongs must not reach
+     * come from people and automated drafts: an array where a code belongs must not reach
      * a (string) cast.
      */
     public static function str(mixed $v): string
@@ -142,7 +142,7 @@ final class Catalog
     /**
      * @param list<string> $path
      *
-     * @return array{type: string, options: ?list<string>, sql: bool}
+     * @return array{type: string, options: ?list<string>, sql: bool, scale?: int}
      */
     public function resolve(string $package, string $entity, array $path, int $at, int $hops = 0): array
     {
@@ -209,7 +209,8 @@ final class Catalog
             'text', 'long_text', 'rich_text', 'email', 'phone', 'url', 'sequence' => $this->info('text'),
             'select' => $this->info('text', $this->options($field)),
             'multi_select' => $this->info('list:text', $this->options($field)),
-            'integer', 'decimal', 'money', 'percent', 'duration' => $this->info('number'),
+            'integer', 'duration' => $this->info('decimal', null, true, 0),
+            'decimal', 'money', 'percent' => $this->info('decimal', null, true, \is_int($field['scale'] ?? null) ? $field['scale'] : 2),
             'boolean' => $this->info('boolean'),
             'date' => $this->info('date'),
             'datetime', 'created_at', 'updated_at' => $this->info('datetime'),
@@ -269,12 +270,15 @@ final class Catalog
     {
         $this->entities[$package] = [];
         $this->workflows[$package] = [];
-        foreach (\is_array($def['entities'] ?? null) ? $def['entities'] : [] as $entity) {
+        // a dependency is indexed no further than a package may hold
+        $entities = \is_array($def['entities'] ?? null) ? \array_slice($def['entities'], 0, $this->caps->get('entities_per_app')) : [];
+        $workflows = \is_array($def['workflows'] ?? null) ? \array_slice($def['workflows'], 0, $this->caps->get('workflows_per_app')) : [];
+        foreach ($entities as $entity) {
             if (\is_array($entity) && \is_string($entity['code'] ?? null) && !isset($this->entities[$package][$entity['code']])) {
                 $this->entities[$package][$entity['code']] = $entity;
             }
         }
-        foreach (\is_array($def['workflows'] ?? null) ? $def['workflows'] : [] as $wf) {
+        foreach ($workflows as $wf) {
             if (\is_array($wf) && \is_string($wf['code'] ?? null) && !isset($this->workflows[$package][$wf['code']])) {
                 $this->workflows[$package][$wf['code']] = $wf;
             }
@@ -284,11 +288,16 @@ final class Catalog
     /**
      * @param ?list<string> $options
      *
-     * @return array{type: string, options: ?list<string>, sql: bool}
+     * @return array{type: string, options: ?list<string>, sql: bool, scale?: int}
      */
-    private function info(string $type, ?array $options = null, bool $sql = true): array
+    private function info(string $type, ?array $options = null, bool $sql = true, ?int $scale = null): array
     {
-        return ['type' => $type, 'options' => $options, 'sql' => $sql];
+        $info = ['type' => $type, 'options' => $options, 'sql' => $sql];
+        if ($scale !== null) {
+            $info['scale'] = $scale;
+        }
+
+        return $info;
     }
 
     /**
@@ -297,7 +306,7 @@ final class Catalog
      * @param array<string, mixed> $field
      * @param list<string> $rest
      *
-     * @return array{type: string, options: ?list<string>, sql: bool}
+     * @return array{type: string, options: ?list<string>, sql: bool, scale?: int}
      */
     private function status(string $package, array $field, array $rest, string $dotted, int $at): array
     {
@@ -320,7 +329,7 @@ final class Catalog
                 continue;
             }
             $v = $state['props'][$rest[0]];
-            $t = (\is_int($v) || \is_float($v)) ? 'number' : (\is_bool($v) ? 'boolean' : (\is_string($v) ? 'text' : null));
+            $t = (\is_int($v) || \is_float($v)) ? 'decimal' : (\is_bool($v) ? 'boolean' : (\is_string($v) ? 'text' : null));
             if ($t === null || ($type !== null && $type !== $t)) {
                 throw new ExpressionError(ExpressionError::TYPE, "State property '{$dotted}' mixes types", $at);
             }
@@ -336,13 +345,16 @@ final class Catalog
     /**
      * @param array<string, mixed> $field
      *
-     * @return array{type: string, options: ?list<string>, sql: bool}
+     * @return array{type: string, options: ?list<string>, sql: bool, scale?: int}
      */
     private function rollup(string $package, string $entity, array $field, int $at): array
     {
         $op = $field['op'] ?? null;
-        if ($op === 'count' || $op === 'sum') {
-            return $this->info('number');
+        if ($op === 'count') {
+            return $this->info('decimal', null, true, 0);
+        }
+        if ($op === 'sum') {
+            return $this->info('decimal');
         }
         $rel = $this->field($package, $entity, self::str($field['relation'] ?? null));
         if ($rel === null) {
@@ -351,13 +363,13 @@ final class Catalog
         [$tp, $te] = $this->split(self::str($rel['to'] ?? null), $package);
         $target = $this->resolve($tp, $te, [self::str($field['field'] ?? null)], $at, $this->caps->get('lookup_depth'));
 
-        return $this->info($target['type']);
+        return $this->info($target['type'], null, true, $target['scale'] ?? null);
     }
 
     /**
      * @param array<string, mixed> $field
      *
-     * @return array{type: string, options: ?list<string>, sql: bool}
+     * @return array{type: string, options: ?list<string>, sql: bool, scale?: int}
      */
     private function computedType(string $package, string $entity, array $field, int $at): array
     {

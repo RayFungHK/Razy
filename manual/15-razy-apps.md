@@ -18,17 +18,21 @@ distributor's module autoloader, `ModuleScanner::autoload`). Tests:
 
 ## 1. API (`api('razymod/apps')`)
 
-Every command is a pure function of its arguments and the module config. Any module of the
-distributor may call them; `__onAPICall` denies any command not on
-`AppsController::API_ALLOW`.
+Every command is a pure function of its arguments and the module config. `__onAPICall`
+admits a command on `AppsController::API_ALLOW` only from a module named in config
+`callers`, and the default is **none**. Every command first checks the size of what it was
+handed: the definition, `previous` and each of `dependencies` against `definition_bytes`
+and 64 levels of nesting, with at most `dependencies_per_app` dependencies. That check is a
+bounded walk that stops at the cap, before any other work. Answers carry codes and plain
+messages, never file paths.
 
 | Command | Arguments | Returns |
 |---|---|---|
 | `validate` | `array $definition, array $options = []` | `['ok' => bool, 'issues' => [...]]` |
 | `compile` | `array $definition, array $options = []` | `['ok' => bool, 'plan' => ?array, 'issues' => [...]]` |
 | `hash` | `array $definition` | `['ok' => bool, 'hash' => 'sha256:…', 'bytes' => int]` |
-| `assign-ids` | `array $definition, ?array $previous = null` | the definition, with every missing element id filled |
-| `weight` | `array $definition` | `['weight', 'wf_nodes', 'counts', 'coefficients', 'coefficients_source']` |
+| `assign-ids` | `array $definition, ?array $previous = null` | `['ok' => true, 'definition' => …]`, missing or moved ids filled |
+| `weight` | `array $definition, array $options = []` | validates first; `['ok', 'issues', 'weight', 'wf_nodes', 'counts', 'coefficients', 'coefficients_source']` |
 
 `$options`: `dependencies` (package code → definition, for packages named in `depends_on`),
 `previous` (the previous version's definition, for id stability) and `system` (`true` for
@@ -49,6 +53,7 @@ Config (`config/<dist>/apps.php`):
 
 ```php
 return [
+    'callers' => ['acme/registry'],           // modules allowed to call; default: none
     'caps' => ['fields_per_entity' => 120],   // narrowing only: values above the default are ignored
     'weight' => ['entity' => 10, 'field' => 1, 'relation' => 2, 'view' => 2, 'saved_view' => 1, 'row_rule_role' => 3],
 ];
@@ -205,7 +210,8 @@ templates). Label text is data: it is never parsed or run, and is escaped where 
 50 entities; per entity 200 fields, 30 relations, 4 views, 30 saved views, 20 indexes (4
 fields each), 30 form sections, 60 fields per view; 200 options per select; 30 roles; 500
 permission rules; 50 menu items; 20 workflows of 100 nodes and 50 states; 20 locales, 5,000
-i18n entries of 2,000 characters; 3 relation hops in a lookup; expressions 1,000 bytes, depth
+i18n entries of 2,000 characters; 3 relation hops in a lookup; 20 supplied dependency
+definitions; expressions 1,000 bytes, depth
 24, 400 nodes, 32 arguments, 500-byte literals; evaluation 10,000 steps, 64 KB strings,
 1,000 list items.
 
@@ -214,18 +220,28 @@ i18n entries of 2,000 characters; 3 relation hops in a lookup; expressions 1,000
 ## 4. Element ids and the content hash
 
 Entities, fields, saved views, workflows, states and nodes carry a **ULID** (26 characters,
-Crockford base32). Merges and migrations follow the id, never the code: renaming a field keeps
-its id and its column. The validator refuses a malformed or duplicate id, and with
-`previous` it refuses an id that changes kind (`id.kind_changed`) and warns when a known
-code gets a new id (`id.changed`: the old element is retired, a new one added).
+Crockford base32). Merges and migrations follow the id, never the code. Renaming an element
+(its old code is gone) keeps its id and its column, and renaming an entity keeps its fields'
+ids, because parents are matched by id.
 
-`assign-ids` fills only missing ids, and an element whose kind, parent and code match one in
+The validator refuses a malformed id, and the same id on two elements of one draft
+(`id.duplicate`). With `previous` it also refuses, all as **errors**:
+- an id that is now another kind of element (`id.kind_changed`);
+- an id that moved to another parent, or onto another element while its old element is
+  still there, a swap (`id.moved`);
+- a known element (kind, parent, code) under a new id (`id.changed`).
+
+`assign-ids` fills missing ids, and an element whose kind, parent and code match one in
 `previous` gets that id back, so a draft that dropped its ids does not re-create columns.
+It never keeps an id that moved: a swapped, re-kinded or moved id is dropped and
+re-assigned, so the swap comes back as it was.
 
 `hash` is `sha256:` + SHA-256 of the **canonical JSON** (`Canonical::json`): object keys
-sorted, list order kept, null / empty members dropped, integral floats written as integers,
-UTF-8 unescaped, no whitespace; NaN, infinity, invalid UTF-8, objects and nesting over 64
-levels are refused. Equal content gives equal bytes whatever the key order.
+sorted, list order kept, null / empty members dropped, integral floats written as integers
+and other floats in their shortest round-trip form (`serialize_precision` is pinned to -1 for
+the encode, so php.ini cannot change the hash). UTF-8 is unescaped, including U+2028 / U+2029,
+with no whitespace. NaN, infinity, invalid UTF-8, objects and nesting over 64 levels are
+refused. Equal content gives equal bytes whatever the key order.
 
 ---
 
@@ -241,20 +257,34 @@ plan stores the source and the AST.
 =IF(ISBLANK(company), "—", company.name & " (" & TEXT(amount) & ")")
 ```
 
-- Literals: numbers (`12`, `2.5`), text in `'…'` or `"…"` (a doubled quote is the only
+- Literals: numbers (`12`, `2.50`, exact decimals stored as written), text in `'…'` or `"…"` (a doubled quote is the only
   escape), `TRUE`, `FALSE`. Field paths: `amount`, `stage.probability`, `company.name`
   (many-to-one relations only, at most 3 hops, into this package or a declared dependency).
 - Operators, lowest first: comparisons `= <> < <= > >=` and `IN` (`x IN ('a', 'b')` or
   `x IN list_field`; comparisons do not chain), `&` (join text), `+ -`, `* /`, unary `-`.
-- Types: number, text, boolean, date, datetime, user, group, department, status, relation
-  refs, lists, blank. `date ± number` is a date; `date - date` is days.
+- Types: decimal, number, text, boolean, date, datetime, user, group, department, status,
+  relation refs, lists, blank. `date ± number` is a date (the day count's floor); `date - date`
+  is whole days; with a datetime it is fractional days.
+- **Numbers are exact.** integer / decimal / money / percent / duration fields, literals and
+  the exact functions are `decimal` (`razymod\apps\Expression\Decimal`, own fixed-point, no
+  IEEE float), so `0.1 + 0.2 = 0.3`. A field is read at its declared scale (money: 2,
+  HALF_UP). `+ - *` are exact. `/` is never integer division: `5 / 2 = 2.5`, at scale
+  max(operand scales, 6), HALF_UP. `ROUND` is HALF_UP, a half away from zero. `number` is an
+  IEEE float and comes only from `POWER()`; a float operand makes the result a float. RZA-C
+  casts to `numeric` with the same scales.
+- **A date meeting a datetime** is that date's local midnight in the data space time zone
+  (the zone of `TODAY()` and of the date parts of a datetime). In Hong Kong, `2026-10-27` =
+  `2026-10-26T16:00:00Z`.
 - **Blanks** are null and the empty text `''`, which are the same thing here. Logic is two-valued:
   - arithmetic and date functions with a blank give a blank;
   - text functions and `&` read a blank as `""`;
   - comparisons with a blank are FALSE, except `=` / `<>` (blank = blank);
   - `x IN (…)` with a blank `x` is FALSE;
   - AND / OR / IF / NOT read a blank as FALSE;
-  - SUM / AVERAGE / MIN / MAX skip blanks (SUM of none is 0).
+  - SUM / AVERAGE / MIN / MAX skip blanks (SUM of none is 0);
+  - `amount <> 0` with a blank amount is TRUE on purpose (IS DISTINCT FROM).
+- Each function's blank rule is its `blank` policy in `Functions::LIST`, applied in one
+  place by the evaluator (table below).
 - Text `=` is case-sensitive and orders by byte; `CONTAINS` / `STARTSWITH` / `ENDSWITH` are
   not case-sensitive.
 
@@ -269,6 +299,18 @@ or row rules):
 | Dates | `TODAY`, `NOW`, `DATE`, `YEAR`, `MONTH`, `DAY`, `WEEKDAY` (1 = Monday), `DAYS`, `EDATE`†, `EOMONTH`†, `WORKDAY`†, `NETWORKDAYS`† (Mon-Fri minus the context's holidays) |
 | Principal | `CURRENT_USER`, `MY_GROUPS`, `MY_DEPARTMENTS` |
 
+**Blank policy** per function (`Functions::LIST` `blank`, pinned by a vector per SQL function):
+
+| Policy | Functions | A blank argument |
+|---|---|---|
+| `propagate` | `ABS`, `ROUND`, `FLOOR`, `CEILING`, `MOD`, `POWER`, `VALUE`, `DATE`, `YEAR`, `MONTH`, `DAY`, `WEEKDAY`, `DAYS`, `EDATE`, `EOMONTH`, `WORKDAY`, `NETWORKDAYS` | makes the result blank (a blank digit count too) |
+| `skip` | `SUM`, `AVERAGE`, `MIN`, `MAX`, `COALESCE` | is left out; SUM of none is 0, the others of none are blank |
+| `empty_text` | `LEN`, `LEFT`, `RIGHT`, `MID`, `UPPER`, `LOWER`, `TRIM`, `CONCAT`, `CONTAINS`, `STARTSWITH`, `ENDSWITH`, `SUBSTITUTE`, `TEXT` | text reads as `''` (`LEN` of blank is 0, `CONTAINS(blank, blank)` is TRUE); a blank count or position gives `''` |
+| `false` | `AND`, `OR`, `NOT` | is FALSE (`NOT(blank)` is TRUE) |
+| `condition_false` | `IF` | takes the else branch |
+| `test` | `ISBLANK` | is the question (null, `''` or no values → TRUE) |
+| `none` | `BLANK`, `TODAY`, `NOW`, `CURRENT_USER`, `MY_GROUPS`, `MY_DEPARTMENTS` | (no arguments) |
+
 No user-defined functions, no loops, no regex (ReDoS), no access to other records except
 declared lookups, no access to other data spaces.
 
@@ -277,8 +319,8 @@ declared lookups, no access to other data spaces.
 ```php
 use razymod\apps\Expression\{Parser, TypeChecker, Evaluator, MapScope, ArrayValues, Context};
 
-$ast = (new TypeChecker())->check((new Parser())->parse('=amount * 2'), new MapScope(['amount' => 'number']));
-$value = (new Evaluator())->evaluate($ast, new ArrayValues(['amount' => 21]), new Context('user-7'));  // 42
+$ast = (new TypeChecker())->check((new Parser())->parse('=amount * 2'), new MapScope(['amount' => ['type' => 'decimal', 'scale' => 2]]));
+$value = (new Evaluator())->evaluate($ast, new ArrayValues(['amount' => '21.05']), new Context('user-7'));  // a Decimal: 42.1
 ```
 
 `Context` carries the acting user, groups, departments, the clock, the data space time zone
@@ -289,11 +331,13 @@ to bound SQL by the record runtime (RZA-C), with the same semantics.
 
 Saved filters and row rules run as SQL in the record runtime (RZA-C), while computed values
 run in the PHP evaluator. The two must agree on every row. The contract is the vector file
-`tests/fixtures/apps/sql-parity.json`: 106 cases, each with an expression, field values (a
-missing key is blank) and the expected result, plus a note on the SQL rule it pins.
-`tests/AppsSqlParityTest.php` runs the PHP evaluator over it and also requires a vector for
-every SQL-able function and operator. RZA-C must run the same file against Postgres. The rules
-it pins:
+`tests/fixtures/apps/sql-parity.json`: 177 cases. Each has an expression and field values (a
+missing key is blank), plus the expected result: decimal results are exact strings with
+`"type": "decimal"`. Some cases also carry the blank policy they pin, a time zone or clock,
+and a note on the SQL rule. `tests/AppsSqlParityTest.php` runs the PHP evaluator over the
+file. It also requires a vector for every SQL-able function and operator, and a blank-policy
+vector per function that matches `Functions::LIST`. RZA-C must run the same file against
+Postgres. The rules it pins:
 
 - empty text is blank: read text columns as `NULLIF(col, '')`;
 - `=` / `<>` are `IS NOT DISTINCT FROM` / `IS DISTINCT FROM`;
@@ -305,10 +349,12 @@ it pins:
 - `&` and the text functions use `COALESCE(x, '')`, and `LEN` counts characters;
 - `CONTAINS` / `STARTSWITH` / `ENDSWITH` are case-insensitive, with `%`, `_` and `\`
   escaped in the needle;
-- `/` is never integer division, `MOD` takes the divisor's sign, and `ROUND` rounds half
-  away from zero;
-- text compares as `COLLATE "C"`, and a date compares as midnight UTC;
-- `TODAY()` and the date parts use the data space time zone.
+- numbers are `numeric`, never `float8`; fields keep their declared scale; `/` is
+  `round(a / b, max(scale(a), scale(b), 6))` (HALF_UP), never integer division; `MOD` takes
+  the divisor's sign; `ROUND` rounds half away from zero;
+- text compares as `COLLATE "C"`;
+- a date compared with a datetime is `(date AT TIME ZONE <data space zone>)`, its local
+  midnight; `TODAY()` and the date parts use the same zone.
 
 ### 5.2 Errors
 
@@ -322,12 +368,14 @@ the same codes appear as issue codes at the expression's path.
 
 ### 5.3 Security
 
-Expressions come from users and from AI, so:
+Expressions come from people and from automated drafts (external authors), so:
 
 - No `eval`, no PHP callables built from input: the evaluator dispatches with a `match` on
-  the closed list. A stored or cached AST is re-checked node by node (kind, operator,
-  function, arity, literal types) before it runs; a tampered AST fails closed with a typed
-  error.
+  the closed list. A stored or cached AST is re-checked node by node before it runs: kind,
+  operator, function, arity, and literal type and size (numbers are decimal strings, text
+  within `literal_length`). Values are read through strict helpers that refuse non-scalars.
+  Any PHP warning, TypeError or ArithmeticError during an evaluation becomes `expr.syntax`
+  with no PHP message or path. A tampered AST fails closed with a typed error.
 - Every bound is enforced before the work: source length, literal length, AST depth (checked
   while parsing, so deep input fails at the cap instead of on the PHP stack), node count,
   arguments, evaluation steps (loops inside `WORKDAY` / `NETWORKDAYS` / `IN` / `SUBSTITUTE`
@@ -335,8 +383,9 @@ Expressions come from users and from AI, so:
 - Record values are data. The evaluator reads them as typed values and never parses them as
   expressions, so a record whose text starts with `=` is just text.
 - `tests/AppsExpressionFuzzTest.php` feeds random token soup, generated expressions, mutated
-  typed ASTs and mutated definitions through the pipeline and checks that only typed errors
-  come out (`RAZY_APPS_FUZZ_ROUNDS=40000` for a long run).
+  typed ASTs and mutated definitions through the pipeline. Every PHP warning is promoted to a
+  failure, and the test checks that only typed errors come out (`RAZY_APPS_FUZZ_ROUNDS=40000`
+  for a long run).
 - **Export (RZA-D2, not in this module):** values starting with `=`, `+`, `-`, `@`, tab or
   CR must be written to CSV / XLSX cells with a leading `'`, so a spreadsheet does not run
   a record value (or an expression's source text) as a formula.
@@ -360,9 +409,11 @@ weight = c.entity × entities + c.field × fields + c.relation × relations
        + c.view × views + c.saved_view × saved views + c.row_rule_role × roles with row rules
 ```
 
-Fields exclude `created_at` / `updated_at` / `created_by`; computed and rollup fields count;
+The `weight` command validates first, so an invalid shape is never weighed. Fields exclude
+`created_at` / `updated_at` / `created_by`, and an entity may declare at most one of each
+(`field.system_duplicate`), so they cannot buy free fields. Computed and rollup fields count;
 a relation field counts as a field and as a relation; each defined list / form / board /
 detail view counts; a role counts once if any of its rules has a row expression; i18n,
 numbering, options and labels add nothing. `wf_nodes` counts every workflow node except
-`trigger` and `end`. The fixtures weigh 85 (crm-core) and 56 + 3 nodes (crm-deals) with the
+`trigger` and `end`, walking any nested `nodes` (schema v1 has none). The fixtures weigh 85 (crm-core) and 56 + 3 nodes (crm-deals) with the
 reference coefficients.

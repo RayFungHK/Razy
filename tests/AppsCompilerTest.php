@@ -58,7 +58,7 @@ class AppsCompilerTest extends TestCase
         $this->assertSame(['value' => 'HKD'], $f['currency']['default']);
         $this->assertSame('text', $f['company_name']['value_type'], 'lookup through a dependency');
         $this->assertFalse($f['weighted']['stored']);
-        $this->assertSame('number', $f['weighted']['expr']['type']);
+        $this->assertSame('decimal', $f['weighted']['expr']['type']);
         $this->assertSame([['key' => 'HKD', 'label' => 'deal.currency.option.HKD', 'tone' => 'neutral'],
             ['key' => 'USD', 'label' => 'deal.currency.option.USD', 'tone' => 'neutral'],
             ['key' => 'CNY', 'label' => 'deal.currency.option.CNY', 'tone' => 'neutral']], $f['currency']['options']);
@@ -107,7 +107,10 @@ class AppsCompilerTest extends TestCase
         $ev = new Evaluator();
         $ctx = new Context('u1', [], [], new DateTimeImmutable('2026-10-27T00:00:00Z'));
         $f = $plan['entities']['deal']['fields'];
-        $this->assertSame(84000.0, $ev->evaluate($f['weighted']['expr']['ast'], new ArrayValues(['amount' => 120000, 'stage.probability' => 0.7]), $ctx));
+        // money (scale 2) × a state prop read as the decimal it was written as: exact
+        $this->assertSame('84000', (string) $ev->evaluate($f['weighted']['expr']['ast'], new ArrayValues(['amount' => '120000.00', 'stage.probability' => 0.7]), $ctx));
+        $this->assertSame('decimal', $f['weighted']['value_type']);
+        $this->assertSame(2, $f['weighted']['expr']['ast']['args'][0]['scale'], 'amount is money: scale 2');
         $this->assertTrue($ev->evaluate($f['overdue']['expr']['ast'], new ArrayValues(['stage.category' => 'active', 'close_date' => '2026-10-01']), $ctx));
         $this->assertFalse($ev->evaluate($f['overdue']['expr']['ast'], new ArrayValues(['stage.category' => 'done', 'close_date' => '2026-10-01']), $ctx));
         $this->assertSame('u1', $ev->evaluate($f['owner']['default']['expr']['ast'], new ArrayValues([]), $ctx));

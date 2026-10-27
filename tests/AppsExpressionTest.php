@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use Closure;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -11,12 +12,14 @@ use PHPUnit\Framework\TestCase;
 use razymod\apps\Caps;
 use razymod\apps\Expression\ArrayValues;
 use razymod\apps\Expression\Context;
+use razymod\apps\Expression\Decimal;
 use razymod\apps\Expression\Evaluator;
 use razymod\apps\Expression\ExpressionError;
 use razymod\apps\Expression\Functions;
 use razymod\apps\Expression\MapScope;
 use razymod\apps\Expression\Parser;
 use razymod\apps\Expression\TypeChecker;
+use razymod\apps\Expression\Values;
 
 require_once __DIR__ . '/fixtures/apps/autoload.php';
 
@@ -33,8 +36,9 @@ class AppsExpressionTest extends TestCase
     protected function setUp(): void
     {
         $this->scope = new MapScope([
-            'amount' => 'number',
-            'qty' => 'number',
+            'amount' => 'decimal',
+            'qty' => 'decimal',
+            'ratio' => 'number',
             'title' => 'text',
             'done' => 'boolean',
             'due' => 'date',
@@ -43,12 +47,12 @@ class AppsExpressionTest extends TestCase
             'department' => 'department',
             'tags' => ['type' => 'list:text', 'options' => ['vip', 'new']],
             'stage' => ['type' => 'status', 'options' => ['lead', 'won', 'lost']],
-            'stage.probability' => 'number',
+            'stage.probability' => 'decimal',
             'stage.category' => ['type' => 'text', 'options' => ['open', 'active', 'done', 'cancelled']],
             'currency' => ['type' => 'text', 'options' => ['HKD', 'USD']],
             'company' => 'ref:crm-core.company',
             'company.name' => 'text',
-            'preview' => ['type' => 'number', 'sql' => false],
+            'preview' => ['type' => 'decimal', 'sql' => false],
             'file' => 'opaque',
         ]);
     }
@@ -119,7 +123,7 @@ class AppsExpressionTest extends TestCase
         yield 'ceiling' => ['CEILING(2.1)', 3];
         yield 'mod sign follows divisor' => ['MOD(-7, 3)', 2];
         yield 'mod' => ['MOD(7, -3)', -2];
-        yield 'power' => ['POWER(2, 10)', 1024];
+        yield 'power' => ['POWER(2, 10)', 1024.0];
         yield 'min' => ['MIN(3, 1, 2)', 1];
         yield 'max text' => ['MAX("a", "c", "b")', 'c'];
         yield 'sum' => ['SUM(1, 2, 3.5)', 6.5];
@@ -164,6 +168,21 @@ class AppsExpressionTest extends TestCase
         yield 'isblank' => ['ISBLANK(BLANK())', true];
         yield 'today' => ['TODAY()', '2026-10-27'];
         yield 'now' => ['NOW()', '2026-10-27T03:04:05Z'];
+    }
+
+    /**
+     * Decimals as int (whole) or float, so cases read naturally; exact
+     * decimal strings are pinned in AppsSqlParityTest and AppsDecimalTest.
+     */
+    private static function plain(mixed $v): mixed
+    {
+        if ($v instanceof Decimal) {
+            $s = (string) $v;
+
+            return \preg_match('/^-?\d{1,18}$/', $s) === 1 ? (int) $s : (float) $s;
+        }
+
+        return \is_array($v) ? \array_map(self::plain(...), $v) : $v;
     }
 
     // ── parser ─────────────────────────────────────────────────────
@@ -254,14 +273,20 @@ class AppsExpressionTest extends TestCase
     public function testTypesEveryNode(): void
     {
         $typed = $this->typed('=amount * stage.probability');
-        $this->assertSame('number', $typed['t']);
-        $this->assertSame('number', $typed['args'][0]['t']);
+        $this->assertSame('decimal', $typed['t']);
+        $this->assertSame('decimal', $typed['args'][0]['t']);
+        $this->assertSame('number', $this->typed('=amount * ratio')['t'], 'a float operand makes a float');
+        $this->assertSame('number', $this->typed('=POWER(amount, 2)')['t']);
+        $this->assertSame('decimal', $this->typed('=ROUND(amount, 2) + LEN(title)')['t']);
+        $this->assertSame('number', $this->typed('=SUM(amount, ratio)')['t']);
+        $this->assertSame('decimal', $this->typed('=2.50')['t']);
+        $this->assertSame('2.50', $this->typed('=2.50')['v'], 'literals keep their written scale, as a string');
         $typed = $this->typed('=IF(done, title, "")');
         $this->assertSame('text', $typed['t']);
         $typed = $this->typed('=company');
         $this->assertSame('ref:crm-core.company', $typed['t']);
         $this->assertSame('date', $this->typed('=due + 7')['t']);
-        $this->assertSame('number', $this->typed('=due - TODAY()')['t']);
+        $this->assertSame('decimal', $this->typed('=due - TODAY()')['t']);
         $this->assertSame('datetime', $this->typed('=MAX(due, seen)')['t']);
         $this->assertSame('blank', $this->typed('=BLANK()')['t']);
     }
@@ -426,7 +451,7 @@ class AppsExpressionTest extends TestCase
         $ev = new Evaluator(new Caps());
         $ast = (new TypeChecker())->check((new Parser())->parse('=1 + 2'), $this->scope);
         $ev->evaluate($ast, new ArrayValues([]), new Context());
-        $this->assertSame(3, $ev->steps());
+        $this->assertSame(4, $ev->steps(), 'three nodes and one decimal operation');
         $this->expectErrorCode(ExpressionError::BUDGET, fn () => $this->evalSrc('=WORKDAY(DATE(2026, 1, 1), 100000)'));
     }
 
@@ -439,6 +464,79 @@ class AppsExpressionTest extends TestCase
         $this->expectErrorCode(ExpressionError::SIZE, fn () => $this->evalSrc('=SUBSTITUTE(title, "x", "xx")', $values, null, $caps));
         $this->expectErrorCode(ExpressionError::SIZE, fn () => $this->evalSrc('=title', ['title' => \str_repeat('y', 101)], null, $caps));
         $this->expectErrorCode(ExpressionError::SIZE, fn () => $this->evalSrc("='vip' IN tags", ['tags' => \array_fill(0, 2000, 'vip')]));
+    }
+
+    public function testBlankPolicyOfTheFunctionsWithoutSql(): void
+    {
+        // the SQL-able functions are pinned in tests/fixtures/apps/sql-parity.json
+        $this->assertSame('', $this->evalSrc('=MID(title, 1, 2)', ['title' => null]));
+        $this->assertSame('', $this->evalSrc('=MID("abc", amount, 2)', ['amount' => null]), 'empty_text: a blank count gives ""');
+        $this->assertSame('', $this->evalSrc('=SUBSTITUTE(title, "a", "b")', ['title' => '']));
+        $this->assertNull($this->evalSrc('=VALUE(title)', ['title' => '']));
+        $this->assertNull($this->evalSrc('=EDATE(due, 1)', ['due' => null]));
+        $this->assertNull($this->evalSrc('=EOMONTH(due, amount)', ['due' => '2026-01-01', 'amount' => null]));
+        $this->assertNull($this->evalSrc('=WORKDAY(due, 1)', ['due' => null]));
+        $this->assertNull($this->evalSrc('=NETWORKDAYS(due, due)', ['due' => null]));
+        foreach (Functions::LIST as $name => $sig) {
+            $this->assertContains($sig['blank'], Functions::BLANK_POLICIES, $name);
+        }
+    }
+
+    public function testDecimalFieldsReadAtTheirScale(): void
+    {
+        $scope = new MapScope(['price' => ['type' => 'decimal', 'scale' => 2], 'qty' => ['type' => 'decimal', 'scale' => 0]]);
+        $ast = (new TypeChecker())->check((new Parser())->parse('=price * qty'), $scope);
+        $this->assertSame(2, $ast['args'][0]['scale']);
+        $out = (new Evaluator())->evaluate($ast, new ArrayValues(['price' => '1.005', 'qty' => '3']), new Context());
+        $this->assertInstanceOf(Decimal::class, $out);
+        $this->assertSame('3.03', (string) $out, '1.005 is stored as 1.01 (HALF_UP), times 3');
+        $this->expectErrorCode(ExpressionError::VALUE, fn () => (new Evaluator())->evaluate($ast, new ArrayValues(['price' => '1e3', 'qty' => 1]), new Context()));
+    }
+
+    public function testEvaluationWarningsFailClosedWithoutDetail(): void
+    {
+        $values = new class() implements Values {
+            public function get(array $path): mixed
+            {
+                \trigger_error('/srv/secret/path.php leaked', E_USER_WARNING);
+
+                return null;
+            }
+        };
+        $ast = (new TypeChecker())->check((new Parser())->parse('=title'), $this->scope);
+        try {
+            (new Evaluator())->evaluate($ast, $values, new Context());
+            $this->fail('the warning passed through');
+        } catch (ExpressionError $e) {
+            $this->assertSame(ExpressionError::SYNTAX, $e->getErrorCode());
+            $this->assertStringNotContainsString('/srv', $e->getMessage());
+        }
+        // the evaluator's handler is removed again afterwards
+        $previous = \set_error_handler(static fn (): bool => false);
+        \restore_error_handler();
+        $this->assertNotInstanceOf(Closure::class, $previous);
+    }
+
+    public function testTamperedLiteralsAreRefused(): void
+    {
+        $ev = new Evaluator(new Caps(['literal_length' => 10]));
+        foreach ([
+            ['k' => 'num', 'v' => 1.5, 't' => 'decimal'],
+            ['k' => 'num', 'v' => '1e5', 't' => 'decimal'],
+            ['k' => 'num', 'v' => \str_repeat('9', 70), 't' => 'decimal'],
+            ['k' => 'str', 'v' => \str_repeat('x', 11), 't' => 'text'],
+            ['k' => 'str', 'v' => "\xff", 't' => 'text'],
+            ['k' => 'field', 'path' => ['amount'], 'scale' => 99, 't' => 'decimal'],
+            ['k' => 'call', 'fn' => 'UPPER', 'args' => [['k' => 'bool', 'v' => true, 't' => 'boolean']], 't' => 'text'],
+            ['k' => 'op', 'op' => '+', 'args' => [['k' => 'str', 'v' => 'a', 't' => 'decimal'], ['k' => 'num', 'v' => '1', 't' => 'decimal']], 't' => 'decimal'],
+        ] as $i => $ast) {
+            try {
+                $ev->evaluate($ast, new ArrayValues([]), new Context());
+                $this->fail("tampered literal #{$i} ran");
+            } catch (ExpressionError $e) {
+                $this->assertSame(ExpressionError::SYNTAX, $e->getErrorCode(), "#{$i}");
+            }
+        }
     }
 
     public function testIfOnlyEvaluatesTheChosenBranch(): void
@@ -486,7 +584,7 @@ class AppsExpressionTest extends TestCase
         $ast = (new TypeChecker($caps))->check((new Parser($caps))->parse($src), $this->scope);
         $ctx ??= new Context('u1', [], [], new DateTimeImmutable('2026-10-27T03:04:05Z'));
 
-        return (new Evaluator($caps))->evaluate($ast, new ArrayValues($values), $ctx);
+        return self::plain((new Evaluator($caps))->evaluate($ast, new ArrayValues($values), $ctx));
     }
 
     private function expectErrorCode(string $code, callable $fn): void

@@ -299,7 +299,7 @@ class AppsDefinitionTest extends TestCase
     {
         $previous = $this->deals();
         $draft = $previous;
-        // the AI's draft dropped every id and added a field
+        // an automated draft dropped every id and added a field
         unset($draft['entities'][0]['id']);
         foreach ($draft['entities'][0]['fields'] as $i => $_) {
             unset($draft['entities'][0]['fields'][$i]['id']);
@@ -329,7 +329,92 @@ class AppsDefinitionTest extends TestCase
         $next['entities'][0]['fields'][0]['id'] = ElementIds::generate(9, \str_repeat('f', 10));
         $result = (new Validator())->validate($next, ['previous' => $previous]);
         $this->assertHasIssue($result, 'id.kind_changed', '/entities/1/id');
-        $this->assertHasIssue($result, 'id.changed', '/entities/0/fields/0/id', Issue::WARNING);
+        $this->assertHasIssue($result, 'id.changed', '/entities/0/fields/0/id');
+        $this->assertFalse($result->ok(), 'review r3: id stability findings are errors');
+    }
+
+    public function testSwappedIdsAreRefusedAndAssignPutsThemBack(): void
+    {
+        $previous = $this->deals();
+        $next = $previous;
+        $f = &$next['entities'][0]['fields'];
+        [$f[0]['id'], $f[1]['id']] = [$f[1]['id'], $f[0]['id']];
+        unset($f);
+        $r = (new Validator())->validate($next, ['previous' => $previous, 'dependencies' => ['crm-core' => $this->core()]]);
+        $this->assertHasIssue($r, 'id.moved', '/entities/0/fields/0/id');
+        $this->assertHasIssue($r, 'id.moved', '/entities/0/fields/1/id');
+
+        $fixed = ElementIds::assign($next, $previous);
+        $this->assertSame($previous['entities'][0]['fields'][0]['id'], $fixed['entities'][0]['fields'][0]['id']);
+        $this->assertSame($previous['entities'][0]['fields'][1]['id'], $fixed['entities'][0]['fields'][1]['id']);
+        $this->assertClean((new Validator())->validate($fixed, ['previous' => $previous, 'dependencies' => ['crm-core' => $this->core()], 'system' => true]));
+    }
+
+    public function testAFieldIdMovedToAWorkflowNodeIsRefusedAndReassigned(): void
+    {
+        $previous = $this->deals();
+        $next = $previous;
+        $fieldId = $previous['entities'][0]['fields'][3]['id'];
+        $next['workflows'][0]['nodes'][1]['id'] = $fieldId;
+        unset($next['entities'][0]['fields'][3]['id']);
+        $r = (new Validator())->validate($next, ['previous' => $previous, 'dependencies' => ['crm-core' => $this->core()]]);
+        $this->assertHasIssue($r, 'id.kind_changed', '/workflows/0/nodes/1/id');
+
+        $fixed = ElementIds::assign($next, $previous);
+        $this->assertSame($fieldId, $fixed['entities'][0]['fields'][3]['id'], 'the field gets its own id back');
+        $this->assertSame($previous['workflows'][0]['nodes'][1]['id'], $fixed['workflows'][0]['nodes'][1]['id'], 'the node too');
+    }
+
+    public function testRenamesKeepIdsButMovesBetweenParentsDoNot(): void
+    {
+        $previous = $this->deals();
+        $deps = ['crm-core' => $this->core()];
+
+        // renaming the entity keeps every child id (parents are matched by id)
+        $renamed = $previous;
+        $renamed['entities'][1]['code'] = 'loss_reason';
+        $r = (new Validator())->validate($renamed, ['previous' => $previous, 'dependencies' => $deps]);
+        $this->assertSame([], \array_values(\array_filter(\array_column($r->issuesArray(), 'code'), static fn (string $c): bool => \str_starts_with($c, 'id.'))));
+        $this->assertSame($renamed, ElementIds::assign($renamed, $previous));
+
+        // renaming a field (old code gone) keeps its id
+        $field = $previous;
+        $field['entities'][1]['fields'][0]['code'] = 'title';
+        $r = (new Validator())->validate($field, ['previous' => $previous, 'dependencies' => $deps]);
+        $this->assertNotContains('id.moved', \array_column($r->issuesArray(), 'code'));
+
+        // the same field moved to another entity is a different element
+        $moved = $previous;
+        $moved['entities'][0]['fields'][] = $previous['entities'][1]['fields'][1];
+        \array_splice($moved['entities'][1]['fields'], 1, 1);
+        $r = (new Validator())->validate($moved, ['previous' => $previous, 'dependencies' => $deps]);
+        $this->assertHasIssue($r, 'id.moved', '/entities/0/fields/13/id');
+        $fixed = ElementIds::assign($moved, $previous);
+        $this->assertNotSame($previous['entities'][1]['fields'][1]['id'], $fixed['entities'][0]['fields'][13]['id']);
+    }
+
+    public function testOneIdOnTwoElementsInOneDraftIsAnError(): void
+    {
+        // FIXED-EARLIER (id.duplicate since the first commit): no previous needed
+        $def = $this->deals();
+        $def['workflows'][1]['states'][0]['id'] = $def['entities'][0]['fields'][0]['id'];
+        $this->assertHasIssue((new Validator())->validate($def, ['dependencies' => ['crm-core' => $this->core()]]), 'id.duplicate', '/workflows/1/states/0/id');
+        $twice = ElementIds::assign($def);
+        $this->assertNotSame($twice['entities'][0]['fields'][0]['id'], $twice['workflows'][1]['states'][0]['id']);
+    }
+
+    public function testSystemFieldsAreOneOfEachPerEntity(): void
+    {
+        // review r3: system types weigh nothing, so repeating them must not buy free fields
+        $def = $this->minimal();
+        foreach ([3, 4, 5] as $n) {
+            $def['entities'][0]['fields'][] = ['id' => ElementIds::generate($n, \str_repeat('s', 10)), 'code' => "c{$n}", 'type' => 'created_at'];
+            $def['i18n']['en']["deal.c{$n}.label"] = 'Created';
+        }
+        $r = (new Validator())->validate($def);
+        $this->assertHasIssue($r, 'field.system_duplicate', '/entities/0/fields/2/type');
+        $this->assertHasIssue($r, 'field.system_duplicate', '/entities/0/fields/3/type');
+        $this->assertFalse($r->ok());
     }
 
     // ── references, views, expressions ─────────────────────────────
@@ -483,6 +568,31 @@ class AppsDefinitionTest extends TestCase
         $this->assertSame('{"a":0}', Canonical::json(['a' => -0.0]));
         $this->assertSame('{"m":{"0":"x","1":"y"}}', Canonical::json(['m' => [1 => 'y', 0 => 'x']]), 'a sorted map stays an object');
         $this->assertSame('[null,[]]', Canonical::json([null, []]), 'lists keep their items');
+    }
+
+    public function testCanonicalHashDoesNotDependOnSerializePrecision(): void
+    {
+        // review r3: the float encoding is pinned for the encode, then restored
+        $doc = $this->deals();
+        $doc['entities'][0]['fields'][1]['min'] = 0.1;
+        $was = (string) \ini_get('serialize_precision');
+        try {
+            \ini_set('serialize_precision', '17');
+            $at17 = Canonical::hash($doc);
+            $json17 = Canonical::json(['x' => 0.1]);
+            $this->assertSame('17', \ini_get('serialize_precision'), 'restored after the encode');
+            \ini_set('serialize_precision', '-1');
+            $this->assertSame($at17, Canonical::hash($doc));
+            $this->assertSame('{"x":0.1}', $json17);
+        } finally {
+            \ini_set('serialize_precision', $was);
+        }
+    }
+
+    public function testCanonicalJsonKeepsLineTerminatorsRaw(): void
+    {
+        $this->assertSame("{\"a\":\"x\u{2028}y\u{2029}z\"}", Canonical::json(['a' => "x\u{2028}y\u{2029}z"]));
+        $this->assertSame('{"a":"q\"\\\\\n"}', Canonical::json(['a' => "q\"\\\n"]), 'the mandatory escapes stay');
     }
 
     public function testCanonicalJsonRefusesWhatItCannotRepresent(): void

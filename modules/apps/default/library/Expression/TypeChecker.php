@@ -88,14 +88,11 @@ final class TypeChecker
 
         switch ($node['k']) {
             case 'num':
-                if (!\is_int($node['v'] ?? null) && !\is_float($node['v'] ?? null)) {
+                if (!\is_string($node['v'] ?? null) || \strlen($node['v']) > 61 || !Decimal::isValid($node['v'])) {
                     throw $this->malformed($at);
                 }
-                if (!\is_finite((float) $node['v'])) {
-                    throw new ExpressionError(ExpressionError::VALUE, 'Number literal is not finite', $at);
-                }
 
-                return ['k' => 'num', 'v' => $node['v'], 't' => 'number', 'at' => $at];
+                return ['k' => 'num', 'v' => $node['v'], 't' => 'decimal', 'at' => $at];
 
             case 'str':
                 if (!\is_string($node['v'] ?? null) || \preg_match('//u', $node['v']) !== 1) {
@@ -155,6 +152,10 @@ final class TypeChecker
             );
         }
         $typed = ['k' => 'field', 'path' => $path, 't' => $info['type'], 'at' => $at];
+        if (\is_int($info['scale'] ?? null)) {
+            // the field's declared scale: values are read at it (money: 2)
+            $typed['scale'] = $info['scale'];
+        }
         if ($info['options'] !== null) {
             $typed['options'] = $info['options'];
         }
@@ -220,7 +221,12 @@ final class TypeChecker
         if (($name === 'MIN' || $name === 'MAX') && $generic !== 'blank' && !\in_array($generic, Functions::ORDERED, true)) {
             throw new ExpressionError(ExpressionError::TYPE, "{$name}() needs numbers, text or dates", $at);
         }
-        $ret = $sig['ret'] === 'T' ? $generic : $sig['ret'];
+        $ret = match ($sig['ret']) {
+            'T' => $generic,
+            // exact unless a float argument takes part
+            'N' => \in_array('number', \array_column($typedArgs, 't'), true) ? 'number' : 'decimal',
+            default => $sig['ret'],
+        };
 
         return ['k' => 'call', 'fn' => $name, 'args' => $typedArgs, 't' => $ret, 'at' => $at];
     }
@@ -247,7 +253,7 @@ final class TypeChecker
                 throw new ExpressionError(ExpressionError::TYPE, "Cannot negate {$x['t']}", $at);
             }
 
-            return ['k' => 'op', 'op' => 'neg', 'args' => [$x], 't' => 'number', 'at' => $at];
+            return ['k' => 'op', 'op' => 'neg', 'args' => [$x], 't' => $x['t'] === 'number' ? 'number' : 'decimal', 'at' => $at];
         }
 
         if (\count($args) !== 2) {
@@ -335,9 +341,10 @@ final class TypeChecker
 
     private function arith(string $op, string $l, string $r): ?string
     {
-        $num = static fn (string $t): bool => $t === 'number' || $t === 'blank';
+        $num = static fn (string $t): bool => Types::isNumeric($t);
         if ($num($l) && $num($r)) {
-            return 'number';
+            // exact unless a float takes part
+            return ($l === 'number' || $r === 'number') ? 'number' : 'decimal';
         }
         if ($op === '*' || $op === '/') {
             return null;
@@ -350,7 +357,7 @@ final class TypeChecker
             return $r;
         }
         if ($op === '-' && $dateish($l) && $dateish($r)) {
-            return 'number';
+            return 'decimal';
         }
 
         return null;
@@ -358,7 +365,7 @@ final class TypeChecker
 
     /**
      * A text literal compared with a field that has a closed option list
-     * must be one of those options (catches typos in AI-written filters).
+     * must be one of those options (catches typos in drafted filters).
      *
      * @param array<string, mixed> $field
      * @param array<string, mixed> $literal

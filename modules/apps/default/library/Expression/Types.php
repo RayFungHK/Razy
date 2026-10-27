@@ -4,7 +4,11 @@
  * razymod/apps — expression value types.
  *
  * Types are strings so a typed AST stays plain JSON:
- *   number  text  boolean  date  datetime        scalars
+ *   decimal                                       exact numbers (Decimal): integer / decimal / money /
+ *                                                 percent / duration fields, number literals
+ *   number                                        IEEE float, only from POWER(); a float operand
+ *                                                 makes the result a float
+ *   text  boolean  date  datetime                 scalars
  *   user  group  department                       principals (ids)
  *   status                                        a workflow state code (compares with text)
  *   ref:<entity>                                  a many-to-one relation value (record id)
@@ -33,6 +37,7 @@ namespace razymod\apps\Expression;
 final class Types
 {
     public const SCALARS = [
+        'decimal' => true,
         'number' => true,
         'text' => true,
         'boolean' => true,
@@ -44,7 +49,15 @@ final class Types
         'status' => true,
     ];
 
-    public const ORDERED = ['number' => true, 'text' => true, 'date' => true, 'datetime' => true];
+    public const ORDERED = ['decimal' => true, 'number' => true, 'text' => true, 'date' => true, 'datetime' => true];
+
+    /**
+     * decimal, number (float) or blank.
+     */
+    public static function isNumeric(string $type): bool
+    {
+        return $type === 'decimal' || $type === 'number' || $type === 'blank';
+    }
 
     public static function isList(string $type): bool
     {
@@ -71,7 +84,7 @@ final class Types
             return isset(self::SCALARS[$arg]) || \str_starts_with($arg, 'ref:');
         }
         foreach (\explode('|', $param) as $one) {
-            if ($one === $arg || ($one === 'text' && $arg === 'status')) {
+            if ($one === $arg || ($one === 'text' && $arg === 'status') || ($one === 'number' && $arg === 'decimal')) {
                 return true;
             }
         }
@@ -100,6 +113,9 @@ final class Types
         }
         if ($pair === ['date', 'datetime']) {
             return 'datetime';
+        }
+        if ($pair === ['decimal', 'number']) {
+            return 'number';
         }
 
         return null;

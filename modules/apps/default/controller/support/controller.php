@@ -5,8 +5,15 @@
  *
  * Every public command is a pure function of its arguments and the module
  * config: no IO, no database, no state kept between calls (safe under
- * FrankenPHP worker mode). Inputs are bounded by the Caps the validator
- * enforces before any other work.
+ * FrankenPHP worker mode).
+ *
+ * Doors (review r3):
+ * - __onAPICall admits only the modules named in config 'callers' (default:
+ *   none) and only the commands on API_ALLOW;
+ * - every command first checks the size of what it was handed (the
+ *   definition, 'previous' and each of 'dependencies', at most
+ *   dependencies_per_app of them) with InputGuard, before any other work;
+ * - answers carry codes and plain messages, never file paths.
  */
 
 namespace Razy\Module\apps;
@@ -20,14 +27,15 @@ use razymod\apps\Compiler;
 use razymod\apps\Definition\Canonical;
 use razymod\apps\Definition\ElementIds;
 use razymod\apps\Definition\Validator;
+use razymod\apps\InputGuard;
 use razymod\apps\Weight;
 
 class AppsController extends Controller
 {
     /**
-     * Commands any module of the distributor may call. All are read-only
-     * computations over the definition passed in; the allow-list exists so
-     * a command added later is closed until it is listed here.
+     * The commands of the module. All are read-only computations over the
+     * definition passed in; a command added later stays closed until it is
+     * listed here.
      */
     public const API_ALLOW = [
         'validate' => true,
@@ -51,11 +59,18 @@ class AppsController extends Controller
 
     /**
      * Gate for api('razymod/apps')->… (RZ-010). The framework default allows
-     * every command; this denies anything not on API_ALLOW.
+     * every caller and command; this admits a command on API_ALLOW from a
+     * module listed in config 'callers', and nothing else.
      */
     public function __onAPICall(ModuleInfo $module, string $method, string $fqdn = ''): bool
     {
-        return isset(self::API_ALLOW[$method]);
+        if (!isset(self::API_ALLOW[$method])) {
+            return false;
+        }
+        $callers = $this->config()['callers'] ?? [];
+        $code = $module->getCode();
+
+        return \is_array($callers) && $code !== '' && \in_array($code, $callers, true);
     }
 
     /**
@@ -117,6 +132,10 @@ class AppsController extends Controller
      */
     public function validateDefinition(array $definition, array $options = []): array
     {
+        $refused = $this->refuse($definition, $options);
+        if ($refused !== null) {
+            return $refused;
+        }
         $result = (new Validator($this->caps()))->validate($definition, self::options($options));
 
         return ['ok' => $result->ok(), 'issues' => $result->issuesArray()];
@@ -126,10 +145,15 @@ class AppsController extends Controller
      * @param array<string, mixed> $definition
      * @param array<mixed> $options
      *
-     * @return array{ok: bool, plan: ?array<string, mixed>, issues: list<array{severity: string, path: string, code: string, message: string}>}
+     * @return array{ok: bool, plan?: ?array<string, mixed>, issues: list<array{severity: string, path: string, code: string, message: string}>}
      */
     public function compileDefinition(array $definition, array $options = []): array
     {
+        $refused = $this->refuse($definition, $options);
+        if ($refused !== null) {
+            return $refused + ['plan' => null];
+        }
+
         return (new Compiler($this->caps()))->compile($definition, self::options($options));
     }
 
@@ -140,6 +164,9 @@ class AppsController extends Controller
      */
     public function hashDefinition(array $definition): array
     {
+        if ($this->refuse($definition, []) !== null) {
+            return ['ok' => false, 'hash' => null, 'bytes' => 0, 'error' => 'Definition is over the definition_bytes cap'];
+        }
         try {
             $json = Canonical::json($definition);
         } catch (InvalidArgumentException $e) {
@@ -157,23 +184,72 @@ class AppsController extends Controller
      * @param array<string, mixed> $definition
      * @param ?array<string, mixed> $previous
      *
-     * @return array<string, mixed>
+     * @return array{ok: bool, definition?: array<string, mixed>, issues: list<array{severity: string, path: string, code: string, message: string}>}
      */
     public function assignIds(array $definition, ?array $previous = null): array
     {
-        return ElementIds::assign($definition, $previous);
+        $refused = $this->refuse($definition, $previous !== null ? ['previous' => $previous] : []);
+        if ($refused !== null) {
+            return $refused;
+        }
+
+        return ['ok' => true, 'definition' => ElementIds::assign($definition, $previous), 'issues' => []];
     }
 
     /**
+     * Weight of a valid definition only: an invalid shape is never weighed.
+     *
      * @param array<string, mixed> $definition
+     * @param array<mixed> $options
      *
      * @return array<string, mixed>
      */
-    public function weightOf(array $definition): array
+    public function weightOf(array $definition, array $options = []): array
     {
+        $check = $this->validateDefinition($definition, $options);
+        if (!$check['ok']) {
+            return $check;
+        }
         $c = $this->coefficients();
 
-        return Weight::of($definition, $c['coefficients']) + ['coefficients_source' => $c['source']];
+        return ['ok' => true, 'issues' => $check['issues']] + Weight::of($definition, $c['coefficients']) + ['coefficients_source' => $c['source']];
+    }
+
+    /**
+     * The size door every command passes first.
+     *
+     * @param array<mixed> $definition
+     * @param array<mixed> $options
+     *
+     * @return ?array{ok: false, issues: list<array{severity: string, path: string, code: string, message: string}>}
+     */
+    private function refuse(array $definition, array $options): ?array
+    {
+        $caps = $this->caps();
+        $bytes = $caps->get('definition_bytes');
+        $problem = null;
+        if (!InputGuard::within($definition, $bytes)) {
+            $problem = ['/', 'cap.definition_bytes', "Definition is over the definition_bytes cap ({$bytes} bytes) or nested too deep"];
+        } elseif (isset($options['previous']) && !InputGuard::within($options['previous'], $bytes)) {
+            $problem = ['/', 'cap.definition_bytes', 'The previous version is over the definition_bytes cap'];
+        } elseif (isset($options['dependencies'])) {
+            $deps = $options['dependencies'];
+            if (!\is_array($deps) || \count($deps) > $caps->get('dependencies_per_app')) {
+                $problem = ['/depends_on', 'cap.dependencies_per_app', 'At most ' . $caps->get('dependencies_per_app') . ' dependency definitions'];
+            } else {
+                foreach ($deps as $dep) {
+                    if (!InputGuard::within($dep, $bytes)) {
+                        $problem = ['/depends_on', 'cap.definition_bytes', 'A dependency definition is over the definition_bytes cap'];
+                        break;
+                    }
+                }
+            }
+        }
+        if ($problem === null) {
+            return null;
+        }
+
+        return ['ok' => false, 'issues' => [['severity' => 'error', 'path' => $problem[0], 'code' => $problem[1], 'message' => $problem[2]]]];
     }
 
     /**

@@ -41,6 +41,7 @@ final class Caps
         'i18n_keys' => 5_000,
         'i18n_value_length' => 2_000,
         'lookup_depth' => 3,
+        'dependencies_per_app' => 20,
         // expressions
         'expression_length' => 1_000,
         'expression_depth' => 24,

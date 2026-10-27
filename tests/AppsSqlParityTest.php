@@ -10,6 +10,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use razymod\apps\Expression\ArrayValues;
 use razymod\apps\Expression\Context;
+use razymod\apps\Expression\Decimal;
 use razymod\apps\Expression\Evaluator;
 use razymod\apps\Expression\Functions;
 use razymod\apps\Expression\MapScope;
@@ -19,11 +20,12 @@ use razymod\apps\Expression\TypeChecker;
 require_once __DIR__ . '/fixtures/apps/autoload.php';
 
 /**
- * SQL parity vectors (tests/fixtures/apps/sql-parity.json): the blank and
- * comparison semantics of the expression language, as data. The PHP
- * evaluator must pass every vector here; the SQL translation of filters and
- * row rules (RZA-C) reuses the same file and must pass it too, so the two
- * never disagree about which rows match.
+ * SQL parity vectors (tests/fixtures/apps/sql-parity.json): the blank,
+ * decimal, comparison and time-zone semantics of the expression language,
+ * as data. The PHP evaluator must pass every vector here; the SQL
+ * translation of filters and row rules (RZA-C) reuses the same file and must
+ * pass it too, so the two never disagree about which rows match or what a
+ * value is.
  */
 #[CoversNothing]
 class AppsSqlParityTest extends TestCase
@@ -31,17 +33,17 @@ class AppsSqlParityTest extends TestCase
     private const FILE = __DIR__ . '/fixtures/apps/sql-parity.json';
 
     /**
-     * @return iterable<string, array{0: string, 1: array<string, mixed>, 2: mixed}>
+     * @return iterable<string, array{0: array<string, mixed>}>
      */
     public static function vectors(): iterable
     {
         foreach (self::load()['cases'] as $i => $case) {
-            yield \sprintf('#%03d %s %s', $i, $case['expr'], \json_encode($case['values'])) => [$case['expr'], $case['values'], $case['expected']];
+            yield \sprintf('#%03d %s %s', $i, $case['expr'], \json_encode($case['values'])) => [$case];
         }
     }
 
     /**
-     * @return array{context: array<string, mixed>, fields: array<string, mixed>, cases: list<array{expr: string, values: array<string, mixed>, expected: mixed}>}
+     * @return array{context: array<string, mixed>, fields: array<string, mixed>, cases: list<array<string, mixed>>}
      */
     private static function load(): array
     {
@@ -49,23 +51,30 @@ class AppsSqlParityTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $values
+     * @param array<string, mixed> $case
      */
     #[DataProvider('vectors')]
-    public function testVector(string $expr, array $values, mixed $expected): void
+    public function testVector(array $case): void
     {
         $doc = self::load();
         $ctx = $doc['context'];
         // sql = true: every vector must be valid where SQL is required
-        $ast = (new TypeChecker())->check((new Parser())->parse($expr), new MapScope($doc['fields']), null, true);
-        $result = (new Evaluator())->evaluate($ast, new ArrayValues($values), new Context(
+        $ast = (new TypeChecker())->check((new Parser())->parse($case['expr']), new MapScope($doc['fields']), null, true);
+        $result = (new Evaluator())->evaluate($ast, new ArrayValues($case['values']), new Context(
             $ctx['user'],
             $ctx['groups'],
             $ctx['departments'],
-            new DateTimeImmutable($ctx['now']),
-            $ctx['timezone'],
+            new DateTimeImmutable($case['now'] ?? $ctx['now']),
+            $case['timezone'] ?? $ctx['timezone'],
         ));
-        $this->assertSame($expected, $result);
+        if (isset($case['type'])) {
+            $this->assertSame($case['type'], $ast['t'], 'result type');
+        }
+        if ($result instanceof Decimal) {
+            $this->assertSame('decimal', $case['type'] ?? null, 'a decimal result needs "type": "decimal"');
+            $result = (string) $result;
+        }
+        $this->assertSame($case['expected'], $result);
     }
 
     public function testEverySqlFunctionAndOperatorHasAVector(): void
@@ -81,9 +90,23 @@ class AppsSqlParityTest extends TestCase
         }
     }
 
-    public function testMostVectorsAreBlankDriven(): void
+    public function testEveryFunctionsBlankPolicyIsPinnedByAVector(): void
     {
-        $blank = \array_filter(self::load()['cases'], static fn (array $c): bool => $c['values'] === [] || \in_array('', $c['values'], true));
-        $this->assertGreaterThan(40, \count($blank), 'the file is about blanks: keep most vectors blank-driven');
+        $pinned = [];
+        foreach (self::load()['cases'] as $case) {
+            if (!isset($case['blank'])) {
+                continue;
+            }
+            \preg_match('/^=([A-Z_]+)\(/', $case['expr'], $m);
+            $this->assertNotEmpty($m, "{$case['expr']}: a blank-policy vector starts with its function");
+            $this->assertSame(Functions::get($m[1])['blank'], $case['blank'], "{$case['expr']}: policy differs from Functions::LIST");
+            $pinned[$m[1]] = true;
+        }
+        foreach (Functions::LIST as $name => $sig) {
+            $this->assertContains($sig['blank'], Functions::BLANK_POLICIES, $name);
+            if ($sig['sql'] && $sig['blank'] !== 'none') {
+                $this->assertArrayHasKey($name, $pinned, "no blank-policy vector for {$name}()");
+            }
+        }
     }
 }

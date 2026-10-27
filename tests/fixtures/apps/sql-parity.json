@@ -1,5 +1,5 @@
 {
-  "$about": "SQL parity vectors for razymod/apps expressions (manual/15-razy-apps.md §5.1). Each case is a SQL-able expression, its field values (a missing key is blank) and the expected result (null = blank). The PHP evaluator passes every case (tests/AppsSqlParityTest.php); the SQL translation in the record runtime (RZA-C) must give the same answers. 'sql' notes the rule a case pins.",
+  "$about": "SQL parity vectors for razymod/apps expressions (manual/15-razy-apps.md §5.1). Each case is a SQL-able expression, its field values (a missing key is blank) and the expected result (null = blank). Numeric results carry 'type': decimal results are exact decimal strings ('2.5'), number results are floats. 'blank' names the function's blank policy (Functions::LIST) the case exercises; 'timezone' / 'now' override the context; 'sql' notes the rule a case pins. The PHP evaluator passes every case (tests/AppsSqlParityTest.php); the SQL translation in the record runtime (RZA-C) must give the same answers.",
   "context": {
     "user": "u1",
     "groups": [
@@ -13,8 +13,13 @@
     "timezone": "UTC"
   },
   "fields": {
-    "n": "number",
-    "m": "number",
+    "n": "decimal",
+    "m": "decimal",
+    "f": "number",
+    "price": {
+      "type": "decimal",
+      "scale": 2
+    },
     "t": "text",
     "u": "text",
     "b": "boolean",
@@ -157,7 +162,8 @@
     {
       "expr": "=IF(b, 1, 2)",
       "values": {},
-      "expected": 2,
+      "expected": "2",
+      "type": "decimal",
       "sql": "CASE WHEN COALESCE(b, FALSE) THEN … ELSE … END"
     },
     {
@@ -248,7 +254,8 @@
     {
       "expr": "=COALESCE(n, 0)",
       "values": {},
-      "expected": 0
+      "expected": "0",
+      "type": "decimal"
     },
     {
       "expr": "=COALESCE(n, m)",
@@ -305,16 +312,18 @@
     {
       "expr": "=n / m",
       "values": {
-        "n": 1,
-        "m": 4
+        "n": "1",
+        "m": "4"
       },
-      "expected": 0.25
+      "expected": "0.25",
+      "type": "decimal"
     },
     {
       "expr": "=7 / 2",
       "values": {},
-      "expected": 3.5,
-      "sql": "never integer division: cast to numeric"
+      "expected": "3.5",
+      "type": "decimal",
+      "sql": "never integer division: numeric division, scale max(operand scales, 6), HALF_UP"
     },
     {
       "expr": "=n - m",
@@ -322,7 +331,8 @@
         "n": 5,
         "m": 7
       },
-      "expected": -2
+      "expected": "-2",
+      "type": "decimal"
     },
     {
       "expr": "=t & 'x'",
@@ -340,13 +350,15 @@
     {
       "expr": "=LEN(t)",
       "values": {},
-      "expected": 0,
+      "expected": "0",
+      "type": "decimal",
       "sql": "LENGTH(COALESCE(t, ''))"
     },
     {
       "expr": "=LEN('香港')",
       "values": {},
-      "expected": 2,
+      "expected": "2",
+      "type": "decimal",
       "sql": "characters, not bytes"
     },
     {
@@ -466,66 +478,79 @@
     {
       "expr": "=ROUND(2.5)",
       "values": {},
-      "expected": 3,
+      "expected": "3",
+      "type": "decimal",
       "sql": "half away from zero"
     },
     {
       "expr": "=ROUND(-2.5)",
       "values": {},
-      "expected": -3
+      "expected": "-3",
+      "type": "decimal"
     },
     {
       "expr": "=ROUND(1.25, 1)",
       "values": {},
-      "expected": 1.3,
-      "sql": "halves exact in binary: half away from zero, as numeric ROUND"
+      "expected": "1.3",
+      "type": "decimal",
+      "sql": "HALF_UP: a half rounds away from zero, as numeric ROUND"
     },
     {
       "expr": "=ROUND(-1.25, 1)",
       "values": {},
-      "expected": -1.3
+      "expected": "-1.3",
+      "type": "decimal"
     },
     {
       "expr": "=ROUND(1.005, 2)",
       "values": {},
-      "expected": 1.01,
-      "sql": "decimal-looking result, as numeric ROUND; checked on every PHP in the CI matrix"
+      "expected": "1.01",
+      "type": "decimal",
+      "sql": "exact decimal, so 1.005 is 1.005 (not the float 1.00499…)"
     },
     {
       "expr": "=ROUND(1234.5, -2)",
       "values": {},
-      "expected": 1200
+      "expected": "1200",
+      "type": "decimal"
     },
     {
       "expr": "=FLOOR(-2.5)",
       "values": {},
-      "expected": -3
+      "expected": "-3",
+      "type": "decimal"
     },
     {
       "expr": "=CEILING(-2.5)",
       "values": {},
-      "expected": -2
+      "expected": "-2",
+      "type": "decimal"
     },
     {
       "expr": "=MOD(-7, 3)",
       "values": {},
-      "expected": 2,
+      "expected": "2",
+      "type": "decimal",
       "sql": "the result takes the divisor's sign (not SQL %)"
     },
     {
       "expr": "=MOD(7, -3)",
       "values": {},
-      "expected": -2
+      "expected": "-2",
+      "type": "decimal"
     },
     {
       "expr": "=POWER(2, 10)",
       "values": {},
-      "expected": 1024
+      "expected": 1024.0,
+      "type": "number",
+      "sql": "POWER is the one float function"
     },
     {
       "expr": "=SUM(n, m)",
       "values": {},
-      "expected": 0,
+      "expected": "0",
+      "type": "decimal",
       "sql": "blanks are skipped; SUM of none is 0"
     },
     {
@@ -533,7 +558,8 @@
       "values": {
         "n": 2
       },
-      "expected": 2
+      "expected": "2",
+      "type": "decimal"
     },
     {
       "expr": "=AVERAGE(n, m)",
@@ -546,14 +572,16 @@
       "values": {
         "n": 3
       },
-      "expected": 3
+      "expected": "3",
+      "type": "decimal"
     },
     {
       "expr": "=MIN(n, m)",
       "values": {
         "m": 4
       },
-      "expected": 4,
+      "expected": "4",
+      "type": "decimal",
       "sql": "LEAST / GREATEST skip blanks (as Postgres does)"
     },
     {
@@ -618,7 +646,8 @@
       "values": {
         "d": "2026-10-27"
       },
-      "expected": 26,
+      "expected": "26",
+      "type": "decimal",
       "sql": "date - date is whole days"
     },
     {
@@ -642,7 +671,8 @@
       "values": {
         "dt": "2026-10-31T23:30:00Z"
       },
-      "expected": 10,
+      "expected": "10",
+      "type": "decimal",
       "sql": "datetime parts use the data space time zone"
     },
     {
@@ -650,14 +680,16 @@
       "values": {
         "d": "2026-10-27"
       },
-      "expected": 27
+      "expected": "27",
+      "type": "decimal"
     },
     {
       "expr": "=WEEKDAY(d)",
       "values": {
         "d": "2026-10-25"
       },
-      "expected": 7,
+      "expected": "7",
+      "type": "decimal",
       "sql": "ISO: Monday 1 … Sunday 7 (EXTRACT(ISODOW …))"
     },
     {
@@ -665,7 +697,8 @@
       "values": {
         "d": "2026-10-27"
       },
-      "expected": 26
+      "expected": "26",
+      "type": "decimal"
     },
     {
       "expr": "=d = dt",
@@ -707,6 +740,521 @@
       "expr": "=stage IN ('won', 'lost')",
       "values": {},
       "expected": false
+    },
+    {
+      "expr": "=IF(b, 'y', 'n')",
+      "values": {},
+      "expected": "n",
+      "blank": "condition_false"
+    },
+    {
+      "expr": "=AND(b)",
+      "values": {},
+      "expected": false,
+      "blank": "false"
+    },
+    {
+      "expr": "=OR(b)",
+      "values": {},
+      "expected": false,
+      "blank": "false"
+    },
+    {
+      "expr": "=NOT(b)",
+      "values": {},
+      "expected": true,
+      "blank": "false",
+      "sql": "NOT(COALESCE(b, FALSE))"
+    },
+    {
+      "expr": "=ISBLANK(n)",
+      "values": {},
+      "expected": true,
+      "blank": "test"
+    },
+    {
+      "expr": "=COALESCE(n, BLANK())",
+      "values": {},
+      "expected": null,
+      "blank": "skip",
+      "sql": "COALESCE of nothing but blanks is blank"
+    },
+    {
+      "expr": "=ABS(n)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=ROUND(n, 2)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=ROUND(2.5, n)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate",
+      "sql": "a blank digit count is blank too (as SQL ROUND(x, NULL))"
+    },
+    {
+      "expr": "=FLOOR(n)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=CEILING(n)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=MOD(n, 3)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=MOD(7, n)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=POWER(n, 2)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=MIN(n, m)",
+      "values": {},
+      "expected": null,
+      "blank": "skip",
+      "sql": "LEAST over nothing is blank"
+    },
+    {
+      "expr": "=MAX(n, 5)",
+      "values": {},
+      "expected": "5",
+      "type": "decimal",
+      "blank": "skip"
+    },
+    {
+      "expr": "=SUM(n)",
+      "values": {},
+      "expected": "0",
+      "type": "decimal",
+      "blank": "skip",
+      "sql": "SUM of no values is 0 (COALESCE(SUM(…), 0))"
+    },
+    {
+      "expr": "=AVERAGE(n, 4)",
+      "values": {},
+      "expected": "4",
+      "type": "decimal",
+      "blank": "skip",
+      "sql": "the blank is left out, not counted as 0"
+    },
+    {
+      "expr": "=LEN(t)",
+      "values": {
+        "t": ""
+      },
+      "expected": "0",
+      "type": "decimal",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=LEFT(t, 1)",
+      "values": {},
+      "expected": "",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=LEFT('abc', n)",
+      "values": {},
+      "expected": "",
+      "blank": "empty_text",
+      "sql": "a blank count gives ''"
+    },
+    {
+      "expr": "=RIGHT(t, 2)",
+      "values": {},
+      "expected": "",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=UPPER(t)",
+      "values": {
+        "t": ""
+      },
+      "expected": "",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=LOWER(t)",
+      "values": {},
+      "expected": "",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=TRIM(t)",
+      "values": {},
+      "expected": "",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=CONCAT(t, 'a', u)",
+      "values": {},
+      "expected": "a",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=CONTAINS(t, u)",
+      "values": {},
+      "expected": true,
+      "blank": "empty_text",
+      "sql": "CONTAINS(blank, blank): '' contains ''"
+    },
+    {
+      "expr": "=CONTAINS('abc', u)",
+      "values": {},
+      "expected": true,
+      "blank": "empty_text",
+      "sql": "a blank needle matches everything"
+    },
+    {
+      "expr": "=CONTAINS(t, 'a')",
+      "values": {
+        "t": ""
+      },
+      "expected": false,
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=STARTSWITH(t, 'a')",
+      "values": {},
+      "expected": false,
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=ENDSWITH(t, '')",
+      "values": {},
+      "expected": true,
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=TEXT(d)",
+      "values": {},
+      "expected": "",
+      "blank": "empty_text"
+    },
+    {
+      "expr": "=DATE(n, 1, 1)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=YEAR(d)",
+      "values": {
+        "d": null
+      },
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=MONTH(d)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=DAY(dt)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=WEEKDAY(d)",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "=DAYS(d, DATE(2026, 1, 1))",
+      "values": {},
+      "expected": null,
+      "blank": "propagate"
+    },
+    {
+      "expr": "='' = BLANK()",
+      "values": {},
+      "expected": true,
+      "sql": "empty text is blank: NULLIF('', '') IS NULL"
+    },
+    {
+      "expr": "=t = u",
+      "values": {
+        "t": ""
+      },
+      "expected": true,
+      "sql": "'' and NULL are the same blank"
+    },
+    {
+      "expr": "=n <> 0",
+      "values": {
+        "n": null
+      },
+      "expected": true,
+      "sql": "kept on purpose: blank <> 0 is TRUE, as IS DISTINCT FROM"
+    },
+    {
+      "expr": "=5 / 2",
+      "values": {},
+      "expected": "2.5",
+      "type": "decimal",
+      "sql": "integer division gives a decimal, never 2"
+    },
+    {
+      "expr": "=n / m",
+      "values": {
+        "n": "5",
+        "m": "2"
+      },
+      "expected": "2.5",
+      "type": "decimal",
+      "sql": "integer columns divide exactly too"
+    },
+    {
+      "expr": "=n + m",
+      "values": {
+        "n": "0.1",
+        "m": "0.2"
+      },
+      "expected": "0.3",
+      "type": "decimal",
+      "sql": "numeric, not IEEE float"
+    },
+    {
+      "expr": "=n + m = 0.3",
+      "values": {
+        "n": "0.1",
+        "m": "0.2"
+      },
+      "expected": true,
+      "sql": "0.1 + 0.2 = 0.3 for decimal columns"
+    },
+    {
+      "expr": "=0.1 + 0.2 = 0.3",
+      "values": {},
+      "expected": true,
+      "sql": "literals are exact decimals"
+    },
+    {
+      "expr": "=1 / 3",
+      "values": {},
+      "expected": "0.333333",
+      "type": "decimal",
+      "sql": "division scale max(operand scales, 6), HALF_UP"
+    },
+    {
+      "expr": "=2 / 3",
+      "values": {},
+      "expected": "0.666667",
+      "type": "decimal"
+    },
+    {
+      "expr": "=-2 / 3",
+      "values": {},
+      "expected": "-0.666667",
+      "type": "decimal"
+    },
+    {
+      "expr": "=price",
+      "values": {
+        "price": "12.345"
+      },
+      "expected": "12.35",
+      "type": "decimal",
+      "sql": "a money field is read at its scale (2), HALF_UP"
+    },
+    {
+      "expr": "=price",
+      "values": {
+        "price": "-12.345"
+      },
+      "expected": "-12.35",
+      "type": "decimal"
+    },
+    {
+      "expr": "=ROUND(price * 1.075, 2)",
+      "values": {
+        "price": "19.99"
+      },
+      "expected": "21.49",
+      "type": "decimal",
+      "sql": "19.99 × 1.075 = 21.48925 exactly"
+    },
+    {
+      "expr": "=price * 3",
+      "values": {
+        "price": "0.10"
+      },
+      "expected": "0.3",
+      "type": "decimal"
+    },
+    {
+      "expr": "=price / 3",
+      "values": {
+        "price": "10.00"
+      },
+      "expected": "3.333333",
+      "type": "decimal",
+      "sql": "scale max(2, 0, 6) = 6"
+    },
+    {
+      "expr": "=SUM(price, price, price)",
+      "values": {
+        "price": "0.10"
+      },
+      "expected": "0.3",
+      "type": "decimal"
+    },
+    {
+      "expr": "=AVERAGE(1, 2, 2)",
+      "values": {},
+      "expected": "1.666667",
+      "type": "decimal"
+    },
+    {
+      "expr": "=MOD(7.5, 2)",
+      "values": {},
+      "expected": "1.5",
+      "type": "decimal"
+    },
+    {
+      "expr": "=MOD(-7.5, 2)",
+      "values": {},
+      "expected": "0.5",
+      "type": "decimal"
+    },
+    {
+      "expr": "=TEXT(5 / 2)",
+      "values": {},
+      "expected": "2.5"
+    },
+    {
+      "expr": "=f + 1",
+      "values": {
+        "f": 0.5
+      },
+      "expected": 1.5,
+      "type": "number",
+      "sql": "a float operand makes a float result"
+    },
+    {
+      "expr": "=POWER(4, 0.5)",
+      "values": {},
+      "expected": 2.0,
+      "type": "number"
+    },
+    {
+      "expr": "=d = dt",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-26T16:00:00Z"
+      },
+      "expected": true,
+      "timezone": "Asia/Hong_Kong",
+      "sql": "2026-10-27 in Hong Kong starts at 2026-10-26T16:00Z"
+    },
+    {
+      "expr": "=d = dt",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-27T00:00:00Z"
+      },
+      "expected": false,
+      "timezone": "Asia/Hong_Kong"
+    },
+    {
+      "expr": "=d < dt",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-26T16:30:00Z"
+      },
+      "expected": true,
+      "timezone": "Asia/Hong_Kong"
+    },
+    {
+      "expr": "=d > dt",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-26T15:59:00Z"
+      },
+      "expected": true,
+      "timezone": "Asia/Hong_Kong"
+    },
+    {
+      "expr": "=DAY(dt)",
+      "values": {
+        "dt": "2026-10-26T16:30:00Z"
+      },
+      "expected": "27",
+      "type": "decimal",
+      "timezone": "Asia/Hong_Kong",
+      "sql": "date parts of a datetime use the same zone"
+    },
+    {
+      "expr": "=dt - d",
+      "values": {
+        "dt": "2026-10-27T04:00:00Z",
+        "d": "2026-10-27"
+      },
+      "expected": "0.5",
+      "type": "decimal",
+      "timezone": "Asia/Hong_Kong",
+      "sql": "12 hours after local midnight"
+    },
+    {
+      "expr": "=MAX(d, dt)",
+      "values": {
+        "d": "2026-10-27",
+        "dt": "2026-10-26T17:00:00Z"
+      },
+      "expected": "2026-10-26T17:00:00Z",
+      "timezone": "Asia/Hong_Kong"
+    },
+    {
+      "expr": "=IF(b, d, dt)",
+      "values": {
+        "b": true,
+        "d": "2026-10-27"
+      },
+      "expected": "2026-10-26T16:00:00Z",
+      "timezone": "Asia/Hong_Kong",
+      "sql": "a date in a datetime result is its local midnight"
+    },
+    {
+      "expr": "=TODAY()",
+      "values": {},
+      "expected": "2026-10-28",
+      "timezone": "Asia/Hong_Kong",
+      "now": "2026-10-27T20:00:00Z",
+      "sql": "TODAY() is the data space's date"
+    },
+    {
+      "expr": "=d < TODAY()",
+      "values": {
+        "d": "2026-10-27"
+      },
+      "expected": true,
+      "timezone": "Asia/Hong_Kong",
+      "now": "2026-10-27T20:00:00Z"
     }
   ]
 }

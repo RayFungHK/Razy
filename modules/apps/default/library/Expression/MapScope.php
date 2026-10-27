@@ -3,7 +3,7 @@
 /**
  * razymod/apps — a Scope from a flat map of dotted paths.
  *
- *   new MapScope(['amount' => 'number', 'stage' => ['type' => 'status', 'options' => ['open', 'won']]])
+ *   new MapScope(['amount' => ['type' => 'decimal', 'scale' => 2], 'stage' => ['type' => 'status', 'options' => ['open', 'won']]])
  */
 
 declare(strict_types=1);
@@ -12,11 +12,11 @@ namespace razymod\apps\Expression;
 
 final class MapScope implements Scope
 {
-    /** @var array<string, array{type: string, options: ?list<string>, sql: bool}> */
+    /** @var array<string, array{type: string, options: ?list<string>, sql: bool, scale?: int}> */
     private array $fields = [];
 
     /**
-     * @param array<string, string|array{type: string, options?: ?list<string>, sql?: bool}> $fields
+     * @param array<string, string|array{type: string, options?: ?list<string>, sql?: bool, scale?: int}> $fields
      */
     public function __construct(array $fields)
     {
@@ -27,6 +27,9 @@ final class MapScope implements Scope
                 'options' => $spec['options'] ?? null,
                 'sql' => $spec['sql'] ?? true,
             ];
+            if (isset($spec['scale'])) {
+                $this->fields[$path]['scale'] = (int) $spec['scale'];
+            }
         }
     }
 

@@ -27,7 +27,7 @@
  * exhausting the PHP stack), node count and arguments per call.
  *
  * AST node shapes ('at' = byte offset in the source):
- *   {k:num, v:int|float}  {k:str, v:string}  {k:bool, v:bool}
+ *   {k:num, v:"2.50"} (a decimal string, never a float)  {k:str, v:string}  {k:bool, v:bool}
  *   {k:field, path:[code…]}  {k:call, fn:NAME, args:[node…]}
  *   {k:op, op:'+'|'-'|'*'|'/'|'&'|'='|'<>'|'<'|'<='|'>'|'>='|'neg'|'in', args:[node…]}
  *   {k:list, items:[node…]}  (only as the right side of IN)
@@ -364,7 +364,8 @@ final class Parser
         $tok = $this->peek();
         if ($tok[0] === self::T_NUM) {
             ++$this->pos;
-            $value = \str_contains($tok[1], '.') ? (float) $tok[1] : $this->intOrFloat($tok[1]);
+            // exact: the literal as written (leading zeros dropped, its scale kept)
+            $value = Decimal::of($tok[1])->toFixed();
 
             return $this->node(['k' => 'num', 'v' => $value, 'at' => $tok[2]]);
         }
@@ -455,19 +456,6 @@ final class Parser
         }
 
         return $tok[1];
-    }
-
-    private function intOrFloat(string $digits): int|float
-    {
-        $trimmed = \ltrim($digits, '0');
-        if ($trimmed === '') {
-            return 0;
-        }
-        if (\strlen($trimmed) < 19 || (\strlen($trimmed) === 19 && \strcmp($trimmed, (string) PHP_INT_MAX) <= 0)) {
-            return (int) $trimmed;
-        }
-
-        return (float) $trimmed;
     }
 
     /**

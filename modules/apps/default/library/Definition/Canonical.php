@@ -12,9 +12,13 @@
  *   (absent and empty mean the same in schema v1, and PHP cannot tell `{}`
  *   from `[]`)
  * - integral floats within ±2^53 are written as integers (1.0 → 1); other
- *   floats use PHP's shortest round-trip form; NaN / infinity are refused
- * - strings must be valid UTF-8 and are written unescaped (no \uXXXX for
- *   non-ASCII, no escaped slashes); no Unicode normalisation is applied
+ *   floats in the shortest form that reads back to the same float, with
+ *   serialize_precision pinned to -1 for the encode (so a php.ini that sets
+ *   17 does not change the hash); NaN / infinity are refused
+ * - strings must be valid UTF-8 and are written unescaped: no \uXXXX for
+ *   non-ASCII, no escaped slashes, and U+2028 / U+2029 as raw UTF-8 too;
+ *   the JSON escapes left are the mandatory ones (", \\, control
+ *   characters); no Unicode normalisation is applied
  * - no whitespace; nesting deeper than 64 levels is refused
  *
  * hash() is "sha256:" + hex SHA-256 of that string.
@@ -31,7 +35,7 @@ final class Canonical
 {
     private const MAX_DEPTH = 64;
 
-    private const FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR;
+    private const FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_LINE_TERMINATORS | JSON_THROW_ON_ERROR;
 
     /**
      * @param array<mixed> $doc
@@ -40,7 +44,14 @@ final class Canonical
      */
     public static function json(array $doc): string
     {
-        return \json_encode(self::normalize($doc, 0), self::FLAGS);
+        $normal = self::normalize($doc, 0);
+        $precision = \ini_get('serialize_precision');
+        \ini_set('serialize_precision', '-1');
+        try {
+            return \json_encode($normal, self::FLAGS);
+        } finally {
+            \ini_set('serialize_precision', $precision === false ? '-1' : $precision);
+        }
     }
 
     /**
