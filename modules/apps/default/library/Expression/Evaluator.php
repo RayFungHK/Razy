@@ -373,8 +373,10 @@ final class Evaluator
                 return false;
             }
             $this->step(\count($list));
+            $xt = $args[0]['t'];
+            $it = Types::isList($args[1]['t']) ? Types::itemType($args[1]['t']) : $args[1]['t'];
             foreach ($list as $item) {
-                if (!self::blank($item) && $this->equals($x, $item)) {
+                if (!self::blank($item) && $this->equals($x, $item, $xt, $it)) {
                     return true;
                 }
             }
@@ -392,10 +394,10 @@ final class Evaluator
                 return $this->joinText([$this->toText($l, $lt), $this->toText($r, $rt)]);
 
             case '=':
-                return (self::blank($l) || self::blank($r)) ? self::blank($l) === self::blank($r) : $this->equals($l, $r);
+                return (self::blank($l) || self::blank($r)) ? self::blank($l) === self::blank($r) : $this->equals($l, $r, $lt, $rt);
 
             case '<>':
-                return (self::blank($l) || self::blank($r)) ? self::blank($l) !== self::blank($r) : !$this->equals($l, $r);
+                return (self::blank($l) || self::blank($r)) ? self::blank($l) !== self::blank($r) : !$this->equals($l, $r, $lt, $rt);
 
             case '<':
             case '<=':
@@ -404,7 +406,7 @@ final class Evaluator
                 if (self::blank($l) || self::blank($r)) {
                     return false;
                 }
-                $c = $this->compare($l, $r);
+                $c = $this->compare($l, $r, $lt, $rt);
 
                 return match ($op) {
                     '<' => $c < 0,
@@ -459,22 +461,22 @@ final class Evaluator
         };
     }
 
-    private function equals(mixed $a, mixed $b): bool
+    private function equals(mixed $a, mixed $b, string $at, string $bt): bool
     {
         if ($this->isNum($a) || $this->isNum($b)) {
             return $this->isNum($a) && $this->isNum($b) && $this->numCmp($a, $b) === 0;
         }
-        [$a, $b] = $this->alignDates($a, $b);
+        [$a, $b] = $this->alignDates($a, $b, $at, $bt);
 
         return $a === $b;
     }
 
-    private function compare(mixed $a, mixed $b): int
+    private function compare(mixed $a, mixed $b, string $at, string $bt): int
     {
         if ($this->isNum($a) && $this->isNum($b)) {
             return $this->numCmp($a, $b);
         }
-        [$a, $b] = $this->alignDates($a, $b);
+        [$a, $b] = $this->alignDates($a, $b, $at, $bt);
 
         return \strcmp($this->asString($a), $this->asString($b)) <=> 0;
     }
@@ -496,18 +498,23 @@ final class Evaluator
     }
 
     /**
-     * A date next to a datetime becomes its local midnight.
+     * A date next to a datetime becomes its local midnight. Decided by the
+     * operand types only: text that looks like a date stays text (byte-wise,
+     * COLLATE "C"). Inside a datetime-typed MIN / MAX the date arguments are
+     * typed date, and the value shape tells which is which.
      *
      * @return array{0: mixed, 1: mixed}
      */
-    private function alignDates(mixed $a, mixed $b): array
+    private function alignDates(mixed $a, mixed $b, string $at, string $bt): array
     {
-        if (\is_string($a) && \is_string($b)) {
-            if (\strlen($a) === 10 && \strlen($b) === 20 && $this->isDate($a)) {
-                $a = $this->promote($a);
-            } elseif (\strlen($a) === 20 && \strlen($b) === 10 && $this->isDate($b)) {
-                $b = $this->promote($b);
-            }
+        $dateish = static fn (string $t): bool => $t === 'date' || $t === 'datetime';
+        if (!$dateish($at) || !$dateish($bt) || !\is_string($a) || !\is_string($b)) {
+            return [$a, $b];
+        }
+        if (\strlen($a) === 10 && \strlen($b) === 20) {
+            $a = $this->promote($a);
+        } elseif (\strlen($a) === 20 && \strlen($b) === 10) {
+            $b = $this->promote($b);
         }
 
         return [$a, $b];
@@ -602,7 +609,7 @@ final class Evaluator
             'CEILING' => ($x = $this->num($v[0])) instanceof Decimal ? $x->floor(0, true) : \ceil($x),
             'MOD' => $this->mod($v[0], $v[1]),
             'POWER' => $this->power($v[0], $v[1]),
-            'MIN', 'MAX' => $this->minMax($fn, $v),
+            'MIN', 'MAX' => $this->minMax($fn, $v, $types),
             'SUM' => $this->sum($v, $type),
             'AVERAGE' => $v === [] ? null : $this->divide($this->sum($v, $type), \count($v)),
 
@@ -687,18 +694,23 @@ final class Evaluator
 
     /**
      * @param list<mixed> $v blanks already left out
+     * @param list<string> $types the argument types, aligned with $v
      */
-    private function minMax(string $fn, array $v): mixed
+    private function minMax(string $fn, array $v, array $types): mixed
     {
         $best = null;
-        foreach ($v as $x) {
+        $bestType = 'blank';
+        foreach ($v as $i => $x) {
+            $t = $types[$i] ?? 'blank';
             if ($best === null) {
                 $best = $x;
+                $bestType = $t;
                 continue;
             }
-            $c = $this->compare($x, $best);
+            $c = $this->compare($x, $best, $t, $bestType);
             if (($fn === 'MIN' && $c < 0) || ($fn === 'MAX' && $c > 0)) {
                 $best = $x;
+                $bestType = $t;
             }
         }
 

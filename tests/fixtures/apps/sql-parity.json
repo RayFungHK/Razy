@@ -1255,6 +1255,36 @@
       "expected": true,
       "timezone": "Asia/Hong_Kong",
       "now": "2026-10-27T20:00:00Z"
+    },
+    {
+      "expr": "=t = u",
+      "values": {
+        "t": "2026-10-27",
+        "u": "2026-10-27T00:00:00Z"
+      },
+      "expected": false,
+      "timezone": "Asia/Hong_Kong",
+      "sql": "text that looks like dates is still text: byte-wise"
+    },
+    {
+      "expr": "=t < u",
+      "values": {
+        "t": "2026-10-27",
+        "u": "2026-10-26T16:00:00Z"
+      },
+      "expected": false,
+      "timezone": "Asia/Hong_Kong",
+      "sql": "COLLATE \"C\": '2026-10-27' > '2026-10-26T…'"
+    },
+    {
+      "expr": "=MIN(t, u)",
+      "values": {
+        "t": "2026-10-27",
+        "u": "2026-10-26T17:00:00Z"
+      },
+      "expected": "2026-10-26T17:00:00Z",
+      "timezone": "Asia/Hong_Kong",
+      "sql": "MIN over text is byte order"
     }
   ]
 }
