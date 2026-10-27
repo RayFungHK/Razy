@@ -60,6 +60,14 @@ final class ModuleVersionsTest extends TestCase
         }
     }
 
+    // ── helpers ────────────────────────────────────────────────────────────
+
+    /** getAssetPath() joins with the OS separator (PathUtil::append); compare URL shapes. */
+    private static function urlPath(string $path): string
+    {
+        return \str_replace('\\', '/', $path);
+    }
+
     // ── two dists, two versions ────────────────────────────────────────────
 
     public function testTwoDistsRunTwoVersionsOfOneModule(): void
@@ -72,7 +80,7 @@ final class ModuleVersionsTest extends TestCase
         self::assertNotNull($engineA);
         self::assertSame('1.4.0', $engineA->getModuleInfo()->getVersion());
         self::assertSame('1.4.0', $engineA->getModuleInfo()->getVersionFolder());
-        self::assertSame('webassets/engine/1.4.0/', $engineA->getModuleInfo()->getAssetPath());
+        self::assertSame('webassets/engine/1.4.0/', self::urlPath($engineA->getModuleInfo()->getAssetPath()));
         self::assertSame(ModuleStatus::Loaded, $engineA->getStatus());
 
         // The second dist runs in its own process (worker pool) in production.
@@ -82,7 +90,7 @@ final class ModuleVersionsTest extends TestCase
         $engineB = $b->getRegistry()->get('rz35/engine');
         self::assertNotNull($engineB);
         self::assertSame('2.1.0', $engineB->getModuleInfo()->getVersion(), '^2.0 resolves to the highest 2.x folder');
-        self::assertSame('webassets/engine/2.1.0/', $engineB->getModuleInfo()->getAssetPath());
+        self::assertSame('webassets/engine/2.1.0/', self::urlPath($engineB->getModuleInfo()->getAssetPath()));
 
         self::assertSame(['1.4.0', '2.1.0'], $GLOBALS['rz35_init'], 'each dist ran the __onInit of its own version');
     }
@@ -270,7 +278,7 @@ final class ModuleVersionsTest extends TestCase
         self::assertNotNull($info);
         self::assertSame('default', $info->getVersionFolder());
         self::assertSame('1.0.0', $info->getVersion(), 'getVersion() is the version package.php declares');
-        self::assertSame('webassets/engine/default/', $info->getAssetPath(), 'asset URLs keep the folder name');
+        self::assertSame('webassets/engine/default/', self::urlPath($info->getAssetPath()), 'asset URLs keep the folder name');
         self::assertNull($booted->getRegistry()->get('rz35/numbered'));
     }
 
@@ -302,8 +310,6 @@ final class ModuleVersionsTest extends TestCase
         $this->expectExceptionMessage("version folder '2.0.0'");
         new ModuleInfo(PathUtil::append($this->moduleRoot, 'rz35', 'liar'), ['module_code' => 'rz35/liar', 'author' => 't'], '2.0.0');
     }
-
-    // ── helpers ────────────────────────────────────────────────────────────
 
     /**
      * @param array<string, mixed> $package
