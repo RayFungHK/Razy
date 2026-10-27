@@ -178,6 +178,11 @@ class AppsDefinitionTest extends TestCase
         $cases = [
             [['type' => 'datetime', 'default' => '2026-10-27T09:00:00+08:00'], true],
             [['type' => 'datetime', 'default' => 'tomorrow'], false],
+            [['type' => 'datetime', 'default' => '2026-10-27T09:00Z'], true],
+            [['type' => 'datetime', 'default' => '2026-02-30T09:00:00Z'], false],
+            [['type' => 'datetime', 'default' => '2026-10-27T25:99:99Z'], false],
+            [['type' => 'datetime', 'default' => '2026-10-27T09:00:00+15:00'], false],
+            [['type' => 'datetime', 'default' => '2026-10-27T09:00:00'], false],
             [['type' => 'date', 'default' => '2026-02-30'], false],
             [['type' => 'user', 'default' => 'u42'], false],
             [['type' => 'user', 'default' => '=CURRENT_USER()'], true],

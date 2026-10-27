@@ -638,7 +638,7 @@ final class Validator
             'decimal', 'money', 'percent', 'duration' => \is_int($v) || (\is_float($v) && \is_finite($v)),
             'boolean' => \is_bool($v),
             'date' => \is_string($v) && \preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $d) === 1 && \checkdate((int) $d[2], (int) $d[3], (int) $d[1]),
-            'datetime' => \is_string($v) && \preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:\d{2})$/', $v) === 1,
+            'datetime' => $this->isDatetime($v),
             'select' => \is_string($v) && \in_array($v, $this->catalog->options($f), true),
             'multi_select' => \is_array($v) && \array_is_list($v)
                 && \count(\array_filter($v, static fn (mixed $x): bool => \is_string($x))) === \count($v)
@@ -648,6 +648,23 @@ final class Validator
         if (!$ok) {
             $this->error($dp, 'field.default', "Value does not fit a {$type} field (a literal of that type, or '=expression')");
         }
+    }
+
+    /**
+     * An ISO datetime literal with an offset (2026-10-27T09:00:00+08:00) that
+     * names a real moment: calendar date, 00-23 hours, 00-59 minutes and
+     * seconds, offsets up to ±14:00.
+     */
+    private function isDatetime(mixed $v): bool
+    {
+        if (!\is_string($v) || \preg_match('/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(Z|([+-])(\d{2}):(\d{2}))$/', $v, $m) !== 1) {
+            return false;
+        }
+        if (!\checkdate((int) $m[2], (int) $m[3], (int) $m[1]) || (int) $m[4] > 23 || (int) $m[5] > 59 || (int) ($m[6] ?: 0) > 59) {
+            return false;
+        }
+
+        return $m[7] === 'Z' || ((int) $m[9] * 60 + (int) $m[10] <= 14 * 60 && (int) $m[10] <= 59);
     }
 
     /**
