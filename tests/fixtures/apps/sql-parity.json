@@ -475,9 +475,21 @@
       "expected": -3
     },
     {
+      "expr": "=ROUND(1.25, 1)",
+      "values": {},
+      "expected": 1.3,
+      "sql": "halves exact in binary: half away from zero, as numeric ROUND"
+    },
+    {
+      "expr": "=ROUND(-1.25, 1)",
+      "values": {},
+      "expected": -1.3
+    },
+    {
       "expr": "=ROUND(1.005, 2)",
       "values": {},
-      "expected": 1.01
+      "expected": 1.01,
+      "sql": "decimal-looking result, as numeric ROUND; checked on every PHP in the CI matrix"
     },
     {
       "expr": "=ROUND(1234.5, -2)",

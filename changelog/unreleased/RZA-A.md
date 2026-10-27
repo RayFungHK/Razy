@@ -27,7 +27,7 @@
 - API commands `validate`, `compile`, `hash`, `assign-ids`, `weight` behind an implemented
   `__onAPICall` allow-list.
 - Fixture packages `tests/fixtures/apps/packages/crm-core` and `crm-deals`.
-- SQL parity vectors `tests/fixtures/apps/sql-parity.json` (104 cases: expression, blank inputs,
+- SQL parity vectors `tests/fixtures/apps/sql-parity.json` (106 cases: expression, blank inputs,
   expected) with `tests/AppsSqlParityTest.php`; the SQL translation of filters and row rules
   (RZA-C) reuses the file. Blank means null or empty text everywhere (comparisons, `IN`,
   `COALESCE`, `ISBLANK`, `MIN` / `MAX`, text functions).

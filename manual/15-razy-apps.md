@@ -289,7 +289,7 @@ to bound SQL by the record runtime (RZA-C), with the same semantics.
 
 Saved filters and row rules run as SQL in the record runtime (RZA-C), while computed values
 run in the PHP evaluator. The two must agree on every row. The contract is the vector file
-`tests/fixtures/apps/sql-parity.json`: 104 cases, each with an expression, field values (a
+`tests/fixtures/apps/sql-parity.json`: 106 cases, each with an expression, field values (a
 missing key is blank) and the expected result, plus a note on the SQL rule it pins.
 `tests/AppsSqlParityTest.php` runs the PHP evaluator over it and also requires a vector for
 every SQL-able function and operator. RZA-C must run the same file against Postgres. The rules
