@@ -1,0 +1,9 @@
+{
+  "list": {
+    "columns": [
+      "name",
+      "active"
+    ],
+    "default_sort": "name"
+  }
+}

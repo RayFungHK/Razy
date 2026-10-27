@@ -30,6 +30,7 @@ rather than a copied pattern are marked *illustrative*.
 | 12 | [12-module-lifecycle.md](12-module-lifecycle.md) | Derived readiness (`moduleReady`), `provision` (deploy/wizard/none), route `ready` gates with framework 503/302, `module status/enable/disable/wizard-token`, the token-gated wizard door, honest `module.installed` |
 | 13 | [13-layouts-and-anchors.md](13-layouts-and-anchors.md) | One layout per site (`dist.php 'layout'`, `Controller::render()`), `{@anchor}` / `{@push}` (dedupe, order, CSP nonce), the importmap once, why a function tag cannot wrap a block or include (RZ-26), and UI fixtures with `ui list` / `ui render` (RZ-29) |
 | 14 | [14-rzx-components.md](14-rzx-components.md) | `.rzx` server components: props schema, escaping by context, package.php namespaces, screens in `Controller::render()`, `{@rzx}`, functions, vocabularies/profiles, compile cache and `compile --rzx`; standalone apps stay `.tpl` |
+| 15 | [15-razy-apps.md](15-razy-apps.md) | `razymod/apps` (Razy Apps, RZA-A): app definitions as data, schema v1, validator and caps, element ids, canonical JSON + content hash, the Excel-like expression language (typed AST, closed functions, budgeted evaluator, typed errors), compiler plan and weight |
 
 *(09 is reserved by the OAuth dossier (`architecture/OAUTH-SOCIALITE-HTTP.md` S5 →
 `manual/09-social-login.md`). The held slot 10 was assigned 2026-09 to the MCP server —

@@ -1,0 +1,42 @@
+{
+  "list": {
+    "columns": [
+      "full_name",
+      "email",
+      "company",
+      "owner"
+    ],
+    "default_sort": "last_name",
+    "filters": [
+      "company",
+      "owner"
+    ]
+  },
+  "form": {
+    "sections": [
+      {
+        "label": "contact.section.main",
+        "fields": [
+          "first_name",
+          "last_name",
+          "email",
+          "phone",
+          "company",
+          "job_title",
+          "owner"
+        ],
+        "columns": 2
+      }
+    ]
+  },
+  "detail": {
+    "tabs": [
+      {
+        "related": "activity.contact"
+      },
+      {
+        "history": true
+      }
+    ]
+  }
+}

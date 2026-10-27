@@ -1,0 +1,10 @@
+{
+  "deal": [
+    {"title": "Sample: office fit-out", "amount": 120000, "currency": "HKD", "stage": "negotiation", "close_date": "2026-11-30"},
+    {"title": "Sample: annual support", "amount": 18000, "currency": "USD", "stage": "proposal", "close_date": "2026-12-15"}
+  ],
+  "lost_reason": [
+    {"name": "Price", "active": true},
+    {"name": "Timing", "active": true}
+  ]
+}

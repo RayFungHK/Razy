@@ -1,0 +1,95 @@
+{
+  "board": {
+    "group_by": "stage",
+    "card": [
+      "title",
+      "company",
+      "amount",
+      "owner",
+      "close_date"
+    ],
+    "wip_limits": {
+      "negotiation": 10
+    }
+  },
+  "list": {
+    "columns": [
+      "number",
+      "title",
+      "company",
+      "amount",
+      "stage",
+      "owner",
+      "close_date"
+    ],
+    "default_sort": "-close_date",
+    "filters": [
+      "stage",
+      "owner",
+      "close_date"
+    ],
+    "saved": [
+      {
+        "id": "01M5VJ1JHG000000000000BK6G",
+        "code": "my_open",
+        "filter": "=AND(owner = CURRENT_USER(), NOT(stage.category IN ('done', 'cancelled')))"
+      },
+      {
+        "id": "01M5VJ1JHH000000000000BTXZ",
+        "code": "closing_this_month",
+        "filter": "=AND(close_date >= DATE(YEAR(TODAY()), MONTH(TODAY()), 1), close_date < DATE(YEAR(TODAY()), MONTH(TODAY()) + 1, 1))",
+        "sort": "close_date"
+      }
+    ]
+  },
+  "form": {
+    "sections": [
+      {
+        "label": "deal.section.main",
+        "fields": [
+          "title",
+          "company",
+          "contact",
+          "amount",
+          "currency",
+          "close_date"
+        ],
+        "columns": 2
+      },
+      {
+        "label": "deal.section.owner",
+        "fields": [
+          "owner",
+          "stage"
+        ],
+        "visible": "=NOT(ISBLANK(company))"
+      },
+      {
+        "label": "deal.section.lost",
+        "fields": [
+          "lost_reason"
+        ],
+        "visible": "=stage = 'lost'"
+      }
+    ]
+  },
+  "detail": {
+    "header": [
+      "number",
+      "title",
+      "amount",
+      "stage"
+    ],
+    "tabs": [
+      {
+        "history": true
+      },
+      {
+        "files": true
+      },
+      {
+        "workflow": true
+      }
+    ]
+  }
+}

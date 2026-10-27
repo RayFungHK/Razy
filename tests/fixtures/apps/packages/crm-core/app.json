@@ -1,0 +1,29 @@
+{
+  "apps_schema": 1,
+  "code": "crm-core",
+  "version": "1.0.0",
+  "label": "app.label",
+  "description": "app.description",
+  "requires_engine": ">=1.0 <2",
+  "lineage": {
+    "base": null
+  },
+  "roles": [
+    "sales_rep",
+    "sales_manager"
+  ],
+  "menu": [
+    {
+      "entity": "company",
+      "view": "list"
+    },
+    {
+      "entity": "contact",
+      "view": "list"
+    },
+    {
+      "entity": "activity",
+      "view": "board"
+    }
+  ]
+}

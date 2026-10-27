@@ -1,0 +1,68 @@
+{
+  "list": {
+    "columns": [
+      "number",
+      "name",
+      "industry",
+      "owner",
+      "contact_count"
+    ],
+    "default_sort": "name",
+    "filters": [
+      "industry",
+      "owner"
+    ],
+    "saved": [
+      {
+        "id": "01M5VJ1JGX000000000000708K",
+        "code": "mine",
+        "filter": "=owner = CURRENT_USER()"
+      }
+    ],
+    "bulk": [
+      "export"
+    ]
+  },
+  "form": {
+    "sections": [
+      {
+        "label": "company.section.main",
+        "fields": [
+          "name",
+          "industry",
+          "website",
+          "phone"
+        ],
+        "columns": 2
+      },
+      {
+        "label": "company.section.more",
+        "fields": [
+          "owner",
+          "notes"
+        ]
+      }
+    ]
+  },
+  "detail": {
+    "header": [
+      "number",
+      "name",
+      "owner"
+    ],
+    "tabs": [
+      {
+        "related": "contact.company"
+      },
+      {
+        "related": "activity.company"
+      },
+      {
+        "history": true
+      },
+      {
+        "files": true
+      }
+    ]
+  }
+}

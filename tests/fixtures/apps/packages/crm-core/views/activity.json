@@ -1,0 +1,49 @@
+{
+  "list": {
+    "columns": [
+      "kind",
+      "subject",
+      "due",
+      "done",
+      "owner"
+    ],
+    "default_sort": "-due",
+    "filters": [
+      "kind",
+      "done",
+      "owner"
+    ],
+    "saved": [
+      {
+        "id": "01M5VJ1JGY0000000000007802",
+        "code": "open_mine",
+        "filter": "=AND(owner = CURRENT_USER(), NOT(done))",
+        "sort": "due"
+      }
+    ]
+  },
+  "board": {
+    "group_by": "kind",
+    "card": [
+      "subject",
+      "due",
+      "owner"
+    ]
+  },
+  "form": {
+    "sections": [
+      {
+        "label": "activity.section.main",
+        "fields": [
+          "kind",
+          "subject",
+          "due",
+          "done",
+          "company",
+          "contact",
+          "owner"
+        ]
+      }
+    ]
+  }
+}

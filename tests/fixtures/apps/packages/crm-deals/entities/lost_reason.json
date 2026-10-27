@@ -1,0 +1,21 @@
+{
+  "id": "01M5VJ1JHD000000000000AW03",
+  "code": "lost_reason",
+  "label": "lost_reason.label",
+  "fields": [
+    {
+      "id": "01M5VJ1JHE000000000000B3QJ",
+      "code": "name",
+      "type": "text",
+      "max": 100,
+      "required": true,
+      "unique": true
+    },
+    {
+      "id": "01M5VJ1JHF000000000000BBF1",
+      "code": "active",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}

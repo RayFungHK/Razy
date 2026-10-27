@@ -1,0 +1,117 @@
+{
+  "id": "01M5VJ1JGZ0000000000007FQH",
+  "code": "deal",
+  "label": "deal.label",
+  "numbering": {
+    "pattern": "D-{YYYY}-{seq:5}",
+    "reset": "yearly"
+  },
+  "fields": [
+    {
+      "id": "01M5VJ1JH00000000000007QF0",
+      "code": "title",
+      "type": "text",
+      "max": 200,
+      "required": true,
+      "search": true
+    },
+    {
+      "id": "01M5VJ1JH10000000000007Z6F",
+      "code": "amount",
+      "type": "money",
+      "currency_field": "currency",
+      "min": 0
+    },
+    {
+      "id": "01M5VJ1JH200000000000086XY",
+      "code": "currency",
+      "type": "select",
+      "options": [
+        "HKD",
+        "USD",
+        "CNY"
+      ],
+      "default": "HKD"
+    },
+    {
+      "id": "01M5VJ1JH30000000000008END",
+      "code": "stage",
+      "type": "status",
+      "workflow": "deal_pipeline"
+    },
+    {
+      "id": "01M5VJ1JH40000000000008PCW",
+      "code": "company",
+      "type": "relation",
+      "to": "crm-core.company",
+      "cardinality": "many_to_one",
+      "on_delete": "restrict"
+    },
+    {
+      "id": "01M5VJ1JH50000000000008Y4B",
+      "code": "contact",
+      "type": "relation",
+      "to": "crm-core.contact",
+      "cardinality": "many_to_one",
+      "on_delete": "set_null"
+    },
+    {
+      "id": "01M5VJ1JH600000000000095VT",
+      "code": "owner",
+      "type": "user",
+      "default": "=CURRENT_USER()"
+    },
+    {
+      "id": "01M5VJ1JH70000000000009DK9",
+      "code": "close_date",
+      "type": "date"
+    },
+    {
+      "id": "01M5VJ1JH80000000000009NAR",
+      "code": "weighted",
+      "type": "computed",
+      "expr": "=amount * stage.probability",
+      "stored": false
+    },
+    {
+      "id": "01M5VJ1JH90000000000009X27",
+      "code": "company_name",
+      "type": "computed",
+      "expr": "=company.name"
+    },
+    {
+      "id": "01M5VJ1JHA000000000000A4SP",
+      "code": "overdue",
+      "type": "computed",
+      "expr": "=AND(NOT(stage.category IN ('done', 'cancelled')), close_date < TODAY())"
+    },
+    {
+      "id": "01M5VJ1JHB000000000000ACH5",
+      "code": "lost_reason",
+      "type": "relation",
+      "to": "lost_reason",
+      "cardinality": "many_to_one",
+      "on_delete": "set_null"
+    },
+    {
+      "id": "01M5VJ1JHC000000000000AM8M",
+      "code": "attachments",
+      "type": "files",
+      "max_files": 10,
+      "max_size_mb": 20,
+      "accept": [
+        "application/pdf",
+        "image/*"
+      ]
+    }
+  ],
+  "indexes": [
+    [
+      "stage",
+      "close_date"
+    ],
+    [
+      "owner"
+    ]
+  ]
+}
