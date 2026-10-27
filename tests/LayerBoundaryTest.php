@@ -14,7 +14,7 @@
 
 class LayerBoundaryTest extends PHPUnit\Framework\TestCase
 {
-    private const SCANNED = ['src', 'manual', 'changelog', 'tests', 'documentation', 'readme.md'];
+    private const SCANNED = ['src', 'modules', 'manual', 'changelog', 'tests', 'documentation', 'readme.md'];
 
     public function testNoConsumerAppNameInFrameworkTree(): void
     {

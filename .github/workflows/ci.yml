@@ -142,6 +142,10 @@ jobs:
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress
 
+      # first-party modules (permissions, oauth, apps) under the same level
+      - name: Run PHPStan (modules)
+        run: vendor/bin/phpstan analyse -c phpstan.modules.neon --no-progress
+
   discipline:
     name: Module Discipline (Golden Rules)
     runs-on: ubuntu-latest

@@ -13,11 +13,13 @@ parameters:
     paths:
         - modules/permissions
         - modules/oauth
+        - modules/apps
     excludePaths:
         - modules/permissions/default/controller/api	# see header: $this only exists at execution
         - modules/oauth/default/controller/api	    # same shape (razymod/oauth handlers)
         - modules/oauth/default/controller/oauth.authorize.php
         - modules/oauth/default/controller/oauth.callback.php
+        - modules/apps/default/controller/api	    # same shape (razymod/apps handlers)
     phpVersion: 80200
     dynamicConstantNames:
         - CLI_MODE
