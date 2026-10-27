@@ -54,14 +54,15 @@ class ModuleScanner
      *
      * @param string $path The path of the module folder
      * @param bool $globally Set true to define the module is loaded globally
-     * @param array<string, string|null> $requires Required module codes mapped to version constraints
+     * @param array<string, string> $requires dist.php pins, module code => version folder or semver constraint (RZ-35)
      * @param array<string, Module> &$modules Reference to the module registry to populate
+     * @param string $distIdentifier The dist identifier (code@tag) for version error messages
      *
      * @throws ModuleConfigException
      * @throws ModuleLoadException
      * @throws Throwable
      */
-    public function scan(string $path, bool $globally, array $requires, array &$modules): void
+    public function scan(string $path, bool $globally, array $requires, array &$modules, string $distIdentifier = ''): void
     {
         $path = PathUtil::tidy($path, true);
         if (!\is_dir($path)) {
@@ -76,8 +77,9 @@ class ModuleScanner
         if (\is_array($cached) && isset($cached['sig'], $cached['manifest']) && $cached['sig'] === $dirSignature) {
             // Load modules from cached manifest (skip filesystem scanning)
             foreach ($cached['manifest'] as $entry) {
-                $version = $requires[$entry['module_code']] ?? 'default';
-                if (\is_file(PathUtil::append($entry['packageFolder'], $version, 'package.php'))) {
+                // RZ-35: the dist pin picks the version folder; a pin that matches none throws
+                $version = ModuleVersionResolver::resolve($entry['module_code'], $entry['packageFolder'], $requires[$entry['module_code']] ?? null, $distIdentifier);
+                if (null !== $version) {
                     try {
                         $module = new Module($this->distributor, $entry['packageFolder'], $entry['config'], $version, $globally);
                         if (!isset($modules[$entry['module_code']])) {
@@ -139,10 +141,10 @@ class ModuleScanner
                                 'config' => $config,
                             ];
 
-                            $version = (isset($requires[$config['module_code']])) ? $requires[$config['module_code']] : 'default';
-
-                            // Only load the module if the versioned package.php exists
-                            if (\is_file(PathUtil::append($packageFolder, $version, 'package.php'))) {
+                            // RZ-35: the dist pin picks the version folder; unpinned loads default/
+                            // when it exists, and a pin that matches no folder throws
+                            $version = ModuleVersionResolver::resolve($config['module_code'], $packageFolder, $requires[$config['module_code']] ?? null, $distIdentifier);
+                            if (null !== $version) {
                                 try {
                                     $module = new Module($this->distributor, $packageFolder, $config, $version, $globally);
 

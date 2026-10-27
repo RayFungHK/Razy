@@ -226,10 +226,15 @@ Returning `false` from lifecycle hooks aborts the module/request flow — handle
 
 ### Versioned modules & tags
 
-A distributor selects module **tags** (versions) per module; `sites.inc.php` maps
-`'/' => 'mysite@v2'`. Two distributors can run different versions of the same module
-side by side — this is the core maintenance superpower: ship a fix once, every
-distributor adopts on its own schedule.
+A module folder holds version folders (`default/`, `1.4.0/`, `2.0.0/`). Each distributor
+pins a version per module in `dist.php` `modules` (a folder name, `'*'` for the highest,
+or a semver range such as `'^1.4'`), with a `'*'` set and per-tag overrides;
+`sites.inc.php` maps `'/' => 'mysite@v2'` to pick a tag. Unpinned modules load `default/`.
+Two distributors can run different versions of the same module — ship a fix once, every
+distributor adopts on its own schedule. `package.php` `require` constraints are checked
+at boot, and one PHP process runs one version of a module, so distributors on different
+versions run in separate processes (worker pools). Details:
+[manual/02 §3](manual/02-modules-and-lifecycle.md#3-versioned-modules--tags).
 
 ## Routing
 

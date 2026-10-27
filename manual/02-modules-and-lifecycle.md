@@ -82,10 +82,60 @@ Scan → __onInit (per module) → __onLoad (all registered) → __onRequire
 
 ## 3. Versioned modules & tags
 
-One module folder holds several version tags (`default/`, `v2/`). Sites pin tags in
-`dist.php`; domains pick a tag with `@` suffix (`example.com@beta`) or path entries
-(`'/beta' => 'mysite@beta'` — verified pattern in `src/asset/setup/sites.inc.php.tpl`
-comment). CLI: `php Razy.phar serve --dist mysite@beta` (`serve.inc.php` usage).
+One module folder holds several versions next to `module.php` (RZ-35,
+`Distributor/ModuleVersionResolver.php`):
+
+```
+vendor/engine/
+├── module.php
+├── default/package.php   # the fallback; loaded when the dist pins nothing
+├── 1.4.0/package.php     # a released version: the folder name is the semver number
+├── 2.0.0/package.php
+└── dev/package.php       # loaded only when pinned as 'dev'
+```
+
+A version folder is `default`, `dev`, or a semver number (`1.4.0`); any other name is a
+load error (`ModuleInfo.php`). A numbered folder's `package.php` may declare
+`'version'` only as its own number. `default/` and `dev/` take their version from the
+`'version'` key their `package.php` declares.
+
+Each distributor pins versions in `dist.php` `modules`: tag → `{ module_code => version }`.
+The `'*'` set is the base, and the dist tag's set (`example.com@canary`, or path entries
+`'/beta' => 'mysite@beta'` in `sites.inc.php`) overrides or adds entries
+(`Distributor::parseModuleRequirements`). A version is:
+
+| Pin | Loads |
+|---|---|
+| *(not pinned)* | `default/`; a module with no `default/` is not loaded (same as before RZ-35) |
+| `'default'`, `'dev'`, `'1.4.0'` | that folder |
+| `'*'` | the highest version, else `default/` |
+| `'^1.4'`, `'~2.0.0'`, `'>=1.0 <2.0'`, `'1.4.*'`, `'^1 \|\| ^2'` | the highest version that satisfies the range (`VersionUtil::vc`, Composer rules) |
+
+`default/` takes part in range matching with its declared version; a numbered folder wins
+over `default/` at the same version. A pin that matches no folder stops the boot with
+`ModuleVersionException` listing the folders found. A pin naming a module no folder has
+prints an `E_USER_WARNING`.
+
+`getVersion()` (and `Controller::getModuleVersion()`) returns the semver number: the
+numbered folder, or the version `default/` / `dev/` declares; with none declared it
+returns the folder name. `ModuleInfo::getVersionFolder()` is the folder;
+webasset URLs keep using it (`webassets/<alias>/<folder>/`).
+
+**`require` is checked.** Before any `__onInit` runs, every `package.php` `'require'`
+constraint (`'vendor/engine' => '^2.0'`) must hold for the version of the dependency the
+dist loads, or the boot stops with one `ModuleVersionException` that lists every
+conflict. `''` and `'*'` always hold. A dependency with no semver version (an undeclared
+`default/`) is not checked.
+
+**One version of a module per PHP process.** Class names carry no version, and worker
+mode keeps classes across requests, so a process that loaded `vendor/engine` 1.4.0 for one
+dist refuses 2.0.0 for another (`ModuleVersionGuard`, clear error naming both dists).
+A version is its folder plus its number, so `default/` declaring 1.4.0 and `1.4.0/` are not
+loaded together either. Run dists on different versions in separate processes (separate worker pools, or a
+non-worker SAPI). A metadata scan (`php Razy.phar rewrite`) loads no module code and is
+not limited. Changing a pin under a running worker needs a worker restart.
+
+CLI: `php Razy.phar serve --dist mysite@beta` (`serve.inc.php` usage).
 
 Breaking API change? Ship a new major **directory**, update consumers, let both coexist —
 RZ-012. `php Razy.phar validate <dist>` fails loudly on duplicate `api_name` across vendors
@@ -102,7 +152,7 @@ Full field list as used in the working sample `playground/sites/appdemo/dist.php
 | `global_module` / `autoload_shared` | pull in `shared/module` vs keep local |
 | `greedy` | load every module folder present (demo/playground default) |
 | `strict` | strict module resolution (see `standalone`/`pkg` serve strictness) |
-| `modules` | tag → `{ module_code => version-tag }`; `'*'` is the default tag |
+| `modules` | tag → `{ module_code => version }`; `'*'` is the base set, the dist tag's set overrides it; a version is a folder name, `'*'` or a semver range (§3) |
 | `config_mapping` | site-tag → config **folder name** (`'beta' => 'v2'`); lets several site tags share/overlay config folders (readme Routing section; per-domain mapping lives here, not in sites.inc.php) |
 | `reserve` | site-level reserved path segments (e.g. `api`) — required for `Agent::reserve()` (`Agent.php:435-444`) |
 

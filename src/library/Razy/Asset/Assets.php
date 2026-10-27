@@ -157,7 +157,7 @@ final class Assets
             $info = $module->getModuleInfo();
             $root = PathUtil::append($info->getPath(), 'webassets');
             if (!isset($roots[$info->getAlias()]) && \is_dir($root)) {
-                $roots[$info->getAlias()] = ['version' => $info->getVersion(), 'root' => $root];
+                $roots[$info->getAlias()] = ['version' => $info->getVersionFolder(), 'root' => $root];
             }
         }
 

@@ -74,6 +74,10 @@ class VersionUtil
 
         // Standardize the logical OR/AND character, support composer version
         $requirement = \trim($requirement);
+        if ('*' === $requirement) {
+            // Any version (Composer's bare wildcard)
+            return true;
+        }
         $requirement = \preg_replace('/\s*\|\|\s*/', '|', $requirement);
         $requirement = \preg_replace('/\s*-\s*(*SKIP)(*FAIL)|\s*,\s*|\s+/', ',', $requirement);
 
@@ -92,36 +96,26 @@ class VersionUtil
                         $max = self::standardize($matches[3]);
                         $result = \version_compare($version, $min, '>=') && \version_compare($version, $max, '<');
                     } elseif (\preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
-                        $major = (int) $matches[3];
                         $constraint = $matches[1];
                         $vs = self::standardize($matches[2]);
+                        $written = \array_map('intval', \explode('.', $matches[2]));
 
                         if ('^' == $constraint) {
-                            // Caret Version Range
-                            if (0 == $major) {
-                                $splits = \explode('.', $vs);
-                                $compare = '0.' . $splits[1] . '.' . $splits[2] . '.' . $splits[3];
-                            } else {
-                                $compare = ($major + 1) . '.0.0.0';
+                            // Caret Version Range (Composer): the first non-zero written
+                            // segment may not change; ^1.2 < 2.0, ^0.3 < 0.4, ^0.0.3 < 0.0.4
+                            $bump = \count($written) - 1;
+                            foreach ($written as $index => $segment) {
+                                if (0 !== $segment) {
+                                    $bump = $index;
+                                    break;
+                                }
                             }
+                            $compare = self::upperBound($written, $bump);
                             $result = \version_compare($version, $vs, '>=') && \version_compare($version, $compare, '<');
                         } elseif ('~' == $constraint) {
-                            // Tilde Version Range
-                            $splits = \explode('.', $vs);
-                            while (\count($splits) && 0 == \end($splits)) {
-                                unset($splits[\count($splits) - 1]);
-                            }
-                            if (\count($splits) <= 1) {
-                                return false;
-                            }
-                            unset($splits[\count($splits) - 1]);
-
-                            if (1 == \count($splits)) {
-                                $compare = ($major + 1) . '.0.0.0';
-                            } else {
-                                ++$splits[\count($splits) - 1];
-                                $compare = self::standardize(\implode('.', $splits));
-                            }
+                            // Tilde Version Range (Composer): the last written segment may
+                            // grow; ~1.2 < 2.0, ~1.2.3 < 1.3.0, ~1 < 2.0
+                            $compare = self::upperBound($written, \max(0, \count($written) - 2));
                             $result = \version_compare($version, $vs, '>=') && \version_compare($version, $compare, '<');
                         } else {
                             // Common version compare
@@ -150,8 +144,15 @@ class VersionUtil
                     } elseif (\preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
                         $compare = self::standardize($clip, true);
                         if (\str_contains($compare, '*')) {
-                            $compare = \str_replace(['*', '.'], ['\d+', '\.'], $compare);
-                            $result = \preg_match('/^' . $compare . '$/', $version);
+                            // Every segment from the first '*' on matches any number, padding
+                            // included: 2.* = 2.x.y.z (before RZ-35 it padded to 2.*.0.0)
+                            $pattern = [];
+                            $any = false;
+                            foreach (\explode('.', $compare) as $segment) {
+                                $any = $any || '*' === $segment;
+                                $pattern[] = $any ? '\d+' : $segment;
+                            }
+                            $result = 1 === \preg_match('/^' . \implode('\.', $pattern) . '$/', $version);
                         } else {
                             $result = $compare == $version;
                         }
@@ -165,5 +166,30 @@ class VersionUtil
         };
 
         return $parser($clips);
+    }
+
+    /**
+     * The exclusive upper bound for a caret or tilde range: keep the written
+     * segments before $bump, add one to the segment at $bump, zero the rest.
+     *
+     * @param list<int> $written The segments as written in the constraint
+     * @param int $bump Index of the segment to increment
+     *
+     * @return string A 4-segment version
+     */
+    private static function upperBound(array $written, int $bump): string
+    {
+        $upper = [];
+        for ($i = 0; $i < 4; ++$i) {
+            if ($i < $bump) {
+                $upper[] = $written[$i] ?? 0;
+            } elseif ($i === $bump) {
+                $upper[] = ($written[$i] ?? 0) + 1;
+            } else {
+                $upper[] = 0;
+            }
+        }
+
+        return \implode('.', $upper);
     }
 }

@@ -20,8 +20,10 @@ namespace Razy;
 
 use Exception;
 use Razy\Config\ConfigLoader;
+use Razy\Distributor\ModuleVersionResolver;
 use Razy\Exception\ModuleConfigException;
 use Razy\Util\PathUtil;
+use Razy\Util\VersionUtil;
 use Throwable;
 
 /**
@@ -78,6 +80,9 @@ class ModuleInfo
 
     /** @var string Resolved filesystem path to the module's versioned directory */
     private string $modulePath;
+
+    /** @var string|null RZ-35: the semver version (the numbered folder, or the 'version' a default/ or dev/ package.php declares) */
+    private ?string $semver = null;
 
     /** @var string Module class name derived from the package segment of the code */
     private string $className = '';
@@ -224,6 +229,18 @@ class ModuleInfo
 
                     // Keep the declared key set for the validate-time unknown-key audit
                     $this->declaredPackageKeys = \array_map('strval', \array_keys($settings));
+
+                    // RZ-35: the semver version. A numbered folder is its version, and its
+                    // package.php may not declare another; default/ and dev/ use the declared one.
+                    $declared = \is_string($settings['version'] ?? null) ? \trim($settings['version']) : '';
+                    if (ModuleVersionResolver::isVersion($this->version)) {
+                        if ('' !== $declared && VersionUtil::standardize($declared) !== VersionUtil::standardize($this->version)) {
+                            throw new ModuleConfigException("The package.php in version folder '{$this->version}' of module at '{$this->containerPath}' declares version '{$declared}'. A numbered version folder must declare its own version, or none.");
+                        }
+                        $this->semver = $this->version;
+                    } elseif (ModuleVersionResolver::isVersion($declared)) {
+                        $this->semver = $declared;
+                    }
                 } catch (ModuleConfigException $e) {
                     throw $e;
                 } catch (Exception $e) {
@@ -587,11 +604,6 @@ class ModuleInfo
     }
 
     /**
-     * Return the module version.
-     *
-     * @return string
-     */
-    /**
      * COMPILE-ON-DEPLOY (M2): the manifest array this Info was built from,
      * verbatim — dumped by BootCompiler and fed back into the same
      * constructor on replay.
@@ -601,7 +613,22 @@ class ModuleInfo
         return $this->rawConfig;
     }
 
+    /**
+     * Return the module version: the semver number (RZ-35) when there is one,
+     * that is a numbered version folder, or the 'version' that the package.php
+     * of `default/` or `dev/` declares. A `default/` or `dev/` that declares no
+     * version returns its folder name. Paths use getVersionFolder().
+     */
     public function getVersion(): string
+    {
+        return $this->semver ?? $this->version;
+    }
+
+    /**
+     * Return the version folder the module loaded from (`default`, `dev`, `1.4.0`).
+     * Webasset URLs and module paths use the folder.
+     */
+    public function getVersionFolder(): string
     {
         return $this->version;
     }

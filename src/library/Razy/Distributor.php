@@ -29,9 +29,12 @@ use Razy\Database\MigrationManager;
 use Razy\Database\ModuleDatabaseConnector;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\ModuleScanner;
+use Razy\Distributor\ModuleVersionGuard;
+use Razy\Distributor\ModuleVersionResolver;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
+use Razy\Exception\ModuleVersionException;
 use Razy\Health\HealthRegistry;
 use Razy\Http\Request;
 use Razy\Http\RequestContext;
@@ -65,7 +68,7 @@ class Distributor implements DistributorInterface
     /** @var string The distribution code from dist.php configuration */
     private string $code = '';
 
-    /** @var array<string, string|null> Required module codes mapped to their version constraints */
+    /** @var array<string, string> RZ-35: dist.php module pins, module code => version folder or semver constraint */
     private array $requires = [];
 
     /** @var bool Whether to also scan the shared/module folder for global modules */
@@ -370,9 +373,9 @@ class Distributor implements DistributorInterface
     {
         $modules = &$this->registry->getModulesRef();
 
-        $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules);
+        $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules, $this->getIdentifier());
         if ($this->globalModule) {
-            $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
+            $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules, $this->getIdentifier());
         }
 
         return $this;
@@ -401,15 +404,19 @@ class Distributor implements DistributorInterface
         if ($this->compiledBoot && ($boot = BootCompiler::usableData($this)) !== null) {
             $this->assembleCompiled($boot, $modules);
         } else {
-            $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules);
+            $this->scanner->scan($this->moduleSourcePath, false, $this->requires, $modules, $this->getIdentifier());
             if ($this->globalModule) {
-                $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules);
+                $this->scanner->scan(PathUtil::append(SHARED_FOLDER, 'module'), true, $this->requires, $modules, $this->getIdentifier());
             }
 
             // Enable-list (MODULE-LIFECYCLE.md Q5): config/<dist>/modules.php is the
             // CLI-written, git-tracked enable/disable ledger. Absent file = every
             // listed module is enabled — today's distributors behave identically.
             $this->applyEnableList();
+
+            // RZ-35: pins name real modules, and every 'require' holds for the loaded versions.
+            $this->warnUnknownPins();
+            $this->checkRequiredVersions();
 
             // Put all modules into queue by priority with its require module.
             foreach ($this->registry->getModules() as $module) {
@@ -1272,6 +1279,7 @@ class Distributor implements DistributorInterface
         // Enable-list still rules (the ledger file is in the fingerprint's
         // stat set — editing it without recompiling is visible right here).
         $this->applyEnableList();
+        $this->checkRequiredVersions();
 
         $order = $boot['queue_order'] ?? \array_keys($boot['modules']);
         foreach ($order as $code) {
@@ -1279,6 +1287,7 @@ class Distributor implements DistributorInterface
             if ($module === null || $module->getStatus() === ModuleStatus::Disabled) {
                 continue;
             }
+            $this->claimVersion($module);
             $this->registry->enqueue($code, $module);
         }
 
@@ -1372,24 +1381,113 @@ class Distributor implements DistributorInterface
     }
 
     /**
-     * Extract module requirements from config for the current tag.
+     * RZ-35: read the module version pins for this dist.
+     *
+     * dist.php 'modules' maps a tag to `module code => version`; the '*' set is
+     * the base and the dist tag's set overrides or adds entries. A module code at
+     * the top level of 'modules' counts as part of '*'. A version is a folder
+     * name (`default`, `dev`, `1.4.0`), `*` (the highest version) or a semver
+     * constraint (`^1.4`); see ModuleVersionResolver.
      *
      * @param array $config The distributor configuration
+     *
+     * @throws ConfigurationException When a pin is not a string
      */
     private function parseModuleRequirements(array $config): void
     {
-        $config['modules'] ??= [];
-        if (\is_array($config['modules'])) {
-            if (isset($config['modules'][$this->tag])) {
-                foreach ($config['modules'][$this->tag] as $moduleCode => $version) {
-                    $moduleCode = \trim($moduleCode);
-                    $version = \trim($version);
-                    if (\strlen($moduleCode) > 0 && \strlen($version) > 0) {
-                        $this->requires[$moduleCode] = null;
-                    }
+        $modules = $config['modules'] ?? [];
+        if (!\is_array($modules)) {
+            return;
+        }
+
+        $base = \is_array($modules['*'] ?? null) ? $modules['*'] : [];
+        foreach ($modules as $key => $value) {
+            if (\is_string($key) && \str_contains($key, '/')) {
+                $base[$key] = $value;
+            }
+        }
+
+        $sets = [$base];
+        if ('*' !== $this->tag && \is_array($modules[$this->tag] ?? null)) {
+            $sets[] = $modules[$this->tag];
+        }
+
+        foreach ($sets as $set) {
+            foreach ($set as $moduleCode => $version) {
+                $moduleCode = \trim((string) $moduleCode);
+                if (!\is_string($version) && !\is_int($version) && !\is_float($version)) {
+                    throw new ConfigurationException("dist.php 'modules' pins '{$moduleCode}' to a " . \get_debug_type($version) . " in dist '{$this->distCode}'; a pin is a version string such as 'default', '1.4.0' or '^1.4'.");
+                }
+                $version = \trim((string) $version);
+                if (\strlen($moduleCode) > 0 && \strlen($version) > 0) {
+                    $this->requires[$moduleCode] = $version;
                 }
             }
         }
+    }
+
+    /**
+     * RZ-35: every package.php 'require' constraint must hold for the version of
+     * the dependency this dist loads. Missing or disabled dependencies are left
+     * to the L0 warning; a dependency with no semver version is not checked.
+     *
+     * @throws ModuleVersionException Listing every unmet constraint
+     */
+    private function checkRequiredVersions(): void
+    {
+        $conflicts = [];
+        foreach ($this->registry->getModules() as $module) {
+            if ($module->getStatus() === ModuleStatus::Disabled) {
+                continue;
+            }
+
+            $info = $module->getModuleInfo();
+            foreach ($info->getRequire() as $depCode => $constraint) {
+                $dep = $this->registry->get($depCode);
+                if (null === $dep || $dep->getStatus() === ModuleStatus::Disabled) {
+                    continue;
+                }
+
+                $depVersion = $dep->getModuleInfo()->getVersion();
+                if (!ModuleVersionResolver::satisfies($constraint, $depVersion)) {
+                    $conflicts[] = "'{$info->getCode()}' {$info->getVersion()} requires '{$depCode}' {$constraint}, but this dist loads '{$depCode}' {$depVersion}";
+                }
+            }
+        }
+
+        if ([] !== $conflicts) {
+            throw new ModuleVersionException(
+                "Distributor '{$this->getIdentifier()}' has module version conflicts:\n - " . \implode("\n - ", $conflicts)
+                . "\nPin a version of each dependency in dist.php 'modules' that satisfies every 'require', or update the module that requires it.",
+            );
+        }
+    }
+
+    /**
+     * RZ-35: warn about dist.php pins that name no scanned module.
+     */
+    private function warnUnknownPins(): void
+    {
+        foreach (\array_keys($this->requires) as $code) {
+            if (null === $this->registry->get($code)) {
+                \trigger_error(
+                    'Razy: dist.php \'modules\' pins \'' . $code . '\' in dist \'' . $this->getIdentifier() . '\', but no module folder '
+                    . 'has that module code; remove the pin or restore the module.',
+                    E_USER_WARNING,
+                );
+            }
+        }
+    }
+
+    /**
+     * RZ-35: claim the module version for this PHP process before its code loads.
+     *
+     * @throws ModuleVersionException When the process already loaded another version
+     */
+    private function claimVersion(Module $module): void
+    {
+        $info = $module->getModuleInfo();
+        ModuleVersionGuard::claim($info->getCode(), $info->getVersion(), $info->getVersionFolder(), $this->getIdentifier(), $info->getPath());
     }
 
     /**
@@ -1547,6 +1645,7 @@ class Distributor implements DistributorInterface
             }
 
             if ($module->getStatus() === ModuleStatus::Processing) {
+                $this->claimVersion($module);
                 if (!$module->initialize()) {
                     $module->unload();
                     return false;

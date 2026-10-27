@@ -105,9 +105,9 @@
       <thead><tr><th>Version String</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td><code>default</code></td><td>Load the <code>default/</code> version folder</td></tr>
-        <tr><td><code>*</code></td><td>Load the latest available version</td></tr>
+        <tr><td><code>*</code></td><td>Load the highest version folder, else <code>default/</code></td></tr>
         <tr><td><code>1.0.0</code></td><td>Load the exact <code>1.0.0/</code> version folder</td></tr>
-        <tr><td><code>&gt;=1.0.0</code></td><td>Load the latest version that satisfies the constraint (used in <code>require</code>)</td></tr>
+        <tr><td><code>&gt;=1.0.0</code>, <code>^1.4</code>, <code>~2.0.0</code></td><td>Load the highest version that satisfies the constraint (Composer rules). In <code>package.php</code> <code>require</code>, the loaded version of the dependency must satisfy it or the boot stops</td></tr>
       </tbody>
     </table>
 

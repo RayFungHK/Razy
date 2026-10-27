@@ -360,7 +360,7 @@ final class BootCompiler
 
             $decl['manifest'] = [
                 'folder' => $module->getModuleInfo()->getContainerPath(),
-                'version' => $module->getModuleInfo()->getVersion(),
+                'version' => $module->getModuleInfo()->getVersionFolder(),
                 'shared' => $module->getModuleInfo()->isShared(),
                 'standalone' => $module->getModuleInfo()->isStandalone(),
                 'config' => $moduleConfig,
