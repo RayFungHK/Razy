@@ -981,9 +981,34 @@ class UtilTest extends TestCase
 
     public function testVcCaretZeroMajor(): void
     {
-        // ^0.x: upper bound equals lower bound for zero-major, very restrictive
-        $this->assertFalse(VersionUtil::vc('^0.2.3', '0.2.3.0'));
+        // RZ-35: Composer caret, the first non-zero segment is fixed (^0.2.3 = >=0.2.3 <0.3.0).
+        // Before RZ-35 the upper bound equalled the lower bound, so ^0.x matched nothing.
+        $this->assertTrue(VersionUtil::vc('^0.2.3', '0.2.3.0'));
+        $this->assertTrue(VersionUtil::vc('^0.2.3', '0.2.9'));
         $this->assertFalse(VersionUtil::vc('^0.2.3', '0.3.0.0'));
+        $this->assertTrue(VersionUtil::vc('^0.0.3', '0.0.3'));
+        $this->assertFalse(VersionUtil::vc('^0.0.3', '0.0.4'));
+        $this->assertTrue(VersionUtil::vc('^0', '0.9.0'));
+        $this->assertFalse(VersionUtil::vc('^0', '1.0.0'));
+    }
+
+    public function testVcTildeWithZeroSegments(): void
+    {
+        // RZ-35: the written segment count decides the range, trailing zeros included.
+        // Before RZ-35 ~2.0.0 matched nothing and ~1.2.0 allowed 1.9.
+        $this->assertTrue(VersionUtil::vc('~2.0.0', '2.0.3'));
+        $this->assertFalse(VersionUtil::vc('~2.0.0', '2.1.0'));
+        $this->assertTrue(VersionUtil::vc('~1.2.0', '1.2.7'));
+        $this->assertFalse(VersionUtil::vc('~1.2.0', '1.9.0'));
+        $this->assertTrue(VersionUtil::vc('~1', '1.9.0'));
+        $this->assertFalse(VersionUtil::vc('~1', '2.0.0'));
+    }
+
+    public function testVcBareWildcardMatchesAnyVersion(): void
+    {
+        $this->assertTrue(VersionUtil::vc('*', '1.0.0'));
+        $this->assertTrue(VersionUtil::vc(' * ', '0.0.1'));
+        $this->assertFalse(VersionUtil::vc('*', 'not-a-version'));
     }
 
     public function testVcTildeRange(): void

@@ -65,9 +65,10 @@
     <span class="hl-str">'dist'</span> <span class="hl-op">=></span> <span class="hl-str">'mysite'</span>,
     <span class="hl-str">'modules'</span> <span class="hl-op">=></span> [
         <span class="hl-str">'*'</span> <span class="hl-op">=></span> [                           <span class="hl-cmt">// Default tag (wildcard)</span>
-            <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'*'</span>,      <span class="hl-cmt">// Latest version</span>
-            <span class="hl-str">'vendor/module-b'</span> <span class="hl-op">=></span> <span class="hl-str">'default'</span>, <span class="hl-cmt">// Default version</span>
-            <span class="hl-str">'vendor/module-c'</span> <span class="hl-op">=></span> <span class="hl-str">'1.0.0'</span>,  <span class="hl-cmt">// Specific version</span>
+            <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'*'</span>,      <span class="hl-cmt">// Highest version folder, else default/</span>
+            <span class="hl-str">'vendor/module-b'</span> <span class="hl-op">=></span> <span class="hl-str">'default'</span>, <span class="hl-cmt">// The default/ folder</span>
+            <span class="hl-str">'vendor/module-c'</span> <span class="hl-op">=></span> <span class="hl-str">'1.0.0'</span>,  <span class="hl-cmt">// The 1.0.0/ folder</span>
+            <span class="hl-str">'vendor/module-d'</span> <span class="hl-op">=></span> <span class="hl-str">'^1.4'</span>,   <span class="hl-cmt">// Highest version in the range</span>
         ],
         <span class="hl-str">'v2'</span> <span class="hl-op">=></span> [                          <span class="hl-cmt">// Tagged version</span>
             <span class="hl-str">'vendor/module-a'</span> <span class="hl-op">=></span> <span class="hl-str">'2.0.0'</span>,
@@ -114,12 +115,27 @@
 <span class="hl-str">'localhost'</span> <span class="hl-op">=></span> [
     <span class="hl-str">'/'</span> <span class="hl-op">=></span> <span class="hl-str">'mysite@v2'</span>,   <span class="hl-cmt">// Use the 'v2' tag</span>
 ],</code></pre>
-    <p>The <code>modules</code> table in <code>dist.php</code> maps tags to version sets. The <code>*</code> tag is the default/wildcard &mdash; it is used when no tag is specified or as a fallback. When a tag is specified:</p>
+    <p>The <code>modules</code> table in <code>dist.php</code> maps tags to version sets. The <code>*</code> set is the base, used when no tag is specified. When a tag is specified:</p>
     <ol>
-      <li>Razy loads the <code>*</code> (default) tag first as the base set.</li>
-      <li>The specified tag's entries override or supplement the defaults.</li>
+      <li>Razy takes the <code>*</code> set as the base.</li>
+      <li>The specified tag's entries override or add to it.</li>
     </ol>
-    <p>This enables switching between development and production module versions without changing distributor code.</p>
+    <p>A module code at the top level of <code>modules</code> (not inside a tag) counts as part of <code>*</code>. This lets two hosts run two versions of a module from one distributor, for example a <code>canary</code> tag that runs the next version for staging.</p>
+
+    <h3 id="module-versions">Module versions</h3>
+    <p>A module folder holds one folder per version next to <code>module.php</code>: <code>default/</code>, <code>dev/</code>, and folders named by semver number (<code>1.4.0/</code>). A pin selects one:</p>
+    <table>
+      <thead><tr><th>Pin</th><th>Loads</th></tr></thead>
+      <tbody>
+        <tr><td><em>not pinned</em></td><td><code>default/</code>; a module with no <code>default/</code> is not loaded</td></tr>
+        <tr><td><code>'default'</code>, <code>'dev'</code>, <code>'1.4.0'</code></td><td>that folder</td></tr>
+        <tr><td><code>'*'</code></td><td>the highest version, else <code>default/</code></td></tr>
+        <tr><td><code>'^1.4'</code>, <code>'~2.0.0'</code>, <code>'&gt;=1.0 &lt;2.0'</code>, <code>'1.4.*'</code></td><td>the highest version in the range (Composer rules)</td></tr>
+      </tbody>
+    </table>
+    <p><code>default/</code> takes part in range matching with the <code>'version'</code> its <code>package.php</code> declares; a numbered folder wins at the same version. A pin that matches no folder stops the boot with a <code>ModuleVersionException</code> that lists the folders found; a pin naming a module that does not exist prints a warning.</p>
+    <p>Before any module code runs, every <code>package.php</code> <code>'require'</code> constraint must hold for the version the distributor loads, or the boot stops with one error listing every conflict. A dependency with no semver version is not checked.</p>
+    <p>One PHP process runs one version of a module: class names carry no version, and worker mode keeps classes between requests. A process that loaded <code>vendor/engine</code> 1.4.0 for one distributor refuses 2.0.0 for another, with an error naming both. Serve distributors on different versions from separate processes (separate worker pools). Restart workers after changing a pin.</p>
 
     <h2 id="config-mapping">Config Mapping</h2>
     <p>When the same distributor code is reused across multiple domains, <code>dist.php</code> can include a <code>config_mapping</code> array to redirect each domain (and optionally tag) to a different configuration folder. This lets you share the same distributor logic while loading domain-specific settings.</p>

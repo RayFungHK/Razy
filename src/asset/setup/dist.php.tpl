@@ -15,11 +15,16 @@ return [
 	],
 	'autoload_shared' => {$autoload},
 
-	// A list to load modules by tag
+	// Module versions (RZ-35): tag => [module code => version]. '*' is the base set;
+	// a tag (sites.inc.php 'mysite@canary') overrides or adds entries. A version is a
+	// folder name ('default', '1.4.0'), '*' (the highest) or a semver range ('^1.4').
+	// Unpinned modules load default/. One PHP process runs one version of a module.
 	'modules'         => [
+		'*' => [
 		<!-- START BLOCK: modules -->
-        '{$module_code}' => '{$version}',
+			'{$module_code}' => '{$version}',
 		<!-- END BLOCK: modules -->
+		],
 	],
 
 	'exclude_module' => [

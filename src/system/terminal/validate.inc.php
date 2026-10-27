@@ -243,7 +243,7 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                     $totalErrors++;
 
                     if ($generateDummies) {
-                        $controllerDir = PathUtil::append($moduleInfo->getPath(), $moduleInfo->getVersion(), 'controller');
+                        $controllerDir = PathUtil::append($moduleInfo->getPath(), $moduleInfo->getVersionFolder(), 'controller');
                         $closureFile = PathUtil::append($controllerDir, $closurePath . '.php');
                         generateClosureFile($closureFile, $closurePath);
                         $generatedFiles++;
@@ -270,7 +270,7 @@ return function (string $distCode = '', ...$args) use (&$parameters) {
                     $totalErrors++;
 
                     if ($generateDummies) {
-                        $controllerDir = PathUtil::append($moduleInfo->getPath(), $moduleInfo->getVersion(), 'controller');
+                        $controllerDir = PathUtil::append($moduleInfo->getPath(), $moduleInfo->getVersionFolder(), 'controller');
                         $closureFile = PathUtil::append($controllerDir, $closurePath . '.php');
                         generateClosureFile($closureFile, $closurePath);
                         $generatedFiles++;

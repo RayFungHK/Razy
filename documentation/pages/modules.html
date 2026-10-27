@@ -142,10 +142,11 @@ sites/{distributor}/{vendor}/{module}/
     <h2 id="versioning">Module Versioning</h2>
     <p>Modules can have multiple version folders. The distributor's <code>dist.php</code> selects which version to load:</p>
     <pre><code><span class="hl-str">'modules'</span> => [
-    <span class="hl-str">'*'</span>   => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'default'</span>],  <span class="hl-cmt">// Default tag</span>
-    <span class="hl-str">'dev'</span> => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'0.1.0'</span>],    <span class="hl-cmt">// Dev tag</span>
-    <span class="hl-str">'v2'</span>  => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'2.0.0'</span>],    <span class="hl-cmt">// v2 tag</span>
+    <span class="hl-str">'*'</span>   => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'default'</span>],  <span class="hl-cmt">// Base set: the default/ folder</span>
+    <span class="hl-str">'dev'</span> => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'0.1.0'</span>],    <span class="hl-cmt">// Tag 'dev': the 0.1.0/ folder</span>
+    <span class="hl-str">'v2'</span>  => [<span class="hl-str">'vendor/module'</span> => <span class="hl-str">'^2.0'</span>],     <span class="hl-cmt">// Tag 'v2': the highest 2.x folder</span>
 ],</code></pre>
+    <p>A tag's set overrides the <code>'*'</code> set. Unpinned modules load <code>default/</code>. <code>package.php</code> <code>'require'</code> constraints are checked against the loaded versions, and one PHP process runs one version of a module. See <a href="sites-configuration.html#module-versions">Sites configuration &rsaquo; Module versions</a>.</p>
 
     <h2 id="shared-modules">Shared Modules</h2>
     <p>Shared modules live in <code>shared/module/</code> and are accessible to all distributors:</p>

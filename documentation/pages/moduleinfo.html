@@ -31,7 +31,8 @@
         <tr><td><code>getCode()</code></td><td><code>string</code></td><td>Full module code in vendor/package format</td></tr>
         <tr><td><code>getClassName()</code></td><td><code>string</code></td><td>Class name (last segment of the module code)</td></tr>
         <tr><td><code>getPath(bool $relative = false)</code></td><td><code>string</code></td><td>Module directory path (absolute or relative)</td></tr>
-        <tr><td><code>getVersion()</code></td><td><code>string</code></td><td>Module version string</td></tr>
+        <tr><td><code>getVersion()</code></td><td><code>string</code></td><td>Semver version: the numbered version folder, or the <code>'version'</code> that <code>default/</code> or <code>dev/</code> declares in <code>package.php</code>; the folder name when none is declared</td></tr>
+        <tr><td><code>getVersionFolder()</code></td><td><code>string</code></td><td>The version folder the module loaded from (<code>default</code>, <code>dev</code>, <code>1.4.0</code>); webasset URLs use it</td></tr>
         <tr><td><code>getAuthor()</code></td><td><code>string</code></td><td>Author name</td></tr>
         <tr><td><code>getDescription()</code></td><td><code>string</code></td><td>Module description</td></tr>
         <tr><td><code>getAlias()</code></td><td><code>string</code></td><td>Module alias (defaults to the class name if not set)</td></tr>
