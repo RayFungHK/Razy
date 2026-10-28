@@ -411,7 +411,8 @@ flags imports resolving to a sibling module's `vendor/module` namespace.
 one person, and its published API and the document that describes it are the contract. `module.php`
 names the owner in `'owner'`; `API.md` beside it lists every API command, bridge command and emitted
 event with signature, return shape and gate. Nobody edits another owner's module files: a consumer
-asks the owner for the change. What is not in `API.md` is not public.
+asks the owner for the change (review and the workspace Diff-vs-Scope check catch that; the lint
+does not). What is not in `API.md` is not public.
 Lint: `RZ-018` is structural — for each `module.php` in the paths it checks a non-empty `'owner'`,
 an `API.md`, and that every `addAPICommand` / `addBridgeCommand` / `trigger` name in the module's
 live (uncommented) code appears in `API.md` as `` `name` `` (a `#command` without the `#`).

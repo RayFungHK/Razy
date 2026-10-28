@@ -12,8 +12,9 @@ The Golden Rules below are the short form; rule IDs are stable and quotable.
    `file:line` in rationales. Generated docs may be stale; the repo README/manual are
    code-verified as of 2026-07.
 2. **Modules are separate legal entities, each with one owner.** The owner is named in
-   `module.php` `'owner'` and the module's `API.md` is the contract; nobody edits another owner's
-   module files — ask the owner (RZ-018, docs/STYLE.md §0). The only sanctioned cross-module surfaces
+   `module.php` `'owner'` and the module's `API.md` is the contract (RZ-018 checks both); nobody edits
+   another owner's module files — ask the owner (caught by review and the Diff-vs-Scope check,
+   docs/STYLE.md §0). The only sanctioned cross-module surfaces
    are: `addAPICommand` + `$this->api('vendor/mod')`, events (`listen`/`observe` +
    `trigger`), and gated bridge commands. Anything else crossing a module boundary is a
    defect.
@@ -41,7 +42,7 @@ The Golden Rules below are the short form; rule IDs are stable and quotable.
 | RZ-015 | Third-party runtime dependency in framework core (`src/`) | Harden the in-house primitive, or ship the dependency in a module/package (RZ-007 manifest) — core stays dependency-free |
 | RZ-016 | Migration execution from module/web paths (`getMigrationManager()` in a handler) | `php Razy.phar migrate <dist>` at deploy (or the declared wizard door once MODULE-LIFECYCLE L1 lands); never an install_action handler, never `__onReady` |
 | RZ-017 | Cross-module class imports (`use erp\user\Helper;` / FQCN of a sibling module) | `addAPICommand` + `api()` or events; probe with `api('vendor/mod')->has('cmd')`, never `method_exists()` |
-| RZ-018 | A module without `'owner'` or `API.md`; a command / event missing from `API.md`; editing another owner's module | Name the owner, document every published surface, ask the owner for changes |
+| RZ-018 | A module without `'owner'` or `API.md`; a literal command / event name missing from `API.md` (editing another owner's module is caught by review and Diff-vs-Scope, not this rule) | Name the owner, document every published surface, ask the owner for changes |
 | RZ-019 | A value concatenated or interpolated into a Where / Update / ORM syntax string | `:name` + `assign()`; a spliced identifier from your own allow-list carries `lint-allow: RZ-019 <reason>` |
 
 ## Definition of done (every change)

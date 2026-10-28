@@ -29,6 +29,9 @@ A `#command` (published and bound internally) is documented without the `#`; the
 The lint sees names written as literals; a name built at runtime (`trigger($name)`) is documented by hand and
 checked in review.
 
+RZ-018 does **not** see who edited a module: an edit to another owner's files is caught by review and by the
+workspace Diff-vs-Scope check (each PR stays inside its declared scope), not by this lint.
+
 `API.md` shape (the first-party modules under `modules/` are the reference):
 
 ```markdown
@@ -112,7 +115,10 @@ A Simple Syntax string (`where`, `orWhere`, `having`, `order`, `orderBy`, `group
 - ORM helpers (`whereIn`, `whereBetween`, ...) take one identifier and bind under the reserved `_mq_` prefix.
 
 Checked: **RZ-019** in both lints (modules and `src`), patterns in `tools/lint/rz019.php`; **RZ-003** for raw SQL
-and PDO in modules.
+and PDO in modules. RZ-019's limits: it looks at the syntax argument of the listed builder calls (a call may span
+lines; comments are skipped). It does not follow a value through a variable (`$s = 'id=' . $id; ->where($s)`),
+`sprintf()` / `implode()` building, or a builder method not in its list. Those are caught by review and by the
+engines refusing unknown operands at run time.
 
 ## 4. Plugin file contract
 
@@ -198,7 +204,8 @@ phpstan-baseline.neon`.
 
 | Rule | Tool | Where it runs |
 |---|---|---|
-| §0 owner + API doc (RZ-018) | `php tools/lint-module-discipline.php <module tree>` | CI `Module Discipline`, on `modules`, `demos`, `demo_modules` |
+| §0 owner + API.md + literal names documented (RZ-018) | `php tools/lint-module-discipline.php <module tree>` | CI `Module Discipline`, on `modules`, `demos`, `demo_modules` |
+| §0 nobody edits another owner's module | review + the workspace Diff-vs-Scope check | every PR |
 | §1 naming (STY-NAME), §7 sizes, §8 strict_types | `php tools/lint-style.php` | `composer quality`, CI `Module Discipline` |
 | §3 values through `:name` (RZ-019) | both lints | as above |
 | §8 formatting | `composer cs-check` | `composer quality`, CI `Code Style` |
