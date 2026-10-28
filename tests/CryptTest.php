@@ -409,6 +409,24 @@ class CryptTest extends TestCase
         $this->assertNull(Crypt::decrypt($legacy, self::LEGACY_KEY, true));
     }
 
+    public function testEmptyKeyIsRefusedBeforeTheLegacyPath(): void
+    {
+        // Grok repro: a legacy envelope forged under '' opened through the legacy branch,
+        // because the empty-key check sat only in the v2 key derivation
+        $iv = \str_repeat("\x11", 16);
+        $cipher = \openssl_encrypt('forged', 'AES-256-CBC', '', OPENSSL_RAW_DATA, $iv);
+        $legacy = $iv . \hash_hmac('sha256', $cipher, '', true) . $cipher;
+        $this->assertSame(64, \strlen($legacy));
+
+        foreach ([fn () => Crypt::decrypt($legacy, '', true), fn () => Crypt::needsReencrypt($legacy, ''), fn () => Crypt::decrypt(\bin2hex($legacy), '', true)] as $call) {
+            try {
+                $call();
+                $this->fail('expected InvalidArgumentException for an empty key');
+            } catch (InvalidArgumentException) {
+            }
+        }
+    }
+
     public function testEmptyPlaintextIsNotAFailure(): void
     {
         // Before: '' meant both "empty plaintext" and "tampered"; now a failure is null.

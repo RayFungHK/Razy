@@ -76,6 +76,7 @@ class Crypt
      */
     public static function decrypt(string $encryptedText, string $key, bool $allowLegacy = false): ?string
     {
+        self::assertKey($key);
         $data = self::toBinary($encryptedText);
 
         $plain = self::decryptV2($data, $key);
@@ -99,6 +100,7 @@ class Crypt
      */
     public static function encrypt(string $text, string $key, bool $toHex = false): string
     {
+        self::assertKey($key);
         [$encKey, $macKey] = self::deriveKeys($key);
         $iv = \random_bytes(self::IV_LENGTH);
 
@@ -123,6 +125,7 @@ class Crypt
      */
     public static function needsReencrypt(string $encryptedText, string $key): bool
     {
+        self::assertKey($key);
         $data = self::toBinary($encryptedText);
 
         return self::decryptV2($data, $key) === null && self::decryptLegacy($data, $key) !== null;
@@ -142,15 +145,24 @@ class Crypt
     }
 
     /**
+     * An empty secret protects nothing, in either format: refused at every public
+     * entry, before any format branch (it used to be aliased to "\0", and the legacy
+     * path accepted it as is, RZ-47).
+     *
+     * @throws InvalidArgumentException
+     */
+    private static function assertKey(string $key): void
+    {
+        if ($key === '') {
+            throw new InvalidArgumentException('Crypt needs a non-empty key.');
+        }
+    }
+
+    /**
      * @return array{0: string, 1: string} [AES key, HMAC key]
      */
     private static function deriveKeys(string $key): array
     {
-        if ($key === '') {
-            // An empty secret protects nothing; it used to be aliased to "\0" (RZ-47)
-            throw new InvalidArgumentException('Crypt needs a non-empty key.');
-        }
-
         return [
             \hash_hkdf('sha256', $key, 32, self::INFO_ENC),
             \hash_hkdf('sha256', $key, 32, self::INFO_MAC),
