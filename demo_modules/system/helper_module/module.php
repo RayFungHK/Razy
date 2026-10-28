@@ -12,6 +12,7 @@ return [
     'module_code' => 'system/helper_module',
     'name'        => 'Helper Module',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Companion module for await and shadow route demos',
     'version'     => '1.0.0',
 ];

@@ -21,6 +21,7 @@ return [
     'module_code' => 'razymod/oauth',
     'name' => 'Social Login',
     'author' => 'Razy Framework',
+    'owner' => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'OAuth2 social login routes (GitHub/Google/Microsoft Entra) on the Razy\Security\OAuth core: PKCE S256, signed single-use state, secrets from env, identity handed to the app via social.user_resolved — no users table (Q1)',
     'version' => '0.1.1', // RZ-012: patch — error-route JSON bodies finally emit (core XHR::responseAsBody revival); route layer unchanged. Was 0.1.0 (S5 first ship: protocol surface is the S2/S3 core's)
 ];

@@ -16,6 +16,7 @@ return [
 
     // Author name
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
 
     // Short description
     'description' => 'The simplest possible Razy module — one route, plain text output.',

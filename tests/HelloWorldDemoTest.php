@@ -217,10 +217,10 @@ class HelloWorldDemoTest extends TestCase
         $this->assertLessThan(30, \count($lines), 'Handler should be minimal');
     }
 
-    // ── Minimality: only 4 files ────────────────────────────────
+    // ── Minimality: 4 code files + the API.md contract ──────────
 
     #[Test]
-    public function moduleHasExactlyFourFiles(): void
+    public function moduleHasFourCodeFilesAndItsContract(): void
     {
         $files = [];
         $iterator = new RecursiveIteratorIterator(
@@ -234,7 +234,9 @@ class HelloWorldDemoTest extends TestCase
                 $files[] = $file->getPathname();
             }
         }
-        $this->assertCount(4, $files, 'Minimal demo should have exactly 4 files');
+        // RZ-42: every module carries its API.md, even one that publishes nothing (docs/STYLE.md §0)
+        $this->assertCount(5, $files, 'Minimal demo: 4 code files plus API.md');
+        $this->assertFileExists($this->moduleRoot . '/API.md');
     }
 
     // ── Comments (educational) ──────────────────────────────────

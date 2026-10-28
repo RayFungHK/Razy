@@ -15,6 +15,7 @@ return [
     'module_code' => 'core/template_demo',
     'name'        => 'Template Engine Demo',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Comprehensive demo of the Razy Template Engine',
     'version'     => '1.0.0',
 ];

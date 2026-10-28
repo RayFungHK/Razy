@@ -10,6 +10,7 @@ return [
     'module_code' => 'core/route_demo',
     'name'        => 'Route Demo Module',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Demonstrates addRoute() with URL parameter patterns',
     'version'     => '1.0.0',
 ];

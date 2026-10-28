@@ -14,6 +14,7 @@ return [
     'module_code' => 'data/hashmap_demo',
     'name'        => 'HashMap Demo',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Demonstrates Razy HashMap',
     'version'     => '1.0.0',
 ];

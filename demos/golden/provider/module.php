@@ -15,6 +15,7 @@ return [
     'module_code' => 'golden/provider',
     'name'        => 'Golden Provider',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Golden-path demo: publishes findUser() via addAPICommand and gates it with __onAPICall (RZ-010)',
     'version'     => '1.0.0', // RZ-012: bump on ANY released-surface change (API/event/route)
 ];

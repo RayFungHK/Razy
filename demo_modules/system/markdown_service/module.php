@@ -24,6 +24,7 @@ return [
     'module_code' => 'system/markdown_service',
     'name' => 'Markdown Service',
     'author' => 'Razy Framework',
+    'owner' => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Markdown parsing service using league/commonmark - demonstrates shared service pattern for version conflict resolution',
     'version' => '1.0.0',
 ];
