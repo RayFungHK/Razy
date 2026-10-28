@@ -1,0 +1,12 @@
+# RZ-39: classic FrankenPHP (no worker), several PHP threads, this folder as root.
+{
+	admin off
+	frankenphp {
+		num_threads 8
+	}
+}
+
+:{$RAZY_LOCALE_TEST_PORT:18390} {
+	root * {$RAZY_LOCALE_TEST_ROOT}
+	php_server
+}

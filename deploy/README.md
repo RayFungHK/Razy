@@ -71,7 +71,9 @@ circulating "db-read 8.8k RPS" figure (the measured values: 3,763 in 2026-02, 4,
 * Env vars referenced are real ones only: `RAZY_BRIDGE_SECRET` (+`_OLD` rotation
   window), `RAZY_ALLOW_INSECURE_TRANSPORT`, `RAZY_HEALTH_VERBOSE`,
   `RAZY_HEALTH_TOKEN`, `WORKER_MAX_REQUESTS`, `WORKER_GC_INTERVAL`, `RAZY_DEBUG`,
-  `RAZY_TIMEZONE`, `RAZY_TRUSTED_PROXIES` (comma-separated IPs/CIDRs, IPv4 or IPv6, of
+  `RAZY_TIMEZONE`, `RAZY_LOCALE_CTYPE` (LC_CTYPE candidates or `off`; unset keeps any
+  UTF-8 LC_CTYPE and calls no `setlocale()`, which threaded SAPIs need, RZ-39),
+  `RAZY_TRUSTED_PROXIES` (comma-separated IPs/CIDRs, IPv4 or IPv6, of
   the ingress/load balancer whose `X-Forwarded-*` headers Razy may believe; set it behind
   any TLS-terminating proxy), `RAZY_DOMAINS` (host list read by
   `Razy\Config\DomainList::fromEnv()` in `sites.inc.php`), `RAZY_MULTIPLE_SITE`-compatible config keys. DB/Redis host vars in

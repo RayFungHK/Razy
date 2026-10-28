@@ -15,4 +15,10 @@ return [
     // RZ-14: accept a client's X-Request-ID: 'any', 'trusted_proxy' or 'none'
     // (always generate). RAZY_REQUEST_ID_ACCEPT overrides this.
     'request_id_accept' => 'any',
+    // RZ-39: LC_CTYPE candidates for the bootstrap (tried in order; 'env' = the
+    // environment's locale), or 'off'. null = C.UTF-8, en_US.UTF-8, UTF-8, env,
+    // and any UTF-8 LC_CTYPE already in effect is kept (no setlocale() call, so a
+    // threaded SAPI never sees PHP's request-end locale reset).
+    // RAZY_LOCALE_CTYPE overrides this.
+    'locale_ctype' => null,
 ];

@@ -100,6 +100,28 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # RZ-39: the bootstrap locale setup under a threaded SAPI. Classic FrankenPHP,
+  # 8 PHP threads: the pre-RZ-39 per-request setlocale() must show another
+  # thread a non-UTF-8 LC_CTYPE (the check bites), Razy\Util\Locale must not.
+  # glibc and musl images, pinned by digest.
+  threaded-sapi:
+    name: Threaded SAPI locale (FrankenPHP ${{ matrix.libc }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - libc: glibc
+            image: dunglas/frankenphp:1.13.3-php8.3.36-trixie@sha256:18428b297fed09981e891352af83855140110aa06f2ead6bdc7fa2ee0bbe3157
+          - libc: musl
+            image: dunglas/frankenphp:1.13.3-php8.3.36-alpine@sha256:735ea8a7869b768d457a9c9d2680588b0f1ed8a78abf8b67a94543d7705c4005
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Locale race under FrankenPHP threads
+        run: bash tools/frankenphp-locale-race.sh docker "${{ matrix.image }}"
+
   code-style:
     name: Code Style
     runs-on: ubuntu-latest
