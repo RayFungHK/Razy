@@ -1,7 +1,7 @@
 <?php
 
 /**
- * razymod/permissions — governance command 'revoke-role' (governor-only, Q4).
+ * razymod/permissions — governance command 'revokeRole' (governor-only, Q4).
  * Idempotent: revoking an absent grant is a no-op success.
  */
 

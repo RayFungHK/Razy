@@ -9,12 +9,12 @@
  * to a shipped handler (RZ-014: the matrix test in the repo suite already
  * pinned these names before they existed).
  *
- * Deviation from the house `return new class() extends Controller` shape
- * (queue-admin): the class is NAMED in support/controller.php so the api/
+ * The behaviour lives in a NAMED class (support/controller.php) so the api/
  * handler closures — bound to this controller at execution — can annotate
- * their $this honestly and phpstan can verify the module (deviation stated
- * in the dossier S3 row). The file still returns an instance, exactly like
- * the anonymous-class shape did.
+ * their $this honestly and phpstan can verify the module. The file returns an
+ * ANONYMOUS subclass of it, the house `return new class() extends Controller`
+ * shape: Module::buildController() accepts only that (docs/STYLE.md §4), and
+ * returning the named instance stopped the module from booting (RZ-48).
  *
  * Config keys consumed (per-distributor, config/<dist>/permissions.php —
  * Module.php:1052-1056):
@@ -39,4 +39,5 @@ namespace Razy\Module\permissions;
 
 require_once __DIR__ . '/support/controller.php';
 
-return new PermissionController();
+return new class() extends PermissionController {
+};

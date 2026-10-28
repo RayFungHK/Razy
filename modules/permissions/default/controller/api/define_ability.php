@@ -1,7 +1,7 @@
 <?php
 
 /**
- * razymod/permissions — public API command 'define-ability' (idempotent
+ * razymod/permissions — public API command 'defineAbility' (idempotent
  * catalog insert; modules call it from their own __onReady after handshake,
  * §8). module_code is optional advisory metadata; the DECISION never reads
  * it (answers come from the actor-role-permission join).

@@ -16,7 +16,7 @@
  *   UUID principals both fit; a pure text reference, NEVER an FK into some
  *   app-owned users table; Q1: framework/module never owns the user row).
  * - allow-list only, no deny rows (§7.1, consistent with every Razy gate).
- * - composite UNIQUEs stand in for the app-side idempotency of assign-role.
+ * - composite UNIQUEs stand in for the app-side idempotency of assignRole.
  * - actor_permission (Q5) is deliberately absent: zero code, zero schema
  *   until a named use case reopens it.
  */

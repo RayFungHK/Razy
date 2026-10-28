@@ -33,7 +33,7 @@
  * join belongs in the framework, not in interpolated SQL (RZ-003).
  *
  * Memo (§7.6): per-actor ability sets live on THIS instance only — one
- * Service per call means memo = intra-call batching (can-any). S5 added the
+ * Service per call means memo = intra-call batching (canAny). S5 added the
  * cross-request layer: Razy\Cache behind `cache_ttl` (default 0 = OFF, no
  * ambient state by default), with the §7.6-MANDATED invalidation-on-write —
  * assignRole/revokeRole delete the actor's cached set unconditionally.
@@ -361,7 +361,7 @@ final class Service
 
     /**
      * Newest-first denials for one actor (dossier §8 contract:
-     * `audit-actor(string $actorKey): array`). Governor-only upstream.
+     * `auditActor(string $actorKey): array`). Governor-only upstream.
      *
      * @return list<array<string, mixed>>
      */

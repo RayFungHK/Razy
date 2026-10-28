@@ -41,7 +41,7 @@ class AppsController extends Controller
         'validate' => true,
         'compile' => true,
         'hash' => true,
-        'assign-ids' => true,
+        'assignIds' => true,
         'weight' => true,
     ];
 
@@ -51,7 +51,7 @@ class AppsController extends Controller
         $agent->addAPICommand('validate', 'api/validate');
         $agent->addAPICommand('compile', 'api/compile');
         $agent->addAPICommand('hash', 'api/hash');
-        $agent->addAPICommand('assign-ids', 'api/assign_ids');
+        $agent->addAPICommand('assignIds', 'api/assign_ids');
         $agent->addAPICommand('weight', 'api/weight');
 
         return true;

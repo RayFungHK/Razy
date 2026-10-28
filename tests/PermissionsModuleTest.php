@@ -56,14 +56,14 @@ class PermissionsModuleTest extends TestCase
         $none = [];
 
         // reads: open to any module, always
-        foreach (['can', 'can-any', 'abilities', 'define-ability'] as $cmd) {
+        foreach (['can', 'canAny', 'abilities', 'defineAbility'] as $cmd) {
             yield "read {$cmd} by governor" => [$cmd, 'acme/governor', $gov, true];
             yield "read {$cmd} by anyone" => [$cmd, 'other/mod', $gov, true];
             yield "read {$cmd} with no governor configured" => [$cmd, 'other/mod', $none, true];
         }
 
-        // governance: governor-named caller only (audit-actor joined with S5)
-        foreach (['roles-of', 'assign-role', 'revoke-role', 'audit-actor'] as $cmd) {
+        // governance: governor-named caller only (auditActor joined with S5)
+        foreach (['rolesOf', 'assignRole', 'revokeRole', 'auditActor'] as $cmd) {
             yield "govern {$cmd} by governor" => [$cmd, 'acme/governor', $gov, true];
             yield "govern {$cmd} by stranger" => [$cmd, 'evil/mod', $gov, false];
             yield "govern {$cmd} with no governor configured" => [$cmd, 'acme/governor', $none, false];

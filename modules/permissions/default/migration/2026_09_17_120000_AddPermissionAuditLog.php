@@ -53,7 +53,7 @@ return new class() extends Migration {
         $schema->raw($sql);
 
         if ('mysql' !== $driver && 'mariadb' !== $driver) {
-            // the read pattern is "one actor, newest first" (audit-actor API)
+            // the read pattern is "one actor, newest first" (auditActor API)
             $schema->raw("CREATE INDEX IF NOT EXISTS \"idx_{$table}permission_audit_log_actor\" ON \"{$table}permission_audit_log\" (\"actor_key\", \"id\")");
         }
     }
