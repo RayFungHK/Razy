@@ -24,7 +24,5 @@ parameters:
     dynamicConstantNames:
         - CLI_MODE
         - WEB_MODE
-    reportUnmatchedIgnoredErrors: false
-    ignoreErrors:
-        - '#Call to an undefined method#'
-        - '#Access to an undefined property#'
+    # No blanket ignore for undefined methods / properties (docs/STYLE.md §9): the modules
+    # declare their dynamic calls, so any new one fails here.

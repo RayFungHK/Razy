@@ -1,3 +1,8 @@
+includes:
+    # Per-call-site entries for undefined methods / properties (docs/STYLE.md §9): dynamic
+    # dispatch is declared (@method / @property) or listed here one by one; the list only shrinks.
+    - phpstan-baseline.neon
+
 parameters:
     level: 5
     bootstrapFiles:
@@ -13,10 +18,6 @@ parameters:
         - WEB_MODE
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
-        # Allow dynamic method calls via __call / __callStatic
-        - '#Call to an undefined method#'
-        # Allow dynamic property access via __get
-        - '#Access to an undefined property#'
         # PHPDoc @throws tags use unqualified 'Error' which resolves to namespace-local
         # (e.g. Razy\Database\Error) instead of \Razy\Error. Cosmetic PHPDoc issue.
         - '#PHPDoc tag @throws with type .+ is not subtype of Throwable#'

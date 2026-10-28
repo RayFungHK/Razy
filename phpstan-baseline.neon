@@ -1,0 +1,43 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to an undefined method Razy\\Controller\:\:__onPackageExec\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/library/Razy/Module.php
+
+		-
+			message: '#^Call to an undefined method Razy\\Controller\:\:__onPackageHealthcheck\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/library/Razy/Module.php
+
+		-
+			message: '#^Call to an undefined method Razy\\Controller\:\:__onPackageServe\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/library/Razy/Module.php
+
+		-
+			message: '#^Call to an undefined method Razy\\Controller\:\:__onPackageStart\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/library/Razy/Module.php
+
+		-
+			message: '#^Call to an undefined method Razy\\Controller\:\:__onPackageStop\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/library/Razy/Module.php
+
+		-
+			message: '#^Access to an undefined property Razy\\Tool\\SkillsGenerator\:\:\$sitesPath\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/library/Razy/Tool/SkillsGenerator.php
+
+		-
+			message: '#^Call to an undefined method Razy\\Validation\\ValidationRuleInterface\:\:passed\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/library/Razy/Validation/FieldValidator.php

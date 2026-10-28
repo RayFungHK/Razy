@@ -52,6 +52,10 @@ return (new Config())
         // PSR Standards
         '@PSR12' => true,                    // PSR-12 Extended Coding Style
         '@PSR12:risky' => true,              // PSR-12 risky rules
+        // docs/STYLE.md §1 / §8: four-space indentation, written out although @PSR12 has it, so the
+        // style file and this config name the same rule. Method-name case is not a fixer rule:
+        // tools/lint-style.php (STY-NAME) checks it.
+        'indentation_type' => true,
 
         // PHP 8.2+ Modern Syntax
         'modernize_types_casting' => true,   // Use (int) instead of intval()
