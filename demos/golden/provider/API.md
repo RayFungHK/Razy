@@ -16,5 +16,6 @@ Call with `$this->api('golden/provider')->findUser($id)`. `__onAPICall` admits o
 
 ## Events
 
-- `userSeen` — fired as `golden/provider:userSeen` after each `findUser` call, payload
+- `userSeen` — fired as `golden/provider:userSeen` when the module's own `/users` route handler has looked a
+  user up (through its internal `lookupUser` binding); a peer's `findUser` call does not fire it. Payload
   `['user_id' => int, 'found' => bool]`. Listen with `$agent->listen('golden/provider:userSeen', ...)`.

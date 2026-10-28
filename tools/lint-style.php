@@ -28,6 +28,8 @@
  */
 declare(strict_types=1);
 
+require_once __DIR__ . '/lint/php-source.php';
+
 const ROOT = __DIR__ . '/..';
 const MAX_FILE = 400;
 const MAX_CLASS = 400;
@@ -137,7 +139,7 @@ function scanFile(string $file): array
     if ($fileLines > MAX_FILE) {
         $findings[] = finding('STY-FILE', $path, $path, 1, $fileLines, "file has {$fileLines} lines (cap " . MAX_FILE . ')');
     }
-    if (!preg_match('/declare\s*\(\s*strict_types\s*=\s*1\s*\)/', $source)) {
+    if (!lintHasStrictTypes($source)) {
         $findings[] = finding('STY-STRICT', $path, $path, 1, null, 'no declare(strict_types=1)');
     }
     foreach (declarations($source) as [$kind, $name, $line, $size]) {
@@ -155,12 +157,9 @@ function scanFile(string $file): array
         }
     }
     $patterns = require __DIR__ . '/lint/rz019.php';
-    foreach ($lines as $i => $text) {
-        foreach ($patterns as $re) {
-            if (preg_match($re, $text) && !lineAllows($lines, $i, 'RZ-019')) {
-                $findings[] = finding('RZ-019', $path . ':' . ($i + 1), $path, $i + 1, null, 'value glued into a query-builder syntax string — use :name + assign(), or justify a spliced identifier with `lint-allow: RZ-019 <reason>`');
-                break;
-            }
+    foreach (lintRz019Lines($source, $patterns) as $line) {
+        if (!lineAllows($lines, $line - 1, 'RZ-019')) {
+            $findings[] = finding('RZ-019', $path . ':' . $line, $path, $line, null, 'value glued into a query-builder syntax string — use :name + assign(), or justify a spliced identifier with `lint-allow: RZ-019 <reason>`');
         }
     }
 

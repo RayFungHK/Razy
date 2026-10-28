@@ -78,6 +78,20 @@ class LintStyleTest extends TestCase
         $this->assertSame(['STY-STRICT' => [$this->dir . '/Loose.php']], $this->keys());
     }
 
+    public function testCommentedStrictTypesDoesNotCount(): void
+    {
+        $this->write('Commented.php', "<?php\n\n// declare(strict_types=1);\n\nnamespace Fixture;\n\nfunction helper(): void\n{\n}\n");
+
+        $this->assertSame(['STY-STRICT' => [$this->dir . '/Commented.php']], $this->keys());
+    }
+
+    public function testValueGluedOverSeveralLinesIsReported(): void
+    {
+        $this->write('Split.php', $this->classWith("    public function find(\$db, \$id): void\n    {\n        \$db->prepare()->where(\n            'id=' . \$id\n        );\n    }\n"));
+
+        $this->assertSame([11], \array_column($this->lint()['violations'], 'line'));
+    }
+
     public function testValueGluedIntoSyntaxNeedsAWrittenReason(): void
     {
         $body = "    public function find(\$db, \$id): void\n    {\n"

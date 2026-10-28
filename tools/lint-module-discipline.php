@@ -148,6 +148,7 @@ if ($selfTest) exit(selfTest());
 if ($paths === []) usage(2);
 if (!in_array($format, ['table', 'json'], true)) usage(2);
 
+require_once __DIR__ . '/lint/php-source.php';
 $rz019Patterns = require __DIR__ . '/lint/rz019.php';
 
 // ── Scan ─────────────────────────────────────────────────────────────────
@@ -258,7 +259,8 @@ foreach ($paths as $root) {
         // RZ-019: a value glued into Simple Syntax text becomes syntax
         if ($scope === 'php') {
             foreach (rz019Scan($lines, $rz019Patterns) as $i) {
-                if (isSuppressed($lines, $i, 'RZ-019')) { $lineSuppressions++; continue; }
+                // RZ-019 needs a written reason, not a bare allow (docs/STYLE.md §3)
+                if (isSuppressedWithReason($lines, $i, 'RZ-019')) { $lineSuppressions++; continue; }
                 $violations[] = violation($file, $i + 1, 'RZ-019', 'error', RZ019_DESC . ' — ' . trim(mb_substr($lines[$i], 0, 120)));
             }
         }
@@ -846,17 +848,31 @@ function rz017Scan(array $lines, array $nsMap, ?string $ownerRoot): array
  */
 function rz019Scan(array $lines, array $patterns): array
 {
-    $hits = [];
-    foreach ($lines as $i => $line) {
-        foreach ($patterns as $re) {
-            if (preg_match($re, $line)) {
-                $hits[] = $i;
-                break;
-            }
+    // Whole-file scan without comments, so a call split over lines is seen (lintRz019Lines)
+    $source = implode('', array_map(static fn ($l) => str_ends_with($l, "\n") ? $l : $l . "\n", $lines));
+    $offset = 0;
+    if (!str_starts_with(ltrim($source), '<?php')) {
+        $source = "<?php\n" . $source;
+        $offset = 1;
+    }
+
+    return array_values(array_filter(array_map(static fn ($n) => $n - 1 - $offset, lintRz019Lines($source, $patterns)), static fn ($i) => $i >= 0));
+}
+
+/**
+ * `lint-allow: <rule> <reason>` on the line or the one before it; a bare allow does not count.
+ *
+ * @param array<int, string> $lines
+ */
+function isSuppressedWithReason(array $lines, int $index, string $ruleId): bool
+{
+    foreach ([$lines[$index] ?? '', $index > 0 ? $lines[$index - 1] : ''] as $text) {
+        if (preg_match('/lint-allow:\s*' . preg_quote($ruleId, '/') . '\s+\S/', $text)) {
+            return true;
         }
     }
 
-    return $hits;
+    return false;
 }
 
 /**
@@ -875,7 +891,8 @@ function rz018Scan(string $moduleDir, array $excludes): array
     $manifest = $moduleDir . '/module.php';
     $source = (string) @file_get_contents($manifest);
     $found = [];
-    if (!preg_match('/[\'"]owner[\'"]\s*=>\s*[\'"]\s*[^\'"\s][^\'"]*[\'"]/', $source)) {
+    $owner = lintOwner($source);
+    if ($owner === null || $owner === '') {
         $found[] = [$manifest, 1, "module.php has no 'owner' (the one team or person who decides changes to this module)"];
     }
     $apiDoc = $moduleDir . '/API.md';
@@ -903,11 +920,6 @@ function rz018Scan(string $moduleDir, array $excludes): array
  */
 function publishedNames(string $moduleDir, array $excludes): array
 {
-    $kinds = [
-        'API command' => '/addAPICommand\(\s*[\'"]#?([^\'"]+)[\'"]/',
-        'bridge command' => '/addBridgeCommand\(\s*[\'"]([^\'"]+)[\'"]/',
-        'event' => '/->trigger\(\s*[\'"]([^\'"]+)[\'"]/',
-    ];
     $names = [];
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($moduleDir, FilesystemIterator::SKIP_DOTS));
     foreach ($it as $spl) {
@@ -917,50 +929,13 @@ function publishedNames(string $moduleDir, array $excludes): array
         foreach ($excludes as $ex) {
             if ($ex !== '' && str_contains($file, $ex)) continue 2;
         }
-        $lines = @file($file) ?: [];
-        foreach ($lines as $i => $line) {
-            // A commented-out or docblock example registration publishes nothing
-            if (preg_match('#^\s*(?://|\*|/\*|\#)#', $line)) continue;
-            foreach ($kinds as $kind => $re) {
-                if (preg_match_all($re, $line, $m)) {
-                    foreach ($m[1] as $name) {
-                        $names[] = [$file, $i + 1, $kind, $name];
-                    }
-                }
-            }
+        // Tokens, not text: comments and string literals publish nothing, a call may span lines
+        foreach (lintRegistrations((string) @file_get_contents($file)) as [$line, $kind, $name]) {
+            $names[] = [$file, $line, $kind, $name];
         }
-        array_push($names, ...batchRegistrations($file, $lines));
     }
 
     return $names;
-}
-
-/**
- * Names registered in the batch form, which may span lines:
- * addAPICommand(['name' => 'path', ...]) / addBridgeCommand([...]).
- *
- * @param array<int, string> $lines
- *
- * @return list<array{0: string, 1: int, 2: string, 3: string}>
- */
-function batchRegistrations(string $file, array $lines): array
-{
-    $source = implode('', $lines);
-    $found = [];
-    if (!preg_match_all('/(addAPICommand|addBridgeCommand)\(\s*\[(.*?)\]\s*\)/s', $source, $calls, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
-        return $found;
-    }
-    foreach ($calls as $call) {
-        $startLine = substr_count($source, "\n", 0, $call[0][1]);
-        if (preg_match('#^\s*(?://|\*|/\*|\#)#', $lines[$startLine] ?? '')) continue;
-        $kind = $call[1][0] === 'addAPICommand' ? 'API command' : 'bridge command';
-        preg_match_all('/[\'"]#?([^\'"]+)[\'"]\s*=>/', $call[2][0], $keys, PREG_OFFSET_CAPTURE);
-        foreach ($keys[1] as [$name, $offset]) {
-            $found[] = [$file, substr_count($source, "\n", 0, $call[2][1] + $offset) + 1, $kind, $name];
-        }
-    }
-
-    return $found;
 }
 
 function discoverModuleManifests(string $root, array $excludes): array
@@ -1009,6 +984,7 @@ function moduleDefinesBridgeGate(string $moduleRoot): bool
 
 function selfTest(): int
 {
+    require_once __DIR__ . '/lint/php-source.php';
     $cases = [
         // [scope, code, expected rule id or null for clean]
         ['php', "<?php\nrequire '../auth/default/helpers/x.php';\n", 'RZ-001'],
@@ -1185,6 +1161,8 @@ function selfTest(): int
         ["\$db->update('t', [\$col . \"=1\"]);", true],
         ["\$db->delete('t', ['id' => 1], \"id=\" . \$id);", true],
         ["\$q->where(\"id=:id\")->assign(['id' => \$id]);", false],
+        ["\$q->where(\n    'id=' . \$id\n);", true],
+        ["// \$q->where('id=' . \$id);", false],
         ["\$q->where('id=:id')->assign(['id' => \$id]);", false],
         ["\$q->where('title~=:q')->assign(['q' => '%' . \$k . '%']);", false],
         ["\$db->update('t', ['name', 'n++'])->where('id=:id');", false],
@@ -1207,6 +1185,9 @@ function selfTest(): int
         ['undocumented event + bridge', "'owner' => 'Payments team',", "`charge`\n", "\$this->trigger('paid'); \$agent->addBridgeCommand('sync', 'b/sync');", 2],
         ['commented-out registration publishes nothing', "'owner' => 'Payments team',", "`charge`\n", "// \$agent->addAPICommand('refund', 'api/refund');", 0],
         ['batch form, one line', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand(['charge' => 'api/charge', 'refund' => 'api/refund']);", 1],
+        ['owner only in a comment', "// 'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('charge', 'api/charge');", 1],
+        ['registration split over lines', "'owner' => 'Payments team',", "`refund`\n", "\$agent->addAPICommand(\n    'charge',\n    'api/charge'\n);", 1],
+        ['registration inside a string literal publishes nothing', "'owner' => 'Payments team',", "x\n", "echo '\$agent->addAPICommand(\"charge\", \"api/charge\");';", 0],
         ['batch form, multi-line, all documented', "'owner' => 'Payments team',", "`charge` `refund`\n", "\$agent->addAPICommand([\n    'charge' => 'api/charge',\n    '#refund' => 'api/refund',\n]);", 0],
     ];
     foreach ($rz018 as [$label, $ownerLine, $doc, $code, $expectHits]) {
