@@ -153,9 +153,9 @@ class WhereSyntax
             return \implode('', $parsed);
         };
 
-        $extracted = SimpleSyntax::parseSyntax($syntax, ',|', '=');
+        $extracted = SyntaxGuard::tryParse($syntax, ',|', '='); // null: unbalanced parentheses (RZ-47)
 
-        return $parser($extracted);
+        return (null === $extracted) ? '' : $parser($extracted);
     }
 
     /**
@@ -265,12 +265,8 @@ class WhereSyntax
         }
 
         $this->syntax = \trim($syntax);
-        $this->extracted = SimpleSyntax::parseSyntax($this->syntax, ',|', '=');
-        if ('' !== $this->syntax && [] === $this->extracted) {
-            // SimpleSyntax::parseParens() drops the whole expression at a stray ')'; a
-            // condition that silently vanished would match every row (RZ-41).
-            throw new QueryException('Invalid Where syntax: unbalanced parenthesis.');
-        }
+        // A stray ')' used to drop the whole condition, so the statement matched every row (RZ-41 / RZ-47)
+        $this->extracted = SyntaxGuard::parse('Where', $this->syntax, ',|', '=');
 
         return $this;
     }
@@ -415,10 +411,10 @@ class WhereSyntax
 
                 $jsonPath = '';
                 if (!empty($matches[4])) {
-                    // RZ-41: the path used to be appended as written. On SQLite and Postgres a
-                    // backslash does not escape, so `'$.a\' OR 1=1 --'` closed the literal early.
-                    // A path may not hold its own quote or a backslash; the driver re-quotes it.
-                    if (\str_contains($matches[7], $matches[6]) || \str_contains($matches[7], '\\')) {
+                    // RZ-41: the path used to be appended as written. On SQLite and Postgres a backslash does not
+                    // escape, so `'$.a\' OR 1=1 --'` closed the literal early. A path may not hold its own quote, a
+                    // backslash or a NUL (PDO::quote() truncates at it, RZ-47); the driver re-quotes it.
+                    if (\str_contains($matches[7], $matches[6]) || \str_contains($matches[7], '\\') || \str_contains($matches[7], "\0")) {
                         throw new InvalidOperandException($expr);
                     }
                     $jsonPath = $matches[5] . $this->statement->literal('$' . $matches[7]);

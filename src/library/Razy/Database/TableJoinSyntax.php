@@ -205,7 +205,7 @@ class TableJoinSyntax
 
         // Parse the syntax using SimpleSyntax with join operators, and a custom callback
         // that detects Preset class references and initializes them
-        $this->extracted = SimpleSyntax::parseSyntax($this->syntax, '-<>+', '', function ($syntax) {
+        $this->extracted = SyntaxGuard::parse('join', $this->syntax, '-<>+', '', function ($syntax) {
             // Match: [alias.]table[->PresetClass(args)][condition] with backtick-quoted name support
             if (\preg_match('/^(?:([a-z]\w*)\.)?(?:([a-z]\w*)|`((?:(?:\\\.(*SKIP)(*FAIL)|.)+|\\\[\\\`])+)`)(?:->(\w+)\((.+?)?\))?(\[[?:]?.+])?$/', $syntax, $matches)) {
                 $table = (isset($matches[3]) && $matches[3]) ? $matches[3] : $matches[2];

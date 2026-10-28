@@ -130,7 +130,10 @@ final class ParameterBinder
         if (!$this->params) {
             return [];
         }
-        \preg_match_all('/:(' . self::PREFIX . '\d+)(?!\w)/', $sql, $matches);
+        // Only placeholders outside quoted literals and quoted identifiers count: PDO skips those, so a
+        // `:rzp1` inside '...' would bind a value with no placeholder (RZ-47)
+        $outside = (string) \preg_replace('/\'(?:[^\'\\\]|\\\.|\'\')*\'|"(?:[^"\\\]|\\\.|"")*"|`(?:[^`]|``)*`/s', '', $sql);
+        \preg_match_all('/:(' . self::PREFIX . '\d+)(?!\w)/', $outside, $matches);
 
         return \array_intersect_key($this->params, \array_flip($matches[1]));
     }

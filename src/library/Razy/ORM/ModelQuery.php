@@ -181,7 +181,7 @@ class ModelQuery
      */
     public function whereNull(string $column): static
     {
-        $this->assertColumn($column);
+        Database\SyntaxGuard::identifier($column, true);
         $paramKey = $this->nextParamKey('wn');
         $this->wheres[] = [',', $column . '=:' . $paramKey];
         $this->helperBindings[$paramKey] = null;
@@ -198,7 +198,7 @@ class ModelQuery
      */
     public function whereNotNull(string $column): static
     {
-        $this->assertColumn($column);
+        Database\SyntaxGuard::identifier($column, true);
         $paramKey = $this->nextParamKey('wnn');
         $this->wheres[] = [',', '!' . $column . '=:' . $paramKey];
         $this->helperBindings[$paramKey] = null;
@@ -267,7 +267,7 @@ class ModelQuery
      */
     public function whereIn(string $column, array $values): static
     {
-        $this->assertColumn($column);
+        Database\SyntaxGuard::identifier($column, true);
         $paramKey = $this->nextParamKey('wi');
         $this->wheres[] = [',', $column . '|=:' . $paramKey];
         $this->helperBindings[$paramKey] = $values;
@@ -285,7 +285,7 @@ class ModelQuery
      */
     public function whereNotIn(string $column, array $values): static
     {
-        $this->assertColumn($column);
+        Database\SyntaxGuard::identifier($column, true);
         $paramKey = $this->nextParamKey('wni');
         $this->wheres[] = [',', '!' . $column . '|=:' . $paramKey];
         $this->helperBindings[$paramKey] = $values;
@@ -308,7 +308,7 @@ class ModelQuery
      */
     public function whereBetween(string $column, mixed $min, mixed $max): static
     {
-        $this->assertColumn($column);
+        Database\SyntaxGuard::identifier($column, true);
         $paramKey = $this->nextParamKey('wb');
         $this->wheres[] = [',', $column . '><:' . $paramKey];
         $this->helperBindings[$paramKey] = [$min, $max];
@@ -327,7 +327,7 @@ class ModelQuery
      */
     public function whereNotBetween(string $column, mixed $min, mixed $max): static
     {
-        $this->assertColumn($column);
+        Database\SyntaxGuard::identifier($column, true);
         $paramKey = $this->nextParamKey('wnb');
         $this->wheres[] = [',', '!' . $column . '><:' . $paramKey];
         $this->helperBindings[$paramKey] = [$min, $max];
@@ -750,16 +750,18 @@ class ModelQuery
     {
         $this->applyGlobalScopes();
         $table = $this->getTable();
-        $updateSyntax = \array_keys($attributes);
-        foreach ($updateSyntax as $column) {
-            // A key is a column name, never Update Simple Syntax (`name=(SELECT ...)`)
-            $this->assertColumn((string) $column, false);
-        }
         $this->assertNotReserved($attributes);
-
+        $updateSyntax = $setBindings = [];
+        foreach ($attributes as $column => $value) {
+            // A key is a column name, never Update Simple Syntax (`name=(SELECT ...)`); its value gets its own
+            // reserved placeholder: bound as `:column`, a same-named where() parameter replaced it (RZ-47)
+            Database\SyntaxGuard::identifier((string) $column);
+            $updateSyntax[] = $column . '=:' . ($key = $this->nextParamKey('set'));
+            $setBindings[$key] = $value;
+        }
         $stmt = $this->database->update($table, $updateSyntax);
         $this->applyWhere($stmt);
-        $stmt->assign(\array_merge($attributes, $this->allBindings()));
+        $stmt->assign(\array_merge($this->allBindings(), $setBindings));
 
         $this->database->execute($stmt);
 
@@ -834,20 +836,6 @@ class ModelQuery
     private function allBindings(): array
     {
         return \array_merge($this->bindings, $this->helperBindings);
-    }
-
-    /**
-     * A helper's column is one identifier, optionally alias-qualified (`t.col`);
-     * it is spliced into Simple Syntax, so `1=1|id` would become a condition.
-     *
-     * @throws QueryException
-     */
-    private function assertColumn(string $column, bool $qualified = true): void
-    {
-        $pattern = $qualified ? '/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?$/D' : '/^[A-Za-z_]\w*$/D';
-        if (!\preg_match($pattern, $column)) {
-            throw new QueryException('Invalid column name for a ModelQuery helper; pass one identifier.');
-        }
     }
 
     /**

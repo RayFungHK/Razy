@@ -11,6 +11,8 @@
 
 namespace Razy;
 
+use InvalidArgumentException;
+
 /**
  * Crypt provides symmetric AES-256-CBC encryption with HMAC-SHA256 authentication
  * (encrypt-then-MAC).
@@ -144,13 +146,14 @@ class Crypt
      */
     private static function deriveKeys(string $key): array
     {
-        // hash_hkdf() refuses an empty input key; an empty secret still yields keys
-        // (as encrypt() always has), it just protects nothing.
-        $ikm = ($key === '') ? "\0" : $key;
+        if ($key === '') {
+            // An empty secret protects nothing; it used to be aliased to "\0" (RZ-47)
+            throw new InvalidArgumentException('Crypt needs a non-empty key.');
+        }
 
         return [
-            \hash_hkdf('sha256', $ikm, 32, self::INFO_ENC),
-            \hash_hkdf('sha256', $ikm, 32, self::INFO_MAC),
+            \hash_hkdf('sha256', $key, 32, self::INFO_ENC),
+            \hash_hkdf('sha256', $key, 32, self::INFO_MAC),
         ];
     }
 

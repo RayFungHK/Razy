@@ -129,11 +129,19 @@ class SimpleSyntaxTest extends TestCase
     }
 
     #[Test]
-    public function parseParensUnmatchedClosingParenDiscarded(): void
+    public function parseParensStrayClosingParenIsAnError(): void
     {
-        // Closing paren without opening should be discarded
-        $result = SimpleSyntax::parseParens('a)b');
-        $this->assertIsArray($result);
+        // RZ-47: a stray ')' used to discard everything parsed so far
+        $this->expectException(\Razy\Exception\SyntaxException::class);
+        SimpleSyntax::parseParens('a)b');
+    }
+
+    #[Test]
+    public function parseParensUnclosedParenIsAnError(): void
+    {
+        // RZ-47: an unclosed '(' used to be read as if it were closed
+        $this->expectException(\Razy\Exception\SyntaxException::class);
+        SimpleSyntax::parseParens('a,(b=1');
     }
 
     #[Test]
