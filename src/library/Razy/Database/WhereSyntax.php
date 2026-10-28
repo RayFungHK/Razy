@@ -11,6 +11,7 @@
 
 namespace Razy\Database;
 
+use Razy\Exception\InvalidOperandException;
 use Razy\Exception\QueryException;
 use Razy\SimpleSyntax;
 use Throwable;
@@ -33,6 +34,29 @@ class WhereSyntax
 
     /** @var string Regex to validate and parse column references (with optional table alias and JSON path) */
     public const REGEX_COLUMN = '/^((?<column>`(?:\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/';
+
+    /** @var string A bare numeric literal: 1, -2, 3.5, .5, 1e3 */
+    public const REGEX_NUMBER = '/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/iD';
+
+    /**
+     * @var string A bare identifier or keyword in any case, optionally alias-qualified
+     *             (UserId, T.b, TRUE). REGEX_COLUMN takes the lower-case-first ones and quotes
+     *             them; these are emitted unquoted, as they always were.
+     */
+    public const REGEX_IDENTIFIER = '/^[a-z_]\w*(?:\.[a-z_]\w*)?$/iD';
+
+    /**
+     * @var list<string> Zero-argument SQL functions an operand may call, e.g. `expires>NOW()`.
+     *                   Anything with arguments goes through a :name placeholder instead.
+     */
+    public const SQL_FUNCTIONS = [
+        'CURDATE', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURTIME', 'LOCALTIME',
+        'LOCALTIMESTAMP', 'NOW', 'RAND', 'RANDOM', 'SYSDATE', 'UNIX_TIMESTAMP', 'UTC_DATE',
+        'UTC_TIME', 'UTC_TIMESTAMP', 'UUID',
+    ];
+
+    /** @var list<string> Operators whose right operand is bound as text, never emitted raw */
+    private const TEXT_RIGHT_OPERATORS = ['*=', '^=', '$=', '@='];
 
     /**
      * @var array<string, string> Maps syntax separators to SQL logical operators.
@@ -135,6 +159,35 @@ class WhereSyntax
     }
 
     /**
+     * True for the only operand shapes that may reach the SQL as written (RZ-41): a
+     * number, a bare identifier or keyword, or a zero-argument function from
+     * SQL_FUNCTIONS. None of them can carry a quote, an operator or an argument
+     * list, so none can smuggle SQL in. Shared with the Update Simple Syntax.
+     */
+    public static function isRawSafeOperand(string $operand): bool
+    {
+        return \preg_match(self::REGEX_NUMBER, $operand)
+            || \preg_match(self::REGEX_IDENTIFIER, $operand)
+            || (\preg_match('/^(\w+)\(\)$/D', $operand, $matches) && \in_array(\strtoupper($matches[1]), self::SQL_FUNCTIONS, true));
+    }
+
+    /**
+     * The value of a quoted literal ('text' or "text"), or null when the operand is
+     * not one. A quote inside it is doubled ('O''Brien') or backslash-escaped
+     * ('O\'Brien'); both decode to one quote, in one left-to-right pass so a decoded
+     * quote never pairs with the next. The caller binds the value, never pastes it.
+     */
+    public static function decodeQuoted(string $operand): ?string
+    {
+        if (!\preg_match('/^(?<q>[\'"])((?:\\\\\k<q>|\k<q>\k<q>|(?!\k<q>).)*)\k<q>$/', $operand, $matches)) {
+            return null;
+        }
+        $quote = $matches['q'];
+
+        return \preg_replace('/\\\\' . $quote . '|' . $quote . $quote . '/', $quote, $matches[2]);
+    }
+
+    /**
      * Generate the WHERE/HAVING clause SQL string.
      * Recursively processes grouped expressions, negation operators,
      * and individual comparison expressions.
@@ -173,7 +226,8 @@ class WhereSyntax
 
                 $operand = \array_shift($extracted);
                 if ($operand) {
-                    if (!\preg_match('/^[,|]$/', $operand)) {
+                    // A group glued to an expression (`NOW()(...)`) arrives here as an array
+                    if (!\is_string($operand) || !\preg_match('/^[,|]$/', $operand)) {
                         throw new QueryException('Invalid Where syntax');
                     }
                     $parsed[] = self::OPERAND_TYPE[$operand];
@@ -212,6 +266,11 @@ class WhereSyntax
 
         $this->syntax = \trim($syntax);
         $this->extracted = SimpleSyntax::parseSyntax($this->syntax, ',|', '=');
+        if ('' !== $this->syntax && [] === $this->extracted) {
+            // SimpleSyntax::parseParens() drops the whole expression at a stray ')'; a
+            // condition that silently vanished would match every row (RZ-41).
+            throw new QueryException('Invalid Where syntax: unbalanced parenthesis.');
+        }
 
         return $this;
     }
@@ -246,6 +305,13 @@ class WhereSyntax
         // Single operand (no operator): return as boolean or column reference
         if (1 == \count($splits)) {
             $expr = $this->parseOperand($clip);
+            if ('unknown' === $expr['type']) {
+                throw new InvalidOperandException($expr['text']);
+            }
+            if ('array' === $expr['type'] || 'invalid_array' === $expr['type']) {
+                // An array literal's text is not SQL (on SQLite `[...]` even quotes an identifier)
+                throw new InvalidOperandException($expr['expr']);
+            }
             if ('null' === $expr['type']) {
                 return ($negative) ? '1' : '0';
             }
@@ -319,7 +385,9 @@ class WhereSyntax
     /**
      * Parse an operand token into a typed structure.
      * Recognizes: '?' (auto), column references, :parameter references,
-     * quoted strings, array literals [val1,val2], NULL, and raw expressions.
+     * quoted strings, array literals [val1,val2], NULL, and the raw-safe
+     * expressions (numbers, bare identifiers, allow-listed zero-argument
+     * functions). Anything else is typed 'unknown' and refused by its caller.
      *
      * @param string $expr The operand string to parse
      *
@@ -345,10 +413,21 @@ class WhereSyntax
                     $column_name = \trim($matches[2], '`');
                 }
 
+                $jsonPath = '';
+                if (!empty($matches[4])) {
+                    // RZ-41: the path used to be appended as written. On SQLite and Postgres a
+                    // backslash does not escape, so `'$.a\' OR 1=1 --'` closed the literal early.
+                    // A path may not hold its own quote or a backslash; the driver re-quotes it.
+                    if (\str_contains($matches[7], $matches[6]) || \str_contains($matches[7], '\\')) {
+                        throw new InvalidOperandException($expr);
+                    }
+                    $jsonPath = $matches[5] . $this->statement->literal('$' . $matches[7]);
+                }
+
                 return [
                     'type' => 'column',
                     'column_name' => $column_name . ($matches[7] ?? ''),
-                    'expr' => (($table_alias) ? $this->qi($table_alias) . '.' : '') . $this->qi($column_name) . ($matches[4] ?? ''),
+                    'expr' => (($table_alias) ? $this->qi($table_alias) . '.' : '') . $this->qi($column_name) . $jsonPath,
                 ];
             }
             if (\preg_match('/^(?:(`(?:\\\.(*SKIP)(*FAIL)|.)+`)|([a-z]\w*))$/', $expr, $matches)) {
@@ -375,12 +454,12 @@ class WhereSyntax
                     'expr' => (\is_scalar($value)) ? $this->statement->sqlValue(\is_bool($value) ? $value : (string) $value) : null,
                 ];
             }
-            // Quoted string literal (single or double quoted)
-            if (\preg_match('/^(?<q>[\'"])((?:(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
+            // Quoted string literal, bound as a value (see decodeQuoted())
+            if (null !== ($text = self::decodeQuoted($expr))) {
                 return [
                     'type' => 'text',
-                    'text' => $matches[2],
-                    'expr' => $this->statement->sqlValue($matches[2]),
+                    'text' => $text,
+                    'expr' => $this->statement->sqlValue($text),
                 ];
             }
 
@@ -406,9 +485,19 @@ class WhereSyntax
                 ];
             }
 
+            if (self::isRawSafeOperand($expr)) {
+                return [
+                    'type' => 'expr',
+                    'expr' => $expr,
+                ];
+            }
+
+            // Anything else used to go into the SQL verbatim. It is refused wherever it
+            // would be emitted (comparison(), parseExpr()); only a LIKE / @= right side,
+            // which always bound it as a value, still accepts it.
             return [
-                'type' => 'expr',
-                'expr' => $expr,
+                'type' => 'unknown',
+                'text' => $expr,
             ];
         }
 
@@ -439,6 +528,24 @@ class WhereSyntax
         // Check for invalid array literals early
         if ('invalid_array' === $rightOperand['type']) {
             throw new QueryException('Invalid array syntax: ' . $rightOperand['raw']);
+        }
+        if ('array' === $leftOperand['type'] || 'invalid_array' === $leftOperand['type']) {
+            // Arrays are values for IN / BETWEEN / JSON on the right, never SQL on the left
+            throw new InvalidOperandException($leftOperand['expr']);
+        }
+
+        if ('unknown' === $rightOperand['type'] && \in_array($operator, self::TEXT_RIGHT_OPERATORS, true)) {
+            // Those builders bind 'text' themselves; 'expr' is never read on this path.
+            $rightOperand = [
+                'type' => 'text',
+                'text' => $rightOperand['text'],
+                'expr' => '',
+            ];
+        }
+        foreach ([$leftOperand, $rightOperand] as $operand) {
+            if ('unknown' === $operand['type']) {
+                throw new InvalidOperandException($operand['text']);
+            }
         }
 
         if ('|=' === $operator) {
@@ -862,6 +969,10 @@ class WhereSyntax
             }
 
             return 'CAST(\'[]\' AS JSON)';
+        }
+        if ('array' === $operand['type']) {
+            // Bound like a parameter array; the literal's text used to be pasted (RZ-41)
+            return 'CAST(' . $this->jsonValue(($acceptObject) ? $operand['value'] : \array_values($operand['value'])) . ' AS JSON)';
         }
         if ('text' === $operand['type']) {
             return 'CAST(' . $this->jsonValue([$operand['text']]) . ' AS JSON)';

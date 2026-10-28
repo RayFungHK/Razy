@@ -181,6 +181,30 @@ class ParameterBindingTest extends TestCase
         $db->getDBAdapter()?->exec('DROP TABLE rz_bind');
     }
 
+    public function testPostgresJsonPathCannotCloseItsLiteral(): void
+    {
+        // RZ-41: the JSON path was appended as written. Postgres does not treat a
+        // backslash as an escape, so this payload closed the literal and the DELETE
+        // ran with `OR 1=1`.
+        $db = $this->pg();
+        $db->getDBAdapter()?->exec('DROP TABLE IF EXISTS rz_jp; CREATE TABLE rz_jp (id INT, meta JSONB)');
+        $db->getDBAdapter()?->exec('INSERT INTO rz_jp VALUES (1, \'{"a":1}\'), (2, \'{"a":2}\')');
+
+        try {
+            $db->delete('rz_jp', ['id' => 1], "id->'$.a\\' OR 1=1 --'")->query();
+            $this->fail('expected InvalidOperandException');
+        } catch (\Razy\Exception\InvalidOperandException) {
+        }
+        $count = $db->prepare()->select('COUNT(*) AS c')->from('rz_jp')->query()->fetch();
+        $this->assertSame(2, (int) ($count['c'] ?? 0));
+
+        // A plain path is re-quoted by the driver, never pasted.
+        $sql = $db->prepare()->select('id')->from('rz_jp')->where("meta->>'$.a'=:v")->assign(['v' => '1'])->getSyntax();
+        $this->assertStringContainsString('"meta"->>\'$.a\'', $sql);
+
+        $db->getDBAdapter()?->exec('DROP TABLE rz_jp');
+    }
+
     public function testPostgresDebugLiteralForBoolean(): void
     {
         $db = $this->pg();

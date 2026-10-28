@@ -126,7 +126,25 @@ One string compiles to WHERE/JOIN SQL. Operator table, verbatim from the parser 
 | Logical | `,` = AND, `\|` = OR, grouping via `( )`, `!` prefix negation (`WhereSyntax.php:41-44, 86-93`) |
 
 Column references are validated against strict regexes (`REGEX_COLUMN`
-`WhereSyntax.php:35`; backticked or `\w` identifiers).
+`WhereSyntax.php:36`; backticked or `\w` identifiers).
+
+Operands (RZ-41). Each side of an operator must be one of: a column, a `:name`
+placeholder, `?` (the left column's value), quoted text, an array literal `[1,2]`,
+`NULL`, a number (`1`, `-2`, `3.5`, `1e3`), a bare identifier or keyword in any case
+(`UserId`, `TRUE`, emitted unquoted), or a zero-argument function from
+`WhereSyntax::SQL_FUNCTIONS` (`NOW()`, `CURRENT_TIMESTAMP`, `RAND()`, ...). Anything
+else (`b+1`, `SLEEP(5)`, `@x`, `0x1F`, an unquoted `~=` / `&=` / `#=` value) throws
+`Razy\Exception\InvalidOperandException` (a `QueryException`; the operand is in
+`getOperand()`, not the message) instead of going into the SQL raw. The right side of
+`*=` `^=` `$=` `@=` is bound as a value, so unquoted text there still works
+(`email*=@gmail`). Quoted text may contain its quote doubled or backslash-escaped
+(`'O''Brien'`, `'O\'Brien'`); it is decoded and bound. Bind anything else: `where('price<:max', ...)->assign(['max' => $n])`.
+An unbalanced `)` is a `QueryException` (before RZ-41 it silently dropped the whole WHERE).
+A JSON path (`meta->>'$.a'`) is re-quoted by the driver and may not contain its own quote
+or a backslash. The same operand rule covers Update Simple Syntax values (`n=n+1`,
+`updated_at=NOW()`, `name='x'` bound); anything else in SET throws, and an `update()` entry
+that is not `col`, `col++`, `col=value` or `col+=value` is an error instead of being
+skipped. `JOIN ... USING` columns (`[:id,org_id]`) must be columns and are quoted.
 
 JOIN syntax (readme + parser): `from` with relation syntax
 `'u.user-g.group[group_id]'` reads *`u` (users) — each `g` (groups) via `group_id`*.
@@ -261,7 +279,11 @@ $active = $User::query($db)                             // :306 → ModelQuery
 $page  = $User::query($db)->paginate(1, 15);           // :512 → Paginator
 ```
 
-ModelQuery also verified: `whereIn/whereNotIn` (`:242/:259`), `whereBetween` (`:281`),
+ModelQuery also verified: `whereIn/whereNotIn` (`:268/:286`), `whereBetween` (`:309`);
+each call binds its own placeholder (`_mq_wi_1`, `_mq_wi_2`, ...), so two calls on one
+column both apply (RZ-41; before, the second overwrote the first's values); a helper's
+column is one identifier (`col` or `t.col`); `where()` / `orWhere()` refuse parameter names
+starting with `_mq_`; `bulkUpdate()` keys are column names only,
 `select` (`:353`), `chunk` (`:578`), `cursor` (`:618`), `count` (`:488`), `first` (`:450`),
 `findOrFail` (`:473`), `create` (`:639`), `bulkUpdate` (`:665`), `bulkDelete` (`:683`),
 global scopes (`Model.php:336` `addGlobalScope`; query-side `withoutGlobalScope` `:371`),
@@ -342,8 +364,9 @@ builder quoting correctly*. Your obligations:
    (RZ-003). Do not interpolate.
 5. `{{expr}}` in assigned values emits raw SQL (`demo/.../insert.php:80`) — only ever feed
    it literals **you** wrote.
-6. In `where()`, plain literals (unquoted operators against bare words) are treated as
-   expressions/params per Simple Syntax; when in doubt use `assign()` + named params.
+6. In `where()`, an operand that is not a column, placeholder, quoted text, array, NULL,
+   number, bare identifier or allow-listed zero-argument function throws
+   `InvalidOperandException` (RZ-41, §3); use `assign()` + named params.
 7. If an app-level query is too complex for Simple Syntax, write raw SQL as a constant +
    `assign()` every dynamic value — and add a test (RZ-014).
 

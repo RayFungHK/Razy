@@ -27,6 +27,21 @@ class QueryBuilderEnhancedTest extends TestCase
         Model::clearBootedModels();
     }
 
+    /**
+     * @return array<string, array{0: callable(ModelQuery): mixed}>
+     */
+    public static function helperColumnInjections(): array
+    {
+        return [
+            'whereIn' => [fn (ModelQuery $q) => $q->whereIn('1=1|id', [0])],
+            'whereNotIn' => [fn (ModelQuery $q) => $q->whereNotIn('id|1=1', [0])],
+            'whereBetween' => [fn (ModelQuery $q) => $q->whereBetween('1=1|price', 0, 0)],
+            'whereNotBetween' => [fn (ModelQuery $q) => $q->whereNotBetween('price,1', 0, 0)],
+            'whereNull' => [fn (ModelQuery $q) => $q->whereNull('id|1=1,name')],
+            'whereNotNull' => [fn (ModelQuery $q) => $q->whereNotNull('(name)')],
+        ];
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Section 1: whereIn
     // ═══════════════════════════════════════════════════════════════
@@ -403,6 +418,144 @@ class QueryBuilderEnhancedTest extends TestCase
     // ═══════════════════════════════════════════════════════════════
     // Helpers
     // ═══════════════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════════════
+    // RZ-41: two calls on one column keep their own bindings
+    // ═══════════════════════════════════════════════════════════════
+
+    public function testTwoWhereInOnOneColumnBothApply(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        // Before RZ-41 the second call reused the first call's key and overwrote its values.
+        $query = QE_Item::query($db)
+            ->whereIn('category', ['electronics', 'books'])
+            ->whereIn('category', ['books', 'food']);
+
+        $this->assertSame(['Novel'], $query->get()->pluck('name'));
+        $this->assertSame(1, $query->count());
+    }
+
+    public function testTwoWhereBetweenOnOneColumnBothApply(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $results = QE_Item::query($db)
+            ->whereBetween('price', 10, 600)
+            ->whereBetween('price', 400, 2000)
+            ->get();
+
+        $this->assertSame(['Phone'], $results->pluck('name'));
+    }
+
+    public function testTwoNegatedHelpersOnOneColumnBothApply(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $notIn = QE_Item::query($db)
+            ->whereNotIn('category', ['electronics'])
+            ->whereNotIn('category', ['food'])
+            ->orderBy('name')
+            ->get();
+        $this->assertSame(['Desk', 'Novel'], $notIn->pluck('name'));
+
+        $notBetween = QE_Item::query($db)
+            ->whereNotBetween('price', 0, 10)
+            ->whereNotBetween('price', 900, 2000)
+            ->orderBy('name')
+            ->get();
+        $this->assertSame(['Desk', 'Novel', 'Phone'], $notBetween->pluck('name'));
+    }
+
+    public function testHelpersMixedOnOneColumnKeepTheirValues(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $results = QE_Item::query($db)
+            ->whereIn('category', ['electronics', 'books', 'food'])
+            ->whereNotIn('category', ['food'])
+            ->whereBetween('price', 10, 2000)
+            ->whereNotBetween('price', 900, 2000)
+            ->whereNotNull('category')
+            ->whereNotNull('name')
+            ->orderBy('name')
+            ->get();
+
+        $this->assertSame(['Novel', 'Phone'], $results->pluck('name'));
+    }
+
+    /**
+     * Reproduces on this PR's 91ba90d: the column is spliced into Simple Syntax,
+     * so `whereIn('1=1|id', [0])` returned every row. (On master the column-derived
+     * placeholder name `_wi_1=1|id` broke the syntax first.).
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('helperColumnInjections')]
+    public function testHelperColumnMustBeOneIdentifier(callable $call): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $this->expectException(\Razy\Exception\QueryException::class);
+        $call(QE_Item::query($db));
+    }
+
+    public function testHelperAcceptsAliasQualifiedColumn(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $this->assertSame(['Novel'], QE_Item::query($db)->whereIn('qe_items.category', ['books'])->get()->pluck('name'));
+    }
+
+    public function testWhereParamCannotReplaceAHelperBinding(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        // Reproduces on master: `_wi_category` was the helper's key, so this where()
+        // parameter replaced ['books'] and every row came back.
+        $results = QE_Item::query($db)
+            ->whereIn('category', ['books'])
+            ->where('price>:p', ['p' => 0, '_wi_category' => ['electronics', 'books']])
+            ->get();
+        $this->assertSame(['Novel'], $results->pluck('name'));
+    }
+
+    public function testReservedHelperPrefixIsRefusedInWhereAndOrWhere(): void
+    {
+        $db = $this->createDb();
+
+        foreach (['where', 'orWhere'] as $method) {
+            try {
+                QE_Item::query($db)->whereIn('category', ['books'])->{$method}('price>:p', ['p' => 0, '_mq_wi_1' => ['electronics']]);
+                $this->fail($method . ' accepted a reserved _mq_ parameter');
+            } catch (\Razy\Exception\QueryException $e) {
+                $this->assertStringContainsString('reserved', $e->getMessage());
+            }
+        }
+    }
+
+    public function testBulkUpdateKeyMustBeAColumnName(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        // Reproduces on master: the key was Update Simple Syntax, so the subquery ran
+        // and wrote every category into the row.
+        try {
+            QE_Item::query($db)->whereIn('category', ['books'])
+                ->bulkUpdate(['name=(SELECT group_concat(category) FROM qe_items)' => 'x']);
+            $this->fail('expected QueryException');
+        } catch (\Razy\Exception\QueryException) {
+        }
+        $this->assertSame(['Novel'], QE_Item::query($db)->whereIn('category', ['books'])->get()->pluck('name'));
+
+        $this->assertSame(1, QE_Item::query($db)->whereIn('category', ['books'])->bulkUpdate(['name' => 'Novella']));
+    }
 
     private function createDb(): Database
     {

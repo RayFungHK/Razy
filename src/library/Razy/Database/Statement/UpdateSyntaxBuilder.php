@@ -17,6 +17,8 @@
 namespace Razy\Database\Statement;
 
 use Razy\Database\Statement;
+use Razy\Database\WhereSyntax;
+use Razy\Exception\InvalidOperandException;
 use Razy\Exception\QueryException;
 
 /**
@@ -49,7 +51,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
             // Build SET clause with each column's update expression
             $updateSyntax = [];
             foreach ($updateExpressions as $column => $syntax) {
-                $updateSyntax[] = $quote($column) . ' = ' . $this->buildUpdateExpression($syntax, $column, $statement);
+                $updateSyntax[] = $quote($column) . ' = ' . $this->buildUpdateExpression($syntax, $column, $statement, $quote);
             }
 
             $sql = 'UPDATE ' . $tableName . ' SET ' . \implode(', ', $updateSyntax);
@@ -76,12 +78,13 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
      * @param array $updateSyntax The parsed update expression tokens
      * @param string $column The column name being updated
      * @param Statement $statement The statement instance for value resolution
+     * @param callable(string): string $quote The driver's identifier quoter
      *
      * @return string The SQL expression for the SET clause
      *
      * @throws Error If the update syntax is invalid
      */
-    private function buildUpdateExpression(array $updateSyntax, string $column, Statement $statement): string
+    private function buildUpdateExpression(array $updateSyntax, string $column, Statement $statement, callable $quote): string
     {
         $driver = $statement->getDatabase()->getDriver();
 
@@ -95,7 +98,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
         };
 
         // Recursive parser that processes operand tokens and builds SQL expressions
-        $parser = function (array &$extracted) use (&$parser, $column, $concat, $statement) {
+        $parser = function (array &$extracted) use (&$parser, $column, $concat, $statement, $quote) {
             $parsed = [];
             $operand = '';
             while ($clip = \array_shift($extracted)) {
@@ -110,13 +113,18 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                 } else {
                     if (!\preg_match('/^[+\-*\/&]$/', $clip)) {
                         $matches = null;
-                        if ('?' === $clip || \preg_match('/^:(\w+)$/', $clip, $matches)) {
+                        if (\preg_match('/^`([^`]+)`$/D', $clip, $matches)) {
+                            // A backtick column reference (also how Statement::update() writes the
+                            // shorthand's own column, `col++` / `col+=x`); "text" is always a value
+                            $clip = $quote($matches[1]);
+                        } elseif ('?' === $clip || \preg_match('/^:(\w+)$/', $clip, $matches)) {
                             $clip = $statement->getValueAsStatement(('?' === $clip) ? $column : $matches[1]);
-                        } else {
-                            // Replace inline :parameter references within complex expressions
-                            $clip = \preg_replace_callback('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|(?<w>\[)(?:\\\.(*SKIP)|[^\[\]])*]|\\\.)(*SKIP)(*FAIL)|:(\w+)/', function ($matches) use ($statement) {
-                                return $statement->getValueAsStatement($matches[3]);
-                            }, $clip);
+                        } elseif (null !== ($text = WhereSyntax::decodeQuoted($clip))) {
+                            $clip = $statement->sqlValue($text);
+                        } elseif (!WhereSyntax::isRawSafeOperand($clip)) {
+                            // RZ-41: any other token used to be pasted into SET as written
+                            // (`name=(SELECT ...)`); only the Where operand shapes may stay raw.
+                            throw new InvalidOperandException($clip);
                         }
 
                         if ('&' === $operand) {

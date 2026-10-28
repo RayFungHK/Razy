@@ -284,19 +284,27 @@ class TableJoinSyntax
             }
             $columns = \preg_split('/(?:(?<q>[\'"`])(?:\\\.(*SKIP)|(?!\k<q>).)*\k<q>|\\\.)(*SKIP)(*FAIL)|\s*,\s*/', $condition);
 
-            if (':' === $type && !$matches[2]) {
-                // USING clause: matching column names in both tables
-                return 'USING (' . \implode(', ', $columns) . ')';
-            }
-
             foreach ($columns as &$column) {
                 $column = \trim($column);
                 if (!\preg_match(Statement::REGEX_COLUMN, $column)) {
                     throw new QueryException('USING clause only allow column name.');
                 }
 
+                if (':' === $type && !$matches[2]) {
+                    // USING clause: validated and quoted like the ON branch (RZ-41: it was
+                    // concatenated as written, so `[:id); DROP TABLE t--]` reached the SQL)
+                    $column = $quote($column);
+
+                    continue;
+                }
+
                 // Generate explicit ON condition: source.column = alias.column
                 $column = $source . '.' . $quote($column) . ' = ' . $alias . '.' . $quote($column);
+            }
+            unset($column);
+
+            if (':' === $type && !$matches[2]) {
+                return 'USING (' . \implode(', ', $columns) . ')';
             }
 
             return 'ON ' . \implode(' AND ', $columns);

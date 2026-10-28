@@ -17,6 +17,7 @@ namespace Razy\ORM;
 use BadMethodCallException;
 use Generator;
 use Razy\Database;
+use Razy\Exception\QueryException;
 use Razy\ORM\Relation\BelongsTo;
 use Razy\ORM\Relation\BelongsToMany;
 use Razy\ORM\Relation\HasMany;
@@ -38,6 +39,9 @@ use ReflectionProperty;
  */
 class ModelQuery
 {
+    /** Placeholder prefix reserved for the where* helpers. */
+    private const RESERVED_PREFIX = '_mq_';
+
     /**
      * Accumulated where fragments as [conjunction, syntax] tuples.
      *
@@ -55,6 +59,21 @@ class ModelQuery
      * @var array<string, mixed>
      */
     private array $bindings = [];
+
+    /**
+     * Bindings of the where* helpers, under the reserved `_mq_` prefix. Kept
+     * apart from $bindings and merged last, so a where() parameter can never
+     * replace a helper's value (RZ-41).
+     *
+     * @var array<string, mixed>
+     */
+    private array $helperBindings = [];
+
+    /**
+     * Sequence for the placeholder names the where* helpers generate, so two
+     * calls on one column never share (and overwrite) a binding.
+     */
+    private int $paramSeq = 0;
 
     /**
      * Order-by expressions in Razy Simple Syntax (e.g. '<name', '>created_at').
@@ -162,9 +181,10 @@ class ModelQuery
      */
     public function whereNull(string $column): static
     {
-        $paramKey = '_wn_' . \str_replace('.', '_', $column);
+        $this->assertColumn($column);
+        $paramKey = $this->nextParamKey('wn');
         $this->wheres[] = [',', $column . '=:' . $paramKey];
-        $this->bindings[$paramKey] = null;
+        $this->helperBindings[$paramKey] = null;
 
         return $this;
     }
@@ -178,9 +198,10 @@ class ModelQuery
      */
     public function whereNotNull(string $column): static
     {
-        $paramKey = '_wnn_' . \str_replace('.', '_', $column);
+        $this->assertColumn($column);
+        $paramKey = $this->nextParamKey('wnn');
         $this->wheres[] = [',', '!' . $column . '=:' . $paramKey];
-        $this->bindings[$paramKey] = null;
+        $this->helperBindings[$paramKey] = null;
 
         return $this;
     }
@@ -197,6 +218,7 @@ class ModelQuery
      */
     public function where(string $syntax, array $params = []): static
     {
+        $this->assertNotReserved($params);
         $this->wheres[] = [',', $syntax];
         $this->bindings = \array_merge($this->bindings, $params);
 
@@ -224,6 +246,7 @@ class ModelQuery
      */
     public function orWhere(string $syntax, array $params = []): static
     {
+        $this->assertNotReserved($params);
         $this->wheres[] = ['|', $syntax];
         $this->bindings = \array_merge($this->bindings, $params);
 
@@ -244,9 +267,10 @@ class ModelQuery
      */
     public function whereIn(string $column, array $values): static
     {
-        $paramKey = '_wi_' . \str_replace('.', '_', $column);
+        $this->assertColumn($column);
+        $paramKey = $this->nextParamKey('wi');
         $this->wheres[] = [',', $column . '|=:' . $paramKey];
-        $this->bindings[$paramKey] = $values;
+        $this->helperBindings[$paramKey] = $values;
 
         return $this;
     }
@@ -261,9 +285,10 @@ class ModelQuery
      */
     public function whereNotIn(string $column, array $values): static
     {
-        $paramKey = '_wni_' . \str_replace('.', '_', $column);
+        $this->assertColumn($column);
+        $paramKey = $this->nextParamKey('wni');
         $this->wheres[] = [',', '!' . $column . '|=:' . $paramKey];
-        $this->bindings[$paramKey] = $values;
+        $this->helperBindings[$paramKey] = $values;
 
         return $this;
     }
@@ -283,9 +308,10 @@ class ModelQuery
      */
     public function whereBetween(string $column, mixed $min, mixed $max): static
     {
-        $paramKey = '_wb_' . \str_replace('.', '_', $column);
+        $this->assertColumn($column);
+        $paramKey = $this->nextParamKey('wb');
         $this->wheres[] = [',', $column . '><:' . $paramKey];
-        $this->bindings[$paramKey] = [$min, $max];
+        $this->helperBindings[$paramKey] = [$min, $max];
 
         return $this;
     }
@@ -301,9 +327,10 @@ class ModelQuery
      */
     public function whereNotBetween(string $column, mixed $min, mixed $max): static
     {
-        $paramKey = '_wnb_' . \str_replace('.', '_', $column);
+        $this->assertColumn($column);
+        $paramKey = $this->nextParamKey('wnb');
         $this->wheres[] = [',', '!' . $column . '><:' . $paramKey];
-        $this->bindings[$paramKey] = [$min, $max];
+        $this->helperBindings[$paramKey] = [$min, $max];
 
         return $this;
     }
@@ -723,10 +750,15 @@ class ModelQuery
         $this->applyGlobalScopes();
         $table = $this->getTable();
         $updateSyntax = \array_keys($attributes);
+        foreach ($updateSyntax as $column) {
+            // A key is a column name, never Update Simple Syntax (`name=(SELECT ...)`)
+            $this->assertColumn((string) $column, false);
+        }
+        $this->assertNotReserved($attributes);
 
         $stmt = $this->database->update($table, $updateSyntax);
         $this->applyWhere($stmt);
-        $stmt->assign(\array_merge($attributes, $this->bindings));
+        $stmt->assign(\array_merge($attributes, $this->allBindings()));
 
         $this->database->execute($stmt);
 
@@ -743,7 +775,7 @@ class ModelQuery
 
         // Build a delete with an explicit where syntax
         $whereSyntax = $this->buildWhereSyntax();
-        $stmt = $this->database->delete($table, $this->bindings, $whereSyntax);
+        $stmt = $this->database->delete($table, $this->allBindings(), $whereSyntax);
 
         $this->database->execute($stmt);
 
@@ -794,6 +826,54 @@ class ModelQuery
     }
 
     /**
+     * where() bindings with the helper bindings merged last, so the helpers win.
+     *
+     * @return array<string, mixed>
+     */
+    private function allBindings(): array
+    {
+        return \array_merge($this->bindings, $this->helperBindings);
+    }
+
+    /**
+     * A helper's column is one identifier, optionally alias-qualified (`t.col`);
+     * it is spliced into Simple Syntax, so `1=1|id` would become a condition.
+     *
+     * @throws QueryException
+     */
+    private function assertColumn(string $column, bool $qualified = true): void
+    {
+        $pattern = $qualified ? '/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?$/D' : '/^[A-Za-z_]\w*$/D';
+        if (!\preg_match($pattern, $column)) {
+            throw new QueryException('Invalid column name for a ModelQuery helper; pass one identifier.');
+        }
+    }
+
+    /**
+     * @param array<array-key, mixed> $params
+     *
+     * @throws QueryException
+     */
+    private function assertNotReserved(array $params): void
+    {
+        foreach (\array_keys($params) as $key) {
+            if (\str_starts_with((string) $key, self::RESERVED_PREFIX)) {
+                throw new QueryException('Parameter names starting with "' . self::RESERVED_PREFIX . '" are reserved for ModelQuery helpers.');
+            }
+        }
+    }
+
+    /**
+     * A placeholder name unique within this query, e.g. `_mq_wi_3`.
+     *
+     * @param string $kind Short helper tag (wi, wb, ...) for readable SQL logs
+     */
+    private function nextParamKey(string $kind): string
+    {
+        return self::RESERVED_PREFIX . $kind . '_' . (++$this->paramSeq);
+    }
+
+    /**
      * Apply accumulated where clauses and bindings to a Statement.
      */
     private function applyWhere(Database\Statement $stmt): void
@@ -804,8 +884,9 @@ class ModelQuery
             $stmt->where($syntax);
         }
 
-        if (!empty($this->bindings)) {
-            $stmt->assign($this->bindings);
+        $bindings = $this->allBindings();
+        if (!empty($bindings)) {
+            $stmt->assign($bindings);
         }
     }
 
