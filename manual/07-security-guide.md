@@ -29,7 +29,7 @@ the exact trap.
 
 ## 2. Encryption — `Razy\Crypt`
 
-Two statics, that's the whole API (verified in `src/library/Razy/Crypt.php`):
+Three statics, that's the whole API (verified in `src/library/Razy/Crypt.php`):
 
 ```php
 use Razy\Crypt;
@@ -63,7 +63,7 @@ if (strlen($key) !== 32) throw new RuntimeException('APP_CRYPTO_KEY missing');
 $sealed = Crypt::encrypt(json_encode($tokenData), $key);
 $data   = json_decode(Crypt::decrypt($sealed, $key) ?? 'null', true);   // null = tampered/wrong key
 ```
-*illustrative* composition; the two calls and the `''`-on-failure contract are verified.
+*illustrative* composition; the two calls and the `null`-on-failure contract are verified.
 
 ## 3. 2FA — `Razy\Authenticator`
 
