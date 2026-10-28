@@ -99,8 +99,8 @@ Checked by review: a new operator in a diff must appear in this table.
 
 ## 3. Values only through `:name`
 
-A Simple Syntax string (`where`, `orWhere`, `having`, `order`, `select`, `from`, `update`, `delete`) is parsed
-by the engine. Anything glued into the text becomes syntax.
+A Simple Syntax string (`where`, `orWhere`, `having`, `order`, `orderBy`, `group`, `groupBy`, `select`, `from`,
+`update` entries, the `delete` syntax argument) is parsed by the engine. Anything glued into the text becomes syntax.
 
 - Values enter as `:name` placeholders plus `assign()` (or the ORM's named parameters). Never interpolate or
   concatenate a value into the syntax string.
