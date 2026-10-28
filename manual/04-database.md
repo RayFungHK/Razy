@@ -126,7 +126,18 @@ One string compiles to WHERE/JOIN SQL. Operator table, verbatim from the parser 
 | Logical | `,` = AND, `\|` = OR, grouping via `( )`, `!` prefix negation (`WhereSyntax.php:41-44, 86-93`) |
 
 Column references are validated against strict regexes (`REGEX_COLUMN`
-`WhereSyntax.php:35`; backticked or `\w` identifiers).
+`WhereSyntax.php:36`; backticked or `\w` identifiers).
+
+Operands (RZ-41). Each side of an operator must be one of: a column, a `:name`
+placeholder, `?` (the left column's value), quoted text, an array literal `[1,2]`,
+`NULL`, a number (`1`, `-2`, `3.5`, `1e3`), a bare identifier or keyword in any case
+(`UserId`, `TRUE`, emitted unquoted), or a zero-argument function from
+`WhereSyntax::SQL_FUNCTIONS` (`NOW()`, `CURRENT_TIMESTAMP`, `RAND()`, ...). Anything
+else (`b+1`, `SLEEP(5)`, `@x`, `0x1F`, an unquoted `~=` / `&=` / `#=` value) throws
+`Razy\Exception\InvalidOperandException` (a `QueryException`; the operand is in
+`getOperand()`, not the message) instead of going into the SQL raw. The right side of
+`*=` `^=` `$=` `@=` is bound as a value, so unquoted text there still works
+(`email*=@gmail`). Bind anything else: `where('price<:max', ...)->assign(['max' => $n])`.
 
 JOIN syntax (readme + parser): `from` with relation syntax
 `'u.user-g.group[group_id]'` reads *`u` (users) — each `g` (groups) via `group_id`*.
@@ -261,7 +272,9 @@ $active = $User::query($db)                             // :306 → ModelQuery
 $page  = $User::query($db)->paginate(1, 15);           // :512 → Paginator
 ```
 
-ModelQuery also verified: `whereIn/whereNotIn` (`:242/:259`), `whereBetween` (`:281`),
+ModelQuery also verified: `whereIn/whereNotIn` (`:251/:268`), `whereBetween` (`:290`);
+each call binds its own placeholder (`_mq_wi_1`, `_mq_wi_2`, ...), so two calls on one
+column both apply (RZ-41; before, the second overwrote the first's values),
 `select` (`:353`), `chunk` (`:578`), `cursor` (`:618`), `count` (`:488`), `first` (`:450`),
 `findOrFail` (`:473`), `create` (`:639`), `bulkUpdate` (`:665`), `bulkDelete` (`:683`),
 global scopes (`Model.php:336` `addGlobalScope`; query-side `withoutGlobalScope` `:371`),
@@ -342,8 +355,9 @@ builder quoting correctly*. Your obligations:
    (RZ-003). Do not interpolate.
 5. `{{expr}}` in assigned values emits raw SQL (`demo/.../insert.php:80`) — only ever feed
    it literals **you** wrote.
-6. In `where()`, plain literals (unquoted operators against bare words) are treated as
-   expressions/params per Simple Syntax; when in doubt use `assign()` + named params.
+6. In `where()`, an operand that is not a column, placeholder, quoted text, array, NULL,
+   number, bare identifier or allow-listed zero-argument function throws
+   `InvalidOperandException` (RZ-41, §3); use `assign()` + named params.
 7. If an app-level query is too complex for Simple Syntax, write raw SQL as a constant +
    `assign()` every dynamic value — and add a test (RZ-014).
 
