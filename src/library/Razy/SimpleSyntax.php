@@ -110,6 +110,11 @@ class SimpleSyntax
         $closure = function (string &$clip, bool $opening = false) use (&$closure) {
             $extracted = [];
             if (!$clip) {
+                if ($opening) {
+                    // A '(' as the very last character: nothing left to close it
+                    throw new SyntaxException('Unbalanced parenthesis: a "(" is never closed.');
+                }
+
                 return $extracted;
             }
 

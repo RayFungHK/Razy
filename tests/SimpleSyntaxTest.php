@@ -145,6 +145,14 @@ class SimpleSyntaxTest extends TestCase
     }
 
     #[Test]
+    public function parseParensTrailingOpenParenIsAnError(): void
+    {
+        // Bugbot on #44: a '(' as the last character was read as an empty closed group
+        $this->expectException(\Razy\Exception\SyntaxException::class);
+        SimpleSyntax::parseParens('a=1,(');
+    }
+
+    #[Test]
     public function parseParensSkipsFunctionCallSyntax(): void
     {
         // "foo(bar)" where foo is a word followed by parens is treated as function call and skipped

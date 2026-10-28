@@ -60,6 +60,7 @@ class SecurityFollowupsTest extends TestCase
             'order, unclosed (' => [fn (Database $db) => $db->prepare()->select('*')->from('qe_items')->order('(id')->getSyntax()],
             'order, a group as key' => [fn (Database $db) => $db->prepare()->select('*')->from('qe_items')->order('(id)')->getSyntax()],
             'where, unclosed (' => [fn (Database $db) => $db->prepare()->select('*')->from('qe_items')->where('id=1,(name="a"')->getSyntax()],
+            'where, trailing (' => [fn (Database $db) => $db->prepare()->select('*')->from('qe_items')->where('id=1,(')->getSyntax()],
             'update value, unclosed (' => [fn (Database $db) => $db->update('qe_items', ['price=(price+1'])->where('id=1')->getSyntax()],
             'join, stray )' => [fn (Database $db) => $db->prepare()->select('*')->from('a.qe_items-b.qe_items[id])')->getSyntax()],
         ];
