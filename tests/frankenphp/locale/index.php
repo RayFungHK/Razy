@@ -32,7 +32,11 @@ if ('watch' === $mode) {
         }
     }
     \header('Content-Type: application/json');
-    echo \json_encode(['reads' => $reads, 'bad' => $bad, 'seen' => \array_keys($seen)]);
+    // glibc can hand back a half-freed name during the reset: keep it printable.
+    echo \json_encode(
+        ['reads' => $reads, 'bad' => $bad, 'seen' => \array_map('strval', \array_keys($seen))],
+        \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_THROW_ON_ERROR,
+    );
 
     return;
 }

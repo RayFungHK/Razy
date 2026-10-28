@@ -84,6 +84,9 @@ fixed="$(race fixed)"
 echo "fixed:  $fixed"
 python3 - "$legacy" "$fixed" <<'PY'
 import json, sys
+for label, raw in (("legacy", sys.argv[1]), ("fixed", sys.argv[2])):
+    if not raw.strip():
+        sys.exit(f"FAIL the {label} watcher returned nothing")
 legacy, fixed = json.loads(sys.argv[1]), json.loads(sys.argv[2])
 if legacy["reads"] < 1000 or fixed["reads"] < 1000:
     sys.exit(f"FAIL the watcher read too little to judge: {legacy['reads']} / {fixed['reads']}")
