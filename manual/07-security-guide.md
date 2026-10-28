@@ -34,17 +34,26 @@ Two statics, that's the whole API (verified in `src/library/Razy/Crypt.php`):
 ```php
 use Razy\Crypt;
 
-$sealed  = Crypt::encrypt($plaintext, $key);            // Crypt.php:83
+$sealed  = Crypt::encrypt($plaintext, $key);            // Crypt.php:100
 $sealed  = Crypt::encrypt($plaintext, $key, toHex: true);
-$plain   = Crypt::decrypt($sealed, $key);               // Crypt.php:37
+$plain   = Crypt::decrypt($sealed, $key);               // Crypt.php:73
+$old     = Crypt::needsReencrypt($stored, $key);        // Crypt.php:123, pre-RZ-41 value?
 ```
 
-- AES-256-CBC **encrypt-then-MAC** (HMAC-SHA256), fresh random IV per call, MAC compared
-  with `hash_equals` — verified in `RAZY-ANALYSIS-REPORT.md` §7.1 crypto review of this file.
+- Format v2 (RZ-41): `0x02` · IV (16) · ciphertext · HMAC-SHA256 (32). AES-256-CBC
+  **encrypt-then-MAC**: the HMAC covers version + IV + ciphertext, is compared with
+  `hash_equals`, and is checked **before** decryption. Fresh random IV per call.
+- **Two keys from one secret**: HKDF-SHA256 derives the AES key and the HMAC key with distinct
+  info strings; the secret itself is never used by either primitive.
 - **Tampered/corrupt input returns `''`** — check for the empty string; it is the failure
-  signal (audit-verified behaviour).
-- **Keys are raw bytes, there is no KDF**: use `random_bytes(32)` (or better, a KDF you run
-  yourself — `sodium_crypto_pwhist`/Argon2 via `sodium_*` — when deriving from passwords).
+  signal (pinned in `tests/CryptTest.php`, including an IV bit flip).
+- **The secret must be high-entropy**: HKDF is not a password hash. Use `random_bytes(32)`, or
+  run a password KDF yourself (Argon2 via `sodium_crypto_pwhash`) when deriving from passwords.
+- **Deprecated, removed in v2.0.0**: the pre-RZ-41 format (IV · HMAC over the ciphertext only ·
+  ciphertext, one key for AES and HMAC; its IV is unauthenticated, so a first-block bit flip
+  passed the MAC). `decrypt()` still reads it, verify-first, so stored values can be migrated:
+  where `needsReencrypt()` is true, decrypt and `encrypt()` again. `decrypt($s, $key, false)`
+  refuses it today.
   The same key must be used for encrypt/decrypt; store it outside the repo, read via
   `env()` (`bootstrap.inc.php:294`).
 

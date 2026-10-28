@@ -14,16 +14,21 @@
 
   <main class="main-content">
     <h1>Crypt</h1>
-    <p>The <code>Crypt</code> class provides simple, symmetric encryption and decryption using AES-256-CBC. It exposes only two static methods &mdash; no instantiation required.</p>
+    <p>The <code>Crypt</code> class provides symmetric authenticated encryption: AES-256-CBC with HMAC-SHA256, encrypt-then-MAC. It exposes static methods only &mdash; no instantiation required.</p>
 
     <h2 id="methods">Methods</h2>
     <table>
       <thead><tr><th>Method</th><th>Return</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>Crypt::encrypt(string $text, string $key, bool $toHex = false)</code></td><td><code>string</code></td><td>Encrypt plaintext with AES-256-CBC</td></tr>
-        <tr><td><code>Crypt::decrypt(string $encryptedText, string $key)</code></td><td><code>string</code></td><td>Decrypt ciphertext back to plaintext</td></tr>
+        <tr><td><code>Crypt::decrypt(string $encryptedText, string $key, bool $allowLegacy = true)</code></td><td><code>string</code></td><td>Verify, then decrypt; <code>''</code> on tampering, wrong key or malformed input</td></tr>
+        <tr><td><code>Crypt::needsReencrypt(string $encryptedText, string $key)</code></td><td><code>bool</code></td><td>True when the value opens only through the deprecated pre-RZ-41 format</td></tr>
       </tbody>
     </table>
+
+    <h2 id="format">Format (v2, since RZ-41)</h2>
+    <p><code>0x02</code> (version) &middot; IV (16 bytes) &middot; ciphertext &middot; HMAC-SHA256 (32 bytes), raw or hex. The HMAC covers version, IV and ciphertext and is checked in constant time before anything is decrypted. The AES key and the HMAC key are derived separately from your secret with HKDF-SHA256 (info strings <code>razy-crypt-v2-aes-256-cbc</code> and <code>razy-crypt-v2-hmac-sha256</code>). The secret should be high-entropy (<code>random_bytes(32)</code>); HKDF is not a password hash.</p>
+    <p><strong>Deprecated:</strong> the pre-RZ-41 format (IV &middot; HMAC over the ciphertext only &middot; ciphertext, one key for both) still decrypts, read-only, so stored values can be migrated: decrypt and <code>encrypt()</code> again wherever <code>needsReencrypt()</code> is true. Its IV is not authenticated. Pass <code>$allowLegacy = false</code> to refuse it now; the legacy path is removed in v2.0.0.</p>
 
     <h2 id="encrypt">encrypt</h2>
     <pre><code><span class="hl-kw">use</span> <span class="hl-cls">Razy\Crypt</span>;
