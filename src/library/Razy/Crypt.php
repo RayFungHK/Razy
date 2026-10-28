@@ -30,10 +30,11 @@ namespace Razy;
  *
  * Legacy format (v1, written before RZ-41): IV (16) . HMAC (32) . ciphertext, with the
  * HMAC over the ciphertext only and the raw secret used for both AES and HMAC. Its IV is
- * not authenticated, so a first-block bit flip passes its MAC. decrypt() still reads it
- * (read-only, verify before decrypt) so stored values can be migrated; it is
- * deprecated and the legacy path is removed in v2.0.0. Re-encrypt stored values with
- * encrypt() (see needsReencrypt()), or pass `$allowLegacy = false` to refuse it now.
+ * not authenticated, so a first-block bit flip passes its MAC. decrypt() refuses it
+ * unless the caller opts in with `$allowLegacy = true` to migrate stored values
+ * (read-only, verify before decrypt); the opt-in is removed in v2.0.0. A legacy MAC
+ * does not cover the first block, so re-encrypting a legacy value does not prove its
+ * integrity: re-encryption seals whatever the first block says.
  *
  * Both formats may be passed raw or hex-encoded.
  *
@@ -62,15 +63,16 @@ class Crypt
      *
      * Accepts raw binary or hex. The HMAC is verified before decryption; any
      * tampering (version, IV, ciphertext or tag), a wrong key or malformed input
-     * returns an empty string.
+     * returns null, so a failure is never mistaken for an empty plaintext.
      *
      * @param string $encryptedText The encrypted data (hex string or raw binary)
      * @param string $key The secret
-     * @param bool $allowLegacy Also accept the deprecated pre-RZ-41 format (removed in v2.0.0)
+     * @param bool $allowLegacy Also accept the deprecated pre-RZ-41 format, for migration
+     *                          only (its first block is unauthenticated; removed in v2.0.0)
      *
-     * @return string The plaintext, or empty string on failure
+     * @return string|null The plaintext, or null on failure
      */
-    public static function decrypt(string $encryptedText, string $key, bool $allowLegacy = true): string
+    public static function decrypt(string $encryptedText, string $key, bool $allowLegacy = false): ?string
     {
         $data = self::toBinary($encryptedText);
 
@@ -81,11 +83,7 @@ class Crypt
 
         // A legacy envelope opens with a random IV, so it can also start with 0x02:
         // every input that fails v2 is tried as legacy, never the other way round.
-        if ($allowLegacy) {
-            return self::decryptLegacy($data, $key) ?? '';
-        }
-
-        return '';
+        return ($allowLegacy) ? self::decryptLegacy($data, $key) : null;
     }
 
     /**
@@ -115,7 +113,8 @@ class Crypt
 
     /**
      * True when the value decrypts only through the deprecated legacy path, so it
-     * should be re-encrypted with encrypt() before v2.0.0 removes that path.
+     * should be migrated (decrypt with `$allowLegacy = true`, then encrypt()) before
+     * v2.0.0 removes that path. Migration does not prove the value's integrity.
      *
      * @param string $encryptedText The encrypted data (hex string or raw binary)
      * @param string $key The secret

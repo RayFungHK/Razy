@@ -160,7 +160,7 @@ class CryptTest extends TestCase
         $encrypted = Crypt::encrypt($text, $correctKey);
         $decrypted = Crypt::decrypt($encrypted, $wrongKey);
 
-        $this->assertEquals('', $decrypted);
+        $this->assertNull($decrypted);
     }
 
     #[DataProvider('keyLengthProvider')]
@@ -202,7 +202,7 @@ class CryptTest extends TestCase
         $decrypted = Crypt::decrypt($tampered, $this->testKey);
 
         // Tampered data should not decrypt properly
-        $this->assertEquals('', $decrypted);
+        $this->assertNull($decrypted);
     }
 
     public function testInvalidCiphertextFormat(): void
@@ -210,13 +210,13 @@ class CryptTest extends TestCase
         $invalid = 'this-is-not-valid-ciphertext';
         $decrypted = Crypt::decrypt($invalid, $this->testKey);
 
-        $this->assertEquals('', $decrypted);
+        $this->assertNull($decrypted);
     }
 
     public function testEmptyCiphertext(): void
     {
         $decrypted = Crypt::decrypt('', $this->testKey);
-        $this->assertEquals('', $decrypted);
+        $this->assertNull($decrypted);
     }
 
     // ==================== BINARY VS HEX ====================
@@ -331,7 +331,7 @@ class CryptTest extends TestCase
         for ($byte = 1; $byte <= 16; $byte++) {
             $tampered = $sealed;
             $tampered[$byte] = \chr(\ord($tampered[$byte]) ^ 0x01);
-            $this->assertSame('', Crypt::decrypt($tampered, self::KAT_KEY), "IV byte {$byte}");
+            $this->assertNull(Crypt::decrypt($tampered, self::KAT_KEY), "IV byte {$byte}");
         }
     }
 
@@ -343,7 +343,7 @@ class CryptTest extends TestCase
         for ($byte = 0; $byte <= 16; $byte++) {
             $tampered = $sealed;
             $tampered[$byte] = \chr(\ord($tampered[$byte]) ^ 0x01);
-            $this->assertSame('', Crypt::decrypt($tampered, self::KAT_KEY), "byte {$byte}");
+            $this->assertNull(Crypt::decrypt($tampered, self::KAT_KEY), "byte {$byte}");
         }
     }
 
@@ -352,31 +352,44 @@ class CryptTest extends TestCase
         $sealed = \hex2bin(self::KAT_V2);
         $tampered = $sealed;
         $tampered[\strlen($tampered) - 32] = \chr(\ord($tampered[\strlen($tampered) - 32]) ^ 0x80);
-        $this->assertSame('', Crypt::decrypt($tampered, self::KAT_KEY));
+        $this->assertNull(Crypt::decrypt($tampered, self::KAT_KEY));
 
         // A tag that is the old single-key MAC over the same bytes is refused too.
         $signed = \substr($sealed, 0, -32);
-        $this->assertSame('', Crypt::decrypt($signed . \hash_hmac('sha256', $signed, self::KAT_KEY, true), self::KAT_KEY));
+        $this->assertNull(Crypt::decrypt($signed . \hash_hmac('sha256', $signed, self::KAT_KEY, true), self::KAT_KEY));
     }
 
     public function testVersionAndCiphertextTamperFail(): void
     {
         $sealed = \hex2bin(self::KAT_V2);
         foreach (["\x01", "\x03", "\x00"] as $version) {
-            $this->assertSame('', Crypt::decrypt($version . \substr($sealed, 1), self::KAT_KEY));
+            $this->assertNull(Crypt::decrypt($version . \substr($sealed, 1), self::KAT_KEY));
         }
         $tampered = $sealed;
         $tampered[20] = \chr(\ord($tampered[20]) ^ 0x01);
-        $this->assertSame('', Crypt::decrypt($tampered, self::KAT_KEY));
-        $this->assertSame('', Crypt::decrypt(\substr($sealed, 0, -1), self::KAT_KEY), 'truncated');
+        $this->assertNull(Crypt::decrypt($tampered, self::KAT_KEY));
+        $this->assertNull(Crypt::decrypt(\substr($sealed, 0, -1), self::KAT_KEY), 'truncated');
     }
 
     public function testLegacyCiphertextStillDecrypts(): void
     {
-        $this->assertSame("legacy plaintext: RZ-41 \u{1F512}", Crypt::decrypt(self::LEGACY_HEX, self::LEGACY_KEY));
+        $this->assertSame("legacy plaintext: RZ-41 \u{1F512}", Crypt::decrypt(self::LEGACY_HEX, self::LEGACY_KEY, true));
         $this->assertTrue(Crypt::needsReencrypt(self::LEGACY_HEX, self::LEGACY_KEY));
         $this->assertFalse(Crypt::needsReencrypt(self::LEGACY_HEX, 'wrong-key'));
-        $this->assertSame('', Crypt::decrypt(self::LEGACY_HEX, self::LEGACY_KEY, false), 'legacy refused on request');
+        $this->assertNull(Crypt::decrypt(self::LEGACY_HEX, self::LEGACY_KEY), 'legacy is refused unless the caller opts in');
+    }
+
+    public function testLegacyFirstBlockFlipIsRefusedByDefault(): void
+    {
+        // The legacy MAC skips the IV: flipping an IV bit flips the first plaintext
+        // block and still passes it. Only the explicit migration opt-in accepts that.
+        $legacy = \hex2bin(self::LEGACY_HEX);
+        $legacy[0] = \chr(\ord($legacy[0]) ^ 0x01);
+
+        $this->assertNull(Crypt::decrypt($legacy, self::LEGACY_KEY));
+        $flipped = Crypt::decrypt($legacy, self::LEGACY_KEY, true);
+        $this->assertNotNull($flipped);
+        $this->assertNotSame("legacy plaintext: RZ-41 \u{1F512}", $flipped, 'the hazard the CHANGELOG names');
     }
 
     public function testLegacyWhoseIvStartsWithTheVersionByteStillDecrypts(): void
@@ -385,19 +398,26 @@ class CryptTest extends TestCase
         $cipher = \openssl_encrypt('old', 'AES-256-CBC', self::LEGACY_KEY, OPENSSL_RAW_DATA, $iv);
         $legacy = $iv . \hash_hmac('sha256', $cipher, self::LEGACY_KEY, true) . $cipher;
 
-        $this->assertSame('old', Crypt::decrypt($legacy, self::LEGACY_KEY));
+        $this->assertSame('old', Crypt::decrypt($legacy, self::LEGACY_KEY, true));
     }
 
     public function testLegacyTamperStillFails(): void
     {
         $legacy = \hex2bin(self::LEGACY_HEX);
         $legacy[\strlen($legacy) - 1] = \chr(\ord($legacy[\strlen($legacy) - 1]) ^ 0x01);
-        $this->assertSame('', Crypt::decrypt($legacy, self::LEGACY_KEY));
+        $this->assertNull(Crypt::decrypt($legacy, self::LEGACY_KEY, true));
+    }
+
+    public function testEmptyPlaintextIsNotAFailure(): void
+    {
+        // Before: '' meant both "empty plaintext" and "tampered"; now a failure is null.
+        $this->assertSame('', Crypt::decrypt(Crypt::encrypt('', self::KAT_KEY), self::KAT_KEY));
+        $this->assertNull(Crypt::decrypt(Crypt::encrypt('', self::KAT_KEY), 'other-key'));
     }
 
     public function testOddLengthHexAndEmptyKeyAreHandled(): void
     {
-        $this->assertSame('', Crypt::decrypt(\substr(self::KAT_V2, 0, -1), self::KAT_KEY));
+        $this->assertNull(Crypt::decrypt(\substr(self::KAT_V2, 0, -1), self::KAT_KEY));
         $this->assertSame('abc', Crypt::decrypt(Crypt::encrypt('abc', ''), ''));
     }
 
