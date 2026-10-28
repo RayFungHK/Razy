@@ -28,7 +28,7 @@ php Razy.phar build
 php Razy.phar init dist mysite</code></pre>
     <p>You now have a working Razy environment with a distributor called <code>mysite</code>.</p>
 
-    <h2 id="step-2">2. Create a Module (4 files)</h2>
+    <h2 id="step-2">2. Create a Module</h2>
     <p>Create these files inside <code>sites/mysite/</code>:</p>
 
     <h3>sites/mysite/app/hello/module.php</h3>
@@ -37,6 +37,7 @@ php Razy.phar init dist mysite</code></pre>
     <span class="hl-str">'module_code'</span> =&gt; <span class="hl-str">'app/hello'</span>,
     <span class="hl-str">'name'</span>        =&gt; <span class="hl-str">'Hello'</span>,
     <span class="hl-str">'author'</span>      =&gt; <span class="hl-str">'Me'</span>,
+    <span class="hl-str">'owner'</span>       =&gt; <span class="hl-str">'Me'</span>, <span class="hl-cmt">// who decides changes to this module and its API.md</span>
     <span class="hl-str">'version'</span>     =&gt; <span class="hl-str">'1.0.0'</span>,
 ];</code></pre>
 
@@ -74,6 +75,15 @@ php Razy.phar init dist mysite</code></pre>
     echo <span class="hl-str">"Hello, {$name}!"</span> . PHP_EOL;
 };</code></pre>
 
+    <h3>sites/mysite/app/hello/API.md</h3>
+    <pre><code># app/hello — API
+
+Owner: Me. This file is the contract: only what is listed here is public.
+
+## Surface
+
+None yet: this module only serves its own routes.</code></pre>
+
     <h2 id="step-3">3. Run It</h2>
     <p>Use <code>runapp</code> to test instantly &mdash; no web server needed:</p>
     <pre><code>php Razy.phar runapp mysite</code></pre>
@@ -100,7 +110,8 @@ Hello, Razy!
     <table>
       <thead><tr><th>File</th><th>Purpose</th></tr></thead>
       <tbody>
-        <tr><td><code>module.php</code></td><td>Declares the module's identity &mdash; <code>module_code</code> must match the directory path</td></tr>
+        <tr><td><code>module.php</code></td><td>Declares the module's identity &mdash; <code>module_code</code> must match the directory path; <code>owner</code> names who decides changes to it</td></tr>
+        <tr><td><code>API.md</code></td><td>The module's contract: every API command and event it publishes. One owner per module, and nobody edits another owner's module (<a href="../../docs/STYLE.md">STYLE.md</a> &sect;0, checked by RZ-018)</td></tr>
         <tr><td><code>default/package.php</code></td><td>Version-level configuration &mdash; can declare dependencies, API name, Composer requires</td></tr>
         <tr><td><code>hello.php</code></td><td>Controller &mdash; registers routes in <code>__onInit()</code>. Filename matches module name.</td></tr>
         <tr><td><code>hello.index.php</code></td><td>Route handler &mdash; the closure runs when <code>/hello/</code> is visited</td></tr>

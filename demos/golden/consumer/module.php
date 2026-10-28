@@ -16,6 +16,7 @@ return [
     'module_code' => 'golden/consumer',
     'name'        => 'Golden Consumer',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Golden-path demo: consumes golden/provider through its published API and events only',
     'version'     => '1.0.0', // RZ-012
 ];

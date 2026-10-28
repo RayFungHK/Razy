@@ -15,6 +15,7 @@ return [
     'module_code' => 'data/database_demo',
     'name'        => 'Database Demo',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Demonstrates Razy Database features',
     'version'     => '1.0.0',
 ];

@@ -883,6 +883,7 @@ abstract class Model
 
         $this->database->execute(
             $this->database->update($table, $updateSyntax)
+                // lint-allow: RZ-019 the model's own primary-key column (static config), never input
                 ->where($pk . '=:_pk')
                 ->assign($params),
         );
@@ -968,6 +969,7 @@ abstract class Model
 
         $this->database->execute(
             $this->database->update($table, ['updated_at'])
+                // lint-allow: RZ-019 the model's own primary-key column (static config), never input
                 ->where($pk . '=:_pk')
                 ->assign(['updated_at' => $now, '_pk' => $this->attributes[$pk]]),
         );
@@ -1170,6 +1172,7 @@ abstract class Model
         $row = $this->database->prepare()
             ->select('*')
             ->from(static::resolveTable())
+            // lint-allow: RZ-019 the model's own primary-key column (static config), never input
             ->where($pk . '=:_pk')
             ->assign(['_pk' => $id])
             ->lazy();
@@ -1509,6 +1512,7 @@ abstract class Model
 
         $this->database->execute(
             $this->database->update($table, $updateColumns)
+                // lint-allow: RZ-019 the model's own primary-key column (static config), never input
                 ->where($pk . '=:_pk')
                 ->assign(\array_merge($dirty, ['_pk' => $id])),
         );

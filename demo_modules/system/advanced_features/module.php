@@ -13,6 +13,7 @@ return [
     'module_code' => 'system/advanced_features',
     'name'        => 'Advanced Features Demo',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Demonstrates await, internal binding, nested routes, and shadow routes',
     'version'     => '1.0.0',
 ];

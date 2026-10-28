@@ -42,6 +42,7 @@ class BelongsTo extends Relation
         }
 
         return $this->newQuery()
+            // lint-allow: RZ-019 the relation's key columns, set where the relation is defined, never input
             ->where($this->localKey . '=:_pk', ['_pk' => $value])
             ->first();
     }

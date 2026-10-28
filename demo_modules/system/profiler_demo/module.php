@@ -13,6 +13,7 @@ return [
     'module_code' => 'system/profiler_demo',
     'name'        => 'Profiler Demo',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Demonstrates Razy Profiler',
     'version'     => '1.0.0',
 ];

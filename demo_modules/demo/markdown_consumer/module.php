@@ -21,6 +21,7 @@ return [
     'module_code' => 'demo/markdown_consumer',
     'name' => 'Markdown Consumer',
     'author' => 'Razy Framework',
+    'owner' => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Demonstrates using markdown_service to avoid version conflicts',
     'version' => '1.0.0',
 ];

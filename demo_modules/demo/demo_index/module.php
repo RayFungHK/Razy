@@ -19,6 +19,7 @@ return [
     'module_code' => 'demo/demo_index',
     'name'        => 'Demo Index Module',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Central index for all demo modules with shared styling',
     'version'     => '1.0.0',
 ];

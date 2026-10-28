@@ -17,6 +17,7 @@ return [
     'module_code' => 'golden/policy',
     'name'        => 'Golden Policy',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Golden-path demo: checks permissions through razymod/permissions public API, fail-closed',
     'version'     => '1.0.0', // RZ-012
 ];

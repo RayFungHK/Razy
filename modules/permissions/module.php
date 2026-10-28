@@ -24,6 +24,7 @@ return [
     'module_code' => 'razymod/permissions',
     'name' => 'Permissions',
     'author' => 'Razy Framework',
+    'owner' => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'RBAC policy layer: permissions/roles tables in the app-provided database, ability catalog answering Razy\Auth\Gate, config-named governor for mutations, permission.denied audit event',
     'version' => '0.2.0', // RZ-012 minor: S4 ({@can} templates) + S5 (opt-in audit + cache layer) added surface
 ];

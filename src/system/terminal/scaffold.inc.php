@@ -257,6 +257,18 @@ return function (string $moduleCode = '', ...$args) use (&$parameters) {
         $filesCreated++;
     }
 
+    // 3b) API.md: the module's contract (docs/STYLE.md §0, RZ-018), with what this scaffold publishes
+    $apiDoc = Template::loadFile(PathUtil::append($tplDir, 'API.md.tpl'));
+    $docRoot = $apiDoc->getRoot();
+    $docRoot->assign($assigns);
+    $docRoot->newBlock($withApi ? 'api_section' : 'no_api_section')->assign($assigns);
+    if ($withEvent) {
+        $docRoot->newBlock('event_section')->assign($assigns);
+    }
+    if ($writeFile(PathUtil::append($moduleDir, 'API.md'), $apiDoc->output())) {
+        $filesCreated++;
+    }
+
     // 4) Index route handler
     $handlerTemplate = $withTpl ? 'handler.index.tpl.php.tpl' : 'handler.index.php.tpl';
     if ($writeFile(PathUtil::append($controllerDir, $controllerName . '.index.php'), $renderTemplate($handlerTemplate))) {
@@ -287,6 +299,7 @@ return function (string $moduleCode = '', ...$args) use (&$parameters) {
     $this->writeLineLogging('{@c:cyan}Generated structure:{@reset}', true);
     $this->writeLineLogging('  ' . $moduleCode . '/', true);
     $this->writeLineLogging('  +-- module.php', true);
+    $this->writeLineLogging('  +-- API.md', true);
     $this->writeLineLogging('  +-- default/', true);
     $this->writeLineLogging('      +-- package.php', true);
     if ($withTpl) {

@@ -601,6 +601,7 @@ class ScaffoldCommandTest extends TestCase
             'handler.index.tpl.php.tpl',
             'view.index.tpl',
             'api.hello.php.tpl',
+            'API.md.tpl',
         ];
         foreach ($requiredFiles as $file) {
             $this->assertFileExists($dir . '/' . $file, "Template file '{$file}' should exist");
@@ -718,6 +719,45 @@ class ScaffoldCommandTest extends TestCase
         $this->assertSame('Hello Module', $result['name']);
         $this->assertSame('Test Author', $result['author']);
         $this->assertSame('1.0.0', $result['version']);
+    }
+
+    #[Test]
+    public function templateEngineRendersApiDocWithOwnerAndPublishedSurface(): void
+    {
+        $render = function (bool $withApi, bool $withEvent): string {
+            $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/API.md.tpl');
+            $root = $source->getRoot();
+            $assigns = ['module_code' => 'app/hello', 'author' => 'Test Author'];
+            $root->assign($assigns);
+            $root->newBlock($withApi ? 'api_section' : 'no_api_section')->assign($assigns);
+            if ($withEvent) {
+                $root->newBlock('event_section')->assign($assigns);
+            }
+
+            return $source->output();
+        };
+
+        $full = $render(true, true);
+        $this->assertStringContainsString('# app/hello — API', $full);
+        $this->assertStringContainsString('Owner: Test Author.', $full);
+        $this->assertStringContainsString('`hello`', $full, 'RZ-018: the scaffolded command is documented');
+        $this->assertStringContainsString('app/events:on_ready', $full);
+
+        $bare = $render(false, false);
+        $this->assertStringNotContainsString('`hello`', $bare);
+        $this->assertStringContainsString("## Commands\n\nNone.", $bare);
+        $this->assertStringNotContainsString('Consumes', $bare);
+    }
+
+    #[Test]
+    public function templateEngineRendersModulePhpOwner(): void
+    {
+        $source = Template::loadFile(SYSTEM_ROOT . '/src/asset/setup/scaffold/module.php.tpl');
+        $source->getRoot()->assign(['module_code' => 'app/hello', 'module_name' => 'Hello', 'author' => 'Test Author', 'description' => '', 'version' => '1.0.0']);
+        $filePath = $this->tempDir . '/tpl_owner_module.php';
+        \file_put_contents($filePath, $source->output());
+
+        $this->assertSame('Test Author', (include $filePath)['owner'], 'RZ-018: a scaffolded module names its owner');
     }
 
     #[Test]

@@ -14,6 +14,7 @@ return [
     'module_code' => 'io/api_provider',
     'name'        => 'API Provider',
     'author'      => 'Razy Framework',
+    'owner'       => 'Razy Framework', // docs/STYLE.md §0: decides changes to this module and its API.md
     'description' => 'Provides sample API commands for cross-module demonstration',
     'version'     => '1.0.0',
 ];
