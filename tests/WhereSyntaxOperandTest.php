@@ -188,6 +188,40 @@ class WhereSyntaxOperandTest extends TestCase
         $this->sql('id=NOW()(SLEEP(5))');
     }
 
+    public function testJsonPathCannotCloseItsLiteral(): void
+    {
+        // Reproduces on master: the path was appended as written, and SQLite does not
+        // treat `\'` as an escape, so this ran `DELETE FROM t WHERE ... OR 1=1` (0 rows left).
+        try {
+            $this->db->delete('t', ['id' => 1], "id->'$.a\\' OR 1=1 --'")->query();
+            $this->fail('expected InvalidOperandException');
+        } catch (InvalidOperandException) {
+        }
+        $this->assertSame([['n' => 2]], $this->db->prepare()->select('COUNT(*) AS n')->from('t')->query()->fetchAll());
+    }
+
+    public function testJsonPathIsRequotedByTheDriverAndStillQueries(): void
+    {
+        $single = $this->db->prepare()->select('id')->from('t')->where("meta->>'$.k'=1");
+        $this->assertSame('SELECT "id" FROM "t" WHERE "meta"->>\'$.k\' = 1', $single->getSyntax());
+        $this->assertSame([['id' => 1]], $single->query()->fetchAll());
+
+        // A double-quoted path was an identifier on SQLite / Postgres; now it is a literal
+        $double = $this->db->prepare()->select('id')->from('t')->where('meta->>"$.k"=1');
+        $this->assertSame([['id' => 1]], $double->query()->fetchAll());
+
+        $this->assertSame(
+            'SELECT "id" FROM "t" WHERE "meta"->>\'$."a b"\' = 1',
+            $this->db->prepare()->select('id')->from('t')->where("meta->>'$.\"a b\"'=1")->getSyntax(),
+        );
+    }
+
+    public function testJsonPathWithABackslashIsRefused(): void
+    {
+        $this->expectException(InvalidOperandException::class);
+        $this->sql("meta->>'$.a\\\\b'=1");
+    }
+
     private function sql(string $syntax): string
     {
         return $this->db->prepare()->select('*')->from('t')->where($syntax)->getSyntax();

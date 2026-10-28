@@ -159,6 +159,35 @@ class WhereSyntax
     }
 
     /**
+     * True for the only operand shapes that may reach the SQL as written (RZ-41): a
+     * number, a bare identifier or keyword, or a zero-argument function from
+     * SQL_FUNCTIONS. None of them can carry a quote, an operator or an argument
+     * list, so none can smuggle SQL in. Shared with the Update Simple Syntax.
+     */
+    public static function isRawSafeOperand(string $operand): bool
+    {
+        return \preg_match(self::REGEX_NUMBER, $operand)
+            || \preg_match(self::REGEX_IDENTIFIER, $operand)
+            || (\preg_match('/^(\w+)\(\)$/D', $operand, $matches) && \in_array(\strtoupper($matches[1]), self::SQL_FUNCTIONS, true));
+    }
+
+    /**
+     * The value of a quoted literal ('text' or "text"), or null when the operand is
+     * not one. A quote inside it is doubled ('O''Brien') or backslash-escaped
+     * ('O\'Brien'); both decode to one quote, in one left-to-right pass so a decoded
+     * quote never pairs with the next. The caller binds the value, never pastes it.
+     */
+    public static function decodeQuoted(string $operand): ?string
+    {
+        if (!\preg_match('/^(?<q>[\'"])((?:\\\\\k<q>|\k<q>\k<q>|(?!\k<q>).)*)\k<q>$/', $operand, $matches)) {
+            return null;
+        }
+        $quote = $matches['q'];
+
+        return \preg_replace('/\\\\' . $quote . '|' . $quote . $quote . '/', $quote, $matches[2]);
+    }
+
+    /**
      * Generate the WHERE/HAVING clause SQL string.
      * Recursively processes grouped expressions, negation operators,
      * and individual comparison expressions.
@@ -380,10 +409,21 @@ class WhereSyntax
                     $column_name = \trim($matches[2], '`');
                 }
 
+                $jsonPath = '';
+                if (!empty($matches[4])) {
+                    // RZ-41: the path used to be appended as written. On SQLite and Postgres a
+                    // backslash does not escape, so `'$.a\' OR 1=1 --'` closed the literal early.
+                    // A path may not hold its own quote or a backslash; the driver re-quotes it.
+                    if (\str_contains($matches[7], $matches[6]) || \str_contains($matches[7], '\\')) {
+                        throw new InvalidOperandException($expr);
+                    }
+                    $jsonPath = $matches[5] . $this->statement->literal('$' . $matches[7]);
+                }
+
                 return [
                     'type' => 'column',
                     'column_name' => $column_name . ($matches[7] ?? ''),
-                    'expr' => (($table_alias) ? $this->qi($table_alias) . '.' : '') . $this->qi($column_name) . ($matches[4] ?? ''),
+                    'expr' => (($table_alias) ? $this->qi($table_alias) . '.' : '') . $this->qi($column_name) . $jsonPath,
                 ];
             }
             if (\preg_match('/^(?:(`(?:\\\.(*SKIP)(*FAIL)|.)+`)|([a-z]\w*))$/', $expr, $matches)) {
@@ -410,14 +450,8 @@ class WhereSyntax
                     'expr' => (\is_scalar($value)) ? $this->statement->sqlValue(\is_bool($value) ? $value : (string) $value) : null,
                 ];
             }
-            // Quoted string literal (single or double quoted). A quote inside it is doubled
-            // ('O''Brien') or backslash-escaped ('O\'Brien'); both decode to one quote and
-            // the value is bound (RZ-41: these used to reach the SQL raw).
-            if (\preg_match('/^(?<q>[\'"])((?:\\\\\k<q>|\k<q>\k<q>|(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
-                $quote = $matches['q'];
-                // One left-to-right pass, so a decoded quote never pairs with the next one
-                $text = \preg_replace('/\\\\' . $quote . '|' . $quote . $quote . '/', $quote, $matches[2]);
-
+            // Quoted string literal, bound as a value (see decodeQuoted())
+            if (null !== ($text = self::decodeQuoted($expr))) {
                 return [
                     'type' => 'text',
                     'text' => $text,
@@ -447,12 +481,7 @@ class WhereSyntax
                 ];
             }
 
-            // RZ-41: the only shapes that reached the SQL raw legitimately. None of them can
-            // carry a quote, an operator or an argument list, so none can smuggle SQL in.
-            if (\preg_match(self::REGEX_NUMBER, $expr)
-                || \preg_match(self::REGEX_IDENTIFIER, $expr)
-                || (\preg_match('/^(\w+)\(\)$/D', $expr, $matches) && \in_array(\strtoupper($matches[1]), self::SQL_FUNCTIONS, true))
-            ) {
+            if (self::isRawSafeOperand($expr)) {
                 return [
                     'type' => 'expr',
                     'expr' => $expr,
