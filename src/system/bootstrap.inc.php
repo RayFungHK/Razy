@@ -27,13 +27,6 @@ use Throwable;
 // Remove the X-Powered-By header for security
 \header_remove('X-Powered-By');
 
-// Ensure LC_CTYPE is UTF-8 aware so that escapeshellarg() and other C-locale
-// dependent functions do not silently strip non-ASCII bytes (e.g. IDN hostnames,
-// UTF-8 file paths).  Multiple candidates are tried — the first one recognised
-// by the OS wins.  Windows ignores LC_CTYPE for escapeshellarg (uses its own
-// double-quote wrapping), so this is mainly a Linux/macOS safeguard.
-\setlocale(LC_CTYPE, 'C.UTF-8', 'en_US.UTF-8', 'UTF-8', '');
-
 // Pre-load utility classes that are needed before the autoloader is registered
 require_once PHAR_PATH . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR . 'Razy' . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'PathUtil.php';
 
@@ -90,6 +83,17 @@ try {
 
     exit(1);
 }
+
+// Ensure LC_CTYPE is UTF-8 aware so that escapeshellarg() and other C-locale
+// dependent functions do not silently strip non-ASCII bytes (e.g. IDN hostnames,
+// UTF-8 file paths). Windows ignores LC_CTYPE for escapeshellarg (uses its own
+// double-quote wrapping), so this is mainly a Linux/macOS safeguard.
+// RZ-39: only when LC_CTYPE is not already the target, and once per process.
+// A per-request setlocale() is unsafe under a threaded SAPI (FrankenPHP / ZTS):
+// the locale is process-wide and PHP resets it at the end of every request that
+// changed it. RAZY_LOCALE_CTYPE (env) wins over config.inc.php 'locale_ctype'
+// (candidate list, or 'off'); see Razy\Util\Locale.
+Util\Locale::ensureUtf8Ctype(\getenv(Util\Locale::ENV), $razyConfig);
 
 // RZ-04: reverse proxies whose X-Forwarded-* headers are believed.
 // RAZY_TRUSTED_PROXIES (env) wins over config.inc.php 'trusted_proxies'.
