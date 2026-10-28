@@ -11,6 +11,7 @@
 
 namespace Razy\Database;
 
+use Razy\Exception\InvalidOperandException;
 use Razy\Exception\QueryException;
 use Razy\SimpleSyntax;
 use Throwable;
@@ -33,6 +34,29 @@ class WhereSyntax
 
     /** @var string Regex to validate and parse column references (with optional table alias and JSON path) */
     public const REGEX_COLUMN = '/^((?<column>`(?:\\\.(*SKIP)(*FAIL)|.)+`|[a-z]\w*)(?:\.((?P>column)))?)((->>?)([\'"])\$((?:\.[^.]+)+)\6)?$/';
+
+    /** @var string A bare numeric literal: 1, -2, 3.5, .5, 1e3 */
+    public const REGEX_NUMBER = '/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/iD';
+
+    /**
+     * @var string A bare identifier or keyword in any case, optionally alias-qualified
+     *             (UserId, T.b, TRUE). REGEX_COLUMN takes the lower-case-first ones and quotes
+     *             them; these are emitted unquoted, as they always were.
+     */
+    public const REGEX_IDENTIFIER = '/^[a-z_]\w*(?:\.[a-z_]\w*)?$/iD';
+
+    /**
+     * @var list<string> Zero-argument SQL functions an operand may call, e.g. `expires>NOW()`.
+     *                   Anything with arguments goes through a :name placeholder instead.
+     */
+    public const SQL_FUNCTIONS = [
+        'CURDATE', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURTIME', 'LOCALTIME',
+        'LOCALTIMESTAMP', 'NOW', 'RAND', 'RANDOM', 'SYSDATE', 'UNIX_TIMESTAMP', 'UTC_DATE',
+        'UTC_TIME', 'UTC_TIMESTAMP', 'UUID',
+    ];
+
+    /** @var list<string> Operators whose right operand is bound as text, never emitted raw */
+    private const TEXT_RIGHT_OPERATORS = ['*=', '^=', '$=', '@='];
 
     /**
      * @var array<string, string> Maps syntax separators to SQL logical operators.
@@ -246,6 +270,9 @@ class WhereSyntax
         // Single operand (no operator): return as boolean or column reference
         if (1 == \count($splits)) {
             $expr = $this->parseOperand($clip);
+            if ('unknown' === $expr['type']) {
+                throw new InvalidOperandException($expr['text']);
+            }
             if ('null' === $expr['type']) {
                 return ($negative) ? '1' : '0';
             }
@@ -319,7 +346,9 @@ class WhereSyntax
     /**
      * Parse an operand token into a typed structure.
      * Recognizes: '?' (auto), column references, :parameter references,
-     * quoted strings, array literals [val1,val2], NULL, and raw expressions.
+     * quoted strings, array literals [val1,val2], NULL, and the raw-safe
+     * expressions (numbers, bare identifiers, allow-listed zero-argument
+     * functions). Anything else is typed 'unknown' and refused by its caller.
      *
      * @param string $expr The operand string to parse
      *
@@ -406,9 +435,24 @@ class WhereSyntax
                 ];
             }
 
+            // RZ-41: the only shapes that reached the SQL raw legitimately. None of them can
+            // carry a quote, an operator or an argument list, so none can smuggle SQL in.
+            if (\preg_match(self::REGEX_NUMBER, $expr)
+                || \preg_match(self::REGEX_IDENTIFIER, $expr)
+                || (\preg_match('/^(\w+)\(\)$/D', $expr, $matches) && \in_array(\strtoupper($matches[1]), self::SQL_FUNCTIONS, true))
+            ) {
+                return [
+                    'type' => 'expr',
+                    'expr' => $expr,
+                ];
+            }
+
+            // Anything else used to go into the SQL verbatim. It is refused wherever it
+            // would be emitted (comparison(), parseExpr()); only a LIKE / @= right side,
+            // which always bound it as a value, still accepts it.
             return [
-                'type' => 'expr',
-                'expr' => $expr,
+                'type' => 'unknown',
+                'text' => $expr,
             ];
         }
 
@@ -439,6 +483,20 @@ class WhereSyntax
         // Check for invalid array literals early
         if ('invalid_array' === $rightOperand['type']) {
             throw new QueryException('Invalid array syntax: ' . $rightOperand['raw']);
+        }
+
+        if ('unknown' === $rightOperand['type'] && \in_array($operator, self::TEXT_RIGHT_OPERATORS, true)) {
+            // Those builders bind 'text' themselves; 'expr' is never read on this path.
+            $rightOperand = [
+                'type' => 'text',
+                'text' => $rightOperand['text'],
+                'expr' => '',
+            ];
+        }
+        foreach ([$leftOperand, $rightOperand] as $operand) {
+            if ('unknown' === $operand['type']) {
+                throw new InvalidOperandException($operand['text']);
+            }
         }
 
         if ('|=' === $operator) {
