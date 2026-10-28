@@ -51,6 +51,13 @@ class LintStyleTest extends TestCase
         $this->assertSame(['STY-NAME' => ['Named::ParseValue']], $this->keys());
     }
 
+    public function testBodylessInterfaceMethodNameIsChecked(): void
+    {
+        $this->write('Port.php', "<?php\n\ndeclare(strict_types=1);\n\nnamespace Fixture;\n\ninterface Port\n{\n    public function SendNow(): void;\n}\n");
+
+        $this->assertSame(['STY-NAME' => ['Port::SendNow']], $this->keys());
+    }
+
     public function testSizeCapsCountTheDeclarationNotClosuresOrAnonymousClasses(): void
     {
         $long = "    public function long(): void\n    {\n" . \str_repeat("        \$x = 1;\n", 59) . "    }\n";

@@ -917,7 +917,8 @@ function publishedNames(string $moduleDir, array $excludes): array
         foreach ($excludes as $ex) {
             if ($ex !== '' && str_contains($file, $ex)) continue 2;
         }
-        foreach ((@file($file) ?: []) as $i => $line) {
+        $lines = @file($file) ?: [];
+        foreach ($lines as $i => $line) {
             // A commented-out or docblock example registration publishes nothing
             if (preg_match('#^\s*(?://|\*|/\*|\#)#', $line)) continue;
             foreach ($kinds as $kind => $re) {
@@ -928,9 +929,38 @@ function publishedNames(string $moduleDir, array $excludes): array
                 }
             }
         }
+        array_push($names, ...batchRegistrations($file, $lines));
     }
 
     return $names;
+}
+
+/**
+ * Names registered in the batch form, which may span lines:
+ * addAPICommand(['name' => 'path', ...]) / addBridgeCommand([...]).
+ *
+ * @param array<int, string> $lines
+ *
+ * @return list<array{0: string, 1: int, 2: string, 3: string}>
+ */
+function batchRegistrations(string $file, array $lines): array
+{
+    $source = implode('', $lines);
+    $found = [];
+    if (!preg_match_all('/(addAPICommand|addBridgeCommand)\(\s*\[(.*?)\]\s*\)/s', $source, $calls, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+        return $found;
+    }
+    foreach ($calls as $call) {
+        $startLine = substr_count($source, "\n", 0, $call[0][1]);
+        if (preg_match('#^\s*(?://|\*|/\*|\#)#', $lines[$startLine] ?? '')) continue;
+        $kind = $call[1][0] === 'addAPICommand' ? 'API command' : 'bridge command';
+        preg_match_all('/[\'"]#?([^\'"]+)[\'"]\s*=>/', $call[2][0], $keys, PREG_OFFSET_CAPTURE);
+        foreach ($keys[1] as [$name, $offset]) {
+            $found[] = [$file, substr_count($source, "\n", 0, $call[2][1] + $offset) + 1, $kind, $name];
+        }
+    }
+
+    return $found;
 }
 
 function discoverModuleManifests(string $root, array $excludes): array
@@ -1171,6 +1201,8 @@ function selfTest(): int
         ['#command documented without #', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('#charge', 'api/charge');", 0],
         ['undocumented event + bridge', "'owner' => 'Payments team',", "`charge`\n", "\$this->trigger('paid'); \$agent->addBridgeCommand('sync', 'b/sync');", 2],
         ['commented-out registration publishes nothing', "'owner' => 'Payments team',", "`charge`\n", "// \$agent->addAPICommand('refund', 'api/refund');", 0],
+        ['batch form, one line', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand(['charge' => 'api/charge', 'refund' => 'api/refund']);", 1],
+        ['batch form, multi-line, all documented', "'owner' => 'Payments team',", "`charge` `refund`\n", "\$agent->addAPICommand([\n    'charge' => 'api/charge',\n    '#refund' => 'api/refund',\n]);", 0],
     ];
     foreach ($rz018 as [$label, $ownerLine, $doc, $code, $expectHits]) {
         $dir = sys_get_temp_dir() . '/rz018-' . bin2hex(random_bytes(4));

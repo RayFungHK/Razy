@@ -227,7 +227,12 @@ function declarations(string $source): array
         }
         $span = bodySpan($tokens, $i);
         if ($span === null) {
-            continue; // abstract or interface method: no body
+            if (!$isType) {
+                // abstract or interface method: no body, so no size, but its name still counts
+                $owner = $stack !== [] ? end($stack)[0] . '::' : '';
+                $found[] = ['function', $owner . $name, $token[2], 0];
+            }
+            continue;
         }
         if ($isType) {
             $found[] = ['type', $name, $token[2], $span[1] - $token[2] + 1];

@@ -24,8 +24,10 @@ document that describes it are the contract.** Everything else in this file serv
 
 Checked: **RZ-018** in `tools/lint-module-discipline.php` fails a module whose `module.php` has no non-empty
 `'owner'`, that has no `API.md`, or that registers a command or event its `API.md` does not name as `` `name` ``.
-A `#command` (published and bound internally) is documented without the `#`. Commented-out registrations publish
-nothing and need no entry.
+A `#command` (published and bound internally) is documented without the `#`; the batch form
+`addAPICommand(['name' => 'path', ...])` counts too. Commented-out registrations publish nothing and need no entry.
+The lint sees names written as literals; a name built at runtime (`trigger($name)`) is documented by hand and
+checked in review.
 
 `API.md` shape (the first-party modules under `modules/` are the reference):
 
