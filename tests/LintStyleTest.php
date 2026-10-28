@@ -25,7 +25,8 @@ class LintStyleTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->dir = \sys_get_temp_dir() . '/razy-lint-style-' . \bin2hex(\random_bytes(4));
+        // The tool reports forward slashes on every OS (stable baseline keys); so does the fixture path
+        $this->dir = \str_replace('\\', '/', \sys_get_temp_dir()) . '/razy-lint-style-' . \bin2hex(\random_bytes(4));
         \mkdir($this->dir);
     }
 

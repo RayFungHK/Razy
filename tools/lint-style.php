@@ -107,14 +107,18 @@ function phpFiles(array $paths): array
 }
 
 /**
- * Repository-relative path, so baseline keys do not depend on the checkout.
+ * Repository-relative path with forward slashes, so baseline keys depend on
+ * neither the checkout nor the OS.
  */
 function relativePath(string $file): string
 {
-    $root = (string) realpath(ROOT);
-    $real = (string) realpath($file);
+    $root = str_replace('\\', '/', (string) realpath(ROOT));
+    $real = str_replace('\\', '/', (string) realpath($file));
+    if ($real !== '' && str_starts_with($real, $root . '/')) {
+        return substr($real, strlen($root) + 1);
+    }
 
-    return str_starts_with($real, $root . '/') ? substr($real, strlen($root) + 1) : $file;
+    return str_replace('\\', '/', $file);
 }
 
 /**
