@@ -404,6 +404,75 @@ class QueryBuilderEnhancedTest extends TestCase
     // Helpers
     // ═══════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════
+    // RZ-41: two calls on one column keep their own bindings
+    // ═══════════════════════════════════════════════════════════════
+
+    public function testTwoWhereInOnOneColumnBothApply(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        // Before RZ-41 the second call reused the first call's key and overwrote its values.
+        $query = QE_Item::query($db)
+            ->whereIn('category', ['electronics', 'books'])
+            ->whereIn('category', ['books', 'food']);
+
+        $this->assertSame(['Novel'], $query->get()->pluck('name'));
+        $this->assertSame(1, $query->count());
+    }
+
+    public function testTwoWhereBetweenOnOneColumnBothApply(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $results = QE_Item::query($db)
+            ->whereBetween('price', 10, 600)
+            ->whereBetween('price', 400, 2000)
+            ->get();
+
+        $this->assertSame(['Phone'], $results->pluck('name'));
+    }
+
+    public function testTwoNegatedHelpersOnOneColumnBothApply(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $notIn = QE_Item::query($db)
+            ->whereNotIn('category', ['electronics'])
+            ->whereNotIn('category', ['food'])
+            ->orderBy('name')
+            ->get();
+        $this->assertSame(['Desk', 'Novel'], $notIn->pluck('name'));
+
+        $notBetween = QE_Item::query($db)
+            ->whereNotBetween('price', 0, 10)
+            ->whereNotBetween('price', 900, 2000)
+            ->orderBy('name')
+            ->get();
+        $this->assertSame(['Desk', 'Novel', 'Phone'], $notBetween->pluck('name'));
+    }
+
+    public function testHelpersMixedOnOneColumnKeepTheirValues(): void
+    {
+        $db = $this->createDb();
+        $this->seed($db);
+
+        $results = QE_Item::query($db)
+            ->whereIn('category', ['electronics', 'books', 'food'])
+            ->whereNotIn('category', ['food'])
+            ->whereBetween('price', 10, 2000)
+            ->whereNotBetween('price', 900, 2000)
+            ->whereNotNull('category')
+            ->whereNotNull('name')
+            ->orderBy('name')
+            ->get();
+
+        $this->assertSame(['Novel', 'Phone'], $results->pluck('name'));
+    }
+
     private function createDb(): Database
     {
         static $counter = 0;

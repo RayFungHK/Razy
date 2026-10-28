@@ -57,6 +57,12 @@ class ModelQuery
     private array $bindings = [];
 
     /**
+     * Sequence for the placeholder names the where* helpers generate, so two
+     * calls on one column never share (and overwrite) a binding.
+     */
+    private int $paramSeq = 0;
+
+    /**
      * Order-by expressions in Razy Simple Syntax (e.g. '<name', '>created_at').
      *
      * @var list<string>
@@ -162,7 +168,7 @@ class ModelQuery
      */
     public function whereNull(string $column): static
     {
-        $paramKey = '_wn_' . \str_replace('.', '_', $column);
+        $paramKey = $this->nextParamKey('wn');
         $this->wheres[] = [',', $column . '=:' . $paramKey];
         $this->bindings[$paramKey] = null;
 
@@ -178,7 +184,7 @@ class ModelQuery
      */
     public function whereNotNull(string $column): static
     {
-        $paramKey = '_wnn_' . \str_replace('.', '_', $column);
+        $paramKey = $this->nextParamKey('wnn');
         $this->wheres[] = [',', '!' . $column . '=:' . $paramKey];
         $this->bindings[$paramKey] = null;
 
@@ -244,7 +250,7 @@ class ModelQuery
      */
     public function whereIn(string $column, array $values): static
     {
-        $paramKey = '_wi_' . \str_replace('.', '_', $column);
+        $paramKey = $this->nextParamKey('wi');
         $this->wheres[] = [',', $column . '|=:' . $paramKey];
         $this->bindings[$paramKey] = $values;
 
@@ -261,7 +267,7 @@ class ModelQuery
      */
     public function whereNotIn(string $column, array $values): static
     {
-        $paramKey = '_wni_' . \str_replace('.', '_', $column);
+        $paramKey = $this->nextParamKey('wni');
         $this->wheres[] = [',', '!' . $column . '|=:' . $paramKey];
         $this->bindings[$paramKey] = $values;
 
@@ -283,7 +289,7 @@ class ModelQuery
      */
     public function whereBetween(string $column, mixed $min, mixed $max): static
     {
-        $paramKey = '_wb_' . \str_replace('.', '_', $column);
+        $paramKey = $this->nextParamKey('wb');
         $this->wheres[] = [',', $column . '><:' . $paramKey];
         $this->bindings[$paramKey] = [$min, $max];
 
@@ -301,7 +307,7 @@ class ModelQuery
      */
     public function whereNotBetween(string $column, mixed $min, mixed $max): static
     {
-        $paramKey = '_wnb_' . \str_replace('.', '_', $column);
+        $paramKey = $this->nextParamKey('wnb');
         $this->wheres[] = [',', '!' . $column . '><:' . $paramKey];
         $this->bindings[$paramKey] = [$min, $max];
 
@@ -791,6 +797,16 @@ class ModelQuery
         }
 
         return $stmt;
+    }
+
+    /**
+     * A placeholder name unique within this query, e.g. `_mq_wi_3`.
+     *
+     * @param string $kind Short helper tag (wi, wb, ...) for readable SQL logs
+     */
+    private function nextParamKey(string $kind): string
+    {
+        return '_mq_' . $kind . '_' . (++$this->paramSeq);
     }
 
     /**
