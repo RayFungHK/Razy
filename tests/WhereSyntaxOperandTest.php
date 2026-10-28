@@ -216,6 +216,27 @@ class WhereSyntaxOperandTest extends TestCase
         );
     }
 
+    public function testArrayLiteralIsAValueNeverSql(): void
+    {
+        // Was pasted as written: `[1,2] = "id"` on the left, and a JSON array inside
+        // JSON_CONTAINS(...). On SQLite `[...]` is identifier quoting, so its text parsed as SQL.
+        foreach (['[1,2]=id', '["x"]|=meta', '[1,2]'] as $syntax) {
+            try {
+                $this->sql($syntax);
+                $this->fail('expected InvalidOperandException for ' . $syntax);
+            } catch (InvalidOperandException) {
+            }
+        }
+
+        $compiled = $this->db->prepare()->select('id')->from('t')->where('meta~=["a\') OR 1=1 --"]')->compile();
+        $this->assertSame('SELECT "id" FROM "t" WHERE JSON_CONTAINS("meta", CAST(:rzp0 AS JSON)) = 1', $compiled['sql']);
+        $this->assertSame(['rzp0' => '["a\') OR 1=1 --"]'], $compiled['params']);
+
+        // Right-side arrays for IN and BETWEEN are unchanged
+        $this->assertSame('SELECT * FROM "t" WHERE "id" IN(1, 2)', $this->sql('id|=[1,2]'));
+        $this->assertSame('SELECT * FROM "t" WHERE "id" BETWEEN 1 AND 2', $this->sql('id><[1,2]'));
+    }
+
     public function testJsonPathWithABackslashIsRefused(): void
     {
         $this->expectException(InvalidOperandException::class);

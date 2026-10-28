@@ -308,6 +308,10 @@ class WhereSyntax
             if ('unknown' === $expr['type']) {
                 throw new InvalidOperandException($expr['text']);
             }
+            if ('array' === $expr['type'] || 'invalid_array' === $expr['type']) {
+                // An array literal's text is not SQL (on SQLite `[...]` even quotes an identifier)
+                throw new InvalidOperandException($expr['expr']);
+            }
             if ('null' === $expr['type']) {
                 return ($negative) ? '1' : '0';
             }
@@ -524,6 +528,10 @@ class WhereSyntax
         // Check for invalid array literals early
         if ('invalid_array' === $rightOperand['type']) {
             throw new QueryException('Invalid array syntax: ' . $rightOperand['raw']);
+        }
+        if ('array' === $leftOperand['type'] || 'invalid_array' === $leftOperand['type']) {
+            // Arrays are values for IN / BETWEEN / JSON on the right, never SQL on the left
+            throw new InvalidOperandException($leftOperand['expr']);
         }
 
         if ('unknown' === $rightOperand['type'] && \in_array($operator, self::TEXT_RIGHT_OPERATORS, true)) {
@@ -961,6 +969,10 @@ class WhereSyntax
             }
 
             return 'CAST(\'[]\' AS JSON)';
+        }
+        if ('array' === $operand['type']) {
+            // Bound like a parameter array; the literal's text used to be pasted (RZ-41)
+            return 'CAST(' . $this->jsonValue(($acceptObject) ? $operand['value'] : \array_values($operand['value'])) . ' AS JSON)';
         }
         if ('text' === $operand['type']) {
             return 'CAST(' . $this->jsonValue([$operand['text']]) . ' AS JSON)';
