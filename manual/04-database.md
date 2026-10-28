@@ -137,7 +137,8 @@ else (`b+1`, `SLEEP(5)`, `@x`, `0x1F`, an unquoted `~=` / `&=` / `#=` value) thr
 `Razy\Exception\InvalidOperandException` (a `QueryException`; the operand is in
 `getOperand()`, not the message) instead of going into the SQL raw. The right side of
 `*=` `^=` `$=` `@=` is bound as a value, so unquoted text there still works
-(`email*=@gmail`). Bind anything else: `where('price<:max', ...)->assign(['max' => $n])`.
+(`email*=@gmail`). Quoted text may contain its quote doubled or backslash-escaped
+(`'O''Brien'`, `'O\'Brien'`); it is decoded and bound. Bind anything else: `where('price<:max', ...)->assign(['max' => $n])`.
 An unbalanced `)` is a `QueryException` (before RZ-41 it silently dropped the whole WHERE).
 
 JOIN syntax (readme + parser): `from` with relation syntax

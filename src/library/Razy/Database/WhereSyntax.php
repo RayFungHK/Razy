@@ -410,12 +410,17 @@ class WhereSyntax
                     'expr' => (\is_scalar($value)) ? $this->statement->sqlValue(\is_bool($value) ? $value : (string) $value) : null,
                 ];
             }
-            // Quoted string literal (single or double quoted)
-            if (\preg_match('/^(?<q>[\'"])((?:(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
+            // Quoted string literal (single or double quoted). A quote inside it is doubled
+            // ('O''Brien') or backslash-escaped ('O\'Brien'); both decode to one quote and
+            // the value is bound (RZ-41: these used to reach the SQL raw).
+            if (\preg_match('/^(?<q>[\'"])((?:\\\\\k<q>|\k<q>\k<q>|(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
+                $quote = $matches['q'];
+                $text = \str_replace(['\\' . $quote, $quote . $quote], $quote, $matches[2]);
+
                 return [
                     'type' => 'text',
-                    'text' => $matches[2],
-                    'expr' => $this->statement->sqlValue($matches[2]),
+                    'text' => $text,
+                    'expr' => $this->statement->sqlValue($text),
                 ];
             }
 

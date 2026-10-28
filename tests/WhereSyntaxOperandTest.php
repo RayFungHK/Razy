@@ -82,6 +82,21 @@ class WhereSyntaxOperandTest extends TestCase
         ];
     }
 
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function escapedQuoteLiterals(): array
+    {
+        return [
+            'doubled single quote' => ["email='O''Brien'", "O'Brien"],
+            'doubled double quote' => ['email="say ""hi"""', 'say "hi"'],
+            'backslash-escaped quote' => ["email='O\\'Brien'", "O'Brien"],
+            'only a quote' => ["email=''''", "'"],
+            'injection text stays a value' => ["email='x'' OR 1=1 --'", "x' OR 1=1 --"],
+            'plain backslash unchanged' => ["email='a\\b'", 'a\b'],
+        ];
+    }
+
     #[DataProvider('keptForms')]
     public function testLegitimateRawFormsStillCompile(string $syntax, string $sql): void
     {
@@ -98,6 +113,21 @@ class WhereSyntaxOperandTest extends TestCase
     {
         $stmt = $this->db->prepare()->select('*')->from('t')->order('>RAND()');
         $this->assertSame('SELECT * FROM "t" ORDER BY RAND() DESC', $stmt->getSyntax());
+    }
+
+    #[DataProvider('escapedQuoteLiterals')]
+    public function testQuotedLiteralWithEscapedQuoteIsBound(string $syntax, string $value): void
+    {
+        // These reached the raw fallback before RZ-41; now they are decoded and bound.
+        $compiled = $this->db->prepare()->select('*')->from('t')->where($syntax)->compile();
+        $this->assertSame('SELECT * FROM "t" WHERE "email" = :rzp0', $compiled['sql']);
+        $this->assertSame(['rzp0' => $value], $compiled['params']);
+    }
+
+    public function testUnterminatedQuotedLiteralIsRefused(): void
+    {
+        $this->expectException(InvalidOperandException::class);
+        $this->sql("email='a''");
     }
 
     public function testPatternTextIsStillBoundAsAValue(): void
