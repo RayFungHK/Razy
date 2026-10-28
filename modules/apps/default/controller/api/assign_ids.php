@@ -1,7 +1,7 @@
 <?php
 
 /**
- * razymod/apps — public API command 'assign-ids'.
+ * razymod/apps — public API command 'assignIds'.
  *
  * Fills missing element ids; an element matching one of $previous (same
  * kind, parent and code) gets that id back. An id that moved to another

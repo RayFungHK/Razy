@@ -1,7 +1,7 @@
 <?php
 
 /**
- * razymod/permissions — public API command 'can-any' (mirror Gate::any).
+ * razymod/permissions — public API command 'canAny' (mirror Gate::any).
  */
 
 return function (array $abilities, ?string $actorId = null): bool {

@@ -130,8 +130,8 @@ class AppsModuleTest extends TestCase
             $this->assertSame('cap.definition_bytes', $out['issues'][0]['code'], $cmd);
             $this->assertStringNotContainsString('/', \str_replace(['/depends_on'], '', $out['issues'][0]['message']), 'no paths in messages');
         }
-        $this->assertFalse($this->command('assign-ids', $config)($big)['ok']);
-        $this->assertFalse($this->command('assign-ids', $config)(['entities' => []], $big)['ok'], 'previous is capped too');
+        $this->assertFalse($this->command('assignIds', $config)($big)['ok']);
+        $this->assertFalse($this->command('assignIds', $config)(['entities' => []], $big)['ok'], 'previous is capped too');
         $this->assertFalse($this->command('hash', $config)($big)['ok']);
 
         $deps = \array_fill_keys(\array_map(static fn (int $i): string => "dep-{$i}", \range(1, 21)), ['code' => 'x']);
@@ -187,10 +187,10 @@ class AppsModuleTest extends TestCase
         $previous = $this->deals();
         $draft = $previous;
         unset($draft['entities'][0]['fields'][2]['id']);
-        $out = $this->command('assign-ids')($draft, $previous);
+        $out = $this->command('assignIds')($draft, $previous);
         $this->assertTrue($out['ok']);
         $this->assertSame($previous['entities'][0]['fields'][2]['id'], $out['definition']['entities'][0]['fields'][2]['id']);
-        $fresh = $this->command('assign-ids')(['entities' => [['code' => 'x', 'fields' => [['code' => 'y']]]]])['definition'];
+        $fresh = $this->command('assignIds')(['entities' => [['code' => 'x', 'fields' => [['code' => 'y']]]]])['definition'];
         $this->assertTrue(ElementIds::isValid($fresh['entities'][0]['id']));
         $this->assertTrue(ElementIds::isValid($fresh['entities'][0]['fields'][0]['id']));
     }
@@ -262,7 +262,7 @@ class AppsModuleTest extends TestCase
      */
     private function command(string $name, array $config = []): Closure
     {
-        $file = \str_replace('-', '_', $name);
+        $file = \strtolower((string) \preg_replace('/(?<=[a-z])[A-Z]/', '_$0', $name)); // assignIds -> assign_ids.php
         $closure = require self::MODULE . "/default/controller/api/{$file}.php";
         $this->assertInstanceOf(Closure::class, $closure);
         $controller = $this->controller($config);

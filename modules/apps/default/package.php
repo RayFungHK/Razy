@@ -14,7 +14,7 @@ namespace Razy\Module\apps;
 
 return [
     'name' => 'Apps',
-    'version' => '0.1.0',
+    'version' => '0.2.0',
     'author' => 'Razy Framework',
     'description' => 'Apps as data: definition schema v1, validator, canonical hash, element ids, expressions, compiler, weight (RZA-A)',
     'api_name' => 'apps',

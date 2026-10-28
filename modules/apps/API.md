@@ -19,7 +19,7 @@ Call with `$this->api('razymod/apps')->name(...)`. Every command returns an arra
 | `validate` | `(array $definition, array $options = []): array` | `['ok' => bool, 'issues' => [['severity', 'path', 'code', 'message'], ...]]`. Options: `'dependencies'`, `'previous'`, `'system'` |
 | `compile` | `(array $definition, array $options = []): array` | Validates first; `['ok' => bool, 'plan' => ?array, 'issues' => [...]]`, `'plan'` is null when the definition has errors |
 | `hash` | `(array $definition): array` | `['ok' => bool, 'hash' => 'sha256:…'\|null, 'bytes' => int, 'error'?: string]` over canonical JSON |
-| `assign-ids` | `(array $definition, ?array $previous = null): array` | Fills missing element ids; an element matching `$previous` (same kind, parent and code) keeps its id. `['ok' => true, 'definition' => …, 'issues' => []]` or `['ok' => false, 'issues' => …]` when an input is over its cap |
+| `assignIds` | `(array $definition, ?array $previous = null): array` | Fills missing element ids; an element matching `$previous` (same kind, parent and code) keeps its id. `['ok' => true, 'definition' => …, 'issues' => []]` or `['ok' => false, 'issues' => …]` when an input is over its cap |
 | `weight` | `(array $definition, array $options = []): array` | Validates first; `['ok' => true, 'issues', 'weight', 'wf_nodes', 'counts', 'coefficients', 'coefficients_source' => 'config'\|'reference']`. Coefficients come from config `'weight'`, else the reference values |
 
 ## Events

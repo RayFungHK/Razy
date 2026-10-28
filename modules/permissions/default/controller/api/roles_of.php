@@ -1,7 +1,7 @@
 <?php
 
 /**
- * razymod/permissions — governance command 'roles-of' (governor-only, Q4).
+ * razymod/permissions — governance command 'rolesOf' (governor-only, Q4).
  */
 
 return function (string $actorType, string $actorId): array {

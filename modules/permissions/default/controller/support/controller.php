@@ -25,6 +25,10 @@ use Razy\Contract\AuthenticatableInterface;
 use Razy\Controller;
 use Razy\ModuleInfo;
 
+// Service is not autoloadable (the distributor's module autoloader serves library/ only), so the
+// controller loads it itself; before RZ-48 only the tests did, and service() failed on a real dist.
+require_once __DIR__ . '/Service.php';
+
 class PermissionController extends Controller
 {
     /**
@@ -34,34 +38,34 @@ class PermissionController extends Controller
      */
     private const API_ALLOW = [
         'can' => true,
-        'can-any' => true,
+        'canAny' => true,
         'abilities' => true,
-        'define-ability' => true,
+        'defineAbility' => true,
     ];
 
     /**
      * Governance commands: ONLY the config-named governor module (Q4).
-     * audit-actor joined in S5 once its read side legitimately existed
+     * auditActor joined in S5 once its read side legitimately existed
      * (opt-in table via the second migration; the EVENT remains primary).
      */
     private const GOVERN_ONLY = [
-        'roles-of' => true,
-        'assign-role' => true,
-        'revoke-role' => true,
-        'audit-actor' => true,
+        'rolesOf' => true,
+        'assignRole' => true,
+        'revokeRole' => true,
+        'auditActor' => true,
     ];
 
     public function __onInit(Agent $agent): bool
     {
         // Public commands (RZ-010). Paths relative to controller/ (ClosureLoader.php:130).
         $agent->addAPICommand('can', 'api/can');
-        $agent->addAPICommand('can-any', 'api/can_any');
+        $agent->addAPICommand('canAny', 'api/can_any');
         $agent->addAPICommand('abilities', 'api/abilities');
-        $agent->addAPICommand('define-ability', 'api/define_ability');
-        $agent->addAPICommand('roles-of', 'api/roles_of');
-        $agent->addAPICommand('assign-role', 'api/assign_role');
-        $agent->addAPICommand('revoke-role', 'api/revoke_role');
-        $agent->addAPICommand('audit-actor', 'api/audit_actor');
+        $agent->addAPICommand('defineAbility', 'api/define_ability');
+        $agent->addAPICommand('rolesOf', 'api/roles_of');
+        $agent->addAPICommand('assignRole', 'api/assign_role');
+        $agent->addAPICommand('revokeRole', 'api/revoke_role');
+        $agent->addAPICommand('auditActor', 'api/audit_actor');
 
         // S4: the module's Template plugins (plugins/Template/function.can.php)
         // — one registration, bound to THIS controller; consuming templates get

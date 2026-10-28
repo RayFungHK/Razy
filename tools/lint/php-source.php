@@ -88,7 +88,7 @@ function lintLiteral(mixed $token): ?string
  * `->trigger('event')`. A leading '#' (also bound internally) is dropped.
  * Names inside comments or string literals are not calls and do not count.
  *
- * @return list<array{0: int, 1: string, 2: string}> [line, kind, name]
+ * @return list<array{0: int, 1: string, 2: string, 3: string}> [line, kind, name, literal as written]
  */
 function lintRegistrations(string $source): array
 {
@@ -108,7 +108,7 @@ function lintRegistrations(string $source): array
         $arg = lintNext($tokens, $open);
         $name = $arg === null ? null : lintLiteral($tokens[$arg]);
         if ($name !== null) {
-            $found[] = [$tokens[$arg][2], $kinds[$t[1]], ltrim($name, '#')];
+            $found[] = [$tokens[$arg][2], $kinds[$t[1]], ltrim($name, '#'), $name];
         } elseif ($arg !== null && $tokens[$arg] === '[' && $t[1] !== 'trigger') {
             array_push($found, ...lintBatchKeys($tokens, $arg, $kinds[$t[1]]));
         }
@@ -122,7 +122,7 @@ function lintRegistrations(string $source): array
  *
  * @param array<int, mixed> $tokens
  *
- * @return list<array{0: int, 1: string, 2: string}>
+ * @return list<array{0: int, 1: string, 2: string, 3: string}>
  */
 function lintBatchKeys(array $tokens, int $open, string $kind): array
 {
@@ -139,7 +139,7 @@ function lintBatchKeys(array $tokens, int $open, string $kind): array
         } elseif ($depth === 1 && ($key = lintLiteral($t)) !== null) {
             $arrow = lintNext($tokens, $j);
             if ($arrow !== null && is_array($tokens[$arrow]) && $tokens[$arrow][0] === T_DOUBLE_ARROW) {
-                $found[] = [$t[2], $kind, ltrim($key, '#')];
+                $found[] = [$t[2], $kind, ltrim($key, '#'), $key];
             }
         }
     }

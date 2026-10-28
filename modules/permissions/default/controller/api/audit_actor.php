@@ -1,7 +1,7 @@
 <?php
 
 /**
- * razymod/permissions — governance API command 'audit-actor' (S5).
+ * razymod/permissions — governance API command 'auditActor' (S5).
  *
  * Newest-first denial history for one actor key ("type:id") — the read
  * side of the OPT-IN audit table (config `audit`). Governor-only

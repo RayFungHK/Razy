@@ -902,7 +902,12 @@ function rz018Scan(string $moduleDir, array $excludes): array
         return $found;
     }
     $doc = (string) file_get_contents($apiDoc);
-    foreach (publishedNames($moduleDir, $excludes) as [$file, $lineNo, $kind, $name]) {
+    // The names Agent::addAPICommand / addBridgeCommand accept, checked on the literal as written (RZ-48)
+    $accepted = ['API command' => '/^#?[a-z]\w*$/i', 'bridge command' => '/^[a-z]\w*$/i'];
+    foreach (publishedNames($moduleDir, $excludes) as [$file, $lineNo, $kind, $name, $literal]) {
+        if (isset($accepted[$kind]) && !preg_match($accepted[$kind], $literal)) {
+            $found[] = [$file, $lineNo, $kind . ' `' . $literal . '` is refused by the Agent at boot: it must match ' . $accepted[$kind] . ' (use camelCase)'];
+        }
         if (!str_contains($doc, '`' . $name . '`')) {
             $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is not documented in ' . $apiDoc];
         }
@@ -916,7 +921,7 @@ function rz018Scan(string $moduleDir, array $excludes): array
  *
  * @param list<string> $excludes
  *
- * @return list<array{0: string, 1: int, 2: string, 3: string}> [file, line, kind, name]
+ * @return list<array{0: string, 1: int, 2: string, 3: string, 4: string}> [file, line, kind, name, literal]
  */
 function publishedNames(string $moduleDir, array $excludes): array
 {
@@ -930,8 +935,8 @@ function publishedNames(string $moduleDir, array $excludes): array
             if ($ex !== '' && str_contains($file, $ex)) continue 2;
         }
         // Tokens, not text: comments and string literals publish nothing, a call may span lines
-        foreach (lintRegistrations((string) @file_get_contents($file)) as [$line, $kind, $name]) {
-            $names[] = [$file, $line, $kind, $name];
+        foreach (lintRegistrations((string) @file_get_contents($file)) as [$line, $kind, $name, $literal]) {
+            $names[] = [$file, $line, $kind, $name, $literal];
         }
     }
 
@@ -1184,6 +1189,11 @@ function selfTest(): int
         ['#command documented without #', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('#charge', 'api/charge');", 0],
         ['undocumented event + bridge', "'owner' => 'Payments team',", "`charge`\n", "\$this->trigger('paid'); \$agent->addBridgeCommand('sync', 'b/sync');", 2],
         ['commented-out registration publishes nothing', "'owner' => 'Payments team',", "`charge`\n", "// \$agent->addAPICommand('refund', 'api/refund');", 0],
+        ['hyphenated command name (refused by the Agent)', "'owner' => 'Payments team',", "`can-any`\n", "\$agent->addAPICommand('can-any', 'api/can_any');", 1],
+        ['hyphenated bridge name in batch form', "'owner' => 'Payments team',", "`sync-all`\n", "\$agent->addBridgeCommand(['sync-all' => 'b/sync']);", 1],
+        ['#-prefixed bridge command (bridge names take no #)', "'owner' => 'Payments team',", "`sync`\n", "\$agent->addBridgeCommand('#sync', 'b/sync');", 1],
+        ['double # API command', "'owner' => 'Payments team',", "`sync`\n", "\$agent->addAPICommand('##sync', 'api/sync');", 1],
+        ['dotted event name is fine', "'owner' => 'Payments team',", "`permission.denied`\n", "\$this->trigger('permission.denied');", 0],
         ['batch form, one line', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand(['charge' => 'api/charge', 'refund' => 'api/refund']);", 1],
         ['owner only in a comment', "// 'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('charge', 'api/charge');", 1],
         ['registration split over lines', "'owner' => 'Payments team',", "`refund`\n", "\$agent->addAPICommand(\n    'charge',\n    'api/charge'\n);", 1],

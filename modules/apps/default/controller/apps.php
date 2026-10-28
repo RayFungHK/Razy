@@ -3,9 +3,12 @@
 /**
  * razymod/apps — main controller.
  *
- * The class is named (support/controller.php) so the api/ handler closures,
- * bound to this controller at execution, can annotate their $this and the
- * module can be analysed (the razymod/permissions shape).
+ * The behaviour lives in a named class (support/controller.php) so the api/
+ * handler closures, bound to this controller at execution, can annotate their
+ * $this and the module can be analysed. The file itself returns an ANONYMOUS
+ * subclass: Module::buildController() accepts only that (docs/STYLE.md §4,
+ * the one controller-file form), and a named instance stopped the module from
+ * booting on a real distributor (RZ-48).
  *
  * Config keys (per distributor, config/<dist>/apps.php):
  *   - 'caps'   : narrowing overrides for razymod\apps\Caps (a value above the
@@ -19,4 +22,5 @@ namespace Razy\Module\apps;
 
 require_once __DIR__ . '/support/controller.php';
 
-return new AppsController();
+return new class() extends AppsController {
+};
