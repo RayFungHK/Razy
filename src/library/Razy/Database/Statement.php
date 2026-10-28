@@ -1027,6 +1027,9 @@ class Statement
                     // Simple assignment: column (no operator) defaults to parameter reference :column
                     $this->updateSyntax[$matches[3]] = [':' . $matches[3]];
                 }
+            } else {
+                // RZ-41: an entry that is not Update Simple Syntax used to be skipped silently
+                throw new QueryException('Invalid update syntax; expected column, column++, column=value or column+=value.');
             }
         }
 
