@@ -51,6 +51,9 @@ class StatementSyntaxGuardTest extends TestCase
             'allow-listed function' => ['name=NOW()', '"name" = NOW()'],
             'quoted text is bound' => ["name='O''Brien'", '"name" = :rzp0'],
             'group' => ['n=(n+1)*2', '"n" = (n + 1) * 2'],
+            'double-quoted text equal to the column is a value' => ['name="name"', '"name" = :rzp0'],
+            'compound with double-quoted text' => ['n+="n"', '"n" = "n" + :rzp0'],
+            'backtick column reference' => ['n=`m`+1', '"n" = "m" + 1'],
         ];
     }
 

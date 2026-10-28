@@ -1001,9 +1001,6 @@ class Statement
 
         $this->tableName = $this->getPrefix() . $tableName;
 
-        $driver = $this->database->getDriver();
-        $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
-
         $this->updateSyntax = [];
         foreach ($updateSyntax as &$syntax) {
             $syntax = \trim($syntax);
@@ -1014,13 +1011,14 @@ class Statement
 
                 if (isset($matches[4]) && $matches[4]) {
                     // Shorthand increment/decrement: column++ or column--
-                    $this->updateSyntax[$matches[3]] = [$quote($matches[3]), ('++' === $matches[4]) ? '+' : '-', 1];
+                    // The column is a backtick reference, quoted by UpdateSyntaxBuilder (RZ-41)
+                    $this->updateSyntax[$matches[3]] = ['`' . $matches[3] . '`', ('++' === $matches[4]) ? '+' : '-', 1];
                 } elseif (isset($matches[6])) {
                     // Assignment with optional operator: column=value or column+=value
                     $shortenSyntax = [];
                     if (2 === \strlen($matches[5])) {
                         $operator = $matches[5][0];
-                        $shortenSyntax = [$quote($matches[3]), $operator];
+                        $shortenSyntax = ['`' . $matches[3] . '`', $operator];
                     }
                     $this->updateSyntax[$matches[3]] = \array_merge($shortenSyntax, $this->parseSyntax($matches[6]));
                 } else {
