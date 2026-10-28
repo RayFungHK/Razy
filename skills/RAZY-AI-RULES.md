@@ -405,6 +405,27 @@ is `__call` magic; a `method_exists` guard is permanently false and silently kil
 Lint: `RZ-017` is structural — it pre-scans `module.php` manifests in the same command's paths and
 flags imports resolving to a sibling module's `vendor/module` namespace.
 
+## RZ-018 — One owner per module; its API.md is the contract (error)
+
+**Statement.** The founding rule of Razy (`docs/STYLE.md` §0): a module is owned by one team or
+one person, and its published API and the document that describes it are the contract. `module.php`
+names the owner in `'owner'`; `API.md` beside it lists every API command, bridge command and emitted
+event with signature, return shape and gate. Nobody edits another owner's module files: a consumer
+asks the owner for the change. What is not in `API.md` is not public.
+Lint: `RZ-018` is structural — for each `module.php` in the paths it checks a non-empty `'owner'`,
+an `API.md`, and that every `addAPICommand` / `addBridgeCommand` / `trigger` name in the module's
+live (uncommented) code appears in `API.md` as `` `name` `` (a `#command` without the `#`).
+
+## RZ-019 — No value glued into a query-builder syntax string (error)
+
+**Statement.** Where / Update / ORM Simple Syntax strings are parsed by the engine; a value
+concatenated or interpolated into one becomes syntax (`->where('id=' . $id)`,
+`->where("name='$name'")`, `update('t', ['n=' . $v])`). Values go in as `:name` + `assign()`
+(`docs/STYLE.md` §3). An identifier spliced from the module's own allow-list or config is the one
+legitimate case and carries `// lint-allow: RZ-019 <reason>` on the same or previous line.
+Lint: `RZ-019` (patterns in `tools/lint/rz019.php`) runs in `lint-module-discipline.php` on module
+trees and in `tools/lint-style.php` on the framework source.
+
 ---
 
 ## Appendix A — Agent pre-PR checklist
@@ -417,6 +438,7 @@ flags imports resolving to a sibling module's `vendor/module` namespace.
 [ ] New bridge commands gated in __onBridgeCall
 [ ] New APIs gated in __onAPICall where sensitive; tested
 [ ] package.php versions bumped if any released surface changed
+[ ] module.php has 'owner'; API.md lists every command / event I added or changed (RZ-018)
 [ ] php tools/lint-module-discipline.php <dirs> --format=json  → 0 errors
 [ ] composer quality → green (no new baseline warnings)
 [ ] php Razy.phar validate <dist> → passes
@@ -440,6 +462,8 @@ flags imports resolving to a sibling module's `vendor/module` namespace.
 | RZ-002 | per-module heuristic: `addBridgeCommand` present without `__onBridgeCall` | error |
 | RZ-008 | static-property writes to `\Razy\*` classes / `global\s+\$` | error |
 | RZ-013 | module code writing to `.htaccess`/`Caddyfile` paths | error |
+| RZ-018 | per module: `'owner'` in `module.php`, `API.md` present, every `addAPICommand` / `addBridgeCommand` / `trigger` name in it | error |
+| RZ-019 | `->(where\|orWhere\|having\|order\|orderBy\|group\|groupBy\|select\|from)(` with a `"…$x"` or `'…' .` / `$x .` argument; same in `update(` entries and `delete(` syntax (`tools/lint/rz019.php`) | error |
 
 Suppression syntax: `// lint-allow: RZ-003` on the same or previous line.
 Scanner notes: comments/strings/docblocks ARE scanned (teaching text counts as surface
