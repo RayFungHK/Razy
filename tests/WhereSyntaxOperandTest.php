@@ -94,6 +94,9 @@ class WhereSyntaxOperandTest extends TestCase
             'only a quote' => ["email=''''", "'"],
             'injection text stays a value' => ["email='x'' OR 1=1 --'", "x' OR 1=1 --"],
             'plain backslash unchanged' => ["email='a\\b'", 'a\b'],
+            'two backslash-escaped quotes' => ["email='a\\'\\'b'", "a''b"],
+            'two doubled quotes' => ["email='a''''b'", "a''b"],
+            'escaped then doubled' => ["email='\\''''", "''"],
         ];
     }
 

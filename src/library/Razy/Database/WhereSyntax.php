@@ -415,7 +415,8 @@ class WhereSyntax
             // the value is bound (RZ-41: these used to reach the SQL raw).
             if (\preg_match('/^(?<q>[\'"])((?:\\\\\k<q>|\k<q>\k<q>|(?!\k<q>).)*)\k<q>$/', $expr, $matches)) {
                 $quote = $matches['q'];
-                $text = \str_replace(['\\' . $quote, $quote . $quote], $quote, $matches[2]);
+                // One left-to-right pass, so a decoded quote never pairs with the next one
+                $text = \preg_replace('/\\\\' . $quote . '|' . $quote . $quote . '/', $quote, $matches[2]);
 
                 return [
                     'type' => 'text',
