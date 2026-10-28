@@ -140,6 +140,11 @@ else (`b+1`, `SLEEP(5)`, `@x`, `0x1F`, an unquoted `~=` / `&=` / `#=` value) thr
 (`email*=@gmail`). Quoted text may contain its quote doubled or backslash-escaped
 (`'O''Brien'`, `'O\'Brien'`); it is decoded and bound. Bind anything else: `where('price<:max', ...)->assign(['max' => $n])`.
 An unbalanced `)` is a `QueryException` (before RZ-41 it silently dropped the whole WHERE).
+A JSON path (`meta->>'$.a'`) is re-quoted by the driver and may not contain its own quote
+or a backslash. The same operand rule covers Update Simple Syntax values (`n=n+1`,
+`updated_at=NOW()`, `name='x'` bound); anything else in SET throws, and an `update()` entry
+that is not `col`, `col++`, `col=value` or `col+=value` is an error instead of being
+skipped. `JOIN ... USING` columns (`[:id,org_id]`) must be columns and are quoted.
 
 JOIN syntax (readme + parser): `from` with relation syntax
 `'u.user-g.group[group_id]'` reads *`u` (users) — each `g` (groups) via `group_id`*.
@@ -274,9 +279,11 @@ $active = $User::query($db)                             // :306 → ModelQuery
 $page  = $User::query($db)->paginate(1, 15);           // :512 → Paginator
 ```
 
-ModelQuery also verified: `whereIn/whereNotIn` (`:251/:268`), `whereBetween` (`:290`);
+ModelQuery also verified: `whereIn/whereNotIn` (`:268/:286`), `whereBetween` (`:309`);
 each call binds its own placeholder (`_mq_wi_1`, `_mq_wi_2`, ...), so two calls on one
-column both apply (RZ-41; before, the second overwrote the first's values),
+column both apply (RZ-41; before, the second overwrote the first's values); a helper's
+column is one identifier (`col` or `t.col`); `where()` / `orWhere()` refuse parameter names
+starting with `_mq_`; `bulkUpdate()` keys are column names only,
 `select` (`:353`), `chunk` (`:578`), `cursor` (`:618`), `count` (`:488`), `first` (`:450`),
 `findOrFail` (`:473`), `create` (`:639`), `bulkUpdate` (`:665`), `bulkDelete` (`:683`),
 global scopes (`Model.php:336` `addGlobalScope`; query-side `withoutGlobalScope` `:371`),
