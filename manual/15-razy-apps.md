@@ -19,7 +19,7 @@ distributor's module autoloader, `ModuleScanner::autoload`). Tests:
 ## 1. API (`api('razymod/apps')`)
 
 Every command is a function of its arguments and the module config, with no IO and no state
-between calls. All are deterministic except `assign-ids`, which allocates new ULIDs (time and
+between calls. All are deterministic except `assignIds`, which allocates new ULIDs (time and
 random bytes) for elements that have no id. `__onAPICall`
 admits a command on `AppsController::API_ALLOW` only from a module named in config
 `callers`, and the default is **none**. Every command first checks the size of what it was
@@ -33,7 +33,7 @@ messages, never file paths.
 | `validate` | `array $definition, array $options = []` | `['ok' => bool, 'issues' => [...]]` |
 | `compile` | `array $definition, array $options = []` | `['ok' => bool, 'plan' => ?array, 'issues' => [...]]` |
 | `hash` | `array $definition` | `['ok' => bool, 'hash' => 'sha256:…', 'bytes' => int]` |
-| `assign-ids` | `array $definition, ?array $previous = null` | `['ok' => true, 'definition' => …, 'issues' => []]` with missing or moved ids filled; input over a cap gives `['ok' => false, 'issues' => [...]]` and no `definition` |
+| `assignIds` | `array $definition, ?array $previous = null` | `['ok' => true, 'definition' => …, 'issues' => []]` with missing or moved ids filled; input over a cap gives `['ok' => false, 'issues' => [...]]` and no `definition` |
 | `weight` | `array $definition, array $options = []` | validates first; `['ok', 'issues', 'weight', 'wf_nodes', 'counts', 'coefficients', 'coefficients_source']` |
 
 `$options`: `dependencies` (package code → definition, for packages named in `depends_on`),
@@ -233,7 +233,7 @@ The validator refuses a malformed id, and the same id on two elements of one dra
   still there, a swap (`id.moved`);
 - a known element (kind, parent, code) under a new id (`id.changed`).
 
-`assign-ids` fills missing ids, and an element whose kind, parent and code match one in
+`assignIds` fills missing ids, and an element whose kind, parent and code match one in
 `previous` gets that id back, so a draft that dropped its ids does not re-create columns.
 It never keeps an id that moved: a swapped, re-kinded or moved id is dropped and
 re-assigned, so the swap comes back as it was.

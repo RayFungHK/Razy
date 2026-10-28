@@ -25,12 +25,12 @@ method (manual/04 ledger P8).
 | key | meaning |
 |-----|---------|
 | `database` | config-connect block `['type' => …, 'connection' => […], 'name' => …]` — the module connects its OWN Database handle; false/absent/broken → every DB-backed check denies |
-| `governor` | module code of the single module allowed to call `roles-of` / `assign-role` / `revoke-role` (Q4); absent/empty = nobody |
+| `governor` | module code of the single module allowed to call `rolesOf` / `assignRole` / `revokeRole` (Q4); absent/empty = nobody |
 | `super_actors` | list of actor keys (`"type:id"`) that pass every check |
 | `system_actors` | CLI/service-posture actors (§7.5): consulted **only when `CLI_MODE`** — a web request can never wear one |
 | `session_key` | `$_SESSION` key holding the actor (`"type:id"` string or int id → `"user:{id}"`); default `__auth_actor` |
 | `cache_ttl` | seconds; **0 (default) = no cross-request cache at all**. >0 memoizes per-actor ability sets in `Razy\Cache` (writes through the API invalidate instantly — §7.6 mandate; out-of-band DB edits recover when the TTL expires) |
-| `audit` | bool, default off — persists gated denials into `permission_audit_log` for the `audit-actor` read side (event stays primary, §7) |
+| `audit` | bool, default off — persists gated denials into `permission_audit_log` for the `auditActor` read side (event stays primary, §7) |
 
 Super is `super_actors` ∪ env `RAZY_SUPER_ADMINS` (comma-separated) — the
 escape hatch extends config, it never replaces it (ops break-glass).
@@ -51,16 +51,16 @@ any failure anywhere                       → deny, never throw
 | command | who may call | returns |
 |---------|--------------|---------|
 | `can('group.action')` | any module | `bool` |
-| `can-any(['a.b','c.d'])` | any module | `bool` |
+| `canAny(['a.b','c.d'])` | any module | `bool` |
 | `abilities()` | any module | `list<string>` catalog codes |
-| `define-ability('group.action', 'label')` | any module (catalog = declare-as-used) | `array{ok,…}` |
-| `roles-of(type, id)` | governor only | `array` |
-| `assign-role(type, id, role)` | governor only | `array` (idempotent) |
-| `revoke-role(type, id, role)` | governor only | `array` (idempotent) |
-| `audit-actor(actorKey, limit?)` | governor only | `list` newest-first denial rows (needs `audit`) |
+| `defineAbility('group.action', 'label')` | any module (catalog = declare-as-used) | `array{ok,…}` |
+| `rolesOf(type, id)` | governor only | `array` |
+| `assignRole(type, id, role)` | governor only | `array` (idempotent) |
+| `revokeRole(type, id, role)` | governor only | `array` (idempotent) |
+| `auditActor(actorKey, limit?)` | governor only | `list` newest-first denial rows (needs `audit`) |
 
 Ability codes: `^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)+$` (dot-grouped, the
-razit `$module/$action` pair flattened into one code). `assign-role` refuses
+razit `$module/$action` pair flattened into one code). `assignRole` refuses
 unknown roles; ungranted-but-undefined codes still deny (the DB join is the
 decision; the catalog is the UI registry).
 
@@ -114,7 +114,7 @@ listens to its own event and logs rows to `permission_audit_log`
 (ships as the module's second migration); the governor can then ask:
 
 ```php
-$denials = $this->api('razymod/permissions')->audit-actor('user:7'); // newest first
+$denials = $this->api('razymod/permissions')->auditActor('user:7'); // newest first
 ```
 
 Default off keeps the §8 doctrine exactly: event-only, empty table, no

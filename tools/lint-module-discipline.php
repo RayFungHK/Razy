@@ -903,6 +903,10 @@ function rz018Scan(string $moduleDir, array $excludes): array
     }
     $doc = (string) file_get_contents($apiDoc);
     foreach (publishedNames($moduleDir, $excludes) as [$file, $lineNo, $kind, $name]) {
+        // Agent::addAPICommand / addBridgeCommand refuse any other name at boot (RZ-48: `can-any`)
+        if ($kind !== 'event' && !preg_match('/^[a-z]\w*$/i', $name)) {
+            $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is refused by the Agent at boot: a command name matches /^#?[a-z]\w*$/i (use camelCase)'];
+        }
         if (!str_contains($doc, '`' . $name . '`')) {
             $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is not documented in ' . $apiDoc];
         }
@@ -1184,6 +1188,9 @@ function selfTest(): int
         ['#command documented without #', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('#charge', 'api/charge');", 0],
         ['undocumented event + bridge', "'owner' => 'Payments team',", "`charge`\n", "\$this->trigger('paid'); \$agent->addBridgeCommand('sync', 'b/sync');", 2],
         ['commented-out registration publishes nothing', "'owner' => 'Payments team',", "`charge`\n", "// \$agent->addAPICommand('refund', 'api/refund');", 0],
+        ['hyphenated command name (refused by the Agent)', "'owner' => 'Payments team',", "`can-any`\n", "\$agent->addAPICommand('can-any', 'api/can_any');", 1],
+        ['hyphenated bridge name in batch form', "'owner' => 'Payments team',", "`sync-all`\n", "\$agent->addBridgeCommand(['sync-all' => 'b/sync']);", 1],
+        ['dotted event name is fine', "'owner' => 'Payments team',", "`permission.denied`\n", "\$this->trigger('permission.denied');", 0],
         ['batch form, one line', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand(['charge' => 'api/charge', 'refund' => 'api/refund']);", 1],
         ['owner only in a comment', "// 'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('charge', 'api/charge');", 1],
         ['registration split over lines', "'owner' => 'Payments team',", "`refund`\n", "\$agent->addAPICommand(\n    'charge',\n    'api/charge'\n);", 1],

@@ -26,7 +26,8 @@ Checked: **RZ-018** in `tools/lint-module-discipline.php` fails a module whose `
 `'owner'`, that has no `API.md`, or that registers a command or event its `API.md` does not name as `` `name` ``.
 A `#command` (published and bound internally) is documented without the `#`; the batch form
 `addAPICommand(['name' => 'path', ...])` counts too. Commented-out registrations publish nothing and need no entry.
-The lint sees names written as literals; a name built at runtime (`trigger($name)`) is documented by hand and
+A command name must also be one the Agent accepts at boot (`/^#?[a-z]\w*$/i`, camelCase in practice); a
+hyphenated name is refused by `Agent::addAPICommand()` and fails RZ-018. The lint sees names written as literals; a name built at runtime (`trigger($name)`) is documented by hand and
 checked in review.
 
 RZ-018 does **not** see who edited a module: an edit to another owner's files is caught by review and by the
