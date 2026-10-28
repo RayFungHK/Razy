@@ -110,7 +110,16 @@ const RULES = [
     // compile time; the lint moves that feedback to authoring time).
     // RZ-017 (cross-module namespace import) is structural, not per-line regex —
     // implemented as the two-pass scan below (module manifests, then import check).
+    // RZ-018 (owner + API doc per module) is structural: rz018Scan() per manifest.
+    // RZ-019 (value glued into builder syntax) shares its patterns with
+    // tools/lint-style.php: tools/lint/rz019.php.
 ];
+
+/** RZ-018: the founding rule — one owner per module, its API.md is the contract (docs/STYLE.md §0) */
+const RZ018_DESC = 'Module ownership contract';
+
+/** RZ-019 message */
+const RZ019_DESC = 'Value concatenated or interpolated into a query-builder syntax string — pass values as :name + assign(); a spliced identifier from your own allow-list needs `lint-allow: RZ-019 <reason>` (docs/STYLE.md §3)';
 
 function usage(int $code = 2): never
 {
@@ -138,6 +147,8 @@ foreach (array_slice($argv, 1) as $arg) {
 if ($selfTest) exit(selfTest());
 if ($paths === []) usage(2);
 if (!in_array($format, ['table', 'json'], true)) usage(2);
+
+$rz019Patterns = require __DIR__ . '/lint/rz019.php';
 
 // ── Scan ─────────────────────────────────────────────────────────────────
 $violations = [];
@@ -244,6 +255,14 @@ foreach ($paths as $root) {
             }
         }
 
+        // RZ-019: a value glued into Simple Syntax text becomes syntax
+        if ($scope === 'php') {
+            foreach (rz019Scan($lines, $rz019Patterns) as $i) {
+                if (isSuppressed($lines, $i, 'RZ-019')) { $lineSuppressions++; continue; }
+                $violations[] = violation($file, $i + 1, 'RZ-019', 'error', RZ019_DESC . ' — ' . trim(mb_substr($lines[$i], 0, 120)));
+            }
+        }
+
         // Regex rules ('any' rules apply to both php and tpl scopes)
         foreach (RULES as $rule) {
             if ($rule['scope'] !== $scope && $rule['scope'] !== 'any') continue;
@@ -254,6 +273,18 @@ foreach ($paths as $root) {
                     $violations[] = violation($file, $i + 1, $rule['id'], $rule['level'], $rule['desc'] . ' — ' . trim(mb_substr(strip_tags($line), 0, 120)));
                 }
             }
+        }
+    }
+}
+
+// RZ-018 (structural): every module names its owner and documents every
+// published surface (API command, bridge command, emitted event) in API.md.
+foreach ($paths as $root) {
+    foreach (discoverModuleManifests($root, $excludes) as [, $moduleDir]) {
+        foreach (rz018Scan($moduleDir, $excludes) as [$file, $lineNo, $message]) {
+            $lines = @file($file) ?: [];
+            if (isSuppressed($lines, $lineNo - 1, 'RZ-018')) { $lineSuppressions++; continue; }
+            $violations[] = violation($file, $lineNo, 'RZ-018', 'error', RZ018_DESC . ': ' . $message);
         }
     }
 }
@@ -804,6 +835,104 @@ function rz017Scan(array $lines, array $nsMap, ?string $ownerRoot): array
  *
  * @return list<array{0: string, 1: string}>
  */
+/**
+ * RZ-019 matcher: 0-based indexes of lines that glue a value into a
+ * query-builder syntax string.
+ *
+ * @param array<int, string> $lines
+ * @param list<string> $patterns tools/lint/rz019.php
+ *
+ * @return list<int>
+ */
+function rz019Scan(array $lines, array $patterns): array
+{
+    $hits = [];
+    foreach ($lines as $i => $line) {
+        foreach ($patterns as $re) {
+            if (preg_match($re, $line)) {
+                $hits[] = $i;
+                break;
+            }
+        }
+    }
+
+    return $hits;
+}
+
+/**
+ * RZ-018 check for one module (the folder holding module.php): a non-empty
+ * 'owner' in module.php, an API.md beside it, and every published name
+ * written in API.md as `name`. Published names: addAPICommand (a leading
+ * '#' also binds internally; the API name is without it), addBridgeCommand
+ * and trigger() event names.
+ *
+ * @param list<string> $excludes
+ *
+ * @return list<array{0: string, 1: int, 2: string}> [file, line, message]
+ */
+function rz018Scan(string $moduleDir, array $excludes): array
+{
+    $manifest = $moduleDir . '/module.php';
+    $source = (string) @file_get_contents($manifest);
+    $found = [];
+    if (!preg_match('/[\'"]owner[\'"]\s*=>\s*[\'"]\s*[^\'"\s][^\'"]*[\'"]/', $source)) {
+        $found[] = [$manifest, 1, "module.php has no 'owner' (the one team or person who decides changes to this module)"];
+    }
+    $apiDoc = $moduleDir . '/API.md';
+    if (!is_file($apiDoc)) {
+        $found[] = [$manifest, 1, 'no API.md beside module.php (the documented public surface is the contract)'];
+
+        return $found;
+    }
+    $doc = (string) file_get_contents($apiDoc);
+    foreach (publishedNames($moduleDir, $excludes) as [$file, $lineNo, $kind, $name]) {
+        if (!str_contains($doc, '`' . $name . '`')) {
+            $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is not documented in ' . $apiDoc];
+        }
+    }
+
+    return $found;
+}
+
+/**
+ * Published names registered in a module's PHP files.
+ *
+ * @param list<string> $excludes
+ *
+ * @return list<array{0: string, 1: int, 2: string, 3: string}> [file, line, kind, name]
+ */
+function publishedNames(string $moduleDir, array $excludes): array
+{
+    $kinds = [
+        'API command' => '/addAPICommand\(\s*[\'"]#?([^\'"]+)[\'"]/',
+        'bridge command' => '/addBridgeCommand\(\s*[\'"]([^\'"]+)[\'"]/',
+        'event' => '/->trigger\(\s*[\'"]([^\'"]+)[\'"]/',
+    ];
+    $names = [];
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($moduleDir, FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $spl) {
+        /** @var SplFileInfo $spl */
+        $file = str_replace('\\', '/', $spl->getPathname());
+        if (!$spl->isFile() || strtolower($spl->getExtension()) !== 'php') continue;
+        foreach ($excludes as $ex) {
+            if ($ex !== '' && str_contains($file, $ex)) continue 2;
+        }
+        foreach ((@file($file) ?: []) as $i => $line) {
+            // A commented-out or docblock example registration publishes nothing
+            if (preg_match('#^\s*(?://|\*|/\*|\#)#', $line)) continue;
+            foreach ($kinds as $kind => $re) {
+                if (preg_match_all($re, $line, $m)) {
+                    foreach ($m[1] as $name) {
+                        $names[] = [$file, $i + 1, $kind, $name];
+                    }
+                }
+            }
+        }
+    }
+
+    return $names;
+}
+
 function discoverModuleManifests(string $root, array $excludes): array
 {
     $found = [];
@@ -1007,6 +1136,58 @@ function selfTest(): int
         }
         $failed += $pass ? 0 : 1;
         printf("%s  expect=%s got=%s  %s (RZ-009)\n", $pass ? 'ok  ' : 'FAIL', (string) (is_int($expectHits) ? $expectHits : '0err/1warn'), $gotLabel, $label);
+    }
+
+    // RZ-019 fixtures: values glued into builder syntax hit; placeholders and
+    // plain literals stay clean. [code line, expected hit]
+    $rz019Patterns = require __DIR__ . '/lint/rz019.php';
+    $rz019 = [
+        ["\$q->where('id=' . \$id);", true],
+        ["\$q->where(\"name='\$name'\");", true],
+        ["\$q->where(\"name={\$name}\");", true],
+        ["\$q->orWhere(\$col . '=:v', ['v' => 1]);", true],
+        ["\$q->order('>' . \$sort);", true],
+        ["\$db->update('t', ['name=' . \$v]);", true],
+        ["\$db->update('t', [\"n=\$v\"]);", true],
+        ["\$db->delete('t', ['id' => 1], 'id=' . \$id);", true],
+        ["\$q->where('id=:id')->assign(['id' => \$id]);", false],
+        ["\$q->where('title~=:q')->assign(['q' => '%' . \$k . '%']);", false],
+        ["\$db->update('t', ['name', 'n++'])->where('id=:id');", false],
+        ["\$q->orderBy('created_at', 'DESC');", false],
+    ];
+    foreach ($rz019 as [$line, $expect]) {
+        $pass = (rz019Scan([$line], $rz019Patterns) !== []) === $expect;
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=%s  (RZ-019)  %.60s\n", $pass ? 'ok  ' : 'FAIL', $expect ? 'hit  ' : 'clean', $line);
+    }
+
+    // RZ-018 fixtures: a throwaway module on disk per case
+    $rz018 = [
+        ['owner + documented command', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('charge', 'api/charge');", 0],
+        ['no owner', '', "`charge`\n", "\$agent->addAPICommand('charge', 'api/charge');", 1],
+        ['blank owner', "'owner' => ' ',", "`charge`\n", "\$agent->addAPICommand('charge', 'api/charge');", 1],
+        ['no API.md', "'owner' => 'Payments team',", null, "\$agent->addAPICommand('charge', 'api/charge');", 1],
+        ['undocumented command', "'owner' => 'Payments team',", "`refund`\n", "\$agent->addAPICommand('charge', 'api/charge');", 1],
+        ['#command documented without #', "'owner' => 'Payments team',", "`charge`\n", "\$agent->addAPICommand('#charge', 'api/charge');", 0],
+        ['undocumented event + bridge', "'owner' => 'Payments team',", "`charge`\n", "\$this->trigger('paid'); \$agent->addBridgeCommand('sync', 'b/sync');", 2],
+        ['commented-out registration publishes nothing', "'owner' => 'Payments team',", "`charge`\n", "// \$agent->addAPICommand('refund', 'api/refund');", 0],
+    ];
+    foreach ($rz018 as [$label, $ownerLine, $doc, $code, $expectHits]) {
+        $dir = sys_get_temp_dir() . '/rz018-' . bin2hex(random_bytes(4));
+        mkdir($dir . '/default/controller', 0o777, true);
+        file_put_contents($dir . '/module.php', "<?php\nreturn [\n'module_code' => 'pay/core',\n{$ownerLine}\n];\n");
+        if (null !== $doc) {
+            file_put_contents($dir . '/API.md', $doc);
+        }
+        file_put_contents($dir . '/default/controller/core.php', "<?php\n{$code}\n");
+        $got = count(rz018Scan($dir, []));
+        array_map('unlink', array_filter([$dir . '/module.php', $dir . '/API.md', $dir . '/default/controller/core.php'], 'is_file'));
+        rmdir($dir . '/default/controller');
+        rmdir($dir . '/default');
+        rmdir($dir);
+        $pass = $got === $expectHits;
+        $failed += $pass ? 0 : 1;
+        printf("%s  expect=%d got=%d  %s (RZ-018)\n", $pass ? 'ok  ' : 'FAIL', $expectHits, $got, $label);
     }
 
     printf("\n%s: %d/%d fixtures passed\n", $failed === 0 ? 'PASSED' : 'FAILED', count($cases) - $failed, count($cases));

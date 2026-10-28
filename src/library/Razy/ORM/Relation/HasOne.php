@@ -36,6 +36,7 @@ class HasOne extends Relation
         }
 
         return $this->newQuery()
+            // lint-allow: RZ-019 the relation's key columns, set where the relation is defined, never input
             ->where($this->foreignKey . '=:_fk', ['_fk' => $value])
             ->first();
     }

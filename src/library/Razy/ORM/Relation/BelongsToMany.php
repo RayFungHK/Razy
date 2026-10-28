@@ -255,6 +255,7 @@ class BelongsToMany extends Relation
             ->select($this->relatedPivotKey)
             ->from($this->pivotTable);
 
+        // lint-allow: RZ-019 the relation's key columns, set where the relation is defined, never input
         $stmt->where($this->foreignPivotKey . '=:_fk');
         $stmt->assign(['_fk' => $parentKeyValue]);
 

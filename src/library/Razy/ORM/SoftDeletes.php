@@ -167,6 +167,7 @@ trait SoftDeletes
 
         $this->database->execute(
             $this->database->update($table, [$column])
+                // lint-allow: RZ-019 the model's own primary-key column (static config), never input
                 ->where($pk . '=:_pk')
                 ->assign([$column => null, '_pk' => $id]),
         );
@@ -238,6 +239,7 @@ trait SoftDeletes
 
         $this->database->execute(
             $this->database->update($table, [$column])
+                // lint-allow: RZ-019 the model's own primary-key column (static config), never input
                 ->where($pk . '=:_pk')
                 ->assign([$column => $now, '_pk' => $id]),
         );

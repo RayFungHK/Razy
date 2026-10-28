@@ -850,7 +850,9 @@ class Database implements DatabaseInterface
         // Build the self-join: main table joined with a subquery that provides MAX values per binding group
         $alias = StringUtil::guid();
         $tableName = StringUtil::guid();
+        // lint-allow: RZ-019 deprecated max() splices the caller's identifiers (see its @deprecated note); never pass input
         $statement = $this->prepare()->select($selectColumn)->from('a.' . $tableName . '-' . $alias . '.' . $tableName . '[' . $binding . ']');
+        // lint-allow: RZ-019 same deprecated max(): caller identifiers, never input
         $statement->alias('latest')->select('MAX(' . $valueColumn . ') as ' . $valueColumn . ', ' . $binding)->from($tableName);
 
         return $statement;

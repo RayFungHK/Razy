@@ -557,6 +557,7 @@ class ModelQuery
         $modelClass = $this->modelClass;
         $pk = $modelClass::getPrimaryKeyName();
 
+        // lint-allow: RZ-019 the model's own primary-key column (static config), never input
         return $this->where($pk . '=:_pk', ['_pk' => $id])->first();
     }
 
@@ -1262,6 +1263,7 @@ class ModelQuery
         }
 
         $stmt = $this->database->prepare()
+            // lint-allow: RZ-019 the relation's key columns, set where the relation is defined, never input
             ->select($foreignPivotKey . ',' . $relatedPivotKey)
             ->from($pivotTable);
 
