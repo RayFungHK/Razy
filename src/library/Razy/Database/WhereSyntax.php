@@ -197,7 +197,8 @@ class WhereSyntax
 
                 $operand = \array_shift($extracted);
                 if ($operand) {
-                    if (!\preg_match('/^[,|]$/', $operand)) {
+                    // A group glued to an expression (`NOW()(...)`) arrives here as an array
+                    if (!\is_string($operand) || !\preg_match('/^[,|]$/', $operand)) {
                         throw new QueryException('Invalid Where syntax');
                     }
                     $parsed[] = self::OPERAND_TYPE[$operand];
@@ -236,6 +237,11 @@ class WhereSyntax
 
         $this->syntax = \trim($syntax);
         $this->extracted = SimpleSyntax::parseSyntax($this->syntax, ',|', '=');
+        if ('' !== $this->syntax && [] === $this->extracted) {
+            // SimpleSyntax::parseParens() drops the whole expression at a stray ')'; a
+            // condition that silently vanished would match every row (RZ-41).
+            throw new QueryException('Invalid Where syntax: unbalanced parenthesis.');
+        }
 
         return $this;
     }

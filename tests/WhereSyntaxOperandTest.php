@@ -132,6 +132,29 @@ class WhereSyntaxOperandTest extends TestCase
         $this->db->prepare()->select('*')->from('t')->order('>id+1')->getSyntax();
     }
 
+    public function testStrayClosingParenthesisIsRefusedNotDropped(): void
+    {
+        // SimpleSyntax::parseParens() discards everything at a stray top-level ')'.
+        // Before RZ-41 the whole WHERE vanished, so this DELETE removed every row.
+        try {
+            $this->db->delete('t', ['id' => 1], 'id=:id)--')->query();
+            $this->fail('expected QueryException');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('unbalanced', $e->getMessage());
+        }
+        $this->assertSame([['n' => 2]], $this->db->prepare()->select('COUNT(*) AS n')->from('t')->query()->fetchAll());
+
+        $this->expectException(QueryException::class);
+        $this->sql('id=1),(1=1');
+    }
+
+    public function testGroupGluedToAnOperandIsAQueryException(): void
+    {
+        // Was a TypeError from preg_match() on the nested group.
+        $this->expectException(QueryException::class);
+        $this->sql('id=NOW()(SLEEP(5))');
+    }
+
     private function sql(string $syntax): string
     {
         return $this->db->prepare()->select('*')->from('t')->where($syntax)->getSyntax();
