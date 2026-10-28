@@ -67,7 +67,7 @@ class RazymodBootTest extends TestCase
     {
         $module = $this->boot($folder);
 
-        $this->assertNotSame(ModuleStatus::Failed, $module->getStatus(), '__onInit returned true');
+        $this->assertNotSame(ModuleStatus::Failed, $module->getStatus(), '__onInit returned false');
         $this->assertSame($commands, \array_keys($module->getAPICommands()));
     }
 

@@ -905,7 +905,7 @@ function rz018Scan(string $moduleDir, array $excludes): array
     foreach (publishedNames($moduleDir, $excludes) as [$file, $lineNo, $kind, $name]) {
         // Agent::addAPICommand / addBridgeCommand refuse any other name at boot (RZ-48: `can-any`)
         if ($kind !== 'event' && !preg_match('/^[a-z]\w*$/i', $name)) {
-            $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is refused by the Agent at boot: a command name matches /^#?[a-z]\w*$/i (use camelCase)'];
+            $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is refused by the Agent at boot: a command name must match /^#?[a-z]\w*$/i (use camelCase)'];
         }
         if (!str_contains($doc, '`' . $name . '`')) {
             $found[] = [$file, $lineNo, $kind . ' `' . $name . '` is not documented in ' . $apiDoc];
