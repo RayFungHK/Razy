@@ -66,6 +66,20 @@ class SecurityFollowupsTest extends TestCase
         ];
     }
 
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function zeroTokens(): array
+    {
+        return [
+            'where 0' => ['where', '0'],
+            'where , 0' => ['where', 'id=1,0'],
+            'where (0)' => ['where', 'id=1|(0)'],
+            'set 0' => ['set', 'price=0'],
+            'set 1+0' => ['set', 'price=1+0'],
+        ];
+    }
+
     #[DataProvider('unbalancedBuilders')]
     public function testUnbalancedParenthesisIsAQueryException(callable $build): void
     {
@@ -134,6 +148,44 @@ class SecurityFollowupsTest extends TestCase
             ->where("name=:n,category->>'$.a'=\"x\"")->assign(['n' => 'Novel'])->query()->fetchAll();
 
         $this->assertSame([['c' => 1, 'name' => 'Novel']], $rows);
+    }
+
+    public function testWhereZeroIsAConditionNotAMissingOne(): void
+    {
+        // Before: "0" is falsy in PHP, so the parser, the token loop and the builders all dropped it and
+        // `where('0')` ("match nothing") compiled to no WHERE: DELETE emptied the table, UPDATE hit every row
+        $this->db->delete('qe_items', ['name' => 'x'])->where('0')->query();
+        $this->db->update('qe_items', ['category'])->where('0')->assign(['category' => 'HIT'])->query();
+
+        $this->assertSame(
+            [['category' => 'books'], ['category' => 'electronics']],
+            $this->db->prepare()->select('category')->from('qe_items')->order('<id')->query()->fetchAll(),
+        );
+    }
+
+    #[DataProvider('zeroTokens')]
+    public function testZeroTokensAreKept(string $kind, string $syntax): void
+    {
+        $sql = ('where' === $kind)
+            ? $this->db->prepare()->select('*')->from('qe_items')->where($syntax)->getSyntax()
+            : $this->db->update('qe_items', [$syntax])->where('id=1')->getSyntax();
+
+        // Before: `WHERE "id" = 1 AND` / `OR ()` / `SET "price" =` (invalid SQL) or no WHERE at all
+        $this->assertMatchesRegularExpression('/(?<![\w.])0(?![\w.])/', \strstr($sql, ('where' === $kind) ? 'WHERE' : 'SET') ?: '');
+        $this->assertDoesNotMatchRegularExpression('/(AND|OR|=|\+)\s*(WHERE|$)|\(\)/', $sql);
+    }
+
+    public function testEmptyWhereGroupIsAnError(): void
+    {
+        // Before: `()` ended the token loop and dropped the rest of the condition
+        $this->expectException(QueryException::class);
+        $this->db->prepare()->select('*')->from('qe_items')->where('id=1,()')->getSyntax();
+    }
+
+    public function testVerifySyntaxKeepsZero(): void
+    {
+        $this->assertSame('0', WhereSyntax::VerifySyntax('0'));
+        $this->assertSame('a=1,(0)', WhereSyntax::VerifySyntax('a=1,(0)'));
     }
 
     public function testModelSplicedNamesMustBeIdentifiers(): void

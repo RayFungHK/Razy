@@ -102,7 +102,7 @@ class TableJoinSyntax
         $parser = function (array &$extracted, string &$source = '') use (&$parser, $quote) {
             $parsed = [];
             $join = '';
-            while ($clip = \array_shift($extracted)) {
+            while (null !== ($clip = \array_shift($extracted))) {
                 if (\is_array($clip)) {
                     // Handle parenthesized sub-expression (sub-query or nested join)
                     $alias = '';

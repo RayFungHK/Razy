@@ -109,7 +109,8 @@ class SimpleSyntax
         // Recursive closure that consumes the input string, grouping content between '(' and ')'
         $closure = function (string &$clip, bool $opening = false) use (&$closure) {
             $extracted = [];
-            if (!$clip) {
+            // '' only: a falsy check also ended the input at "0" and dropped it (`where('0')` lost its clause)
+            if ('' === $clip) {
                 if ($opening) {
                     // A '(' as the very last character: nothing left to close it
                     throw new SyntaxException('Unbalanced parenthesis: a "(" is never closed.');
@@ -142,7 +143,7 @@ class SimpleSyntax
             }
 
             // Append any remaining text after the last parenthesis match
-            if ($clip) {
+            if ('' !== $clip) {
                 $extracted[] = $clip;
             }
             if ($opening) {

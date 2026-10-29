@@ -45,7 +45,7 @@ class DeleteSyntaxBuilder implements SyntaxBuilderInterface
 
             // Append WHERE clause if defined
             $where = $statement->getWhereSyntax();
-            if ($where) {
+            if ('' !== (string) $where) { // "0" is a condition (RZ-47)
                 $sql .= ' WHERE ' . $where;
             }
 
