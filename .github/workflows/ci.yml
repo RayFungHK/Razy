@@ -48,7 +48,7 @@ jobs:
 
   tests:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: PHP ${{ matrix.php }} — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -145,7 +145,7 @@ jobs:
   # glibc and musl images, pinned by digest.
   threaded-sapi:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Threaded SAPI locale (FrankenPHP ${{ matrix.libc }})
     runs-on: ubuntu-latest
     strategy:
@@ -165,7 +165,7 @@ jobs:
 
   code-style:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Code Style
     runs-on: ubuntu-latest
     steps:
@@ -188,7 +188,7 @@ jobs:
 
   static-analysis:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Static Analysis (PHPStan)
     runs-on: ubuntu-latest
     steps:
@@ -215,7 +215,7 @@ jobs:
 
   discipline:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Module Discipline (Golden Rules)
     runs-on: ubuntu-latest
     steps:
@@ -253,7 +253,7 @@ jobs:
 
   redis-integration:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Redis-backed suites (real server)
     runs-on: ubuntu-latest
     services:
@@ -294,7 +294,7 @@ jobs:
 
   postgres-integration:
     needs: draft-state
-    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
+    if: ${{ !cancelled() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Postgres-backed suites (real server)
     runs-on: ubuntu-latest
     services:
