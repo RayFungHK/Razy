@@ -22,6 +22,7 @@ use Razy\Cache\InvalidArgumentException;
 use Razy\Cache\RedisAdapter;
 use Redis;
 use RedisException;
+use ReflectionMethod;
 
 #[CoversClass(RedisAdapter::class)]
 class RedisAdapterTest extends TestCase
@@ -366,6 +367,10 @@ class RedisAdapterTest extends TestCase
         $host = \getenv('REDIS_HOST') ?: '127.0.0.1';
         $port = (int) (\getenv('REDIS_PORT') ?: 6379);
 
+        if (!\class_exists(ScanEmptyBatchRedis::class, false)) {
+            $this->markTestSkipped('Redis scan() is not available to override.');
+        }
+
         $redis = new ScanEmptyBatchRedis();
 
         try {
@@ -548,11 +553,13 @@ class RedisAdapterTest extends TestCase
 }
 
 /**
- * Real Redis client whose first scan() page is empty and whose cursor stays
- * non-zero, then the stashed real page is returned. clear() that stops on a
- * falsy page never deletes the keys this connection actually holds.
+ * Shared empty-page behaviour. The public scan() signature has to match the
+ * loaded phpredis: 5.x has three parameters, 6.x adds ?string $type. One
+ * declaration cannot satisfy both, and a mismatch is a fatal error when
+ * PHPUnit loads this file (the main CI job has no Redis server, but it does
+ * load the class).
  */
-class ScanEmptyBatchRedis extends Redis
+trait ScanEmptyBatchBehavior
 {
     private bool $armed = true;
 
@@ -563,20 +570,25 @@ class ScanEmptyBatchRedis extends Redis
 
     private mixed $stashedCursor = null;
 
+    public function injectedEmptyBatch(): bool
+    {
+        return $this->injected;
+    }
+
     /**
      * @param mixed $iterator
-     * @param string|null $pattern
-     * @param int $count
      *
      * @return array<int, string>|false
      */
-    public function scan(&$iterator, $pattern = null, $count = 0): array|false
+    private function takeEmptyPageThenReal(mixed &$iterator, mixed $pattern, mixed $count, mixed $type, bool $withType): array|false
     {
         if ($this->armed) {
             $this->armed = false;
             $this->injected = true;
             $cursor = null;
-            $this->stashed = parent::scan($cursor, $pattern, $count);
+            $this->stashed = $withType
+                ? parent::scan($cursor, $pattern, $count, $type)
+                : parent::scan($cursor, $pattern, $count);
             $this->stashedCursor = $cursor;
             $iterator = 1;
 
@@ -592,13 +604,50 @@ class ScanEmptyBatchRedis extends Redis
             return \is_array($keys) ? $keys : false;
         }
 
-        $keys = parent::scan($iterator, $pattern, $count);
+        $keys = $withType
+            ? parent::scan($iterator, $pattern, $count, $type)
+            : parent::scan($iterator, $pattern, $count);
 
         return \is_array($keys) ? $keys : false;
     }
+}
 
-    public function injectedEmptyBatch(): bool
+if (\class_exists(Redis::class) && \method_exists(Redis::class, 'scan')
+    && (new ReflectionMethod(Redis::class, 'scan'))->getNumberOfParameters() >= 4) {
+    /**
+     * Real Redis client whose first scan() page is empty and whose cursor stays
+     * non-zero, then the stashed real page is returned. clear() that stops on a
+     * falsy page never deletes the keys this connection actually holds.
+     */
+    class ScanEmptyBatchRedis extends Redis
     {
-        return $this->injected;
+        use ScanEmptyBatchBehavior;
+
+        public function scan(string|int|null &$iterator, ?string $pattern = null, int $count = 0, ?string $type = null): array|false
+        {
+            return $this->takeEmptyPageThenReal($iterator, $pattern, $count, $type, true);
+        }
+    }
+} elseif (\class_exists(Redis::class) && \method_exists(Redis::class, 'scan')) {
+    /**
+     * Real Redis client whose first scan() page is empty and whose cursor stays
+     * non-zero, then the stashed real page is returned. clear() that stops on a
+     * falsy page never deletes the keys this connection actually holds.
+     */
+    class ScanEmptyBatchRedis extends Redis
+    {
+        use ScanEmptyBatchBehavior;
+
+        /**
+         * @param mixed $iterator
+         * @param string|null $pattern
+         * @param int $count
+         *
+         * @return array<int, string>|false
+         */
+        public function scan(&$iterator, $pattern = null, $count = 0): array|false
+        {
+            return $this->takeEmptyPageThenReal($iterator, $pattern, $count, null, false);
+        }
     }
 }
