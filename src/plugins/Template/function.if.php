@@ -112,7 +112,7 @@ return function (...$arguments) {
             }
 
             // "(0)|1" arrives as the clip "|1", and "2>(1)" leaves ">" after the "2".
-            $glued = $this->peelGluedOperator($clip, $events);
+            $this->peelGluedOperator($clip, $events);
 
             while (\preg_match(self::OPERAND, $clip, $matches, \PREG_OFFSET_CAPTURE)) {
                 $events[] = ['val', $matches['value'][0]];
@@ -146,8 +146,9 @@ return function (...$arguments) {
                 }
             }
 
-            // A leading operator with no operand ("|???") is not a condition.
-            return !$glued || '' === $clip;
+            // Unconsumed text ("1,foo", "|???") is not a condition. A connector
+            // must not keep only the left side.
+            return '' === $clip;
         }
 
         /**
