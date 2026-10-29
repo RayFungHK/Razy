@@ -8,18 +8,47 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ main, master, develop ]
 
-# A newer push on a PR cancels the run still in progress. Pushes to a default branch are not
-# cancelled. Draft PRs skip every job; marking the PR ready starts them.
+# A newer PR push cancels the run still in progress. Each push to a default branch has its
+# own group: GitHub keeps only one pending run per group, so a shared group would drop a
+# third push even with cancel-in-progress false. A payload that still says draft can arrive
+# after ready_for_review; automerge counts SKIPPED as success, so draft-state re-reads the
+# live PR and the jobs run when it is no longer a draft.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('ci-{0}', github.ref) || format('ci-push-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  draft-state:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PAYLOAD_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -eu
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$PAYLOAD_DRAFT" != "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          live=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .draft)
+          if [ "$live" = "true" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   tests:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: PHP ${{ matrix.php }} — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -73,10 +102,10 @@ jobs:
         run: php tools/skills-smoke.php
 
   coverage:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: [draft-state, tests]
+    if: ${{ needs.tests.result == 'success' && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Code Coverage
     runs-on: ubuntu-latest
-    needs: tests
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -115,7 +144,8 @@ jobs:
   # thread a non-UTF-8 LC_CTYPE (the check bites), Razy\Util\Locale must not.
   # glibc and musl images, pinned by digest.
   threaded-sapi:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Threaded SAPI locale (FrankenPHP ${{ matrix.libc }})
     runs-on: ubuntu-latest
     strategy:
@@ -134,7 +164,8 @@ jobs:
         run: bash tools/frankenphp-locale-race.sh docker "${{ matrix.image }}"
 
   code-style:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Code Style
     runs-on: ubuntu-latest
     steps:
@@ -156,7 +187,8 @@ jobs:
         run: vendor/bin/php-cs-fixer fix --dry-run --diff --verbose --format=checkstyle | cs2pr
 
   static-analysis:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Static Analysis (PHPStan)
     runs-on: ubuntu-latest
     steps:
@@ -182,7 +214,8 @@ jobs:
         run: vendor/bin/phpstan analyse -c phpstan.modules.neon --no-progress
 
   discipline:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Module Discipline (Golden Rules)
     runs-on: ubuntu-latest
     steps:
@@ -219,7 +252,8 @@ jobs:
         run: php tools/lint-style.php
 
   redis-integration:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Redis-backed suites (real server)
     runs-on: ubuntu-latest
     services:
@@ -259,7 +293,8 @@ jobs:
           grep -qE '^OK \([0-9]+ tests' redis.log || { echo "::error::redis-backed suites not fully green (skips or failures — see log above)"; exit 1; }
 
   postgres-integration:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    needs: draft-state
+    if: ${{ always() && (needs.draft-state.result != 'success' || needs.draft-state.outputs.run == 'true') }}
     name: Postgres-backed suites (real server)
     runs-on: ubuntu-latest
     services:
