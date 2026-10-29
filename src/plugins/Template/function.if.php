@@ -261,8 +261,10 @@ return function (...$arguments) {
             $lhs = null;
             $negate = false;
             $pendingCmp = null;
+            $count = \count($events);
 
-            foreach ($events as $event) {
+            for ($i = 0; $i < $count; ++$i) {
+                $event = $events[$i];
                 $kind = $event[0];
 
                 if ('not' === $kind) {
@@ -310,10 +312,17 @@ return function (...$arguments) {
                     $next = $entity->parseValue((string) ($event[1] ?? ''));
                 }
 
+                $comparisonFollows = $i + 1 < $count && 'cmp' === $events[$i + 1][0];
+
                 if (null !== $pendingCmp) {
                     $value = ArrayUtil::comparison($lhs, $next, (string) $pendingCmp);
                     $pendingCmp = null;
                     $lhs = $value;
+                } elseif ($negate && $comparisonFollows) {
+                    // "1,!1=0" splits the bang from the comparison. The bang still
+                    // negates the comparison, the same as "!1=0" in one match.
+                    $lhs = $next;
+                    continue;
                 } else {
                     $value = $this->operandIsTrue($next);
                     $lhs = $next;
