@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **RZ-54** — **Fixed:** Template `{@if}` applies an operator that sits next to a parenthesised group. `(0),(1)` is false and `!(0)` is true; a comparison between groups (`(2)>(1)`) uses the operands, and a `,` or `|` followed by `!` short-circuits on that operator. [unreleased/RZ-54.md](unreleased/RZ-54.md).
 - **RZ-53** — **Fixed:** `VersionUtil::vc()` applies `,` and `|` after a bare version or a parenthesised group. `0|>=1.0` and `1.2|>=2.0` match either side, and `(>=1.0),(<2.0)` is that range. A combinator used to be read only after a constraint, so those requirements were always false. [unreleased/RZ-53.md](unreleased/RZ-53.md).
 - **RZ-55** — **Fixed:** `Cache\RedisAdapter::clear()` follows the SCAN cursor until it is 0. An empty page is a falsy array, so the old `while ($keys = scan())` stopped mid-scan and left prefixed keys. The shared client's `OPT_SCAN` is not changed. [unreleased/RZ-55.md](unreleased/RZ-55.md).
 - **RZ-52** — **Fixed:** a `"0"` token or a `0` key no longer ends a parse: `ArrayUtil::refactor()` of a list returned `[]`, a `Collection` selector segment `0` returned the whole collection, and the version requirement `0` matched nothing (`while ($x = array_shift(...))` / truthiness checks, the same idiom RZ-47 removed from the query builder). [unreleased/RZ-52.md](unreleased/RZ-52.md).

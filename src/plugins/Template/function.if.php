@@ -18,7 +18,6 @@
  * Supports an optional {@else} block for the false branch.
  * Usage in templates: {@if $var='value'}true content{@else}false content{/if}
  *
- * @package Razy
  *
  * @license MIT
  */
@@ -38,6 +37,13 @@ use Razy\Util\ArrayUtil;
  */
 return function (...$arguments) {
     return new class(...$arguments) extends TFunctionCustom {
+        /**
+         * One operand, an optional comparison, then an optional AND/OR and a bang
+         * that belongs to the next operand. The bang after "," or "|" is inside
+         * capture 7 (`|!`), so the operator is capture 7's first character (RZ-54).
+         */
+        private const OPERAND = '/^\s*(!)?(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*|-?\d+(?:\.\d+)?|(?P>rq))(?:([><!^$|]?=|<|>)((?P>value)))?([,|](!)?)?\s*/';
+
         /** @var bool This function requires enclosed content between opening and closing tags */
         protected bool $encloseContent = true;
 
@@ -47,10 +53,6 @@ return function (...$arguments) {
         /**
          * Process the if function by evaluating a conditional expression.
          *
-         * Parses the condition syntax into parenthesized groups, then recursively
-         * evaluates each group with support for comparison operators, logical
-         * AND/OR chaining, and negation.
-         *
          * @param Entity $entity The current template entity context
          * @param string $syntax The raw condition expression syntax
          * @param string $wrappedText The enclosed content (may contain {@else} divider)
@@ -59,81 +61,12 @@ return function (...$arguments) {
          */
         public function processor(Entity $entity, string $syntax = '', string $wrappedText = ''): string
         {
-            $clips = SimpleSyntax::parseParens($syntax);
-
-            /**
-             * Recursive evaluator for condition expression clips.
-             *
-             * Handles nested parenthesized groups, variable resolution, comparison
-             * operators, and logical AND (,) / OR (|) chaining with optional negation (!).
-             *
-             * @param array $clips The parsed expression clips to evaluate
-             *
-             * @return bool|null The boolean result of the expression evaluation
-             */
-            $recursive = function (array $clips) use (&$recursive, $entity) {
-                $value = null;
-                $reverse = false;
-                while (null !== ($clip = \array_shift($clips))) { // "0" is an operand, not the end (RZ-52)
-                    if (\is_array($clip)) {
-                        // Recursively evaluate parenthesized sub-expressions
-                        $value = $recursive($clip);
-                        if ($reverse) {
-                            $value = !$value;
-                            $reverse = false;
-                        }
-                    } else {
-                        // Match variables, literals, comparison operators, and logical connectors
-                        while (\preg_match('/^\s*(!)?(?<value>\$\w+(?:\.(?:\w+|(?<rq>(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)))*(?:->\w+(?::(?:\w+|(?P>rq)|-?\d+(?:\.\d+)?))*)*|-?\d+(?:\.\d+)?|(?P>rq))(?:([><!^$|]?=|<|>)((?P>value)))?([,|](!)?)?\s*/', $clip, $matches, PREG_OFFSET_CAPTURE)) {
-                            // Resolve the operand value from the entity context
-                            $operand = $entity->parseValue($matches['value'][0]);
-                            if (isset($matches[6]) && \strlen($matches[6][0])) {
-                                // Comparison mode: resolve right-hand operand and compare
-                                $compare = $entity->parseValue($matches[6][0]);
-                                $value = ArrayUtil::comparison($operand, $compare, $matches[5][0]);
-                            } else {
-                                // Truthiness check: scalar truthy or non-empty array
-                                $value = (\is_scalar($operand) && $operand) || (\is_array($operand) && !empty($operand));
-                            }
-
-                            // Apply the inline negation operator (!) if present
-                            if ($matches[1][0]) {
-                                $value = !$value;
-                            }
-
-                            // If the negative operator is given, reverse the bool of the result
-                            if ($reverse) {
-                                $value = !$value;
-                                $reverse = false;
-                            }
-
-                            if (!isset($matches[7])) {
-                                // If the operator is not exists, the statement should be completed
-                                if (\strlen($matches[0][0]) !== \strlen($clip)) {
-                                    return false;
-                                }
-                            } else {
-                                // Return false if the previous comparison is false and the operator is the `AND`
-                                if (false === $value && ',' === $matches[7][0]) {
-                                    return false;
-                                }
-
-                                if (true === $value && '|' === $matches[7][0]) {
-                                    // Short-circuit: return true on OR if the previous result was true
-                                    return true;
-                                }
-
-                                $reverse = isset($matches[8]);
-                            }
-
-                            // Advance past the matched portion of the clip string
-                            $clip = \substr($clip, (int) $matches[0][1] + \strlen($matches[0][0]));
-                        }
-                    }
-                }
-
-                return $value;
-            };
+            // parseParens splits "(0),(1)" into a group, the ",", and a group, and
+            // "!(0)" into "!" and a group. Those operator clips used to be skipped,
+            // so the last group won and a leading "!" never flipped (RZ-54).
+            $events = [];
+            $passed = $this->compileEvents(SimpleSyntax::parseParens($syntax), $events)
+                && $this->runEvents($entity, $events);
 
             // The condition is already resolved above, once, from the tag source.
             // Split the source on this body's {@else} before any substitution, then
@@ -142,7 +75,210 @@ return function (...$arguments) {
             // template syntax that arrived inside a value (RZ-30).
             [$trueText, $falseText] = $entity->splitTopElse($wrappedText);
 
-            return $entity->expandFunctionTags(($recursive($clips)) ? $trueText : $falseText);
+            return $entity->expandFunctionTags($passed ? $trueText : $falseText);
+        }
+
+        /**
+         * @param array<int, mixed> $clips
+         * @param list<array{0: string, 1?: mixed}> $events
+         */
+        private function compileEvents(array $clips, array &$events): bool
+        {
+            foreach ($clips as $clip) {
+                if (\is_array($clip)) {
+                    $events[] = ['group', $clip];
+                    continue;
+                }
+
+                if (!\is_string($clip) || '' === \trim($clip)) {
+                    continue;
+                }
+
+                if (!$this->appendClipEvents($clip, $events)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /**
+         * @param list<array{0: string, 1?: mixed}> $events
+         */
+        private function appendClipEvents(string $clip, array &$events): bool
+        {
+            // An operator that parseParens left between groups: ",", "|", "!", ",!".
+            if (\preg_match('/^\s*([,|])?\s*(!*)\s*$/', $clip, $bare) && ('' !== ($bare[1] ?? '') || '' !== ($bare[2] ?? ''))) {
+                if (',' === ($bare[1] ?? '')) {
+                    $events[] = ['and'];
+                } elseif ('|' === ($bare[1] ?? '')) {
+                    $events[] = ['or'];
+                }
+
+                for ($i = 0, $n = \strlen($bare[2] ?? ''); $i < $n; ++$i) {
+                    $events[] = ['not'];
+                }
+
+                return true;
+            }
+
+            if (\preg_match('/^\s*(!=|<=|>=|[><!^$|]?=|<|>)\s*$/', $clip, $cmp)) {
+                $events[] = ['cmp', $cmp[1]];
+
+                return true;
+            }
+
+            while (\preg_match(self::OPERAND, $clip, $matches, \PREG_OFFSET_CAPTURE)) {
+                $events[] = ['val', $matches['value'][0]];
+
+                if (isset($matches[6][0]) && '' !== $matches[6][0]) {
+                    $events[] = ['cmp', $matches[5][0]];
+                    $events[] = ['val', $matches[6][0]];
+                }
+
+                // The "!" in "!1=0" flips the comparison, not the left number.
+                if ('' !== ($matches[1][0] ?? '')) {
+                    $events[] = ['flip'];
+                }
+
+                $logic = $matches[7][0] ?? '';
+                $joined = '' !== $logic && (',' === $logic[0] || '|' === $logic[0]);
+
+                if ($joined) {
+                    $events[] = ',' === $logic[0] ? ['and'] : ['or'];
+
+                    if ('' !== ($matches[8][0] ?? '')) {
+                        $events[] = ['not'];
+                    }
+                }
+
+                $clip = \substr($clip, (int) $matches[0][1] + \strlen($matches[0][0]));
+
+                if (!$joined) {
+                    // "1>" matched the "1" and left the operator behind: not a condition.
+                    return '' === $clip;
+                }
+            }
+
+            return true;
+        }
+
+        /**
+         * A group that is only one operand keeps that operand, so "(2)>(1)" compares
+         * the numbers. A group that already combined operators yields its bool.
+         *
+         * @param list<array{0: string, 1?: mixed}> $events
+         *
+         * @return array{raw: mixed}|null
+         */
+        private function pureOperand(Entity $entity, array $events): ?array
+        {
+            if (1 !== \count($events)) {
+                return null;
+            }
+
+            if ('val' === $events[0][0]) {
+                return ['raw' => $entity->parseValue((string) $events[0][1])];
+            }
+
+            if ('group' !== $events[0][0] || !\is_array($events[0][1])) {
+                return null;
+            }
+
+            $inner = [];
+
+            if (!$this->compileEvents($events[0][1], $inner)) {
+                return null;
+            }
+
+            return $this->pureOperand($entity, $inner);
+        }
+
+        /**
+         * @param list<array{0: string, 1?: mixed}> $events
+         */
+        private function runEvents(Entity $entity, array $events): bool
+        {
+            $value = null;
+            $lhs = null;
+            $negate = false;
+            $pendingCmp = null;
+
+            foreach ($events as $event) {
+                $kind = $event[0];
+
+                if ('not' === $kind) {
+                    $negate = !$negate;
+                    continue;
+                }
+
+                if ('flip' === $kind) {
+                    if (null !== $value) {
+                        $value = !$value;
+                        $lhs = $value;
+                    }
+                    continue;
+                }
+
+                if ('and' === $kind) {
+                    if (false === $value) {
+                        return false;
+                    }
+                    continue;
+                }
+
+                if ('or' === $kind) {
+                    if (true === $value) {
+                        return true;
+                    }
+                    continue;
+                }
+
+                if ('cmp' === $kind) {
+                    $pendingCmp = $event[1];
+                    continue;
+                }
+
+                if ('group' === $kind && \is_array($event[1])) {
+                    $inner = [];
+
+                    if (!$this->compileEvents($event[1], $inner)) {
+                        return false;
+                    }
+
+                    $pure = $this->pureOperand($entity, $inner);
+                    $next = null !== $pure ? $pure['raw'] : $this->runEvents($entity, $inner);
+                } else {
+                    $next = $entity->parseValue((string) ($event[1] ?? ''));
+                }
+
+                if (null !== $pendingCmp) {
+                    $value = ArrayUtil::comparison($lhs, $next, (string) $pendingCmp);
+                    $pendingCmp = null;
+                    $lhs = $value;
+                } else {
+                    $value = $this->operandIsTrue($next);
+                    $lhs = $next;
+                }
+
+                if ($negate) {
+                    $value = !$value;
+                    $lhs = $value;
+                    $negate = false;
+                }
+            }
+
+            // "(1)>" has a comparison and no right-hand side.
+            if (null !== $pendingCmp) {
+                return false;
+            }
+
+            return true === $value;
+        }
+
+        private function operandIsTrue(mixed $operand): bool
+        {
+            return (\is_scalar($operand) && $operand) || (\is_array($operand) && !empty($operand));
         }
     };
 };
