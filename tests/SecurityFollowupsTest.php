@@ -109,6 +109,33 @@ class SecurityFollowupsTest extends TestCase
         }
     }
 
+    public function testQuoteInsideACommentDoesNotHideALaterPlaceholder(): void
+    {
+        $binder = ParameterBinder::begin();
+        try {
+            $live = $binder->add('x');
+            $inComment = $binder->add('y');
+            $sql = "SELECT 1 /* ' */ FROM t WHERE a = {$live} -- {$inComment} '\nAND j->>'$.a' = 1 /* {$inComment} */";
+
+            // PDO skips comments the same way: a placeholder inside one is not a placeholder
+            $this->assertSame([\substr($live, 1) => 'x'], $binder->paramsUsedIn($sql));
+            $this->assertSame([], $binder->paramsUsedIn("SELECT 1 /* {$live}"), 'an unclosed comment runs to the end');
+        } finally {
+            ParameterBinder::end($binder);
+        }
+    }
+
+    public function testBuilderQueryWithACommentKeepsItsBindings(): void
+    {
+        // Before: the comment quote paired with the JSON-path quote, `name = :rzp1` lost its value and SQLite
+        // ran it as NULL (no rows, no error)
+        $this->db->getDBAdapter()?->exec("UPDATE qe_items SET category = '{\"a\":\"x\"}' WHERE id = 1");
+        $rows = $this->db->prepare()->select("1 /* ' */ AS c, name")->from('qe_items')
+            ->where("name=:n,category->>'$.a'=\"x\"")->assign(['n' => 'Novel'])->query()->fetchAll();
+
+        $this->assertSame([['c' => 1, 'name' => 'Novel']], $rows);
+    }
+
     public function testModelSplicedNamesMustBeIdentifiers(): void
     {
         // Before: a key or column became Simple Syntax (`name=:x|1=1` matched every row)

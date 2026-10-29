@@ -130,9 +130,11 @@ final class ParameterBinder
         if (!$this->params) {
             return [];
         }
-        // Only placeholders outside quoted literals and quoted identifiers count: PDO skips those, so a
-        // `:rzp1` inside '...' would bind a value with no placeholder (RZ-47)
-        $outside = (string) \preg_replace('/\'(?:[^\'\\\]|\\\.|\'\')*\'|"(?:[^"\\\]|\\\.|"")*"|`(?:[^`]|``)*`/s', '', $sql);
+        // Only placeholders outside comments, quoted literals and quoted identifiers count: PDO skips those,
+        // so a `:rzp1` inside '...' would bind a value with no placeholder (RZ-47). Comments are spans of
+        // their own, as in PDO's scanner: a quote inside `/* ' */` must not pair with a later literal and
+        // hide the live placeholders between them, and an unclosed `/*` runs to the end
+        $outside = (string) \preg_replace('/\/\*.*?(?:\*\/|\z)|--[^\r\n]*|\'(?:[^\'\\\]|\\\.|\'\')*\'|"(?:[^"\\\]|\\\.|"")*"|`(?:[^`]|``)*`/s', '', $sql);
         \preg_match_all('/:(' . self::PREFIX . '\d+)(?!\w)/', $outside, $matches);
 
         return \array_intersect_key($this->params, \array_flip($matches[1]));
