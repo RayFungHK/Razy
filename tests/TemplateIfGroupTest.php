@@ -61,8 +61,22 @@ class TemplateIfGroupTest extends TestCase
             'nested and' => ['{@if ((0),(1))}Y{@else}N{/if}', 'N'],
             'nested not' => ['{@if !((0))}Y{@else}N{/if}', 'Y'],
             'group and a literal' => ['{@if (0),1}Y{@else}N{/if}', 'N'],
+            'true group and a false literal' => ['{@if (1),0}Y{@else}N{/if}', 'N'],
+            'false group or a literal' => ['{@if (0)|1}Y{@else}N{/if}', 'Y'],
+            'false group or true then true' => ['{@if (0)|1,1}Y{@else}N{/if}', 'Y'],
+            'false group or a negated false literal' => ['{@if (0)|!0}Y{@else}N{/if}', 'Y'],
+            'true group and a negated true literal' => ['{@if (1),!1}Y{@else}N{/if}', 'N'],
+            'group equal to a false literal' => ['{@if (1)=0}Y{@else}N{/if}', 'N'],
+            'group equal to zero' => ['{@if (0)=0}Y{@else}N{/if}', 'Y'],
+            'group greater than a larger literal' => ['{@if (1)>2}Y{@else}N{/if}', 'N'],
+            'group less than a smaller literal' => ['{@if (2)<1}Y{@else}N{/if}', 'N'],
+            'group not-equal to a literal' => ['{@if (0)!=1}Y{@else}N{/if}', 'Y'],
+            'group less-or-equal a smaller literal' => ['{@if (1)<=0}Y{@else}N{/if}', 'N'],
+            'group or not-equal to one' => ['{@if (0)|!=1}Y{@else}N{/if}', 'Y'],
             'literal and a group' => ['{@if 1,(0)}Y{@else}N{/if}', 'N'],
             'literal or a group' => ['{@if 0|(1)}Y{@else}N{/if}', 'Y'],
+            'literal equal to a group' => ['{@if 1=(1)}Y{@else}N{/if}', 'Y'],
+            'literal greater than a group' => ['{@if 2>(1)}Y{@else}N{/if}', 'Y'],
             'greater-than between groups' => ['{@if (2)>(1)}Y{@else}N{/if}', 'Y'],
             'greater-than the other way' => ['{@if (1)>(2)}Y{@else}N{/if}', 'N'],
             'not-equal between groups' => ['{@if (0)!=(1)}Y{@else}N{/if}', 'Y'],
@@ -105,6 +119,8 @@ class TemplateIfGroupTest extends TestCase
         $this->assertSame('Y', $this->render('{@if ($name)=(\'a\')}Y{@else}N{/if}', ['name' => 'a']));
         $this->assertSame('Y', $this->render('{@if (\'a\')|=($list)}Y{@else}N{/if}', ['list' => ['a', 'b']]));
         $this->assertSame('N', $this->render('{@if (\'z\')|=($list)}Y{@else}N{/if}', ['list' => ['a', 'b']]));
+        $this->assertSame('Y', $this->render('{@if (\'a\')|=$list}Y{@else}N{/if}', ['list' => ['a', 'b']]));
+        $this->assertSame('N', $this->render('{@if (\'z\')|=$list}Y{@else}N{/if}', ['list' => ['a', 'b']]));
     }
 
     public function testChosenBranchIsNotParsedAgain(): void

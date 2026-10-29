@@ -107,26 +107,12 @@ return function (...$arguments) {
          */
         private function appendClipEvents(string $clip, array &$events): bool
         {
-            // An operator that parseParens left between groups: ",", "|", "!", ",!".
-            if (\preg_match('/^\s*([,|])?\s*(!*)\s*$/', $clip, $bare) && ('' !== ($bare[1] ?? '') || '' !== ($bare[2] ?? ''))) {
-                if (',' === ($bare[1] ?? '')) {
-                    $events[] = ['and'];
-                } elseif ('|' === ($bare[1] ?? '')) {
-                    $events[] = ['or'];
-                }
-
-                for ($i = 0, $n = \strlen($bare[2] ?? ''); $i < $n; ++$i) {
-                    $events[] = ['not'];
-                }
-
+            if ($this->clipIsOnlyOperator($clip, $events)) {
                 return true;
             }
 
-            if (\preg_match('/^\s*(!=|<=|>=|[><!^$|]?=|<|>)\s*$/', $clip, $cmp)) {
-                $events[] = ['cmp', $cmp[1]];
-
-                return true;
-            }
+            // "(0)|1" arrives as the clip "|1", and "2>(1)" leaves ">" after the "2".
+            $glued = $this->peelGluedOperator($clip, $events);
 
             while (\preg_match(self::OPERAND, $clip, $matches, \PREG_OFFSET_CAPTURE)) {
                 $events[] = ['val', $matches['value'][0]];
@@ -155,12 +141,84 @@ return function (...$arguments) {
                 $clip = \substr($clip, (int) $matches[0][1] + \strlen($matches[0][0]));
 
                 if (!$joined) {
-                    // "1>" matched the "1" and left the operator behind: not a condition.
-                    return '' === $clip;
+                    // "2>(1)" matched the "2" and left ">". The next clip is the group.
+                    return '' === $clip || $this->clipIsOnlyOperator($clip, $events);
                 }
             }
 
-            return true;
+            // A leading operator with no operand ("|???") is not a condition.
+            return !$glued || '' === $clip;
+        }
+
+        /**
+         * A clip that is only the operator parseParens placed between two groups.
+         *
+         * @param list<array{0: string, 1?: mixed}> $events
+         */
+        private function clipIsOnlyOperator(string $clip, array &$events): bool
+        {
+            if (\preg_match('/^\s*([,|])?\s*(!*)\s*$/', $clip, $bare) && ('' !== ($bare[1] ?? '') || '' !== ($bare[2] ?? ''))) {
+                if (',' === ($bare[1] ?? '')) {
+                    $events[] = ['and'];
+                } elseif ('|' === ($bare[1] ?? '')) {
+                    $events[] = ['or'];
+                }
+
+                for ($i = 0, $n = \strlen($bare[2] ?? ''); $i < $n; ++$i) {
+                    $events[] = ['not'];
+                }
+
+                return true;
+            }
+
+            if (\preg_match('/^\s*(!=|<=|>=|[><!^$|]?=|<|>)\s*$/', $clip, $cmp)) {
+                $events[] = ['cmp', $cmp[1]];
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * parseParens glues the operator to a bare operand that follows a group:
+         * "(0)|1" is "|1", "(1),0" is ",0", "(1)=0" is "=0". "|=" is "in",
+         * not OR plus equals. A clip that is only the operator was already emitted.
+         *
+         * @param list<array{0: string, 1?: mixed}> $events
+         */
+        private function peelGluedOperator(string &$clip, array &$events): bool
+        {
+            // A condition that starts with an operator has no left side. Leave it
+            // unmatched, as before, so "{@if >=1}" stays false instead of comparing null.
+            if ([] === $events) {
+                return false;
+            }
+
+            $peeled = false;
+
+            if (\preg_match('/^\s*(\|=)\s*/', $clip, $contains)) {
+                $events[] = ['cmp', $contains[1]];
+                $clip = \substr($clip, \strlen($contains[0]));
+                $peeled = true;
+            } elseif (\preg_match('/^\s*([,|])\s*(!*)\s*/', $clip, $lead)) {
+                $events[] = ',' === $lead[1] ? ['and'] : ['or'];
+
+                for ($i = 0, $n = \strlen($lead[2]); $i < $n; ++$i) {
+                    $events[] = ['not'];
+                }
+
+                $clip = \substr($clip, \strlen($lead[0]));
+                $peeled = true;
+            }
+
+            if (\preg_match('/^\s*(!=|<=|>=|[><!^$|]?=|<|>)\s*/', $clip, $cmp)) {
+                $events[] = ['cmp', $cmp[1]];
+                $clip = \substr($clip, \strlen($cmp[0]));
+                $peeled = true;
+            }
+
+            return $peeled;
         }
 
         /**
