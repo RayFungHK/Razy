@@ -74,7 +74,7 @@ return function (...$arguments) {
             $recursive = function (array $clips) use (&$recursive, $entity) {
                 $value = null;
                 $reverse = false;
-                while ($clip = \array_shift($clips)) {
+                while (null !== ($clip = \array_shift($clips))) { // "0" is an operand, not the end (RZ-52)
                     if (\is_array($clip)) {
                         // Recursively evaluate parenthesized sub-expressions
                         $value = $recursive($clip);

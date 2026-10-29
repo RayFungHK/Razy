@@ -58,7 +58,7 @@ class Collection extends ArrayObject
     {
         $filtered = [];
         $filter = \trim($filter);
-        if ($filter) {
+        if ('' !== $filter) {
             // Split filter string by commas, respecting quoted strings and parenthesized groups
             $clips = \preg_split('/(?:\((\\\.(\*SKIP)|[^()]+)*\)|(?<q>[\'"])(?:\.(\*SKIP)|(?!\k<q>).)\*\k<q>\.)(*SKIP)(*FAIL)|\s*,\s*/', $filter);
             foreach ($clips as $clip) {
@@ -188,7 +188,7 @@ class Collection extends ArrayObject
         $filtered = ['$' => $this->getIterator()];
 
         // Process each selector node sequentially, narrowing the result set
-        while ($node = \array_shift($selectors)) {
+        while (null !== ($node = \array_shift($selectors))) { // "0" is a key, not the end (RZ-52)
             // Regex matches: key (word, wildcard, or quoted string) + optional filter chain
             if (\preg_match('/^(?<key>(?:\*|\w+)|(?<q>[\'"])(?:\.(*SKIP)|(?!\k<q>).)*\k<q>)((?::\w+(?:\((?:(?<value>(?P>key)|\d+(?:.\d+)?)(?:\s*,\s*(?P>value))*)?\))?)*)$/', $node, $matches)) {
                 $_filtered = [];
