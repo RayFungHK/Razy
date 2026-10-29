@@ -22,6 +22,7 @@ use Razy\Cache\InvalidArgumentException;
 use Razy\Cache\RedisAdapter;
 use Redis;
 use RedisException;
+use ReflectionMethod;
 
 #[CoversClass(RedisAdapter::class)]
 class RedisAdapterTest extends TestCase
@@ -343,6 +344,90 @@ class RedisAdapterTest extends TestCase
         $this->assertTrue($this->adapter->clear());
     }
 
+    public function testClearRemovesMoreKeysThanOneScanPage(): void
+    {
+        for ($i = 0; $i < 250; ++$i) {
+            $this->adapter->set('page-' . $i, $i);
+        }
+
+        $this->redis->set('other_prefix_page', 'survive');
+
+        $this->assertTrue($this->adapter->clear());
+
+        for ($i = 0; $i < 250; ++$i) {
+            $this->assertFalse($this->adapter->has('page-' . $i), "page-{$i} still present");
+        }
+
+        $this->assertSame('survive', $this->redis->get('other_prefix_page'));
+        $this->redis->del('other_prefix_page');
+    }
+
+    public function testClearContinuesAfterAnEmptyScanBatch(): void
+    {
+        $host = \getenv('REDIS_HOST') ?: '127.0.0.1';
+        $port = (int) (\getenv('REDIS_PORT') ?: 6379);
+
+        if (!\class_exists(ScanEmptyBatchRedis::class, false)) {
+            $this->markTestSkipped('Redis scan() is not available to override.');
+        }
+
+        $redis = new ScanEmptyBatchRedis();
+
+        try {
+            if (!@$redis->connect($host, $port, 1.0)) {
+                $this->markTestSkipped("Cannot connect to Redis at {$host}:{$port}.");
+            }
+        } catch (RedisException $e) {
+            $this->markTestSkipped('Redis connection failed: ' . $e->getMessage());
+        }
+
+        $optionBefore = $redis->getOption(Redis::OPT_SCAN);
+        $prefix = 'razy_test_empty_' . \uniqid() . '_';
+        $adapter = new RedisAdapter($redis, $prefix);
+        $adapter->set('keep-me', 'yes');
+        $adapter->set('also', 'yes');
+        $redis->set('other_prefix_empty_batch', 'survive');
+
+        $this->assertTrue($adapter->clear());
+        $this->assertTrue($redis->injectedEmptyBatch(), 'clear() never saw the empty SCAN page');
+        $this->assertFalse($adapter->has('keep-me'));
+        $this->assertFalse($adapter->has('also'));
+        $this->assertSame('survive', $redis->get('other_prefix_empty_batch'));
+        $this->assertSame($optionBefore, $redis->getOption(Redis::OPT_SCAN));
+
+        $redis->del('other_prefix_empty_batch');
+        $adapter->clear();
+    }
+
+    public function testClearDeletesOddDirectWritesAndRefusesAnEmptyPrefix(): void
+    {
+        $odd = "odd key\"\n<script>";
+        $this->redis->set($this->prefix . $odd, 'x');
+
+        $this->assertTrue($this->adapter->clear());
+        $this->assertSame(0, $this->redis->exists($this->prefix . $odd));
+
+        $bare = new RedisAdapter($this->redis, '');
+        $this->redis->set('must-survive-flush', 'yes');
+
+        try {
+            $bare->clear();
+            $this->fail('empty prefix must throw');
+        } catch (InvalidArgumentException) {
+            $this->assertSame('yes', $this->redis->get('must-survive-flush'));
+        } finally {
+            $this->redis->del('must-survive-flush');
+        }
+    }
+
+    public function testClearDoesNotChangeScanOption(): void
+    {
+        $before = $this->redis->getOption(Redis::OPT_SCAN);
+        $this->adapter->set('opt', 'v');
+        $this->assertTrue($this->adapter->clear());
+        $this->assertSame($before, $this->redis->getOption(Redis::OPT_SCAN));
+    }
+
     // ═══════════════════════════════════════════════════════
     //  9. Key Validation
     // ═══════════════════════════════════════════════════════
@@ -464,5 +549,105 @@ class RedisAdapterTest extends TestCase
 
         $result = $this->adapter->getMultiple(\array_keys($data));
         $this->assertSame($data, $result);
+    }
+}
+
+/**
+ * Shared empty-page behaviour. The public scan() signature has to match the
+ * loaded phpredis: 5.x has three parameters, 6.x adds ?string $type. One
+ * declaration cannot satisfy both, and a mismatch is a fatal error when
+ * PHPUnit loads this file (the main CI job has no Redis server, but it does
+ * load the class).
+ */
+trait ScanEmptyBatchBehavior
+{
+    private bool $armed = true;
+
+    private bool $injected = false;
+
+    /** @var array<int, string>|false|null */
+    private array|false|null $stashed = null;
+
+    private mixed $stashedCursor = null;
+
+    public function injectedEmptyBatch(): bool
+    {
+        return $this->injected;
+    }
+
+    /**
+     * @param mixed $iterator
+     *
+     * @return array<int, string>|false
+     */
+    private function takeEmptyPageThenReal(mixed &$iterator, mixed $pattern, mixed $count, mixed $type, bool $withType): array|false
+    {
+        if ($this->armed) {
+            $this->armed = false;
+            $this->injected = true;
+            $cursor = null;
+            $this->stashed = $withType
+                ? parent::scan($cursor, $pattern, $count, $type)
+                : parent::scan($cursor, $pattern, $count);
+            $this->stashedCursor = $cursor;
+            $iterator = 1;
+
+            return [];
+        }
+
+        if ($this->stashed !== null) {
+            $keys = $this->stashed;
+            $cursor = $this->stashedCursor;
+            $this->stashed = null;
+            $iterator = $cursor;
+
+            return \is_array($keys) ? $keys : false;
+        }
+
+        $keys = $withType
+            ? parent::scan($iterator, $pattern, $count, $type)
+            : parent::scan($iterator, $pattern, $count);
+
+        return \is_array($keys) ? $keys : false;
+    }
+}
+
+if (\class_exists(Redis::class) && \method_exists(Redis::class, 'scan')
+    && (new ReflectionMethod(Redis::class, 'scan'))->getNumberOfParameters() >= 4) {
+    /**
+     * Real Redis client whose first scan() page is empty and whose cursor stays
+     * non-zero, then the stashed real page is returned. clear() that stops on a
+     * falsy page never deletes the keys this connection actually holds.
+     */
+    class ScanEmptyBatchRedis extends Redis
+    {
+        use ScanEmptyBatchBehavior;
+
+        public function scan(string|int|null &$iterator, ?string $pattern = null, int $count = 0, ?string $type = null): array|false
+        {
+            return $this->takeEmptyPageThenReal($iterator, $pattern, $count, $type, true);
+        }
+    }
+} elseif (\class_exists(Redis::class) && \method_exists(Redis::class, 'scan')) {
+    /**
+     * Real Redis client whose first scan() page is empty and whose cursor stays
+     * non-zero, then the stashed real page is returned. clear() that stops on a
+     * falsy page never deletes the keys this connection actually holds.
+     */
+    class ScanEmptyBatchRedis extends Redis
+    {
+        use ScanEmptyBatchBehavior;
+
+        /**
+         * @param mixed $iterator
+         * @param string|null $pattern
+         * @param int $count
+         *
+         * @return array<int, string>|false
+         */
+        public function scan(&$iterator, $pattern = null, $count = 0): array|false
+        {
+            return $this->takeEmptyPageThenReal($iterator, $pattern, $count, null, false);
+        }
     }
 }

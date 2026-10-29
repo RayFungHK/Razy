@@ -126,13 +126,27 @@ class RedisAdapter implements CacheInterface
             throw new InvalidArgumentException('Cannot clear cache without a prefix — flushDB is too dangerous.');
         }
 
-        // Delete only keys with our prefix
+        // Delete only keys with our prefix. phpredis returns an empty array
+        // when this page of the keyspace misses the pattern, and that array
+        // is falsy, so `while ($keys = scan())` stops with the cursor still
+        // live and leaves the rest of the prefix (RZ-55). The cursor is the
+        // end signal, the same loop Session\Driver\RedisDriver::gc() uses.
+        // OPT_SCAN stays at the client's setting: this connection is shared,
+        // and SCAN_RETRY would change every other scan on it.
         $iterator = null;
         $pattern = $this->prefix . '*';
 
-        while ($keys = $this->redis->scan($iterator, $pattern, 100)) {
-            $this->redis->del(...$keys);
-        }
+        do {
+            $keys = $this->redis->scan($iterator, $pattern, 100);
+
+            if (!\is_array($keys)) {
+                break;
+            }
+
+            if ($keys !== []) {
+                $this->redis->del(...$keys);
+            }
+        } while (\is_int($iterator) && $iterator > 0);
 
         return true;
     }
