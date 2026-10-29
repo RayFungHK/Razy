@@ -736,7 +736,7 @@ class Database implements DatabaseInterface
      */
     public function prepare(string $sql = ''): Statement
     {
-        if ($sql) {
+        if ('' !== $sql) {
             return new Statement($this, $sql);
         }
 

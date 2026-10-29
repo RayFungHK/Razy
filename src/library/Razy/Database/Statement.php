@@ -123,12 +123,12 @@ class Statement
     {
         $syntax = [];
         $parameter = \trim($parameter);
-        if (!$parameter) {
+        if ('' === $parameter) {
             throw new QueryException('The parameter is required');
         }
         foreach ($columns as $column) {
             $column = self::standardizeColumn($column);
-            if ($column) {
+            if ('' !== $column) {
                 $syntax[] = $column . '*=:' . $parameter;
             }
         }
@@ -677,7 +677,7 @@ class Statement
     {
         $this->type = StatementType::Insert;
         $tableName = \trim($tableName);
-        if (!$tableName) {
+        if ('' === $tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
 
@@ -852,7 +852,7 @@ class Statement
             }
 
             $standardizedColumn = self::standardizeColumn($column, $quote);
-            if ($standardizedColumn) {
+            if ('' !== $standardizedColumn) {
                 $standardizedColumn .= ('>' === $ordering) ? ' DESC' : ' ASC';
                 $this->orderby[] = $standardizedColumn;
             } else {
@@ -940,7 +940,7 @@ class Statement
     {
         $this->type = StatementType::Delete;
         $tableName = \trim($tableName);
-        if (!$tableName) {
+        if ('' === $tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
 
@@ -956,7 +956,7 @@ class Statement
             $this->whereSyntax = new WhereSyntax($this);
 
             // Auto-build WHERE conditions: use |= (IN) for arrays, = for scalars
-            if (!$whereSyntax) {
+            if ('' === $whereSyntax) { // "0" is a condition, not "build one from the params" (RZ-47)
                 $conditions = [];
                 foreach ($parameters as $key => $value) {
                     if (\is_array($value)) {
@@ -989,7 +989,7 @@ class Statement
     {
         $this->type = StatementType::Update;
         $tableName = \trim($tableName);
-        if (!$tableName) {
+        if ('' === $tableName) {
             throw new QueryException('The table name cannot be empty.');
         }
 

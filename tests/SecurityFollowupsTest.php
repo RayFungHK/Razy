@@ -175,6 +175,23 @@ class SecurityFollowupsTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/(AND|OR|=|\+)\s*(WHERE|$)|\(\)/', $sql);
     }
 
+    public function testDeleteWithAnExplicitZeroWhereKeepsItsRows(): void
+    {
+        // Before: Statement::delete() took the where syntax "0" for "none given" and built `name=?` from the
+        // params, so both calls deleted the Novel row (Grok, Razy#45 round 1)
+        $count = fn (): int => (int) $this->db->prepare()->select('COUNT(*) AS n')->from('qe_items')->query()->fetch()['n'];
+
+        $this->assertSame(0, RZ47_Item::query($this->db)->where('0', ['name' => 'Novel'])->bulkDelete());
+        $this->assertSame(2, $count(), 'ModelQuery::bulkDelete()');
+        $this->db->execute($this->db->delete('qe_items', ['name' => 'Novel'], '0'));
+        $this->assertSame(2, $count(), 'Database::delete()');
+    }
+
+    public function testSearchTextSyntaxKeepsAZeroParameter(): void
+    {
+        $this->assertSame('`name`*=:0', Database\Statement::getSearchTextSyntax('0', ['name']));
+    }
+
     public function testEmptyWhereGroupIsAnError(): void
     {
         // Before: `()` ended the token loop and dropped the rest of the condition
