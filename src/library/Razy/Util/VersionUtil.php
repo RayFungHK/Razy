@@ -85,7 +85,7 @@ class VersionUtil
         $parser = function (array &$extracted) use (&$parser, $version) {
             $result = false;
 
-            while ($clip = \array_shift($extracted)) {
+            while (null !== ($clip = \array_shift($extracted))) { // "0" is a clip, not the end (RZ-52)
                 if (\is_array($clip)) {
                     $result = $parser($clip);
                 } else {

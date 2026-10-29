@@ -72,7 +72,7 @@ class ArrayUtil
             $kvp = \array_intersect($kvp, $keys);
         }
 
-        while ($key = \array_shift($kvp)) {
+        while (null !== ($key = \array_shift($kvp))) { // key 0 is a key, not the end (RZ-52)
             foreach ($source[$key] as $index => $value) {
                 if (!isset($result[$index])) {
                     $result[$index] = [];
