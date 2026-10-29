@@ -58,7 +58,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
 
             // Append WHERE clause if defined
             $where = $statement->getWhereSyntax();
-            if ($where) {
+            if ('' !== (string) $where) { // "0" is a condition (RZ-47)
                 $sql .= ' WHERE ' . $where;
             }
 
@@ -101,7 +101,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
         $parser = function (array &$extracted) use (&$parser, $column, $concat, $statement, $quote) {
             $parsed = [];
             $operand = '';
-            while ($clip = \array_shift($extracted)) {
+            while (null !== ($clip = \array_shift($extracted))) {
                 if (\is_array($clip)) {
                     // Nested sub-expression: recurse and handle concatenation operator
                     if ('&' === $operand) {
@@ -139,7 +139,7 @@ class UpdateSyntaxBuilder implements SyntaxBuilderInterface
                 }
 
                 $operand = \array_shift($extracted);
-                if ($operand) {
+                if (null !== $operand) {
                     if (!\is_string($operand) || !\preg_match('/^[+\-*\/&]$/', $operand)) {
                         throw new QueryException('Cannot generate the update statement because the Update Simple Syntax is not correct.');
                     }

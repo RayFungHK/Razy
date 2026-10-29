@@ -31,6 +31,12 @@ class CryptTest extends TestCase
 
     private const LEGACY_HEX = '37dc449c07b2914e4969e8dd71b4ebd9dbd64459aef348e0f823fefb4197f6e70ba3cd6c703f16eaa2d64230b9065a5771908a0864c35434d64e1b84b35f3e3dd414460f2c25f7afc69391d0e54701fc';
 
+    /** Written with an empty key by the pre-RZ-47 Crypt::encrypt(..., '', true) (v2, HKDF input "\0"). */
+    private const EMPTY_KEY_V2_HEX = '0277d2dafee7408c730fe542f90af188e47eb16ef57e8bbd898275f32cacfe15ea48b92f0b3ae1bdd8a52acf2d4d15e6dbdabdaec274da622b2b02f347fcfe996e23726d7ed0dd75883df6ec6b297f3385';
+
+    /** Written with an empty key in the pre-RZ-41 format (IV . HMAC(ciphertext, '') . AES(ciphertext, '')). */
+    private const EMPTY_KEY_LEGACY_HEX = '2222222222222222222222222222222299395bdb0981ca790810c7ddcc4ff3deab8ea8b9c202844d9f975efdd3764c190a7171da7cf6caa01b41759630f0c88dc9e1354e9ecc277c91fa55c1fc206cbf';
+
     private string $testKey = 'test-encryption-key-32-characters';
 
     // ==================== DIFFERENT DATA TYPES ====================
@@ -425,6 +431,15 @@ class CryptTest extends TestCase
             } catch (InvalidArgumentException) {
             }
         }
+    }
+
+    public function testEmptyKeyRecordsOpenWithTheNulKeyForMigration(): void
+    {
+        // The CHANGELOG migration path: v2 derived its keys from "\0" for '', and the legacy format's HMAC and
+        // AES both zero-pad a short key, so "\0" opens what '' wrote in either format (RZ-47)
+        $this->assertSame('written under an empty key', Crypt::decrypt(self::EMPTY_KEY_V2_HEX, "\0"));
+        $this->assertSame('legacy, empty key', Crypt::decrypt(self::EMPTY_KEY_LEGACY_HEX, "\0", true));
+        $this->assertTrue(Crypt::needsReencrypt(self::EMPTY_KEY_LEGACY_HEX, "\0"));
     }
 
     public function testEmptyPlaintextIsNotAFailure(): void

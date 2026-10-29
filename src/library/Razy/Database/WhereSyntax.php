@@ -99,9 +99,9 @@ class WhereSyntax
         $parser = function (array &$extracted) use (&$parser, $prefix) {
             $parsed = [];
             $negative = false;
-            while ($clip = \array_shift($extracted)) {
+            while (null !== ($clip = \array_shift($extracted))) {
                 if (\is_array($clip)) {
-                    if (!($sub = $parser($clip))) {
+                    if ('' === ($sub = $parser($clip))) {
                         return '';
                     }
                     $parsed[] = (($negative) ? '!' : '') . '(' . $sub . ')';
@@ -142,7 +142,7 @@ class WhereSyntax
                 }
 
                 $operand = \array_shift($extracted);
-                if ($operand) {
+                if (null !== $operand) {
                     if (!\preg_match('/^[,|]$/', $operand)) {
                         return '';
                     }
@@ -202,9 +202,13 @@ class WhereSyntax
         $parser = function (array &$extracted) use (&$parser) {
             $parsed = [];
             $negative = false;
-            while ($clip = \array_shift($extracted)) {
+            while (null !== ($clip = \array_shift($extracted))) {
                 if (\is_array($clip)) {
-                    // Parenthesized sub-expression: recurse and optionally negate
+                    // Parenthesized sub-expression: recurse and optionally negate. An empty group is an
+                    // error: it used to end the loop and drop the rest of the condition
+                    if (!$clip) {
+                        throw new QueryException('Invalid Where syntax: empty parentheses.');
+                    }
                     $parsed[] = (($negative) ? '!' : '') . '(' . $parser($clip) . ')';
                     $negative = false;
                 } else {
@@ -225,7 +229,7 @@ class WhereSyntax
                 }
 
                 $operand = \array_shift($extracted);
-                if ($operand) {
+                if (null !== $operand) {
                     // A group glued to an expression (`NOW()(...)`) arrives here as an array
                     if (!\is_string($operand) || !\preg_match('/^[,|]$/', $operand)) {
                         throw new QueryException('Invalid Where syntax');

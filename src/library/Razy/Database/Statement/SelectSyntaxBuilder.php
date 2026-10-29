@@ -47,7 +47,7 @@ class SelectSyntaxBuilder implements SyntaxBuilderInterface
 
         // Append WHERE clause if defined and non-empty
         $where = $statement->getWhereSyntax();
-        if ($where) {
+        if ('' !== (string) $where) { // "0" is a condition (RZ-47)
             $sql .= ' WHERE ' . $where;
         }
 
@@ -59,7 +59,7 @@ class SelectSyntaxBuilder implements SyntaxBuilderInterface
 
         // Append HAVING clause for aggregate filtering
         $having = $statement->getHavingSyntax();
-        if ($having) {
+        if ('' !== (string) $having) {
             $sql .= ' HAVING ' . $having;
         }
 

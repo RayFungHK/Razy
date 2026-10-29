@@ -66,6 +66,20 @@ class SecurityFollowupsTest extends TestCase
         ];
     }
 
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function zeroTokens(): array
+    {
+        return [
+            'where 0' => ['where', '0'],
+            'where , 0' => ['where', 'id=1,0'],
+            'where (0)' => ['where', 'id=1|(0)'],
+            'set 0' => ['set', 'price=0'],
+            'set 1+0' => ['set', 'price=1+0'],
+        ];
+    }
+
     #[DataProvider('unbalancedBuilders')]
     public function testUnbalancedParenthesisIsAQueryException(callable $build): void
     {
@@ -107,6 +121,88 @@ class SecurityFollowupsTest extends TestCase
         } finally {
             ParameterBinder::end($binder);
         }
+    }
+
+    public function testQuoteInsideACommentDoesNotHideALaterPlaceholder(): void
+    {
+        $binder = ParameterBinder::begin();
+        try {
+            $live = $binder->add('x');
+            $inComment = $binder->add('y');
+            $sql = "SELECT 1 /* ' */ FROM t WHERE a = {$live} -- {$inComment} '\nAND j->>'$.a' = 1 /* {$inComment} */";
+
+            // PDO skips comments the same way: a placeholder inside one is not a placeholder
+            $this->assertSame([\substr($live, 1) => 'x'], $binder->paramsUsedIn($sql));
+            $this->assertSame([], $binder->paramsUsedIn("SELECT 1 /* {$live}"), 'an unclosed comment runs to the end');
+        } finally {
+            ParameterBinder::end($binder);
+        }
+    }
+
+    public function testBuilderQueryWithACommentKeepsItsBindings(): void
+    {
+        // Before: the comment quote paired with the JSON-path quote, `name = :rzp1` lost its value and SQLite
+        // ran it as NULL (no rows, no error)
+        $this->db->getDBAdapter()?->exec("UPDATE qe_items SET category = '{\"a\":\"x\"}' WHERE id = 1");
+        $rows = $this->db->prepare()->select("1 /* ' */ AS c, name")->from('qe_items')
+            ->where("name=:n,category->>'$.a'=\"x\"")->assign(['n' => 'Novel'])->query()->fetchAll();
+
+        $this->assertSame([['c' => 1, 'name' => 'Novel']], $rows);
+    }
+
+    public function testWhereZeroIsAConditionNotAMissingOne(): void
+    {
+        // Before: "0" is falsy in PHP, so the parser, the token loop and the builders all dropped it and
+        // `where('0')` ("match nothing") compiled to no WHERE: DELETE emptied the table, UPDATE hit every row
+        $this->db->delete('qe_items', ['name' => 'x'])->where('0')->query();
+        $this->db->update('qe_items', ['category'])->where('0')->assign(['category' => 'HIT'])->query();
+
+        $this->assertSame(
+            [['category' => 'books'], ['category' => 'electronics']],
+            $this->db->prepare()->select('category')->from('qe_items')->order('<id')->query()->fetchAll(),
+        );
+    }
+
+    #[DataProvider('zeroTokens')]
+    public function testZeroTokensAreKept(string $kind, string $syntax): void
+    {
+        $sql = ('where' === $kind)
+            ? $this->db->prepare()->select('*')->from('qe_items')->where($syntax)->getSyntax()
+            : $this->db->update('qe_items', [$syntax])->where('id=1')->getSyntax();
+
+        // Before: `WHERE "id" = 1 AND` / `OR ()` / `SET "price" =` (invalid SQL) or no WHERE at all
+        $this->assertMatchesRegularExpression('/(?<![\w.])0(?![\w.])/', \strstr($sql, ('where' === $kind) ? 'WHERE' : 'SET') ?: '');
+        $this->assertDoesNotMatchRegularExpression('/(AND|OR|=|\+)\s*(WHERE|$)|\(\)/', $sql);
+    }
+
+    public function testDeleteWithAnExplicitZeroWhereKeepsItsRows(): void
+    {
+        // Before: Statement::delete() took the where syntax "0" for "none given" and built `name=?` from the
+        // params, so both calls deleted the Novel row (Grok, Razy#45 round 1)
+        $count = fn (): int => (int) $this->db->prepare()->select('COUNT(*) AS n')->from('qe_items')->query()->fetch()['n'];
+
+        $this->assertSame(0, RZ47_Item::query($this->db)->where('0', ['name' => 'Novel'])->bulkDelete());
+        $this->assertSame(2, $count(), 'ModelQuery::bulkDelete()');
+        $this->db->execute($this->db->delete('qe_items', ['name' => 'Novel'], '0'));
+        $this->assertSame(2, $count(), 'Database::delete()');
+    }
+
+    public function testSearchTextSyntaxKeepsAZeroParameter(): void
+    {
+        $this->assertSame('`name`*=:0', Database\Statement::getSearchTextSyntax('0', ['name']));
+    }
+
+    public function testEmptyWhereGroupIsAnError(): void
+    {
+        // Before: `()` ended the token loop and dropped the rest of the condition
+        $this->expectException(QueryException::class);
+        $this->db->prepare()->select('*')->from('qe_items')->where('id=1,()')->getSyntax();
+    }
+
+    public function testVerifySyntaxKeepsZero(): void
+    {
+        $this->assertSame('0', WhereSyntax::VerifySyntax('0'));
+        $this->assertSame('a=1,(0)', WhereSyntax::VerifySyntax('a=1,(0)'));
     }
 
     public function testModelSplicedNamesMustBeIdentifiers(): void
