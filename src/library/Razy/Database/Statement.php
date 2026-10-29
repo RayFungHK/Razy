@@ -21,7 +21,6 @@ use Razy\Database\Statement\StatementType;
 use Razy\Database\Statement\UpdateSyntaxBuilder;
 use Razy\Exception\QueryException;
 use Razy\PluginTrait;
-use Razy\SimpleSyntax;
 use Throwable;
 
 /**
@@ -839,7 +838,7 @@ class Statement
      */
     public function order(string $syntax): self
     {
-        $clips = SimpleSyntax::parseSyntax($syntax, ',', '', null, true);
+        $clips = SyntaxGuard::parseFlat('order', $syntax, ','); // a stray ')' used to drop the ORDER BY (RZ-47)
 
         $driver = $this->database->getDriver();
         $quote = $driver ? fn ($c) => $driver->quoteIdentifier($c) : fn ($c) => '`' . $c . '`';
@@ -1107,6 +1106,6 @@ class Statement
         $syntax = \trim($syntax);
 
         // Delegate to SimpleSyntax parser with arithmetic and concatenation operators
-        return SimpleSyntax::parseSyntax($syntax, '+-*/&');
+        return SyntaxGuard::parse('update', $syntax, '+-*/&');
     }
 }

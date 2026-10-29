@@ -799,8 +799,8 @@ abstract class Model
     {
         $query = static::query($database);
 
-        // Build Simple Syntax: col1=:col1,col2=:col2 (comma = AND)
-        $conditions = \implode(',', \array_map(fn ($key) => "$key=:$key", \array_keys($attributes)));
+        // Build Simple Syntax: col1=:col1,col2=:col2 (comma = AND); each key is spliced, so one identifier (RZ-47)
+        $conditions = \implode(',', \array_map(fn ($key) => Database\SyntaxGuard::identifier((string) $key) . '=:' . $key, \array_keys($attributes)));
         $query->where($conditions, $attributes);
 
         return $query->first();
@@ -865,13 +865,13 @@ abstract class Model
         $table = static::resolveTable();
         $pk = static::$primaryKey;
 
-        // Build update syntax: "column+=:_inc_amount" for atomic increment
-        $updateSyntax = [$column . '+=:_inc_amount'];
+        // Build update syntax: "column+=:_inc_amount"; the column and $extra keys are spliced, so identifiers (RZ-47)
+        $updateSyntax = [Database\SyntaxGuard::identifier($column) . '+=:_inc_amount'];
         $params = ['_inc_amount' => $amount, '_pk' => $this->attributes[$pk]];
 
         // Add any extra columns as simple assignments
         foreach ($extra as $col => $val) {
-            $updateSyntax[] = $col;
+            $updateSyntax[] = Database\SyntaxGuard::identifier((string) $col);
             $params[$col] = $val;
         }
 

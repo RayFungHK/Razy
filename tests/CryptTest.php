@@ -8,6 +8,7 @@
 
 namespace Razy\Tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -408,6 +409,24 @@ class CryptTest extends TestCase
         $this->assertNull(Crypt::decrypt($legacy, self::LEGACY_KEY, true));
     }
 
+    public function testEmptyKeyIsRefusedBeforeTheLegacyPath(): void
+    {
+        // Grok repro: a legacy envelope forged under '' opened through the legacy branch,
+        // because the empty-key check sat only in the v2 key derivation
+        $iv = \str_repeat("\x11", 16);
+        $cipher = \openssl_encrypt('forged', 'AES-256-CBC', '', OPENSSL_RAW_DATA, $iv);
+        $legacy = $iv . \hash_hmac('sha256', $cipher, '', true) . $cipher;
+        $this->assertSame(64, \strlen($legacy));
+
+        foreach ([fn () => Crypt::decrypt($legacy, '', true), fn () => Crypt::needsReencrypt($legacy, ''), fn () => Crypt::decrypt(\bin2hex($legacy), '', true)] as $call) {
+            try {
+                $call();
+                $this->fail('expected InvalidArgumentException for an empty key');
+            } catch (InvalidArgumentException) {
+            }
+        }
+    }
+
     public function testEmptyPlaintextIsNotAFailure(): void
     {
         // Before: '' meant both "empty plaintext" and "tampered"; now a failure is null.
@@ -418,7 +437,14 @@ class CryptTest extends TestCase
     public function testOddLengthHexAndEmptyKeyAreHandled(): void
     {
         $this->assertNull(Crypt::decrypt(\substr(self::KAT_V2, 0, -1), self::KAT_KEY));
-        $this->assertSame('abc', Crypt::decrypt(Crypt::encrypt('abc', ''), ''));
+        // RZ-47: an empty key is refused, not aliased to "\0"
+        foreach ([fn () => Crypt::encrypt('abc', ''), fn () => Crypt::decrypt(self::KAT_V2, ''), fn () => Crypt::needsReencrypt(self::KAT_V2, '')] as $call) {
+            try {
+                $call();
+                $this->fail('expected InvalidArgumentException for an empty key');
+            } catch (InvalidArgumentException) {
+            }
+        }
     }
 
     // ==================== REAL-WORLD SCENARIOS ====================

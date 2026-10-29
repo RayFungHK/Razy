@@ -18,6 +18,7 @@
 namespace Razy;
 
 use InvalidArgumentException;
+use Razy\Exception\SyntaxException;
 
 /**
  * Simple Syntax parser for expression tokenization.
@@ -98,6 +99,8 @@ class SimpleSyntax
      * @param string $text
      *
      * @return array
+     *
+     * @throws SyntaxException on a stray ')' or an unclosed '('
      */
     public static function parseParens(string $text): array
     {
@@ -107,6 +110,11 @@ class SimpleSyntax
         $closure = function (string &$clip, bool $opening = false) use (&$closure) {
             $extracted = [];
             if (!$clip) {
+                if ($opening) {
+                    // A '(' as the very last character: nothing left to close it
+                    throw new SyntaxException('Unbalanced parenthesis: a "(" is never closed.');
+                }
+
                 return $extracted;
             }
 
@@ -121,8 +129,13 @@ class SimpleSyntax
                 // Advance past the matched character
                 $clip = \substr($clip, (int) $matches[0][1] + 1);
                 if (')' == $matches[0][0]) {
-                    // Closing paren: return the group if we're inside an opening; discard otherwise
-                    return ($opening) ? $extracted : [];
+                    // Closing paren: closes the group we are in. At the top level it is a stray
+                    // ')', which used to discard everything parsed so far (RZ-47)
+                    if (!$opening) {
+                        throw new SyntaxException('Unbalanced parenthesis: a ")" with no matching "(".');
+                    }
+
+                    return $extracted;
                 }
                 // Opening paren: recurse to capture the nested group
                 $extracted[] = $closure($clip, true);
@@ -131,6 +144,10 @@ class SimpleSyntax
             // Append any remaining text after the last parenthesis match
             if ($clip) {
                 $extracted[] = $clip;
+            }
+            if ($opening) {
+                // The text ended inside a group: an unclosed '(' (was read as if closed)
+                throw new SyntaxException('Unbalanced parenthesis: a "(" is never closed.');
             }
 
             return $extracted;
