@@ -343,6 +343,86 @@ class RedisAdapterTest extends TestCase
         $this->assertTrue($this->adapter->clear());
     }
 
+    public function testClearRemovesMoreKeysThanOneScanPage(): void
+    {
+        for ($i = 0; $i < 250; ++$i) {
+            $this->adapter->set('page-' . $i, $i);
+        }
+
+        $this->redis->set('other_prefix_page', 'survive');
+
+        $this->assertTrue($this->adapter->clear());
+
+        for ($i = 0; $i < 250; ++$i) {
+            $this->assertFalse($this->adapter->has('page-' . $i), "page-{$i} still present");
+        }
+
+        $this->assertSame('survive', $this->redis->get('other_prefix_page'));
+        $this->redis->del('other_prefix_page');
+    }
+
+    public function testClearContinuesAfterAnEmptyScanBatch(): void
+    {
+        $host = \getenv('REDIS_HOST') ?: '127.0.0.1';
+        $port = (int) (\getenv('REDIS_PORT') ?: 6379);
+
+        $redis = new ScanEmptyBatchRedis();
+
+        try {
+            if (!@$redis->connect($host, $port, 1.0)) {
+                $this->markTestSkipped("Cannot connect to Redis at {$host}:{$port}.");
+            }
+        } catch (RedisException $e) {
+            $this->markTestSkipped('Redis connection failed: ' . $e->getMessage());
+        }
+
+        $optionBefore = $redis->getOption(Redis::OPT_SCAN);
+        $prefix = 'razy_test_empty_' . \uniqid() . '_';
+        $adapter = new RedisAdapter($redis, $prefix);
+        $adapter->set('keep-me', 'yes');
+        $adapter->set('also', 'yes');
+        $redis->set('other_prefix_empty_batch', 'survive');
+
+        $this->assertTrue($adapter->clear());
+        $this->assertTrue($redis->injectedEmptyBatch(), 'clear() never saw the empty SCAN page');
+        $this->assertFalse($adapter->has('keep-me'));
+        $this->assertFalse($adapter->has('also'));
+        $this->assertSame('survive', $redis->get('other_prefix_empty_batch'));
+        $this->assertSame($optionBefore, $redis->getOption(Redis::OPT_SCAN));
+
+        $redis->del('other_prefix_empty_batch');
+        $adapter->clear();
+    }
+
+    public function testClearDeletesOddDirectWritesAndRefusesAnEmptyPrefix(): void
+    {
+        $odd = "odd key\"\n<script>";
+        $this->redis->set($this->prefix . $odd, 'x');
+
+        $this->assertTrue($this->adapter->clear());
+        $this->assertSame(0, $this->redis->exists($this->prefix . $odd));
+
+        $bare = new RedisAdapter($this->redis, '');
+        $this->redis->set('must-survive-flush', 'yes');
+
+        try {
+            $bare->clear();
+            $this->fail('empty prefix must throw');
+        } catch (InvalidArgumentException) {
+            $this->assertSame('yes', $this->redis->get('must-survive-flush'));
+        } finally {
+            $this->redis->del('must-survive-flush');
+        }
+    }
+
+    public function testClearDoesNotChangeScanOption(): void
+    {
+        $before = $this->redis->getOption(Redis::OPT_SCAN);
+        $this->adapter->set('opt', 'v');
+        $this->assertTrue($this->adapter->clear());
+        $this->assertSame($before, $this->redis->getOption(Redis::OPT_SCAN));
+    }
+
     // ═══════════════════════════════════════════════════════
     //  9. Key Validation
     // ═══════════════════════════════════════════════════════
@@ -464,5 +544,61 @@ class RedisAdapterTest extends TestCase
 
         $result = $this->adapter->getMultiple(\array_keys($data));
         $this->assertSame($data, $result);
+    }
+}
+
+/**
+ * Real Redis client whose first scan() page is empty and whose cursor stays
+ * non-zero, then the stashed real page is returned. clear() that stops on a
+ * falsy page never deletes the keys this connection actually holds.
+ */
+class ScanEmptyBatchRedis extends Redis
+{
+    private bool $armed = true;
+
+    private bool $injected = false;
+
+    /** @var array<int, string>|false|null */
+    private array|false|null $stashed = null;
+
+    private mixed $stashedCursor = null;
+
+    /**
+     * @param mixed $iterator
+     * @param string|null $pattern
+     * @param int $count
+     *
+     * @return array<int, string>|false
+     */
+    public function scan(&$iterator, $pattern = null, $count = 0): array|false
+    {
+        if ($this->armed) {
+            $this->armed = false;
+            $this->injected = true;
+            $cursor = null;
+            $this->stashed = parent::scan($cursor, $pattern, $count);
+            $this->stashedCursor = $cursor;
+            $iterator = 1;
+
+            return [];
+        }
+
+        if ($this->stashed !== null) {
+            $keys = $this->stashed;
+            $cursor = $this->stashedCursor;
+            $this->stashed = null;
+            $iterator = $cursor;
+
+            return \is_array($keys) ? $keys : false;
+        }
+
+        $keys = parent::scan($iterator, $pattern, $count);
+
+        return \is_array($keys) ? $keys : false;
+    }
+
+    public function injectedEmptyBatch(): bool
+    {
+        return $this->injected;
     }
 }
