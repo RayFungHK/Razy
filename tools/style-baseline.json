@@ -165,7 +165,6 @@
         "src/library/Razy/Template/Entity.php::Entity::parseFunctionTag": 69,
         "src/library/Razy/Terminal.php::Terminal::Format": 62,
         "src/library/Razy/Tool/SkillsGenerator.php::SkillsGenerator::generateModuleSkills": 63,
-        "src/library/Razy/Util/VersionUtil.php::VersionUtil::vc": 102,
         "src/library/Razy/WebSocket/Connection.php::Connection::performServerHandshake": 62,
         "src/library/Razy/WebSocket/Server.php::Server::handleClientData": 64,
         "src/library/Razy/Worker/ModuleChangeDetector.php::ModuleChangeDetector::classifyPhpFile": 65,

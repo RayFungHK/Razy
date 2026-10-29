@@ -82,90 +82,160 @@ class VersionUtil
         $requirement = \preg_replace('/\s*-\s*(*SKIP)(*FAIL)|\s*,\s*|\s+/', ',', $requirement);
 
         $clips = SimpleSyntax::parseSyntax($requirement);
-        $parser = function (array &$extracted) use (&$parser, $version) {
-            $result = false;
 
-            while (null !== ($clip = \array_shift($extracted))) { // "0" is a clip, not the end (RZ-52)
-                if (\is_array($clip)) {
-                    $result = $parser($clip);
-                } else {
-                    $clip = \trim($clip);
-                    if (\preg_match('/^((\d+)(?:\.\d+){0,3})\s*-\s*((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
-                        // Version Range
-                        $min = self::standardize($matches[1]);
-                        $max = self::standardize($matches[3]);
-                        $result = \version_compare($version, $min, '>=') && \version_compare($version, $max, '<');
-                    } elseif (\preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
-                        $constraint = $matches[1];
-                        $vs = self::standardize($matches[2]);
-                        $written = \array_map('intval', \explode('.', $matches[2]));
+        return self::matchAll($clips, $version);
+    }
 
-                        if ('^' == $constraint) {
-                            // Caret Version Range (Composer): the first non-zero written
-                            // segment may not change; ^1.2 < 2.0, ^0.3 < 0.4, ^0.0.3 < 0.0.4
-                            $bump = \count($written) - 1;
-                            foreach ($written as $index => $segment) {
-                                if (0 !== $segment) {
-                                    $bump = $index;
-                                    break;
-                                }
-                            }
-                            $compare = self::upperBound($written, $bump);
-                            $result = \version_compare($version, $vs, '>=') && \version_compare($version, $compare, '<');
-                        } elseif ('~' == $constraint) {
-                            // Tilde Version Range (Composer): the last written segment may
-                            // grow; ~1.2 < 2.0, ~1.2.3 < 1.3.0, ~1 < 2.0
-                            $compare = self::upperBound($written, \max(0, \count($written) - 2));
-                            $result = \version_compare($version, $vs, '>=') && \version_compare($version, $compare, '<');
-                        } else {
-                            // Common version compare
-                            if ('!' == $constraint || '!=' == $constraint) {
-                                $operator = '<>';
-                            } else {
-                                $operator = $matches[1];
-                            }
-                            $result = \version_compare($version, $vs, $operator);
-                        }
+    /**
+     * Every clip, then the combinator that follows it. A "," or "|" used to be
+     * read only after a constraint, so `0|>=1.0` and `(>=1.0),(<2.0)` were
+     * always false (RZ-53). "0" is a clip, not the end of the list (RZ-52).
+     *
+     * @param array<int, mixed> $clips
+     */
+    private static function matchAll(array $clips, string $version): bool
+    {
+        $result = false;
 
-                        // Check if logical character is existing
-                        if (\count($extracted)) {
-                            $logical = \array_shift($extracted);
-                            if (!\preg_match('/^[|,]$/', $logical)) {
-                                return false;
-                            }
-
-                            if ('|' == $logical && $result) {
-                                return true;
-                            }
-                            if (',' == $logical && !$result) {
-                                return false;
-                            }
-                        }
-                    } elseif (\preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip, $matches)) {
-                        $compare = self::standardize($clip, true);
-                        if (\str_contains($compare, '*')) {
-                            // Every segment from the first '*' on matches any number, padding
-                            // included: 2.* = 2.x.y.z (before RZ-35 it padded to 2.*.0.0)
-                            $pattern = [];
-                            $any = false;
-                            foreach (\explode('.', $compare) as $segment) {
-                                $any = $any || '*' === $segment;
-                                $pattern[] = $any ? '\d+' : $segment;
-                            }
-                            $result = 1 === \preg_match('/^' . \implode('\.', $pattern) . '$/', $version);
-                        } else {
-                            $result = $compare == $version;
-                        }
-                    } else {
-                        return false;
-                    }
+        while (null !== ($clip = \array_shift($clips))) {
+            if (\is_array($clip)) {
+                $result = self::matchAll($clip, $version);
+            } else {
+                $matched = self::matchClip(\trim((string) $clip), $version);
+                if (null === $matched) {
+                    return false;
                 }
+                $result = $matched;
             }
 
-            return $result;
-        };
+            $combined = self::combine($clips, $result);
+            if (null !== $combined) {
+                return $combined;
+            }
+        }
 
-        return $parser($clips);
+        return $result;
+    }
+
+    /**
+     * Consume a following "," (and) or "|" (or). Null means keep walking.
+     * True or false is the whole requirement. Anything else after a clip is
+     * not a requirement (a constraint already rejected that; a group used to
+     * ignore it, or throw when the next clip was an array).
+     *
+     * @param array<int, mixed> $clips
+     */
+    private static function combine(array &$clips, bool $result): ?bool
+    {
+        if ([] === $clips) {
+            return null;
+        }
+
+        $logical = $clips[0];
+        if (!\is_string($logical) || 1 !== \preg_match('/^[|,]$/', \trim($logical))) {
+            return false;
+        }
+
+        \array_shift($clips);
+        $logical = \trim($logical);
+        if ('|' === $logical && $result) {
+            return true;
+        }
+        if (',' === $logical && !$result) {
+            return false;
+        }
+
+        return null;
+    }
+
+    /**
+     * One clip: a hyphen range, a constraint, or an exact / wildcard version.
+     * Null means the clip is not a version expression.
+     */
+    private static function matchClip(string $clip, string $version): ?bool
+    {
+        if (\preg_match('/^((\d+)(?:\.\d+){0,3})\s*-\s*((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
+            $min = self::standardize($matches[1]);
+            $max = self::standardize($matches[3]);
+            if (false === $min || false === $max) {
+                return false;
+            }
+
+            return \version_compare($version, $min, '>=') && \version_compare($version, $max, '<');
+        }
+
+        if (\preg_match('/^(!=?|~|\^|>=?|<=?)((\d+)(?:\.\d+){0,3})$/', $clip, $matches)) {
+            return self::matchConstraint($matches[1], $matches[2], $version);
+        }
+
+        if (\preg_match('/^((\d+)(?:\.(?:\d+|\*)){0,3})$/', $clip)) {
+            return self::matchExact($clip, $version);
+        }
+
+        return null;
+    }
+
+    /**
+     * Caret, tilde, or a comparison. $writtenText keeps the segment count ^ and ~ use.
+     */
+    private static function matchConstraint(string $constraint, string $writtenText, string $version): bool
+    {
+        $vs = self::standardize($writtenText);
+        if (false === $vs) {
+            return false;
+        }
+        $written = \array_map('intval', \explode('.', $writtenText));
+
+        if ('^' === $constraint) {
+            // Composer: the first non-zero written segment may not change.
+            // ^1.2 < 2.0, ^0.3 < 0.4, ^0.0.3 < 0.0.4
+            $bump = \count($written) - 1;
+            foreach ($written as $index => $segment) {
+                if (0 !== $segment) {
+                    $bump = $index;
+                    break;
+                }
+            }
+            $compare = self::upperBound($written, $bump);
+
+            return \version_compare($version, $vs, '>=') && \version_compare($version, $compare, '<');
+        }
+
+        if ('~' === $constraint) {
+            // Composer: the last written segment may grow.
+            // ~1.2 < 2.0, ~1.2.3 < 1.3.0, ~1 < 2.0
+            $compare = self::upperBound($written, \max(0, \count($written) - 2));
+
+            return \version_compare($version, $vs, '>=') && \version_compare($version, $compare, '<');
+        }
+
+        $operator = ('!' === $constraint || '!=' === $constraint) ? '<>' : $constraint;
+
+        return \version_compare($version, $vs, $operator);
+    }
+
+    /**
+     * An exact version, or a wildcard. From the first '*' on, every segment matches.
+     */
+    private static function matchExact(string $clip, string $version): bool
+    {
+        $compare = self::standardize($clip, true);
+        if (false === $compare) {
+            return false;
+        }
+        if (!\str_contains($compare, '*')) {
+            return $compare === $version;
+        }
+
+        // 2.* = 2.x.y.z (before RZ-35 it padded to 2.*.0.0)
+        $pattern = [];
+        $any = false;
+        foreach (\explode('.', $compare) as $segment) {
+            $any = $any || '*' === $segment;
+            $pattern[] = $any ? '\d+' : $segment;
+        }
+
+        return 1 === \preg_match('/^' . \implode('\.', $pattern) . '$/', $version);
     }
 
     /**
