@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Razy copy of the SKL-P duplicate-code check (TODO 13w12c).
 
-Razy CI cannot check out the private oaao-platform repo. The algorithm is
-oaao-platform bin/dupcheck.py and bin/dupcheck_lex.py. Behavior tests for the
-windows live with that copy. This copy scans only src/.
+A copy of the workspace duplicate-code checker, bin/dupcheck.py; this repo's
+CI cannot check out the workspace repo. Behavior tests for the windows live
+with that copy. This copy scans only src/.
 Baseline: tools/dupcheck-baseline.json. Counts may only go down.
 
     python3 tools/dupcheck.py --base origin/master
@@ -17,8 +17,7 @@ numbers and strings, hash token windows, and merge matching windows into clone
 fragments. Renamed copies are found, and so are copies with one inserted,
 removed or swapped statement: seeds of WINDOW tokens up to GAP tokens apart, in
 either order, merge into one fragment of at least MIN_TOKENS matched tokens.
-Rewritten logic is the Reuse-first gate's job
-(oaao-platform skills/oaao-maker-pr/references/reuse-first.md).
+Rewritten logic is the Reuse-first gate's job.
 
 Not counted: import lines (tools/dupcheck_lex.py), periodic data rows (i18n
 catalogues, tables of registrations), fixtures, and vendored or generated paths

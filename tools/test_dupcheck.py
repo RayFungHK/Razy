@@ -1,8 +1,8 @@
 """tools/dupcheck.py is the Razy copy: baseline beside the script, CI ref is origin/master.
 
-The window algorithm is oaao-platform bin/dupcheck.py. These tests cover the
-path this repo owns (src/ only, the baseline location, the update hint, --base)
-and the edges a PR can hit.
+The window algorithm is the workspace checker bin/dupcheck.py. These tests
+cover the path this repo owns (src/ only, the baseline location, the update
+hint, --base) and the edges a PR can hit.
 Run: python3 -m unittest discover -s tools -p 'test_dupcheck.py'
 """
 from __future__ import annotations
@@ -86,6 +86,13 @@ class RazyCopyTest(unittest.TestCase):
         self.assertEqual(dupcheck.DEFAULT_BASELINE, SCRIPT.parent / "dupcheck-baseline.json")
         self.assertEqual(dupcheck.WS, SCRIPT.parent.parent)
         self.assertEqual(dupcheck.ROOTS, ("src/",))
+
+    def test_the_copy_omits_the_product_id(self):
+        # Split so this file does not itself contain the id the boundary counts.
+        needle = "oa" + "ao"
+        for name in ("dupcheck.py", "dupcheck_lex.py", "test_dupcheck.py"):
+            text = (SCRIPT.parent / name).read_text(encoding="utf-8").lower()
+            self.assertNotIn(needle, text, name)
 
     def test_only_src_is_scanned(self):
         root = repo_with(self, {

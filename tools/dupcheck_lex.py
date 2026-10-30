@@ -1,6 +1,6 @@
 """SKL-P: the lexer behind tools/dupcheck.py.
 
-Razy copy of oaao-platform bin/dupcheck_lex.py (TODO 13w12c).
+Razy copy of the workspace checker bin/dupcheck_lex.py (TODO 13w12c).
 Normalised tokens per language, and the comments kept apart.
 
 Identifiers become ID (keywords stay), strings STR, numbers NUM; comments are dropped from the token stream and
