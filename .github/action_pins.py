@@ -33,24 +33,37 @@ class Usage(Exception):
     pass
 
 
-def parse_uses(line: str) -> str | None:
-    """Return the uses ref, '' when the key has no value, or None when this is not a uses key.
-
-    The key must be the line's key. A later word (`permission-statuses:`) is not a uses.
-    Space or a tab before the colon is still the key (`uses :`), which YAML accepts.
-    """
-    body = line.rstrip("\r\n")
-    i = 0
+def _skip_ws(body: str, i: int) -> int:
     while i < len(body) and body[i] in " \t":
         i += 1
-    if body.startswith("- ", i) or body.startswith("-\t", i):
-        i += 2
-        while i < len(body) and body[i] in " \t":
-            i += 1
-    match = re.match(r"uses[ \t]*:", body[i:])
-    if match is None:
+    return i
+
+
+def _match_uses_key(body: str, i: int) -> int | None:
+    """Index just after the colon when a uses key starts at i. Quoted or bare."""
+    if i >= len(body):
         return None
-    rest = body[i + match.end():].strip()
+    if body[i] in "'\"":
+        quote = body[i]
+        end = body.find(quote, i + 1)
+        if end < 0 or body[i + 1:end] != "uses":
+            return None
+        j = _skip_ws(body, end + 1)
+    else:
+        if not body.startswith("uses", i):
+            return None
+        j = i + 4
+        if j < len(body) and (body[j].isalnum() or body[j] in "_-"):
+            return None
+        j = _skip_ws(body, j)
+    if j < len(body) and body[j] == ":":
+        return j + 1
+    return None
+
+
+def _normalize(raw: str) -> str:
+    """The ref text. A second word after a quoted value stays, so it cannot pass as a pin."""
+    rest = raw.strip()
     if rest == "" or rest[0] in ">|#":
         return ""
     if rest[0] in "'\"":
@@ -58,7 +71,6 @@ def parse_uses(line: str) -> str | None:
         end = rest.find(quote, 1)
         if end < 0:
             return rest[1:]
-        # A second word is not a comment. Keep it on the ref so it cannot pass as a pin.
         after = rest[end + 1:].strip()
         if after and not after.startswith("#"):
             return rest
@@ -69,6 +81,107 @@ def parse_uses(line: str) -> str | None:
     if len(head.split()) != 1:
         return head
     return head
+
+
+def _value_span(body: str, i: int) -> tuple[str, int]:
+    """One flow-mapping value. Stops before a comma or a closer at depth zero. Quotes hide both."""
+    i = _skip_ws(body, i)
+    if i >= len(body):
+        return "", i
+    if body[i] in ">|#":
+        return body[i:], len(body)
+    start = i
+    if body[i] in "'\"":
+        quote = body[i]
+        end = body.find(quote, i + 1)
+        if end < 0:
+            return body[i:], len(body)
+        return body[i:end + 1], end + 1
+    brace = brack = 0
+    while i < len(body):
+        ch = body[i]
+        if ch in "'\"":
+            end = body.find(ch, i + 1)
+            if end < 0:
+                return body[start:], len(body)
+            i = end + 1
+            continue
+        if ch == "{":
+            brace += 1
+        elif ch == "}":
+            if brace == 0:
+                break
+            brace -= 1
+        elif ch == "[":
+            brack += 1
+        elif ch == "]":
+            if brack == 0:
+                break
+            brack -= 1
+        elif ch == "," and brace == 0 and brack == 0:
+            break
+        elif ch == "#" and brace == 0 and brack == 0 and (i == start or body[i - 1] in " \t"):
+            break
+        i += 1
+    return body[start:i], i
+
+
+def _skip_key(body: str, i: int) -> int | None:
+    if i < len(body) and body[i] in "'\"":
+        end = body.find(body[i], i + 1)
+        if end < 0:
+            return None
+        return end + 1
+    while i < len(body) and body[i] not in ":,{}[]":
+        i += 1
+    return i
+
+
+def _flow_uses(body: str, i: int) -> str | None:
+    """The uses value inside one `{...}` step. Text inside a quoted scalar is not a key."""
+    i += 1
+    found: str | None = None
+    while i < len(body):
+        i = _skip_ws(body, i)
+        if i >= len(body) or body[i] == "}":
+            break
+        key_end = _match_uses_key(body, i)
+        if key_end is None:
+            nxt = _skip_key(body, i)
+            if nxt is None:
+                return found
+            i = _skip_ws(body, nxt)
+            if i < len(body) and body[i] == ":":
+                i += 1
+            _raw, i = _value_span(body, i)
+        else:
+            raw, i = _value_span(body, key_end)
+            found = _normalize(raw)
+        i = _skip_ws(body, i)
+        if i < len(body) and body[i] == ",":
+            i += 1
+    return found
+
+
+def parse_uses(line: str) -> str | None:
+    """Return the uses ref, '' when the key has no value, or None when this is not a uses key.
+
+    The key must be this line's key, a quoted `uses` key, or the `uses` key of a flow
+    mapping on this line. A later word (`permission-statuses:`) is not a uses, and
+    `uses:` inside a quoted scalar is not a key. Space or a tab before the colon is
+    still the key (`uses :`), which YAML accepts.
+    """
+    body = line.rstrip("\r\n")
+    i = _skip_ws(body, 0)
+    if body.startswith("- ", i) or body.startswith("-\t", i):
+        i += 2
+        i = _skip_ws(body, i)
+    if i < len(body) and body[i] == "{":
+        return _flow_uses(body, i)
+    end = _match_uses_key(body, i)
+    if end is None:
+        return None
+    return _normalize(body[end:])
 
 
 def ref_problem(ref: str) -> str | None:
@@ -113,7 +226,12 @@ def yaml_files(path: Path) -> list[Path]:
     if not path.is_dir():
         raise Usage(f"no such path: {path}")
     found: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(path, followlinks=False):
+
+    def walk_error(exc: OSError) -> None:
+        target = exc.filename or path
+        raise Usage(f"cannot scan {target}: {exc.strerror}") from exc
+
+    for dirpath, dirnames, filenames in os.walk(path, followlinks=False, onerror=walk_error):
         for name in list(dirnames):
             child = Path(dirpath) / name
             if child.is_symlink():
