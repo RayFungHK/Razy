@@ -3,7 +3,9 @@
 
 A tag or branch (`actions/checkout@v5`) moves under the runner. A 40-hex
 commit does not. A same-repo path (`./.github/workflows/release.yml`) has
-no remote ref, so it stays.
+no remote ref, so it stays. A `uses` key inside a flow sequence on the same
+line counts (`steps: [{uses: ...}]`). A double-quoted key is decoded, so a
+YAML `\\u` escape cannot hide that key.
 
 `bin/ws lint actions` runs this file. The other four workspace repos commit
 the same bytes at `.github/action_pins.py`, because their CI does not check
@@ -39,16 +41,111 @@ def _skip_ws(body: str, i: int) -> int:
     return i
 
 
+# YAML double-quoted escapes (1.2). A short escape that is not here is not a key.
+_YAML_SHORT = {
+    "0": "\0",
+    "a": "\a",
+    "b": "\b",
+    "t": "\t",
+    "n": "\n",
+    "v": "\v",
+    "f": "\f",
+    "r": "\r",
+    "e": "\x1b",
+    " ": " ",
+    '"': '"',
+    "/": "/",
+    "\\": "\\",
+    "N": "\u0085",
+    "_": "\u00a0",
+    "L": "\u2028",
+    "P": "\u2029",
+}
+
+
+def _decode_double_quoted(text: str) -> str | None:
+    """YAML double-quoted contents. None when an escape is unfinished or unknown."""
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch != "\\":
+            out.append(ch)
+            i += 1
+            continue
+        if i + 1 >= n:
+            return None
+        esc = text[i + 1]
+        if esc in _YAML_SHORT:
+            out.append(_YAML_SHORT[esc])
+            i += 2
+            continue
+        width = {"x": 2, "u": 4, "U": 8}.get(esc)
+        if width is None:
+            return None
+        hexpart = text[i + 2:i + 2 + width]
+        if len(hexpart) != width or any(c not in "0123456789abcdefABCDEF" for c in hexpart):
+            return None
+        try:
+            out.append(chr(int(hexpart, 16)))
+        except ValueError:
+            return None
+        i += 2 + width
+    return "".join(out)
+
+
+def _quoted_span(body: str, i: int) -> tuple[str | None, int]:
+    """Decoded contents and the index after the closer. (None, i) when unclosed.
+
+    Single quotes keep backslashes. A doubled single quote is one quote.
+    Double quotes decode YAML escapes, so a ``\\u0075`` key is the letter u.
+    """
+    if i >= len(body) or body[i] not in "'\"":
+        return None, i
+    quote = body[i]
+    if quote == "'":
+        parts: list[str] = []
+        j = i + 1
+        while j < len(body):
+            if body[j] == "'":
+                if j + 1 < len(body) and body[j + 1] == "'":
+                    parts.append("'")
+                    j += 2
+                    continue
+                return "".join(parts), j + 1
+            parts.append(body[j])
+            j += 1
+        return None, i
+    raw: list[str] = []
+    j = i + 1
+    while j < len(body):
+        if body[j] == "\\":
+            if j + 1 >= len(body):
+                return None, i
+            raw.append(body[j])
+            raw.append(body[j + 1])
+            j += 2
+            continue
+        if body[j] == '"':
+            decoded = _decode_double_quoted("".join(raw))
+            if decoded is None:
+                return None, i
+            return decoded, j + 1
+        raw.append(body[j])
+        j += 1
+    return None, i
+
+
 def _match_uses_key(body: str, i: int) -> int | None:
     """Index just after the colon when a uses key starts at i. Quoted or bare."""
     if i >= len(body):
         return None
     if body[i] in "'\"":
-        quote = body[i]
-        end = body.find(quote, i + 1)
-        if end < 0 or body[i + 1:end] != "uses":
+        key, end = _quoted_span(body, i)
+        if key != "uses":
             return None
-        j = _skip_ws(body, end + 1)
+        j = _skip_ws(body, end)
     else:
         if not body.startswith("uses", i):
             return None
@@ -128,19 +225,21 @@ def _value_span(body: str, i: int) -> tuple[str, int]:
 
 def _skip_key(body: str, i: int) -> int | None:
     if i < len(body) and body[i] in "'\"":
-        end = body.find(body[i], i + 1)
-        if end < 0:
+        key, end = _quoted_span(body, i)
+        if key is None:
             return None
-        return end + 1
+        return end
     while i < len(body) and body[i] not in ":,{}[]":
         i += 1
     return i
 
 
-def _flow_uses(body: str, i: int) -> str | None:
-    """The uses value inside one `{...}` step. Text inside a quoted scalar is not a key."""
+def _flow_use_list(body: str, i: int) -> list[str]:
+    """uses values of one `{...}` mapping. A nested mapping is not a key at this depth."""
+    if i >= len(body) or body[i] != "{":
+        return []
     i += 1
-    found: str | None = None
+    found: list[str] = []
     while i < len(body):
         i = _skip_ws(body, i)
         if i >= len(body) or body[i] == "}":
@@ -156,32 +255,76 @@ def _flow_uses(body: str, i: int) -> str | None:
             _raw, i = _value_span(body, i)
         else:
             raw, i = _value_span(body, key_end)
-            found = _normalize(raw)
+            found.append(_normalize(raw))
         i = _skip_ws(body, i)
         if i < len(body) and body[i] == ",":
             i += 1
     return found
 
 
-def parse_uses(line: str) -> str | None:
-    """Return the uses ref, '' when the key has no value, or None when this is not a uses key.
+def _skip_quoted(body: str, i: int) -> int:
+    _key, end = _quoted_span(body, i)
+    if _key is None:
+        return len(body)
+    return end
 
-    The key must be this line's key, a quoted `uses` key, or the `uses` key of a flow
-    mapping on this line. A later word (`permission-statuses:`) is not a uses, and
-    `uses:` inside a quoted scalar is not a key. Space or a tab before the colon is
-    still the key (`uses :`), which YAML accepts.
+
+def _flow_refs(body: str) -> list[str]:
+    """Every uses value in a flow mapping on this line, outside quotes and comments."""
+    refs: list[str] = []
+    i = 0
+    n = len(body)
+    while i < n:
+        ch = body[i]
+        if ch == "#" and (i == 0 or body[i - 1] in " \t"):
+            break
+        if ch in "'\"":
+            i = _skip_quoted(body, i)
+            continue
+        if ch == "{":
+            refs.extend(_flow_use_list(body, i))
+        i += 1
+    return refs
+
+
+def line_refs(line: str) -> list[str]:
+    """Every uses ref on this line. Empty when the line has no uses key.
+
+    A flow sequence counts (`steps: [{uses: ...}]`). A double-quoted key is decoded
+    before it is compared, so a YAML ``\\u`` escape cannot hide `uses`. A `uses:`
+    inside a quoted scalar or a comment is not a key. The line's own `uses` value is
+    not scanned again, so a word inside that value is not a second key.
     """
     body = line.rstrip("\r\n")
     i = _skip_ws(body, 0)
+    if i < len(body) and body[i] == "#":
+        return []
     if body.startswith("- ", i) or body.startswith("-\t", i):
         i += 2
         i = _skip_ws(body, i)
-    if i < len(body) and body[i] == "{":
-        return _flow_uses(body, i)
+    if i >= len(body) or body[i] == "#":
+        return []
+    if body[i] == "{":
+        return _flow_refs(body)
     end = _match_uses_key(body, i)
-    if end is None:
+    if end is not None:
+        return [_normalize(body[end:])]
+    return _flow_refs(body)
+
+
+def parse_uses(line: str) -> str | None:
+    """Return the first uses ref, '' when that key has no value, or None when absent.
+
+    The key must be this line's key, a quoted `uses` key, or the `uses` key of a flow
+    mapping on this line, including one inside a flow sequence. A later word
+    (`permission-statuses:`) is not a uses, and `uses:` inside a quoted scalar is not
+    a key. Space or a tab before the colon is still the key (`uses :`), which YAML
+    accepts. A double-quoted key decodes YAML escapes.
+    """
+    refs = line_refs(line)
+    if not refs:
         return None
-    return _normalize(body[end:])
+    return refs[0]
 
 
 def ref_problem(ref: str) -> str | None:
@@ -199,19 +342,17 @@ def file_problems(text: str) -> list[tuple[int, str]]:
         text = text[1:]
     found: list[tuple[int, str]] = []
     for lineno, line in enumerate(text.splitlines(), 1):
-        ref = parse_uses(line)
-        if ref is None:
-            continue
-        problem = ref_problem(ref)
-        if problem is not None:
-            found.append((lineno, problem))
+        for ref in line_refs(line):
+            problem = ref_problem(ref)
+            if problem is not None:
+                found.append((lineno, problem))
     return found
 
 
 def uses_count(text: str) -> int:
     if text.startswith("\ufeff"):
         text = text[1:]
-    return sum(1 for line in text.splitlines() if parse_uses(line) is not None)
+    return sum(len(line_refs(line)) for line in text.splitlines())
 
 
 def yaml_files(path: Path) -> list[Path]:
