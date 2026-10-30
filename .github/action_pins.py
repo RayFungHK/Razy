@@ -37,6 +37,7 @@ def parse_uses(line: str) -> str | None:
     """Return the uses ref, '' when the key has no value, or None when this is not a uses key.
 
     The key must be the line's key. A later word (`permission-statuses:`) is not a uses.
+    Space or a tab before the colon is still the key (`uses :`), which YAML accepts.
     """
     body = line.rstrip("\r\n")
     i = 0
@@ -46,9 +47,10 @@ def parse_uses(line: str) -> str | None:
         i += 2
         while i < len(body) and body[i] in " \t":
             i += 1
-    if not body.startswith("uses:", i):
+    match = re.match(r"uses[ \t]*:", body[i:])
+    if match is None:
         return None
-    rest = body[i + len("uses:"):].strip()
+    rest = body[i + match.end():].strip()
     if rest == "" or rest[0] in ">|#":
         return ""
     if rest[0] in "'\"":
