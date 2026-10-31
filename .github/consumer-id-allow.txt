@@ -1,0 +1,4 @@
+# WS-34. One repo-relative path per line. Exact, not a prefix.
+# Blank lines and lines whose first non-space character is # are ignored.
+# Listed paths may name the consumer. Every other tracked file must not.
+# Same bytes as bin/consumer-id-allow/Razy.txt in the workspace checker.

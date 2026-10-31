@@ -201,6 +201,12 @@ jobs:
       - name: Action pins are full commit SHAs (WS-30)
         run: python3 .github/action_pins.py
 
+      # WS-34: any tracked file, not only code. -B so the checker writes no __pycache__.
+      - name: Consumer name stays out of tracked files (WS-34)
+        run: |
+          python3 -B .github/test_product_id.py
+          python3 -B .github/product_id.py
+
       # 13w12c: duplicate-code check on src/. About 3 s idle;
       # the cap is 5 min for a busy host. Drafts skip this job.
       - name: Duplicate-code check against origin/master (13w12c)
