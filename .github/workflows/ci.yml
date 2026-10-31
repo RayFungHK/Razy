@@ -194,9 +194,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # 13w12c: merge-base(origin/master, HEAD) needs the base history.
+          fetch-depth: 0
 
       - name: Action pins are full commit SHAs (WS-30)
         run: python3 .github/action_pins.py
+
+      # 13w12c: duplicate-code check on src/. About 3 s idle;
+      # the cap is 5 min for a busy host. Drafts skip this job.
+      - name: Duplicate-code check against origin/master (13w12c)
+        timeout-minutes: 5
+        run: |
+          # -B: importing dupcheck_lex writes tools/__pycache__/.
+          python3 -B -m unittest discover -s tools -p 'test_dupcheck.py' -v
+          python3 -B tools/dupcheck.py --base origin/master
 
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
