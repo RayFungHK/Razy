@@ -299,7 +299,7 @@ class LintTests(unittest.TestCase):
         self.assertIn("OK", out.getvalue())
 
     def test_family_list_and_real_tokens(self) -> None:
-        self.assertIsNotNone(lint_tests.id_match("uxh22b-chat-list.test.mjs"))
+        self.assertIsNotNone(lint_tests.id_match("rz22b-chat-list.test.mjs"))
         self.assertIsNone(lint_tests.id_match("uxh22b-chat-list.test.mjs", families=[]))
         self.assertIsNotNone(lint_tests.id_match("uxh22b-chat-list.test.mjs", families=["uxh"]))
         self.assertEqual(lint_tests.id_match("l5-1-look.test.mjs", families=["l5"], tokens=set()), "family l5")

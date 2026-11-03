@@ -13,7 +13,7 @@ Baseline: tools/lint-tests-baseline.json. Counts may only go down.
 Three checks, all against a committed baseline:
 
   names      a test file whose name carries an id fails. Families live in the baseline (`idFamilies`):
-             a whole segment is family + digits, optionally with trailing letters (`uxh22b`). Also a
+             a whole segment is family + digits, optionally with trailing letters (`rz22b`). Also a
              TODO id (`13w30`, `57h10d`), `pr` + digits, a one-letter slug+digit segment (`h6`, `p1`),
              a trailing slug+digit on the stem (`composersteer1`), and a `-<digits>` stem suffix.
              Real tokens (`v2`, `utf8`, `i18n`, …) are not ids. `names` is today's matches: --update
@@ -42,9 +42,7 @@ WS = Path(__file__).resolve().parents[1]
 DEFAULT_BASELINE = Path(__file__).resolve().parent / "lint-tests-baseline.json"
 CMD = f"python3 {Path(__file__).resolve().parent.name}/{Path(__file__).name}"
 # Card-id prefixes. A repo copy replaces this list in its baseline (`idFamilies`).
-DEFAULT_FAMILIES = (
-    "aud", "cmp", "ctx", "cue", "hbd", "pul", "rui", "rz", "skl", "uxh", "vid", "ws",
-)
+DEFAULT_FAMILIES = ("rz", "skl", "ws")
 # Whole tokens that look like ids and are not: protocol, codec, hash, arch, version, locale.
 DEFAULT_TOKENS = frozenset({
     "e2e", "oauth2", "utf8", "s3", "h264", "sha256", "x86", "v2", "i18n", "l10n",

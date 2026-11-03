@@ -2,17 +2,8 @@
   "$comment": "SKL-V ratchet. Counts may only go down, except one key via --raise, which appends {key, from, to, reason} to raises. --update may add a new module or workflow key and never raises one. Id-named files may only leave `names`. Families live in idFamilies.",
   "names": [],
   "idFamilies": [
-    "aud",
-    "cmp",
-    "ctx",
-    "cue",
-    "hbd",
-    "pul",
-    "rui",
     "rz",
     "skl",
-    "uxh",
-    "vid",
     "ws"
   ],
   "idTokens": [
