@@ -294,6 +294,30 @@ class LintTests(unittest.TestCase):
             "  b:\n    steps:\n      - run: one\n"
         )
         self.assertEqual(lint_tests.step_count(later_plain), 3)
+        hidden = (
+            "jobs:\n  a:\n    env:\n      SCRIPT: |\n"
+            "        steps:\n"
+            "        - run: echo hidden\n"
+            "        - run: echo hidden\n"
+            "    steps:\n"
+            "      - run: real\n"
+        )
+        self.assertEqual(lint_tests.step_count(hidden), 1)
+        folded = (
+            "jobs:\n  a:\n    env:\n      NOTE: >-\n"
+            "        steps:\n"
+            "        - run: no\n"
+            "    steps:\n"
+            "      - run: yes\n"
+            "      - run: also\n"
+        )
+        self.assertEqual(lint_tests.step_count(folded), 2)
+        quoted_pipe = (
+            'jobs:\n  a:\n    steps:\n'
+            '      - run: echo "steps: |"\n'
+            "      - run: next\n"
+        )
+        self.assertEqual(lint_tests.step_count(quoted_pipe), 2)
         repo = make_repo({".github/workflows/ci.yml": WF_FLOW_QUOTED})
         base = {"names": [], "modules": {}, "workflows": {".github/workflows/ci.yml": 2}}
         rc, text = scan(repo, "--update", baseline=base)

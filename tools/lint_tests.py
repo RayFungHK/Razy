@@ -284,13 +284,45 @@ def flow_items(rest: str) -> int:
     return items + (1 if seen else 0)
 
 
+# A block scalar header: `key: |`, `key: >-`, `key: |2`, or `- key: |+2`.
+_BLOCK_SCALAR = re.compile(
+    r"^([ ]*)(?:- +)?([^:#\s][^:#]*):[ ]*[|>](?:[+-]?[1-9]|[1-9][+-]|[+-])?(?:[ ]+#.*)?$"
+)
+
+
+def block_parent_indent(line: str) -> int | None:
+    """Indent of the key whose value is a `|` or `>` block, or None."""
+    matched = _BLOCK_SCALAR.match(line)
+    if not matched:
+        return None
+    base = len(matched.group(1))
+    if line[base] == "-":
+        return base + 2
+    return base
+
+
 def step_count(text: str) -> int:
-    """Direct children of every `steps:` key. Nested dashes (ports, services) stay inside a step."""
+    """Direct children of every `steps:` key. Nested dashes (ports, services) stay inside a step.
+
+    A `|` or `>` value is skipped, so a `steps:` line inside that text is not a list.
+    """
     lines = text.splitlines()
     total = 0
     i = 0
+    block_at: int | None = None
     while i < len(lines):
         raw = lines[i]
+        if block_at is not None:
+            if raw.strip() and (len(raw) - len(raw.lstrip(" "))) <= block_at:
+                block_at = None
+            else:
+                i += 1
+                continue
+        parent = block_parent_indent(raw)
+        if parent is not None:
+            block_at = parent
+            i += 1
+            continue
         if raw.lstrip().startswith("#"):
             i += 1
             continue
