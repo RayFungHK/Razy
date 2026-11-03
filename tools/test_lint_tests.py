@@ -253,9 +253,15 @@ class LintTests(unittest.TestCase):
             "jobs:\n  a:\n    steps: ['a, b', 'c']\n",
             "jobs:\n  a:\n    steps: [\n      \"echo ]\n      still\",\n      {run: test}\n    ]\n",
             "jobs:\n  a:\n    steps: [{run: echo#still}, {run: next}]\n",
+            "jobs:\n  a:\n    steps: [{run: echo it's}, {run: next}]\n",
         )
         for sample in samples:
             self.assertEqual(lint_tests.step_count(sample), 2, sample)
+        later = (
+            "jobs:\n  a:\n    steps: [{run: echo it's}, {run: next}]\n"
+            "  b:\n    steps:\n      - run: one\n"
+        )
+        self.assertEqual(lint_tests.step_count(later), 3)
         repo = make_repo({".github/workflows/ci.yml": WF_FLOW_QUOTED})
         base = {"names": [], "modules": {}, "workflows": {".github/workflows/ci.yml": 2}}
         rc, text = scan(repo, "--update", baseline=base)

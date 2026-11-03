@@ -152,9 +152,10 @@ def _flow_feed():
     quote = ""
     escape = False
     comment = False
+    prev = ""  # last non-space character outside quotes; a quote opens only after it
 
     def feed(chunk: str, emit) -> None:
-        nonlocal quote, escape, comment
+        nonlocal quote, escape, comment, prev
         i = 0
         n = len(chunk)
         while i < n:
@@ -170,6 +171,7 @@ def _flow_feed():
                     continue
                 if ch == "'":
                     quote = ""
+                    prev = "q"
                 i += 1
                 continue
             if quote == '"':
@@ -179,9 +181,10 @@ def _flow_feed():
                     escape = True
                 elif ch == '"':
                     quote = ""
+                    prev = "q"
                 i += 1
                 continue
-            if ch in "'\"":
+            if ch in "'\"" and (prev == "" or prev in "[{,:?"):
                 # The opener is content (a quoted scalar is an item). Its interior is not.
                 emit(ch)
                 quote = ch
@@ -192,6 +195,8 @@ def _flow_feed():
                 i += 1
                 continue
             emit(ch)
+            if not ch.isspace():
+                prev = ch
             i += 1
 
     return feed
