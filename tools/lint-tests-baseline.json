@@ -1,0 +1,39 @@
+{
+  "$comment": "SKL-V ratchet. Counts may only go down, except one key via --raise, which appends {key, from, to, reason} to raises. --update may add a new module or workflow key and never raises one. Id-named files may only leave `names`. Families live in idFamilies.",
+  "names": [],
+  "idFamilies": [
+    "aud",
+    "cmp",
+    "ctx",
+    "cue",
+    "hbd",
+    "pul",
+    "rui",
+    "rz",
+    "skl",
+    "uxh",
+    "vid",
+    "ws"
+  ],
+  "idTokens": [
+    "e2e",
+    "h264",
+    "i18n",
+    "l10n",
+    "oauth2",
+    "s3",
+    "sha256",
+    "utf8",
+    "v2",
+    "x86"
+  ],
+  "raises": [],
+  "modules": {
+    ".github": 1,
+    "tools": 2
+  },
+  "workflows": {
+    ".github/workflows/ci.yml": 43,
+    ".github/workflows/docker-publish.yml": 9
+  }
+}

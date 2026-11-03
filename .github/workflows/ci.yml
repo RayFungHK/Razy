@@ -215,6 +215,9 @@ jobs:
           # -B: importing dupcheck_lex writes tools/__pycache__/.
           python3 -B -m unittest discover -s tools -p 'test_dupcheck.py' -v
           python3 -B tools/dupcheck.py --base origin/master
+          # 13w32a: test-home ratchet joins this step (same python toolchain).
+          python3 -B -m unittest discover -s tools -p 'test_lint_tests.py' -v
+          python3 -B tools/lint_tests.py
 
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
