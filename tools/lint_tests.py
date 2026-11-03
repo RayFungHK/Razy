@@ -287,7 +287,8 @@ def step_count(text: str) -> int:
                 i += 1
                 continue
             cur = len(line) - len(line.lstrip(" "))
-            if cur <= indent:
+            # A dash at the key's own indent is still that key's block sequence.
+            if cur < indent or (cur == indent and not re.match(r"[ ]*-[ ]+\S", line)):
                 break
             if child is None:
                 child = cur

@@ -3,9 +3,11 @@ and direct steps per workflow. Run: python3 -m unittest discover -s tools -p 'te
 """
 from __future__ import annotations
 
+import atexit
 import importlib.util
 import io
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,6 +29,7 @@ def run(repo: Path, *args: str) -> None:
 def make_repo(files: dict[str, str]) -> Path:
     # dupcheck: allow the temp-repo harness is the one in test_dupcheck.py
     repo = Path(tempfile.mkdtemp())
+    atexit.register(shutil.rmtree, repo, True)
     run(repo, "init", "-q", "-b", "main")
     run(repo, "config", "user.email", "t@example.invalid")
     run(repo, "config", "user.name", "t")
@@ -217,6 +220,16 @@ class LintTests(unittest.TestCase):
         self.assertEqual(lint_tests.step_count(WF), 2)
         self.assertEqual(lint_tests.step_count(WF_FLOW), 2)
         self.assertEqual(lint_tests.step_count(WF_FLOW_MULTI), 2)
+        flat = (
+            "jobs:\n  a:\n    steps:\n"
+            "    - uses: actions/checkout@v5\n"
+            "    - run: make\n"
+        )
+        self.assertEqual(lint_tests.step_count(flat), 2)
+        self.assertEqual(
+            lint_tests.step_count(flat + "    name: next\n  b:\n    steps:\n      - run: one\n"),
+            3,
+        )
         self.assertEqual(lint_tests.flow_items("[]"), 0)
         multi = make_repo({".github/workflows/ci.yml": WF_FLOW_MULTI})
         rc, text = scan(multi, "--update", baseline={
