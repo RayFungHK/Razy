@@ -150,10 +150,11 @@ def _flow_feed():
     quote = ""
     escape = False
     comment = False
-    prev = ""  # last non-space character outside quotes; a quote opens only after it
+    plain = False  # inside a plain scalar, a quote is just a character
+    prev = ""  # last structural character; a quote opens only after one
 
     def feed(chunk: str, emit) -> None:
-        nonlocal quote, escape, comment, prev
+        nonlocal quote, escape, comment, plain, prev
         i = 0
         n = len(chunk)
         while i < n:
@@ -182,10 +183,33 @@ def _flow_feed():
                     prev = "q"
                 i += 1
                 continue
+            if plain:
+                # `run: "x"` ends the key. `it's:` does not, so the next quote stays plain.
+                if ch == ":" and (i + 1 >= n or chunk[i + 1].isspace()):
+                    plain = False
+                    emit(ch)
+                    prev = ":"
+                    i += 1
+                    continue
+                if ch in ",[]{}":
+                    plain = False
+                    emit(ch)
+                    prev = ch
+                    i += 1
+                    continue
+                if ch == "#" and (i == 0 or chunk[i - 1].isspace()):
+                    plain = False
+                    comment = True
+                    i += 1
+                    continue
+                emit(ch)
+                i += 1
+                continue
             if ch in "'\"" and (prev == "" or prev in "[{,:?"):
                 # The opener is content (a quoted scalar is an item). Its interior is not.
                 emit(ch)
                 quote = ch
+                prev = ""
                 i += 1
                 continue
             if ch == "#" and (i == 0 or chunk[i - 1].isspace()):
@@ -193,8 +217,11 @@ def _flow_feed():
                 i += 1
                 continue
             emit(ch)
-            if not ch.isspace():
+            if ch in "[{,:?]}":
                 prev = ch
+            elif not ch.isspace():
+                plain = True
+                prev = ""
             i += 1
 
     return feed
