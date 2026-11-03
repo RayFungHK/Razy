@@ -230,6 +230,19 @@ class LintTests(unittest.TestCase):
             lint_tests.step_count(flat + "    name: next\n  b:\n    steps:\n      - run: one\n"),
             3,
         )
+        bare = (
+            "jobs:\n  a:\n    steps:\n"
+            "      -\n"
+            "        name: checkout\n"
+            "        uses: actions/checkout@v5\n"
+            "      -\n"
+            "        run: make\n"
+            "        with:\n"
+            "          args:\n"
+            "            - nested\n"
+        )
+        self.assertEqual(lint_tests.step_count(bare), 2)
+        self.assertEqual(lint_tests.step_count("steps:\n-\n  run: one\n-\n  run: two\n"), 2)
         self.assertEqual(lint_tests.flow_items("[]"), 0)
         multi = make_repo({".github/workflows/ci.yml": WF_FLOW_MULTI})
         rc, text = scan(multi, "--update", baseline={

@@ -279,6 +279,10 @@ def step_count(text: str) -> int:
             continue
         i += 1
         child: int | None = None
+        # A step item is a dash with text on the same line, or a bare dash whose
+        # mapping starts on the next line. A nested dash (a port, a service) is
+        # deeper than the first item, so it is not a step.
+        step_item = re.compile(r"^[ ]*-(?:[ ]+\S|[ ]*$)")
         while i < len(lines):
             line = lines[i]
             if not line.strip() or line.lstrip().startswith("#"):
@@ -286,11 +290,11 @@ def step_count(text: str) -> int:
                 continue
             cur = len(line) - len(line.lstrip(" "))
             # A dash at the key's own indent is still that key's block sequence.
-            if cur < indent or (cur == indent and not re.match(r"[ ]*-[ ]+\S", line)):
+            if cur < indent or (cur == indent and not step_item.match(line)):
                 break
             if child is None:
                 child = cur
-            if cur == child and re.match(r"[ ]*-[ ]+\S", line):
+            if cur == child and step_item.match(line):
                 total += 1
             i += 1
     return total
