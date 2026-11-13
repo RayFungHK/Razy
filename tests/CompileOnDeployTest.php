@@ -106,6 +106,21 @@ return new class(null) extends Controller {
         self::assertStringContainsString('closure listener', $decl['_refusals'][0]);
     }
 
+    public function testOnNotFoundInOnInitRefusesTheCompile(): void
+    {
+        // RZ-56: a compiled boot does not re-run __onInit, so a handler set there would vanish.
+        $module = $this->createModule();
+        $status = new ReflectionProperty($module, 'status');
+        $status->setValue($module, ModuleStatus::Initialing);
+        $module->setNotFoundHandler(fn () => null);
+        self::assertSame(['onNotFound() in __onInit (a compiled boot does not re-run it; register it in __onLoad)'], $module->dumpDeclarations()['_refusals']);
+
+        $loaded = $this->createModule();
+        $status->setValue($loaded, ModuleStatus::InQueue); // __onLoad: a compiled boot still runs it
+        $loaded->setNotFoundHandler(fn () => null);
+        self::assertSame([], $loaded->dumpDeclarations()['_refusals']);
+    }
+
     public function testApplyDeclarationsRebuildsWithoutRunningOnInit(): void
     {
         $source = $this->createModule();
@@ -412,6 +427,8 @@ return new class(null) extends Controller {
 
         $mockRegistry = $this->createMock(ModuleRegistry::class);
         $mock->method('getRegistry')->willReturn($mockRegistry);
+
+        $mock->method('getNotFoundHandler')->willReturn(new \Razy\Http\NotFoundHandler());
 
         $mockPrereqs = $this->createMock(PrerequisiteResolver::class);
         $mock->method('getPrerequisites')->willReturn($mockPrereqs);

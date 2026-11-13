@@ -118,6 +118,8 @@ sends no body to a `HEAD` request. Anything but a `Response` throws `UnexpectedV
 naming the module. A route miss runs no route guard first: a signed-out request for an unknown
 URL is a 404, not a login redirect (authz, CSRF and readiness belong to the route that matched).
 One module per dist owns the handler; another module's `onNotFound()` throws `LogicException`.
+Register it in `__onLoad`: a compiled boot does not re-run `__onInit`, so `php Razy.phar compile`
+refuses a dist whose module calls `onNotFound()` there. A standalone app takes the same hook.
 With no handler the answer stays `Error::show404()`. A host that is not in `sites.inc.php` gets
 the same plain 404 (it used to be a 500 configuration page).
 

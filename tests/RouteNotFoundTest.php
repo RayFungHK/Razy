@@ -182,6 +182,51 @@ final class RouteNotFoundTest extends TestCase
             $this->assertNotFalse($router, $entry);
             $this->assertMatchesRegularExpression('/\$this->router->matchRoute\([^;]*\)\s*\|\|\s*\$this->getNotFoundHandler\(\)->respond\(\$this->getRequestContext\(\)\);/', $body, $entry);
         }
+        $src = (string) \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Standalone.php');
+        $dispatch = \substr($src, (int) \strpos($src, 'public function dispatch'));
+        $dispatch = \substr($dispatch, 0, (int) \strpos($dispatch, "\n    }\n"));
+        $this->assertMatchesRegularExpression('/\$this->router->matchRoute\([^;]*\)\s*\|\|\s*\$this->getNotFoundHandler\(\)->respond\(RequestContext::fromGlobals\(\$this->urlQuery\)\);/', $dispatch, 'Standalone::dispatch');
+    }
+
+    public function testAStandaloneAppAnswersARouteMissToo(): void
+    {
+        $folder = PathUtil::append(SITES_FOLDER, 'rz56_standalone_fixture');
+        $this->dists[] = 'rz56_standalone_fixture';
+        \mkdir($folder . '/controller', 0o777, true);
+        \file_put_contents($folder . '/controller/app.php', <<<'PHP'
+            <?php
+            return new class(null) extends \Razy\Controller {
+                public function __onInit($agent): bool
+                {
+                    $agent->addRoute(['/' => (new \Razy\Route('main'))->exact()]);
+                    return true;
+                }
+                public function __onLoad($agent): bool
+                {
+                    $agent->onNotFound(fn (\Razy\Http\RequestContext $r) => new \Razy\Http\Response(200, 'app 404 ' . $r->path));
+                    return true;
+                }
+            };
+            PHP);
+        \file_put_contents($folder . '/controller/app.main.php', "<?php\nreturn function () { echo 'main'; };\n");
+
+        $server = $_SERVER;
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        \Razy\RuntimeMode::simulateWeb(true);
+        \Razy\Http\Headers::startCapture();
+        \ob_start();
+        try {
+            $app = (new \Razy\Standalone($folder))->initialize();
+            $app->setUrlQuery('/nope/');
+            $this->assertTrue($app->matchRoute(), 'the handler answered');
+        } finally {
+            $body = (string) \ob_get_clean();
+            $captured = \Razy\Http\Headers::stopCapture();
+            \Razy\RuntimeMode::simulateWeb(false);
+            $_SERVER = $server;
+        }
+        $this->assertSame('app 404 /nope/', $body);
+        $this->assertSame(404, $captured['status']);
     }
 
     public function testDefaultRoutesStayPrefixes(): void

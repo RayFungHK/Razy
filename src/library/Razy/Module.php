@@ -73,6 +73,9 @@ class Module implements ModuleInterface
     /** @var ModuleStatus Current lifecycle status of the module */
     private ModuleStatus $status = ModuleStatus::Pending;
 
+    /** RZ-56: onNotFound() was called in __onInit, which a compiled boot does not re-run */
+    private bool $notFoundInInit = false;
+
     /** @var bool Whether the module has completed its first initialization */
     private bool $initialized = false;
 
@@ -204,6 +207,10 @@ class Module implements ModuleInterface
                 }
                 $observers[$moduleCode . ':' . $eventName] = $p;
             }
+        }
+
+        if ($this->notFoundInInit) {
+            $refusals[] = 'onNotFound() in __onInit (a compiled boot does not re-run it; register it in __onLoad)';
         }
 
         return [
@@ -557,8 +564,6 @@ class Module implements ModuleInterface
 
     /**
      * Check if the module is able to route.
-     *
-     * @return bool
      */
     public function isRoutable(): bool
     {
@@ -608,8 +613,6 @@ class Module implements ModuleInterface
      * method_exists() on API objects (dossier MODULE-LIFECYCLE.md L0).
      *
      * @param string $command
-     *
-     * @return bool
      */
     public function hasAPICommand(string $command): bool
     {
@@ -757,8 +760,6 @@ class Module implements ModuleInterface
      *
      * @param string $moduleCode
      * @param string $event The event name
-     *
-     * @return bool
      */
     public function isEventListening(string $moduleCode, string $event): bool
     {
@@ -792,8 +793,6 @@ class Module implements ModuleInterface
 
     /**
      * Prepare stage, module will trigger __onLoad event to determine the module is allowed to load or not.
-     *
-     * @return bool
      */
     public function prepare(): bool
     {
@@ -1168,6 +1167,7 @@ class Module implements ModuleInterface
     public function setNotFoundHandler(Closure $handler): static
     {
         $this->distributor->getNotFoundHandler()->set($handler, $this->getModuleInfo()->getCode());
+        $this->notFoundInInit = $this->status === ModuleStatus::Initialing;
 
         return $this;
     }

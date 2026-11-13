@@ -24,6 +24,8 @@ use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Health\HealthRegistry;
+use Razy\Http\NotFoundHandler;
+use Razy\Http\RequestContext;
 use Razy\Module\ModuleStatus;
 use Razy\Template\IncludeResolver;
 use Razy\Util\PathUtil;
@@ -60,6 +62,9 @@ class Standalone implements DistributorInterface
 
     /** @var Template|null Lazy-initialized global Template instance */
     private ?Template $globalTemplate = null;
+
+    /** RZ-56: the app's not-found answer, filled by `$agent->onNotFound()` */
+    private ?NotFoundHandler $notFoundHandler = null;
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
@@ -104,8 +109,6 @@ class Standalone implements DistributorInterface
 
     /**
      * The app's web assets (RZ-09): hashed URLs and the importmap.
-     *
-     * @return Assets
      */
     public function getAssets(): Assets
     {
@@ -118,6 +121,12 @@ class Standalone implements DistributorInterface
     public function getHealthChecks(): HealthRegistry
     {
         return $this->healthChecks;
+    }
+
+    /** RZ-56: the app's not-found answer (`$agent->onNotFound()`). */
+    public function getNotFoundHandler(): NotFoundHandler
+    {
+        return $this->notFoundHandler ??= new NotFoundHandler();
     }
 
     /**
@@ -287,11 +296,10 @@ class Standalone implements DistributorInterface
 
         $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
 
-        // Mark core as initialized — the full module lifecycle has completed.
-        // This flag gates access to the lightweight dispatch() fast path.
+        // Core initialized (full lifecycle done): this gates the dispatch() fast path.
         $this->coreInitialized = true;
 
-        return $result;
+        return $result || $this->getNotFoundHandler()->respond(RequestContext::fromGlobals($this->urlQuery));
     }
 
     /**
@@ -310,10 +318,8 @@ class Standalone implements DistributorInterface
      */
     public function dispatch(string $urlQuery): bool
     {
-        // Guard: worker-only fast path — prevents bypassing the full module
-        // lifecycle (initialize → matchRoute) which registers routes and
-        // middleware. Without this, an attacker could call dispatch() directly
-        // to inject routes or hijack module closures.
+        // Guard: worker-only fast path; without it a direct dispatch() call could skip the
+        // lifecycle (initialize → matchRoute) that registers routes and middleware.
         if (!\defined('WORKER_MODE') || !WORKER_MODE) {
             throw new ConfigurationException(
                 'Standalone::dispatch() is restricted to worker mode. Use matchRoute() for standard requests.',
@@ -326,9 +332,7 @@ class Standalone implements DistributorInterface
             );
         }
 
-        // URL is already tidied by the worker handler in main.php — skip
-        // redundant PathUtil::tidy() regex call. The caller guarantees a
-        // non-empty, forward-slash-normalised path (defaults to '/').
+        // Already tidied by main.php's worker handler (non-empty, '/'-normalised): no PathUtil::tidy().
         $this->urlQuery = $urlQuery;
 
         Assets::setCurrent($this->assets);
@@ -336,20 +340,17 @@ class Standalone implements DistributorInterface
             return true;
         }
 
-        // Reset stale route metadata from previous request to prevent
-        // information leaking on 404 (routedInfo would otherwise retain
-        // the previous request's URL, arguments, and module code).
+        // Reset the previous request's routedInfo (URL, arguments, module) so a 404 leaks none of it.
         $this->router->resetRoutedInfo();
 
-        return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+        return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry)
+            || $this->getNotFoundHandler()->respond(RequestContext::fromGlobals($this->urlQuery));
     }
 
     /**
      * Autoload a class from the standalone module's library folder.
      *
      * @param string $className
-     *
-     * @return bool
      */
     public function autoload(string $className): bool
     {
@@ -371,8 +372,6 @@ class Standalone implements DistributorInterface
 
     /**
      * Set the cookie path and start the session.
-     *
-     * @return $this
      */
     public function setSession(): static
     {

@@ -119,6 +119,10 @@ class DefaultSiteTest extends PHPUnit\Framework\TestCase
         $config = $ref->getProperty('config');
         $config->setAccessible(true);
         $config->setValue($app, ['domains' => $domains, 'alias' => []]);
+        // host() lazily initializes from sites.inc.php; mark it done so the fixture stays.
+        $initialized = $ref->getProperty('initialized');
+        $initialized->setAccessible(true);
+        $initialized->setValue($app, true);
 
         $app->updateSites();
 
