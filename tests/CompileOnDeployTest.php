@@ -119,6 +119,11 @@ return new class(null) extends Controller {
         $status->setValue($loaded, ModuleStatus::InQueue); // __onLoad: a compiled boot still runs it
         $loaded->setNotFoundHandler(fn () => null);
         self::assertSame([], $loaded->dumpDeclarations()['_refusals']);
+
+        // a later __onLoad registration does not clear an __onInit one (it may not run on every boot)
+        $status->setValue($module, ModuleStatus::InQueue);
+        $module->setNotFoundHandler(fn () => null);
+        self::assertCount(1, $module->dumpDeclarations()['_refusals']);
     }
 
     public function testApplyDeclarationsRebuildsWithoutRunningOnInit(): void

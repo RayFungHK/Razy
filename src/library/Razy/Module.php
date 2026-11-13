@@ -1167,7 +1167,7 @@ class Module implements ModuleInterface
     public function setNotFoundHandler(Closure $handler): static
     {
         $this->distributor->getNotFoundHandler()->set($handler, $this->getModuleInfo()->getCode());
-        $this->notFoundInInit = $this->status === ModuleStatus::Initialing;
+        $this->notFoundInInit = $this->notFoundInInit || $this->status === ModuleStatus::Initialing;
 
         return $this;
     }
