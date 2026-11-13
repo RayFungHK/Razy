@@ -73,6 +73,9 @@ class Module implements ModuleInterface
     /** @var ModuleStatus Current lifecycle status of the module */
     private ModuleStatus $status = ModuleStatus::Pending;
 
+    /** RZ-56: onNotFound() was called in __onInit, which a compiled boot does not re-run */
+    private bool $notFoundInInit = false;
+
     /** @var bool Whether the module has completed its first initialization */
     private bool $initialized = false;
 
@@ -206,6 +209,10 @@ class Module implements ModuleInterface
             }
         }
 
+        if ($this->notFoundInInit) {
+            $refusals[] = 'onNotFound() in __onInit (a compiled boot does not re-run it; register it in __onLoad)';
+        }
+
         return [
             'api' => $this->getAPICommands(),
             'bridge' => $this->getBridgeCommands(),
@@ -331,8 +338,6 @@ class Module implements ModuleInterface
      *
      * @param string $command
      * @param array $args
-     *
-     * @return mixed
      */
     public function executeInternalCommand(string $command, array $args): mixed
     {
@@ -345,8 +350,6 @@ class Module implements ModuleInterface
      * @param ModuleInfo $module
      * @param string $version
      * @param string $message
-     *
-     * @return bool
      */
     public function touch(ModuleInfo $module, string $version, string $message): bool
     {
@@ -358,8 +361,6 @@ class Module implements ModuleInterface
      *
      * @param string $moduleCode
      * @param string $message
-     *
-     * @return bool
      */
     public function handshake(string $moduleCode, string $message = ''): bool
     {
@@ -458,8 +459,6 @@ class Module implements ModuleInterface
 
     /**
      * Get the module thread manager.
-     *
-     * @return ThreadManager
      */
     public function getThreadManager(): ThreadManager
     {
@@ -565,8 +564,6 @@ class Module implements ModuleInterface
 
     /**
      * Check if the module is able to route.
-     *
-     * @return bool
      */
     public function isRoutable(): bool
     {
@@ -616,8 +613,6 @@ class Module implements ModuleInterface
      * method_exists() on API objects (dossier MODULE-LIFECYCLE.md L0).
      *
      * @param string $command
-     *
-     * @return bool
      */
     public function hasAPICommand(string $command): bool
     {
@@ -765,8 +760,6 @@ class Module implements ModuleInterface
      *
      * @param string $moduleCode
      * @param string $event The event name
-     *
-     * @return bool
      */
     public function isEventListening(string $moduleCode, string $event): bool
     {
@@ -800,8 +793,6 @@ class Module implements ModuleInterface
 
     /**
      * Prepare stage, module will trigger __onLoad event to determine the module is allowed to load or not.
-     *
-     * @return bool
      */
     public function prepare(): bool
     {
@@ -1168,6 +1159,15 @@ class Module implements ModuleInterface
     public function addRequestResolver(Closure $resolver): static
     {
         $this->distributor->getRequestResolver()->add($resolver, $this->getModuleInfo()->getCode());
+
+        return $this;
+    }
+
+    /** RZ-56: set the dist's not-found answer (one owning module). */
+    public function setNotFoundHandler(Closure $handler): static
+    {
+        $this->distributor->getNotFoundHandler()->set($handler, $this->getModuleInfo()->getCode());
+        $this->notFoundInInit = $this->notFoundInInit || $this->status === ModuleStatus::Initialing;
 
         return $this;
     }

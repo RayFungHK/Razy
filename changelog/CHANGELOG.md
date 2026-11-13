@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ## [Unreleased]
 
+- **RZ-56** — **Added:** `Route::exact()` makes a route match only its own path (routes stay prefixes without it), and `Agent::onNotFound()` answers a route miss with the dist's own Response, sent as 404 (no handler keeps `Error::show404()`). A host not in `sites.inc.php` is a plain 404 instead of a 500 page. Compiled-boot schema `compiled-boot-2`. [unreleased/RZ-56.md](unreleased/RZ-56.md).
 - **RZ-54** — **Fixed:** Template `{@if}` applies an operator that sits next to a parenthesised group. `(0),(1)` is false and `!(0)` is true; a comparison between groups (`(2)>(1)`) uses the operands, and a `,` or `|` followed by `!` short-circuits on that operator. An operator glued to a bare operand is the same operator: `(0)|1` is true, `(1),0` is false, and `(1)=0` is false. [unreleased/RZ-54.md](unreleased/RZ-54.md).
 - **RZ-53** — **Fixed:** `VersionUtil::vc()` applies `,` and `|` after a bare version or a parenthesised group. `0|>=1.0` and `1.2|>=2.0` match either side, and `(>=1.0),(<2.0)` is that range. A combinator used to be read only after a constraint, so those requirements were always false. [unreleased/RZ-53.md](unreleased/RZ-53.md).
 - **RZ-55** — **Fixed:** `Cache\RedisAdapter::clear()` follows the SCAN cursor until it is 0. An empty page is a falsy array, so the old `while ($keys = scan())` stopped mid-scan and left prefixed keys. The shared client's `OPT_SCAN` is not changed. [unreleased/RZ-55.md](unreleased/RZ-55.md).

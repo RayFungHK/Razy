@@ -36,6 +36,7 @@ use Razy\Distributor\RouteDispatcher;
 use Razy\Exception\ConfigurationException;
 use Razy\Exception\ModuleVersionException;
 use Razy\Health\HealthRegistry;
+use Razy\Http\NotFoundHandler;
 use Razy\Http\Request;
 use Razy\Http\RequestContext;
 use Razy\Http\RequestResolver;
@@ -170,6 +171,9 @@ class Distributor implements DistributorInterface
 
     /** RZ-12: the request-resolver stage (host/tenant), run before the route table */
     private RequestResolver $requestResolver;
+
+    /** RZ-56: the dist's not-found answer (`$agent->onNotFound()`), run when no route matched */
+    private ?NotFoundHandler $notFoundHandler = null;
 
     /** RZ-12: this request's context, rebuilt by beginResponse() on every request */
     private ?RequestContext $requestContext = null;
@@ -344,8 +348,6 @@ class Distributor implements DistributorInterface
      * editing dist.php — used by the compile command's replay self-proof
      * and by the framework's own tests. Production sites flip the dist.php
      * flag; this method changes nothing on disk.
-     *
-     * @return $this
      */
     public function enableCompiledBoot(): static
     {
@@ -487,8 +489,6 @@ class Distributor implements DistributorInterface
      * Autoload the class from the distributor's module library folder.
      *
      * @param string $className
-     *
-     * @return bool
      */
     public function autoload(string $className): bool
     {
@@ -500,8 +500,6 @@ class Distributor implements DistributorInterface
      *
      * @param string $module
      * @param bool $isURL
-     *
-     * @return string
      */
     public function getDataPath(string $module = '', bool $isURL = false): string
     {
@@ -513,8 +511,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the distributor identity, the identity contains the domain and its code.
-     *
-     * @return string
      */
     public function getIdentity(): string
     {
@@ -526,8 +522,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Set the cookie path and start the session.
-     *
-     * @return $this
      */
     public function setSession(): static
     {
@@ -616,10 +610,10 @@ class Distributor implements DistributorInterface
             return true;
         }
 
-        $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+        $result = $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry)
+            || $this->getNotFoundHandler()->respond($this->getRequestContext());
 
-        // Mark core as initialized — the full module lifecycle has completed.
-        // This flag gates access to the lightweight dispatch() fast path.
+        // Core initialized (full lifecycle done): this gates the dispatch() fast path.
         $this->coreInitialized = true;
 
         return $result;
@@ -685,7 +679,8 @@ class Distributor implements DistributorInterface
             return true;
         }
 
-        return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry);
+        return $this->router->matchRoute($this->urlQuery, $this->getSiteURL(), $this->registry)
+            || $this->getNotFoundHandler()->respond($this->getRequestContext());
     }
 
     /**
@@ -731,8 +726,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Check if global module loading is enabled for this distributor.
-     *
-     * @return bool
      */
     public function isGlobalModule(): bool
     {
@@ -906,6 +899,12 @@ class Distributor implements DistributorInterface
     public function getRequestContext(): RequestContext
     {
         return $this->requestContext ??= RequestContext::fromGlobals($this->urlQuery);
+    }
+
+    /** RZ-56: the dist's not-found answer (`$agent->onNotFound()`). */
+    public function getNotFoundHandler(): NotFoundHandler
+    {
+        return $this->notFoundHandler ??= new NotFoundHandler();
     }
 
     /**

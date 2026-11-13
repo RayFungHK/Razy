@@ -68,7 +68,7 @@ use Throwable;
 final class BootCompiler
 {
     /** Artifact schema + replay-semantics id; bump on ANY shape change. */
-    public const SCHEMA = 'compiled-boot-1';
+    public const SCHEMA = 'compiled-boot-2';
 
     /** env RAZY_COMPILE_TRUST=1 skips the stat fingerprint (pure deploy discipline). */
     private const TRUST_ENV = 'RAZY_COMPILE_TRUST';
@@ -555,9 +555,8 @@ final class BootCompiler
     }
 
     /**
-     * Route entity -> plain spec (constructor path + the fluent metadata
-     * dispatch actually reads). Null + a recorded refusal when it carries
-     * anything closures can't wear.
+     * Route entity -> plain spec (constructor path + the fluent metadata dispatch
+     * actually reads). Null + a recorded refusal when it carries anything closures can't wear.
      */
     private static function dumpRoute(Route $route, string $key, array &$refusals): ?array
     {
@@ -568,6 +567,7 @@ final class BootCompiler
             'ready_gate' => $route->hasReadyGate() ? $route->getReadyGate() : null,
             'csrf_exempt' => $route->isCsrfExempt() ? $route->getCsrfExemptReason() : null,
             'authz' => $route->hasAuthzAbility() ? $route->getAuthzAbility() : null,
+            'exact' => $route->isExact(),
             'middleware' => [],
         ];
 

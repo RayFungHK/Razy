@@ -16,6 +16,7 @@ use Razy\Config\SiteConfig;
 use Razy\Contract\ContainerInterface;
 use Razy\Error\ErrorReporter;
 use Razy\Exception\ConfigurationException;
+use Razy\Exception\DomainNotMatchedException;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
 use Razy\Util\StringUtil;
@@ -139,7 +140,7 @@ class Application
 
         // Match the domain by the given FQDN string
         if (($this->domain = $this->matchDomain($fqdn)) === null) {
-            throw new ConfigurationException("No domain matched for '{$fqdn}'. Check sites.inc.php configuration.");
+            throw new DomainNotMatchedException("No domain matched for '{$fqdn}'. Check sites.inc.php configuration.");
         }
 
         return true;
@@ -634,8 +635,6 @@ class Application
 
     /**
      * Execute dispose event.
-     *
-     * @return $this
      */
     public function dispose(): static
     {

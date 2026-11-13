@@ -182,8 +182,6 @@ class RouteDispatcher
      * @param string $route
      * @param mixed $path
      * @param string $method HTTP method constraint ('*' = any)
-     *
-     * @return $this
      */
     public function setRoute(Module $module, string $route, mixed $path, string $method = '*'): static
     {
@@ -208,7 +206,7 @@ class RouteDispatcher
 
         // Include HTTP method in key to allow same-path routes with different methods
         $routeKey = \strtoupper($method) . ':' . $route;
-        $this->routes[$routeKey] = [
+        return $this->storeRoute($routeKey, $path, [
             'module' => $module,
             'module_code' => $module->getModuleInfo()->getCode(),
             'path' => $path,
@@ -222,16 +220,7 @@ class RouteDispatcher
             'redirect_target' => $redirectTarget,
             'tidied_path' => $tidiedPath,
             'tidied_route' => PathUtil::tidy('/' . $route, false, '/'),
-            'ready_gate' => $path instanceof Route && $path->hasReadyGate() ? $path->getReadyGate() : null,
-        ];
-        $this->routesDirty = true;
-
-        // Register named route if the path is a Route object with a name
-        if ($path instanceof Route && $path->hasName()) {
-            $this->registerNamedRoute($path->getName(), $routeKey);
-        }
-
-        return $this;
+        ]);
     }
 
     /**
@@ -241,8 +230,6 @@ class RouteDispatcher
      * @param string $route The route path
      * @param Module|null $targetModule The target module to delegate to
      * @param string $path The closure path within the target module
-     *
-     * @return $this
      */
     public function setShadowRoute(Module $module, string $route, ?Module $targetModule, string $path, string $method = '*'): static
     {
@@ -270,30 +257,19 @@ class RouteDispatcher
      * @param Module $module The module entity
      * @param string $route The route path string
      * @param string|Route $path The closure path of method (a Route entity may carry a readiness gate)
-     *
-     * @return $this
      */
     public function setLazyRoute(Module $module, string $route, string|Route $path, string $method = '*'): static
     {
         $routePath = '/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/');
         $routeKey = \strtoupper($method) . ':' . $routePath;
-        $this->routes[$routeKey] = [
+        return $this->storeRoute($routeKey, $path, [
             'module' => $module,
             'path' => $path,
             'route' => $route,
             'route_path' => $routePath,
             'type' => 'lazy',
             'method' => \strtoupper($method),
-            'ready_gate' => $path instanceof Route && $path->hasReadyGate() ? $path->getReadyGate() : null,
-        ];
-        $this->routesDirty = true;
-
-        // Register named route if the path is a Route object with a name
-        if ($path instanceof Route && $path->hasName()) {
-            $this->registerNamedRoute($path->getName(), $routeKey);
-        }
-
-        return $this;
+        ]);
     }
 
     /**
@@ -302,8 +278,6 @@ class RouteDispatcher
      * @param Module $module
      * @param string $route
      * @param string $path
-     *
-     * @return $this
      */
     public function setScript(Module $module, string $route, string $path): static
     {
@@ -321,8 +295,6 @@ class RouteDispatcher
      * Check if a named route exists.
      *
      * @param string $name The route name
-     *
-     * @return bool
      */
     public function hasNamedRoute(string $name): bool
     {
@@ -448,6 +420,9 @@ class RouteDispatcher
                 if (!empty($spec['authz'])) {
                     $route->can($spec['authz']);
                 }
+                if (!empty($spec['exact'])) {
+                    $route->exact();
+                }
                 foreach ($spec['middleware'] as $mwClass) {
                     $route->middleware(new $mwClass());
                 }
@@ -495,8 +470,6 @@ class RouteDispatcher
 
     /**
      * Get the routed information after the route is matched.
-     *
-     * @return array
      */
     public function getRoutedInfo(): array
     {
@@ -576,10 +549,11 @@ class RouteDispatcher
                     $remainingQuery = \rtrim(\substr($urlQuery, \strlen($route)), '/');
                     $args = \explode('/', $remainingQuery);
                 }
+                if (($data['exact'] ?? false) && \trim($remainingQuery, '/') !== '') {
+                    continue; // RZ-56: an exact route takes no tail
+                }
 
-                // Use pre-computed tidied path and redirect flag from registration time
-                // when available (standard routes with string paths). Avoids PathUtil::tidy()
-                // regex and redirect preg_match() on every request.
+                // Pre-computed tidied path and redirect flag (standard string routes): no per-request tidy/preg_match.
                 if (isset($data['tidied_path'])) {
                     $path = $data['tidied_path'];
                 } else {
@@ -687,8 +661,7 @@ class RouteDispatcher
                             return null;
                         });
                     } else {
-                        // Fast path: no middleware — direct invocation with spread operator
-                        // (faster than call_user_func_array)
+                        // Fast path: no middleware — direct spread call (faster than call_user_func_array)
                         $closure(...$args);
                     }
                 }
@@ -793,6 +766,24 @@ class RouteDispatcher
         if (!$gateReady) {
             $this->respondNotReady($gateCode, $registry, $siteURL);
         }
+    }
+
+    /**
+     * Store a standard or lazy route row with the Route entity's flags (readiness
+     * gate, RZ-56 `exact`) and register its name.
+     */
+    private function storeRoute(string $routeKey, mixed $path, array $row): static
+    {
+        $this->routes[$routeKey] = $row + [
+            'ready_gate' => $path instanceof Route && $path->hasReadyGate() ? $path->getReadyGate() : null,
+            'exact' => $path instanceof Route && $path->isExact(),
+        ];
+        $this->routesDirty = true;
+        if ($path instanceof Route && $path->hasName()) {
+            $this->registerNamedRoute($path->getName(), $routeKey);
+        }
+
+        return $this;
     }
 
     /**

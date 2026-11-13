@@ -106,6 +106,26 @@ return new class(null) extends Controller {
         self::assertStringContainsString('closure listener', $decl['_refusals'][0]);
     }
 
+    public function testOnNotFoundInOnInitRefusesTheCompile(): void
+    {
+        // RZ-56: a compiled boot does not re-run __onInit, so a handler set there would vanish.
+        $module = $this->createModule();
+        $status = new ReflectionProperty($module, 'status');
+        $status->setValue($module, ModuleStatus::Initialing);
+        $module->setNotFoundHandler(fn () => null);
+        self::assertSame(['onNotFound() in __onInit (a compiled boot does not re-run it; register it in __onLoad)'], $module->dumpDeclarations()['_refusals']);
+
+        $loaded = $this->createModule();
+        $status->setValue($loaded, ModuleStatus::InQueue); // __onLoad: a compiled boot still runs it
+        $loaded->setNotFoundHandler(fn () => null);
+        self::assertSame([], $loaded->dumpDeclarations()['_refusals']);
+
+        // a later __onLoad registration does not clear an __onInit one (it may not run on every boot)
+        $status->setValue($module, ModuleStatus::InQueue);
+        $module->setNotFoundHandler(fn () => null);
+        self::assertCount(1, $module->dumpDeclarations()['_refusals']);
+    }
+
     public function testApplyDeclarationsRebuildsWithoutRunningOnInit(): void
     {
         $source = $this->createModule();
@@ -150,6 +170,7 @@ return new class(null) extends Controller {
                     'name' => 'x-route',
                     'ready_gate' => null,
                     'csrf_exempt' => null,
+                    'exact' => true,
                     'middleware' => [],
                     'data' => ['k' => 1],
                 ]],
@@ -178,6 +199,7 @@ return new class(null) extends Controller {
         self::assertSame('ping', $row['path']->getClosurePath());
         self::assertSame('GET', $row['path']->getMethod());
         self::assertSame(['k' => 1], $row['path']->getData());
+        self::assertTrue($row['path']->isExact(), 'RZ-56: an exact route replays exact');
         self::assertSame(['x-route' => 'GET:/x/'], $dispatcher->getNamedRoutes());
     }
 
@@ -229,7 +251,7 @@ return new class(null) extends Controller {
 
         $data = BootCompiler::usableData($distMock);
         self::assertIsArray($data, 'a fresh artifact with a matching fingerprint is usable');
-        self::assertSame('compiled-boot-1', $data['schema']);
+        self::assertSame('compiled-boot-2', $data['schema']);
 
         // a new file under the dist tree MUST deactivate the artifact
         $dir = PathUtil::append(SITES_FOLDER, 'unittest-dist');
@@ -410,6 +432,8 @@ return new class(null) extends Controller {
 
         $mockRegistry = $this->createMock(ModuleRegistry::class);
         $mock->method('getRegistry')->willReturn($mockRegistry);
+
+        $mock->method('getNotFoundHandler')->willReturn(new \Razy\Http\NotFoundHandler());
 
         $mockPrereqs = $this->createMock(PrerequisiteResolver::class);
         $mock->method('getPrerequisites')->willReturn($mockPrereqs);

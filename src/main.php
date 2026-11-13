@@ -26,6 +26,7 @@
 namespace Razy;
 
 use Phar;
+use Razy\Exception\DomainNotMatchedException;
 use Razy\Exception\HttpException;
 use Razy\Template\CompiledTemplate;
 use Razy\Util\PathUtil;
@@ -306,8 +307,13 @@ if (WEB_MODE) {
                 // Standalone mode: bypass Domain/multisite, load single module
                 $app->standalone($standalonePath);
             } else {
-                // Normal multisite mode: resolve domain and match distributor
-                $app->host(HOSTNAME . ':' . PORT);
+                // Normal multisite mode: resolve domain and match distributor.
+                // RZ-56: a host not in sites.inc.php is a plain 404, not a 500 page.
+                try {
+                    $app->host(HOSTNAME . ':' . PORT);
+                } catch (DomainNotMatchedException) {
+                    Error::show404();
+                }
             }
 
             Application::Lock();

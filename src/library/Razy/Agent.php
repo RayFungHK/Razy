@@ -192,8 +192,6 @@ class Agent
      * `$context['principal']`. One module per dist owns the resolver.
      *
      * @param callable $resolver fn(array $context): ?\Razy\Authz\Principal
-     *
-     * @return $this Fluent interface
      */
     public function identity(callable $resolver): static
     {
@@ -216,8 +214,6 @@ class Agent
      * @param string $name Check name (letters, digits, `._/:-`)
      * @param callable $check fn(): bool|void
      * @param bool $critical Whether a failure fails readiness (503)
-     *
-     * @return $this Fluent interface
      */
     public function addHealthCheck(string $name, callable $check, bool $critical = true): static
     {
@@ -258,6 +254,14 @@ class Agent
     public function onAuthzDenied(callable $renderer): static
     {
         $this->module->setAuthzDenialRenderer($renderer(...));
+
+        return $this;
+    }
+
+    /** RZ-56: fn(RequestContext): Response answers a route miss as 404; no handler keeps Error::show404(). */
+    public function onNotFound(callable $handler): static
+    {
+        $this->module->setNotFoundHandler($handler(...));
 
         return $this;
     }
@@ -428,8 +432,6 @@ class Agent
      *
      * @param string $moduleCode
      * @param callable $caller
-     *
-     * @return $this
      */
     public function await(string $moduleCode, callable $caller): static
     {
@@ -440,8 +442,6 @@ class Agent
 
     /**
      * Get the thread manager for this module.
-     *
-     * @return ThreadManager
      */
     public function thread(): ThreadManager
     {
