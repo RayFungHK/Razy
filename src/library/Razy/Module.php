@@ -331,8 +331,6 @@ class Module implements ModuleInterface
      *
      * @param string $command
      * @param array $args
-     *
-     * @return mixed
      */
     public function executeInternalCommand(string $command, array $args): mixed
     {
@@ -345,8 +343,6 @@ class Module implements ModuleInterface
      * @param ModuleInfo $module
      * @param string $version
      * @param string $message
-     *
-     * @return bool
      */
     public function touch(ModuleInfo $module, string $version, string $message): bool
     {
@@ -358,8 +354,6 @@ class Module implements ModuleInterface
      *
      * @param string $moduleCode
      * @param string $message
-     *
-     * @return bool
      */
     public function handshake(string $moduleCode, string $message = ''): bool
     {
@@ -458,8 +452,6 @@ class Module implements ModuleInterface
 
     /**
      * Get the module thread manager.
-     *
-     * @return ThreadManager
      */
     public function getThreadManager(): ThreadManager
     {
@@ -1168,6 +1160,14 @@ class Module implements ModuleInterface
     public function addRequestResolver(Closure $resolver): static
     {
         $this->distributor->getRequestResolver()->add($resolver, $this->getModuleInfo()->getCode());
+
+        return $this;
+    }
+
+    /** RZ-56: set the dist's not-found answer (one owning module). */
+    public function setNotFoundHandler(Closure $handler): static
+    {
+        $this->distributor->getNotFoundHandler()->set($handler, $this->getModuleInfo()->getCode());
 
         return $this;
     }

@@ -87,6 +87,29 @@ class DefaultSiteTest extends PHPUnit\Framework\TestCase
         );
     }
 
+    public function testAnUnknownHostIsATypedNotMatched(): void
+    {
+        $app = $this->appWithDomains(['good.example.com' => ['/' => self::FIXTURE_DIST]]);
+
+        try {
+            $app->host('nope.example.test:80');
+            $this->fail('an unknown host must throw');
+        } catch (Razy\Exception\DomainNotMatchedException $e) {
+            $this->assertInstanceOf(Razy\Exception\ConfigurationException::class, $e, 'existing catchers keep working');
+            $this->assertStringContainsString("'nope.example.test:80'", $e->getMessage());
+        }
+    }
+
+    public function testTheWebFrontControllerAnswersAnUnknownHostWith404(): void
+    {
+        // RZ-56: main.php's request path turns the typed miss into the plain 404 page.
+        $src = (string) file_get_contents(dirname(__DIR__) . '/src/main.php');
+        $this->assertMatchesRegularExpression(
+            '/try \{\s*\$app->host\(HOSTNAME \. \':\' \. PORT\);\s*\} catch \(DomainNotMatchedException\) \{\s*Error::show404\(\);/',
+            $src,
+        );
+    }
+
     private function appWithDomains(array $domains): Application
     {
         $app = new Application();

@@ -150,6 +150,7 @@ return new class(null) extends Controller {
                     'name' => 'x-route',
                     'ready_gate' => null,
                     'csrf_exempt' => null,
+                    'exact' => true,
                     'middleware' => [],
                     'data' => ['k' => 1],
                 ]],
@@ -178,6 +179,7 @@ return new class(null) extends Controller {
         self::assertSame('ping', $row['path']->getClosurePath());
         self::assertSame('GET', $row['path']->getMethod());
         self::assertSame(['k' => 1], $row['path']->getData());
+        self::assertTrue($row['path']->isExact(), 'RZ-56: an exact route replays exact');
         self::assertSame(['x-route' => 'GET:/x/'], $dispatcher->getNamedRoutes());
     }
 
@@ -229,7 +231,7 @@ return new class(null) extends Controller {
 
         $data = BootCompiler::usableData($distMock);
         self::assertIsArray($data, 'a fresh artifact with a matching fingerprint is usable');
-        self::assertSame('compiled-boot-1', $data['schema']);
+        self::assertSame('compiled-boot-2', $data['schema']);
 
         // a new file under the dist tree MUST deactivate the artifact
         $dir = PathUtil::append(SITES_FOLDER, 'unittest-dist');

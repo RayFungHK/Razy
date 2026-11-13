@@ -65,6 +65,9 @@ class Route
     /** @var string|null ability name this route requires (AUTHZ-RAIL) */
     private ?string $authzAbility = null;
 
+    /** @var bool RZ-56: match only the route's own path, never a tail */
+    private bool $exact = false;
+
     /** @var mixed Arbitrary data attached to this route for controller consumption */
     private mixed $data = null;
 
@@ -324,6 +327,27 @@ class Route
     public function getAuthzAbility(): ?string
     {
         return $this->authzAbility;
+    }
+
+    /**
+     * RZ-56: match only this route's own path (with or without the trailing
+     * slash), never a longer URL. Without it a route is a prefix: `/` with
+     * no flag answers every URL of the dist and passes the rest as closure
+     * arguments. An exact route takes no tail, so a URL that no route
+     * claims reaches the dist's not-found answer (`Agent::onNotFound()`).
+     *
+     * @return $this Fluent interface
+     */
+    public function exact(): self
+    {
+        $this->exact = true;
+
+        return $this;
+    }
+
+    public function isExact(): bool
+    {
+        return $this->exact;
     }
 
     /**

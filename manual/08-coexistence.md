@@ -62,9 +62,14 @@ The two claims decompose into the dossier's failure modes; the two you must know
   the *wrong app* — a module-root lazy route (`/shop/`) swallows `/shop/reports/x`
   because `str_starts_with('/shop/reports/x', '/shop/')` is true. Monitoring that only
   watches for 5xx will not see this. Details: dossier §2 FM-2.
+  Inside one dist the same shape exists between routes: a route is a prefix, so `'/' => 'main'`
+  answers every URL with `200`. Make such a route `(new Route('main'))->exact()` and answer
+  the rest with `$agent->onNotFound()` (a real `404`); keep the prefix only on routes that take
+  a tail, such as `'/chat/(:d)'` (manual/03 §1, RZ-56).
 
 And the corollary that closes the back door: on a total route miss PHP emits its own
-404 (`Application::query()` → `Error::show404()`, dossier §1.6) — **there is no
+404 (`Application::query()` → `Error::show404()`, dossier §1.6; or the dist's
+`$agent->onNotFound()` answer, still a 404) — **there is no
 mechanism for PHP to hand a request back to the web server.** Coexistence must be
 decided at the web-server layer, which is exactly what the rest of this page does.
 

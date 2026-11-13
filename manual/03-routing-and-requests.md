@@ -73,6 +73,54 @@ Middleware runs in **three levels**: module-global → group → route
 (`readme.md` Routing; enforced ordering per `Agent.php:380-387`). Keep them stateless:
 workers reuse the process.
 
+### Prefix routes, exact routes and the not-found answer (RZ-56)
+
+A route is a **prefix** by default: it answers its own path and every longer URL, and the
+rest of the URL arrives as closure arguments. `'/' => 'main'` with no flag therefore answers
+**every** URL of the dist with that page and status 200. Keep the prefix where a route takes a
+tail (`'/chat/(:d)'`, a variadic `function (...$parts)`); mark a route `exact()` where it does not:
+
+```php
+use Razy\Http\RequestContext;
+use Razy\Http\Response;
+use Razy\Route;
+
+$agent->addRoute([
+    '/'      => (new Route('main'))->exact(),                       // '/' only
+    '/pool'  => 'pool',                                             // '/pool/a/b' → pool('a', 'b')
+    '/vault' => (new Route('vault'))->exact()->can('vault.open'),   // chains with the other flags
+]);
+$agent->addLazyRoute(['about' => (new Route('about'))->exact()]);   // lazy routes too
+```
+
+- An exact route matches its own path only, never a longer one. The query string is not part of
+  the path (`/?x=1` is `/`).
+- **One trailing-slash rule:** the front controller tidies every request path to end in `/`
+  (`RequestUrl::urlQuery()`), so `/privacy` and `/privacy/` are the same URL for every route,
+  exact or not.
+- A URL no route matches (including one only an exact route could have claimed) is a **route
+  miss**. A dist answers it with `$agent->onNotFound()`:
+
+```php
+public function __onLoad($agent): bool   // __onLoad: a compiled boot does not re-run __onInit
+{
+    $agent->onNotFound(fn (RequestContext $request): Response => new Response(
+        404, $this->renderNotFoundPage($request->path), ['Content-Type' => 'text/html; charset=UTF-8'],
+    ));
+    return true;
+}
+```
+
+The handler receives the request context (the same `RequestContext` a `resolveRequest()`
+resolver gets) and returns a `Response`. The framework sends it with **status 404** whatever
+status it carries, keeps the dist's security headers (CSP included, sent before the handler), and
+sends no body to a `HEAD` request. Anything but a `Response` throws `UnexpectedValueException`
+naming the module. A route miss runs no route guard first: a signed-out request for an unknown
+URL is a 404, not a login redirect (authz, CSRF and readiness belong to the route that matched).
+One module per dist owns the handler; another module's `onNotFound()` throws `LogicException`.
+With no handler the answer stays `Error::show404()`. A host that is not in `sites.inc.php` gets
+the same plain 404 (it used to be a 500 configuration page).
+
 ## 2. The routed-info contract
 
 `$this->getRoutedInfo(): array` (`Controller.php:498-501`) returns the literal built at
