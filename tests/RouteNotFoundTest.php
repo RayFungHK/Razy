@@ -170,6 +170,20 @@ final class RouteNotFoundTest extends TestCase
         $this->assertSame('pool:a', $this->get(self::PLAIN, '/pool/a/')->body());
     }
 
+    public function testBothEntryPointsAskTheHandlerAfterTheRouteTable(): void
+    {
+        // dispatch() is the worker fast path (WORKER_MODE only, which the test
+        // bootstrap pins to false), so its wiring is checked in the source.
+        $src = (string) \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Distributor.php');
+        foreach (['public function matchRoute', 'public function dispatch'] as $entry) {
+            $body = \substr($src, (int) \strpos($src, $entry));
+            $body = \substr($body, 0, (int) \strpos($body, "\n    }\n"));
+            $router = \strpos($body, '$this->router->matchRoute(');
+            $this->assertNotFalse($router, $entry);
+            $this->assertMatchesRegularExpression('/\$this->router->matchRoute\([^;]*\)\s*\|\|\s*\$this->getNotFoundHandler\(\)->respond\(\$this->getRequestContext\(\)\);/', $body, $entry);
+        }
+    }
+
     public function testDefaultRoutesStayPrefixes(): void
     {
         $route = new Route('main');
