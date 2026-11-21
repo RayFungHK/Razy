@@ -193,15 +193,16 @@ To probe availability, use `$this->api('acme/store')->has('getThing')` (`Emitter
 **never `method_exists()`**: the Emitter dispatches through `__call`, so `method_exists()` is
 always false and a guard built on it silently disables the integration (dossier
 MODULE-LIFECYCLE.md L0 found one doing exactly that in production).
-Command name grammar: `/^#?[a-z]\w*$/i` (`Agent.php:65-67`). Duplicates throw at
+Command name grammar: `/^#?[a-z]\w*$/i` (`Agent.php:76`). Duplicates throw at
 registration (`CommandRegistry::addAPICommand()`).
 A name that is a public method of `Razy\Controller` (`render`, `view`, `api`, `xhr`, `fork`, `resolve`, ...) is refused with a
-`ModuleException`: it would run that method, not your closure. The list is read from the class
+`ModuleException` (bridge commands too): it would run that method, not your closure. The list is read from the class
 (`CommandRegistry::reservedNames()`).
 
-**What a caller gets back.** `api('vendor/mod')->cmd()` and `Module::executeInternalCommand()` return the value, or `null`
-for unknown, denied, failed and a real `null` alike (deprecated for `executeInternalCommand`). To tell them apart call
-`Module::executeChecked($caller, $cmd, $args)` or, without the `__onAPICall` gate, `executeInternalChecked($cmd, $args)`:
+**What a caller gets back.** `api('vendor/mod')->cmd()` and `Module::execute()` return the value, or `null` for unknown,
+denied (`__onAPICall` said no), failed and a real `null` alike. `Module::executeInternalCommand()` has no gate, so its
+`null` is unknown, failed or a real `null` (deprecated: use `executeInternalChecked()`). To tell them apart call
+`Module::executeChecked($caller, $cmd, $args)` or, without the gate, `executeInternalChecked($cmd, $args)`:
 `['status' => 'ok|denied|unknown|failed', 'value' => ..., 'error' => ?Throwable]`. A handler that throws still reaches
 `__onError()` (its default writes to stderr in CLI mode, never stdout).
 
@@ -211,7 +212,7 @@ for unknown, denied, failed and a real `null` alike (deprecated for `executeInte
 |---|---|---|
 | `$agent->bind('helper', 'helpers/x')` (`Agent.php:95`) | ✅ | ❌ |
 | `$agent->addAPICommand('getThing', 'api/x')` | ❌ | ✅ |
-| `$agent->addAPICommand('#both', 'api/x')` (the `#` = dual-registration, `Module/CommandRegistry.php:55-59`) | ✅ | ✅ |
+| `$agent->addAPICommand('#both', 'api/x')` (the `#` = dual-registration, `CommandRegistry::addAPICommand()`) | ✅ | ✅ |
 
 A released `addAPICommand` is a **contract** — semver it (RZ-012), ship a test (RZ-014).
 Peers must never reach into your `api/*.php` files directly (RZ-001/RZ-010).

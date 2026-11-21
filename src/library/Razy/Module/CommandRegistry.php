@@ -75,6 +75,16 @@ class CommandRegistry
     }
 
     /**
+     * @throws ModuleException If the name is a public method of Controller (dispatch would run that method)
+     */
+    private static function assertNotReserved(string $command, string $kind): void
+    {
+        if (\in_array(\strtolower($command), self::reservedNames(), true)) {
+            throw new ModuleException('The ' . $kind . ' `' . $command . '` is named like a Controller method and would run that method; pick another name.');
+        }
+    }
+
+    /**
      * Register an API command.
      *
      * Commands prefixed with {@code #} are registered both as cross-module API commands
@@ -96,9 +106,7 @@ class CommandRegistry
             $bindInternally = true;
         }
 
-        if (\in_array(\strtolower($command), self::reservedNames(), true)) {
-            throw new ModuleException('The command `' . $command . '` is named like a Controller method and would run that method; pick another name.');
-        }
+        self::assertNotReserved($command, 'command');
         if (\array_key_exists($command, $this->apiCommands)) {
             throw new ModuleException('The command `' . $command . '` is already registered.');
         }
@@ -142,10 +150,11 @@ class CommandRegistry
      * @param string $command The bridge command name
      * @param string $path The path to the closure file
      *
-     * @throws ModuleException If the command is already registered
+     * @throws ModuleException If the command is already registered or is named like a Controller method
      */
     public function addBridgeCommand(string $command, string $path): void
     {
+        self::assertNotReserved($command, 'bridge command');
         if (\array_key_exists($command, $this->bridgeCommands)) {
             throw new ModuleException('The bridge command `' . $command . '` is already registered.');
         }

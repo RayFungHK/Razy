@@ -104,7 +104,7 @@ class ErrorRenderer
      */
     public static function showException(Throwable $exception): void
     {
-        if (RuntimeMode::isWeb()) {
+        if (RuntimeMode::isWeb() || self::isWebSapiBeforeModes()) {
             $errorId = ErrorReporter::report($exception);
             $source = self::buildPage($exception, $errorId);
 
@@ -180,6 +180,15 @@ class ErrorRenderer
             @\fwrite($stderr, $text);
             @\fclose($stderr);
         }
+    }
+
+    /**
+     * True while the mode constants are not defined yet (an error in config.inc.php) and the SAPI is not `cli`:
+     * only SAPI `cli` writes to stderr, any other SAPI answers with the error page.
+     */
+    private static function isWebSapiBeforeModes(): bool
+    {
+        return !\defined('WEB_MODE') && !\defined('CLI_MODE') && PHP_SAPI !== 'cli';
     }
 
     /**

@@ -164,6 +164,47 @@ class ErrorSafePageTest extends TestCase
         $this->assertStringContainsString('Stack trace', $stderr);
     }
 
+    public function testExceptionBeforeTheModeConstantsOnAWebSapiStillAnswersAnErrorPage(): void
+    {
+        $dir = \sys_get_temp_dir() . '/razy_window_' . \bin2hex(\random_bytes(4));
+        \mkdir($dir);
+        $router = $dir . '/router.php';
+        \file_put_contents($router, '<?php define("PHAR_PATH", ' . \var_export(\dirname(__DIR__) . '/src', true) . '); require '
+            . \var_export(\dirname(__DIR__) . '/vendor/autoload.php', true)
+            . '; Razy\Error::showException(new RuntimeException("window-boom"));');
+        $probe = \stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($probe);
+        $port = (int) \substr((string) \strrchr((string) \stream_socket_get_name($probe, false), ':'), 1);
+        \fclose($probe);
+        $log = $dir . '/server.log';
+        $proc = \proc_open([PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $dir, $router], [1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes);
+        $this->assertIsResource($proc);
+
+        try {
+            $up = false;
+            for ($i = 0; $i < 50 && !$up; ++$i) {
+                $sock = @\fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
+                $up = $sock !== false;
+                $up ? \fclose($sock) : \usleep(100000);
+            }
+            $this->assertTrue($up, 'fixture wiring: the web SAPI child must come up');
+            $body = (string) @\file_get_contents('http://127.0.0.1:' . $port . '/', false, \stream_context_create(['http' => ['ignore_errors' => true]]));
+            $status = (int) \substr((string) ($http_response_header[0] ?? ''), 9, 3);
+            $serverLog = (string) \file_get_contents($log);
+        } finally {
+            \proc_terminate($proc);
+            \proc_close($proc);
+            @\unlink($log);
+            @\unlink($router);
+            @\rmdir($dir);
+        }
+
+        $this->assertSame(500, $status, 'a failure before the mode constants must not answer 200');
+        $this->assertNotSame('', $body, 'the answer carries an error page, not an empty body');
+        $this->assertStringNotContainsString('window-boom', $body, 'production page: no message in the body');
+        $this->assertStringNotContainsString('Stack trace', $serverLog, 'the trace must not go to the server log of a web SAPI');
+    }
+
     public function testCliErrorConstructorDiagnosticAlsoStaysOffStdout(): void
     {
         $autoload = \dirname(__DIR__) . '/vendor/autoload.php';

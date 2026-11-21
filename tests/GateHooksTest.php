@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Razy\Tests;
 
+use ArgumentCountError;
+use Error;
+use Exception;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Razy\Agent;
 use Razy\BridgeSignature;
 use Razy\Controller;
 use Razy\Distributor;
@@ -22,6 +26,7 @@ use ReflectionMethod;
 use ReflectionProperty;
 use RuntimeException;
 use Throwable;
+use TypeError;
 
 /**
  * Gate-hook execution tests (Lane B0, closes RZ-014 self-debt).
@@ -71,6 +76,11 @@ return function (string $what): string {
         \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'throws.php', '<?php
 return function (): string {
     throw new \RuntimeException("handler exploded");
+};');
+
+        \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'needs_int.php', '<?php
+return function (int $n): int {
+    return $n;
 };');
 
         \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'nothing.php', '<?php
@@ -335,6 +345,44 @@ return function (string $msg = "x"): string {
         $this->expectException(ModuleException::class);
         $this->expectExceptionMessage('`' . \ltrim($name, '#') . '`');
         $module->addAPICommand($name, 'api/publish');
+    }
+
+    public function testBridgeCommandNamedLikeAControllerMethodThrowsOnEveryRegistrationPath(): void
+    {
+        $module = $this->createModule();
+
+        foreach ([
+            'registry' => fn () => $this->registry($module)->addBridgeCommand('render', 'bridge/ping'),
+            'module' => fn () => $module->addBridgeCommand('View', 'bridge/ping'),
+            'agent' => fn () => (new Agent($module))->addBridgeCommand(['api' => 'bridge/ping']),
+            'compiled replay' => fn () => $module->applyDeclarations(['bridge' => ['fork' => 'bridge/ping']]),
+        ] as $path => $register) {
+            try {
+                $register();
+                $this->fail('a bridge command named like a Controller method must not register via ' . $path);
+            } catch (ModuleException $e) {
+                $this->assertStringContainsString('Controller method', $e->getMessage(), $path);
+            }
+        }
+        $this->assertSame([], $module->getBridgeCommands());
+    }
+
+    public function testCheckedOutcomeIsFailedForAnErrorThrowableNotOnlyForAnException(): void
+    {
+        $module = $this->createModule();
+        $this->injectController($module, $this->createGateController($module));
+        $this->registerAPI($module, 'needsInt', 'api/needs_int');
+
+        $tooFew = $this->executeChecked($module, 'needsInt', []);
+        $wrongType = $this->executeChecked($module, 'needsInt', ['abc']);
+
+        foreach ([$tooFew, $wrongType] as $outcome) {
+            $this->assertSame('failed', $outcome['status']);
+            $this->assertInstanceOf(Error::class, $outcome['error']);
+            $this->assertNotInstanceOf(Exception::class, $outcome['error']);
+        }
+        $this->assertInstanceOf(ArgumentCountError::class, $tooFew['error']);
+        $this->assertInstanceOf(TypeError::class, $wrongType['error']);
     }
 
     public function testEveryPublicControllerMethodIsReservedWithoutAHandKeptList(): void
