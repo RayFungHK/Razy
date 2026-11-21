@@ -20,6 +20,8 @@ namespace Razy\Module;
 use Razy\Controller;
 use Razy\Exception\ModuleException;
 use Razy\ModuleInfo;
+use ReflectionClass;
+use ReflectionMethod;
 use Throwable;
 
 /**
@@ -30,11 +32,47 @@ use Throwable;
  */
 class CommandRegistry
 {
+    /** Outcome statuses of the checked execution path. */
+    public const STATUS_OK = 'ok';
+
+    public const STATUS_DENIED = 'denied';
+
+    public const STATUS_UNKNOWN = 'unknown';
+
+    public const STATUS_FAILED = 'failed';
+
+    /** @var list<string>|null Lower-cased public method names of Controller, built on first use */
+    private static ?array $reservedNames = null;
+
     /** @var array<string, string> Registered API commands: command => closure path */
     private array $apiCommands = [];
 
     /** @var array<string, string> Registered bridge commands for cross-distributor calls */
     private array $bridgeCommands = [];
+
+    /**
+     * Names an API command may not take: the public methods of Controller itself, read from the class so the list cannot drift.
+     *
+     * @return list<string> Lower-cased names (PHP method names are case-insensitive)
+     */
+    public static function reservedNames(): array
+    {
+        return self::$reservedNames ??= \array_map(
+            static fn (ReflectionMethod $method): string => \strtolower($method->getName()),
+            \array_filter(
+                (new ReflectionClass(Controller::class))->getMethods(ReflectionMethod::IS_PUBLIC),
+                static fn (ReflectionMethod $method): bool => !$method->isStatic(),
+            ),
+        );
+    }
+
+    /**
+     * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
+     */
+    private static function outcome(string $status, mixed $value = null, ?Throwable $error = null): array
+    {
+        return ['status' => $status, 'value' => $value, 'error' => $error];
+    }
 
     /**
      * Register an API command.
@@ -47,7 +85,7 @@ class CommandRegistry
      * @param string $path The closure file path
      * @param ClosureLoader $closureLoader The closure loader for optional internal binding
      *
-     * @throws ModuleException If the command is already registered
+     * @throws ModuleException If the command is already registered or is named like a Controller method
      */
     public function addAPICommand(string $command, string $path, ClosureLoader $closureLoader): void
     {
@@ -58,6 +96,9 @@ class CommandRegistry
             $bindInternally = true;
         }
 
+        if (\in_array(\strtolower($command), self::reservedNames(), true)) {
+            throw new ModuleException('The command `' . $command . '` is named like a Controller method and would run that method; pick another name.');
+        }
         if (\array_key_exists($command, $this->apiCommands)) {
             throw new ModuleException('The command `' . $command . '` is already registered.');
         }
@@ -169,6 +210,28 @@ class CommandRegistry
     }
 
     /**
+     * Execute an API command with the permission check and report the outcome.
+     *
+     * Same dispatch as {@see execute()}; the caller learns why there is no value.
+     *
+     * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
+     */
+    public function executeChecked(ModuleInfo $module, string $command, array $args, Controller $controller, ClosureLoader $closureLoader): array
+    {
+        return $this->dispatch($this->apiCommands, $command, $args, $controller, $closureLoader, fn () => $controller->__onAPICall($module, $command));
+    }
+
+    /**
+     * Execute an API command without a gate (operator-trust path) and report the outcome.
+     *
+     * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
+     */
+    public function executeInternalChecked(string $command, array $args, Controller $controller, ClosureLoader $closureLoader): array
+    {
+        return $this->dispatch($this->apiCommands, $command, $args, $controller, $closureLoader);
+    }
+
+    /**
      * Execute a bridge command for cross-distributor calls.
      *
      * The controller's __onBridgeCall method is consulted before execution.
@@ -197,13 +260,9 @@ class CommandRegistry
      * Unified command execution logic shared by API, internal, and bridge commands.
      *
      * @param array<string, string> $registry The command registry to look up
-     * @param string $command The command name
-     * @param array $args The arguments to pass
-     * @param Controller $controller The module's controller
-     * @param ClosureLoader $closureLoader The closure loader for resolving handlers
      * @param callable|null $permissionCheck Optional permission gate; must return true to proceed
      *
-     * @return mixed The command result, or null if not found/denied
+     * @return mixed The command result, or null if not found, denied or failed (see dispatch())
      */
     private function executeCommand(
         array $registry,
@@ -213,30 +272,52 @@ class CommandRegistry
         ClosureLoader $closureLoader,
         ?callable $permissionCheck = null,
     ): mixed {
-        $result = null;
-        try {
-            if (\array_key_exists($command, $registry)) {
-                // Check permission if a gate callback is provided
-                if ($permissionCheck !== null && !$permissionCheck()) {
-                    return null;
-                }
+        return $this->dispatch($registry, $command, $args, $controller, $closureLoader, $permissionCheck)['value'];
+    }
 
-                $closure = null;
-                // Prefer a direct controller method if the command has no path separator
-                if (!\str_contains($command, '/') && \method_exists($controller, $command)) {
-                    $closure = [$controller, $command];
-                } elseif (($loaded = $closureLoader->getClosure($registry[$command], $controller)) !== null) {
-                    $closure = $loaded->bindTo($controller);
-                }
-
-                if ($closure) {
-                    $result = \call_user_func_array($closure, $args);
-                }
-            }
-        } catch (Throwable $exception) {
-            $controller->__onError($command, $exception);
+    /**
+     * Run a command and say what happened.
+     *
+     * A handler that throws goes to the controller's __onError() hook first, then
+     * comes back as `failed` with the exception.
+     *
+     * @param array<string, string> $registry The command registry to look up
+     * @param callable|null $permissionCheck Optional permission gate; must return true to proceed
+     *
+     * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
+     */
+    private function dispatch(
+        array $registry,
+        string $command,
+        array $args,
+        Controller $controller,
+        ClosureLoader $closureLoader,
+        ?callable $permissionCheck = null,
+    ): array {
+        if (!\array_key_exists($command, $registry)) {
+            return self::outcome(self::STATUS_UNKNOWN);
         }
 
-        return $result;
+        try {
+            if ($permissionCheck !== null && !$permissionCheck()) {
+                return self::outcome(self::STATUS_DENIED);
+            }
+
+            // A subclass method named like the command wins over the closure file
+            // (names of Controller's own methods cannot be registered)
+            if (!\str_contains($command, '/') && \method_exists($controller, $command)) {
+                $closure = [$controller, $command];
+            } elseif (($loaded = $closureLoader->getClosure($registry[$command], $controller)) !== null && ($bound = $loaded->bindTo($controller)) !== null) {
+                $closure = $bound;
+            } else {
+                return self::outcome(self::STATUS_FAILED, null, new ModuleException('The handler of command `' . $command . '` could not be loaded.'));
+            }
+
+            return self::outcome(self::STATUS_OK, \call_user_func_array($closure, $args));
+        } catch (Throwable $exception) {
+            $controller->__onError($command, $exception);
+
+            return self::outcome(self::STATUS_FAILED, null, $exception);
+        }
     }
 }

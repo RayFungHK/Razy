@@ -127,8 +127,6 @@ class Module implements ModuleInterface
      * If the controller is missing or the module cannot
      * initialize (__onInit event), the module will not add into the loaded module list.
      *
-     * @return bool
-     *
      * @throws Throwable
      */
     public function initialize(): bool
@@ -291,8 +289,6 @@ class Module implements ModuleInterface
      *
      * @param string $moduleCode The module code to check
      *
-     * @return bool
-     *
      * @throws Exception\DatabaseException When the ledger is unreachable (fail-loud by design)
      */
     public function moduleReady(string $moduleCode): bool
@@ -333,15 +329,33 @@ class Module implements ModuleInterface
     }
 
     /**
-     * Execute an API command internally without ModuleInfo validation.
-     * Used by the internal HTTP bridge.
+     * Execute an API command internally without ModuleInfo validation (internal HTTP bridge).
      *
-     * @param string $command
-     * @param array $args
+     * @deprecated since RZ-53: null means unknown, failed or a real null alike; use executeInternalChecked(). Behaviour unchanged.
      */
     public function executeInternalCommand(string $command, array $args): mixed
     {
         return $this->commands->executeInternalCommand($command, $args, $this->controller, $this->closureLoader);
+    }
+
+    /**
+     * Execute an API command and say what happened: `['status' => 'ok|denied|unknown|failed', 'value' => ..., 'error' => ?Throwable]`.
+     *
+     * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
+     */
+    public function executeChecked(ModuleInfo $module, string $command, array $args): array
+    {
+        return $this->commands->executeChecked($module, $command, $args, $this->controller, $this->closureLoader);
+    }
+
+    /**
+     * Same as executeChecked() without the __onAPICall gate (operator-trust path: CLI, embedding, stdio servers).
+     *
+     * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
+     */
+    public function executeInternalChecked(string $command, array $args): array
+    {
+        return $this->commands->executeInternalChecked($command, $args, $this->controller, $this->closureLoader);
     }
 
     /**
@@ -554,8 +568,6 @@ class Module implements ModuleInterface
      *
      * @param string $module
      * @param bool $isURL
-     *
-     * @return string
      */
     public function getDataPath(string $module = '', bool $isURL = false): string
     {
@@ -572,8 +584,6 @@ class Module implements ModuleInterface
 
     /**
      * Get the routed information.
-     *
-     * @return array
      */
     public function getRoutedInfo(): array
     {
@@ -885,8 +895,6 @@ class Module implements ModuleInterface
 
     /**
      * Trigger __onRequire event before ready stage.
-     *
-     * @return bool
      */
     public function validate(): bool
     {
@@ -905,8 +913,6 @@ class Module implements ModuleInterface
 
     /**
      * Start require the loaded module.
-     *
-     * @return bool
      */
     public function require(): bool
     {
@@ -920,8 +926,6 @@ class Module implements ModuleInterface
 
     /**
      * Check whether the controller uses PackageTrait.
-     *
-     * @return bool
      */
     public function hasPackageTrait(): bool
     {
@@ -1055,8 +1059,6 @@ class Module implements ModuleInterface
 
     /**
      * Get the distributor site root URL.
-     *
-     * @return string
      */
     public function getSiteURL(): string
     {
@@ -1065,8 +1067,6 @@ class Module implements ModuleInterface
 
     /**
      * Get the module relative URL path.
-     *
-     * @return string
      */
     public function getModuleURL(): string
     {
@@ -1219,8 +1219,6 @@ class Module implements ModuleInterface
      * Get the module bound closure.
      *
      * @param string $method
-     *
-     * @return string
      */
     public function getBinding(string $method): string
     {

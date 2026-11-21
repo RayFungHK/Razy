@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Razy\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\BridgeSignature;
 use Razy\Controller;
@@ -12,8 +13,12 @@ use Razy\Distributor;
 use Razy\Distributor\ModuleRegistry;
 use Razy\Distributor\PrerequisiteResolver;
 use Razy\Distributor\RouteDispatcher;
+use Razy\Error\ErrorRenderer;
+use Razy\Exception\ModuleException;
 use Razy\Module;
 use Razy\ModuleInfo;
+use ReflectionClass;
+use ReflectionMethod;
 use ReflectionProperty;
 use RuntimeException;
 use Throwable;
@@ -68,6 +73,11 @@ return function (): string {
     throw new \RuntimeException("handler exploded");
 };');
 
+        \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'nothing.php', '<?php
+return function (): mixed {
+    return null;
+};');
+
         \file_put_contents($controllerDir . DIRECTORY_SEPARATOR . 'bridge' . DIRECTORY_SEPARATOR . 'ping.php', '<?php
 return function (string $msg = "x"): string {
     return "pong:" . $msg;
@@ -81,6 +91,19 @@ return function (string $msg = "x"): string {
 
         $this->removeDirectory($this->tempDir);
         parent::tearDown();
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function controllerMethodNames(): array
+    {
+        $cases = [];
+        foreach (['render', 'view', 'api', 'xhr', 'fork', 'resolve', 'trigger', 'Render', '#render'] as $name) {
+            $cases[$name] = [$name];
+        }
+
+        return $cases;
     }
 
     // ---------------------------------------------------------------- API gate
@@ -172,6 +195,145 @@ return function (string $msg = "x"): string {
         $this->assertCount(1, $controller->errors);
         $this->assertSame('boom', $controller->errors[0]['path']);
         $this->assertInstanceOf(RuntimeException::class, $controller->errors[0]['exception']);
+    }
+
+    // ------------------------------------------------- Checked outcome (RZ-53)
+
+    public function testCheckedOutcomeTellsOkDeniedUnknownAndFailedApart(): void
+    {
+        $module = $this->createModule();
+        $controller = $this->createGateController($module);
+        $this->injectController($module, $controller);
+        $this->registerAPI($module, 'publish', 'api/publish');
+        $this->registerAPI($module, 'nothing', 'api/nothing');
+        $this->registerAPI($module, 'boom', 'api/throws');
+
+        $ok = $this->executeChecked($module, 'publish', ['doc1']);
+        $nothing = $this->executeChecked($module, 'nothing', []);
+        $failed = $this->executeChecked($module, 'boom', []);
+        $unknown = $this->executeChecked($module, 'ghost', []);
+        $controller->apiAllow = false;
+        $denied = $this->executeChecked($module, 'publish', ['doc1']);
+
+        $this->assertSame(['ok', 'published:doc1', null], [$ok['status'], $ok['value'], $ok['error']]);
+        $this->assertSame(['ok', null, null], [$nothing['status'], $nothing['value'], $nothing['error']], 'a command that returned null is ok, not a failure');
+        $this->assertSame(['failed', null], [$failed['status'], $failed['value']]);
+        $this->assertInstanceOf(RuntimeException::class, $failed['error']);
+        $this->assertSame('handler exploded', $failed['error']->getMessage());
+        $this->assertSame(['unknown', null, null], [$unknown['status'], $unknown['value'], $unknown['error']]);
+        $this->assertSame(['denied', null, null], [$denied['status'], $denied['value'], $denied['error']]);
+        $this->assertCount(4, \array_unique([$ok['status'], $failed['status'], $unknown['status'], $denied['status']]));
+    }
+
+    public function testCheckedInternalPathHasNoGateButSeparatesFailedAndUnknown(): void
+    {
+        $module = $this->createModule();
+        $controller = $this->createGateController($module);
+        $controller->apiAllow = false;
+        $this->injectController($module, $controller);
+        $this->registerAPI($module, 'publish', 'api/publish');
+        $this->registerAPI($module, 'boom', 'api/throws');
+
+        $this->assertSame('ok', $module->executeInternalChecked('publish', ['x'])['status']);
+        $this->assertSame('failed', $module->executeInternalChecked('boom', [])['status']);
+        $this->assertSame('unknown', $module->executeInternalChecked('ghost', [])['status']);
+        $this->assertSame([], $controller->apiSeen, 'internal path must not consult __onAPICall');
+    }
+
+    public function testCheckedFailureStillRunsTheOnErrorHook(): void
+    {
+        $module = $this->createModule();
+        $controller = $this->createGateController($module);
+        $this->injectController($module, $controller);
+        $this->registerAPI($module, 'boom', 'api/throws');
+
+        $outcome = $this->executeChecked($module, 'boom', []);
+
+        $this->assertSame('failed', $outcome['status']);
+        $this->assertCount(1, $controller->errors);
+        $this->assertSame($outcome['error'], $controller->errors[0]['exception']);
+    }
+
+    public function testMixedResultContractIsUnchangedForTheOldMethods(): void
+    {
+        $module = $this->createModule();
+        $controller = $this->createGateController($module);
+        $this->injectController($module, $controller);
+        $this->registerAPI($module, 'publish', 'api/publish');
+        $this->registerAPI($module, 'boom', 'api/throws');
+
+        $this->assertSame('published:a', $module->executeInternalCommand('publish', ['a']));
+        $this->assertNull($module->executeInternalCommand('boom', []));
+        $this->assertNull($module->executeInternalCommand('ghost', []));
+        $controller->apiAllow = false;
+        $this->assertNull($module->execute($module->getModuleInfo(), 'publish', ['a']));
+    }
+
+    public function testThrowingCommandWritesNothingToStdoutInCliMode(): void
+    {
+        $module = $this->createModule();
+        $controller = new class($module) extends Controller {};
+        $this->injectController($module, $controller);
+        $this->registerAPI($module, 'boom', 'api/throws');
+        $stderr = \fopen('php://memory', 'w+b');
+        ErrorRenderer::useCliStream($stderr);
+
+        try {
+            \ob_start();
+            $result = $module->executeInternalCommand('boom', []);
+            $stdout = (string) \ob_get_clean();
+            \rewind($stderr);
+            $trace = (string) \stream_get_contents($stderr);
+        } finally {
+            ErrorRenderer::useCliStream(null);
+        }
+
+        $this->assertNull($result);
+        $this->assertSame('', $stdout, 'a command failure must never put a trace on stdout');
+        $this->assertStringContainsString('handler exploded', $trace);
+        $this->assertStringContainsString('Stack trace', $trace);
+    }
+
+    #[DataProvider('controllerMethodNames')]
+    public function testRegisteringACommandNamedLikeAControllerMethodThrows(string $name): void
+    {
+        $module = $this->createModule();
+
+        $this->expectException(ModuleException::class);
+        $this->expectExceptionMessage('`' . \ltrim($name, '#') . '`');
+        $module->addAPICommand($name, 'api/publish');
+    }
+
+    public function testEveryPublicControllerMethodIsReservedWithoutAHandKeptList(): void
+    {
+        $module = $this->createModule();
+        $methods = (new ReflectionClass(Controller::class))->getMethods(ReflectionMethod::IS_PUBLIC);
+        $this->assertGreaterThan(20, \count($methods), 'fixture wiring: Controller must expose its methods');
+
+        foreach ($methods as $method) {
+            if ($method->isStatic() || !\preg_match('/^[a-z]\w*$/i', $method->getName())) {
+                continue;
+            }
+            try {
+                $module->addAPICommand($method->getName(), 'api/publish');
+                $this->fail('`' . $method->getName() . '` is a Controller method and must not register');
+            } catch (ModuleException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function testNameOfASubclassMethodAndOrdinaryNamesStillRegister(): void
+    {
+        $module = $this->createModule();
+        $controller = $this->createGateController($module);
+        $this->injectController($module, $controller);
+
+        $module->addAPICommand('directPing', 'api/no_such_file');
+        $module->addAPICommand('publish', 'api/publish');
+
+        $this->assertSame('direct:pong', $this->executeAPI($module, 'directPing', []));
+        $this->assertTrue($module->hasAPICommand('publish'));
     }
 
     // ------------------------------------------------------------- Bridge gate
@@ -323,6 +485,16 @@ return function (string $msg = "x"): string {
             $this->controllerOf($module),
             $this->closureLoader($module),
         );
+    }
+
+    /**
+     * @param list<mixed> $args
+     *
+     * @return array{status: string, value: mixed, error: ?Throwable}
+     */
+    private function executeChecked(Module $module, string $command, array $args): array
+    {
+        return $module->executeChecked($module->getModuleInfo(), $command, $args);
     }
 
     /**

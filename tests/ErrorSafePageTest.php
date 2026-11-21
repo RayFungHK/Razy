@@ -126,8 +126,42 @@ class ErrorSafePageTest extends TestCase
 
     public function testCliOutputStillShowsSqlOfQueryException(): void
     {
-        $this->expectOutputRegex('/SQL: SELECT \* FROM `missing`/');
-        ErrorRenderer::showException(new QueryException('no such table', 500, null, 'SELECT * FROM `missing`'));
+        $stderr = \fopen('php://memory', 'w+b');
+        ErrorRenderer::useCliStream($stderr);
+
+        try {
+            \ob_start();
+            ErrorRenderer::showException(new QueryException('no such table', 500, null, 'SELECT * FROM `missing`'));
+            $stdout = (string) \ob_get_clean();
+            \rewind($stderr);
+            $stderrText = (string) \stream_get_contents($stderr);
+        } finally {
+            ErrorRenderer::useCliStream(null);
+        }
+
+        $this->assertMatchesRegularExpression('/SQL: SELECT \* FROM `missing`/', $stderrText);
+        $this->assertSame('', $stdout, 'CLI exception output goes to stderr only');
+    }
+
+    public function testCliExceptionKeepsStdoutCleanInARealProcess(): void
+    {
+        $autoload = \dirname(__DIR__) . '/vendor/autoload.php';
+        $code = 'require ' . \var_export($autoload, true) . '; Razy\Error::showException(new RuntimeException("kaboom"));';
+        $proc = \proc_open(
+            [PHP_BINARY, '-d', 'display_errors=stderr', '-r', $code],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        $this->assertIsResource($proc);
+        $stdout = (string) \stream_get_contents($pipes[1]);
+        $stderr = (string) \stream_get_contents($pipes[2]);
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+        \proc_close($proc);
+
+        $this->assertSame('', $stdout, 'stdout must stay free for a stdio protocol');
+        $this->assertStringContainsString('kaboom', $stderr);
+        $this->assertStringContainsString('Stack trace', $stderr);
     }
 
     public function testDatabaseExecuteDoesNotPutSqlInMessage(): void

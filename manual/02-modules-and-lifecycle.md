@@ -195,6 +195,15 @@ always false and a guard built on it silently disables the integration (dossier
 MODULE-LIFECYCLE.md L0 found one doing exactly that in production).
 Command name grammar: `/^#?[a-z]\w*$/i` (`Agent.php:65-67`). Duplicates throw at
 registration (`Module/CommandRegistry.php:61-63`).
+A name that is a public method of `Razy\Controller` (`render`, `view`, `api`, `xhr`, `fork`, `resolve`, ...) is refused with a
+`ModuleException`: it would run that method, not your closure. The list is read from the class
+(`CommandRegistry::reservedNames()`).
+
+**What a caller gets back.** `api('vendor/mod')->cmd()` and `Module::executeInternalCommand()` return the value, or `null`
+for unknown, denied, failed and a real `null` alike (deprecated for `executeInternalCommand`). To tell them apart call
+`Module::executeChecked($caller, $cmd, $args)` or, without the `__onAPICall` gate, `executeInternalChecked($cmd, $args)`:
+`['status' => 'ok|denied|unknown|failed', 'value' => ..., 'error' => ?Throwable]`. A handler that throws still reaches
+`__onError()` (its default writes to stderr in CLI mode, never stdout).
 
 **`bind()` vs `addAPICommand()` vs `#`** (RZ-010):
 
