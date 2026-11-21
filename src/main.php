@@ -62,8 +62,8 @@ if (!\defined('SYSTEM_ROOT')) {
 // phar's own folder, SYSTEM_ROOT fell back to the phar's folder, so `php /x/Razy.phar build .` run from
 // an empty folder wrote a Razy install next to the phar. Refuse, before anything is loaded or written.
 if (!empty($razyRootFellBack) && \PHP_SAPI === 'cli' && 'build' === ($_SERVER['argv'][1] ?? '')) {
-    \fwrite(\STDERR, '[Error] build: the working directory (' . \getcwd() . ') has no sites/ folder, so Razy would install into the phar\'s folder ('
-        . SYSTEM_ROOT . '). Nothing was written. Run it from the folder that holds sites/, or put Razy.phar in the empty folder you want to set up and run `php Razy.phar build` there.' . \PHP_EOL);
+    \fwrite(\STDERR, '[Error] build: the working directory (' . \getcwd() . ') has no sites/ or standalone/ folder, so Razy would install into the phar\'s folder ('
+        . SYSTEM_ROOT . '). Nothing was written. Run it from the folder that holds sites/ (or standalone/), or put Razy.phar in the empty folder you want to set up and run `php Razy.phar build` there.' . \PHP_EOL);
     exit(1);
 }
 

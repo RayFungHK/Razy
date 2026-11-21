@@ -28,7 +28,7 @@ use Razy\Exception\ConfigurationException;
  *
  *   require 'phar:///srv/app/Razy.phar/library/Razy/Embed.php'; // or vendor/autoload.php
  *   $dist = \Razy\Embed::boot('/srv/app', 'main');
- *   $dist->getRegistry()->getLoadedAPIModule('acme/hello')->executeInternalCommand('greet', ['Ada']);
+ *   $dist->getRegistry()->getLoadedAPIModule('acme/hello')->executeInternalChecked('greet', ['Ada'])['value'];
  *
  * `boot()` defines `SYSTEM_ROOT` and the other path constants, loads the framework
  * bootstrap (the same file `main.php` loads: autoloader, `.env` and config,
@@ -39,6 +39,15 @@ use Razy\Exception\ConfigurationException;
  * The process serves one install: a second call with the same root is allowed (it
  * returns another Distributor, e.g. for another dist), a call with a different
  * root throws, because `SYSTEM_ROOT` and the folders under it are constants.
+ *
+ * What a failed call leaves behind. A rejected argument (bad root, bad identifier, no
+ * `sites/<code>/dist.php`) throws before anything is defined or loaded. Once `dist.php`
+ * is accepted, `SYSTEM_ROOT`, the path constants and the bootstrap are in place and the
+ * root is fixed, so an exception from the Distributor itself (a `dist.php` that throws,
+ * an invalid module pin) leaves them defined and a later boot of another root throws.
+ * A bad `config.inc.php` or `.env` ends the process (`exit(1)`, bootstrap's own rule).
+ * The bootstrap also installs its exception handler (`set_exception_handler`) and does
+ * not chain the host's previous one.
  */
 final class Embed
 {
@@ -70,10 +79,10 @@ final class Embed
             throw new ConfigurationException("Embed::boot(): this process already runs with SYSTEM_ROOT '{$booted}', it cannot also boot '{$path}'.");
         }
 
-        if (\preg_match(SiteConfig::DIST_IDENTIFIER, $dist) !== 1) {
+        if (($parsed = SiteConfig::parseIdentifier($dist)) === null) {
             throw new ConfigurationException("Embed::boot(): '" . \addcslashes(\substr($dist, 0, 200), "\0..\37") . "' is not a distributor code (code or code@tag).");
         }
-        [$code, $tag] = \array_pad(\explode('@', $dist, 2), 2, '*');
+        [$code, $tag] = $parsed;
         $distFile = $path . \DIRECTORY_SEPARATOR . 'sites' . \DIRECTORY_SEPARATOR . $code . \DIRECTORY_SEPARATOR . 'dist.php';
         if (!\is_file($distFile)) {
             throw new ConfigurationException("Embed::boot(): no distributor '{$code}': {$distFile} is missing.");

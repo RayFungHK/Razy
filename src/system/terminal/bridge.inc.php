@@ -16,7 +16,11 @@
  *
  * Response Format:
  *   {"ok": true, "data": <result>}
- *   {"ok": false, "error": "error message"}
+ *   {"ok": false, "status": "unknown|failed", "error": "short message"}   (a command that is not registered, or threw)
+ *   {"ok": false, "error": "error message"}                                (bad payload, distributor or module not found)
+ *
+ * Trust: this is the local CLI. It consults neither __onAPICall nor __onBridgeCall nor RAZY_BRIDGE_SECRET
+ * (those apply to Module::executeBridgeCommand); shell access is full bridge access.
  *
  * @license MIT
  */
@@ -68,8 +72,15 @@ return function (string $payload = '') {
             return false;
         }
 
-        $result = $module->executeInternalCommand($command, $args);
-        echo \json_encode(['ok' => true, 'data' => $result]);
+        // RZ-52: say what happened (RZ-53 typed outcome). A real null is ok; an unknown or failed command is not.
+        // The failing command's message and trace stay off stdout (the trace goes to stderr via __onError).
+        $outcome = $module->executeInternalChecked($command, $args);
+        if ($outcome['status'] !== 'ok') {
+            $why = $outcome['status'] === 'unknown' ? "Unknown command '" . \substr($command, 0, 100) . "'" : 'Command failed.';
+            echo \json_encode(['ok' => false, 'status' => $outcome['status'], 'error' => $why]);
+            return false;
+        }
+        echo \json_encode(['ok' => true, 'data' => $outcome['value']]);
     } catch (Throwable $e) {
         echo \json_encode([
             'ok' => false,

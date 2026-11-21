@@ -316,7 +316,7 @@ class Application
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
                             if (\is_string($distIdentifier)) {
                                 // Validate distributor identifier format: code[@tag]
-                                if (\preg_match(SiteConfig::DIST_IDENTIFIER, $distIdentifier)) {
+                                if (($parsed = SiteConfig::parseIdentifier($distIdentifier)) !== null) {
                                     if (isset($this->distributors[$distIdentifier])) {
                                         // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
@@ -325,7 +325,7 @@ class Application
                                         $this->multisite[$domain] ??= [];
                                         $this->multisite[$domain][$urlPath] = $distIdentifier;
                                     } else {
-                                        [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
+                                        [$code, $tag] = $parsed;
 
                                         // Verify the distributor's config file (dist.php) exists
                                         $distConfigPath = PathUtil::append(SITES_FOLDER, $code, 'dist.php');

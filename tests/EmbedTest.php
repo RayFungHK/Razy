@@ -219,36 +219,70 @@ echo \Razy\Embed::boot($argv[1], "demo@beta")->getTag() . "|" . \Razy\Embed::boo
         $root = $this->install();
         $script = $this->script('<?php
 require "phar://' . self::$phar . '/library/Razy/Embed.php";
+$keep = \Razy\Embed::boot($argv[1], "demo");
+$before = count(spl_autoload_functions());
 $dist = \Razy\Embed::boot($argv[1], "demo");
-$with = count(spl_autoload_functions());
+$held = count(spl_autoload_functions());
 $gone = WeakReference::create($dist);
 unset($dist);
 gc_collect_cycles();
-echo json_encode([$gone->get() === null, $with - count(spl_autoload_functions())]);
+echo json_encode([$gone->get() === null, $held - $before, count(spl_autoload_functions()) - $before]);
 ');
 
         $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
 
         $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
-        $this->assertSame([true, 1], \json_decode($out['out'], true), $out['out']);
+        $this->assertSame([true, 1, 0], \json_decode($out['out'], true), 'one autoloader while held, none left once it is gone: ' . $out['out']);
     }
 
-    public function testGetDistributorUsesTheMountPathOfTheMatchedHost(): void
+    public function testGetDistributorUsesTheMountPathOfTheMatchedHostAndTheRequestedCode(): void
     {
         $root = $this->install();
-        \file_put_contents($root . '/sites.inc.php', "<?php\nreturn ['domains' => ['first.example' => ['/first/' => 'demo'], 'second.example' => ['/second/' => 'demo']], 'alias' => []];\n");
+        \mkdir($root . '/sites/other');
+        \file_put_contents($root . '/sites/other/dist.php', "<?php\nreturn ['dist' => 'other', 'modules' => ['*' => []]];\n");
+        \file_put_contents($root . '/sites.inc.php', "<?php\nreturn ['domains' => ['first.example' => ['/first/' => 'demo'], 'second.example' => ['/a/' => 'other', '/b/' => 'demo', '/c/' => 'demo']], 'alias' => []];\n");
         $script = $this->script('<?php
 require "phar://' . self::$phar . '/library/Razy/Embed.php";
 \Razy\Embed::boot($argv[1], "demo");
 $app = new \Razy\Application();
 $app->host("second.example");
-echo $app->getDistributor("demo")?->getCode() ?? "null";
+echo implode(",", [$app->getDistributor("demo")?->getCode() ?? "null", $app->getDistributor("other")?->getCode() ?? "null", $app->getDistributor("nope")?->getCode() ?? "null"]);
 ');
 
         $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
 
         $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
-        $this->assertSame('demo', $out['out']);
+        $this->assertSame('demo,other,null', $out['out'], 'the code asked for, on the path this host mounts it, not the first path of the host');
+    }
+
+    public function testBootAfterAnAcceptedDistFileThatThrowsLeavesTheBootstrapAndTheRootFixed(): void
+    {
+        $root = $this->install();
+        \file_put_contents($root . '/sites/demo/dist.php', "<?php\nthrow new RuntimeException('dist-body');\n");
+        $other = $this->install();
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+$row = [];
+try {
+    \Razy\Embed::boot($argv[1], "demo");
+} catch (Throwable $e) {
+    $row["threw"] = get_class($e) . ":" . $e->getMessage();
+}
+$row["SYSTEM_ROOT"] = defined("SYSTEM_ROOT");
+$row["RAZY_VERSION"] = defined("RAZY_VERSION");
+try {
+    \Razy\Embed::boot($argv[2], "demo");
+    $row["other"] = "booted";
+} catch (\Razy\Exception\ConfigurationException $e) {
+    $row["other"] = "refused";
+}
+echo json_encode($row);
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root, $other], \sys_get_temp_dir());
+
+        $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
+        $this->assertSame(['threw' => 'RuntimeException:dist-body', 'SYSTEM_ROOT' => true, 'RAZY_VERSION' => true, 'other' => 'refused'], \json_decode($out['out'], true), $out['out']);
     }
 
     public function testBootingADifferentRootInTheSameProcessThrows(): void
@@ -298,6 +332,53 @@ echo defined("SYSTEM_ROOT") || defined("RAZY_VERSION") ? "booted" : "untouched";
         $this->assertSame(\str_repeat('refused;', 9) . 'untouched', $out['out'], 'a refused call defines no constant and loads no bootstrap');
     }
 
+    // ── code@tag: one parse everywhere (M1) ───────────────────────────────
+
+    public function testATaggedCodeLoadsTheTaggedModuleSetOnEveryEntry(): void
+    {
+        $root = $this->installTagged("'/' => 'demo@dev'");
+        $embed = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+$d = \Razy\Embed::boot($argv[1], "demo@dev");
+echo $d->getTag() . "|" . $d->getRegistry()->getLoadedAPIModule("acme/hello")->executeInternalCommand("greet", ["Ada"]);
+');
+        $app = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+\Razy\Embed::boot($argv[1], "bare");
+$a = new \Razy\Application();
+$a->host("localhost");
+$d = $a->getDistributor("demo@dev");
+echo $d->getTag() . "|" . $d->getRegistry()->getLoadedAPIModule("acme/hello")->executeInternalCommand("greet", ["Ada"]);
+');
+
+        $viaEmbed = self::exec([\PHP_BINARY, $embed, $root], \sys_get_temp_dir());
+        $viaApplication = self::exec([\PHP_BINARY, $app, $root], \sys_get_temp_dir());
+        $viaRunapp = self::exec([\PHP_BINARY, self::$phar, 'runapp', 'demo@dev'], $root, "call acme/hello greet [\"Ada\"]\nexit\n");
+
+        $this->assertSame('dev|from-dev Ada', $viaEmbed['out'], $viaEmbed['err']);
+        $this->assertSame('dev|from-dev Ada', $viaApplication['out'], $viaApplication['err']);
+        $this->assertStringContainsString('from-dev Ada', $viaRunapp['out'], $viaRunapp['out'] . $viaRunapp['err']);
+        $this->assertStringNotContainsString('dev@', $viaRunapp['out'], 'the tag is dev, not dev@');
+    }
+
+    public function testAnUntaggedCodeAndADottedTagKeepTheirSets(): void
+    {
+        $root = $this->installTagged("'/' => 'demo'");
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+$d = \Razy\Embed::boot($argv[1], $argv[2]);
+echo $d->getTag() . "|" . $d->getRegistry()->getLoadedAPIModule("acme/hello")->executeInternalCommand("greet", ["Ada"]);
+');
+
+        $untagged = self::exec([\PHP_BINARY, $script, $root, 'demo'], \sys_get_temp_dir());
+        $dotted = self::exec([\PHP_BINARY, $script, $root, 'demo@v1.2.0'], \sys_get_temp_dir());
+        $runapp = self::exec([\PHP_BINARY, self::$phar, 'runapp', 'demo'], $root, "call acme/hello greet [\"Ada\"]\nexit\n");
+
+        $this->assertSame('*|from-default Ada', $untagged['out'], $untagged['err']);
+        $this->assertSame('v1.2.0|from-dev Ada', $dotted['out'], $dotted['err']);
+        $this->assertStringContainsString('from-default Ada', $runapp['out']);
+    }
+
     // ── bridge ────────────────────────────────────────────────────────────
 
     public function testBridgeCommandCallsAModuleApiThroughTheCli(): void
@@ -339,6 +420,48 @@ echo json_encode([$ok, ob_get_clean()]);
 
         $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
         $this->assertSame([true, '{"ok":true,"data":"DI"}'], \json_decode($out['out'], true), $out['out']);
+    }
+
+    public function testBridgeSaysUnknownFailedAndOkApartThroughTheCli(): void
+    {
+        $root = $this->install();
+        $run = fn (string $command): array => self::exec([\PHP_BINARY, self::$phar, 'bridge', \json_encode(['dist' => 'demo', 'module' => 'acme/hello', 'command' => $command])], $root);
+
+        $unknown = $run('nope');
+        $failed = $run('boom');
+        $null = $run('nothing');
+
+        $this->assertSame(['ok' => false, 'status' => 'unknown', 'error' => "Unknown command 'nope'"], \json_decode($unknown['out'], true), $unknown['out']);
+        $failed['json'] = \json_decode($failed['out'], true);
+        $this->assertSame(['ok' => false, 'status' => 'failed'], \array_intersect_key($failed['json'], ['ok' => 1, 'status' => 1]), $failed['out']);
+        $this->assertStringNotContainsString('boom-secret', $failed['out'], 'a failing command\'s message is not on the wire');
+        $this->assertStringContainsString('boom-secret', $failed['err'], 'the trace stays on stderr');
+        $this->assertSame(['ok' => true, 'data' => null], \json_decode($null['out'], true), $null['out']);
+        $this->assertSame([0, 0, 0], [$unknown['code'], $failed['code'], $null['code']], 'exit code unchanged');
+    }
+
+    public function testBridgeClosureSaysUnknownFailedAndOkApart(): void
+    {
+        $root = $this->install();
+        // one closure call per process: it locks the Application, as the CLI does
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+\Razy\Embed::boot($argv[1], "demo");
+$bridge = require "phar://' . self::$phar . '/system/terminal/bridge.inc.php";
+ob_start();
+$ret = $bridge(json_encode(["dist" => "demo", "module" => "acme/hello", "command" => $argv[2]]));
+echo json_encode([$ret, json_decode(ob_get_clean(), true)]);
+');
+        $run = fn (string $command): array => \json_decode(self::exec([\PHP_BINARY, $script, $root, $command], \sys_get_temp_dir())['out'], true) ?? [];
+
+        $unknown = $run('nope');
+        $failed = $run('boom');
+        $null = $run('nothing');
+
+        $this->assertSame([false, ['ok' => false, 'status' => 'unknown', 'error' => "Unknown command 'nope'"]], $unknown);
+        $this->assertSame([false, 'failed'], [$failed[0] ?? null, $failed[1]['status'] ?? null]);
+        $this->assertStringNotContainsString('boom-secret', \json_encode($failed));
+        $this->assertSame([true, ['ok' => true, 'data' => null]], $null);
     }
 
     // ── runapp boot path ──────────────────────────────────────────────────
@@ -401,7 +524,8 @@ echo json_encode([
         $out = self::exec([\PHP_BINARY, $pharFolder . '/Razy.phar', 'build', '.'], $cwd);
 
         $this->assertNotSame(0, $out['code'], $out['out'] . $out['err']);
-        $this->assertStringContainsString('sites', $out['out'] . $out['err']);
+        $this->assertStringContainsString('sites/', $out['out'] . $out['err']);
+        $this->assertStringContainsString('has no sites/ or standalone/ folder', $out['out'] . $out['err'], 'the text says standalone/ is accepted too');
         $this->assertSame([], \array_diff(\scandir($cwd), ['.', '..']), 'the working directory is untouched');
         $this->assertSame($before, self::snapshot($pharFolder), "the phar's folder is untouched");
     }
@@ -458,6 +582,8 @@ echo json_encode([
                 {
                     $agent->addAPICommand('greet', 'api/greet');
                     $agent->addAPICommand('shout', 'api/shout');
+                    $agent->addAPICommand('boom', 'api/boom');
+                    $agent->addAPICommand('nothing', 'api/nothing');
 
                     return true;
                 }
@@ -465,9 +591,39 @@ echo json_encode([
             PHP);
         \file_put_contents($module . '/default/controller/api/greet.php', "<?php\nreturn function (string \$name = 'world'): string {\n    return 'hello ' . \$name;\n};\n");
         \file_put_contents($module . '/default/controller/api/shout.php', "<?php\nreturn function (string \$name): string {\n    return (new \\acme\\hello\\Shouter())->shout(\$name);\n};\n");
+        \file_put_contents($module . '/default/controller/api/boom.php', "<?php\nreturn function (): void {\n    throw new \\RuntimeException('boom-secret');\n};\n");
+        \file_put_contents($module . '/default/controller/api/nothing.php', "<?php\nreturn function (): mixed {\n    return null;\n};\n");
         \file_put_contents($module . '/default/library/Shouter.php', "<?php\nnamespace acme\\hello;\n\nclass Shouter\n{\n    public function shout(string \$s): string\n    {\n        return \\strtoupper(\$s);\n    }\n}\n");
 
         return \realpath($root);
+    }
+
+    /**
+     * install() with a second version folder and a tag: dist.php pins `*` to default and `dev`
+     * (and `v1.2.0`) to the dev folder; greet answers `from-default` or `from-dev`.
+     *
+     * @param string $sites the sites.inc.php mapping, e.g. "'/' => 'demo@dev'"
+     */
+    private function installTagged(string $sites): string
+    {
+        $root = $this->install();
+        $module = $root . '/sites/demo/acme/hello';
+        \file_put_contents($root . '/sites.inc.php', "<?php\nreturn ['domains' => ['localhost' => [{$sites}]], 'alias' => []];\n");
+        \file_put_contents($root . '/sites/demo/dist.php', "<?php\nreturn ['dist' => 'demo', 'modules' => ['*' => ['acme/hello' => 'default'], 'dev' => ['acme/hello' => 'dev'], 'v1.2.0' => ['acme/hello' => 'dev']]];\n");
+        \file_put_contents($module . '/default/controller/api/greet.php', "<?php\nreturn fn (string \$name = 'world'): string => 'from-default ' . \$name;\n");
+        \mkdir($root . '/sites/bare');
+        \file_put_contents($root . '/sites/bare/dist.php', "<?php\nreturn ['dist' => 'bare', 'modules' => ['*' => []]];\n");
+        \mkdir($module . '/dev/controller/api', 0o777, true);
+        \copy($module . '/default/package.php', $module . '/dev/package.php');
+        \copy($module . '/default/controller/hello.php', $module . '/dev/controller/hello.php');
+        foreach (['shout', 'boom', 'nothing'] as $name) {
+            \copy($module . '/default/controller/api/' . $name . '.php', $module . '/dev/controller/api/' . $name . '.php');
+        }
+        \mkdir($module . '/dev/library', 0o777, true);
+        \copy($module . '/default/library/Shouter.php', $module . '/dev/library/Shouter.php');
+        \file_put_contents($module . '/dev/controller/api/greet.php', "<?php\nreturn fn (string \$name = 'world'): string => 'from-dev ' . \$name;\n");
+
+        return $root;
     }
 
     private function script(string $code): string
