@@ -37,11 +37,21 @@ final class SiteConfig
 
     /**
      * Dist identifier: `code` or `code@tag`. A tag starts with a letter or digit
-     * and may hold letters, digits, `_`, `-` and `.` (`beta`, `1.2.0`, `v1.2.0`).
+     * and may hold letters, digits, `_`, `-` and `.` (`beta`, `1.2.0`, `v1.2.0`). `D`: no trailing newline.
      * One grammar for this file, `Application::updateSites()` and
      * `DomainList::parse()`.
      */
-    public const DIST_IDENTIFIER = '/^[a-z0-9][\w\-]*(@[a-z0-9][\w.\-]*)?$/i';
+    public const DIST_IDENTIFIER = '/^[a-z0-9][\w\-]*(@[a-z0-9][\w.\-]*)?$/iD';
+
+    /**
+     * The one parse of a dist identifier: `[code, tag]` with `*` for no tag, null when it is not `code[@tag]`.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    public static function parseIdentifier(string $identifier): ?array
+    {
+        return \preg_match(self::DIST_IDENTIFIER, $identifier) === 1 ? \array_pad(\explode('@', $identifier, 2), 2, '*') : null;
+    }
 
     /**
      * Validate the value a sites.inc.php returned and fill in missing sections.

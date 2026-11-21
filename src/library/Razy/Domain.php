@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Razy\Config\SiteConfig;
 use Razy\Exception\ConfigurationException;
 use Razy\Util\PathUtil;
 use Razy\Util\StringUtil;
@@ -130,22 +131,13 @@ class Domain
         if (!\str_starts_with($urlQuery, '/')) {
             $urlQuery = '/' . $urlQuery;
         }
-        if (!empty($this->mapping)) {
-            // Mapping is already pre-sorted by path depth in the constructor
-            foreach ($this->mapping as $urlPath => $distIdentifier) {
-                if (!\is_string($distIdentifier)) {
-                    continue;
-                }
+        // Mapping is already pre-sorted by path depth in the constructor
+        if (($mount = $this->firstMount($urlQuery)) !== null) {
+            [$distCode, $tag, $urlPath, $rest] = $mount;
+            $this->distributor = new Distributor($distCode, $tag, $this, $urlPath, $rest);
+            $this->distributor->initialize();
 
-                // Parse distributor identifier into code and tag (e.g., "mysite@dev")
-                [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
-                $urlPath = PathUtil::tidy($urlPath, true, '/');
-                if (\str_starts_with($urlQuery, $urlPath)) {
-                    $this->distributor = new Distributor($distCode, $tag ?: '*', $this, $urlPath, \substr($urlQuery, \strlen($urlPath) - 1));
-                    $this->distributor->initialize();
-                    return $this->distributor;
-                }
-            }
+            return $this->distributor;
         }
 
         return null;
@@ -208,61 +200,49 @@ class Domain
         ++$this->dispatchCount;
 
         // Find which URL path prefix matches, same logic as matchQuery()
-        foreach ($this->mapping as $urlPath => $distIdentifier) {
-            if (!\is_string($distIdentifier)) {
-                continue;
-            }
-
-            [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
-            $tag = $tag ?: '*';
-            $urlPath = PathUtil::tidy($urlPath, true, '/');
-
-            if (!\str_starts_with($urlQuery, $urlPath)) {
-                continue;
-            }
-
-            $cacheKey = $distCode . '@' . $tag;
-            $remainingQuery = \substr($urlQuery, \strlen($urlPath) - 1);
-
-            // Check if we have a cached distributor
-            if (isset($this->distributorCache[$cacheKey])) {
-                $cached = $this->distributorCache[$cacheKey];
-                $this->distributor = $cached['distributor'];
-
-                // Periodic config change detection
-                $shouldCheck = ($this->configCheckInterval <= 0)
-                    || ($this->dispatchCount % $this->configCheckInterval === 0);
-
-                if ($shouldCheck) {
-                    $currentFingerprint = $this->distributor->getConfigFingerprint();
-                    if ($currentFingerprint !== $cached['fingerprint']) {
-                        // Config or modules changed on disk — rebuild distributor
-                        unset($this->distributorCache[$cacheKey]);
-                        return $this->buildAndCacheDistributor(
-                            $distCode,
-                            $tag,
-                            $urlPath,
-                            $remainingQuery,
-                            $cacheKey,
-                        );
-                    }
-                }
-
-                // Fast dispatch: reuse cached distributor, only update URL + dispatch
-                return $this->distributor->dispatch($remainingQuery);
-            }
-
-            // First time seeing this distCode@tag — full build + cache
-            return $this->buildAndCacheDistributor(
-                $distCode,
-                $tag,
-                $urlPath,
-                $remainingQuery,
-                $cacheKey,
-            );
+        if (($mount = $this->firstMount($urlQuery)) === null) {
+            return false;
         }
 
-        return false;
+        [$distCode, $tag, $urlPath, $remainingQuery] = $mount;
+        $cacheKey = $distCode . '@' . $tag;
+
+        // Check if we have a cached distributor
+        if (isset($this->distributorCache[$cacheKey])) {
+            $cached = $this->distributorCache[$cacheKey];
+            $this->distributor = $cached['distributor'];
+
+            // Periodic config change detection
+            $shouldCheck = ($this->configCheckInterval <= 0)
+                || ($this->dispatchCount % $this->configCheckInterval === 0);
+
+            if ($shouldCheck) {
+                $currentFingerprint = $this->distributor->getConfigFingerprint();
+                if ($currentFingerprint !== $cached['fingerprint']) {
+                    // Config or modules changed on disk — rebuild distributor
+                    unset($this->distributorCache[$cacheKey]);
+                    return $this->buildAndCacheDistributor(
+                        $distCode,
+                        $tag,
+                        $urlPath,
+                        $remainingQuery,
+                        $cacheKey,
+                    );
+                }
+            }
+
+            // Fast dispatch: reuse cached distributor, only update URL + dispatch
+            return $this->distributor->dispatch($remainingQuery);
+        }
+
+        // First time seeing this distCode@tag — full build + cache
+        return $this->buildAndCacheDistributor(
+            $distCode,
+            $tag,
+            $urlPath,
+            $remainingQuery,
+            $cacheKey,
+        );
     }
 
     /**
@@ -298,6 +278,22 @@ class Domain
             $this->distributor->getRegistry()->dispose();
         }
         return $this;
+    }
+
+    /** The first mapping entry whose URL path prefixes $urlQuery: [code, tag, URL path, rest of the query]; code[@tag] is SiteConfig's one parse. */
+    private function firstMount(string $urlQuery): ?array
+    {
+        foreach ($this->mapping as $urlPath => $distIdentifier) {
+            if (!\is_string($distIdentifier)) {
+                continue;
+            }
+            $urlPath = PathUtil::tidy((string) $urlPath, true, '/');
+            if (\str_starts_with($urlQuery, $urlPath)) {
+                return [...(SiteConfig::parseIdentifier($distIdentifier) ?? [$distIdentifier, '*']), $urlPath, \substr($urlQuery, \strlen($urlPath) - 1)];
+            }
+        }
+
+        return null;
     }
 
     /**

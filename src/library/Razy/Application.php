@@ -113,8 +113,6 @@ class Application
     /**
      * @param string $fqdn the well-formatted FQDN string
      *
-     * @return bool
-     *
      * @throws Throwable
      */
     public function host(string $fqdn): bool
@@ -157,8 +155,6 @@ class Application
      * enabled in config.inc.php (or RAZY_MULTIPLE_SITE env var).
      *
      * @param string $standalonePath Absolute path to the standalone folder
-     *
-     * @return bool
      *
      * @throws Throwable
      */
@@ -243,8 +239,6 @@ class Application
      *
      * Used by PackageRunner to inject "load"-mode dependency modules
      * into the Standalone runtime before queryStandalone() is called.
-     *
-     * @return Standalone|null The Standalone instance, or null if not in standalone mode
      */
     public function getStandaloneDistributor(): ?Standalone
     {
@@ -253,8 +247,6 @@ class Application
 
     /**
      * Get the Application GUID.
-     *
-     * @return string The GUID of the Application Instance
      */
     public function getGUID(): string
     {
@@ -263,8 +255,6 @@ class Application
 
     /**
      * Get the DI container for this Application instance.
-     *
-     * @return ContainerInterface The Container instance
      */
     public function getContainer(): ContainerInterface
     {
@@ -326,7 +316,7 @@ class Application
                         ($validate = function ($distIdentifier, $urlPath = '') use (&$validate, $domain, $aliasMapping) {
                             if (\is_string($distIdentifier)) {
                                 // Validate distributor identifier format: code[@tag]
-                                if (\preg_match(SiteConfig::DIST_IDENTIFIER, $distIdentifier)) {
+                                if (($parsed = SiteConfig::parseIdentifier($distIdentifier)) !== null) {
                                     if (isset($this->distributors[$distIdentifier])) {
                                         // Distributor already registered; add this domain to its list
                                         $this->distributors[$distIdentifier]['domain'][] = $domain;
@@ -335,7 +325,7 @@ class Application
                                         $this->multisite[$domain] ??= [];
                                         $this->multisite[$domain][$urlPath] = $distIdentifier;
                                     } else {
-                                        [$code, $tag] = \explode('@', $distIdentifier . '@', 2);
+                                        [$code, $tag] = $parsed;
 
                                         // Verify the distributor's config file (dist.php) exists
                                         $distConfigPath = PathUtil::append(SITES_FOLDER, $code, 'dist.php');
@@ -348,7 +338,7 @@ class Application
 
                                             $this->distributors[$distIdentifier] = [
                                                 'code' => $code,
-                                                'tag' => $tag ?: '*',
+                                                'tag' => $tag,
                                                 'url_path' => $urlPath,
                                                 'domain' => [$domain],
                                                 'alias' => $aliasMapping[$domain] ?? [],
@@ -511,8 +501,6 @@ class Application
      * shared host, not one distributor; see Routing\ExcludePaths). Applies on
      * the normal `rewrite` regeneration flow; no separate command.
      *
-     * @return bool
-     *
      * @throws Error
      * @throws Throwable
      */
@@ -563,8 +551,6 @@ class Application
      * Write the multisite config file.
      *
      * @param array|null $config
-     *
-     * @return bool
      *
      * @throws ConfigurationException On an invalid `exclude_paths` entry
      * @throws Throwable
@@ -651,8 +637,6 @@ class Application
      * Check if the distributor is existing by given distributor code.
      *
      * @param string $code
-     *
-     * @return bool
      */
     public function hasDistributor(string $code): bool
     {
@@ -661,12 +645,29 @@ class Application
     }
 
     /**
+     * RZ-52: the initialised Distributor for a `hasDistributor()` key mounted on the host() domain, at that host's own URL path; null if none.
+     *
+     * @throws Throwable
+     */
+    public function getDistributor(string $code): ?Distributor
+    {
+        if (!$this->domain || !$this->hasDistributor($code = \trim($code))) {
+            return null;
+        }
+        $e = $this->distributors[$code];
+        $is = static fn (?Distributor $d): bool => $d?->getCode() === $e['code'] && $d->getTag() === $e['tag'];
+        $d = $this->domain->getDistributor();
+        $path = \array_search($code, \array_change_key_case($this->multisite)[\strtolower($this->domain->getDomainName())] ?? [], true);
+        $d = $is($d) || $path === false ? $d : $this->domain->matchQuery(\rtrim((string) $path, '/') . '/');
+
+        return $is($d) ? $d : null;
+    }
+
+    /**
      * Run if the module under the distributor is need to unpack the asset or install the package from composer.
      *
      * @param string $code
      * @param callable $closure
-     *
-     * @return bool
      *
      * @throws ConfigurationException
      * @throws Throwable

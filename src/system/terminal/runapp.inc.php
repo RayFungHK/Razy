@@ -61,9 +61,8 @@ return function (string $distIdentifier = '') {
         return false;
     }
 
-    // Split the identifier into distributor code and optional tag (e.g., mysite@dev)
-    [$distCode, $tag] = \explode('@', $distIdentifier . '@', 2);
-    $tag = $tag ?: '*';
+    // Split the identifier into distributor code and optional tag (e.g., mysite@dev); the one parse is SiteConfig's
+    [$distCode, $tag] = Config\SiteConfig::parseIdentifier($distIdentifier) ?? [$distIdentifier, '*'];
 
     // Validate the distributor code format (alphanumeric with hyphens/underscores)
     if (!\preg_match('/^[a-z][\w\-]*$/i', $distCode)) {

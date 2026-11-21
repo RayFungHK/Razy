@@ -204,6 +204,55 @@ workers, just close your per-request transactions.
 The `.docker/Dockerfile` is now non-root + health-checked but still runs the **dev
 built-in server** — use `deploy/Dockerfile.worker` (FrankenPHP worker) for production.
 
+### Embedding: boot a distributor from your own script (RZ-52)
+
+A worker, a queue consumer, a stdio server or a test harness can start a distributor without the
+web front controller or the `Razy.phar` command line. `Razy\Embed::boot()` (`src/library/Razy/Embed.php`)
+is the one documented entry:
+
+```php
+<?php
+// From the phar (load only Embed.php: requiring Razy.phar itself runs its CLI dispatcher) ...
+require 'phar:///srv/app/Razy.phar/library/Razy/Embed.php';
+// ... or, from a composer install, `require 'vendor/autoload.php';`
+
+$dist = \Razy\Embed::boot('/srv/app', 'main');          // root = the folder with sites/; dist code or code@tag
+$hello = $dist->getRegistry()->getLoadedAPIModule('acme/hello');
+echo $hello->executeInternalChecked('greet', ['Ada'])['value'];
+```
+
+What it does, in order: checks the root and `sites/<dist>/dist.php` (a **rejected argument** throws
+`ConfigurationException` before anything is defined), defines `SYSTEM_ROOT` and the path constants, loads
+the same bootstrap `main.php` loads (autoloader, `.env` and config, plugin folders), then builds the
+Distributor and runs `initialize()`, which registers its module `library/` autoloader. It sets nothing
+beyond what the web and CLI boots already set.
+
+What a failed call leaves behind: once `dist.php` is accepted the constants and the bootstrap are in place
+and the root is fixed, so an exception from the Distributor itself (a `dist.php` that throws, an invalid
+module pin) leaves them defined, and booting a different root afterwards throws. A bad `config.inc.php`
+or `.env` ends the process (`exit(1)`, as for any command). `boot()` installs the bootstrap's exception
+handler (`set_exception_handler`) and does **not** chain the host's previous one; a host that needs its
+own handler sets it after `boot()`. Chaining is a follow-up, not part of this entry.
+
+- One process serves one install. A second call with the same root returns another Distributor (another
+  dist, or a fresh one); a call with a **different** root throws `ConfigurationException`.
+- A Distributor built without a Domain (`new Distributor($code)` as `runapp` does, or `Embed::boot()`)
+  registers its own library autoloader once, in `initialize()`. Through `Application::host()` the
+  Application's autoloader serves the matched distributor and the Distributor adds none.
+- `Application::getDistributor($code)` returns the initialised Distributor for a `hasDistributor()` key
+  (`code` or `code@tag`) mounted on the host `host()` matched (null otherwise); `php Razy.phar bridge` uses it.
+- `code@tag` is parsed in one place, `Config\SiteConfig::parseIdentifier()`, by `Embed::boot()`, `sites.inc.php`
+  loading, the Domain and `runapp`: `demo@dev` is code `demo`, tag `dev`, and loads the `dev` module pins.
+- `php Razy.phar bridge '{"dist":…,"module":…,"command":…}'` answers `{"ok":true,"data":…}` (a handler that
+  returns null is `ok` with `data` null), `{"ok":false,"status":"unknown"|"failed","error":"…"}` for a command
+  that is not registered or threw (the message of a failing command and its trace are not on stdout; the trace
+  goes to stderr), and `{"ok":false,"error":"…"}` for a bad payload, distributor or module. The exit code is unchanged.
+- `Distributor::executeInternalAPI()` spawns `php <SYSTEM_ROOT>/<phar> bridge …` without a working directory,
+  so it only finds `sites.inc.php` when the calling process's working directory is the install.
+- `php Razy.phar build` from a folder without `sites/` (or `standalone/`) that is not the phar's own folder
+  exits non-zero and writes nothing (it used to install next to the phar). Put `Razy.phar` in the empty
+  folder, or run it from the folder that holds `sites/`.
+
 ### Production checklist
 
 - [ ] **Non-root container user** — provided by `.docker/Dockerfile` (`razy` uid 1000)
@@ -215,7 +264,10 @@ built-in server** — use `deploy/Dockerfile.worker` (FrankenPHP worker) for pro
       layer** despite the readme security-table claim (drift, see [README](README.md));
       config stays PHP `return`-arrays, so generate them at container entrypoint if needed
 - [ ] **Bridge discipline**: implement `__onBridgeCall` allow-lists on every bridge module
-      (RZ-002) — the CLI transport is local IPC, shell access ≈ full bridge access; for
+      (RZ-002) — the CLI transport is local IPC, shell access ≈ full bridge access: **the `bridge`
+      CLI consults neither `__onAPICall` nor `__onBridgeCall` nor `RAZY_BRIDGE_SECRET`; those apply to
+      `executeBridgeCommand`** (the `bridge` command used to crash before it ran anything, RZ-52 makes it
+      usable, so treat who may run it as who may call every API command); for
       signed cross-process calls set `RAZY_BRIDGE_SECRET` (`Razy\BridgeSignature`) so
       `executeBridgeCommand` rejects unsigned/self-declared forgeries ([07](07-security-guide.md))
 - [ ] **Liveness + metrics are built in** (unreleased): `GET /_razy/health` and

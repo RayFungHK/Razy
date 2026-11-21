@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Closure;
 use Razy\Asset\Assets;
 use Razy\Authz\Denial as AuthzDenial;
 use Razy\Authz\Gate as AuthzGate;
@@ -50,6 +51,7 @@ use Razy\Template\IncludeResolver;
 use Razy\Util\NetworkUtil;
 use Razy\Util\PathUtil;
 use Throwable;
+use WeakReference;
 
 /**
  * Class Distributor.
@@ -132,6 +134,8 @@ class Distributor implements DistributorInterface
 
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
+
+    private ?Closure $autoloader = null;
 
     /**
      * In-process memo for moduleReady() (dossier MODULE-LIFECYCLE.md L1):
@@ -322,6 +326,14 @@ class Distributor implements DistributorInterface
         }
     }
 
+    /** RZ-52: drop the autoloader with the Distributor, so repeated boots leave none behind. */
+    public function __destruct()
+    {
+        if ($this->autoloader !== null) {
+            \spl_autoload_unregister($this->autoloader);
+        }
+    }
+
     /**
      * RZ-27: read dist.php 'layout'. A bare name (`site`) is `@layout/site.tpl`;
      * an `@layout/…` spec is used as given.
@@ -393,16 +405,15 @@ class Distributor implements DistributorInterface
      */
     public function initialize(bool $initialOnly = false): static
     {
+        $this->registerAutoloader();
         // Load all modules into the pending list from the configured module source path
         $modules = &$this->registry->getModulesRef();
 
-        // COMPILE-ON-DEPLOY (M2): opt-in compiled boot — the deploy-time
-        // snapshot replays the module manifest and every declaration table;
-        // only its freshness checks run here. Any miss (flag off, artifact
-        // gone, stale fingerprint, schema/version drift) drops to the exact
-        // legacy assembly below — staleness can only cost speed, never
-        // correctness. Lifecycle stages after assembly (prepare/validate)
-        // run identically for both paths.
+        // COMPILE-ON-DEPLOY (M2): opt-in compiled boot — the deploy-time snapshot replays the
+        // module manifest and every declaration table; only its freshness checks run here. Any miss
+        // (flag off, artifact gone, stale fingerprint, schema/version drift) drops to the exact legacy
+        // assembly below — staleness can only cost speed, never correctness. Lifecycle stages after
+        // assembly (prepare/validate) run identically for both paths.
         if ($this->compiledBoot && ($boot = BootCompiler::usableData($this)) !== null) {
             $this->assembleCompiled($boot, $modules);
         } else {
@@ -802,8 +813,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the distributor code.
-     *
-     * @return string
      */
     public function getCode(): string
     {
@@ -812,8 +821,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the Domain instance that owns this Distributor.
-     *
-     * @return Domain|null
      */
     public function getDomain(): ?Domain
     {
@@ -832,8 +839,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the ModuleRegistry sub-object for direct module management access.
-     *
-     * @return ModuleRegistry
      */
     public function getRegistry(): ModuleRegistry
     {
@@ -842,8 +847,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the RouteDispatcher sub-object for direct route management access.
-     *
-     * @return RouteDispatcher
      */
     public function getRouter(): RouteDispatcher
     {
@@ -909,8 +912,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the PrerequisiteResolver sub-object for package prerequisite management.
-     *
-     * @return PrerequisiteResolver
      */
     public function getPrerequisites(): PrerequisiteResolver
     {
@@ -919,8 +920,6 @@ class Distributor implements DistributorInterface
 
     /**
      * Get the ModuleScanner sub-object for filesystem scanning access.
-     *
-     * @return ModuleScanner
      */
     public function getScanner(): ModuleScanner
     {
@@ -930,8 +929,6 @@ class Distributor implements DistributorInterface
     /**
      * Get the distributor tag (e.g., 'dev', '1.0.0', 'default', '*')
      * The tag can be a label (dev, prod), a version (1.0.0), or 'default'.
-     *
-     * @return string
      */
     public function getTag(): string
     {
@@ -949,8 +946,6 @@ class Distributor implements DistributorInterface
      * - "siteC@default" - default tag
      *
      * @param bool $shorthand If true, omit @default suffix (returns "siteB" instead of "siteB@default")
-     *
-     * @return string
      */
     public function getIdentifier(bool $shorthand = false): string
     {
@@ -963,8 +958,6 @@ class Distributor implements DistributorInterface
     /**
      * Get the distributor configuration folder path (where dist.php is located).
      * This is always in the sites/ directory.
-     *
-     * @return string
      */
     public function getFolderPath(): string
     {
@@ -1080,8 +1073,6 @@ class Distributor implements DistributorInterface
 
     /**
      * The dist's web assets (dist.php 'assets', RZ-09): hashed URLs, importmap.
-     *
-     * @return Assets
      */
     public function getAssets(): Assets
     {
@@ -1090,8 +1081,6 @@ class Distributor implements DistributorInterface
 
     /**
      * The dist's security headers (dist.php 'security_headers', RZ-10).
-     *
-     * @return SecurityHeaders
      */
     public function getSecurityHeaders(): SecurityHeaders
     {
@@ -1208,6 +1197,18 @@ class Distributor implements DistributorInterface
         }
 
         return false;
+    }
+
+    /** RZ-52: a Domain-less Distributor (runapp, Embed) autoloads module libraries itself, once; the host() autoloader serves a Domain's. */
+    private function registerAutoloader(): void
+    {
+        if ($this->autoloader !== null || $this->domain !== null) {
+            return;
+        }
+        $self = WeakReference::create($this);
+        \spl_autoload_register($this->autoloader = static function (string $className) use ($self): void {
+            $self->get()?->autoload($className);
+        });
     }
 
     /**
