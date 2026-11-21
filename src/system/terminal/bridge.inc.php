@@ -77,7 +77,7 @@ return function (string $payload = '') {
         $outcome = $module->executeInternalChecked($command, $args);
         if ($outcome['status'] !== 'ok') {
             $why = $outcome['status'] === 'unknown' ? "Unknown command '" . \substr($command, 0, 100) . "'" : 'Command failed.';
-            echo \json_encode(['ok' => false, 'status' => $outcome['status'], 'error' => $why]);
+            echo \json_encode(['ok' => false, 'status' => $outcome['status'], 'error' => $why], JSON_INVALID_UTF8_SUBSTITUTE); // the cut name may end inside a character
             return false;
         }
         echo \json_encode(['ok' => true, 'data' => $outcome['value']]);

@@ -658,7 +658,7 @@ class Application
         $is = static fn (?Distributor $d): bool => $d?->getCode() === $e['code'] && $d->getTag() === $e['tag'];
         $d = $this->domain->getDistributor();
         $path = \array_search($code, \array_change_key_case($this->multisite)[\strtolower($this->domain->getDomainName())] ?? [], true);
-        $d = $is($d) || $path === false ? $d : $this->domain->matchQuery((string) $path ?: '/');
+        $d = $is($d) || $path === false ? $d : $this->domain->matchQuery(\rtrim((string) $path, '/') . '/');
 
         return $is($d) ? $d : null;
     }

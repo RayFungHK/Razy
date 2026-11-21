@@ -397,6 +397,43 @@ echo $d?->getTag() . "|" . $d?->getRegistry()->getLoadedAPIModule("acme/hello")-
         $this->assertSame('0|from-dev Ada', $out['out'], $out['err']);
     }
 
+    public function testGetDistributorFindsAMountWrittenWithoutATrailingSlash(): void
+    {
+        $root = $this->install();
+        \file_put_contents($root . '/sites.inc.php', "<?php\nreturn ['domains' => ['localhost' => ['/docs' => 'demo']], 'alias' => []];\n");
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+\Razy\Embed::boot($argv[1], "demo");
+$a = new \Razy\Application();
+$a->host("localhost");
+echo $a->getDistributor("demo")?->getCode() ?? "null";
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
+
+        $this->assertSame('demo', $out['out'], $out['err']);
+    }
+
+    public function testBootRefusesAnIdentifierThatEndsInANewline(): void
+    {
+        $root = $this->install();
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+foreach (["demo@dev\n", "demo\n"] as $id) {
+    try {
+        \Razy\Embed::boot($argv[1], $id);
+        echo "booted;";
+    } catch (\Razy\Exception\ConfigurationException $e) {
+        echo str_contains($e->getMessage(), "is not a distributor code") ? "refused;" : "other:" . $e->getMessage();
+    }
+}
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
+
+        $this->assertSame('refused;refused;', $out['out'], $out['err'] . 'refused by the grammar, not by a missing sites/ folder');
+    }
+
     // ── bridge ────────────────────────────────────────────────────────────
 
     public function testBridgeCommandCallsAModuleApiThroughTheCli(): void
@@ -456,6 +493,19 @@ echo json_encode([$ok, ob_get_clean()]);
         $this->assertStringContainsString('boom-secret', $failed['err'], 'the trace stays on stderr');
         $this->assertSame(['ok' => true, 'data' => null], \json_decode($null['out'], true), $null['out']);
         $this->assertSame([0, 0, 0], [$unknown['code'], $failed['code'], $null['code']], 'exit code unchanged');
+    }
+
+    public function testBridgeKeepsAnUnknownCommandNameJsonSafeWhenItIsCutInsideACharacter(): void
+    {
+        $root = $this->install();
+        $command = \str_repeat('a', 99) . 'é';
+        $payload = \json_encode(['dist' => 'demo', 'module' => 'acme/hello', 'command' => $command], JSON_UNESCAPED_UNICODE);
+
+        $out = self::exec([\PHP_BINARY, self::$phar, 'bridge', $payload], $root);
+
+        $answer = \json_decode($out['out'], true);
+        $this->assertIsArray($answer, 'a JSON answer, not an empty one: ' . $out['out'] . $out['err']);
+        $this->assertSame(['ok' => false, 'status' => 'unknown'], \array_intersect_key($answer, ['ok' => 1, 'status' => 1]));
     }
 
     public function testBridgeClosureSaysUnknownFailedAndOkApart(): void

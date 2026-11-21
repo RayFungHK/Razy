@@ -192,7 +192,7 @@ final class SiteConfigTest extends TestCase
         $this->assertSame(['demo', '*'], SiteConfig::parseIdentifier('demo'));
         $this->assertSame(['demo', 'dev'], SiteConfig::parseIdentifier('demo@dev'));
         $this->assertSame(['demo', 'v1.2.0'], SiteConfig::parseIdentifier('demo@v1.2.0'));
-        foreach (['', 'demo@', 'demo@dev@', '@dev', '../demo', 'demo@../x', 'demo dev'] as $bad) {
+        foreach (['', 'demo@', 'demo@dev@', '@dev', '../demo', 'demo@../x', 'demo dev', "demo\n", "demo@dev\n"] as $bad) {
             $this->assertNull(SiteConfig::parseIdentifier($bad), $bad);
         }
     }
