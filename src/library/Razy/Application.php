@@ -338,7 +338,7 @@ class Application
 
                                             $this->distributors[$distIdentifier] = [
                                                 'code' => $code,
-                                                'tag' => $tag ?: '*',
+                                                'tag' => $tag,
                                                 'url_path' => $urlPath,
                                                 'domain' => [$domain],
                                                 'alias' => $aliasMapping[$domain] ?? [],

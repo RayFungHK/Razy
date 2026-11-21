@@ -379,6 +379,24 @@ echo $d->getTag() . "|" . $d->getRegistry()->getLoadedAPIModule("acme/hello")->e
         $this->assertStringContainsString('from-default Ada', $runapp['out']);
     }
 
+    public function testATagThatPHPCallsEmptyStillSelectsItsSet(): void
+    {
+        $root = $this->installTagged("'/' => 'demo@0'");
+        \file_put_contents($root . '/sites/demo/dist.php', "<?php\nreturn ['dist' => 'demo', 'modules' => ['*' => ['acme/hello' => 'default'], '0' => ['acme/hello' => 'dev']]];\n");
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+\Razy\Embed::boot($argv[1], "bare");
+$a = new \Razy\Application();
+$a->host("localhost");
+$d = $a->getDistributor("demo@0");
+echo $d?->getTag() . "|" . $d?->getRegistry()->getLoadedAPIModule("acme/hello")->executeInternalCommand("greet", ["Ada"]);
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
+
+        $this->assertSame('0|from-dev Ada', $out['out'], $out['err']);
+    }
+
     // ── bridge ────────────────────────────────────────────────────────────
 
     public function testBridgeCommandCallsAModuleApiThroughTheCli(): void
