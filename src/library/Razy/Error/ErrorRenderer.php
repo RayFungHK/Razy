@@ -166,18 +166,19 @@ class ErrorRenderer
     }
 
     /**
-     * Write operator-facing text to stderr, never stdout.
+     * Write operator-facing text to stderr, never stdout. A sink that cannot be opened or written is skipped
+     * quietly: the warning PHP would raise prints to stdout when `display_errors` is on.
      */
-    private static function writeCli(string $text): void
+    public static function writeCli(string $text): void
     {
         if (self::$cliStream !== null) {
-            \fwrite(self::$cliStream, $text);
+            @\fwrite(self::$cliStream, $text);
 
             return;
         }
-        if (false !== ($stderr = \fopen('php://stderr', 'wb'))) {
-            \fwrite($stderr, $text);
-            \fclose($stderr);
+        if (false !== ($stderr = @\fopen('php://stderr', 'wb'))) {
+            @\fwrite($stderr, $text);
+            @\fclose($stderr);
         }
     }
 

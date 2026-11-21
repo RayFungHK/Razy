@@ -267,6 +267,26 @@ return function (string $msg = "x"): string {
         $this->assertNull($module->executeInternalCommand('lost', []), 'the old method keeps answering null');
     }
 
+    public function testCheckedOutcomeSurvivesAnOnErrorHookThatRethrowsButTheOldPathKeepsThrowing(): void
+    {
+        $module = $this->createModule();
+        $controller = new class($module) extends Controller {
+            public function __onError(string $path, Throwable $exception): void
+            {
+                throw $exception;
+            }
+        };
+        $this->injectController($module, $controller);
+        $this->registerAPI($module, 'boom', 'api/throws');
+
+        $outcome = $this->executeChecked($module, 'boom', []);
+
+        $this->assertSame('failed', $outcome['status']);
+        $this->assertSame('handler exploded', $outcome['error']?->getMessage());
+        $this->expectException(RuntimeException::class);
+        $module->executeInternalCommand('boom', []);
+    }
+
     public function testMixedResultContractIsUnchangedForTheOldMethods(): void
     {
         $module = $this->createModule();

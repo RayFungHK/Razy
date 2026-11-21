@@ -218,7 +218,7 @@ class CommandRegistry
      */
     public function executeChecked(ModuleInfo $module, string $command, array $args, Controller $controller, ClosureLoader $closureLoader): array
     {
-        return $this->dispatch($this->apiCommands, $command, $args, $controller, $closureLoader, fn () => $controller->__onAPICall($module, $command));
+        return $this->dispatch($this->apiCommands, $command, $args, $controller, $closureLoader, fn () => $controller->__onAPICall($module, $command), true);
     }
 
     /**
@@ -228,7 +228,7 @@ class CommandRegistry
      */
     public function executeInternalChecked(string $command, array $args, Controller $controller, ClosureLoader $closureLoader): array
     {
-        return $this->dispatch($this->apiCommands, $command, $args, $controller, $closureLoader);
+        return $this->dispatch($this->apiCommands, $command, $args, $controller, $closureLoader, null, true);
     }
 
     /**
@@ -279,10 +279,13 @@ class CommandRegistry
      * Run a command and say what happened.
      *
      * A handler that throws goes to the controller's __onError() hook first, then
-     * comes back as `failed` with the exception.
+     * comes back as `failed` with the exception. The mixed-result callers let an
+     * exception from the hook propagate (as before); a checked caller always gets
+     * the outcome, with the handler's exception, whatever the hook does.
      *
      * @param array<string, string> $registry The command registry to look up
      * @param callable|null $permissionCheck Optional permission gate; must return true to proceed
+     * @param bool $containHook Swallow an exception thrown by __onError() (checked path)
      *
      * @return array{status: 'ok'|'denied'|'unknown'|'failed', value: mixed, error: ?Throwable}
      */
@@ -293,6 +296,7 @@ class CommandRegistry
         Controller $controller,
         ClosureLoader $closureLoader,
         ?callable $permissionCheck = null,
+        bool $containHook = false,
     ): array {
         if (!\array_key_exists($command, $registry)) {
             return self::outcome(self::STATUS_UNKNOWN);
@@ -315,7 +319,13 @@ class CommandRegistry
 
             return self::outcome(self::STATUS_OK, \call_user_func_array($closure, $args));
         } catch (Throwable $exception) {
-            $controller->__onError($command, $exception);
+            try {
+                $controller->__onError($command, $exception);
+            } catch (Throwable $fromHook) {
+                if (!$containHook) {
+                    throw $fromHook;
+                }
+            }
 
             return self::outcome(self::STATUS_FAILED, null, $exception);
         }

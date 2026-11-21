@@ -51,7 +51,8 @@ class Error extends Exception
     {
         parent::__construct(\nl2br(\htmlspecialchars($message, ENT_QUOTES, 'UTF-8')), $statusCode, $exception);
         if (RuntimeMode::isCli() && !\defined('PHPUNIT_RUNNING')) {
-            Terminal::WriteLine('{@c:red}' . $message, true);
+            // stderr, like showException(): stdout stays free for the command's own output
+            ErrorRenderer::writeCli(Terminal::Format('{@c:red}' . $message) . Terminal::RESET_STLYE . PHP_EOL);
         }
     }
 

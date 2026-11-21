@@ -194,7 +194,7 @@ To probe availability, use `$this->api('acme/store')->has('getThing')` (`Emitter
 always false and a guard built on it silently disables the integration (dossier
 MODULE-LIFECYCLE.md L0 found one doing exactly that in production).
 Command name grammar: `/^#?[a-z]\w*$/i` (`Agent.php:65-67`). Duplicates throw at
-registration (`Module/CommandRegistry.php:61-63`).
+registration (`CommandRegistry::addAPICommand()`).
 A name that is a public method of `Razy\Controller` (`render`, `view`, `api`, `xhr`, `fork`, `resolve`, ...) is refused with a
 `ModuleException`: it would run that method, not your closure. The list is read from the class
 (`CommandRegistry::reservedNames()`).

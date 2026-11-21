@@ -164,6 +164,55 @@ class ErrorSafePageTest extends TestCase
         $this->assertStringContainsString('Stack trace', $stderr);
     }
 
+    public function testCliErrorConstructorDiagnosticAlsoStaysOffStdout(): void
+    {
+        $autoload = \dirname(__DIR__) . '/vendor/autoload.php';
+        $code = 'define("CLI_MODE", true); require ' . \var_export($autoload, true)
+            . '; try { throw new Razy\Error("boom"); } catch (Razy\Error $e) { Razy\Error::showException($e); }';
+        $proc = \proc_open([PHP_BINARY, '-d', 'display_errors=stderr', '-r', $code], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($proc);
+        $stdout = (string) \stream_get_contents($pipes[1]);
+        $stderr = (string) \stream_get_contents($pipes[2]);
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+        \proc_close($proc);
+
+        $this->assertSame('', $stdout, 'the Error constructor must not print to stdout in CLI mode');
+        $this->assertStringContainsString('boom', $stderr);
+    }
+
+    public function testUnwritableCliSinkRaisesNoWarning(): void
+    {
+        if (!\is_writable('/dev/full')) {
+            $this->markTestSkipped('/dev/full is not available');
+        }
+        $full = \fopen('/dev/full', 'wb');
+        ErrorRenderer::useCliStream($full);
+        $raised = [];
+        $previousReporting = \error_reporting(E_ALL);
+        \set_error_handler(static function (int $no, string $message) use (&$raised): bool {
+            if (!(\error_reporting() & $no)) {
+                return false; // suppressed with @: PHP would not display it either
+            }
+            $raised[] = $message;
+
+            return true;
+        });
+
+        try {
+            \ob_start();
+            ErrorRenderer::showException(new RuntimeException('x'));
+            $stdout = (string) \ob_get_clean();
+        } finally {
+            \restore_error_handler();
+            \error_reporting($previousReporting);
+            ErrorRenderer::useCliStream(null);
+        }
+
+        $this->assertSame('', $stdout);
+        $this->assertSame([], $raised, 'a failing sink must not raise a warning (display_errors=On would print it to stdout)');
+    }
+
     public function testDatabaseExecuteDoesNotPutSqlInMessage(): void
     {
         $src = (string) \file_get_contents(\dirname(__DIR__) . '/src/library/Razy/Database.php');

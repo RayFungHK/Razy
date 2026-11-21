@@ -7,15 +7,16 @@
   - `ok`: the handler ran; `value` is what it returned (a returned `null` is still `ok`);
   - `denied`: `__onAPICall` returned false (the handler did not run);
   - `unknown`: no such command;
-  - `failed`: the handler threw (`error` is the exception; the controller's `__onError()` hook still ran first) or
-    its closure file could not be loaded.
+  - `failed`: the handler threw (`error` is the exception; the controller's `__onError()` hook still ran first, and an
+    exception the hook throws does not replace the outcome) or its closure file could not be loaded.
   The same entry points exist on `Module\CommandRegistry` (`executeChecked`, `executeInternalChecked`).
 - `ErrorRenderer::useCliStream()` sends CLI exception output to a stream you pass (tests); `null` restores stderr.
 - `CommandRegistry::reservedNames()` lists the names an API command cannot take.
 
 ## Changed
 - In CLI mode `Error::showException()` writes the exception (and the SQL of a `QueryException`) to **stderr**, not
-  stdout. A throwing API command, the CLI `bridge` reply and any stdio server (JSON-RPC lines) keep stdout clean;
+  stdout, and so does the diagnostic line `new Razy\Error(...)` prints in CLI mode (`ErrorRenderer::writeCli()`); a
+  failing stderr is skipped without a warning. A throwing API command, the CLI `bridge` reply and any stdio server (JSON-RPC lines) keep stdout clean;
   `display_errors=stderr` no longer matters. Web mode is unchanged.
 - `addAPICommand()` (and `Agent::addAPICommand()`, including the `#` form) throws `ModuleException` for a name that is a
   public method of `Razy\Controller` (`render`, `view`, `api`, `xhr`, `fork`, `resolve`, `trigger`, ...). Such a command
