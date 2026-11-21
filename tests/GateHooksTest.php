@@ -254,6 +254,19 @@ return function (string $msg = "x"): string {
         $this->assertSame($outcome['error'], $controller->errors[0]['exception']);
     }
 
+    public function testRegisteredCommandWithAMissingHandlerFileFailsLoudlyOnlyOnTheCheckedPath(): void
+    {
+        $module = $this->createModule();
+        $this->injectController($module, $this->createGateController($module));
+        $this->registerAPI($module, 'lost', 'api/no_such_file');
+
+        $outcome = $this->executeChecked($module, 'lost', []);
+
+        $this->assertSame('failed', $outcome['status']);
+        $this->assertInstanceOf(ModuleException::class, $outcome['error']);
+        $this->assertNull($module->executeInternalCommand('lost', []), 'the old method keeps answering null');
+    }
+
     public function testMixedResultContractIsUnchangedForTheOldMethods(): void
     {
         $module = $this->createModule();
