@@ -54,7 +54,7 @@ if (!\defined('SYSTEM_ROOT')) {
         // Fall back to the directory containing the phar archive
         \define('SYSTEM_ROOT', \dirname($pharPath));
         // RZ-52: remember that the working directory was NOT taken, so `build` can refuse (below)
-        $razyRootFellBack = '' !== $pharPath && \dirname($pharPath) !== $currentDir;
+        $razyRootFellBack = '' !== $pharPath && \realpath(\dirname($pharPath)) !== \realpath($currentDir); // realpath: C:/x vs C:\x is one folder
     }
 }
 
