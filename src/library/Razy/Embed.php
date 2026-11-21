@@ -73,7 +73,7 @@ final class Embed
         if (\preg_match(SiteConfig::DIST_IDENTIFIER, $dist) !== 1) {
             throw new ConfigurationException("Embed::boot(): '" . \addcslashes(\substr($dist, 0, 200), "\0..\37") . "' is not a distributor code (code or code@tag).");
         }
-        [$code, $tag] = \explode('@', $dist . '@', 2);
+        [$code, $tag] = \array_pad(\explode('@', $dist, 2), 2, '*');
         $distFile = $path . \DIRECTORY_SEPARATOR . 'sites' . \DIRECTORY_SEPARATOR . $code . \DIRECTORY_SEPARATOR . 'dist.php';
         if (!\is_file($distFile)) {
             throw new ConfigurationException("Embed::boot(): no distributor '{$code}': {$distFile} is missing.");
@@ -93,6 +93,6 @@ final class Embed
             require CORE_FOLDER . 'bootstrap.inc.php';
         }
 
-        return (new Distributor($code, $tag !== '' ? $tag : '*', null, '', '/'))->initialize();
+        return (new Distributor($code, $tag, null, '', '/'))->initialize();
     }
 }

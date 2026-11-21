@@ -200,6 +200,57 @@ echo json_encode([count(spl_autoload_functions()) - $one, $again->getRegistry()-
         $this->assertSame([1, 'hello Bo'], \json_decode($out['out'], true), $out['out']);
     }
 
+    public function testBootKeepsTheTagOfCodeAtTag(): void
+    {
+        $root = $this->install();
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+echo \Razy\Embed::boot($argv[1], "demo@beta")->getTag() . "|" . \Razy\Embed::boot($argv[1], "demo")->getTag();
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
+
+        $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
+        $this->assertSame('beta|*', $out['out']);
+    }
+
+    public function testADiscardedDistributorTakesItsAutoloaderWithIt(): void
+    {
+        $root = $this->install();
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+$dist = \Razy\Embed::boot($argv[1], "demo");
+$with = count(spl_autoload_functions());
+$gone = WeakReference::create($dist);
+unset($dist);
+gc_collect_cycles();
+echo json_encode([$gone->get() === null, $with - count(spl_autoload_functions())]);
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
+
+        $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
+        $this->assertSame([true, 1], \json_decode($out['out'], true), $out['out']);
+    }
+
+    public function testGetDistributorUsesTheMountPathOfTheMatchedHost(): void
+    {
+        $root = $this->install();
+        \file_put_contents($root . '/sites.inc.php', "<?php\nreturn ['domains' => ['first.example' => ['/first/' => 'demo'], 'second.example' => ['/second/' => 'demo']], 'alias' => []];\n");
+        $script = $this->script('<?php
+require "phar://' . self::$phar . '/library/Razy/Embed.php";
+\Razy\Embed::boot($argv[1], "demo");
+$app = new \Razy\Application();
+$app->host("second.example");
+echo $app->getDistributor("demo")?->getCode() ?? "null";
+');
+
+        $out = self::exec([\PHP_BINARY, $script, $root], \sys_get_temp_dir());
+
+        $this->assertSame(0, $out['code'], $out['out'] . $out['err']);
+        $this->assertSame('demo', $out['out']);
+    }
+
     public function testBootingADifferentRootInTheSameProcessThrows(): void
     {
         $first = $this->install();

@@ -11,5 +11,5 @@
 
 ## Compatibility
 - `build` from a folder without `sites/` (or `standalone/`) and not the phar's own folder used to install into the phar's folder; it now exits 1. Running `build` in the phar's own folder, or in a folder that has `sites/`, is unchanged.
-- A Distributor with no Domain now registers an autoloader in `initialize()`. Code that registered `spl_autoload_register(fn ($c) => $dist->autoload($c))` itself for such a Distributor (`Testing\Client`, `Package\PackageRunner`) keeps working: the second autoloader is only asked for a class the first did not load. The registration holds the Distributor weakly. Distributors built by `Domain` (the web and worker path) add none.
+- A Distributor with no Domain now registers an autoloader in `initialize()`. Code that registered `spl_autoload_register(fn ($c) => $dist->autoload($c))` itself for such a Distributor (`Testing\Client`, `Package\PackageRunner`) keeps working: the second autoloader is only asked for a class the first did not load. The registration holds the Distributor weakly and is removed when the Distributor is destroyed. Distributors built by `Domain` (the web and worker path) add none.
 - No existing method changed; `Distributor::autoload()` and the Application autoloader are as before.

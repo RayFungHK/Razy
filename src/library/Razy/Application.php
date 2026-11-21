@@ -645,7 +645,7 @@ class Application
     }
 
     /**
-     * RZ-52: the initialised Distributor for a `hasDistributor()` key mounted on the host() domain; null if none.
+     * RZ-52: the initialised Distributor for a `hasDistributor()` key mounted on the host() domain, at that host's own URL path; null if none.
      *
      * @throws Throwable
      */
@@ -657,7 +657,8 @@ class Application
         $e = $this->distributors[$code];
         $is = static fn (?Distributor $d): bool => $d?->getCode() === $e['code'] && $d->getTag() === $e['tag'];
         $d = $this->domain->getDistributor();
-        $d = $is($d) ? $d : $this->domain->matchQuery($e['url_path'] ?: '/');
+        $path = \array_search($code, \array_change_key_case($this->multisite)[\strtolower($this->domain->getDomainName())] ?? [], true);
+        $d = $is($d) || $path === false ? $d : $this->domain->matchQuery((string) $path ?: '/');
 
         return $is($d) ? $d : null;
     }

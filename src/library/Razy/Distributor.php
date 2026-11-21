@@ -14,6 +14,7 @@
 
 namespace Razy;
 
+use Closure;
 use Razy\Asset\Assets;
 use Razy\Authz\Denial as AuthzDenial;
 use Razy\Authz\Gate as AuthzGate;
@@ -134,7 +135,7 @@ class Distributor implements DistributorInterface
     /** @var bool Whether the full module lifecycle has completed (matchRoute ran) */
     private bool $coreInitialized = false;
 
-    private bool $autoloaderRegistered = false;
+    private ?Closure $autoloader = null;
 
     /**
      * In-process memo for moduleReady() (dossier MODULE-LIFECYCLE.md L1):
@@ -322,6 +323,14 @@ class Distributor implements DistributorInterface
         if ($container = $this->getContainer()) {
             $container->instance(AuthzGate::class, $this->authzGate);
             $container->instance(AuthzIdentity::class, $this->authzIdentity);
+        }
+    }
+
+    /** RZ-52: drop the autoloader with the Distributor, so repeated boots leave none behind. */
+    public function __destruct()
+    {
+        if ($this->autoloader !== null) {
+            \spl_autoload_unregister($this->autoloader);
         }
     }
 
@@ -937,8 +946,6 @@ class Distributor implements DistributorInterface
      * - "siteC@default" - default tag
      *
      * @param bool $shorthand If true, omit @default suffix (returns "siteB" instead of "siteB@default")
-     *
-     * @return string
      */
     public function getIdentifier(bool $shorthand = false): string
     {
@@ -951,8 +958,6 @@ class Distributor implements DistributorInterface
     /**
      * Get the distributor configuration folder path (where dist.php is located).
      * This is always in the sites/ directory.
-     *
-     * @return string
      */
     public function getFolderPath(): string
     {
@@ -1197,13 +1202,11 @@ class Distributor implements DistributorInterface
     /** RZ-52: a Domain-less Distributor (runapp, Embed) autoloads module libraries itself, once; the host() autoloader serves a Domain's. */
     private function registerAutoloader(): void
     {
-        if ($this->autoloaderRegistered || $this->domain !== null) {
+        if ($this->autoloader !== null || $this->domain !== null) {
             return;
         }
-        $this->autoloaderRegistered = true;
-
         $self = WeakReference::create($this);
-        \spl_autoload_register(static function (string $className) use ($self): void {
+        \spl_autoload_register($this->autoloader = static function (string $className) use ($self): void {
             $self->get()?->autoload($className);
         });
     }
