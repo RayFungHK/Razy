@@ -35,6 +35,9 @@ use Throwable;
  */
 class ErrorRenderer
 {
+    /** @var resource|null Test override for the CLI sink; null means stderr */
+    private static $cliStream = null;
+
     /**
      * Display 404 Not Found error page.
      *
@@ -101,7 +104,7 @@ class ErrorRenderer
      */
     public static function showException(Throwable $exception): void
     {
-        if (RuntimeMode::isWeb()) {
+        if (RuntimeMode::isWeb() || self::isWebSapiBeforeModes()) {
             $errorId = ErrorReporter::report($exception);
             $source = self::buildPage($exception, $errorId);
 
@@ -129,11 +132,24 @@ class ErrorRenderer
         } else {
             // CLI is operator-facing: print the exception and, for a failed
             // query, the SQL that QueryException keeps out of its message.
-            echo $exception;
+            // Stderr only: stdout belongs to the command's own output (a stdio
+            // protocol such as JSON-RPC or the bridge reply must stay parseable).
+            $text = (string) $exception;
             if ($exception instanceof QueryException && null !== $exception->getSql()) {
-                echo PHP_EOL . 'SQL: ' . $exception->getSql() . PHP_EOL;
+                $text .= PHP_EOL . 'SQL: ' . $exception->getSql() . PHP_EOL;
             }
+            self::writeCli($text);
         }
+    }
+
+    /**
+     * Send CLI exception output to this stream instead of stderr (null restores stderr). For tests.
+     *
+     * @param resource|null $stream
+     */
+    public static function useCliStream($stream): void
+    {
+        self::$cliStream = $stream;
     }
 
     /**
@@ -147,6 +163,32 @@ class ErrorRenderer
     public static function render(Throwable $exception, string $errorId): string
     {
         return self::buildPage($exception, $errorId)->output();
+    }
+
+    /**
+     * Write operator-facing text to stderr, never stdout. A sink that cannot be opened or written is skipped
+     * quietly: the warning PHP would raise prints to stdout when `display_errors` is on.
+     */
+    public static function writeCli(string $text): void
+    {
+        if (self::$cliStream !== null) {
+            @\fwrite(self::$cliStream, $text);
+
+            return;
+        }
+        if (false !== ($stderr = @\fopen('php://stderr', 'wb'))) {
+            @\fwrite($stderr, $text);
+            @\fclose($stderr);
+        }
+    }
+
+    /**
+     * True while the mode constants are not defined yet (an error in config.inc.php) and the SAPI is not `cli`:
+     * only SAPI `cli` writes to stderr, any other SAPI answers with the error page.
+     */
+    private static function isWebSapiBeforeModes(): bool
+    {
+        return !\defined('WEB_MODE') && !\defined('CLI_MODE') && PHP_SAPI !== 'cli';
     }
 
     /**

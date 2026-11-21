@@ -126,8 +126,132 @@ class ErrorSafePageTest extends TestCase
 
     public function testCliOutputStillShowsSqlOfQueryException(): void
     {
-        $this->expectOutputRegex('/SQL: SELECT \* FROM `missing`/');
-        ErrorRenderer::showException(new QueryException('no such table', 500, null, 'SELECT * FROM `missing`'));
+        $stderr = \fopen('php://memory', 'w+b');
+        ErrorRenderer::useCliStream($stderr);
+
+        try {
+            \ob_start();
+            ErrorRenderer::showException(new QueryException('no such table', 500, null, 'SELECT * FROM `missing`'));
+            $stdout = (string) \ob_get_clean();
+            \rewind($stderr);
+            $stderrText = (string) \stream_get_contents($stderr);
+        } finally {
+            ErrorRenderer::useCliStream(null);
+        }
+
+        $this->assertMatchesRegularExpression('/SQL: SELECT \* FROM `missing`/', $stderrText);
+        $this->assertSame('', $stdout, 'CLI exception output goes to stderr only');
+    }
+
+    public function testCliExceptionKeepsStdoutCleanInARealProcess(): void
+    {
+        $autoload = \dirname(__DIR__) . '/vendor/autoload.php';
+        $code = 'require ' . \var_export($autoload, true) . '; Razy\Error::showException(new RuntimeException("kaboom"));';
+        $proc = \proc_open(
+            [PHP_BINARY, '-d', 'display_errors=stderr', '-r', $code],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        $this->assertIsResource($proc);
+        $stdout = (string) \stream_get_contents($pipes[1]);
+        $stderr = (string) \stream_get_contents($pipes[2]);
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+        \proc_close($proc);
+
+        $this->assertSame('', $stdout, 'stdout must stay free for a stdio protocol');
+        $this->assertStringContainsString('kaboom', $stderr);
+        $this->assertStringContainsString('Stack trace', $stderr);
+    }
+
+    public function testExceptionBeforeTheModeConstantsOnAWebSapiStillAnswersAnErrorPage(): void
+    {
+        $dir = \sys_get_temp_dir() . '/razy_window_' . \bin2hex(\random_bytes(4));
+        \mkdir($dir);
+        $router = $dir . '/router.php';
+        \file_put_contents($router, '<?php define("PHAR_PATH", ' . \var_export(\dirname(__DIR__) . '/src', true) . '); require '
+            . \var_export(\dirname(__DIR__) . '/vendor/autoload.php', true)
+            . '; Razy\Error::showException(new RuntimeException("window-boom"));');
+        $probe = \stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($probe);
+        $port = (int) \substr((string) \strrchr((string) \stream_socket_get_name($probe, false), ':'), 1);
+        \fclose($probe);
+        $log = $dir . '/server.log';
+        $proc = \proc_open([PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $dir, $router], [1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes);
+        $this->assertIsResource($proc);
+
+        try {
+            $up = false;
+            for ($i = 0; $i < 50 && !$up; ++$i) {
+                $sock = @\fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
+                $up = $sock !== false;
+                $up ? \fclose($sock) : \usleep(100000);
+            }
+            $this->assertTrue($up, 'fixture wiring: the web SAPI child must come up');
+            $body = (string) @\file_get_contents('http://127.0.0.1:' . $port . '/', false, \stream_context_create(['http' => ['ignore_errors' => true]]));
+            $status = (int) \substr((string) ($http_response_header[0] ?? ''), 9, 3);
+            $serverLog = (string) \file_get_contents($log);
+        } finally {
+            \proc_terminate($proc);
+            \proc_close($proc);
+            @\unlink($log);
+            @\unlink($router);
+            @\rmdir($dir);
+        }
+
+        $this->assertSame(500, $status, 'a failure before the mode constants must not answer 200');
+        $this->assertNotSame('', $body, 'the answer carries an error page, not an empty body');
+        $this->assertStringNotContainsString('window-boom', $body, 'production page: no message in the body');
+        $this->assertStringNotContainsString('Stack trace', $serverLog, 'the trace must not go to the server log of a web SAPI');
+    }
+
+    public function testCliErrorConstructorDiagnosticAlsoStaysOffStdout(): void
+    {
+        $autoload = \dirname(__DIR__) . '/vendor/autoload.php';
+        $code = 'define("CLI_MODE", true); require ' . \var_export($autoload, true)
+            . '; try { throw new Razy\Error("boom"); } catch (Razy\Error $e) { Razy\Error::showException($e); }';
+        $proc = \proc_open([PHP_BINARY, '-d', 'display_errors=stderr', '-r', $code], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($proc);
+        $stdout = (string) \stream_get_contents($pipes[1]);
+        $stderr = (string) \stream_get_contents($pipes[2]);
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+        \proc_close($proc);
+
+        $this->assertSame('', $stdout, 'the Error constructor must not print to stdout in CLI mode');
+        $this->assertStringContainsString('boom', $stderr);
+    }
+
+    public function testUnwritableCliSinkRaisesNoWarning(): void
+    {
+        if (!\is_writable('/dev/full')) {
+            $this->markTestSkipped('/dev/full is not available');
+        }
+        $full = \fopen('/dev/full', 'wb');
+        ErrorRenderer::useCliStream($full);
+        $raised = [];
+        $previousReporting = \error_reporting(E_ALL);
+        \set_error_handler(static function (int $no, string $message) use (&$raised): bool {
+            if (!(\error_reporting() & $no)) {
+                return false; // suppressed with @: PHP would not display it either
+            }
+            $raised[] = $message;
+
+            return true;
+        });
+
+        try {
+            \ob_start();
+            ErrorRenderer::showException(new RuntimeException('x'));
+            $stdout = (string) \ob_get_clean();
+        } finally {
+            \restore_error_handler();
+            \error_reporting($previousReporting);
+            ErrorRenderer::useCliStream(null);
+        }
+
+        $this->assertSame('', $stdout);
+        $this->assertSame([], $raised, 'a failing sink must not raise a warning (display_errors=On would print it to stdout)');
     }
 
     public function testDatabaseExecuteDoesNotPutSqlInMessage(): void
