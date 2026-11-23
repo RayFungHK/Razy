@@ -165,6 +165,7 @@ class RouteDispatcher
         return ['*', $route];
     }
 
+    /** An explicit Route method takes precedence over the registration method. */
     private static function resolveRouteMethod(mixed $path, string $method): string
     {
         if ($path instanceof Route && $path->getMethod() !== '*') {

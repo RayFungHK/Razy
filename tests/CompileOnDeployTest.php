@@ -251,7 +251,13 @@ return new class(null) extends Controller {
 
         $data = BootCompiler::usableData($distMock);
         self::assertIsArray($data, 'a fresh artifact with a matching fingerprint is usable');
-        self::assertSame('compiled-boot-2', $data['schema']);
+        self::assertSame('compiled-boot-3', $data['schema']);
+
+        $oldData = $data;
+        $oldData['schema'] = 'compiled-boot-2';
+        \file_put_contents($artifact, '<?php return ' . \var_export($oldData, true) . ';');
+        self::assertNull(BootCompiler::usableData($distMock), 'an older schema must fall back even with the current fingerprint');
+        BootCompiler::write($distMock, $dump);
 
         // a new file under the dist tree MUST deactivate the artifact
         $dir = PathUtil::append(SITES_FOLDER, 'unittest-dist');

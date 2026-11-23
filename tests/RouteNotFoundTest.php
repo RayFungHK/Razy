@@ -191,6 +191,18 @@ final class RouteNotFoundTest extends TestCase
         }
     }
 
+    public function testLazyRoutesWithDifferentDeclaredMethodsShareAPath(): void
+    {
+        $client = new Client(['/' => self::PLAIN], 'rz56.example.test');
+        $get = $client->request('GET', '/home/shared-method-path/');
+        $post = $client->request('POST', '/home/shared-method-path/');
+
+        $this->assertSame(200, $get->status());
+        $this->assertSame('about', $get->body());
+        $this->assertSame(200, $post->status());
+        $this->assertSame('main', $post->body());
+    }
+
     public function testWithoutAHandlerTheOldAnswerStays(): void
     {
         $miss = $this->get(self::PLAIN, '/no-such-page/');
@@ -349,6 +361,8 @@ final class RouteNotFoundTest extends TestCase
                         'post string-prefix' => 'about',
                         'post wildcard-prefix' => new \\Razy\\Route('about'),
                     ]);
+                    \$agent->addLazyRoute('shared-method-path', (new \\Razy\\Route('about'))->method('GET'));
+                    \$agent->addLazyRoute('shared-method-path', (new \\Razy\\Route('main'))->method('POST'));
                     \$agent->addLazyRoute('GET conflicting-prefix', (new \\Razy\\Route('about'))->method('Post'));
                     return true;
                 }
