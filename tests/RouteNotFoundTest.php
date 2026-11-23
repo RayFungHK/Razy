@@ -61,6 +61,18 @@ final class RouteNotFoundTest extends TestCase
         }
     }
 
+    /** @return array<string, array{string, int}> */
+    public static function routeMethodProvider(): array
+    {
+        return [
+            'POST' => ['POST', 200],
+            'GET' => ['GET', 404],
+            'HEAD' => ['HEAD', 404],
+            'OPTIONS' => ['OPTIONS', 404],
+            'PUT' => ['PUT', 404],
+        ];
+    }
+
     public function testExactRootAnswersItsOwnPath(): void
     {
         $response = $this->get(self::DIST, '/');
@@ -159,18 +171,6 @@ final class RouteNotFoundTest extends TestCase
         $response = $this->get(self::DIST, '/home/about/team/');
         $this->assertSame(404, $response->status());
         $this->assertSame(['/home/about/team/'], $GLOBALS['rz56_not_found']);
-    }
-
-    /** @return array<string, array{string, int}> */
-    public static function routeMethodProvider(): array
-    {
-        return [
-            'POST' => ['POST', 200],
-            'GET' => ['GET', 404],
-            'HEAD' => ['HEAD', 404],
-            'OPTIONS' => ['OPTIONS', 404],
-            'PUT' => ['PUT', 404],
-        ];
     }
 
     #[DataProvider('routeMethodProvider')]

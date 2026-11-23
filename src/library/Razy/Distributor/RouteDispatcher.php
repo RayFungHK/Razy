@@ -165,6 +165,15 @@ class RouteDispatcher
         return ['*', $route];
     }
 
+    private static function resolveRouteMethod(mixed $path, string $method): string
+    {
+        if ($path instanceof Route && $path->getMethod() !== '*') {
+            $method = $path->getMethod();
+        }
+
+        return \strtoupper($method);
+    }
+
     /**
      * Install the readiness probe (Distributor::moduleReady lineage).
      */
@@ -764,15 +773,6 @@ class RouteDispatcher
         if (!$gateReady) {
             $this->respondNotReady($gateCode, $registry, $siteURL);
         }
-    }
-
-    private static function resolveRouteMethod(mixed $path, string $method): string
-    {
-        if ($path instanceof Route && $path->getMethod() !== '*') {
-            $method = $path->getMethod();
-        }
-
-        return \strtoupper($method);
     }
 
     /**
