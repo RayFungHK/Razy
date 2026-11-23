@@ -245,11 +245,10 @@ class HttpMethodRoutingTest extends TestCase
     {
         $dispatcher = new RouteDispatcher();
         $module = $this->createModuleMock();
-        $dispatcher->setLazyRoute($module, '/api', '/handler', 'POST');
+        $dispatcher->setLazyRoute($module, '/api', '/handler', 'post');
 
         $routes = $dispatcher->getRoutes();
-        $route = \reset($routes);
-        $this->assertSame('POST', $route['method']);
+        $this->assertSame('POST', $routes['POST:/test/api/']['method']);
     }
 
     public function testSetShadowRouteStoresDefaultMethod(): void
