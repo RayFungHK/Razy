@@ -248,6 +248,7 @@ class HttpMethodRoutingTest extends TestCase
         $dispatcher->setLazyRoute($module, '/api', '/handler', 'post');
 
         $routes = $dispatcher->getRoutes();
+        $this->assertArrayHasKey('POST:/test/api/', $routes);
         $this->assertSame('POST', $routes['POST:/test/api/']['method']);
     }
 

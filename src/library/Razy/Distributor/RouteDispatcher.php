@@ -186,10 +186,7 @@ class RouteDispatcher
     public function setRoute(Module $module, string $route, mixed $path, string $method = '*'): static
     {
         $route = PathUtil::tidy($route, true, '/');
-        // If $path is a Route object with a non-wildcard method, it takes precedence
-        if ($path instanceof Route && $path->getMethod() !== '*') {
-            $method = $path->getMethod();
-        }
+        $method = self::resolveRouteMethod($path, $method);
         // Pre-compute path metadata at registration time (avoids per-request overhead)
         $isRedirect = false;
         $redirectAbsolute = false;
@@ -205,7 +202,7 @@ class RouteDispatcher
         }
 
         // Include HTTP method in key to allow same-path routes with different methods
-        $routeKey = \strtoupper($method) . ':' . $route;
+        $routeKey = $method . ':' . $route;
         return $this->storeRoute($routeKey, $path, [
             'module' => $module,
             'module_code' => $module->getModuleInfo()->getCode(),
@@ -213,7 +210,7 @@ class RouteDispatcher
             'route' => $route,
             'route_path' => $route,
             'type' => 'standard',
-            'method' => \strtoupper($method),
+            'method' => $method,
             'compiled_regex' => self::compileRouteRegex($route),
             'is_redirect' => $isRedirect,
             'redirect_absolute' => $redirectAbsolute,
@@ -261,14 +258,15 @@ class RouteDispatcher
     public function setLazyRoute(Module $module, string $route, string|Route $path, string $method = '*'): static
     {
         $routePath = '/' . PathUtil::tidy(PathUtil::append($module->getModuleInfo()->getAlias(), $route), true, '/');
-        $routeKey = \strtoupper($method) . ':' . $routePath;
+        $method = self::resolveRouteMethod($path, $method);
+        $routeKey = $method . ':' . $routePath;
         return $this->storeRoute($routeKey, $path, [
             'module' => $module,
             'path' => $path,
             'route' => $route,
             'route_path' => $routePath,
             'type' => 'lazy',
-            'method' => \strtoupper($method),
+            'method' => $method,
         ]);
     }
 
@@ -766,6 +764,15 @@ class RouteDispatcher
         if (!$gateReady) {
             $this->respondNotReady($gateCode, $registry, $siteURL);
         }
+    }
+
+    private static function resolveRouteMethod(mixed $path, string $method): string
+    {
+        if ($path instanceof Route && $path->getMethod() !== '*') {
+            $method = $path->getMethod();
+        }
+
+        return \strtoupper($method);
     }
 
     /**

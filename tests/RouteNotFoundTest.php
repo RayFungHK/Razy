@@ -161,6 +161,7 @@ final class RouteNotFoundTest extends TestCase
         $this->assertSame(['/home/about/team/'], $GLOBALS['rz56_not_found']);
     }
 
+    /** @return array<string, array{string, int}> */
     public static function routeMethodProvider(): array
     {
         return [
@@ -179,15 +180,15 @@ final class RouteNotFoundTest extends TestCase
         $standard = $client->request($method, '/standard-method/');
         $this->assertSame($status, $standard->status());
 
-        foreach (['object-method', 'conflicting-prefix', 'string-prefix', 'wildcard-prefix'] as $path) {
+        $this->assertSame(200, $client->request($method, '/home/about/')->status());
+
+        foreach (['string-prefix', 'wildcard-prefix', 'object-method', 'conflicting-prefix'] as $path) {
             $response = $client->request($method, '/home/' . $path . '/');
             $this->assertSame($standard->status(), $response->status(), $path);
             if ($method === 'POST') {
                 $this->assertSame('about', $response->body(), $path);
             }
         }
-
-        $this->assertSame(200, $client->request($method, '/home/about/')->status());
     }
 
     public function testWithoutAHandlerTheOldAnswerStays(): void
@@ -345,10 +346,10 @@ final class RouteNotFoundTest extends TestCase
                     \$agent->addLazyRoute([
                         'about' => (new \\Razy\\Route('about'))->exact(),
                         'object-method' => (new \\Razy\\Route('about'))->method('Post'),
-                        'GET conflicting-prefix' => (new \\Razy\\Route('about'))->method('Post'),
                         'post string-prefix' => 'about',
                         'post wildcard-prefix' => new \\Razy\\Route('about'),
                     ]);
+                    \$agent->addLazyRoute('GET conflicting-prefix', (new \\Razy\\Route('about'))->method('Post'));
                     return true;
                 }
             {$hook}
