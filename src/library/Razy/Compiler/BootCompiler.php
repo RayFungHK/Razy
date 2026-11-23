@@ -68,7 +68,7 @@ use Throwable;
 final class BootCompiler
 {
     /** Artifact schema + replay-semantics id; bump on ANY shape change. */
-    public const SCHEMA = 'compiled-boot-2';
+    public const SCHEMA = 'compiled-boot-3';
 
     /** env RAZY_COMPILE_TRUST=1 skips the stat fingerprint (pure deploy discipline). */
     private const TRUST_ENV = 'RAZY_COMPILE_TRUST';

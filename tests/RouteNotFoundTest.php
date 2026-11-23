@@ -16,6 +16,7 @@ namespace Razy\Tests;
 
 use LogicException;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Razy\Distributor\RouteDispatcher;
 use Razy\Error\ErrorReporter;
@@ -58,6 +59,18 @@ final class RouteNotFoundTest extends TestCase
         foreach ($this->dists as $dist) {
             $this->removeDir(PathUtil::append(SITES_FOLDER, $dist));
         }
+    }
+
+    /** @return array<string, array{string, int}> */
+    public static function routeMethodProvider(): array
+    {
+        return [
+            'POST' => ['POST', 200],
+            'GET' => ['GET', 404],
+            'HEAD' => ['HEAD', 404],
+            'OPTIONS' => ['OPTIONS', 404],
+            'PUT' => ['PUT', 404],
+        ];
     }
 
     public function testExactRootAnswersItsOwnPath(): void
@@ -158,6 +171,36 @@ final class RouteNotFoundTest extends TestCase
         $response = $this->get(self::DIST, '/home/about/team/');
         $this->assertSame(404, $response->status());
         $this->assertSame(['/home/about/team/'], $GLOBALS['rz56_not_found']);
+    }
+
+    #[DataProvider('routeMethodProvider')]
+    public function testLazyRouteMethodsMatchStandardRoute(string $method, int $status): void
+    {
+        $client = new Client(['/' => self::PLAIN], 'rz56.example.test');
+        $standard = $client->request($method, '/standard-method/');
+        $this->assertSame($status, $standard->status());
+
+        $this->assertSame(200, $client->request($method, '/home/about/')->status());
+
+        foreach (['string-prefix', 'wildcard-prefix', 'object-method', 'conflicting-prefix'] as $path) {
+            $response = $client->request($method, '/home/' . $path . '/');
+            $this->assertSame($standard->status(), $response->status(), $path);
+            if ($method === 'POST') {
+                $this->assertSame('about', $response->body(), $path);
+            }
+        }
+    }
+
+    public function testLazyRoutesWithDifferentDeclaredMethodsShareAPath(): void
+    {
+        $client = new Client(['/' => self::PLAIN], 'rz56.example.test');
+        $get = $client->request('GET', '/home/shared-method-path/');
+        $post = $client->request('POST', '/home/shared-method-path/');
+
+        $this->assertSame(200, $get->status());
+        $this->assertSame('about', $get->body());
+        $this->assertSame(200, $post->status());
+        $this->assertSame('main', $post->body());
     }
 
     public function testWithoutAHandlerTheOldAnswerStays(): void
@@ -306,12 +349,21 @@ final class RouteNotFoundTest extends TestCase
                     \$agent->addRoute([
                         '/' => (new \\Razy\\Route('main'))->exact(),
                         '/pool' => 'pool',
+                        '/standard-method' => (new \\Razy\\Route('about'))->method('Post'),
                         '/chat/(:d)' => 'chat',
                         '/vault' => (new \\Razy\\Route('vault'))->exact()->can('vault.open'),
                     ]);
                     \$agent->identity(fn () => null);
                     \$agent->addAuthzAbility('vault.open', fn () => true);
-                    \$agent->addLazyRoute(['about' => (new \\Razy\\Route('about'))->exact()]);
+                    \$agent->addLazyRoute([
+                        'about' => (new \\Razy\\Route('about'))->exact(),
+                        'object-method' => (new \\Razy\\Route('about'))->method('Post'),
+                        'post string-prefix' => 'about',
+                        'post wildcard-prefix' => new \\Razy\\Route('about'),
+                    ]);
+                    \$agent->addLazyRoute('shared-method-path', (new \\Razy\\Route('about'))->method('GET'));
+                    \$agent->addLazyRoute('shared-method-path', (new \\Razy\\Route('main'))->method('POST'));
+                    \$agent->addLazyRoute('GET conflicting-prefix', (new \\Razy\\Route('about'))->method('Post'));
                     return true;
                 }
             {$hook}
